@@ -51,15 +51,18 @@ else
     INSTALL_TYPE="TRADICIONAL"
 fi
 
-# --- LOADING BAR (checks reais, sem sleep fake) ---
-{
-  steps=("Redes Docker" "Docker Swarm" "Portainer" "Traefik")
-  for i in "${!steps[@]}"; do
-    pct=$(( (i + 1) * 100 / ${#steps[@]} ))
-    echo -e "XXX\n$pct\n$((i+1))/${#steps[@]} - Checando ${steps[$i]}...\nXXX"
-  done
-  echo -e "XXX\n100\nConcluido!\nXXX"
-} | whiptail --title 'CHECANDO SERVIDOR' --gauge "Iniciando..." 6 60 0
+# --- LOADING BAR ---
+for i in $(seq 1 100); do
+    sleep 0.05
+    if [ $i -eq 100 ]; then
+        echo -e "XXX\n100\nConcluido!\nXXX"
+    elif [ $(($i % 25)) -eq 0 ]; then
+        let "phase = $i / 25"
+        echo -e "XXX\n$i\n${phases[phase]}\nXXX"
+    else
+        echo $i
+    fi
+done | whiptail --title 'CHECANDO SERVIDOR' --gauge "${phases[0]}" 6 60 0
 clear
 
 # --- TRIAL ---
@@ -538,10 +541,6 @@ case "$CHOICE" in
         fi
 
         # Confirmar instalacao
-        if ! whiptail --yesno "Deseja instalar ${CHOICE}?" 10 60; then
-            continue
-        fi
-
         # Despachar
         dispatch_app "$CHOICE"
         ;;
