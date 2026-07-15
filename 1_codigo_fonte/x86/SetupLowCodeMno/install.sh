@@ -1,12 +1,18 @@
 #!/usr/bin/bash
 #########################################################
-#
-# CARREGANDO LOADING E CORES
-#
+# SETUP MNO - install.sh (refatorado)
+# Menu unificado com dispatch dinamico para todos os planos
+#########################################################
+
 clear
-amarelo="\e[33m"   # Amarelo
-branco="\e[97m"    # Branco
-reset="\e[0m"      # Reseta
+VERSION="4.20.2"
+CONTATO_WP="+55 (11) 96816-2690"
+CONTATO_EMAIL="francisbreit@gmail.com"
+CONTATO_GITHUB="github.com/francisbreit"
+
+amarelo="\e[33m"
+branco="\e[97m"
+reset="\e[0m"
 
 phases=(
     '1/4 - Checando Networks...'
@@ -16,12 +22,6 @@ phases=(
 )
 
 export NEWT_COLORS='
-#root=,white
-#window=,black
-#border=white,black
-#textbox=white,black
-#button=black,white
-
 root=,white
 border=black,gray
 title=white,gray
@@ -37,14 +37,13 @@ checkbox=green,black
 actcheckbox=white,green
 '
 {
-  tput reset 2>/dev/null         # Reinicia o terminal de forma segura
-  exec 0</dev/tty 1>/dev/tty 2>&1 # Força redirecionamentos explícitos
-  sleep 0.01                     # Pausa microscópica para sincronia
-  clear                          # Limpeza final antes do whiptail
+  tput reset 2>/dev/null
+  exec 0</dev/tty 1>/dev/tty 2>&1
+  sleep 0.01
+  clear
 } || true
 
-
-# VERIFICAR TIPO DE INSTALAÇÃO
+# --- VERIFICAR TIPO DE INSTALACAO ---
 INSTALL_TYPE_FILE="/root/.cloudflared_config/installation_type"
 if [ -f "$INSTALL_TYPE_FILE" ]; then
     INSTALL_TYPE=$(cat "$INSTALL_TYPE_FILE")
@@ -52,122 +51,303 @@ else
     INSTALL_TYPE="TRADICIONAL"
 fi
 
-
-for i in $(seq 1 100); do
-    sleep 0.05
-
-    if [ $i -eq 100 ]; then
-        echo -e "XXX\n100\nConcluido!\nXXX"
-    elif [ $(($i % 25)) -eq 0 ]; then
-        let "phase = $i / 25"
-        echo -e "XXX\n$i\n${phases[phase]}\nXXX"
-    else
-        echo $i
-    fi
-
-done | whiptail --title 'CHECANDO SERVIDOR' --gauge "${phases[0]}" 6 60 0
+# --- LOADING BAR (checks reais, sem sleep fake) ---
+{
+  steps=("Redes Docker" "Docker Swarm" "Portainer" "Traefik")
+  for i in "${!steps[@]}"; do
+    pct=$(( (i + 1) * 100 / ${#steps[@]} ))
+    echo -e "XXX\n$pct\n$((i+1))/${#steps[@]} - Checando ${steps[$i]}...\nXXX"
+  done
+  echo -e "XXX\n100\nConcluido!\nXXX"
+} | whiptail --title 'CHECANDO SERVIDOR' --gauge "Iniciando..." 6 60 0
 clear
-# Diretório e arquivo onde as informações do trial estão armazenadas
+
+# --- TRIAL ---
 TRIAL_DIR="/root/SetupLowCodeMno/.meu_app_trial"
 TRIAL_FILE="$TRIAL_DIR/trial_info"
 
-# Verifica se o arquivo de informações do trial existe
 if [ ! -f "$TRIAL_FILE" ]; then
-    echo "Erro: Arquivo de informações do trial não encontrado. Por favor, reinstale."
+    echo "Erro: Arquivo de informations do trial nao encontrado. Por favor, reinstale."
     exit 1
 fi
 
-# Lê as informações do trial do arquivo
 source "$TRIAL_FILE"
 
-# Recalcula os dias restantes baseado na data atual
 DATA_FORMATADA=$(echo "$DATA_INSTALACAO" | awk -F/ '{print $2 "/" $1 "/" $3}')
 DATA_INSTALACAO_TIMESTAMP=$(date -d "$DATA_FORMATADA" +%s)
 DATA_ATUAL_TIMESTAMP=$(date +%s)
-
 DIFERENCA_SEGUNDOS=$(( DATA_INSTALACAO_TIMESTAMP + 7*86400 - DATA_ATUAL_TIMESTAMP ))
-#DIAS_RESTANTES=$(( DIFERENCA_SEGUNDOS / 86400 ))
 DIAS_RESTANTES=$(( (DIFERENCA_SEGUNDOS / 86400) + 1 ))
+[ "$DIAS_RESTANTES" -lt 0 ] && DIAS_RESTANTES=0
 
-# Garante que não mostre negativo
-if [ "$DIAS_RESTANTES" -lt 0 ]; then
-    DIAS_RESTANTES=0
-fi
+cat > "$TRIAL_FILE" <<EOF
+DATA_INSTALACAO=$DATA_INSTALACAO
+DAYS_TRIAL=$DIAS_RESTANTES
+PLANO="$PLANO"
+EMAIL="$EMAIL"
+SENHA="$SENHA"
+EOF
 
-# Atualiza o arquivo trial_info com os novos dias calculados
-cd
-cd SetupLowCodeMno
-cd .meu_app_trial
-rm trial_info
-#nano trial_info
-
-echo "DATA_INSTALACAO=$DATA_INSTALACAO" > "$TRIAL_FILE"
-echo "DAYS_TRIAL=$DIAS_RESTANTES" >> "$TRIAL_FILE"
-echo "PLANO=\"$PLANO\"" >> "$TRIAL_FILE"
-echo "EMAIL=\"$EMAIL\"" >> "$TRIAL_FILE"
-echo "SENHA=\"$SENHA\"" >> "$TRIAL_FILE"
-
-# FIM DE CARREGANDO LOADING E CORES
-# CHECA SE TEM DOCKER, APPS ESSENCIAS E NETWORK_PUBLIC
+# --- DOCKER CHECKS ---
 if command -v docker > /dev/null 2>&1; then
-network_id_agent_network=$(docker network ls --filter name=agent_network --format "{{.ID}}")
-network_id_externa=$(docker network ls --filter name=externa --format "{{.ID}}")
-network_id_interna=$(docker network ls --filter name=interna --format "{{.ID}}")
-traefik_container=$(docker ps -qf name=traefik)
-portainer_container=$(docker ps -qf name=portainer)
-postgres_container=$(docker ps -qf name=postgres)
-redis_container=$(docker ps -qf name=redis)
-pgbouncer_container=$(docker ps -qf name=pgbouncer)
-
-# CHECA SE EXISTEM APPS LIMITADOS À UMA INSTALAÇÃO APENAS
-langfuse_container=$(docker ps -qf name=langfuse)
-supabase_container=$(docker ps -qf name=supabase)
-dify_container=$(docker ps -qf name=dify)
-mysql_container=$(docker ps -qf name=mysql)
-flowise_container=$(docker ps -qf name=flowise)
-minio_container=$(docker ps -qf name=minio)
-pgadmin4_container=$(docker ps -qf name=pgadmin4)
-pma_container=$(docker ps -qf name=pmadmin)
-zepdb_container=$(docker ps -qf name=zepdb)
-zep_container=$(docker ps -qf name=zep)
-redicommander_container=$(docker ps -qf name=redicommander)
-calcom_container=$(docker ps -qf name=calcom)
+    network_id_agent_network=$(docker network ls --filter name=agent_network --format "{{.ID}}")
+    network_id_externa=$(docker network ls --filter name=externa --format "{{.ID}}")
+    network_id_interna=$(docker network ls --filter name=interna --format "{{.ID}}")
+    traefik_container=$(docker ps -qf name=traefik)
+    portainer_container=$(docker ps -qf name=portainer)
+    postgres_container=$(docker ps -qf name=postgres)
+    redis_container=$(docker ps -qf name=redis)
+    pgbouncer_container=$(docker ps -qf name=pgbouncer)
+    langfuse_container=$(docker ps -qf name=langfuse)
+    supabase_container=$(docker ps -qf name=supabase)
+    dify_container=$(docker ps -qf name=dify)
+    mysql_container=$(docker ps -qf name=mysql)
+    flowise_container=$(docker ps -qf name=flowise)
+    minio_container=$(docker ps -qf name=minio)
+    pgadmin4_container=$(docker ps -qf name=pgadmin4)
+    pma_container=$(docker ps -qf name=pmadmin)
+    zepdb_container=$(docker ps -qf name=zepdb)
+    zep_container=$(docker ps -qf name=zep)
+    redicommander_container=$(docker ps -qf name=redicommander)
+    calcom_container=$(docker ps -qf name=calcom)
 else
-network_id_agent_network=""
-network_id_externa=""
-network_id_interna=""
-traefik_container=""
-portainer_container=""
-postgres_container=""
-redis_container=""
-pgbouncer_container=""
-#mongodb_container=""
-langfuse_container=""
-supabase_container=""
-dify_container=""
-mysql_container=""
-flowise_container=""
-minio_container=""
-pgadmin4_container=""
-pma_container=""
-zepdb_container=""
-zep_container=""
-redicommander_container=""
-calcom_container=""
-
-
+    network_id_agent_network=""
+    network_id_externa=""
+    network_id_interna=""
+    traefik_container=""
+    portainer_container=""
+    postgres_container=""
+    redis_container=""
+    pgbouncer_container=""
+    langfuse_container=""
+    supabase_container=""
+    dify_container=""
+    mysql_container=""
+    flowise_container=""
+    minio_container=""
+    pgadmin4_container=""
+    pma_container=""
+    zepdb_container=""
+    zep_container=""
+    redicommander_container=""
+    calcom_container=""
 fi
 
 if [[ ("$traefik_container" == "") || ("$portainer_container" == "") || ("$postgres_container" == "") || ("$redis_container" == "") || ("$pgbouncer_container" == "") || ("$network_id_agent_network" == "") || ("$network_id_externa" == "") || ("$network_id_interna" == "") ]]; then
-
     clear
-        cd && cd SetupLowCodeMno && ./dockerswarm
+    cd && cd SetupLowCodeMno && ./dockerswarm
     exit 0
 fi
 
-# FIM DE CHECA SE TEM DOCKER
-# MENSAGEM DO MENU
-##
+# --- REGISTRO DE APPS (flat arrays: nome_display -> script) ---
+APP_NAMES=(
+    "AFFINE"
+    "APPSMITH"
+    "AUTOGEN STUDIO"
+    "BASEROW"
+    "BOTPRESS"
+    "CAL.COM"
+    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*"
+    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*"
+    "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*"
+    "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*"
+    "CLICKHOUSE"
+    "COGNEE"
+    "DATABASUS"
+    "DIRECTUS"
+    "DISCOURSE"
+    "DOCUMENSO"
+    "DOCUSEAL"
+    "DOZZLE"
+    "EVOAI"
+    "EVOAI + EVOLUTION 2.0 + MINIO*"
+    "EVOLUTION 1.0 API PADRAO"
+    "EVOLUTION 2.0 API PADRAO"
+    "EVOLUTION CRM"
+    "EVOLUTION GO"
+    "EVO NEXUS"
+    "EXCALIDRAW"
+    "FIRECRAWL"
+    "FLOWISE"
+    "FOCALBOARD"
+    "FORMBRICKS"
+    "GHOST"
+    "GLPI"
+    "GRAFANA/PROMETHEUS MONITOR"
+    "HERMES AGENT"
+    "HUMHUB"
+    "KRAYIN CRM"
+    "LANGFLOW"
+    "LANGFUSE + MINIO + CLICKHOUSE*"
+    "LITELLM"
+    "MATTERMOST"
+    "MATOMO"
+    "MAUTIC 4 PADRAO"
+    "MAUTIC 6 PADRAO"
+    "MAUTIC 7 PADRAO"
+    "MAUTIC 4 WHATSAPP MKT"
+    "MAUTIC 6 WHATSAPP MKT"
+    "MAUTIC 7 WHATSAPP MKT"
+    "MEMGRAPH"
+    "METABASE"
+    "MINIO"
+    "MONGODB"
+    "MYSQL"
+    "N8N V1 - SEM FILA (MAIN)"
+    "N8N V1 - FILA (QUEUE)"
+    "N8N V2 - FILA (QUEUE)"
+    "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS"
+    "NEO4J"
+    "NEXTCLOUD"
+    "NOCODB"
+    "NTFY"
+    "ODOO"
+    "OLLAMA + OPENWEBUI*"
+    "OPENCLAW"
+    "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*"
+    "OPENFANG"
+    "OPEN PROJECT"
+    "PAPERCLIP"
+    "PGADMIN4"
+    "PHPMYADMIN"
+    "QDRANT"
+    "RABBITMQ"
+    "REDIS"
+    "REDIS COMMANDER"
+    "REDISINSIGHT"
+    "SEARXNG"
+    "SHLINK"
+    "STIRLING PDF"
+    "TWENTY CRM"
+    "TYPEBOT"
+    "TYPEBOT + MINIO*"
+    "UPTIMEKUMA"
+    "VAULTWARDEN"
+    "WOOFED CRM"
+    "WORDPRESS"
+    "WUZAP"
+)
+
+APP_SCRIPTS=(
+    "affine"
+    "appsmith"
+    "autogen"
+    "baserow"
+    "botpress"
+    "calcom"
+    "chatwootn_evo2_rabbitmq_redisevo"
+    "chatwootn_evo2_rabbitmq_minio"
+    "chatwooto_evo2_rabbitmq_minio"
+    "chatwootorig_desbloq__evo2_rabbitmq_minio"
+    "clickhouse"
+    "cognee"
+    "databasus"
+    "directus"
+    "discourse"
+    "documenso"
+    "docuseal"
+    "dozzle"
+    "evoai"
+    "evoai_evo2_minio"
+    "evolutionapi"
+    "evolution2api"
+    "evocrm"
+    "evolutiongo"
+    "evonexus"
+    "excalidraw"
+    "firecrawl"
+    "flowise"
+    "focalboard"
+    "formbricks"
+    "ghost"
+    "glpi"
+    "grafana"
+    "hermes"
+    "humhub"
+    "krayincrm"
+    "langflow"
+    "langfuse"
+    "litellm"
+    "mattermost"
+    "matomo"
+    "mauticpadrao"
+    "mautic6padrao"
+    "mautic7padrao"
+    "mautic4whatsmkt"
+    "mautic6whatsmkt"
+    "mautic7whatsmkt"
+    "memgraph"
+    "metabase"
+    "minio"
+    "mongodb"
+    "mysql"
+    "n8nmain"
+    "n8n"
+    "n8n2"
+    "n8n-workflows"
+    "neo4j"
+    "nextcloud"
+    "nocodb"
+    "ntfy"
+    "odoo"
+    "ollama"
+    "openclaw"
+    "openclawpro"
+    "openfang"
+    "openproject"
+    "paperclip"
+    "pgadmin"
+    "pma"
+    "qdrant"
+    "rabbitmq"
+    "redis"
+    "redicommander"
+    "redisinsight"
+    "searxng"
+    "shlink"
+    "stirlingpdf"
+    "twentycrm"
+    "typebot"
+    "typebot_minio"
+    "uptimekuma"
+    "vaultwarden"
+    "woofedcrm"
+    "wordpress"
+    "wuzap"
+)
+
+# Apps restritos ao plano PRO (usado para marcar com tag no menu free)
+PRO_APPS=(
+    "AFFINE" "APPSMITH" "AUTOGEN STUDIO" "BASEROW" "BOTPRESS" "CAL.COM"
+    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*"
+    "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*"
+    "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*"
+    "COGNEE" "DISCOURSE" "DOCUMENSO" "DOCUSEAL" "DOZZLE"
+    "EVOAI + EVOLUTION 2.0 + MINIO*" "EXCALIDRAW" "FIRECRAWL" "FOCALBOARD"
+    "FORMBRICKS" "GHOST" "GLPI" "HERMES AGENT" "HUMHUB" "KRAYIN CRM"
+    "LANGFUSE + MINIO + CLICKHOUSE*" "LITELLM" "MATOMO"
+    "MAUTIC 4 WHATSAPP MKT" "MAUTIC 6 WHATSAPP MKT" "MAUTIC 7 WHATSAPP MKT"
+    "MEMGRAPH" "METABASE" "NEO4J" "NEXTCLOUD" "NOCODB" "NTFY" "ODOO"
+    "OPENCLAW" "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*"
+    "OPENFANG" "OPEN PROJECT" "PAPERCLIP" "PHPMYADMIN" "QDRANT"
+    "RABBITMQ" "REDIS COMMANDER" "REDISINSIGHT" "SEARXNG" "SHLINK"
+    "STIRLING PDF" "TWENTY CRM" "TYPEBOT + MINIO*" "UPTIMEKUMA"
+    "VAULTWARDEN" "WOOFED CRM" "WORDPRESS" "WUZAP"
+)
+
+# --- DISPATCH ---
+dispatch_app() {
+    local choice="$1"
+    for i in "${!APP_NAMES[@]}"; do
+        if [ "$choice" = "${APP_NAMES[$i]}" ]; then
+            clear
+            cd && cd SetupLowCodeMno && ./"${APP_SCRIPTS[$i]}"
+            return
+        fi
+    done
+}
+
+# --- TITULO ---
 export NEWT_COLORS='
 root=,white
 border=black,gray
@@ -184,2577 +364,188 @@ checkbox=green,black
 actcheckbox=white,green
 '
 
-# Defina o título com base no tipo de plano
 if [ "$PLANO" == "trial pro" ]; then
-    TITULO="SETUP MNO v4.20.2 - Plano: $PLANO 7 Dias - Restam: $DIAS_RESTANTES dias"
-elif [ "$PLANO" == "pro" ]; then
-    TITULO="SETUP MNO v4.20.2 - Plano: $PLANO - Instalação: $INSTALL_TYPE"
+    TITULO="SETUP MNO v${VERSION} - Plano: $PLANO 7 Dias - Restam: $DIAS_RESTANTES dias"
 else
-    TITULO="SETUP MNO v4.20.2 - Plano: $PLANO - Instalação: $INSTALL_TYPE"
+    TITULO="SETUP MNO v${VERSION} - Plano: $PLANO - Instalacao: $INSTALL_TYPE"
 fi
-# 65 APPS
 
+# --- APPS JA INSTALADOS (single-instance) ---
+check_already_installed() {
+    local choice="$1"
+    local container_var=""
+    case "$choice" in
+        "MYSQL")                     container_var="$mysql_container" ;;
+        "FLOWISE")                   container_var="$flowise_container" ;;
+        "MINIO")                     container_var="$minio_container" ;;
+        "PGADMIN4")                  container_var="$pgadmin4_container" ;;
+        "PHPMYADMIN")                container_var="$pma_container" ;;
+        "REDIS COMMANDER")           container_var="$redicommander_container" ;;
+        "CAL.COM")                   container_var="$calcom_container" ;;
+        "LANGFUSE + MINIO + CLICKHOUSE*") container_var="$langfuse_container" ;;
+        "ZEP VECTOR STORE")          container_var="${zepdb_container}${zep_container}" ;;
+        "DIFY")                      container_var="$dify_container" ;;
+        "SUPABASE")                  container_var="$supabase_container" ;;
+        *) return 1 ;;
+    esac
+    [ -n "$container_var" ]
+}
+
+# --- VALIDACAO PRO ---
+is_pro_only() {
+    local choice="$1"
+    for p in "${PRO_APPS[@]}"; do
+        [ "$choice" = "$p" ] && return 0
+    done
+    return 1
+}
+
+# --- SAIR ---
+do_exit() {
+    clear
+    echo -e "\033[1;36m"
+    echo "============================================="
+    echo -e "\033[1;33m"
+    echo "  ███╗   ███╗███╗   ██╗ ██████╗"
+    echo "  ████╗ ████║████╗  ██║██╔═══██╗"
+    echo "  ██╔████╔██║██╔██╗ ██║██║   ██║"
+    echo "  ██║╚██╔╝██║██║╚██╗██║██║   ██║"
+    echo "  ██║ ╚═╝ ██║██║ ╚████║╚██████╔╝"
+    echo "  ╚═╝     ╚═╝╚═╝  ╚═══╝ ╚═════╝"
+    echo -e "\033[1;36m"
+    echo "============================================="
+    echo -e "\033[0m"
+    echo -e "\033[1;32m"
+    echo "  SETUP MNO FINALIZADO COM EXITO!"
+    echo "  P/ INICIAR: SEMPRE DIGITE 'setup-mno' NO TERMINAL"
+    echo ""
+    echo -e "   \033[1;35mCOMANDO DE REATIVACAO:\033[1;37m setup-mno"
+    echo -e "   \033[1;35mCANAIS DE SUPORTE:"
+    echo -e "      \033[1;36m* WhatsApp: $CONTATO_WP"
+    echo -e "      \033[1;36m* Email: $CONTATO_EMAIL"
+    echo -e "      \033[1;36m* GitHub: $CONTATO_GITHUB"
+    echo -e "   \033[1;33mSISTEMA PRONTO PARA OPERACAO"
+    echo -e "\033[0m"
+    sleep 1
+    exit 0
+}
+
+# ===================== LOOP PRINCIPAL =====================
 while true; do
-if [[ ! "$PLANO" = *free* ]]; then
 
-CHOICE=$(
-whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do seu teclado e pressione ENTER" 20 70 10 \
-    "AFFINE" "" \
-    "APPSMITH" "" \
-    "AUTOGEN STUDIO" "" \
-    "BASEROW" "" \
-    "BOTPRESS" "" \
-    "CAL.COM" ""  \
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" ""   \
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
-    "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
-    "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
-    "CLICKHOUSE" ""   \
-    "COGNEE" ""   \
-    "DATABASUS" ""   \
-    "DIRECTUS" "" \
-    "DISCOURSE" "" \
-    "DOCUMENSO" "" \
-    "DOCUSEAL" "" \
-    "DOZZLE" "" \
-    "EVOAI" ""  \
-    "EVOAI + EVOLUTION 2.0 + MINIO*" ""  \
-    "EVOLUTION 1.0 API PADRÃO" ""  \
-    "EVOLUTION 2.0 API PADRÃO" ""  \
-    "EVOLUTION CRM" ""  \
-    "EVOLUTION GO" ""  \
-    "EVO NEXUS" ""  \
-    "EXCALIDRAW" "" \
-    "FIRECRAWL" "" \
-    "FLOWISE" "" \
-    "FOCALBOARD" "" \
-    "FORMBRICKS" "" \
-    "GHOST" "" \
-    "GLPI" "" \
-    "GRAFANA/PROMETHEUS MONITOR" ""   \
-    "HERMES AGENT" "" \
-    "HUMHUB" "" \
-    "KRAYIN CRM" "" \
-    "LANGFLOW" "" \
-    "LANGFUSE + MINIO + CLICKHOUSE*" "" \
-    "LITELLM" "" \
-    "MATTERMOST" "" \
-    "MATOMO" "" \
-    "MAUTIC 4 PADRÃO" "" \
-    "MAUTIC 6 PADRÃO" "" \
-    "MAUTIC 7 PADRÃO" "" \
-    "MAUTIC 4 WHATSAPP MKT" "" \
-    "MAUTIC 6 WHATSAPP MKT" "" \
-    "MAUTIC 7 WHATSAPP MKT" "" \
-    "MEMGRAPH" "" \
-    "METABASE" "" \
-    "MINIO" "" \
-    "MONGODB" "" \
-    "MYSQL" "" \
-    "N8N V1 - SEM FILA (MAIN)" "" \
-    "N8N V1 - FILA (QUEUE)" "" \
-    "N8N V2 - FILA (QUEUE)" "" \
-    "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "" \
-    "NEMOCLAW" "EM BREVE" \
-    "NEO4J" "" \
-    "NEXTCLOUD" "" \
-    "NOCODB" "" \
-    "NTFY" "" \
-    "ODOO" "" \
-    "OLLAMA + OPENWEBUI*" "" \
-    "OPENCLAW" "" \
-    "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "" \
-    "OPENFANG" "" \
-    "OPEN PROJECT" "" \
-    "PAPERCLIP" "" \
-    "PGADMIN4" "" \
-    "PHPMYADMIN" "" \
-    "QDRANT" "" \
-    "RABBITMQ" "" \
-    "REDIS" "" \
-    "REDIS COMMANDER" "" \
-    "REDISINSIGHT" "" \
-    "SEARXNG" "" \
-    "SHLINK" "" \
-    "STIRLING PDF" "" \
-    "TWENTY CRM" "" \
-    "TYPEBOT" "" \
-    "TYPEBOT + MINIO*" "" \
-    "UPTIMEKUMA" "" \
-    "VAULTWARDEN" "" \
-    "WOOFED CRM" "" \
-    "WORDPRESS" "" \
-    "WUZAP" "" \
-    "REINICIAR APPS/SERVIÇOS" "" \
-    "DELETAR APPS/STACKS" "" \
-    "GERADOR DE REGISTROS DNS" "" \
-    "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
-    "SAIR" ""  3>&2 2>&1 1>&3
+# --- MONTAR MENU ---
+MENU_ITEMS=()
+for i in "${!APP_NAMES[@]}"; do
+    app="${APP_NAMES[$i]}"
+    if [[ "$PLANO" = *free* ]]; then
+        tag=""
+        for p in "${PRO_APPS[@]}"; do
+            [ "$app" = "$p" ] && tag="PRO" && break
+        done
+        MENU_ITEMS+=("$app" "$tag")
+    else
+        MENU_ITEMS+=("$app" "")
+    fi
+done
+
+# Itens de utilidade (sempre disponiveis)
+MENU_ITEMS+=(
+    "-------- UTILITARIOS --------" ""
+    "REINICIAR APPS/SERVICOS" ""
+    "DELETAR APPS/STACKS" ""
+    "GERADOR DE REGISTROS DNS" ""
+    "ESSENCIAIS EDITAVEIS NO PORTAINER" ""
+    "SAIR" ""
 )
 
-case $CHOICE in
+CHOICE=$(
+whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 24 78 16 \
+    "${MENU_ITEMS[@]}" 3>&2 2>&1 1>&3
+)
 
-  "AFFINE")
-                clear
-        cd && cd SetupLowCodeMno && ./affine
-        ;;
+# Sair do whiptail (ESC/CANCEL)
+[ -z "$CHOICE" ] && do_exit
 
-    "APPSMITH")
-          clear
-        cd && cd SetupLowCodeMno && ./appsmith
-    ;;
+case "$CHOICE" in
 
-     "AUTOGEN STUDIO")
-          clear
-        cd && cd SetupLowCodeMno && ./autogen
-    ;;
-
-    "BASEROW")
-                clear
-        cd && cd SetupLowCodeMno && ./baserow
-    ;;
-
-    "BOTPRESS")
-                clear
-        cd && cd SetupLowCodeMno && ./botpress
-    ;;
-
-     "CAL.COM")
-              clear
-        cd && cd SetupLowCodeMno && ./calcom
-    ;;
-
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")
-                clear
-        cd && cd SetupLowCodeMno && ./chatwootn_evo2_rabbitmq_redisevo
-        ;;
-
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")
-                clear
-        cd && cd SetupLowCodeMno && ./chatwootn_evo2_rabbitmq_minio
-        ;;
-
-    "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")
-                clear
-        cd && cd SetupLowCodeMno && ./chatwooto_evo2_rabbitmq_minio
-        ;;
-
-    "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")
-                clear
-        cd && cd SetupLowCodeMno && ./chatwootorig_desbloq__evo2_rabbitmq_minio
-        ;;
-
-    "CLICKHOUSE")
-             clear
-        cd && cd SetupLowCodeMno && ./clickhouse
-    ;;
-
-    "COGNEE")
-             clear
-        cd && cd SetupLowCodeMno && ./cognee
-    ;;
-
-    "DATABASUS")
-             clear
-        cd && cd SetupLowCodeMno && ./databasus
-    ;;
-
-    "DIRECTUS")
-                clear
-        cd && cd SetupLowCodeMno && ./directus
-        ;;
-
-    "DISCOURSE")
-                clear
-        cd && cd SetupLowCodeMno && ./discourse
-        ;;
-
-    "DOCUMENSO")
-                clear
-        cd && cd SetupLowCodeMno && ./documenso
-        ;;
-
-    "DOCUSEAL")
-                clear
-        cd && cd SetupLowCodeMno && ./docuseal
-        ;;
-
-    "DOZZLE")
-                clear
-        cd && cd SetupLowCodeMno && ./dozzle
-        ;;
-
-    "EVOAI")
-              clear
-        cd && cd SetupLowCodeMno && ./evoai
-        ;;
-
-    "EVOAI + EVOLUTION 2.0 + MINIO*")
-              clear
-        cd && cd SetupLowCodeMno && ./evoai_evo2_minio
-        ;;
-
-    "EVOLUTION 1.0 API PADRÃO")
-            clear
-        cd && cd SetupLowCodeMno && ./evolutionapi
-        ;;
-
-    "EVOLUTION 2.0 API PADRÃO")
-              clear
-        cd && cd SetupLowCodeMno && ./evolution2api
-        ;;
-
-    "EVOLUTION CRM")
-              clear
-        cd && cd SetupLowCodeMno && ./evocrm
-        ;;
-
-    "EVOLUTION GO")
-              clear
-        cd && cd SetupLowCodeMno && ./evolutiongo
-        ;;
-
-    "EVO NEXUS")
-              clear
-        cd && cd SetupLowCodeMno && ./evonexus
-        ;;
-
-
-    "EXCALIDRAW")
-                clear
-        cd && cd SetupLowCodeMno && ./excalidraw
-        ;;
-
-    "FIRECRAWL")
-                clear
-        cd && cd SetupLowCodeMno && ./firecrawl
-        ;;
-
-    "FLOWISE")
-                 if [[ ("$flowise_container" != "") ]];
-    then
-                clear
-    else
+    # --- UTILITARIOS ---
+    "REINICIAR APPS/SERVICOS")
         clear
-        cd && cd SetupLowCodeMno && ./flowise
-    fi
-    ;;
-
-    "FOCALBOARD")
-                clear
-        cd && cd SetupLowCodeMno && ./focalboard
-        ;;
-
-    "FORMBRICKS")
-                clear
-        cd && cd SetupLowCodeMno && ./formbricks
-        ;;
-
-    "GHOST")
-                clear
-        cd && cd SetupLowCodeMno && ./ghost
-        ;;
-
-    "GLPI")
-                clear
-        cd && cd SetupLowCodeMno && ./glpi
-        ;;
-
-    "GRAFANA/PROMETHEUS MONITOR")
-                clear
-        cd && cd SetupLowCodeMno && ./grafana
-        ;;
-
-    "HERMES AGENT")
-                clear
-        cd && cd SetupLowCodeMno && ./hermes
-        ;;
-
-    "HUMHUB")
-                clear
-        cd && cd SetupLowCodeMno && ./humhub
-        ;;
-
-    "KRAYIN CRM")
-                clear
-        cd && cd SetupLowCodeMno && ./krayincrm
-        ;;
-
-    "LANGFLOW")
-             clear
-        cd && cd SetupLowCodeMno && ./langflow
-    ;;
-
-    "LANGFUSE + MINIO + CLICKHOUSE*")
-             clear
-        cd && cd SetupLowCodeMno && ./langfuse
-    ;;
-
-    "LITELLM")
-             clear
-        cd && cd SetupLowCodeMno && ./litellm
-    ;;
-
-    "MATTERMOST")
-                clear
-        cd && cd SetupLowCodeMno && ./mattermost
-        ;;
-
-    "MATOMO")
-                clear
-        cd && cd SetupLowCodeMno && ./matomo
-        ;;
-
-    "MAUTIC 4 PADRÃO")
-                clear
-        cd && cd SetupLowCodeMno && ./mauticpadrao
-    ;;
-
-
-    "MAUTIC 6 PADRÃO")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic6padrao
-    ;;
-
-    "MAUTIC 4 WHATSAPP MKT")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic4whatsmkt
-    ;;
-
-    "MAUTIC 6 WHATSAPP MKT")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic6whatsmkt
-    ;;
-
-    "MAUTIC 7 PADRÃO")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic7padrao
-    ;;
-
-    "MAUTIC 7 WHATSAPP MKT")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic7whatsmkt
-    ;;
-
-    "MEMGRAPH")
-                clear
-        cd && cd SetupLowCodeMno && ./memgraph
-    ;;
-
-    "METABASE")
-                clear
-        cd && cd SetupLowCodeMno && ./metabase
-    ;;
-
-     "MINIO")
-        if [[ ("$minio_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./minio
-    fi
-    ;;
-
-    "MONGODB")
-                clear
-        cd && cd SetupLowCodeMno && ./mongodb
-    ;;
-
-    "MYSQL")
-    if [[ ("$mysql_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./mysql
-    fi
-    ;;
-
-    "N8N V1 - SEM FILA (MAIN)")
-            clear
-        cd && cd SetupLowCodeMno && ./n8nmain
-    ;;
-
-    "N8N V1 - FILA (QUEUE)")
-            clear
-        cd && cd SetupLowCodeMno && ./n8n
-    ;;
-
-    "N8N V2 - FILA (QUEUE)")
-            clear
-        cd && cd SetupLowCodeMno && ./n8n2
-    ;;
-
-    "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")
-            clear
-        cd && cd SetupLowCodeMno && ./n8n-workflows
-    ;;
-
-    "NEO4J")
-            clear
-        cd && cd SetupLowCodeMno && ./neo4j
-    ;;
-
-    "NEXTCLOUD")
-            clear
-        cd && cd SetupLowCodeMno && ./nextcloud
-    ;;
-
-    "NOCODB")
-                clear
-        cd && cd SetupLowCodeMno && ./nocodb
-    ;;
-
-    "NTFY")
-                clear
-        cd && cd SetupLowCodeMno && ./ntfy
-    ;;
-
-    "ODOO")
-                clear
-        cd && cd SetupLowCodeMno && ./odoo
-    ;;
-
-    "OLLAMA + OPENWEBUI*")
-                clear
-        cd && cd SetupLowCodeMno && ./ollama
-    ;;
-
-    "OPENCLAW")
-                clear
-        cd && cd SetupLowCodeMno && ./openclaw
-    ;;
-
-    "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")
-                clear
-        cd && cd SetupLowCodeMno && ./openclawpro
-    ;;
-
-    "OPENFANG")
-                clear
-        cd && cd SetupLowCodeMno && ./openfang
-    ;;
-
-    "OPEN PROJECT")
-                clear
-        cd && cd SetupLowCodeMno && ./openproject
-    ;;
-
-    "PAPERCLIP")
-                clear
-        cd && cd SetupLowCodeMno && ./paperclip
-    ;;
-
-    "PGADMIN4")
-                if [[ ("$pgadmin4_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./pgadmin
-    fi
-    ;;
-
-    "PHPMYADMIN")
-    if [[ ("$pma_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./pma
-    fi
-    ;;
-
-    "QDRANT")
-        clear
-        cd && cd SetupLowCodeMno && ./qdrant
-    ;;
-
-    "RABBITMQ")
-                clear
-        cd && cd SetupLowCodeMno && ./rabbitmq
-    ;;
-
-    "REDIS")
-                clear
-        cd && cd SetupLowCodeMno && ./redis
-    ;;
-
-    "REDIS COMMANDER")
-    if [[ ("$redicommander_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./redicommander
-    fi
-    ;;
-
-    "REDISINSIGHT")
-                clear
-        cd && cd SetupLowCodeMno && ./redisinsight
-    ;;
-
-    "SEARXNG")
-                clear
-        cd && cd SetupLowCodeMno && ./searxng
-    ;;
-
-    "SHLINK")
-                clear
-        cd && cd SetupLowCodeMno && ./shlink
-    ;;
-
-    "STIRLING PDF")
-                clear
-        cd && cd SetupLowCodeMno && ./stirlingpdf
-    ;;
-
-    "TWENTY CRM")
-            clear
-        cd && cd SetupLowCodeMno && ./twentycrm
-    ;;
-
-    "TYPEBOT")
-            clear
-        cd && cd SetupLowCodeMno && ./typebot
-    ;;
-
-    "TYPEBOT + MINIO*")
-            clear
-        cd && cd SetupLowCodeMno && ./typebot_minio
-    ;;
-
-     "UPTIMEKUMA")
-                clear
-        cd && cd SetupLowCodeMno && ./uptimekuma
-    ;;
-
-    "VAULTWARDEN")
-                clear
-        cd && cd SetupLowCodeMno && ./vaultwarden
-    ;;
-
-    "WOOFED CRM")
-                clear
-        cd && cd SetupLowCodeMno && ./woofedcrm
-    ;;
-
-    "WORDPRESS")
-                clear
-        cd && cd SetupLowCodeMno && ./wordpress
-    ;;
-
-    "WUZAP")
-                clear
-        cd && cd SetupLowCodeMno && ./wuzap
-    ;;
-
-     "REINICIAR APPS/SERVIÇOS")
-                clear
         cd && cd SetupLowCodeMno && ./restartservice
         ;;
+
     "DELETAR APPS/STACKS")
-                clear
+        clear
         cd && cd SetupLowCodeMno && ./uninstall
         ;;
 
     "GERADOR DE REGISTROS DNS")
-          clear
+        clear
         cd && cd SetupLowCodeMno && ./geracloudflare
-    ;;
+        ;;
 
-    "ESSENCIAIS EDITÁVEIS NO PORTAINER")
-          clear
+    "ESSENCIAIS EDITAVEIS NO PORTAINER")
+        clear
         cd && cd SetupLowCodeMno && ./essenciais
-    ;;
+        ;;
 
- "SAIR")
-    clear
-    echo -e "\033[1;36m"
-    echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-    echo -e "\033[1;33m"
-    echo "  ███╗   ███╗███╗   ██╗ ██████╗"
-    echo "  ████╗ ████║████╗  ██║██╔═══██╗"
-    echo "  ██╔████╔██║██╔██╗ ██║██║   ██║"
-    echo "  ██║╚██╔╝██║██║╚██╗██║██║   ██║"
-    echo "  ██║ ╚═╝ ██║██║ ╚████║╚██████╔╝"
-    echo "  ╚═╝     ╚═╝╚═╝  ╚═══╝ ╚═════╝"
-    echo -e "\033[1;36m"
-    echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-    echo -e "\033[0m"
+    "SAIR")
+        do_exit
+        ;;
 
-    # Efeito de digitação
-    type_effect() {
-        text=$1
-        for (( i=0; i<${#text}; i++ )); do
-            echo -n "${text:$i:1}"
-            sleep 0.03
-        done
-        echo ""
-    }
-    echo -e "\033[1;32m"
-    echo -n " ➤ "
-    type_effect "SETUP MNO FINALIZADO COM ÊXITO!"
-    echo -n " ➤ "
-    type_effect "P/ INICIAR: SEMPRE DIGITE 'setup-mno' NO TERMINAL"
-    echo "┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫"
-    echo -e "   \033[1;35m🚀 COMANDO DE REATIVAÇÃO:\033[1;37m setup-mno\033[1;32m         "
-    echo -e "   \033[1;35m📡 CANAIS DE SUPORTE:\033[1;32m                                 "
-    echo -e "      \033[1;36m● WhatsApp: +55 (11) 96816-2690\033[1;32m                    "
-    echo -e "      \033[1;36m● Email: francisbreit@gmail.com\033[1;32m                    "
-    echo -e "      \033[1;36m● GitHub: github.com/francisbreit\033[1;32m                  "
-    echo -e "   \033[1;33m⚠️  SISTEMA PRONTO PARA OPERAÇÃO \033[1;32m                     "
-    # Efeito de loading final
-    echo -e "\033[1;35m"
-    echo -n "  INICIANDO SEQUÊNCIA DE SAÍDA "
-    for i in {1..10}; do
-        echo -n "●"
-        sleep 0.2
-    done
-    echo ""
-    echo -e "\033[1;32m  ✅ SISTEMA ENCERRADO - ATÉ A PRÓXIMA!\033[0m"
+    # --- SEPARADOR (ignorar) ---
+    "-------- UTILITARIOS --------")
+        ;;
 
-    cd /
-    cd
-    sleep 3
-    $SHELL
-    ;;
+    # --- APPS (dispatch dinamico) *)
+    *)
+        # Ja instalado?
+        if check_already_installed "$CHOICE"; then
+            whiptail --msgbox "Aviso: ${CHOICE} ja esta instalado. Nao e permitido instalar mais de uma instancia.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
+            continue
+        fi
+
+        # Somente free: bloquear PRO
+        if [[ "$PLANO" == "free" ]] && is_pro_only "$CHOICE"; then
+            whiptail --msgbox "A ferramenta ${CHOICE} nao esta disponivel no plano free.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
+            continue
+        fi
+
+        # free1: so permite apps da whitelist
+        if [ "$PLANO" == "free1" ]; then
+            allowed=false
+            case "$CHOICE" in
+                "DATABASUS"|"EVOLUTION 2.0 API PADRAO"|"N8N V1 - SEM FILA (MAIN)"|"N8N V1 - FILA (QUEUE)"|"N8N V2 - FILA (QUEUE)"|"PGADMIN4"|"MINIO"|"REDIS"|"EVOLUTION CRM"|"EVOLUTION GO"|"EVO NEXUS")
+                    allowed=true ;;
+            esac
+            if ! $allowed; then
+                whiptail --msgbox "A ferramenta ${CHOICE} nao esta disponivel no plano free1.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
+                continue
+            fi
+        fi
+
+        # free2: so permite apps da whitelist
+        if [ "$PLANO" == "free2" ]; then
+            allowed=false
+            case "$CHOICE" in
+                "OPENCLAW"|"EVOLUTION 2.0 API PADRAO"|"N8N V1 - SEM FILA (MAIN)"|"N8N V1 - FILA (QUEUE)"|"N8N V2 - FILA (QUEUE)"|"PGADMIN4"|"MINIO"|"REDIS"|"EVOLUTION CRM"|"EVOLUTION GO"|"EVO NEXUS")
+                    allowed=true ;;
+            esac
+            if ! $allowed; then
+                whiptail --msgbox "A ferramenta ${CHOICE} nao esta disponivel no plano free2.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
+                continue
+            fi
+        fi
+
+        # Confirmar instalacao
+        if ! whiptail --yesno "Deseja instalar ${CHOICE}?" 10 60; then
+            continue
+        fi
+
+        # Despachar
+        dispatch_app "$CHOICE"
+        ;;
+
 esac
-fi
-if [ "$PLANO" == "free" ]; then
-CHOICE=$(
-whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do seu teclado e pressione ENTER" 20 70 10 \
-    "AFFINE" "PRO" \
-    "APPSMITH" "PRO" \
-    "AUTOGEN STUDIO" "PRO" \
-    "BASEROW" "PRO" \
-    "BOTPRESS" "PRO" \
-    "CAL.COM" "PRO"  \
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" ""   \
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
-    "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
-    "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
-    "CLICKHOUSE" ""   \
-    "COGNEE" "PRO"   \
-    "DATABASUS" ""   \
-    "DIRECTUS" "" \
-    "DISCOURSE" "PRO" \
-    "DOCUMENSO" "PRO" \
-    "DOCUSEAL" "PRO" \
-    "DOZZLE" "PRO" \
-    "EVOAI" ""  \
-    "EVOAI + EVOLUTION 2.0 + MINIO*" "PRO"  \
-    "EVOLUTION 1.0 API PADRÃO" ""  \
-    "EVOLUTION 2.0 API PADRÃO" ""  \
-    "EVOLUTION CRM" ""  \
-    "EVOLUTION GO" ""  \
-    "EVO NEXUS" ""  \
-    "EXCALIDRAW" "" \
-    "FIRECRAWL" "" \
-    "FLOWISE" "" \
-    "FOCALBOARD" "" \
-    "FORMBRICKS" "" \
-    "GHOST" "PRO" \
-    "GLPI" "" \
-    "GRAFANA/PROMETHEUS MONITOR" ""   \
-    "HERMES AGENT" "PRO" \
-    "HUMHUB" "PRO" \
-    "KRAYIN CRM" "PRO" \
-    "LANGFLOW" "" \
-    "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
-    "LITELLM" "PRO" \
-    "MATTERMOST" "" \
-    "MATOMO" "PRO" \
-    "MAUTIC 4 PADRÃO" "" \
-    "MAUTIC 6 PADRÃO" "" \
-    "MAUTIC 7 PADRÃO" "" \
-    "MAUTIC 4 WHATSAPP MKT" "PRO" \
-    "MAUTIC 6 WHATSAPP MKT" "PRO" \
-    "MAUTIC 7 WHATSAPP MKT" "PRO" \
-    "MEMGRAPH" "PRO" \
-    "METABASE" "" \
-    "MINIO" "" \
-    "MONGODB" "" \
-    "MYSQL" "" \
-    "N8N V1 - SEM FILA (MAIN)" "" \
-    "N8N V1 - FILA (QUEUE)" "" \
-    "N8N V2 - FILA (QUEUE)" "" \
-    "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "" \
-    "NEMOCLAW" "EM BREVE" \
-    "NEO4J" "PRO" \
-    "NEXTCLOUD" "PRO" \
-    "NOCODB" "" \
-    "NTFY" "" \
-    "ODOO" "" \
-    "OLLAMA + OPENWEBUI*" "" \
-    "OPENCLAW" "PRO" \
-    "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
-    "OPENFANG" "PRO" \
-    "OPEN PROJECT" "PRO" \
-    "PAPERCLIP" "PRO" \
-    "PGADMIN4" "" \
-    "PHPMYADMIN" "" \
-    "QDRANT" "" \
-    "RABBITMQ" "" \
-    "REDIS" "" \
-    "REDIS COMMANDER" "" \
-    "REDISINSIGHT" "" \
-    "SEARXNG" "PRO" \
-    "SHLINK" "" \
-    "STIRLING PDF" "" \
-    "TWENTY  CRM" "PRO" \
-    "TYPEBOT" "" \
-    "TYPEBOT + MINIO*" "PRO" \
-    "UPTIMEKUMA" "" \
-    "VAULTWARDEN" "" \
-    "WOOFED CRM" "" \
-    "WORDPRESS" "" \
-    "WUZAP" "" \
-    "REINICIAR APPS/SERVIÇOS" "" \
-    "DELETAR APPS/STACKS" "" \
-    "GERADOR DE REGISTROS DNS" "" \
-    "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
-        "SAIR" ""  3>&2 2>&1 1>&3
-)
-
-case $CHOICE in
-
-  "AFFINE")
-                clear
-        cd && cd SetupLowCodeMno && ./affine
-        ;;
-
-    "APPSMITH")
-          clear
-        cd && cd SetupLowCodeMno && ./appsmith
-    ;;
-
-     "AUTOGEN STUDIO")
-          clear
-        cd && cd SetupLowCodeMno && ./autogen
-    ;;
-
-    "BASEROW")
-                clear
-        cd && cd SetupLowCodeMno && ./baserow
-    ;;
-
-    "BOTPRESS")
-                clear
-        cd && cd SetupLowCodeMno && ./botpress
-    ;;
-
-     "CAL.COM")
-              clear
-        cd && cd SetupLowCodeMno && ./calcom
-    ;;
-
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")
-                clear
-        cd && cd SetupLowCodeMno && ./chatwootn_evo2_rabbitmq_redisevo
-        ;;
-
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")
-                clear
-        cd && cd SetupLowCodeMno && ./chatwootn_evo2_rabbitmq_minio
-        ;;
-
-    "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")
-                clear
-        cd && cd SetupLowCodeMno && ./chatwooto_evo2_rabbitmq_minio
-        ;;
-
-    "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")
-                clear
-        cd && cd SetupLowCodeMno && ./chatwootorig_desbloq__evo2_rabbitmq_minio
-        ;;
-
-    "CLICKHOUSE")
-             clear
-        cd && cd SetupLowCodeMno && ./clickhouse
-    ;;
-
-    "COGNEE")
-             clear
-        cd && cd SetupLowCodeMno && ./cognee
-    ;;
-
-    "DATABASUS")
-             clear
-        cd && cd SetupLowCodeMno && ./databasus
-    ;;
-
-    "DIRECTUS")
-                clear
-        cd && cd SetupLowCodeMno && ./directus
-        ;;
-
-    "DISCOURSE")
-                clear
-        cd && cd SetupLowCodeMno && ./discourse
-        ;;
-
-    "DOCUMENSO")
-                clear
-        cd && cd SetupLowCodeMno && ./documenso
-        ;;
-
-    "DOCUSEAL")
-                clear
-        cd && cd SetupLowCodeMno && ./docuseal
-        ;;
-
-    "DOZZLE")
-                clear
-        cd && cd SetupLowCodeMno && ./dozzle
-        ;;
-
-    "EVOAI")
-              clear
-        cd && cd SetupLowCodeMno && ./evoai
-        ;;
-
-    "EVOAI + EVOLUTION 2.0 + MINIO*")
-              clear
-        cd && cd SetupLowCodeMno && ./evoai_evo2_minio
-        ;;
-
-    "EVOLUTION 1.0 API PADRÃO")
-            clear
-        cd && cd SetupLowCodeMno && ./evolutionapi
-        ;;
-
-    "EVOLUTION 2.0 API PADRÃO")
-              clear
-        cd && cd SetupLowCodeMno && ./evolution2api
-        ;;
-
-    "EVOLUTION CRM")
-              clear
-        cd && cd SetupLowCodeMno && ./evocrm
-        ;;
-
-    "EVOLUTION GO")
-              clear
-        cd && cd SetupLowCodeMno && ./evolutiongo
-        ;;
-
-    "EVO NEXUS")
-              clear
-        cd && cd SetupLowCodeMno && ./evonexus
-        ;;
-
-    "EXCALIDRAW")
-                clear
-        cd && cd SetupLowCodeMno && ./excalidraw
-        ;;
-
-    "FIRECRAWL")
-                clear
-        cd && cd SetupLowCodeMno && ./firecrawl
-        ;;
-
-    "FLOWISE")
-                 if [[ ("$flowise_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./flowise
-    fi
-    ;;
-
-    "FOCALBOARD")
-                clear
-        cd && cd SetupLowCodeMno && ./focalboard
-        ;;
-
-    "FORMBRICKS")
-                clear
-        cd && cd SetupLowCodeMno && ./formbricks
-        ;;
-
-    "GHOST")
-                clear
-        cd && cd SetupLowCodeMno && ./ghost
-        ;;
-
-
-    "GLPI")
-                clear
-        cd && cd SetupLowCodeMno && ./glpi
-        ;;
-
-    "GRAFANA/PROMETHEUS MONITOR")
-                clear
-        cd && cd SetupLowCodeMno && ./grafana
-        ;;
-
-    "HERMES AGENT")
-                clear
-        cd && cd SetupLowCodeMno && ./hermes
-        ;;
-
-    "HUMHUB")
-                clear
-        cd && cd SetupLowCodeMno && ./humhub
-        ;;
-
-    "KRAYIN CRM")
-                clear
-        cd && cd SetupLowCodeMno && ./krayincrm
-        ;;
-
-    "LANGFLOW")
-             clear
-        cd && cd SetupLowCodeMno && ./langflow
-    ;;
-
-    "LANGFUSE + MINIO + CLICKHOUSE*")
-             clear
-        cd && cd SetupLowCodeMno && ./langfuse
-    ;;
-
-    "LITELLM")
-             clear
-        cd && cd SetupLowCodeMno && ./litellm
-    ;;
-
-    "MATTERMOST")
-                clear
-        cd && cd SetupLowCodeMno && ./mattermost
-        ;;
-
-    "MATOMO")
-                clear
-        cd && cd SetupLowCodeMno && ./matomo
-        ;;
-
-    "MAUTIC 4 PADRÃO")
-                clear
-        cd && cd SetupLowCodeMno && ./mauticpadrao
-    ;;
-
-    "MAUTIC 6 PADRÃO")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic6padrao
-    ;;
-
-    "MAUTIC 4 WHATSAPP MKT")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic4whatsmkt
-    ;;
-
-    "MAUTIC 6 WHATSAPP MKT")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic6whatsmkt
-    ;;
-
-    "MAUTIC 7 PADRÃO")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic7padrao
-    ;;
-
-    "MAUTIC 7 WHATSAPP MKT")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic7whatsmkt
-    ;;  
-
-    "MEMGRAPH")
-                clear
-        cd && cd SetupLowCodeMno && ./memgraph
-    ;;
-
-    "METABASE")
-                clear
-        cd && cd SetupLowCodeMno && ./metabase
-    ;;
-
-     "MINIO")
-        if [[ ("$minio_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./minio
-    fi
-    ;;
-
-    "MONGODB")
-                clear
-        cd && cd SetupLowCodeMno && ./mongodb
-    ;;
-
-    "MYSQL")
-    if [[ ("$mysql_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./mysql
-    fi
-    ;;
-
-    "N8N V1 - SEM FILA (MAIN)")
-            clear
-        cd && cd SetupLowCodeMno && ./n8nmain
-    ;;
-
-    "N8N V1 - FILA (QUEUE)")
-            clear
-        cd && cd SetupLowCodeMno && ./n8n
-    ;;
-
-    "N8N V2 - FILA (QUEUE)")
-            clear
-        cd && cd SetupLowCodeMno && ./n8n2
-    ;;
-
-    "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")
-            clear
-        cd && cd SetupLowCodeMno && ./n8n-workflows
-    ;;
-
-    "NEO4J")
-            clear
-        cd && cd SetupLowCodeMno && ./neo4j
-    ;;
-
-    "NEXTCLOUD")
-            clear
-        cd && cd SetupLowCodeMno && ./nextcloud
-    ;;
-
-    "NOCODB")
-                clear
-        cd && cd SetupLowCodeMno && ./nocodb
-    ;;
-
-    "NTFY")
-                clear
-        cd && cd SetupLowCodeMno && ./ntfy
-    ;;
-
-    "ODOO")
-                clear
-        cd && cd SetupLowCodeMno && ./odoo
-    ;;
-
-    "OLLAMA + OPENWEBUI*")
-                clear
-        cd && cd SetupLowCodeMno && ./ollama
-    ;;
-
-    "OPENCLAW")
-                clear
-        cd && cd SetupLowCodeMno && ./openclaw
-    ;;
-
-    "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")
-                clear
-        cd && cd SetupLowCodeMno && ./openclawpro
-    ;;
-
-    "OPENFANG")
-                clear
-        cd && cd SetupLowCodeMno && ./openfang
-    ;;
-
-    "OPEN PROJECT")
-                clear
-        cd && cd SetupLowCodeMno && ./openproject
-    ;;
-
-    "PAPERCLIP")
-                clear
-        cd && cd SetupLowCodeMno && ./paperclip
-    ;;
-
-    "PGADMIN4")
-                if [[ ("$pgadmin4_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./pgadmin
-    fi
-    ;;
-
-    "PHPMYADMIN")
-    if [[ ("$pma_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./pma
-    fi
-    ;;
-
-    "QDRANT")
-        clear
-        cd && cd SetupLowCodeMno && ./qdrant
-    ;;
-
-    "RABBITMQ")
-                clear
-        cd && cd SetupLowCodeMno && ./rabbitmq
-    ;;
-
-    "REDIS")
-                clear
-        cd && cd SetupLowCodeMno && ./redis
-    ;;
-
-    "REDIS COMMANDER")
-    if [[ ("$redicommander_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./redicommander
-    fi
-    ;;
-
-    "REDISINSIGHT")
-                clear
-        cd && cd SetupLowCodeMno && ./redisinsight
-    ;;
-
-    "SEARXNG")
-                clear
-        cd && cd SetupLowCodeMno && ./searxng
-    ;;
-
-    "SHLINK")
-                clear
-        cd && cd SetupLowCodeMno && ./shlink
-    ;;
-
-    "STIRLING PDF")
-                clear
-        cd && cd SetupLowCodeMno && ./stirlingpdf
-    ;;
-
-    "TWENTY CRM")
-            clear
-        cd && cd SetupLowCodeMno && ./twentycrm
-    ;;
-
-    "TYPEBOT")
-            clear
-        cd && cd SetupLowCodeMno && ./typebot
-    ;;
-
-    "TYPEBOT + MINIO*")
-            clear
-        cd && cd SetupLowCodeMno && ./typebot_minio
-    ;;
-
-     "UPTIMEKUMA")
-                clear
-        cd && cd SetupLowCodeMno && ./uptimekuma
-    ;;
-
-    "VAULTWARDEN")
-                clear
-        cd && cd SetupLowCodeMno && ./vaultwarden
-    ;;
-
-    "WOOFED CRM")
-                clear
-        cd && cd SetupLowCodeMno && ./woofedcrm
-    ;;
-
-    "WORDPRESS")
-                clear
-        cd && cd SetupLowCodeMno && ./wordpress
-    ;;
-
-    "WUZAP")
-                clear
-        cd && cd SetupLowCodeMno && ./wuzap
-    ;;
-
-     "REINICIAR APPS/SERVIÇOS")
-                clear
-        cd && cd SetupLowCodeMno && ./restartservice
-        ;;
-    "DELETAR APPS/STACKS")
-                clear
-        cd && cd SetupLowCodeMno && ./uninstall
-        ;;
-
-    "GERADOR DE REGISTROS DNS")
-          clear
-        cd && cd SetupLowCodeMno && ./geracloudflare
-    ;;
-
-    "ESSENCIAIS EDITÁVEIS NO PORTAINER")
-          clear
-        cd && cd SetupLowCodeMno && ./essenciais
-    ;;
-
-"SAIR")
-    clear
-    echo -e "\033[1;36m"
-    echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-    echo -e "\033[1;33m"
-    echo "  ███╗   ███╗███╗   ██╗ ██████╗"
-    echo "  ████╗ ████║████╗  ██║██╔═══██╗"
-    echo "  ██╔████╔██║██╔██╗ ██║██║   ██║"
-    echo "  ██║╚██╔╝██║██║╚██╗██║██║   ██║"
-    echo "  ██║ ╚═╝ ██║██║ ╚████║╚██████╔╝"
-    echo "  ╚═╝     ╚═╝╚═╝  ╚═══╝ ╚═════╝"
-    echo -e "\033[1;36m"
-    echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-    echo -e "\033[0m"
-
-    # Efeito de digitação
-    type_effect() {
-        text=$1
-        for (( i=0; i<${#text}; i++ )); do
-            echo -n "${text:$i:1}"
-            sleep 0.03
-        done
-        echo ""
-    }
-    echo -e "\033[1;32m"
-    echo -n " ➤ "
-    type_effect "SETUP MNO FINALIZADO COM ÊXITO!"
-    echo -n " ➤ "
-    type_effect "P/ INICIAR: SEMPRE DIGITE 'setup-mno' NO TERMINAL"
-    echo "┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫"
-    echo -e "   \033[1;35m🚀 COMANDO DE REATIVAÇÃO:\033[1;37m setup-mno\033[1;32m         "
-    echo -e "   \033[1;35m📡 CANAIS DE SUPORTE:\033[1;32m                                 "
-    echo -e "      \033[1;36m● WhatsApp: +55 (11) 96816-2690\033[1;32m                    "
-    echo -e "      \033[1;36m● Email: francisbreit@gmail.com\033[1;32m                    "
-    echo -e "      \033[1;36m● GitHub: github.com/francisbreit\033[1;32m                  "
-    echo -e "   \033[1;33m⚠️  SISTEMA PRONTO PARA OPERAÇÃO \033[1;32m                     "
-    # Efeito de loading final
-    echo -e "\033[1;35m"
-    echo -n "  INICIANDO SEQUÊNCIA DE SAÍDA "
-    for i in {1..10}; do
-        echo -n "●"
-        sleep 0.2
-    done
-    echo ""
-    echo -e "\033[1;32m  ✅ SISTEMA ENCERRADO - ATÉ A PRÓXIMA!\033[0m"
-
-    cd /
-    cd
-    sleep 3
-    $SHELL
-    ;;
-esac
-fi
-
-if [ "$PLANO" == "free1" ]; then
-CHOICE=$(
-whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do seu teclado e pressione ENTER" 20 70 10 \
-    "DATABASUS" ""   \
-    "EVOLUTION 2.0 API PADRÃO" ""  \
-    "EVOLUTION CRM" ""  \
-    "EVOLUTION GO" ""  \
-    "EVO NEXUS" ""  \
-    "N8N V1 - SEM FILA (MAIN)" "" \
-    "N8N V1 - FILA (QUEUE)" "" \
-    "N8N V2 - FILA (QUEUE)" "" \
-    "PGADMIN4" "" \
-    "MINIO" "" \
-    "REDIS" "" \
-    "AFFINE" "PRO" \
-    "APPSMITH" "PRO" \
-    "AUTOGEN STUDIO" "PRO" \
-    "BASEROW" "PRO" \
-    "BOTPRESS" "PRO" \
-    "CAL.COM" "PRO"  \
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" "PRO"   \
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
-    "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
-    "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
-    "CLICKHOUSE" "PRO"   \
-    "COGNEE" "PRO"   \
-    "DIRECTUS" "PRO" \
-    "DISCOURSE" "PRO" \
-    "DOCUMENSO" "PRO" \
-    "DOCUSEAL" "PRO" \
-    "DOZZLE" "PRO" \
-    "EVOAI" "PRO"  \
-    "EVOAI + EVOLUTION 2.0 + MINIO*" "PRO"  \
-    "EVOLUTION 1.0 API PADRÃO" "PRO"  \
-    "EXCALIDRAW" "PRO" \
-    "FIRECRAWL" "PRO" \
-    "FLOWISE" "PRO" \
-    "FOCALBOARD" "PRO" \
-    "FORMBRICKS" "PRO" \
-    "GHOST" "PRO" \
-    "GLPI" "PRO" \
-    "GRAFANA/PROMETHEUS MONITOR" "PRO"   \
-    "HERMES AGENT" "PRO" \
-    "HUMHUB" "PRO" \
-    "KRAYIN CRM" "PRO" \
-    "LANGFLOW" "PRO" \
-    "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
-    "LITELLM" "PRO" \
-    "MATTERMOST" "PRO" \
-    "MATOMO" "PRO" \
-    "MAUTIC 4 PADRÃO" "PRO" \
-    "MAUTIC 6 PADRÃO" "PRO" \
-    "MAUTIC 7 PADRÃO" "PRO" \
-    "MAUTIC 4 WHATSAPP MKT" "PRO" \
-    "MAUTIC 6 WHATSAPP MKT" "PRO" \
-    "MAUTIC 7 WHATSAPP MKT" "PRO" \
-    "MEMGRAPH" "PRO" \
-    "METABASE" "PRO" \
-    "MONGODB" "PRO" \
-    "MYSQL" "PRO" \
-    "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "PRO" \
-    "NEMOCLAW" "EM BREVE" \
-    "NEO4J" "PRO" \
-    "NEXTCLOUD" "PRO" \
-    "NOCODB" "PRO" \
-    "NTFY" "PRO" \
-    "ODOO" "PRO" \
-    "OLLAMA + OPENWEBUI*" "PRO" \
-    "OPENCLAW" "PRO" \
-    "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
-    "OPENFANG" "PRO" \
-    "OPEN PROJECT" "PRO" \
-    "PAPERCLIP" "PRO" \
-    "PGADMIN4" "" \
-    "PHPMYADMIN" "PRO" \
-    "QDRANT" "PRO" \
-    "RABBITMQ" "PRO" \
-    "REDIS COMMANDER" "PRO" \
-    "REDISINSIGHT" "PRO" \
-    "SEARXNG" "PRO" \
-    "SHLINK" "PRO" \
-    "STIRLING PDF" "PRO" \
-    "TWENTY  CRM" "PRO" \
-    "TYPEBOT" "PRO" \
-    "TYPEBOT + MINIO*" "PRO" \
-    "UPTIMEKUMA" "PRO" \
-    "VAULTWARDEN" "PRO" \
-    "WOOFED CRM" "PRO" \
-    "WORDPRESS" "PRO" \
-    "WUZAP" "PRO" \
-    "REINICIAR APPS/SERVIÇOS" "" \
-    "DELETAR APPS/STACKS" "" \
-    "GERADOR DE REGISTROS DNS" "" \
-    "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
-        "SAIR" ""  3>&2 2>&1 1>&3
-)
-
-case $CHOICE in
-
-  "AFFINE")
-                clear
-        cd && cd SetupLowCodeMno && ./affine
-        ;;
-
-    "APPSMITH")
-          clear
-        cd && cd SetupLowCodeMno && ./appsmith
-    ;;
-
-     "AUTOGEN STUDIO")
-          clear
-        cd && cd SetupLowCodeMno && ./autogen
-    ;;
-
-    "BASEROW")
-                clear
-        cd && cd SetupLowCodeMno && ./baserow
-    ;;
-
-    "BOTPRESS")
-                clear
-        cd && cd SetupLowCodeMno && ./botpress
-    ;;
-
-     "CAL.COM")
-              clear
-        cd && cd SetupLowCodeMno && ./calcom
-    ;;
-
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")
-                clear
-        cd && cd SetupLowCodeMno && ./chatwootn_evo2_rabbitmq_redisevo
-        ;;
-
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")
-                clear
-        cd && cd SetupLowCodeMno && ./chatwootn_evo2_rabbitmq_minio
-        ;;
-
-    "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")
-                clear
-        cd && cd SetupLowCodeMno && ./chatwooto_evo2_rabbitmq_minio
-        ;;
-
-    "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")
-                clear
-        cd && cd SetupLowCodeMno && ./chatwootorig_desbloq__evo2_rabbitmq_minio
-        ;;
-
-    "CLICKHOUSE")
-             clear
-        cd && cd SetupLowCodeMno && ./clickhouse
-    ;;
-
-    "COGNEE")
-             clear
-        cd && cd SetupLowCodeMno && ./cognee
-    ;;
-
-    "DATABASUS")
-             clear
-        cd && cd SetupLowCodeMno && ./databasus
-    ;;
-
-    "DIRECTUS")
-                clear
-        cd && cd SetupLowCodeMno && ./directus
-        ;;
-
-    "DISCOURSE")
-                clear
-        cd && cd SetupLowCodeMno && ./discourse
-        ;;
-
-    "DOCUMENSO")
-                clear
-        cd && cd SetupLowCodeMno && ./documenso
-        ;;
-
-    "DOCUSEAL")
-                clear
-        cd && cd SetupLowCodeMno && ./docuseal
-        ;;
-
-    "DOZZLE")
-                clear
-        cd && cd SetupLowCodeMno && ./dozzle
-        ;;
-
-    "EVOAI")
-              clear
-        cd && cd SetupLowCodeMno && ./evoai
-        ;;
-
-    "EVOAI + EVOLUTION 2.0 + MINIO*")
-              clear
-        cd && cd SetupLowCodeMno && ./evoai_evo2_minio
-        ;;
-
-    "EVOLUTION 1.0 API PADRÃO")
-            clear
-        cd && cd SetupLowCodeMno && ./evolutionapi
-        ;;
-
-    "EVOLUTION 2.0 API PADRÃO")
-              clear
-        cd && cd SetupLowCodeMno && ./evolution2api
-        ;;
-
-    "EVOLUTION CRM")
-              clear
-        cd && cd SetupLowCodeMno && ./evocrm
-        ;;
-
-    "EVOLUTION GO")
-              clear
-        cd && cd SetupLowCodeMno && ./evolutiongo
-        ;;
-
-    "EVO NEXUS")
-              clear
-        cd && cd SetupLowCodeMno && ./evonexus
-        ;;
-
-    "EXCALIDRAW")
-                clear
-        cd && cd SetupLowCodeMno && ./excalidraw
-        ;;
-
-    "FIRECRAWL")
-                clear
-        cd && cd SetupLowCodeMno && ./firecrawl
-        ;;
-
-    "FLOWISE")
-                 if [[ ("$flowise_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./flowise
-    fi
-    ;;
-
-    "FOCALBOARD")
-                clear
-        cd && cd SetupLowCodeMno && ./focalboard
-        ;;
-
-    "FORMBRICKS")
-                clear
-        cd && cd SetupLowCodeMno && ./formbricks
-        ;;
-
-    "GHOST")
-                clear
-        cd && cd SetupLowCodeMno && ./ghost
-        ;;
-
-
-    "GLPI")
-                clear
-        cd && cd SetupLowCodeMno && ./glpi
-        ;;
-
-    "GRAFANA/PROMETHEUS MONITOR")
-                clear
-        cd && cd SetupLowCodeMno && ./grafana
-        ;;
-
-    "HERMES AGENT")
-                clear
-        cd && cd SetupLowCodeMno && ./hermes
-        ;;
-
-    "HUMHUB")
-                clear
-        cd && cd SetupLowCodeMno && ./humhub
-        ;;
-
-    "KRAYIN CRM")
-                clear
-        cd && cd SetupLowCodeMno && ./krayincrm
-        ;;
-
-    "LANGFLOW")
-             clear
-        cd && cd SetupLowCodeMno && ./langflow
-    ;;
-
-    "LANGFUSE + MINIO + CLICKHOUSE*")
-             clear
-        cd && cd SetupLowCodeMno && ./langfuse
-    ;;
-
-    "LITELLM")
-             clear
-        cd && cd SetupLowCodeMno && ./litellm
-    ;;
-
-    "MATTERMOST")
-                clear
-        cd && cd SetupLowCodeMno && ./mattermost
-        ;;
-
-    "MATOMO")
-                clear
-        cd && cd SetupLowCodeMno && ./matomo
-        ;;
-
-    "MAUTIC 4 PADRÃO")
-                clear
-        cd && cd SetupLowCodeMno && ./mauticpadrao
-    ;;
-
-    "MAUTIC 6 PADRÃO")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic6padrao
-    ;;
-
-    "MAUTIC 4 WHATSAPP MKT")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic4whatsmkt
-    ;;
-
-    "MAUTIC 6 WHATSAPP MKT")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic6whatsmkt
-    ;;
-
-    "MAUTIC 7 PADRÃO")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic7padrao
-    ;;
-
-    "MAUTIC 7 WHATSAPP MKT")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic7whatsmkt
-    ;;
-
-    "MEMGRAPH")
-                clear
-        cd && cd SetupLowCodeMno && ./memgraph
-    ;;
-
-    "METABASE")
-                clear
-        cd && cd SetupLowCodeMno && ./metabase
-    ;;
-
-     "MINIO")
-        if [[ ("$minio_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./minio
-    fi
-    ;;
-
-    "MONGODB")
-                clear
-        cd && cd SetupLowCodeMno && ./mongodb
-    ;;
-
-    "MYSQL")
-    if [[ ("$mysql_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./mysql
-    fi
-    ;;
-
-    "N8N V1 - SEM FILA (MAIN)")
-            clear
-        cd && cd SetupLowCodeMno && ./n8nmain
-    ;;
-
-    "N8N V1 - FILA (QUEUE)")
-            clear
-        cd && cd SetupLowCodeMno && ./n8n
-    ;;
-
-    "N8N V2 - FILA (QUEUE)")
-            clear
-        cd && cd SetupLowCodeMno && ./n8n2
-    ;;
-
-    "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")
-            clear
-        cd && cd SetupLowCodeMno && ./n8n-workflows
-    ;;
-
-    "NEO4J")
-            clear
-        cd && cd SetupLowCodeMno && ./neo4j
-    ;;
-
-    "NEXTCLOUD")
-            clear
-        cd && cd SetupLowCodeMno && ./nextcloud
-    ;;
-
-    "NOCODB")
-                clear
-        cd && cd SetupLowCodeMno && ./nocodb
-    ;;
-
-    "NTFY")
-                clear
-        cd && cd SetupLowCodeMno && ./ntfy
-    ;;
-
-    "ODOO")
-                clear
-        cd && cd SetupLowCodeMno && ./odoo
-    ;;
-
-    "OLLAMA + OPENWEBUI*")
-                clear
-        cd && cd SetupLowCodeMno && ./ollama
-    ;;
-
-    "OPENCLAW")
-                clear
-        cd && cd SetupLowCodeMno && ./openclaw
-    ;;
-
-    "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")
-                clear
-        cd && cd SetupLowCodeMno && ./openclawpro
-    ;;
-
-    "OPENFANG")
-                clear
-        cd && cd SetupLowCodeMno && ./openfang
-    ;;
-
-    "OPEN PROJECT")
-                clear
-        cd && cd SetupLowCodeMno && ./openproject
-    ;;
-
-    "PAPERCLIP")
-                clear
-        cd && cd SetupLowCodeMno && ./paperclip
-    ;;
-
-    "PGADMIN4")
-                if [[ ("$pgadmin4_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./pgadmin
-    fi
-    ;;
-
-    "PHPMYADMIN")
-    if [[ ("$pma_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./pma
-    fi
-    ;;
-
-    "QDRANT")
-        clear
-        cd && cd SetupLowCodeMno && ./qdrant
-    ;;
-
-    "RABBITMQ")
-                clear
-        cd && cd SetupLowCodeMno && ./rabbitmq
-    ;;
-
-    "REDIS")
-                clear
-        cd && cd SetupLowCodeMno && ./redis
-    ;;
-
-    "REDIS COMMANDER")
-    if [[ ("$redicommander_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./redicommander
-    fi
-    ;;
-
-    "REDISINSIGHT")
-                clear
-        cd && cd SetupLowCodeMno && ./redisinsight
-    ;;
-
-    "SEARXNG")
-                clear
-        cd && cd SetupLowCodeMno && ./searxng
-    ;;
-
-    "SHLINK")
-                clear
-        cd && cd SetupLowCodeMno && ./shlink
-    ;;
-
-    "STIRLING PDF")
-                clear
-        cd && cd SetupLowCodeMno && ./stirlingpdf
-    ;;
-
-    "TWENTY CRM")
-            clear
-        cd && cd SetupLowCodeMno && ./twentycrm
-    ;;
-
-    "TYPEBOT")
-            clear
-        cd && cd SetupLowCodeMno && ./typebot
-    ;;
-
-    "TYPEBOT + MINIO*")
-            clear
-        cd && cd SetupLowCodeMno && ./typebot_minio
-    ;;
-
-     "UPTIMEKUMA")
-                clear
-        cd && cd SetupLowCodeMno && ./uptimekuma
-    ;;
-
-    "VAULTWARDEN")
-                clear
-        cd && cd SetupLowCodeMno && ./vaultwarden
-    ;;
-
-    "WOOFED CRM")
-                clear
-        cd && cd SetupLowCodeMno && ./woofedcrm
-    ;;
-
-    "WORDPRESS")
-                clear
-        cd && cd SetupLowCodeMno && ./wordpress
-    ;;
-
-    "WUZAP")
-                clear
-        cd && cd SetupLowCodeMno && ./wuzap
-    ;;
-
-     "REINICIAR APPS/SERVIÇOS")
-                clear
-        cd && cd SetupLowCodeMno && ./restartservice
-        ;;
-    "DELETAR APPS/STACKS")
-                clear
-        cd && cd SetupLowCodeMno && ./uninstall
-        ;;
-
-    "GERADOR DE REGISTROS DNS")
-          clear
-        cd && cd SetupLowCodeMno && ./geracloudflare
-    ;;
-
-    "ESSENCIAIS EDITÁVEIS NO PORTAINER")
-          clear
-        cd && cd SetupLowCodeMno && ./essenciais
-    ;;
-
-"SAIR")
-    clear
-    echo -e "\033[1;36m"
-    echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-    echo -e "\033[1;33m"
-    echo "  ███╗   ███╗███╗   ██╗ ██████╗"
-    echo "  ████╗ ████║████╗  ██║██╔═══██╗"
-    echo "  ██╔████╔██║██╔██╗ ██║██║   ██║"
-    echo "  ██║╚██╔╝██║██║╚██╗██║██║   ██║"
-    echo "  ██║ ╚═╝ ██║██║ ╚████║╚██████╔╝"
-    echo "  ╚═╝     ╚═╝╚═╝  ╚═══╝ ╚═════╝"
-    echo -e "\033[1;36m"
-    echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-    echo -e "\033[0m"
-
-    # Efeito de digitação
-    type_effect() {
-        text=$1
-        for (( i=0; i<${#text}; i++ )); do
-            echo -n "${text:$i:1}"
-            sleep 0.03
-        done
-        echo ""
-    }
-    echo -e "\033[1;32m"
-    echo -n " ➤ "
-    type_effect "SETUP MNO FINALIZADO COM ÊXITO!"
-    echo -n " ➤ "
-    type_effect "P/ INICIAR: SEMPRE DIGITE 'setup-mno' NO TERMINAL"
-    echo "┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫"
-    echo -e "   \033[1;35m🚀 COMANDO DE REATIVAÇÃO:\033[1;37m setup-mno\033[1;32m         "
-    echo -e "   \033[1;35m📡 CANAIS DE SUPORTE:\033[1;32m                                 "
-    echo -e "      \033[1;36m● WhatsApp: +55 (19) 99398-4964\033[1;32m                    "
-    echo -e "      \033[1;36m● Email: contato@marciocalicchio.com.br\033[1;32m                    "
-    echo -e "   \033[1;33m⚠️  SISTEMA PRONTO PARA OPERAÇÃO \033[1;32m                     "
-    # Efeito de loading final
-    echo -e "\033[1;35m"
-    echo -n "  INICIANDO SEQUÊNCIA DE SAÍDA "
-    for i in {1..10}; do
-        echo -n "●"
-        sleep 0.2
-    done
-    echo ""
-    echo -e "\033[1;32m  ✅ SISTEMA ENCERRADO - ATÉ A PRÓXIMA!\033[0m"
-
-    cd /
-    cd
-    sleep 3
-    $SHELL
-    ;;
-esac
-fi
-
-if [ "$PLANO" == "free2" ]; then
-CHOICE=$(
-whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do seu teclado e pressione ENTER" 20 70 10 \
-    "OPENCLAW" "" \
-    "EVOLUTION 2.0 API PADRÃO" ""  \
-    "EVOLUTION CRM" ""  \
-    "EVOLUTION GO" ""  \
-    "EVO NEXUS" ""  \
-    "N8N V1 - SEM FILA (MAIN)" "" \
-    "N8N V1 - FILA (QUEUE)" "" \
-    "N8N V2 - FILA (QUEUE)" "" \
-    "PGADMIN4" "" \
-    "MINIO" "" \
-    "REDIS" "" \
-    "AFFINE" "PRO" \
-    "APPSMITH" "PRO" \
-    "AUTOGEN STUDIO" "PRO" \
-    "BASEROW" "PRO" \
-    "BOTPRESS" "PRO" \
-    "CAL.COM" "PRO"  \
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" "PRO"   \
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
-    "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
-    "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
-    "CLICKHOUSE" "PRO"   \
-    "COGNEE" "PRO"   \
-    "DATABASUS" "PRO"   \
-    "DIRECTUS" "PRO" \
-    "DISCOURSE" "PRO" \
-    "DOCUMENSO" "PRO" \
-    "DOCUSEAL" "PRO" \
-    "DOZZLE" "PRO" \
-    "EVOAI" "PRO"  \
-    "EVOAI + EVOLUTION 2.0 + MINIO*" "PRO"  \
-    "EVOLUTION 1.0 API PADRÃO" "PRO"  \
-    "EXCALIDRAW" "PRO" \
-    "FIRECRAWL" "PRO" \
-    "FLOWISE" "PRO" \
-    "FOCALBOARD" "PRO" \
-    "FORMBRICKS" "PRO" \
-    "GHOST" "PRO" \
-    "GLPI" "PRO" \
-    "GRAFANA/PROMETHEUS MONITOR" "PRO"   \
-    "HERMES AGENT" "PRO" \
-    "HUMHUB" "PRO" \
-    "KRAYIN CRM" "PRO" \
-    "LANGFLOW" "PRO" \
-    "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
-    "LITELLM" "PRO" \
-    "MATTERMOST" "PRO" \
-    "MATOMO" "PRO" \
-    "MAUTIC 4 PADRÃO" "PRO" \
-    "MAUTIC 6 PADRÃO" "PRO" \
-    "MAUTIC 7 PADRÃO" "PRO" \
-    "MAUTIC 4 WHATSAPP MKT" "PRO" \
-    "MAUTIC 6 WHATSAPP MKT" "PRO" \
-    "MAUTIC 7 WHATSAPP MKT" "PRO" \
-    "MEMGRAPH" "PRO" \
-    "METABASE" "PRO" \
-    "MONGODB" "PRO" \
-    "MYSQL" "PRO" \
-    "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "PRO" \
-    "NEMOCLAW" "EM BREVE" \
-    "NEO4J" "PRO" \
-    "NEXTCLOUD" "PRO" \
-    "NOCODB" "PRO" \
-    "NTFY" "PRO" \
-    "ODOO" "PRO" \
-    "OLLAMA + OPENWEBUI*" "PRO" \
-    "OPENFANG" "PRO" \
-    "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
-    "OPEN PROJECT" "PRO" \
-    "PAPERCLIP" "PRO" \
-    "PGADMIN4" "" \
-    "PHPMYADMIN" "PRO" \
-    "QDRANT" "PRO" \
-    "RABBITMQ" "PRO" \
-    "REDIS COMMANDER" "PRO" \
-    "REDISINSIGHT" "PRO" \
-    "SEARXNG" "PRO" \
-    "SHLINK" "PRO" \
-    "STIRLING PDF" "PRO" \
-    "TWENTY  CRM" "PRO" \
-    "TYPEBOT" "PRO" \
-    "TYPEBOT + MINIO*" "PRO" \
-    "UPTIMEKUMA" "PRO" \
-    "VAULTWARDEN" "PRO" \
-    "WOOFED CRM" "PRO" \
-    "WORDPRESS" "PRO" \
-    "WUZAP" "PRO" \
-    "REINICIAR APPS/SERVIÇOS" "" \
-    "DELETAR APPS/STACKS" "" \
-    "GERADOR DE REGISTROS DNS" "" \
-    "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
-        "SAIR" ""  3>&2 2>&1 1>&3
-)
-
-case $CHOICE in
-
-  "AFFINE")
-                clear
-        cd && cd SetupLowCodeMno && ./affine
-        ;;
-
-    "APPSMITH")
-          clear
-        cd && cd SetupLowCodeMno && ./appsmith
-    ;;
-
-     "AUTOGEN STUDIO")
-          clear
-        cd && cd SetupLowCodeMno && ./autogen
-    ;;
-
-    "BASEROW")
-                clear
-        cd && cd SetupLowCodeMno && ./baserow
-    ;;
-
-    "BOTPRESS")
-                clear
-        cd && cd SetupLowCodeMno && ./botpress
-    ;;
-
-     "CAL.COM")
-              clear
-        cd && cd SetupLowCodeMno && ./calcom
-    ;;
-
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")
-                clear
-        cd && cd SetupLowCodeMno && ./chatwootn_evo2_rabbitmq_redisevo
-        ;;
-
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")
-                clear
-        cd && cd SetupLowCodeMno && ./chatwootn_evo2_rabbitmq_minio
-        ;;
-
-    "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")
-                clear
-        cd && cd SetupLowCodeMno && ./chatwooto_evo2_rabbitmq_minio
-        ;;
-
-    "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")
-                clear
-        cd && cd SetupLowCodeMno && ./chatwootorig_desbloq__evo2_rabbitmq_minio
-        ;;
-
-    "CLICKHOUSE")
-             clear
-        cd && cd SetupLowCodeMno && ./clickhouse
-    ;;
-
-    "COGNEE")
-             clear
-        cd && cd SetupLowCodeMno && ./cognee
-    ;;
-
-    "DATABASUS")
-             clear
-        cd && cd SetupLowCodeMno && ./databasus
-    ;;
-
-    "DIRECTUS")
-                clear
-        cd && cd SetupLowCodeMno && ./directus
-        ;;
-
-    "DISCOURSE")
-                clear
-        cd && cd SetupLowCodeMno && ./discourse
-        ;;
-
-    "DOCUMENSO")
-                clear
-        cd && cd SetupLowCodeMno && ./documenso
-        ;;
-
-    "DOCUSEAL")
-                clear
-        cd && cd SetupLowCodeMno && ./docuseal
-        ;;
-
-    "DOZZLE")
-                clear
-        cd && cd SetupLowCodeMno && ./dozzle
-        ;;
-
-    "EVOAI")
-              clear
-        cd && cd SetupLowCodeMno && ./evoai
-        ;;
-
-    "EVOAI + EVOLUTION 2.0 + MINIO*")
-              clear
-        cd && cd SetupLowCodeMno && ./evoai_evo2_minio
-        ;;
-
-    "EVOLUTION 1.0 API PADRÃO")
-            clear
-        cd && cd SetupLowCodeMno && ./evolutionapi
-        ;;
-
-    "EVOLUTION 2.0 API PADRÃO")
-              clear
-        cd && cd SetupLowCodeMno && ./evolution2api
-        ;;
-
-
-    "EVOLUTION CRM")
-              clear
-        cd && cd SetupLowCodeMno && ./evocrm
-        ;;
-
-    "EVOLUTION GO")
-              clear
-        cd && cd SetupLowCodeMno && ./evolutiongo
-        ;;
-
-    "EVO NEXUS")
-              clear
-        cd && cd SetupLowCodeMno && ./evonexus
-        ;;
-
-    "EXCALIDRAW")
-                clear
-        cd && cd SetupLowCodeMno && ./excalidraw
-        ;;
-
-    "FIRECRAWL")
-                clear
-        cd && cd SetupLowCodeMno && ./firecrawl
-        ;;
-
-    "FLOWISE")
-                 if [[ ("$flowise_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./flowise
-    fi
-    ;;
-
-    "FOCALBOARD")
-                clear
-        cd && cd SetupLowCodeMno && ./focalboard
-        ;;
-
-    "FORMBRICKS")
-                clear
-        cd && cd SetupLowCodeMno && ./formbricks
-        ;;
-
-    "GHOST")
-                clear
-        cd && cd SetupLowCodeMno && ./ghost
-        ;;
-
-
-    "GLPI")
-                clear
-        cd && cd SetupLowCodeMno && ./glpi
-        ;;
-
-    "GRAFANA/PROMETHEUS MONITOR")
-                clear
-        cd && cd SetupLowCodeMno && ./grafana
-        ;;
-
-    "HERMES AGENT")
-                clear
-        cd && cd SetupLowCodeMno && ./hermes
-        ;;
-
-    "HUMHUB")
-                clear
-        cd && cd SetupLowCodeMno && ./humhub
-        ;;
-
-    "KRAYIN CRM")
-                clear
-        cd && cd SetupLowCodeMno && ./krayincrm
-        ;;
-
-    "LANGFLOW")
-             clear
-        cd && cd SetupLowCodeMno && ./langflow
-    ;;
-
-    "LANGFUSE + MINIO + CLICKHOUSE*")
-             clear
-        cd && cd SetupLowCodeMno && ./langfuse
-    ;;
-
-    "LITELLM")
-             clear
-        cd && cd SetupLowCodeMno && ./litellm
-    ;;
-
-    "MATTERMOST")
-                clear
-        cd && cd SetupLowCodeMno && ./mattermost
-        ;;
-
-    "MATOMO")
-                clear
-        cd && cd SetupLowCodeMno && ./matomo
-        ;;
-
-    "MAUTIC 4 PADRÃO")
-                clear
-        cd && cd SetupLowCodeMno && ./mauticpadrao
-    ;;
-
-    "MAUTIC 6 PADRÃO")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic6padrao
-    ;;
-
-    "MAUTIC 4 WHATSAPP MKT")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic4whatsmkt
-    ;;
-
-    "MAUTIC 6 WHATSAPP MKT")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic6whatsmkt
-    ;;
-
-    "MAUTIC 7 PADRÃO")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic7padrao
-    ;;
-
-    "MAUTIC 7 WHATSAPP MKT")
-                clear
-        cd && cd SetupLowCodeMno && ./mautic7whatsmkt
-    ;;
-
-    "MEMGRAPH")
-                clear
-        cd && cd SetupLowCodeMno && ./memgraph
-    ;;
-
-    "METABASE")
-                clear
-        cd && cd SetupLowCodeMno && ./metabase
-    ;;
-
-     "MINIO")
-        if [[ ("$minio_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./minio
-    fi
-    ;;
-
-    "MONGODB")
-                clear
-        cd && cd SetupLowCodeMno && ./mongodb
-    ;;
-
-    "MYSQL")
-    if [[ ("$mysql_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./mysql
-    fi
-    ;;
-
-    "N8N V1 - SEM FILA (MAIN)")
-            clear
-        cd && cd SetupLowCodeMno && ./n8nmain
-    ;;
-
-    "N8N V1 - FILA (QUEUE)")
-            clear
-        cd && cd SetupLowCodeMno && ./n8n
-    ;;
-
-    "N8N V2 - FILA (QUEUE)")
-            clear
-        cd && cd SetupLowCodeMno && ./n8n2
-    ;;
-
-    "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")
-            clear
-        cd && cd SetupLowCodeMno && ./n8n-workflows
-    ;;
-
-    "NEO4J")
-            clear
-        cd && cd SetupLowCodeMno && ./neo4j
-    ;;
-
-    "NEXTCLOUD")
-            clear
-        cd && cd SetupLowCodeMno && ./nextcloud
-    ;;
-
-    "NOCODB")
-                clear
-        cd && cd SetupLowCodeMno && ./nocodb
-    ;;
-
-    "NTFY")
-                clear
-        cd && cd SetupLowCodeMno && ./ntfy
-    ;;
-
-    "ODOO")
-                clear
-        cd && cd SetupLowCodeMno && ./odoo
-    ;;
-
-    "OLLAMA + OPENWEBUI*")
-                clear
-        cd && cd SetupLowCodeMno && ./ollama
-    ;;
-
-    "OPENCLAW")
-                clear
-        cd && cd SetupLowCodeMno && ./openclaw
-    ;;
-
-    "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")
-                clear
-        cd && cd SetupLowCodeMno && ./openclawpro
-    ;;
-
-    "OPENFANG")
-                clear
-        cd && cd SetupLowCodeMno && ./openfang
-    ;;
-
-    "OPEN PROJECT")
-                clear
-        cd && cd SetupLowCodeMno && ./openproject
-    ;;
-
-    "PAPERCLIP")
-                clear
-        cd && cd SetupLowCodeMno && ./paperclip
-    ;;
-
-    "PGADMIN4")
-                if [[ ("$pgadmin4_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./pgadmin
-    fi
-    ;;
-
-    "PHPMYADMIN")
-    if [[ ("$pma_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./pma
-    fi
-    ;;
-
-    "QDRANT")
-        clear
-        cd && cd SetupLowCodeMno && ./qdrant
-    ;;
-
-    "RABBITMQ")
-                clear
-        cd && cd SetupLowCodeMno && ./rabbitmq
-    ;;
-
-    "REDIS")
-                clear
-        cd && cd SetupLowCodeMno && ./redis
-    ;;
-
-    "REDIS COMMANDER")
-    if [[ ("$redicommander_container" != "") ]];
-    then
-                clear
-    else
-        clear
-        cd && cd SetupLowCodeMno && ./redicommander
-    fi
-    ;;
-
-    "REDISINSIGHT")
-                clear
-        cd && cd SetupLowCodeMno && ./redisinsight
-    ;;
-
-    "SEARXNG")
-                clear
-        cd && cd SetupLowCodeMno && ./searxng
-    ;;
-
-    "SHLINK")
-                clear
-        cd && cd SetupLowCodeMno && ./shlink
-    ;;
-
-    "STIRLING PDF")
-                clear
-        cd && cd SetupLowCodeMno && ./stirlingpdf
-    ;;
-
-    "TWENTY CRM")
-            clear
-        cd && cd SetupLowCodeMno && ./twentycrm
-    ;;
-
-    "TYPEBOT")
-            clear
-        cd && cd SetupLowCodeMno && ./typebot
-    ;;
-
-    "TYPEBOT + MINIO*")
-            clear
-        cd && cd SetupLowCodeMno && ./typebot_minio
-    ;;
-
-     "UPTIMEKUMA")
-                clear
-        cd && cd SetupLowCodeMno && ./uptimekuma
-    ;;
-
-    "VAULTWARDEN")
-                clear
-        cd && cd SetupLowCodeMno && ./vaultwarden
-    ;;
-
-    "WOOFED CRM")
-                clear
-        cd && cd SetupLowCodeMno && ./woofedcrm
-    ;;
-
-    "WORDPRESS")
-                clear
-        cd && cd SetupLowCodeMno && ./wordpress
-    ;;
-
-    "WUZAP")
-                clear
-        cd && cd SetupLowCodeMno && ./wuzap
-    ;;
-
-     "REINICIAR APPS/SERVIÇOS")
-                clear
-        cd && cd SetupLowCodeMno && ./restartservice
-        ;;
-    "DELETAR APPS/STACKS")
-                clear
-        cd && cd SetupLowCodeMno && ./uninstall
-        ;;
-
-    "GERADOR DE REGISTROS DNS")
-          clear
-        cd && cd SetupLowCodeMno && ./geracloudflare
-    ;;
-
-    "ESSENCIAIS EDITÁVEIS NO PORTAINER")
-          clear
-        cd && cd SetupLowCodeMno && ./essenciais
-    ;;
-
-"SAIR")
-    clear
-    echo -e "\033[1;36m"
-    echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-    echo -e "\033[1;33m"
-    echo "  ███╗   ███╗███╗   ██╗ ██████╗"
-    echo "  ████╗ ████║████╗  ██║██╔═══██╗"
-    echo "  ██╔████╔██║██╔██╗ ██║██║   ██║"
-    echo "  ██║╚██╔╝██║██║╚██╗██║██║   ██║"
-    echo "  ██║ ╚═╝ ██║██║ ╚████║╚██████╔╝"
-    echo "  ╚═╝     ╚═╝╚═╝  ╚═══╝ ╚═════╝"
-    echo -e "\033[1;36m"
-    echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-    echo -e "\033[0m"
-
-    # Efeito de digitação
-    type_effect() {
-        text=$1
-        for (( i=0; i<${#text}; i++ )); do
-            echo -n "${text:$i:1}"
-            sleep 0.03
-        done
-        echo ""
-    }
-    echo -e "\033[1;32m"
-    echo -n " ➤ "
-    type_effect "SETUP MNO FINALIZADO COM ÊXITO!"
-    echo -n " ➤ "
-    type_effect "P/ INICIAR: SEMPRE DIGITE 'setup-mno' NO TERMINAL"
-    echo "┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫"
-    echo -e "   \033[1;35m🚀 COMANDO DE REATIVAÇÃO:\033[1;37m setup-mno\033[1;32m         "
-    echo -e "   \033[1;35m📡 CANAIS DE SUPORTE:\033[1;32m                                 "
-    echo -e "      \033[1;36m● WhatsApp: +55 (11) 96816-2690\033[1;32m                    "
-    echo -e "      \033[1;36m● Email: francisbreit@gmail.com\033[1;32m                    "
-    echo -e "      \033[1;36m● GitHub: github.com/francisbreit\033[1;32m                  "
-    echo -e "   \033[1;33m⚠️  SISTEMA PRONTO PARA OPERAÇÃO \033[1;32m                     "
-    # Efeito de loading final
-    echo -e "\033[1;35m"
-    echo -n "  INICIANDO SEQUÊNCIA DE SAÍDA "
-    for i in {1..10}; do
-        echo -n "●"
-        sleep 0.2
-    done
-    echo ""
-    echo -e "\033[1;32m  ✅ SISTEMA ENCERRADO - ATÉ A PRÓXIMA!\033[0m"
-
-    cd /
-    cd
-    sleep 3
-    $SHELL
-    ;;
-esac
-fi
-
-
-#mensagem apps já instalados
-if [[ ("$mysql_container" != "") && ("$CHOICE" == "MYSQL") || ("$flowise_container" != "") && ("$CHOICE" == "FLOWISE") || ("$minio_container" != "") && ("$CHOICE" == "MINIO") || ("$pgadmin4_container" != "") && ("$CHOICE" == "PGADMIN4") || ("$pma_container" != "") && ("$CHOICE" == "PHPMYADMIN") || ("$zepdb_container" != "") && ("$CHOICE" == "ZEP VECTOR STORE") || ("$zep_container" != "") && ("$CHOICE" == "ZEP VECTOR STORE") || ("$redicommander_container" != "") && ("$CHOICE" == "REDIS COMMANDER") || ("$calcom_container" != "") && ("$CHOICE" == "CAL.COM") || ("$langfuse_container" != "") && ("$CHOICE" == "LANGFUSE") || ("$dify_container" != "") && ("$CHOICE" == "DIFY") || ("$supabase_container" != "") && ("$CHOICE" == "SUPABASE")]];
-then
- whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instancia de ${CHOICE}. Digite ENTER para voltar ao Menu Principal." 20 78
-fi
-
-
-if [ "$PLANO" == "free" ]; then
-
-#mensagem apps pro
-if [[ ("$CHOICE" == "AFFINE") || ("$CHOICE" == "APPSMITH") || ("$CHOICE" == "BASEROW") || ("$CHOICE" == "BOTPRESS") || ("$CHOICE" == "CAL.COM") || ("$CHOICE" == "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "DOCUMENSO") || ("$CHOICE" == "DOCUSEAL") || ("$CHOICE" == "DOZZLE") || ("$CHOICE" == "EASY APPOINTMENTS") || ("$CHOICE" == "EVOAI + EVOLUTION 2.0 + MINIO*") || ("$CHOICE" == "HUMHUB") || ("$CHOICE" == "KRAYIN CRM") || ("$CHOICE" == "LANGFUSE + MINIO + CLICKHOUSE*") || ("$CHOICE" == "LITELLM") || ("$CHOICE" == "MAUTIC 4 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 5 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 6 WHATSAPP MKT") || ("$CHOICE" == "MOODLE") || ("$CHOICE" == "NEXTCLOUD") || ("$CHOICE" == "OPEN PROJECT") || ("$CHOICE" == "OUTLINE") || ("$CHOICE" == "TWENTY CRM") || ("$CHOICE" == "TYPEBOT + MINIO*") || ("$CHOICE" == "MATOMO") || ("$CHOICE" == "OPENCLAW") || ("$CHOICE" == "DISCOURSE") || ("$CHOICE" == "GHOST") || ("$CHOICE" == "MAUTIC 7 WHATSAPP MKT") || ("$CHOICE" == "AUTOGEN STUDIO") || ("$CHOICE" == "COGNEE") || ("$CHOICE" == "MEMGRAPH") || ("$CHOICE" == "NEO4J") || ("$CHOICE" == "OPENFANG") || ("$CHOICE" == "PAPERCLIP") || ("$CHOICE" == "SEARXNG") || ("$CHOICE" == "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*") || ("$CHOICE" == "HERMES AGENT") || ("$CHOICE" == "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") ]]; then
-whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free.\n\nEntre em contato conosco:\n- WhatsApp: +55 (11)96816-2690 e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 20 78
-fi
-
-
-fi
-
-if [ "$PLANO" == "free1" ]; then
-
-#mensagem apps pro
-if [[ ("$CHOICE" != "DATABASUS") && ("$CHOICE" != "EVOLUTION 2.0 API PADRÃO") && ("$CHOICE" != "N8N V1 - SEM FILA (MAIN)") && ("$CHOICE" != "N8N V1 - FILA (QUEUE)") && ("$CHOICE" != "N8N V2 - FILA (QUEUE)") && ("$CHOICE" != "PGADMIN4") && ("$CHOICE" != "MINIO") && ("$CHOICE" != "REDIS") && ("$CHOICE" != "EVOLUTION CRM") && ("$CHOICE" != "EVOLUTION GO") && ("$CHOICE" != "EVO NEXUS")  ]]; then
-whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free1.\n\nEntre em contato conosco:\n- WhatsApp: +55 (19) 99398-4964 e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 20 78
-fi
-
-
-fi
-
-
-if [ "$PLANO" == "free2" ]; then
-
-#mensagem apps pro
-if [[ ("$CHOICE" != "OPENCLAW") && ("$CHOICE" != "EVOLUTION 2.0 API PADRÃO") && ("$CHOICE" != "N8N V1 - SEM FILA (MAIN)") && ("$CHOICE" != "N8N V1 - FILA (QUEUE)") && ("$CHOICE" != "N8N V2 - FILA (QUEUE)") && ("$CHOICE" != "PGADMIN4") && ("$CHOICE" != "MINIO") && ("$CHOICE" != "REDIS") && ("$CHOICE" != "EVOLUTION CRM") && ("$CHOICE" != "EVOLUTION GO") && ("$CHOICE" != "EVO NEXUS")  ]]; then
-whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free2.\n\nEntre em contato conosco:\n- WhatsApp: +55 (11)96816-2690 e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 20 78
-fi
-
-
-fi
-
-#mensagem apps EM BREVE
-if [[ ("$CHOICE" == "NEMOCLAW")  ]]; then
-whiptail --msgbox "A ferramenta ${CHOICE} não está disponível atualmente.\n\nEstamos fazendo ajustes e, em breve, estará liberada para instalação.\n\nPressione ENTER para voltar ao Menu Principal." 20 78
-fi
-
-
 
 done
-#exit 0
-
-#
-# FIM DAS OPÕES
-#
