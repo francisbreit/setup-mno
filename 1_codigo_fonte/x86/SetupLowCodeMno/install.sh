@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 #########################################################
-# SETUP MNO - install.sh (refatorado)
-# Menu unificado com dispatch dinamico para todos os planos
+# SETUP MNO - install.sh x86 (refatorado)
+# Menu explícito + dispatch dinâmico
 #########################################################
 
 clear
@@ -43,7 +43,7 @@ actcheckbox=white,green
   clear
 } || true
 
-# --- VERIFICAR TIPO DE INSTALACAO ---
+# --- VERIFICAR TIPO DE INSTALAÇÃO ---
 INSTALL_TYPE_FILE="/root/.cloudflared_config/installation_type"
 if [ -f "$INSTALL_TYPE_FILE" ]; then
     INSTALL_TYPE=$(cat "$INSTALL_TYPE_FILE")
@@ -70,7 +70,7 @@ TRIAL_DIR="/root/SetupLowCodeMno/.meu_app_trial"
 TRIAL_FILE="$TRIAL_DIR/trial_info"
 
 if [ ! -f "$TRIAL_FILE" ]; then
-    echo "Erro: Arquivo de informations do trial nao encontrado. Por favor, reinstale."
+    echo "Erro: Arquivo de informações do trial não encontrado. Por favor, reinstale."
     exit 1
 fi
 
@@ -142,215 +142,14 @@ if [[ ("$traefik_container" == "") || ("$portainer_container" == "") || ("$postg
     exit 0
 fi
 
-# --- REGISTRO DE APPS (flat arrays: nome_display -> script) ---
-APP_NAMES=(
-    "AFFINE"
-    "APPSMITH"
-    "AUTOGEN STUDIO"
-    "BASEROW"
-    "BOTPRESS"
-    "CAL.COM"
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*"
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*"
-    "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*"
-    "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*"
-    "CLICKHOUSE"
-    "COGNEE"
-    "DATABASUS"
-    "DIRECTUS"
-    "DISCOURSE"
-    "DOCUMENSO"
-    "DOCUSEAL"
-    "DOZZLE"
-    "EVOAI"
-    "EVOAI + EVOLUTION 2.0 + MINIO*"
-    "EVOLUTION 1.0 API PADRAO"
-    "EVOLUTION 2.0 API PADRAO"
-    "EVOLUTION CRM"
-    "EVOLUTION GO"
-    "EVO NEXUS"
-    "EXCALIDRAW"
-    "FIRECRAWL"
-    "FLOWISE"
-    "FOCALBOARD"
-    "FORMBRICKS"
-    "GHOST"
-    "GLPI"
-    "GRAFANA/PROMETHEUS MONITOR"
-    "HERMES AGENT"
-    "HUMHUB"
-    "KRAYIN CRM"
-    "LANGFLOW"
-    "LANGFUSE + MINIO + CLICKHOUSE*"
-    "LITELLM"
-    "MATTERMOST"
-    "MATOMO"
-    "MAUTIC 4 PADRAO"
-    "MAUTIC 6 PADRAO"
-    "MAUTIC 7 PADRAO"
-    "MAUTIC 4 WHATSAPP MKT"
-    "MAUTIC 6 WHATSAPP MKT"
-    "MAUTIC 7 WHATSAPP MKT"
-    "MEMGRAPH"
-    "METABASE"
-    "MINIO"
-    "MONGODB"
-    "MYSQL"
-    "N8N V1 - SEM FILA (MAIN)"
-    "N8N V1 - FILA (QUEUE)"
-    "N8N V2 - FILA (QUEUE)"
-    "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS"
-    "NEO4J"
-    "NEXTCLOUD"
-    "NOCODB"
-    "NTFY"
-    "ODOO"
-    "OLLAMA + OPENWEBUI*"
-    "OPENCLAW"
-    "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*"
-    "OPENFANG"
-    "OPEN PROJECT"
-    "PAPERCLIP"
-    "PGADMIN4"
-    "PHPMYADMIN"
-    "QDRANT"
-    "RABBITMQ"
-    "REDIS"
-    "REDIS COMMANDER"
-    "REDISINSIGHT"
-    "SEARXNG"
-    "SHLINK"
-    "STIRLING PDF"
-    "TWENTY CRM"
-    "TYPEBOT"
-    "TYPEBOT + MINIO*"
-    "UPTIMEKUMA"
-    "VAULTWARDEN"
-    "WOOFED CRM"
-    "WORDPRESS"
-    "WUZAP"
-)
-
-APP_SCRIPTS=(
-    "affine"
-    "appsmith"
-    "autogen"
-    "baserow"
-    "botpress"
-    "calcom"
-    "chatwootn_evo2_rabbitmq_redisevo"
-    "chatwootn_evo2_rabbitmq_minio"
-    "chatwooto_evo2_rabbitmq_minio"
-    "chatwootorig_desbloq__evo2_rabbitmq_minio"
-    "clickhouse"
-    "cognee"
-    "databasus"
-    "directus"
-    "discourse"
-    "documenso"
-    "docuseal"
-    "dozzle"
-    "evoai"
-    "evoai_evo2_minio"
-    "evolutionapi"
-    "evolution2api"
-    "evocrm"
-    "evolutiongo"
-    "evonexus"
-    "excalidraw"
-    "firecrawl"
-    "flowise"
-    "focalboard"
-    "formbricks"
-    "ghost"
-    "glpi"
-    "grafana"
-    "hermes"
-    "humhub"
-    "krayincrm"
-    "langflow"
-    "langfuse"
-    "litellm"
-    "mattermost"
-    "matomo"
-    "mauticpadrao"
-    "mautic6padrao"
-    "mautic7padrao"
-    "mautic4whatsmkt"
-    "mautic6whatsmkt"
-    "mautic7whatsmkt"
-    "memgraph"
-    "metabase"
-    "minio"
-    "mongodb"
-    "mysql"
-    "n8nmain"
-    "n8n"
-    "n8n2"
-    "n8n-workflows"
-    "neo4j"
-    "nextcloud"
-    "nocodb"
-    "ntfy"
-    "odoo"
-    "ollama"
-    "openclaw"
-    "openclawpro"
-    "openfang"
-    "openproject"
-    "paperclip"
-    "pgadmin"
-    "pma"
-    "qdrant"
-    "rabbitmq"
-    "redis"
-    "redicommander"
-    "redisinsight"
-    "searxng"
-    "shlink"
-    "stirlingpdf"
-    "twentycrm"
-    "typebot"
-    "typebot_minio"
-    "uptimekuma"
-    "vaultwarden"
-    "woofedcrm"
-    "wordpress"
-    "wuzap"
-)
-
-# Apps restritos ao plano PRO (usado para marcar com tag no menu free)
-PRO_APPS=(
-    "AFFINE" "APPSMITH" "AUTOGEN STUDIO" "BASEROW" "BOTPRESS" "CAL.COM"
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*"
-    "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*"
-    "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*"
-    "COGNEE" "DISCOURSE" "DOCUMENSO" "DOCUSEAL" "DOZZLE"
-    "EVOAI + EVOLUTION 2.0 + MINIO*" "EXCALIDRAW" "FIRECRAWL" "FOCALBOARD"
-    "FORMBRICKS" "GHOST" "GLPI" "HERMES AGENT" "HUMHUB" "KRAYIN CRM"
-    "LANGFUSE + MINIO + CLICKHOUSE*" "LITELLM" "MATOMO"
-    "MAUTIC 4 WHATSAPP MKT" "MAUTIC 6 WHATSAPP MKT" "MAUTIC 7 WHATSAPP MKT"
-    "MEMGRAPH" "METABASE" "NEO4J" "NEXTCLOUD" "NOCODB" "NTFY" "ODOO"
-    "OPENCLAW" "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*"
-    "OPENFANG" "OPEN PROJECT" "PAPERCLIP" "PHPMYADMIN" "QDRANT"
-    "RABBITMQ" "REDIS COMMANDER" "REDISINSIGHT" "SEARXNG" "SHLINK"
-    "STIRLING PDF" "TWENTY CRM" "TYPEBOT + MINIO*" "UPTIMEKUMA"
-    "VAULTWARDEN" "WOOFED CRM" "WORDPRESS" "WUZAP"
-)
-
-# --- DISPATCH ---
-dispatch_app() {
-    local choice="$1"
-    for i in "${!APP_NAMES[@]}"; do
-        if [ "$choice" = "${APP_NAMES[$i]}" ]; then
-            clear
-            cd && cd SetupLowCodeMno && ./"${APP_SCRIPTS[$i]}"
-            return
-        fi
-    done
+# --- DISPATCH DINÂMICO (substitui 240+ case blocks) ---
+run_app() {
+    local script="$1"
+    clear
+    cd && cd SetupLowCodeMno && ./"$script"
 }
 
-# --- TITULO ---
+# --- TÍTULO ---
 export NEWT_COLORS='
 root=,white
 border=black,gray
@@ -370,44 +169,33 @@ actcheckbox=white,green
 if [ "$PLANO" == "trial pro" ]; then
     TITULO="SETUP MNO v${VERSION} - Plano: $PLANO 7 Dias - Restam: $DIAS_RESTANTES dias"
 else
-    TITULO="SETUP MNO v${VERSION} - Plano: $PLANO - Instalacao: $INSTALL_TYPE"
+    TITULO="SETUP MNO v${VERSION} - Plano: $PLANO - Instalação: $INSTALL_TYPE"
 fi
 
-# --- APPS JA INSTALADOS (single-instance) ---
+# --- FUNÇÕES DE VALIDAÇÃO ---
 check_already_installed() {
-    local choice="$1"
-    local container_var=""
-    case "$choice" in
-        "MYSQL")                     container_var="$mysql_container" ;;
-        "FLOWISE")                   container_var="$flowise_container" ;;
-        "MINIO")                     container_var="$minio_container" ;;
-        "PGADMIN4")                  container_var="$pgadmin4_container" ;;
-        "PHPMYADMIN")                container_var="$pma_container" ;;
-        "REDIS COMMANDER")           container_var="$redicommander_container" ;;
-        "CAL.COM")                   container_var="$calcom_container" ;;
-        "LANGFUSE + MINIO + CLICKHOUSE*") container_var="$langfuse_container" ;;
-        "ZEP VECTOR STORE")          container_var="${zepdb_container}${zep_container}" ;;
-        "DIFY")                      container_var="$dify_container" ;;
-        "SUPABASE")                  container_var="$supabase_container" ;;
+    local c=""
+    case "$1" in
+        "MYSQL")                           c="$mysql_container" ;;
+        "FLOWISE")                         c="$flowise_container" ;;
+        "MINIO")                           c="$minio_container" ;;
+        "PGADMIN4")                        c="$pgadmin4_container" ;;
+        "PHPMYADMIN")                      c="$pma_container" ;;
+        "REDIS COMMANDER")                 c="$redicommander_container" ;;
+        "CAL.COM")                         c="$calcom_container" ;;
+        "LANGFUSE + MINIO + CLICKHOUSE*") c="$langfuse_container" ;;
+        "DIFY")                            c="$dify_container" ;;
+        "SUPABASE")                        c="$supabase_container" ;;
         *) return 1 ;;
     esac
-    [ -n "$container_var" ]
-}
-
-# --- VALIDACAO PRO ---
-is_pro_only() {
-    local choice="$1"
-    for p in "${PRO_APPS[@]}"; do
-        [ "$choice" = "$p" ] && return 0
-    done
-    return 1
+    [ -n "$c" ]
 }
 
 # --- SAIR ---
 do_exit() {
     clear
     echo -e "\033[1;36m"
-    echo "============================================="
+    echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
     echo -e "\033[1;33m"
     echo "  ███╗   ███╗███╗   ██╗ ██████╗"
     echo "  ████╗ ████║████╗  ██║██╔═══██╗"
@@ -416,18 +204,18 @@ do_exit() {
     echo "  ██║ ╚═╝ ██║██║ ╚████║╚██████╔╝"
     echo "  ╚═╝     ╚═╝╚═╝  ╚═══╝ ╚═════╝"
     echo -e "\033[1;36m"
-    echo "============================================="
+    echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
     echo -e "\033[0m"
     echo -e "\033[1;32m"
-    echo "  SETUP MNO FINALIZADO COM EXITO!"
+    echo "  SETUP MNO FINALIZADO COM ÊXITO!"
     echo "  P/ INICIAR: SEMPRE DIGITE 'setup-mno' NO TERMINAL"
     echo ""
-    echo -e "   \033[1;35mCOMANDO DE REATIVACAO:\033[1;37m setup-mno"
-    echo -e "   \033[1;35mCANAIS DE SUPORTE:"
-    echo -e "      \033[1;36m* WhatsApp: $CONTATO_WP"
-    echo -e "      \033[1;36m* Email: $CONTATO_EMAIL"
-    echo -e "      \033[1;36m* GitHub: $CONTATO_GITHUB"
-    echo -e "   \033[1;33mSISTEMA PRONTO PARA OPERACAO"
+    echo -e "   \033[1;35m🚀 COMANDO DE REATIVAÇÃO:\033[1;37m setup-mno"
+    echo -e "   \033[1;35m📡 CANAIS DE SUPORTE:"
+    echo -e "      \033[1;36m● WhatsApp: $CONTATO_WP"
+    echo -e "      \033[1;36m● Email: $CONTATO_EMAIL"
+    echo -e "      \033[1;36m● GitHub: $CONTATO_GITHUB"
+    echo -e "   \033[1;33m⚠️  SISTEMA PRONTO PARA OPERAÇÃO"
     echo -e "\033[0m"
     sleep 1
     exit 0
@@ -436,115 +224,819 @@ do_exit() {
 # ===================== LOOP PRINCIPAL =====================
 while true; do
 
-# --- MONTAR MENU ---
-MENU_ITEMS=()
-for i in "${!APP_NAMES[@]}"; do
-    app="${APP_NAMES[$i]}"
-    if [[ "$PLANO" = *free* ]]; then
-        tag=""
-        for p in "${PRO_APPS[@]}"; do
-            [ "$app" = "$p" ] && tag="PRO" && break
-        done
-        MENU_ITEMS+=("$app" "$tag")
-    else
-        MENU_ITEMS+=("$app" "")
-    fi
-done
-
-# Itens de utilidade (sempre disponiveis)
-MENU_ITEMS+=(
-    "-------- UTILITARIOS --------" ""
-    "REINICIAR APPS/SERVICOS" ""
-    "DELETAR APPS/STACKS" ""
-    "GERADOR DE REGISTROS DNS" ""
-    "ESSENCIAIS EDITAVEIS NO PORTAINER" ""
-    "SAIR" ""
-)
+if [[ ! "$PLANO" = *free* ]]; then
 
 CHOICE=$(
-whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 24 78 16 \
-    "${MENU_ITEMS[@]}" 3>&2 2>&1 1>&3
+whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 20 70 10 \
+    "AFFINE" "" \
+    "APPSMITH" "" \
+    "AUTOGEN STUDIO" "" \
+    "BASEROW" "" \
+    "BOTPRESS" "" \
+    "CAL.COM" ""  \
+    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" ""   \
+    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
+    "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
+    "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
+    "CLICKHOUSE" ""   \
+    "COGNEE" ""   \
+    "DATABASUS" ""   \
+    "DIRECTUS" "" \
+    "DISCOURSE" "" \
+    "DOCUMENSO" "" \
+    "DOCUSEAL" "" \
+    "DOZZLE" "" \
+    "EVOAI" ""  \
+    "EVOAI + EVOLUTION 2.0 + MINIO*" ""  \
+    "EVOLUTION 1.0 API PADRÃO" ""  \
+    "EVOLUTION 2.0 API PADRÃO" ""  \
+    "EVOLUTION CRM" ""  \
+    "EVOLUTION GO" ""  \
+    "EVO NEXUS" ""  \
+    "EXCALIDRAW" "" \
+    "FIRECRAWL" "" \
+    "FLOWISE" "" \
+    "FOCALBOARD" "" \
+    "FORMBRICKS" "" \
+    "GHOST" "" \
+    "GLPI" "" \
+    "GRAFANA/PROMETHEUS MONITOR" ""   \
+    "HERMES AGENT" "" \
+    "HUMHUB" "" \
+    "KRAYIN CRM" "" \
+    "LANGFLOW" "" \
+    "LANGFUSE + MINIO + CLICKHOUSE*" "" \
+    "LITELLM" "" \
+    "MATTERMOST" "" \
+    "MATOMO" "" \
+    "MAUTIC 4 PADRÃO" "" \
+    "MAUTIC 6 PADRÃO" "" \
+    "MAUTIC 7 PADRÃO" "" \
+    "MAUTIC 4 WHATSAPP MKT" "" \
+    "MAUTIC 6 WHATSAPP MKT" "" \
+    "MAUTIC 7 WHATSAPP MKT" "" \
+    "MEMGRAPH" "" \
+    "METABASE" "" \
+    "MINIO" "" \
+    "MONGODB" "" \
+    "MYSQL" "" \
+    "N8N V1 - SEM FILA (MAIN)" "" \
+    "N8N V1 - FILA (QUEUE)" "" \
+    "N8N V2 - FILA (QUEUE)" "" \
+    "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "" \
+    "NEO4J" "" \
+    "NEXTCLOUD" "" \
+    "NOCODB" "" \
+    "NTFY" "" \
+    "ODOO" "" \
+    "OLLAMA + OPENWEBUI*" "" \
+    "OPENCLAW" "" \
+    "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "" \
+    "OPENFANG" "" \
+    "OPEN PROJECT" "" \
+    "PAPERCLIP" "" \
+    "PGADMIN4" "" \
+    "PHPMYADMIN" "" \
+    "QDRANT" "" \
+    "RABBITMQ" "" \
+    "REDIS" "" \
+    "REDIS COMMANDER" "" \
+    "REDISINSIGHT" "" \
+    "SEARXNG" "" \
+    "SHLINK" "" \
+    "STIRLING PDF" "" \
+    "TWENTY CRM" "" \
+    "TYPEBOT" "" \
+    "TYPEBOT + MINIO*" "" \
+    "UPTIMEKUMA" "" \
+    "VAULTWARDEN" "" \
+    "WOOFED CRM" "" \
+    "WORDPRESS" "" \
+    "WUZAP" "" \
+    "REINICIAR APPS/SERVIÇOS" "" \
+    "DELETAR APPS/STACKS" "" \
+    "GERADOR DE REGISTROS DNS" "" \
+    "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
+    "SAIR" ""  3>&2 2>&1 1>&3
 )
 
-# Sair do whiptail (ESC/CANCEL)
 [ -z "$CHOICE" ] && do_exit
 
 case "$CHOICE" in
-
-    # --- UTILITARIOS ---
-    "REINICIAR APPS/SERVICOS")
-        clear
-        cd && cd SetupLowCodeMno && ./restartservice
-        ;;
-
-    "DELETAR APPS/STACKS")
-        clear
-        cd && cd SetupLowCodeMno && ./uninstall
-        ;;
-
-    "GERADOR DE REGISTROS DNS")
-        clear
-        cd && cd SetupLowCodeMno && ./geracloudflare
-        ;;
-
-    "ESSENCIAIS EDITAVEIS NO PORTAINER")
-        clear
-        cd && cd SetupLowCodeMno && ./essenciais
-        ;;
-
-    "SAIR")
-        do_exit
-        ;;
-
-    # --- SEPARADOR (ignorar) ---
-    "-------- UTILITARIOS --------")
-        ;;
-
-    # --- APPS (dispatch dinamico) *)
+    "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
+    "DELETAR APPS/STACKS")      run_app uninstall ;;
+    "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;
+    "ESSENCIAIS EDITÁVEIS NO PORTAINER") run_app essenciais ;;
+    "SAIR") do_exit ;;
     *)
-        # Ja instalado?
         if check_already_installed "$CHOICE"; then
-            whiptail --msgbox "Aviso: ${CHOICE} ja esta instalado. Nao e permitido instalar mais de uma instancia.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
+            whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
-
-        # Somente free: bloquear PRO
-        if [[ "$PLANO" == "free" ]] && is_pro_only "$CHOICE"; then
-            whiptail --msgbox "A ferramenta ${CHOICE} nao esta disponivel no plano free.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
-            continue
-        fi
-
-        # free1: so permite apps da whitelist
-        if [ "$PLANO" == "free1" ]; then
-            allowed=false
-            case "$CHOICE" in
-                "DATABASUS"|"EVOLUTION 2.0 API PADRAO"|"N8N V1 - SEM FILA (MAIN)"|"N8N V1 - FILA (QUEUE)"|"N8N V2 - FILA (QUEUE)"|"PGADMIN4"|"MINIO"|"REDIS"|"EVOLUTION CRM"|"EVOLUTION GO"|"EVO NEXUS")
-                    allowed=true ;;
-            esac
-            if ! $allowed; then
-                whiptail --msgbox "A ferramenta ${CHOICE} nao esta disponivel no plano free1.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
-                continue
-            fi
-        fi
-
-        # free2: so permite apps da whitelist
-        if [ "$PLANO" == "free2" ]; then
-            allowed=false
-            case "$CHOICE" in
-                "OPENCLAW"|"EVOLUTION 2.0 API PADRAO"|"N8N V1 - SEM FILA (MAIN)"|"N8N V1 - FILA (QUEUE)"|"N8N V2 - FILA (QUEUE)"|"PGADMIN4"|"MINIO"|"REDIS"|"EVOLUTION CRM"|"EVOLUTION GO"|"EVO NEXUS")
-                    allowed=true ;;
-            esac
-            if ! $allowed; then
-                whiptail --msgbox "A ferramenta ${CHOICE} nao esta disponivel no plano free2.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
-                continue
-            fi
-        fi
-
-        # Confirmar instalacao
-        # Despachar
-        dispatch_app "$CHOICE"
+        # Mapeamento nome -> script
+        case "$CHOICE" in
+            "AFFINE")                                                run_app affine ;;
+            "APPSMITH")                                              run_app appsmith ;;
+            "AUTOGEN STUDIO")                                        run_app autogen ;;
+            "BASEROW")                                               run_app baserow ;;
+            "BOTPRESS")                                              run_app botpress ;;
+            "CAL.COM")                                               run_app calcom ;;
+            "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               run_app chatwootn_evo2_rabbitmq_redisevo ;;
+            "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       run_app chatwootn_evo2_rabbitmq_minio ;;
+            "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    run_app chatwooto_evo2_rabbitmq_minio ;;
+            "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
+            "CLICKHOUSE")                                            run_app clickhouse ;;
+            "COGNEE")                                                run_app cognee ;;
+            "DATABASUS")                                             run_app databasus ;;
+            "DIRECTUS")                                              run_app directus ;;
+            "DISCOURSE")                                             run_app discourse ;;
+            "DOCUMENSO")                                             run_app documenso ;;
+            "DOCUSEAL")                                              run_app docuseal ;;
+            "DOZZLE")                                                run_app dozzle ;;
+            "EVOAI")                                                 run_app evoai ;;
+            "EVOAI + EVOLUTION 2.0 + MINIO*")                       run_app evoai_evo2_minio ;;
+            "EVOLUTION 1.0 API PADRÃO")                             run_app evolutionapi ;;
+            "EVOLUTION 2.0 API PADRÃO")                             run_app evolution2api ;;
+            "EVOLUTION CRM")                                         run_app evocrm ;;
+            "EVOLUTION GO")                                          run_app evolutiongo ;;
+            "EVO NEXUS")                                             run_app evonexus ;;
+            "EXCALIDRAW")                                            run_app excalidraw ;;
+            "FIRECRAWL")                                             run_app firecrawl ;;
+            "FLOWISE")                                               run_app flowise ;;
+            "FOCALBOARD")                                            run_app focalboard ;;
+            "FORMBRICKS")                                            run_app formbricks ;;
+            "GHOST")                                                 run_app ghost ;;
+            "GLPI")                                                  run_app glpi ;;
+            "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
+            "HERMES AGENT")                                          run_app hermes ;;
+            "HUMHUB")                                                run_app humhub ;;
+            "KRAYIN CRM")                                            run_app krayincrm ;;
+            "LANGFLOW")                                              run_app langflow ;;
+            "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
+            "LITELLM")                                               run_app litellm ;;
+            "MATTERMOST")                                            run_app mattermost ;;
+            "MATOMO")                                                run_app matomo ;;
+            "MAUTIC 4 PADRÃO")                                       run_app mauticpadrao ;;
+            "MAUTIC 6 PADRÃO")                                       run_app mautic6padrao ;;
+            "MAUTIC 7 PADRÃO")                                       run_app mautic7padrao ;;
+            "MAUTIC 4 WHATSAPP MKT")                                 run_app mautic4whatsmkt ;;
+            "MAUTIC 6 WHATSAPP MKT")                                 run_app mautic6whatsmkt ;;
+            "MAUTIC 7 WHATSAPP MKT")                                 run_app mautic7whatsmkt ;;
+            "MEMGRAPH")                                              run_app memgraph ;;
+            "METABASE")                                              run_app metabase ;;
+            "MINIO")                                                 run_app minio ;;
+            "MONGODB")                                               run_app mongodb ;;
+            "MYSQL")                                                 run_app mysql ;;
+            "N8N V1 - SEM FILA (MAIN)")                              run_app n8nmain ;;
+            "N8N V1 - FILA (QUEUE)")                                 run_app n8n ;;
+            "N8N V2 - FILA (QUEUE)")                                 run_app n8n2 ;;
+            "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
+            "NEO4J")                                                 run_app neo4j ;;
+            "NEXTCLOUD")                                             run_app nextcloud ;;
+            "NOCODB")                                                run_app nocodb ;;
+            "NTFY")                                                  run_app ntfy ;;
+            "ODOO")                                                  run_app odoo ;;
+            "OLLAMA + OPENWEBUI*")                                   run_app ollama ;;
+            "OPENCLAW")                                              run_app openclaw ;;
+            "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
+            "OPENFANG")                                              run_app openfang ;;
+            "OPEN PROJECT")                                          run_app openproject ;;
+            "PAPERCLIP")                                             run_app paperclip ;;
+            "PGADMIN4")                                              run_app pgadmin ;;
+            "PHPMYADMIN")                                            run_app pma ;;
+            "QDRANT")                                                run_app qdrant ;;
+            "RABBITMQ")                                              run_app rabbitmq ;;
+            "REDIS")                                                 run_app redis ;;
+            "REDIS COMMANDER")                                       run_app redicommander ;;
+            "REDISINSIGHT")                                          run_app redisinsight ;;
+            "SEARXNG")                                               run_app searxng ;;
+            "SHLINK")                                                run_app shlink ;;
+            "STIRLING PDF")                                          run_app stirlingpdf ;;
+            "TWENTY CRM")                                            run_app twentycrm ;;
+            "TYPEBOT")                                               run_app typebot ;;
+            "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
+            "UPTIMEKUMA")                                            run_app uptimekuma ;;
+            "VAULTWARDEN")                                           run_app vaultwarden ;;
+            "WOOFED CRM")                                            run_app woofedcrm ;;
+            "WORDPRESS")                                             run_app wordpress ;;
+            "WUZAP")                                                 run_app wuzap ;;
+        esac
         ;;
-
 esac
+
+fi
+
+if [ "$PLANO" == "free" ]; then
+CHOICE=$(
+whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 20 70 10 \
+    "AFFINE" "PRO" \
+    "APPSMITH" "PRO" \
+    "AUTOGEN STUDIO" "PRO" \
+    "BASEROW" "PRO" \
+    "BOTPRESS" "PRO" \
+    "CAL.COM" "PRO"  \
+    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" ""   \
+    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
+    "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
+    "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
+    "CLICKHOUSE" ""   \
+    "COGNEE" "PRO"   \
+    "DATABASUS" ""   \
+    "DIRECTUS" "" \
+    "DISCOURSE" "PRO" \
+    "DOCUMENSO" "PRO" \
+    "DOCUSEAL" "PRO" \
+    "DOZZLE" "PRO" \
+    "EVOAI" ""  \
+    "EVOAI + EVOLUTION 2.0 + MINIO*" "PRO"  \
+    "EVOLUTION 1.0 API PADRÃO" ""  \
+    "EVOLUTION 2.0 API PADRÃO" ""  \
+    "EVOLUTION CRM" ""  \
+    "EVOLUTION GO" ""  \
+    "EVO NEXUS" ""  \
+    "EXCALIDRAW" "" \
+    "FIRECRAWL" "" \
+    "FLOWISE" "" \
+    "FOCALBOARD" "" \
+    "FORMBRICKS" "" \
+    "GHOST" "PRO" \
+    "GLPI" "" \
+    "GRAFANA/PROMETHEUS MONITOR" ""   \
+    "HERMES AGENT" "PRO" \
+    "HUMHUB" "PRO" \
+    "KRAYIN CRM" "PRO" \
+    "LANGFLOW" "" \
+    "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
+    "LITELLM" "PRO" \
+    "MATTERMOST" "" \
+    "MATOMO" "PRO" \
+    "MAUTIC 4 PADRÃO" "" \
+    "MAUTIC 6 PADRÃO" "" \
+    "MAUTIC 7 PADRÃO" "" \
+    "MAUTIC 4 WHATSAPP MKT" "PRO" \
+    "MAUTIC 6 WHATSAPP MKT" "PRO" \
+    "MAUTIC 7 WHATSAPP MKT" "PRO" \
+    "MEMGRAPH" "PRO" \
+    "METABASE" "" \
+    "MINIO" "" \
+    "MONGODB" "" \
+    "MYSQL" "" \
+    "N8N V1 - SEM FILA (MAIN)" "" \
+    "N8N V1 - FILA (QUEUE)" "" \
+    "N8N V2 - FILA (QUEUE)" "" \
+    "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "" \
+    "NEO4J" "PRO" \
+    "NEXTCLOUD" "PRO" \
+    "NOCODB" "" \
+    "NTFY" "" \
+    "ODOO" "" \
+    "OLLAMA + OPENWEBUI*" "" \
+    "OPENCLAW" "PRO" \
+    "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
+    "OPENFANG" "PRO" \
+    "OPEN PROJECT" "PRO" \
+    "PAPERCLIP" "PRO" \
+    "PGADMIN4" "" \
+    "PHPMYADMIN" "" \
+    "QDRANT" "" \
+    "RABBITMQ" "" \
+    "REDIS" "" \
+    "REDIS COMMANDER" "" \
+    "REDISINSIGHT" "" \
+    "SEARXNG" "PRO" \
+    "SHLINK" "" \
+    "STIRLING PDF" "" \
+    "TWENTY  CRM" "PRO" \
+    "TYPEBOT" "" \
+    "TYPEBOT + MINIO*" "PRO" \
+    "UPTIMEKUMA" "" \
+    "VAULTWARDEN" "" \
+    "WOOFED CRM" "" \
+    "WORDPRESS" "" \
+    "WUZAP" "" \
+    "REINICIAR APPS/SERVIÇOS" "" \
+    "DELETAR APPS/STACKS" "" \
+    "GERADOR DE REGISTROS DNS" "" \
+    "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
+    "SAIR" ""  3>&2 2>&1 1>&3
+)
+
+[ -z "$CHOICE" ] && do_exit
+
+case "$CHOICE" in
+    "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
+    "DELETAR APPS/STACKS")      run_app uninstall ;;
+    "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;
+    "ESSENCIAIS EDITÁVEIS NO PORTAINER") run_app essenciais ;;
+    "SAIR") do_exit ;;
+    *)
+        if check_already_installed "$CHOICE"; then
+            whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
+            continue
+        fi
+        if [[ ("$CHOICE" == "AFFINE") || ("$CHOICE" == "APPSMITH") || ("$CHOICE" == "AUTOGEN STUDIO") || ("$CHOICE" == "BASEROW") || ("$CHOICE" == "BOTPRESS") || ("$CHOICE" == "CAL.COM") || ("$CHOICE" == "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "DOCUMENSO") || ("$CHOICE" == "DOCUSEAL") || ("$CHOICE" == "DOZZLE") || ("$CHOICE" == "EVOAI + EVOLUTION 2.0 + MINIO*") || ("$CHOICE" == "HUMHUB") || ("$CHOICE" == "KRAYIN CRM") || ("$CHOICE" == "LANGFUSE + MINIO + CLICKHOUSE*") || ("$CHOICE" == "LITELLM") || ("$CHOICE" == "MAUTIC 4 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 6 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 7 WHATSAPP MKT") || ("$CHOICE" == "MATOMO") || ("$CHOICE" == "NEXTCLOUD") || ("$CHOICE" == "OPEN PROJECT") || ("$CHOICE" == "TWENTY CRM") || ("$CHOICE" == "TYPEBOT + MINIO*") || ("$CHOICE" == "OPENCLAW") || ("$CHOICE" == "DISCOURSE") || ("$CHOICE" == "GHOST") || ("$CHOICE" == "COGNEE") || ("$CHOICE" == "MEMGRAPH") || ("$CHOICE" == "NEO4J") || ("$CHOICE" == "OPENFANG") || ("$CHOICE" == "PAPERCLIP") || ("$CHOICE" == "SEARXNG") || ("$CHOICE" == "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*") || ("$CHOICE" == "HERMES AGENT") || ("$CHOICE" == "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") ]]; then
+            whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
+            continue
+        fi
+        case "$CHOICE" in
+            "AFFINE")                                                run_app affine ;;
+            "APPSMITH")                                              run_app appsmith ;;
+            "AUTOGEN STUDIO")                                        run_app autogen ;;
+            "BASEROW")                                               run_app baserow ;;
+            "BOTPRESS")                                              run_app botpress ;;
+            "CAL.COM")                                               run_app calcom ;;
+            "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               run_app chatwootn_evo2_rabbitmq_redisevo ;;
+            "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       run_app chatwootn_evo2_rabbitmq_minio ;;
+            "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    run_app chatwooto_evo2_rabbitmq_minio ;;
+            "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
+            "CLICKHOUSE")                                            run_app clickhouse ;;
+            "COGNEE")                                                run_app cognee ;;
+            "DATABASUS")                                             run_app databasus ;;
+            "DIRECTUS")                                              run_app directus ;;
+            "DISCOURSE")                                             run_app discourse ;;
+            "DOCUMENSO")                                             run_app documenso ;;
+            "DOCUSEAL")                                              run_app docuseal ;;
+            "DOZZLE")                                                run_app dozzle ;;
+            "EVOAI")                                                 run_app evoai ;;
+            "EVOAI + EVOLUTION 2.0 + MINIO*")                       run_app evoai_evo2_minio ;;
+            "EVOLUTION 1.0 API PADRÃO")                             run_app evolutionapi ;;
+            "EVOLUTION 2.0 API PADRÃO")                             run_app evolution2api ;;
+            "EVOLUTION CRM")                                         run_app evocrm ;;
+            "EVOLUTION GO")                                          run_app evolutiongo ;;
+            "EVO NEXUS")                                             run_app evonexus ;;
+            "EXCALIDRAW")                                            run_app excalidraw ;;
+            "FIRECRAWL")                                             run_app firecrawl ;;
+            "FLOWISE")                                               run_app flowise ;;
+            "FOCALBOARD")                                            run_app focalboard ;;
+            "FORMBRICKS")                                            run_app formbricks ;;
+            "GHOST")                                                 run_app ghost ;;
+            "GLPI")                                                  run_app glpi ;;
+            "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
+            "HERMES AGENT")                                          run_app hermes ;;
+            "HUMHUB")                                                run_app humhub ;;
+            "KRAYIN CRM")                                            run_app krayincrm ;;
+            "LANGFLOW")                                              run_app langflow ;;
+            "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
+            "LITELLM")                                               run_app litellm ;;
+            "MATTERMOST")                                            run_app mattermost ;;
+            "MATOMO")                                                run_app matomo ;;
+            "MAUTIC 4 PADRÃO")                                       run_app mauticpadrao ;;
+            "MAUTIC 6 PADRÃO")                                       run_app mautic6padrao ;;
+            "MAUTIC 7 PADRÃO")                                       run_app mautic7padrao ;;
+            "MAUTIC 4 WHATSAPP MKT")                                 run_app mautic4whatsmkt ;;
+            "MAUTIC 6 WHATSAPP MKT")                                 run_app mautic6whatsmkt ;;
+            "MAUTIC 7 WHATSAPP MKT")                                 run_app mautic7whatsmkt ;;
+            "MEMGRAPH")                                              run_app memgraph ;;
+            "METABASE")                                              run_app metabase ;;
+            "MINIO")                                                 run_app minio ;;
+            "MONGODB")                                               run_app mongodb ;;
+            "MYSQL")                                                 run_app mysql ;;
+            "N8N V1 - SEM FILA (MAIN)")                              run_app n8nmain ;;
+            "N8N V1 - FILA (QUEUE)")                                 run_app n8n ;;
+            "N8N V2 - FILA (QUEUE)")                                 run_app n8n2 ;;
+            "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
+            "NEO4J")                                                 run_app neo4j ;;
+            "NEXTCLOUD")                                             run_app nextcloud ;;
+            "NOCODB")                                                run_app nocodb ;;
+            "NTFY")                                                  run_app ntfy ;;
+            "ODOO")                                                  run_app odoo ;;
+            "OLLAMA + OPENWEBUI*")                                   run_app ollama ;;
+            "OPENCLAW")                                              run_app openclaw ;;
+            "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
+            "OPENFANG")                                              run_app openfang ;;
+            "OPEN PROJECT")                                          run_app openproject ;;
+            "PAPERCLIP")                                             run_app paperclip ;;
+            "PGADMIN4")                                              run_app pgadmin ;;
+            "PHPMYADMIN")                                            run_app pma ;;
+            "QDRANT")                                                run_app qdrant ;;
+            "RABBITMQ")                                              run_app rabbitmq ;;
+            "REDIS")                                                 run_app redis ;;
+            "REDIS COMMANDER")                                       run_app redicommander ;;
+            "REDISINSIGHT")                                          run_app redisinsight ;;
+            "SEARXNG")                                               run_app searxng ;;
+            "SHLINK")                                                run_app shlink ;;
+            "STIRLING PDF")                                          run_app stirlingpdf ;;
+            "TWENTY CRM")                                            run_app twentycrm ;;
+            "TYPEBOT")                                               run_app typebot ;;
+            "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
+            "UPTIMEKUMA")                                            run_app uptimekuma ;;
+            "VAULTWARDEN")                                           run_app vaultwarden ;;
+            "WOOFED CRM")                                            run_app woofedcrm ;;
+            "WORDPRESS")                                             run_app wordpress ;;
+            "WUZAP")                                                 run_app wuzap ;;
+        esac
+        ;;
+esac
+
+fi
+
+if [ "$PLANO" == "free1" ]; then
+CHOICE=$(
+whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 20 70 10 \
+    "DATABASUS" ""   \
+    "EVOLUTION 2.0 API PADRÃO" ""  \
+    "EVOLUTION CRM" ""  \
+    "EVOLUTION GO" ""  \
+    "EVO NEXUS" ""  \
+    "N8N V1 - SEM FILA (MAIN)" "" \
+    "N8N V1 - FILA (QUEUE)" "" \
+    "N8N V2 - FILA (QUEUE)" "" \
+    "PGADMIN4" "" \
+    "MINIO" "" \
+    "REDIS" "" \
+    "AFFINE" "PRO" \
+    "APPSMITH" "PRO" \
+    "AUTOGEN STUDIO" "PRO" \
+    "BASEROW" "PRO" \
+    "BOTPRESS" "PRO" \
+    "CAL.COM" "PRO"  \
+    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" "PRO"   \
+    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
+    "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
+    "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
+    "CLICKHOUSE" "PRO"   \
+    "COGNEE" "PRO"   \
+    "DIRECTUS" "PRO" \
+    "DISCOURSE" "PRO" \
+    "DOCUMENSO" "PRO" \
+    "DOCUSEAL" "PRO" \
+    "DOZZLE" "PRO" \
+    "EVOAI" "PRO"  \
+    "EVOAI + EVOLUTION 2.0 + MINIO*" "PRO"  \
+    "EVOLUTION 1.0 API PADRÃO" "PRO"  \
+    "EXCALIDRAW" "PRO" \
+    "FIRECRAWL" "PRO" \
+    "FLOWISE" "PRO" \
+    "FOCALBOARD" "PRO" \
+    "FORMBRICKS" "PRO" \
+    "GHOST" "PRO" \
+    "GLPI" "PRO" \
+    "GRAFANA/PROMETHEUS MONITOR" "PRO"   \
+    "HERMES AGENT" "PRO" \
+    "HUMHUB" "PRO" \
+    "KRAYIN CRM" "PRO" \
+    "LANGFLOW" "PRO" \
+    "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
+    "LITELLM" "PRO" \
+    "MATTERMOST" "PRO" \
+    "MATOMO" "PRO" \
+    "MAUTIC 4 PADRÃO" "PRO" \
+    "MAUTIC 6 PADRÃO" "PRO" \
+    "MAUTIC 7 PADRÃO" "PRO" \
+    "MAUTIC 4 WHATSAPP MKT" "PRO" \
+    "MAUTIC 6 WHATSAPP MKT" "PRO" \
+    "MAUTIC 7 WHATSAPP MKT" "PRO" \
+    "MEMGRAPH" "PRO" \
+    "METABASE" "PRO" \
+    "MONGODB" "PRO" \
+    "MYSQL" "PRO" \
+    "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "PRO" \
+    "NEO4J" "PRO" \
+    "NEXTCLOUD" "PRO" \
+    "NOCODB" "PRO" \
+    "NTFY" "PRO" \
+    "ODOO" "PRO" \
+    "OLLAMA + OPENWEBUI*" "PRO" \
+    "OPENCLAW" "PRO" \
+    "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
+    "OPENFANG" "PRO" \
+    "OPEN PROJECT" "PRO" \
+    "PAPERCLIP" "PRO" \
+    "PHPMYADMIN" "PRO" \
+    "QDRANT" "PRO" \
+    "RABBITMQ" "PRO" \
+    "REDIS COMMANDER" "PRO" \
+    "REDISINSIGHT" "PRO" \
+    "SEARXNG" "PRO" \
+    "SHLINK" "PRO" \
+    "STIRLING PDF" "PRO" \
+    "TWENTY  CRM" "PRO" \
+    "TYPEBOT" "PRO" \
+    "TYPEBOT + MINIO*" "PRO" \
+    "UPTIMEKUMA" "PRO" \
+    "VAULTWARDEN" "PRO" \
+    "WOOFED CRM" "PRO" \
+    "WORDPRESS" "PRO" \
+    "WUZAP" "PRO" \
+    "REINICIAR APPS/SERVIÇOS" "" \
+    "DELETAR APPS/STACKS" "" \
+    "GERADOR DE REGISTROS DNS" "" \
+    "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
+    "SAIR" ""  3>&2 2>&1 1>&3
+)
+
+[ -z "$CHOICE" ] && do_exit
+
+case "$CHOICE" in
+    "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
+    "DELETAR APPS/STACKS")      run_app uninstall ;;
+    "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;
+    "ESSENCIAIS EDITÁVEIS NO PORTAINER") run_app essenciais ;;
+    "SAIR") do_exit ;;
+    *)
+        if check_already_installed "$CHOICE"; then
+            whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
+            continue
+        fi
+        if [[ ("$CHOICE" != "DATABASUS") && ("$CHOICE" != "EVOLUTION 2.0 API PADRÃO") && ("$CHOICE" != "N8N V1 - SEM FILA (MAIN)") && ("$CHOICE" != "N8N V1 - FILA (QUEUE)") && ("$CHOICE" != "N8N V2 - FILA (QUEUE)") && ("$CHOICE" != "PGADMIN4") && ("$CHOICE" != "MINIO") && ("$CHOICE" != "REDIS") && ("$CHOICE" != "EVOLUTION CRM") && ("$CHOICE" != "EVOLUTION GO") && ("$CHOICE" != "EVO NEXUS") ]]; then
+            whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free1.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
+            continue
+        fi
+        case "$CHOICE" in
+            "AFFINE")                                                run_app affine ;;
+            "APPSMITH")                                              run_app appsmith ;;
+            "AUTOGEN STUDIO")                                        run_app autogen ;;
+            "BASEROW")                                               run_app baserow ;;
+            "BOTPRESS")                                              run_app botpress ;;
+            "CAL.COM")                                               run_app calcom ;;
+            "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               run_app chatwootn_evo2_rabbitmq_redisevo ;;
+            "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       run_app chatwootn_evo2_rabbitmq_minio ;;
+            "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    run_app chatwooto_evo2_rabbitmq_minio ;;
+            "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
+            "CLICKHOUSE")                                            run_app clickhouse ;;
+            "COGNEE")                                                run_app cognee ;;
+            "DATABASUS")                                             run_app databasus ;;
+            "DIRECTUS")                                              run_app directus ;;
+            "DISCOURSE")                                             run_app discourse ;;
+            "DOCUMENSO")                                             run_app documenso ;;
+            "DOCUSEAL")                                              run_app docuseal ;;
+            "DOZZLE")                                                run_app dozzle ;;
+            "EVOAI")                                                 run_app evoai ;;
+            "EVOAI + EVOLUTION 2.0 + MINIO*")                       run_app evoai_evo2_minio ;;
+            "EVOLUTION 1.0 API PADRÃO")                             run_app evolutionapi ;;
+            "EVOLUTION 2.0 API PADRÃO")                             run_app evolution2api ;;
+            "EVOLUTION CRM")                                         run_app evocrm ;;
+            "EVOLUTION GO")                                          run_app evolutiongo ;;
+            "EVO NEXUS")                                             run_app evonexus ;;
+            "EXCALIDRAW")                                            run_app excalidraw ;;
+            "FIRECRAWL")                                             run_app firecrawl ;;
+            "FLOWISE")                                               run_app flowise ;;
+            "FOCALBOARD")                                            run_app focalboard ;;
+            "FORMBRICKS")                                            run_app formbricks ;;
+            "GHOST")                                                 run_app ghost ;;
+            "GLPI")                                                  run_app glpi ;;
+            "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
+            "HERMES AGENT")                                          run_app hermes ;;
+            "HUMHUB")                                                run_app humhub ;;
+            "KRAYIN CRM")                                            run_app krayincrm ;;
+            "LANGFLOW")                                              run_app langflow ;;
+            "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
+            "LITELLM")                                               run_app litellm ;;
+            "MATTERMOST")                                            run_app mattermost ;;
+            "MATOMO")                                                run_app matomo ;;
+            "MAUTIC 4 PADRÃO")                                       run_app mauticpadrao ;;
+            "MAUTIC 6 PADRÃO")                                       run_app mautic6padrao ;;
+            "MAUTIC 7 PADRÃO")                                       run_app mautic7padrao ;;
+            "MAUTIC 4 WHATSAPP MKT")                                 run_app mautic4whatsmkt ;;
+            "MAUTIC 6 WHATSAPP MKT")                                 run_app mautic6whatsmkt ;;
+            "MAUTIC 7 WHATSAPP MKT")                                 run_app mautic7whatsmkt ;;
+            "MEMGRAPH")                                              run_app memgraph ;;
+            "METABASE")                                              run_app metabase ;;
+            "MINIO")                                                 run_app minio ;;
+            "MONGODB")                                               run_app mongodb ;;
+            "MYSQL")                                                 run_app mysql ;;
+            "N8N V1 - SEM FILA (MAIN)")                              run_app n8nmain ;;
+            "N8N V1 - FILA (QUEUE)")                                 run_app n8n ;;
+            "N8N V2 - FILA (QUEUE)")                                 run_app n8n2 ;;
+            "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
+            "NEO4J")                                                 run_app neo4j ;;
+            "NEXTCLOUD")                                             run_app nextcloud ;;
+            "NOCODB")                                                run_app nocodb ;;
+            "NTFY")                                                  run_app ntfy ;;
+            "ODOO")                                                  run_app odoo ;;
+            "OLLAMA + OPENWEBUI*")                                   run_app ollama ;;
+            "OPENCLAW")                                              run_app openclaw ;;
+            "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
+            "OPENFANG")                                              run_app openfang ;;
+            "OPEN PROJECT")                                          run_app openproject ;;
+            "PAPERCLIP")                                             run_app paperclip ;;
+            "PGADMIN4")                                              run_app pgadmin ;;
+            "PHPMYADMIN")                                            run_app pma ;;
+            "QDRANT")                                                run_app qdrant ;;
+            "RABBITMQ")                                              run_app rabbitmq ;;
+            "REDIS")                                                 run_app redis ;;
+            "REDIS COMMANDER")                                       run_app redicommander ;;
+            "REDISINSIGHT")                                          run_app redisinsight ;;
+            "SEARXNG")                                               run_app searxng ;;
+            "SHLINK")                                                run_app shlink ;;
+            "STIRLING PDF")                                          run_app stirlingpdf ;;
+            "TWENTY CRM")                                            run_app twentycrm ;;
+            "TYPEBOT")                                               run_app typebot ;;
+            "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
+            "UPTIMEKUMA")                                            run_app uptimekuma ;;
+            "VAULTWARDEN")                                           run_app vaultwarden ;;
+            "WOOFED CRM")                                            run_app woofedcrm ;;
+            "WORDPRESS")                                             run_app wordpress ;;
+            "WUZAP")                                                 run_app wuzap ;;
+        esac
+        ;;
+esac
+
+fi
+
+if [ "$PLANO" == "free2" ]; then
+CHOICE=$(
+whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 20 70 10 \
+    "OPENCLAW" "" \
+    "EVOLUTION 2.0 API PADRÃO" ""  \
+    "EVOLUTION CRM" ""  \
+    "EVOLUTION GO" ""  \
+    "EVO NEXUS" ""  \
+    "N8N V1 - SEM FILA (MAIN)" "" \
+    "N8N V1 - FILA (QUEUE)" "" \
+    "N8N V2 - FILA (QUEUE)" "" \
+    "PGADMIN4" "" \
+    "MINIO" "" \
+    "REDIS" "" \
+    "AFFINE" "PRO" \
+    "APPSMITH" "PRO" \
+    "AUTOGEN STUDIO" "PRO" \
+    "BASEROW" "PRO" \
+    "BOTPRESS" "PRO" \
+    "CAL.COM" "PRO"  \
+    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" "PRO"   \
+    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
+    "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
+    "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
+    "CLICKHOUSE" "PRO"   \
+    "COGNEE" "PRO"   \
+    "DATABASUS" "PRO"   \
+    "DIRECTUS" "PRO" \
+    "DISCOURSE" "PRO" \
+    "DOCUMENSO" "PRO" \
+    "DOCUSEAL" "PRO" \
+    "DOZZLE" "PRO" \
+    "EVOAI" "PRO"  \
+    "EVOAI + EVOLUTION 2.0 + MINIO*" "PRO"  \
+    "EVOLUTION 1.0 API PADRÃO" "PRO"  \
+    "EXCALIDRAW" "PRO" \
+    "FIRECRAWL" "PRO" \
+    "FLOWISE" "PRO" \
+    "FOCALBOARD" "PRO" \
+    "FORMBRICKS" "PRO" \
+    "GHOST" "PRO" \
+    "GLPI" "PRO" \
+    "GRAFANA/PROMETHEUS MONITOR" "PRO"   \
+    "HERMES AGENT" "PRO" \
+    "HUMHUB" "PRO" \
+    "KRAYIN CRM" "PRO" \
+    "LANGFLOW" "PRO" \
+    "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
+    "LITELLM" "PRO" \
+    "MATTERMOST" "PRO" \
+    "MATOMO" "PRO" \
+    "MAUTIC 4 PADRÃO" "PRO" \
+    "MAUTIC 6 PADRÃO" "PRO" \
+    "MAUTIC 7 PADRÃO" "PRO" \
+    "MAUTIC 4 WHATSAPP MKT" "PRO" \
+    "MAUTIC 6 WHATSAPP MKT" "PRO" \
+    "MAUTIC 7 WHATSAPP MKT" "PRO" \
+    "MEMGRAPH" "PRO" \
+    "METABASE" "PRO" \
+    "MONGODB" "PRO" \
+    "MYSQL" "PRO" \
+    "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "PRO" \
+    "NEO4J" "PRO" \
+    "NEXTCLOUD" "PRO" \
+    "NOCODB" "PRO" \
+    "NTFY" "PRO" \
+    "ODOO" "PRO" \
+    "OLLAMA + OPENWEBUI*" "PRO" \
+    "OPENFANG" "PRO" \
+    "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
+    "OPEN PROJECT" "PRO" \
+    "PAPERCLIP" "PRO" \
+    "PGADMIN4" "" \
+    "PHPMYADMIN" "PRO" \
+    "QDRANT" "PRO" \
+    "RABBITMQ" "PRO" \
+    "REDIS COMMANDER" "PRO" \
+    "REDISINSIGHT" "PRO" \
+    "SEARXNG" "PRO" \
+    "SHLINK" "PRO" \
+    "STIRLING PDF" "PRO" \
+    "TWENTY  CRM" "PRO" \
+    "TYPEBOT" "PRO" \
+    "TYPEBOT + MINIO*" "PRO" \
+    "UPTIMEKUMA" "PRO" \
+    "VAULTWARDEN" "PRO" \
+    "WOOFED CRM" "PRO" \
+    "WORDPRESS" "PRO" \
+    "WUZAP" "PRO" \
+    "REINICIAR APPS/SERVIÇOS" "" \
+    "DELETAR APPS/STACKS" "" \
+    "GERADOR DE REGISTROS DNS" "" \
+    "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
+    "SAIR" ""  3>&2 2>&1 1>&3
+)
+
+[ -z "$CHOICE" ] && do_exit
+
+case "$CHOICE" in
+    "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
+    "DELETAR APPS/STACKS")      run_app uninstall ;;
+    "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;
+    "ESSENCIAIS EDITÁVEIS NO PORTAINER") run_app essenciais ;;
+    "SAIR") do_exit ;;
+    *)
+        if check_already_installed "$CHOICE"; then
+            whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
+            continue
+        fi
+        if [[ ("$CHOICE" != "OPENCLAW") && ("$CHOICE" != "EVOLUTION 2.0 API PADRÃO") && ("$CHOICE" != "N8N V1 - SEM FILA (MAIN)") && ("$CHOICE" != "N8N V1 - FILA (QUEUE)") && ("$CHOICE" != "N8N V2 - FILA (QUEUE)") && ("$CHOICE" != "PGADMIN4") && ("$CHOICE" != "MINIO") && ("$CHOICE" != "REDIS") && ("$CHOICE" != "EVOLUTION CRM") && ("$CHOICE" != "EVOLUTION GO") && ("$CHOICE" != "EVO NEXUS") ]]; then
+            whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free2.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
+            continue
+        fi
+        case "$CHOICE" in
+            "AFFINE")                                                run_app affine ;;
+            "APPSMITH")                                              run_app appsmith ;;
+            "AUTOGEN STUDIO")                                        run_app autogen ;;
+            "BASEROW")                                               run_app baserow ;;
+            "BOTPRESS")                                              run_app botpress ;;
+            "CAL.COM")                                               run_app calcom ;;
+            "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               run_app chatwootn_evo2_rabbitmq_redisevo ;;
+            "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       run_app chatwootn_evo2_rabbitmq_minio ;;
+            "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    run_app chatwooto_evo2_rabbitmq_minio ;;
+            "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
+            "CLICKHOUSE")                                            run_app clickhouse ;;
+            "COGNEE")                                                run_app cognee ;;
+            "DATABASUS")                                             run_app databasus ;;
+            "DIRECTUS")                                              run_app directus ;;
+            "DISCOURSE")                                             run_app discourse ;;
+            "DOCUMENSO")                                             run_app documenso ;;
+            "DOCUSEAL")                                              run_app docuseal ;;
+            "DOZZLE")                                                run_app dozzle ;;
+            "EVOAI")                                                 run_app evoai ;;
+            "EVOAI + EVOLUTION 2.0 + MINIO*")                       run_app evoai_evo2_minio ;;
+            "EVOLUTION 1.0 API PADRÃO")                             run_app evolutionapi ;;
+            "EVOLUTION 2.0 API PADRÃO")                             run_app evolution2api ;;
+            "EVOLUTION CRM")                                         run_app evocrm ;;
+            "EVOLUTION GO")                                          run_app evolutiongo ;;
+            "EVO NEXUS")                                             run_app evonexus ;;
+            "EXCALIDRAW")                                            run_app excalidraw ;;
+            "FIRECRAWL")                                             run_app firecrawl ;;
+            "FLOWISE")                                               run_app flowise ;;
+            "FOCALBOARD")                                            run_app focalboard ;;
+            "FORMBRICKS")                                            run_app formbricks ;;
+            "GHOST")                                                 run_app ghost ;;
+            "GLPI")                                                  run_app glpi ;;
+            "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
+            "HERMES AGENT")                                          run_app hermes ;;
+            "HUMHUB")                                                run_app humhub ;;
+            "KRAYIN CRM")                                            run_app krayincrm ;;
+            "LANGFLOW")                                              run_app langflow ;;
+            "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
+            "LITELLM")                                               run_app litellm ;;
+            "MATTERMOST")                                            run_app mattermost ;;
+            "MATOMO")                                                run_app matomo ;;
+            "MAUTIC 4 PADRÃO")                                       run_app mauticpadrao ;;
+            "MAUTIC 6 PADRÃO")                                       run_app mautic6padrao ;;
+            "MAUTIC 7 PADRÃO")                                       run_app mautic7padrao ;;
+            "MAUTIC 4 WHATSAPP MKT")                                 run_app mautic4whatsmkt ;;
+            "MAUTIC 6 WHATSAPP MKT")                                 run_app mautic6whatsmkt ;;
+            "MAUTIC 7 WHATSAPP MKT")                                 run_app mautic7whatsmkt ;;
+            "MEMGRAPH")                                              run_app memgraph ;;
+            "METABASE")                                              run_app metabase ;;
+            "MINIO")                                                 run_app minio ;;
+            "MONGODB")                                               run_app mongodb ;;
+            "MYSQL")                                                 run_app mysql ;;
+            "N8N V1 - SEM FILA (MAIN)")                              run_app n8nmain ;;
+            "N8N V1 - FILA (QUEUE)")                                 run_app n8n ;;
+            "N8N V2 - FILA (QUEUE)")                                 run_app n8n2 ;;
+            "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
+            "NEO4J")                                                 run_app neo4j ;;
+            "NEXTCLOUD")                                             run_app nextcloud ;;
+            "NOCODB")                                                run_app nocodb ;;
+            "NTFY")                                                  run_app ntfy ;;
+            "ODOO")                                                  run_app odoo ;;
+            "OLLAMA + OPENWEBUI*")                                   run_app ollama ;;
+            "OPENCLAW")                                              run_app openclaw ;;
+            "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
+            "OPENFANG")                                              run_app openfang ;;
+            "OPEN PROJECT")                                          run_app openproject ;;
+            "PAPERCLIP")                                             run_app paperclip ;;
+            "PGADMIN4")                                              run_app pgadmin ;;
+            "PHPMYADMIN")                                            run_app pma ;;
+            "QDRANT")                                                run_app qdrant ;;
+            "RABBITMQ")                                              run_app rabbitmq ;;
+            "REDIS")                                                 run_app redis ;;
+            "REDIS COMMANDER")                                       run_app redicommander ;;
+            "REDISINSIGHT")                                          run_app redisinsight ;;
+            "SEARXNG")                                               run_app searxng ;;
+            "SHLINK")                                                run_app shlink ;;
+            "STIRLING PDF")                                          run_app stirlingpdf ;;
+            "TWENTY CRM")                                            run_app twentycrm ;;
+            "TYPEBOT")                                               run_app typebot ;;
+            "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
+            "UPTIMEKUMA")                                            run_app uptimekuma ;;
+            "VAULTWARDEN")                                           run_app vaultwarden ;;
+            "WOOFED CRM")                                            run_app woofedcrm ;;
+            "WORDPRESS")                                             run_app wordpress ;;
+            "WUZAP")                                                 run_app wuzap ;;
+        esac
+        ;;
+esac
+
+fi
 
 done
