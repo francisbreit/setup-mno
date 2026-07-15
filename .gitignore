@@ -1,0 +1,31 @@
+# === DISTRIBUICAO (ZIPs, binarios compilados) ===
+3_distribuicao/
+2_empacotador/
+
+# === BINARIOS COMPILADOS (shc) ===
+*.bin
+start_full_*
+start_full_arm_*
+
+# === SENSIVEIS ===
+*.env
+*.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+credentials.*
+secrets.*
+*.sqlite
+*.db
+
+# === MIMOCODE (sessoes internas) ===
+.mimocode/
+
+# === TEMP ===
+*.tmp
+*.bak
+*.swp
+*~
