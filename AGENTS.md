@@ -29,9 +29,49 @@ Quando solicitado para atualizar ou adicionar ferramentas:
 3. **`install.sh`:** O cérebro. Valida ambiente Docker/Swarm, chama `dockerswarm.sh` se necessário, e abre o menu de aplicações.
 4. **Scripts de Deploy:** Scripts individuais (ex: `n8n.sh`) chamados pelo `install.sh`.
 
+## CONTROLE DE VERSÃO (GIT)
+O projeto utiliza Git para rastrear todas as alterações. Regras obrigatórias:
+
+### Histórico e Reversão
+- **Cada alteração** (combo, ferramenta, correção) deve ser commitada com mensagem descritiva.
+- **Reversão:** `git checkout <hash> -- <arquivo>` para voltar um arquivo, ou `git checkout <hash>` para estado completo.
+- **Diferença:** `git diff <hash1> <hash2>` para comparar versões.
+
+### Versionamento
+- Versão definida na variável `VERSION` no topo do `install.sh` (x86 e ARM).
+- Formato: `MAJOR.MINOR.PATCH` (ex: `4.20.2`)
+- **MAJOR:** Mudança arquitetural (ex: novo menu, novo fluxo de licenciamento)
+- **MINOR:** Nova ferramenta ou combo adicionado
+- **PATCH:** Correção de bug, melhoria de performance, ajuste de layout
+
+### Releases
+- **Tag antes de cada release:** `git tag -a v4.21.0 -m "Descrição"`
+- **Commit de release:** Mensagem no formato `release: vX.Y.Z - Descrição`
+- **Upload:** Os ZIPs em `/3_distribuicao/` são os artefatos da release
+
+### Workflow de Release
+1. Editar arquivos em `/1_codigo_fonte/`
+2. Atualizar `VERSION` no `install.sh` (x86 + ARM)
+3. Commit: `git commit -am "feat: [descrição]"`
+4. Empacotar: `./2_empacotador/gerar_distribuicao.sh`
+5. Commit do empacotamento: `git commit -am "release: vX.Y.Z - [descrição]"`
+6. Tag: `git tag -a vX.Y.Z -m "[descrição]"`
+
 ## REGRA PARA ADIÇÃO DE NOVAS FERRAMENTAS
 Ao adicionar uma ferramenta (CRM, IA, etc):
 1. **Criação:** Crie o script `ferramenta.sh` em ambos os diretórios de arquitetura.
 2. **Gestão de Planos:** Pergunte sempre se é Pro ou Free. Se houver variantes (Free1, Free2), a lógica de deleção/manutenção no `start_full` e a opção no menu do `install.sh` devem ser espelhadas.
 3. **Menu:** Atualize o menu `whiptail` no `install.sh` de ambas as arquiteturas.
-4. **Empacotamento:** Finalize com o comando de build após validar a sintaxe.
+4. **Espelhamento:** Toda alteração em x86 deve ser replicada em ARM (mesma lógica, tags de imagem diferentes).
+5. **Versionamento:** Incremente o MINOR da versão (ex: 4.20.2 → 4.21.0).
+6. **Empacotamento:** Finalize com o comando de build após validar a sintaxe.
+
+## REGRA PARA CRIAÇÃO DE COMBOS
+Ao criar ou atualizar um combo:
+1. **Script:** Crie o script `combo_nome.sh` em ambos os diretórios de arquitetura.
+2. **Integração:** O combo deve usar as redes Docker existentes (`interna`, `externa`) e o PostgreSQL compartilhado.
+3. **DNS:** Implemente lógica de DNS automático para os 3 cenários (TRADICIONAL+DNS automático, TRADICIONAL+DNS manual, CLOUDFLARE_TUNNEL).
+4. **Menu:** O combo deve aparecer no `install.sh` com asterisco (*) indicando combo pré-integrado.
+5. **Planos:** Defina se o combo é Pro, Free, ou disponível em todos os planos.
+6. **Versionamento:** Incremente o MINOR da versão.
+7. **Documentação:** Descreva o que o combo faz no nome do menu (ex: "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*").
