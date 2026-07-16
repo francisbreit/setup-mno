@@ -377,6 +377,13 @@ fi
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm humhub
 fi
+echo -e "XXX\n62.5\nINSTALANDO SETUPMNO 3/8 \nXXX"
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o keycloak -f keycloak.sh
+rm keycloak.sh
+rm keycloak.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm keycloak
+fi
 echo -e "XXX\n63\nINSTALANDO SETUPMNO 3/8 \nXXX"
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o krayincrm -f krayincrm.sh
 rm krayincrm.sh
@@ -1034,6 +1041,13 @@ rm chatwootorig_desbloq__evo2_rabbitmq_minio.sh
 rm chatwootorig_desbloq__evo2_rabbitmq_minio.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm chatwootorig_desbloq__evo2_rabbitmq_minio
+fi
+
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o chatwoot_ai_customer_service -f chatwoot_ai_customer_service.sh
+rm chatwoot_ai_customer_service.sh
+rm chatwoot_ai_customer_service.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm chatwoot_ai_customer_service
 fi
 
 echo -e "XXX\n99\nINSTALANDO SETUPMNO 7/8 \nXXX"

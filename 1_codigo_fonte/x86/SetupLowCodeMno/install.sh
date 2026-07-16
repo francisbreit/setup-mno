@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSION="4.21.0"
+VERSION="4.22.0"
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
 CONTATO_GITHUB="github.com/francisbreit"
@@ -264,6 +264,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "GRAFANA/PROMETHEUS MONITOR" ""   \
     "HERMES AGENT" "" \
     "HUMHUB" "" \
+    "KEYCLOAK" "" \
     "KRAYIN CRM" "" \
     "LANGFLOW" "" \
     "LANGFUSE + MINIO + CLICKHOUSE*" "" \
@@ -372,6 +373,7 @@ case "$CHOICE" in
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HUMHUB")                                                run_app humhub ;;
+            "KEYCLOAK")                                              run_app keycloak ;;
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "LANGFLOW")                                              run_app langflow ;;
             "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
@@ -467,6 +469,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "GRAFANA/PROMETHEUS MONITOR" ""   \
     "HERMES AGENT" "PRO" \
     "HUMHUB" "PRO" \
+    "KEYCLOAK" "PRO" \
     "KRAYIN CRM" "PRO" \
     "LANGFLOW" "" \
     "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
@@ -578,6 +581,7 @@ case "$CHOICE" in
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HUMHUB")                                                run_app humhub ;;
+            "KEYCLOAK")                                              run_app keycloak ;;
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "LANGFLOW")                                              run_app langflow ;;
             "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
@@ -679,6 +683,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "GRAFANA/PROMETHEUS MONITOR" "PRO"   \
     "HERMES AGENT" "PRO" \
     "HUMHUB" "PRO" \
+    "KEYCLOAK" "PRO" \
     "KRAYIN CRM" "PRO" \
     "LANGFLOW" "PRO" \
     "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
@@ -784,6 +789,7 @@ case "$CHOICE" in
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HUMHUB")                                                run_app humhub ;;
+            "KEYCLOAK")                                              run_app keycloak ;;
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "LANGFLOW")                                              run_app langflow ;;
             "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
@@ -886,6 +892,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "GRAFANA/PROMETHEUS MONITOR" "PRO"   \
     "HERMES AGENT" "PRO" \
     "HUMHUB" "PRO" \
+    "KEYCLOAK" "PRO" \
     "KRAYIN CRM" "PRO" \
     "LANGFLOW" "PRO" \
     "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
@@ -991,6 +998,7 @@ case "$CHOICE" in
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HUMHUB")                                                run_app humhub ;;
+            "KEYCLOAK")                                              run_app keycloak ;;
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "LANGFLOW")                                              run_app langflow ;;
             "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;

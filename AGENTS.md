@@ -63,8 +63,20 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
 2. **Gestão de Planos:** Pergunte sempre se é Pro ou Free. Se houver variantes (Free1, Free2), a lógica de deleção/manutenção no `start_full` e a opção no menu do `install.sh` devem ser espelhadas.
 3. **Menu:** Atualize o menu `whiptail` no `install.sh` de ambas as arquiteturas.
 4. **Espelhamento:** Toda alteração em x86 deve ser replicada em ARM (mesma lógica, tags de imagem diferentes).
-5. **Versionamento:** Incremente o MINOR da versão (ex: 4.20.2 → 4.21.0).
-6. **Empacotamento:** Finalize com o comando de build após validar a sintaxe.
+5. **Compilação SHC (OBRIGATÓRIO):** Adicione o bloco de compilação SHC em AMBOS os gatilhos (`start_full.sh` x86 e `start_arm_full.sh` ARM). Sem isso, o script não será compilado no runtime do cliente e o menu falhará. Formato do bloco:
+   ```bash
+   shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o nome_da_ferramenta -f nome_da_ferramenta.sh
+   rm nome_da_ferramenta.sh
+   rm nome_da_ferramenta.sh.x.c
+   if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+   rm nome_da_ferramenta
+   fi
+   ```
+   - Inserir o bloco na seção de compilação SHC (antes do `echo "INSTALANDO SETUPMNO 7/8"`)
+   - Ajuste a condição `if` conforme o plano: Pro-only = delete para free/free1/free2; Free = delete apenas para free; etc.
+   - **Este é o erro mais comum ao adicionar ferramentas novas — sempre verifique se o bloco SHC foi adicionado.**
+6. **Versionamento:** Incremente o MINOR da versão (ex: 4.20.2 → 4.21.0).
+7. **Empacotamento:** Finalize com o comando de build após validar a sintaxe.
 
 ## REGRA PARA CRIAÇÃO DE COMBOS
 Ao criar ou atualizar um combo:
@@ -75,3 +87,77 @@ Ao criar ou atualizar um combo:
 5. **Planos:** Defina se o combo é Pro, Free, ou disponível em todos os planos.
 6. **Versionamento:** Incremente o MINOR da versão.
 7. **Documentação:** Descreva o que o combo faz no nome do menu (ex: "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*").
+
+## SCRIPT DE REFERÊNCIA (LEGADO)
+
+### Propósito
+O diretório `/4_referencia/` contém o script antigo de deploy (apenas leitura). Este script é uma referência para identificar ferramentas que ainda não foram migradas para o projeto atual.
+
+### Regras de Uso
+1. **NUNCA EDITE** arquivos em `/4_referencia/` — são apenas referência.
+2. **NÃO ASSUMA** que todo item do script antigo precisa ser migrado — muitos já existem no projeto atual.
+3. **FLUXO DE MIGRAÇÃO:**
+   - Analise o script antigo identificando ferramentas/funções.
+   - Cruze com o que já existe em `/1_codigo_fonte/`.
+   - Liste apenas o que é novo e precisa ser adicionado.
+   - Siga a REGRAS PARA ADIÇÃO DE NOVAS FERRAMENTAS acima para cada item a ser migrado.
+
+### Checklist de Migração (por ferramenta)
+Antes de migrar, confirme:
+- [ ] A ferramenta não existe já em `x86/` ou `arm/` do projeto atual.
+- [ ] A rede Docker do script antigo (`interna/externa`) é compatível com o novo setup (Cloudflare Tunnel + Traefik).
+- [ ] A lógica de DNS automático do novo projeto será aplicada.
+- [ ] O script será escrito para AMBAS as arquiteturas (x86 e ARM).
+- [ ] O bloco SHC será adicionado corretamente em ambos os gatilhos.
+
+### Passos Obrigatórios pós-Migração
+Após criar o script da ferramenta em ambas as arquiteturas:
+1. **Menu:** Atualize o menu `whiptail` no `install.sh` (x86 e ARM) — adicionar opção + case statement.
+2. **SHC:** Adicione o bloco de compilação em `start_full.sh` (x86) e `start_arm_full.sh` (ARM).
+3. **Versão:** Incremente o MINOR da versão no `install.sh` (x86 e ARM) — ex: `4.22.0` → `4.23.0`.
+4. **Empacotamento:** Rode `./2_empacotador/gerar_distribuicao.sh`.
+5. **Git:** Faça commit das alterações com mensagem descritiva (ex: `feat: adicionar Keycloak (IAM/SSO)`).
+
+### Análise de Atualizações no Script Antigo
+O script antigo pode ser atualizado constantemente com novas ferramentas. Quando o usuário solicitar uma nova análise:
+
+1. **Releia** o script em `/4_referencia/script_antigo.sh`.
+2. **Identifique** todas as ferramentas presentes (via menu e funções `nome_*`).
+3. **Cruze** com a lista atual de scripts em `1_codigo_fonte/x86/SetupLowCodeMno/` e `1_codigo_fonte/arm/SetupLowCodeMno/`.
+4. **Classifique** cada ferramenta em:
+   - **JÁ EXISTE** — já implementada no projeto atual (ignorar).
+   - **MIGRÁVEL** — existe no antigo, não existe no atual. Candidata a migração.
+   - **NOVA NO ATUAL** — existe no atual mas não no antigo (já foi criada/migrada anteriormente).
+   - **DESCARTÁVEL** — não faz sentido migrar (legada, obsoleta, ou incompatível com a nova arquitetura).
+5. **Gere relatório** com a classificação acima, incluindo categoria e prioridade para cada ferramenta migrável.
+
+### Diferenças Arquiteturais Importantes
+O script antigo e o projeto atual possuem diferenças fundamentais que afetam a migração:
+
+| Aspecto | Script Antigo | Projeto Atual |
+|---|---|---|
+| **Rede** | `interna` / `externa` | `interna` / `externa` + Cloudflare Tunnel |
+| **Reverse Proxy** | Traefik (docker swarm) | Traefik + Cloudflare Tunnel |
+| **DNS** | Manual | Automático (3 cenários) |
+| **Deploy** | Via API Portainer | Via script bash direto |
+| **Licenciamento** | Sem SHC | SHC com expiração por plano |
+| **Planos** | Sem controle | Free / Free1 / Free2 / Pro |
+| **Arquitetura** | x86 apenas (ou com variantes ARM manuais) | x86 e ARM espelhados automaticamente |
+| **Empacotamento** | Script único | ZIPs separados por plano |
+
+### Categorias de Ferramentas
+
+**Infraestrutura** (migrar com cuidado extra — afetam todo o setup):
+- Traefik, Portainer, Docker Swarm, MongoDB, PostgreSQL, Redis, RabbitMQ, ClickHouse
+
+**Aplicações Principais** (alta demanda, migrar primeiro):
+- Chatwoot, Evolution API, N8N, Typebot, Flowise, Dify AI, Supabase
+
+**Ferramentas de Suporte** (migrar conforme demanda):
+- PgAdmin, Adminer, Uptime Kuma, Grafana, Metabase, RedisInsight
+
+**Ferramentas Específicas** (migrar apenas se houver demanda):
+- Frappe/ERPNext, Odoo, Moodle, AzuraCast, Traccar, etc.
+
+### Estado da Migração (referência rápida)
+Para consultar o estado atual da migração, peça uma "análise de migração" ao agente — ele lerá o script antigo e o projeto atual, e gerará um relatório atualizado com a classificação de cada ferramenta.
