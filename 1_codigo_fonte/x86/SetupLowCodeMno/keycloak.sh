@@ -91,7 +91,7 @@ done
 
 
 while true ; do
-    url_keycloak=$(whiptail --title "1/5 - URL do Keycloak" --inputbox "Digite o dominio para acessar o Keycloak (ex: keycloak.dominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
+    url_keycloak=$(whiptail --title "1/4 - URL do Keycloak" --inputbox "Digite o dominio para acessar o Keycloak (ex: keycloak.dominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
     if [[ $saida -eq '0' ]] ; then
         if [[ -z $url_keycloak ]] ; then msg "Digite o link do KEYCLOAK para poder continuar" ; continue ; else break; fi
     else
@@ -100,7 +100,7 @@ while true ; do
 done
 
 while true ; do
-    user_keycloak=$(whiptail --title "2/5 - Usuário Admin" --inputbox "Digite o usuário admin para o Keycloak (ex: admin):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
+    user_keycloak=$(whiptail --title "2/4 - Usuário Admin" --inputbox "Digite o usuário admin para o Keycloak (ex: admin):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
     if [[ $saida -eq '0' ]] ; then
         if [[ -z $user_keycloak ]] ; then msg "Digite o usuário admin para poder continuar" ; continue ; else break; fi
     else
@@ -109,7 +109,7 @@ while true ; do
 done
 
 while true ; do
-    senha_keycloak=$(whiptail --title "3/5 - Senha Admin" --inputbox "Digite a senha do admin (ex: @Senha123_):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
+    senha_keycloak=$(whiptail --title "3/4 - Senha Admin" --inputbox "Digite a senha do admin (ex: @Senha123_):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
     if [[ $saida -eq '0' ]] ; then
         if [[ -z $senha_keycloak ]] ; then msg "Digite a senha do admin para poder continuar" ; continue ; else break; fi
     else
@@ -118,16 +118,7 @@ while true ; do
 done
 
 while true ; do
-    criar_dns=$(whiptail --title "4/5 - Criar DNS automaticamente?" --inputbox "Digite 0 para criar DNS automaticamente (Cloudflare) ou 1 para configurar manualmente:" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
-    if [[ $saida -eq '0' ]] ; then
-        if [[ "$criar_dns" != "0" && "$criar_dns" != "1" ]] ; then msg "Digite apenas o número 0 ou o número 1" ; continue ; else break; fi
-    else
-        echo $criar_dns ; echo "saindo..."  &  exit 0 ;
-    fi
-done
-
-while true ; do
-    criar_portainer=$(whiptail --title "5/5 - Criar Stack no Portainer?" --inputbox "Digite 0 para criar stack editável no Portainer ou 1 para criar direto no Docker:" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
+    criar_portainer=$(whiptail --title "4/4 - Criar Stack no Portainer?" --inputbox "Digite 0 para criar stack editável no Portainer ou 1 para criar direto no Docker:" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
     if [[ $saida -eq '0' ]] ; then
         if [[ "$criar_portainer" != "0" && "$criar_portainer" != "1" ]] ; then msg "Digite apenas 0 ou 1" ; continue ; else break; fi
     else
@@ -160,8 +151,8 @@ docker exec -it $container_id psql -U postgres -d postgres -c "CREATE DATABASE $
 
     # Exibe as informações formatadas
     whiptail --title "Dados Fornecidos" \
-    --msgbox "TIPO DE INSTALAÇÃO: $INSTALL_TYPE\n\nDados Preenchidos:\n\n1) Dominio do Keycloak: $url_keycloak\n2) Usuário Admin: $user_keycloak\n3) Senha Admin: $senha_keycloak\n4) Criar DNS automaticamente: $([ "$criar_dns" == "0" ] && echo "Sim" || echo "Não (Manual)")\n5) Criar Stack no Portainer: $([ "$criar_portainer" == "0" ] && echo "0 (Editável)" || echo "1 (Não editável)")\n\nConfira e Tecle Enter para continuar." \
-    --fb 22 80
+    --msgbox "TIPO DE INSTALAÇÃO: $INSTALL_TYPE\n\nDados Preenchidos:\n\n1) Dominio do Keycloak: $url_keycloak\n2) Usuário Admin: $user_keycloak\n3) Senha Admin: $senha_keycloak\n4) Criar Stack no Portainer: $([ "$criar_portainer" == "0" ] && echo "0 (Editável)" || echo "1 (Não editável)")\n\nConfira e Tecle Enter para continuar." \
+    --fb 20 80
 
 # Solicita confirmação dentro de um loop
 while true; do
@@ -204,7 +195,7 @@ clear
 
 echo -e "XXX\n5\nVERIFICANDO CONFIGURAÇÃO... \nXXX"
 
-if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
+if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
     # CONFIGURAÇÃO TRADICIONAL COM DNS AUTOMÁTICO
     echo -e "XXX\n10\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
 
@@ -337,43 +328,6 @@ else
     else
         echo -e "XXX\n15\nAVISO: VERIFIQUE A CONFIGURAÇÃO DNS \nXXX"
     fi
-fi
-
-
-if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "1" ]; then
-
-ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
-
-echo -e "XXX\n3\nVERIFICANDO SUBDOMÍNIO: $url_keycloak \nXXX"
-sleep 3
-
-tentativas=5
-tentativa_atual=1
-sucesso=0
-
-while [ $tentativa_atual -le $tentativas ]; do
-    echo -e "XXX\n$(( (tentativa_atual * 12) / tentativas + 3 ))\nTentativa $tentativa_atual de $tentativas...\nXXX"
-
-    dns_ip=$(timeout 10 nslookup -type=A "$url_keycloak" | grep -E "Address: [0-9]+\." | awk '{print $2}' | head -n1)
-
-    if [[ -n "$dns_ip" && "$dns_ip" == "$ip_servidor" ]]; then
-        sucesso=1
-    fi
-
-    sleep 1
-    ((tentativa_atual++))
-done
-
-if [ $sucesso -eq 0 ]; then
-
-    echo -e "XXX\n10\nERRO: SUBDOMÍNIO NÃO APONTA PARA O IP ($ip_servidor) \nXXX"
-    sleep 3
-    echo -e "XXX\n18\nERRO: DNS NÃO CONFIGURADO CORRETAMENTE \nXXX"
-    sleep 3
-    exit 1
-fi
-    echo -e "XXX\n18\nDOMÍNIO VERIFICADO COM SUCESSO \nXXX"
-sleep 4
 fi
 
 
