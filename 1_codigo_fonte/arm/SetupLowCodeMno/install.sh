@@ -233,6 +233,8 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "APPSMITH" "" \
     "AUTOGEN STUDIO" "" \
     "BASEROW" "" \
+    "BOTPRESS" "" \
+    "CAL.COM" ""  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" ""   \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
@@ -254,21 +256,32 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "EVOLUTION CRM" ""  \
     "EVOLUTION GO" ""  \
     "EVO NEXUS" ""  \
+    "EXCALIDRAW" "" \
+    "FIRECRAWL" "" \
     "FLOWISE" "" \
+    "FOCALBOARD" "" \
+    "FORMBRICKS" "" \
     "GHOST" "" \
+    "GLPI" "" \
     "GRAFANA/PROMETHEUS MONITOR" ""   \
     "HERMES AGENT" "" \
+    "HUMHUB" "" \
     "JITSI MEET" "" \
     "KEYCLOAK" "" \
     "KRAYIN CRM" "" \
+    "LANGFLOW" "" \
     "LANGFUSE + MINIO + CLICKHOUSE*" "" \
     "LITELLM" "" \
+    "MATTERMOST" "" \
     "MATOMO" "" \
+    "MAUTIC 4 PADRÃO" "" \
     "MAUTIC 6 PADRÃO" "" \
     "MAUTIC 7 PADRÃO" "" \
+    "MAUTIC 4 WHATSAPP MKT" "" \
     "MAUTIC 6 WHATSAPP MKT" "" \
     "MAUTIC 7 WHATSAPP MKT" "" \
     "MEMGRAPH" "" \
+    "METABASE" "" \
     "MINIO" "" \
     "MONGODB" "" \
     "MYSQL" "" \
@@ -280,11 +293,13 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "NEXTCLOUD" "" \
     "NOCODB" "" \
     "NTFY" "" \
+    "ODOO" "" \
     "OLLAMA + OPENWEBUI*" "" \
     "OPENCLAW" "" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "" \
     "OPENFANG" "" \
     "OPEN PROJECT" "" \
+    "PAPERCLIP" "" \
     "PGADMIN4" "" \
     "PHPMYADMIN" "" \
     "QDRANT" "" \
@@ -295,10 +310,12 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "SEARXNG" "" \
     "SHLINK" "" \
     "STIRLING PDF" "" \
+    "TWENTY CRM" "" \
     "TYPEBOT" "" \
     "TYPEBOT + MINIO*" "" \
     "UPTIMEKUMA" "" \
     "VAULTWARDEN" "" \
+    "WOOFED CRM" "" \
     "WORDPRESS" "" \
     "WUZAP" "" \
     "REINICIAR APPS/SERVIÇOS" "" \
@@ -328,8 +345,8 @@ case "$CHOICE" in
             "APPSMITH")                                              run_app appsmith ;;
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
-            #"BOTPRESS")                                              run_app botpress ;;  # INCOMPATÍVEL COM ARM
-            #"CAL.COM")                                               run_app calcom ;;  # INCOMPATÍVEL COM ARM
+            "BOTPRESS")                                              run_app botpress ;;
+            "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               run_app chatwootn_evo2_rabbitmq_redisevo ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       run_app chatwootn_evo2_rabbitmq_minio ;;
             "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    run_app chatwooto_evo2_rabbitmq_minio ;;
@@ -341,7 +358,6 @@ case "$CHOICE" in
             "DIRECTUS")                                              run_app directus ;;
             "DISCOURSE")                                             run_app discourse ;;
             "DOCMOST")                                               run_app docmost ;;
-            #"DOCMOST")                                               run_app docmost ;;  # INCOMPATÍVEL COM ARM
             "DOCUMENSO")                                             run_app documenso ;;
             "DOCUSEAL")                                              run_app docuseal ;;
             "DOZZLE")                                                run_app dozzle ;;
@@ -352,32 +368,32 @@ case "$CHOICE" in
             "EVOLUTION CRM")                                         run_app evocrm ;;
             "EVOLUTION GO")                                          run_app evolutiongo ;;
             "EVO NEXUS")                                             run_app evonexus ;;
-            #"EXCALIDRAW")                                            run_app excalidraw ;;  # INCOMPATÍVEL COM ARM
-            #"FIRECRAWL")                                             run_app firecrawl ;;  # INCOMPATÍVEL COM ARM
+            "EXCALIDRAW")                                            run_app excalidraw ;;
+            "FIRECRAWL")                                             run_app firecrawl ;;
             "FLOWISE")                                               run_app flowise ;;
-            #"FOCALBOARD")                                            run_app focalboard ;;  # INCOMPATÍVEL COM ARM
-            #"FORMBRICKS")                                            run_app formbricks ;;  # INCOMPATÍVEL COM ARM
+            "FOCALBOARD")                                            run_app focalboard ;;
+            "FORMBRICKS")                                            run_app formbricks ;;
             "GHOST")                                                 run_app ghost ;;
-            #"GLPI")                                                  run_app glpi ;;  # INCOMPATÍVEL COM ARM
+            "GLPI")                                                  run_app glpi ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
-            #"HUMHUB")                                                run_app humhub ;;  # INCOMPATÍVEL COM ARM
+            "HUMHUB")                                                run_app humhub ;;
             "JITSI MEET")                                            run_app jitsi ;;
             "KEYCLOAK")                                              run_app keycloak ;;
             "KRAYIN CRM")                                            run_app krayincrm ;;
-            #"LANGFLOW")                                              run_app langflow ;;  # INCOMPATÍVEL COM ARM
+            "LANGFLOW")                                              run_app langflow ;;
             "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
-            #"MATTERMOST")                                            run_app mattermost ;;  # INCOMPATÍVEL COM ARM
+            "MATTERMOST")                                            run_app mattermost ;;
             "MATOMO")                                                run_app matomo ;;
-            #"MAUTIC 4 PADRÃO")                                       run_app mauticpadrao ;;  # INCOMPATÍVEL COM ARM
+            "MAUTIC 4 PADRÃO")                                       run_app mauticpadrao ;;
             "MAUTIC 6 PADRÃO")                                       run_app mautic6padrao ;;
             "MAUTIC 7 PADRÃO")                                       run_app mautic7padrao ;;
-            #"MAUTIC 4 WHATSAPP MKT")                                 run_app mautic4whatsmkt ;;  # INCOMPATÍVEL COM ARM
+            "MAUTIC 4 WHATSAPP MKT")                                 run_app mautic4whatsmkt ;;
             "MAUTIC 6 WHATSAPP MKT")                                 run_app mautic6whatsmkt ;;
             "MAUTIC 7 WHATSAPP MKT")                                 run_app mautic7whatsmkt ;;
             "MEMGRAPH")                                              run_app memgraph ;;
-            #"METABASE")                                              run_app metabase ;;  # INCOMPATÍVEL COM ARM
+            "METABASE")                                              run_app metabase ;;
             "MINIO")                                                 run_app minio ;;
             "MONGODB")                                               run_app mongodb ;;
             "MYSQL")                                                 run_app mysql ;;
@@ -389,13 +405,13 @@ case "$CHOICE" in
             "NEXTCLOUD")                                             run_app nextcloud ;;
             "NOCODB")                                                run_app nocodb ;;
             "NTFY")                                                  run_app ntfy ;;
-            #"ODOO")                                                  run_app odoo ;;  # INCOMPATÍVEL COM ARM
+            "ODOO")                                                  run_app odoo ;;
             "OLLAMA + OPENWEBUI*")                                   run_app ollama ;;
             "OPENCLAW")                                              run_app openclaw ;;
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
-            #"PAPERCLIP")                                             run_app paperclip ;;  # INCOMPATÍVEL COM ARM
+            "PAPERCLIP")                                             run_app paperclip ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
@@ -406,12 +422,12 @@ case "$CHOICE" in
             "SEARXNG")                                               run_app searxng ;;
             "SHLINK")                                                run_app shlink ;;
             "STIRLING PDF")                                          run_app stirlingpdf ;;
-            #"TWENTY CRM")                                            run_app twentycrm ;;  # INCOMPATÍVEL COM ARM
+            "TWENTY CRM")                                            run_app twentycrm ;;
             "TYPEBOT")                                               run_app typebot ;;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
-            #"WOOFED CRM")                                            run_app woofedcrm ;;  # INCOMPATÍVEL COM ARM
+            "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;
             "WUZAP")                                                 run_app wuzap ;;
         esac
@@ -423,10 +439,13 @@ fi
 if [ "$PLANO" == "free" ]; then
 CHOICE=$(
 whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 20 70 10 \
+    "ACTIVEPIECES" "PRO" \
     "AFFINE" "PRO" \
     "APPSMITH" "PRO" \
     "AUTOGEN STUDIO" "PRO" \
     "BASEROW" "PRO" \
+    # "BOTPRESS" "PRO" \
+    # "CAL.COM" "PRO"  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" ""   \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
@@ -448,20 +467,32 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "EVOLUTION CRM" ""  \
     "EVOLUTION GO" ""  \
     "EVO NEXUS" ""  \
+    # "EXCALIDRAW" "PRO" \
+    # "FIRECRAWL" "PRO" \
     "FLOWISE" "" \
+    # "FOCALBOARD" "PRO" \
+    # "FORMBRICKS" "PRO" \
     "GHOST" "PRO" \
+    # "GLPI" "PRO" \
     "GRAFANA/PROMETHEUS MONITOR" ""   \
     "HERMES AGENT" "PRO" \
+    # "HUMHUB" "PRO" \
+    "JITSI MEET" "PRO" \
     "KEYCLOAK" "PRO" \
     "KRAYIN CRM" "PRO" \
+    # "LANGFLOW" "PRO" \
     "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
     "LITELLM" "PRO" \
+    # "MATTERMOST" "PRO" \
     "MATOMO" "PRO" \
+    # "MAUTIC 4 PADRÃO" "PRO" \
     "MAUTIC 6 PADRÃO" "" \
     "MAUTIC 7 PADRÃO" "" \
+    # "MAUTIC 4 WHATSAPP MKT" "PRO" \
     "MAUTIC 6 WHATSAPP MKT" "PRO" \
     "MAUTIC 7 WHATSAPP MKT" "PRO" \
     "MEMGRAPH" "PRO" \
+    # "METABASE" "PRO" \
     "MINIO" "" \
     "MONGODB" "" \
     "MYSQL" "" \
@@ -473,11 +504,13 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "NEXTCLOUD" "PRO" \
     "NOCODB" "" \
     "NTFY" "" \
+    # "ODOO" "PRO" \
     "OLLAMA + OPENWEBUI*" "" \
     "OPENCLAW" "PRO" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
     "OPENFANG" "PRO" \
     "OPEN PROJECT" "PRO" \
+    # "PAPERCLIP" "PRO" \
     "PGADMIN4" "" \
     "PHPMYADMIN" "" \
     "QDRANT" "" \
@@ -488,10 +521,12 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "SEARXNG" "PRO" \
     "SHLINK" "" \
     "STIRLING PDF" "" \
+    # "TWENTY CRM" "PRO" \
     "TYPEBOT" "" \
     "TYPEBOT + MINIO*" "PRO" \
     "UPTIMEKUMA" "" \
     "VAULTWARDEN" "" \
+    # "WOOFED CRM" "PRO" \
     "WORDPRESS" "" \
     "WUZAP" "" \
     "REINICIAR APPS/SERVIÇOS" "" \
@@ -514,7 +549,7 @@ case "$CHOICE" in
             whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
-        if [[ ("$CHOICE" == "AFFINE") || ("$CHOICE" == "APPSMITH") || ("$CHOICE" == "AUTOGEN STUDIO") || ("$CHOICE" == "BASEROW") || ("$CHOICE" == "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "DOCUMENSO") || ("$CHOICE" == "DOCUSEAL") || ("$CHOICE" == "DOZZLE") || ("$CHOICE" == "EVOAI + EVOLUTION 2.0 + MINIO*") || ("$CHOICE" == "KRAYIN CRM") || ("$CHOICE" == "LANGFUSE + MINIO + CLICKHOUSE*") || ("$CHOICE" == "LITELLM") || ("$CHOICE" == "MAUTIC 6 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 7 WHATSAPP MKT") || ("$CHOICE" == "MATOMO") || ("$CHOICE" == "NEXTCLOUD") || ("$CHOICE" == "OPEN PROJECT") || ("$CHOICE" == "TYPEBOT + MINIO*") || ("$CHOICE" == "OPENCLAW") || ("$CHOICE" == "DISCOURSE") || ("$CHOICE" == "GHOST") || ("$CHOICE" == "COGNEE") || ("$CHOICE" == "MEMGRAPH") || ("$CHOICE" == "NEO4J") || ("$CHOICE" == "OPENFANG") || ("$CHOICE" == "SEARXNG") || ("$CHOICE" == "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*") || ("$CHOICE" == "HERMES AGENT") || ("$CHOICE" == "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOT AI CUSTOMER SERVICE*") ]]; then
+        if [[ ("$CHOICE" == "AFFINE") || ("$CHOICE" == "APPSMITH") || ("$CHOICE" == "AUTOGEN STUDIO") || ("$CHOICE" == "BASEROW") || ("$CHOICE" == "BOTPRESS") || ("$CHOICE" == "CAL.COM") || ("$CHOICE" == "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "DOCUMENSO") || ("$CHOICE" == "DOCUSEAL") || ("$CHOICE" == "DOZZLE") || ("$CHOICE" == "EVOAI + EVOLUTION 2.0 + MINIO*") || ("$CHOICE" == "HUMHUB") || ("$CHOICE" == "KRAYIN CRM") || ("$CHOICE" == "LANGFUSE + MINIO + CLICKHOUSE*") || ("$CHOICE" == "LITELLM") || ("$CHOICE" == "MAUTIC 4 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 6 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 7 WHATSAPP MKT") || ("$CHOICE" == "MATOMO") || ("$CHOICE" == "NEXTCLOUD") || ("$CHOICE" == "OPEN PROJECT") || ("$CHOICE" == "TWENTY CRM") || ("$CHOICE" == "TYPEBOT + MINIO*") || ("$CHOICE" == "OPENCLAW") || ("$CHOICE" == "DISCOURSE") || ("$CHOICE" == "GHOST") || ("$CHOICE" == "COGNEE") || ("$CHOICE" == "MEMGRAPH") || ("$CHOICE" == "NEO4J") || ("$CHOICE" == "OPENFANG") || ("$CHOICE" == "PAPERCLIP") || ("$CHOICE" == "SEARXNG") || ("$CHOICE" == "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*") || ("$CHOICE" == "HERMES AGENT") || ("$CHOICE" == "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOT AI CUSTOMER SERVICE*") ]]; then
             whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
@@ -523,8 +558,8 @@ case "$CHOICE" in
             "APPSMITH")                                              run_app appsmith ;;
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
-            #"BOTPRESS")                                              run_app botpress ;;  # INCOMPATÍVEL COM ARM
-            #"CAL.COM")                                               run_app calcom ;;  # INCOMPATÍVEL COM ARM
+            "BOTPRESS")                                              run_app botpress ;;
+            "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               run_app chatwootn_evo2_rabbitmq_redisevo ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       run_app chatwootn_evo2_rabbitmq_minio ;;
             "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    run_app chatwooto_evo2_rabbitmq_minio ;;
@@ -536,7 +571,6 @@ case "$CHOICE" in
             "DIRECTUS")                                              run_app directus ;;
             "DISCOURSE")                                             run_app discourse ;;
             "DOCMOST")                                               run_app docmost ;;
-            #"DOCMOST")                                               run_app docmost ;;  # INCOMPATÍVEL COM ARM
             "DOCUMENSO")                                             run_app documenso ;;
             "DOCUSEAL")                                              run_app docuseal ;;
             "DOZZLE")                                                run_app dozzle ;;
@@ -547,32 +581,32 @@ case "$CHOICE" in
             "EVOLUTION CRM")                                         run_app evocrm ;;
             "EVOLUTION GO")                                          run_app evolutiongo ;;
             "EVO NEXUS")                                             run_app evonexus ;;
-            #"EXCALIDRAW")                                            run_app excalidraw ;;  # INCOMPATÍVEL COM ARM
-            #"FIRECRAWL")                                             run_app firecrawl ;;  # INCOMPATÍVEL COM ARM
+            "EXCALIDRAW")                                            run_app excalidraw ;;
+            "FIRECRAWL")                                             run_app firecrawl ;;
             "FLOWISE")                                               run_app flowise ;;
-            #"FOCALBOARD")                                            run_app focalboard ;;  # INCOMPATÍVEL COM ARM
-            #"FORMBRICKS")                                            run_app formbricks ;;  # INCOMPATÍVEL COM ARM
+            "FOCALBOARD")                                            run_app focalboard ;;
+            "FORMBRICKS")                                            run_app formbricks ;;
             "GHOST")                                                 run_app ghost ;;
-            #"GLPI")                                                  run_app glpi ;;  # INCOMPATÍVEL COM ARM
+            "GLPI")                                                  run_app glpi ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
-            #"HUMHUB")                                                run_app humhub ;;  # INCOMPATÍVEL COM ARM
+            "HUMHUB")                                                run_app humhub ;;
             "JITSI MEET")                                            run_app jitsi ;;
             "KEYCLOAK")                                              run_app keycloak ;;
             "KRAYIN CRM")                                            run_app krayincrm ;;
-            #"LANGFLOW")                                              run_app langflow ;;  # INCOMPATÍVEL COM ARM
+            "LANGFLOW")                                              run_app langflow ;;
             "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
-            #"MATTERMOST")                                            run_app mattermost ;;  # INCOMPATÍVEL COM ARM
+            "MATTERMOST")                                            run_app mattermost ;;
             "MATOMO")                                                run_app matomo ;;
-            #"MAUTIC 4 PADRÃO")                                       run_app mauticpadrao ;;  # INCOMPATÍVEL COM ARM
+            "MAUTIC 4 PADRÃO")                                       run_app mauticpadrao ;;
             "MAUTIC 6 PADRÃO")                                       run_app mautic6padrao ;;
             "MAUTIC 7 PADRÃO")                                       run_app mautic7padrao ;;
-            #"MAUTIC 4 WHATSAPP MKT")                                 run_app mautic4whatsmkt ;;  # INCOMPATÍVEL COM ARM
+            "MAUTIC 4 WHATSAPP MKT")                                 run_app mautic4whatsmkt ;;
             "MAUTIC 6 WHATSAPP MKT")                                 run_app mautic6whatsmkt ;;
             "MAUTIC 7 WHATSAPP MKT")                                 run_app mautic7whatsmkt ;;
             "MEMGRAPH")                                              run_app memgraph ;;
-            #"METABASE")                                              run_app metabase ;;  # INCOMPATÍVEL COM ARM
+            "METABASE")                                              run_app metabase ;;
             "MINIO")                                                 run_app minio ;;
             "MONGODB")                                               run_app mongodb ;;
             "MYSQL")                                                 run_app mysql ;;
@@ -584,13 +618,13 @@ case "$CHOICE" in
             "NEXTCLOUD")                                             run_app nextcloud ;;
             "NOCODB")                                                run_app nocodb ;;
             "NTFY")                                                  run_app ntfy ;;
-            #"ODOO")                                                  run_app odoo ;;  # INCOMPATÍVEL COM ARM
+            "ODOO")                                                  run_app odoo ;;
             "OLLAMA + OPENWEBUI*")                                   run_app ollama ;;
             "OPENCLAW")                                              run_app openclaw ;;
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
-            #"PAPERCLIP")                                             run_app paperclip ;;  # INCOMPATÍVEL COM ARM
+            "PAPERCLIP")                                             run_app paperclip ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
@@ -601,12 +635,12 @@ case "$CHOICE" in
             "SEARXNG")                                               run_app searxng ;;
             "SHLINK")                                                run_app shlink ;;
             "STIRLING PDF")                                          run_app stirlingpdf ;;
-            #"TWENTY CRM")                                            run_app twentycrm ;;  # INCOMPATÍVEL COM ARM
+            "TWENTY CRM")                                            run_app twentycrm ;;
             "TYPEBOT")                                               run_app typebot ;;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
-            #"WOOFED CRM")                                            run_app woofedcrm ;;  # INCOMPATÍVEL COM ARM
+            "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;
             "WUZAP")                                                 run_app wuzap ;;
         esac
@@ -618,21 +652,13 @@ fi
 if [ "$PLANO" == "free1" ]; then
 CHOICE=$(
 whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 20 70 10 \
-    "DATABASUS" ""   \
-    "EVOLUTION 2.0 API PADRÃO" ""  \
-    "EVOLUTION CRM" ""  \
-    "EVOLUTION GO" ""  \
-    "EVO NEXUS" ""  \
-    "N8N V1 - SEM FILA (MAIN)" "" \
-    "N8N V1 - FILA (QUEUE)" "" \
-    "N8N V2 - FILA (QUEUE)" "" \
-    "PGADMIN4" "" \
-    "MINIO" "" \
-    "REDIS" "" \
+    "ACTIVEPIECES" "PRO" \
     "AFFINE" "PRO" \
     "APPSMITH" "PRO" \
     "AUTOGEN STUDIO" "PRO" \
     "BASEROW" "PRO" \
+    # "BOTPRESS" "PRO" \
+    # "CAL.COM" "PRO"  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" "PRO"   \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
@@ -640,6 +666,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CHATWOOT AI CUSTOMER SERVICE*" "PRO"   \
     "CLICKHOUSE" "PRO"   \
     "COGNEE" "PRO"   \
+    "DATABASUS" ""   \
     "DIRECTUS" "PRO" \
     "DISCOURSE" "PRO" \
     "DOCMOST" "PRO" \
@@ -649,44 +676,70 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "EVOAI" "PRO"  \
     "EVOAI + EVOLUTION 2.0 + MINIO*" "PRO"  \
     "EVOLUTION 1.0 API PADRÃO" "PRO"  \
+    "EVOLUTION 2.0 API PADRÃO" ""  \
+    "EVOLUTION CRM" ""  \
+    "EVOLUTION GO" ""  \
+    "EVO NEXUS" ""  \
+    # "EXCALIDRAW" "PRO" \
+    # "FIRECRAWL" "PRO" \
     "FLOWISE" "PRO" \
+    # "FOCALBOARD" "PRO" \
+    # "FORMBRICKS" "PRO" \
     "GHOST" "PRO" \
+    # "GLPI" "PRO" \
     "GRAFANA/PROMETHEUS MONITOR" "PRO"   \
     "HERMES AGENT" "PRO" \
+    # "HUMHUB" "PRO" \
+    "JITSI MEET" "PRO" \
     "KEYCLOAK" "PRO" \
     "KRAYIN CRM" "PRO" \
+    # "LANGFLOW" "PRO" \
     "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
     "LITELLM" "PRO" \
+    # "MATTERMOST" "PRO" \
     "MATOMO" "PRO" \
+    # "MAUTIC 4 PADRÃO" "PRO" \
     "MAUTIC 6 PADRÃO" "PRO" \
     "MAUTIC 7 PADRÃO" "PRO" \
+    # "MAUTIC 4 WHATSAPP MKT" "PRO" \
     "MAUTIC 6 WHATSAPP MKT" "PRO" \
     "MAUTIC 7 WHATSAPP MKT" "PRO" \
     "MEMGRAPH" "PRO" \
+    # "METABASE" "PRO" \
+    "MINIO" "" \
     "MONGODB" "PRO" \
     "MYSQL" "PRO" \
+    "N8N V1 - SEM FILA (MAIN)" "" \
+    "N8N V1 - FILA (QUEUE)" "" \
+    "N8N V2 - FILA (QUEUE)" "" \
     "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "PRO" \
     "NEO4J" "PRO" \
     "NEXTCLOUD" "PRO" \
     "NOCODB" "PRO" \
     "NTFY" "PRO" \
+    # "ODOO" "PRO" \
     "OLLAMA + OPENWEBUI*" "PRO" \
     "OPENCLAW" "PRO" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
     "OPENFANG" "PRO" \
     "OPEN PROJECT" "PRO" \
+    # "PAPERCLIP" "PRO" \
+    "PGADMIN4" "" \
     "PHPMYADMIN" "PRO" \
     "QDRANT" "PRO" \
     "RABBITMQ" "PRO" \
+    "REDIS" "" \
     "REDIS COMMANDER" "PRO" \
     "REDISINSIGHT" "PRO" \
     "SEARXNG" "PRO" \
     "SHLINK" "PRO" \
     "STIRLING PDF" "PRO" \
+    # "TWENTY CRM" "PRO" \
     "TYPEBOT" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
     "UPTIMEKUMA" "PRO" \
     "VAULTWARDEN" "PRO" \
+    # "WOOFED CRM" "PRO" \
     "WORDPRESS" "PRO" \
     "WUZAP" "PRO" \
     "REINICIAR APPS/SERVIÇOS" "" \
@@ -718,8 +771,8 @@ case "$CHOICE" in
             "APPSMITH")                                              run_app appsmith ;;
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
-            #"BOTPRESS")                                              run_app botpress ;;  # INCOMPATÍVEL COM ARM
-            #"CAL.COM")                                               run_app calcom ;;  # INCOMPATÍVEL COM ARM
+            "BOTPRESS")                                              run_app botpress ;;
+            "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               run_app chatwootn_evo2_rabbitmq_redisevo ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       run_app chatwootn_evo2_rabbitmq_minio ;;
             "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    run_app chatwooto_evo2_rabbitmq_minio ;;
@@ -731,7 +784,6 @@ case "$CHOICE" in
             "DIRECTUS")                                              run_app directus ;;
             "DISCOURSE")                                             run_app discourse ;;
             "DOCMOST")                                               run_app docmost ;;
-            #"DOCMOST")                                               run_app docmost ;;  # INCOMPATÍVEL COM ARM
             "DOCUMENSO")                                             run_app documenso ;;
             "DOCUSEAL")                                              run_app docuseal ;;
             "DOZZLE")                                                run_app dozzle ;;
@@ -742,32 +794,32 @@ case "$CHOICE" in
             "EVOLUTION CRM")                                         run_app evocrm ;;
             "EVOLUTION GO")                                          run_app evolutiongo ;;
             "EVO NEXUS")                                             run_app evonexus ;;
-            #"EXCALIDRAW")                                            run_app excalidraw ;;  # INCOMPATÍVEL COM ARM
-            #"FIRECRAWL")                                             run_app firecrawl ;;  # INCOMPATÍVEL COM ARM
+            "EXCALIDRAW")                                            run_app excalidraw ;;
+            "FIRECRAWL")                                             run_app firecrawl ;;
             "FLOWISE")                                               run_app flowise ;;
-            #"FOCALBOARD")                                            run_app focalboard ;;  # INCOMPATÍVEL COM ARM
-            #"FORMBRICKS")                                            run_app formbricks ;;  # INCOMPATÍVEL COM ARM
+            "FOCALBOARD")                                            run_app focalboard ;;
+            "FORMBRICKS")                                            run_app formbricks ;;
             "GHOST")                                                 run_app ghost ;;
-            #"GLPI")                                                  run_app glpi ;;  # INCOMPATÍVEL COM ARM
+            "GLPI")                                                  run_app glpi ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
-            #"HUMHUB")                                                run_app humhub ;;  # INCOMPATÍVEL COM ARM
+            "HUMHUB")                                                run_app humhub ;;
             "JITSI MEET")                                            run_app jitsi ;;
             "KEYCLOAK")                                              run_app keycloak ;;
             "KRAYIN CRM")                                            run_app krayincrm ;;
-            #"LANGFLOW")                                              run_app langflow ;;  # INCOMPATÍVEL COM ARM
+            "LANGFLOW")                                              run_app langflow ;;
             "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
-            #"MATTERMOST")                                            run_app mattermost ;;  # INCOMPATÍVEL COM ARM
+            "MATTERMOST")                                            run_app mattermost ;;
             "MATOMO")                                                run_app matomo ;;
-            #"MAUTIC 4 PADRÃO")                                       run_app mauticpadrao ;;  # INCOMPATÍVEL COM ARM
+            "MAUTIC 4 PADRÃO")                                       run_app mauticpadrao ;;
             "MAUTIC 6 PADRÃO")                                       run_app mautic6padrao ;;
             "MAUTIC 7 PADRÃO")                                       run_app mautic7padrao ;;
-            #"MAUTIC 4 WHATSAPP MKT")                                 run_app mautic4whatsmkt ;;  # INCOMPATÍVEL COM ARM
+            "MAUTIC 4 WHATSAPP MKT")                                 run_app mautic4whatsmkt ;;
             "MAUTIC 6 WHATSAPP MKT")                                 run_app mautic6whatsmkt ;;
             "MAUTIC 7 WHATSAPP MKT")                                 run_app mautic7whatsmkt ;;
             "MEMGRAPH")                                              run_app memgraph ;;
-            #"METABASE")                                              run_app metabase ;;  # INCOMPATÍVEL COM ARM
+            "METABASE")                                              run_app metabase ;;
             "MINIO")                                                 run_app minio ;;
             "MONGODB")                                               run_app mongodb ;;
             "MYSQL")                                                 run_app mysql ;;
@@ -779,13 +831,13 @@ case "$CHOICE" in
             "NEXTCLOUD")                                             run_app nextcloud ;;
             "NOCODB")                                                run_app nocodb ;;
             "NTFY")                                                  run_app ntfy ;;
-            #"ODOO")                                                  run_app odoo ;;  # INCOMPATÍVEL COM ARM
+            "ODOO")                                                  run_app odoo ;;
             "OLLAMA + OPENWEBUI*")                                   run_app ollama ;;
             "OPENCLAW")                                              run_app openclaw ;;
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
-            #"PAPERCLIP")                                             run_app paperclip ;;  # INCOMPATÍVEL COM ARM
+            "PAPERCLIP")                                             run_app paperclip ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
@@ -796,12 +848,12 @@ case "$CHOICE" in
             "SEARXNG")                                               run_app searxng ;;
             "SHLINK")                                                run_app shlink ;;
             "STIRLING PDF")                                          run_app stirlingpdf ;;
-            #"TWENTY CRM")                                            run_app twentycrm ;;  # INCOMPATÍVEL COM ARM
+            "TWENTY CRM")                                            run_app twentycrm ;;
             "TYPEBOT")                                               run_app typebot ;;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
-            #"WOOFED CRM")                                            run_app woofedcrm ;;  # INCOMPATÍVEL COM ARM
+            "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;
             "WUZAP")                                                 run_app wuzap ;;
         esac
@@ -828,6 +880,8 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "APPSMITH" "PRO" \
     "AUTOGEN STUDIO" "PRO" \
     "BASEROW" "PRO" \
+    # "BOTPRESS" "PRO" \
+    # "CAL.COM" "PRO"  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" "PRO"   \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
@@ -838,27 +892,37 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "DATABASUS" "PRO"   \
     "DIRECTUS" "PRO" \
     "DISCOURSE" "PRO" \
-    "DOCMOST" "PRO" \
     "DOCUMENSO" "PRO" \
     "DOCUSEAL" "PRO" \
     "DOZZLE" "PRO" \
     "EVOAI" "PRO"  \
     "EVOAI + EVOLUTION 2.0 + MINIO*" "PRO"  \
     "EVOLUTION 1.0 API PADRÃO" "PRO"  \
+    # "EXCALIDRAW" "PRO" \
+    # "FIRECRAWL" "PRO" \
     "FLOWISE" "PRO" \
+    # "FOCALBOARD" "PRO" \
+    # "FORMBRICKS" "PRO" \
     "GHOST" "PRO" \
+    # "GLPI" "PRO" \
     "GRAFANA/PROMETHEUS MONITOR" "PRO"   \
     "HERMES AGENT" "PRO" \
+    # "HUMHUB" "PRO" \
     "KEYCLOAK" "PRO" \
     "KRAYIN CRM" "PRO" \
+    # "LANGFLOW" "PRO" \
     "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
     "LITELLM" "PRO" \
+    # "MATTERMOST" "PRO" \
     "MATOMO" "PRO" \
+    # "MAUTIC 4 PADRÃO" "PRO" \
     "MAUTIC 6 PADRÃO" "PRO" \
     "MAUTIC 7 PADRÃO" "PRO" \
+    # "MAUTIC 4 WHATSAPP MKT" "PRO" \
     "MAUTIC 6 WHATSAPP MKT" "PRO" \
     "MAUTIC 7 WHATSAPP MKT" "PRO" \
     "MEMGRAPH" "PRO" \
+    # "METABASE" "PRO" \
     "MONGODB" "PRO" \
     "MYSQL" "PRO" \
     "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "PRO" \
@@ -866,10 +930,12 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "NEXTCLOUD" "PRO" \
     "NOCODB" "PRO" \
     "NTFY" "PRO" \
+    # "ODOO" "PRO" \
     "OLLAMA + OPENWEBUI*" "PRO" \
     "OPENFANG" "PRO" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
     "OPEN PROJECT" "PRO" \
+    # "PAPERCLIP" "PRO" \
     "PGADMIN4" "" \
     "PHPMYADMIN" "PRO" \
     "QDRANT" "PRO" \
@@ -879,10 +945,12 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "SEARXNG" "PRO" \
     "SHLINK" "PRO" \
     "STIRLING PDF" "PRO" \
+    "TWENTY  CRM" "PRO" \
     "TYPEBOT" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
     "UPTIMEKUMA" "PRO" \
     "VAULTWARDEN" "PRO" \
+    # "WOOFED CRM" "PRO" \
     "WORDPRESS" "PRO" \
     "WUZAP" "PRO" \
     "REINICIAR APPS/SERVIÇOS" "" \
@@ -914,8 +982,8 @@ case "$CHOICE" in
             "APPSMITH")                                              run_app appsmith ;;
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
-            #"BOTPRESS")                                              run_app botpress ;;  # INCOMPATÍVEL COM ARM
-            #"CAL.COM")                                               run_app calcom ;;  # INCOMPATÍVEL COM ARM
+            "BOTPRESS")                                              run_app botpress ;;
+            "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               run_app chatwootn_evo2_rabbitmq_redisevo ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       run_app chatwootn_evo2_rabbitmq_minio ;;
             "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    run_app chatwooto_evo2_rabbitmq_minio ;;
@@ -927,7 +995,6 @@ case "$CHOICE" in
             "DIRECTUS")                                              run_app directus ;;
             "DISCOURSE")                                             run_app discourse ;;
             "DOCMOST")                                               run_app docmost ;;
-            #"DOCMOST")                                               run_app docmost ;;  # INCOMPATÍVEL COM ARM
             "DOCUMENSO")                                             run_app documenso ;;
             "DOCUSEAL")                                              run_app docuseal ;;
             "DOZZLE")                                                run_app dozzle ;;
@@ -938,32 +1005,32 @@ case "$CHOICE" in
             "EVOLUTION CRM")                                         run_app evocrm ;;
             "EVOLUTION GO")                                          run_app evolutiongo ;;
             "EVO NEXUS")                                             run_app evonexus ;;
-            #"EXCALIDRAW")                                            run_app excalidraw ;;  # INCOMPATÍVEL COM ARM
-            #"FIRECRAWL")                                             run_app firecrawl ;;  # INCOMPATÍVEL COM ARM
+            "EXCALIDRAW")                                            run_app excalidraw ;;
+            "FIRECRAWL")                                             run_app firecrawl ;;
             "FLOWISE")                                               run_app flowise ;;
-            #"FOCALBOARD")                                            run_app focalboard ;;  # INCOMPATÍVEL COM ARM
-            #"FORMBRICKS")                                            run_app formbricks ;;  # INCOMPATÍVEL COM ARM
+            "FOCALBOARD")                                            run_app focalboard ;;
+            "FORMBRICKS")                                            run_app formbricks ;;
             "GHOST")                                                 run_app ghost ;;
-            #"GLPI")                                                  run_app glpi ;;  # INCOMPATÍVEL COM ARM
+            "GLPI")                                                  run_app glpi ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
-            #"HUMHUB")                                                run_app humhub ;;  # INCOMPATÍVEL COM ARM
+            "HUMHUB")                                                run_app humhub ;;
             "JITSI MEET")                                            run_app jitsi ;;
             "KEYCLOAK")                                              run_app keycloak ;;
             "KRAYIN CRM")                                            run_app krayincrm ;;
-            #"LANGFLOW")                                              run_app langflow ;;  # INCOMPATÍVEL COM ARM
+            "LANGFLOW")                                              run_app langflow ;;
             "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
-            #"MATTERMOST")                                            run_app mattermost ;;  # INCOMPATÍVEL COM ARM
+            "MATTERMOST")                                            run_app mattermost ;;
             "MATOMO")                                                run_app matomo ;;
-            #"MAUTIC 4 PADRÃO")                                       run_app mauticpadrao ;;  # INCOMPATÍVEL COM ARM
+            "MAUTIC 4 PADRÃO")                                       run_app mauticpadrao ;;
             "MAUTIC 6 PADRÃO")                                       run_app mautic6padrao ;;
             "MAUTIC 7 PADRÃO")                                       run_app mautic7padrao ;;
-            #"MAUTIC 4 WHATSAPP MKT")                                 run_app mautic4whatsmkt ;;  # INCOMPATÍVEL COM ARM
+            "MAUTIC 4 WHATSAPP MKT")                                 run_app mautic4whatsmkt ;;
             "MAUTIC 6 WHATSAPP MKT")                                 run_app mautic6whatsmkt ;;
             "MAUTIC 7 WHATSAPP MKT")                                 run_app mautic7whatsmkt ;;
             "MEMGRAPH")                                              run_app memgraph ;;
-            #"METABASE")                                              run_app metabase ;;  # INCOMPATÍVEL COM ARM
+            "METABASE")                                              run_app metabase ;;
             "MINIO")                                                 run_app minio ;;
             "MONGODB")                                               run_app mongodb ;;
             "MYSQL")                                                 run_app mysql ;;
@@ -975,13 +1042,13 @@ case "$CHOICE" in
             "NEXTCLOUD")                                             run_app nextcloud ;;
             "NOCODB")                                                run_app nocodb ;;
             "NTFY")                                                  run_app ntfy ;;
-            #"ODOO")                                                  run_app odoo ;;  # INCOMPATÍVEL COM ARM
+            "ODOO")                                                  run_app odoo ;;
             "OLLAMA + OPENWEBUI*")                                   run_app ollama ;;
             "OPENCLAW")                                              run_app openclaw ;;
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
-            #"PAPERCLIP")                                             run_app paperclip ;;  # INCOMPATÍVEL COM ARM
+            "PAPERCLIP")                                             run_app paperclip ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
@@ -992,12 +1059,12 @@ case "$CHOICE" in
             "SEARXNG")                                               run_app searxng ;;
             "SHLINK")                                                run_app shlink ;;
             "STIRLING PDF")                                          run_app stirlingpdf ;;
-            #"TWENTY CRM")                                            run_app twentycrm ;;  # INCOMPATÍVEL COM ARM
+            "TWENTY CRM")                                            run_app twentycrm ;;
             "TYPEBOT")                                               run_app typebot ;;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
-            #"WOOFED CRM")                                            run_app woofedcrm ;;  # INCOMPATÍVEL COM ARM
+            "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;
             "WUZAP")                                                 run_app wuzap ;;
         esac

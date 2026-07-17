@@ -439,6 +439,7 @@ fi
 if [ "$PLANO" == "free" ]; then
 CHOICE=$(
 whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 20 70 10 \
+    "ACTIVEPIECES" "PRO" \
     "AFFINE" "PRO" \
     "APPSMITH" "PRO" \
     "AUTOGEN STUDIO" "PRO" \
@@ -455,6 +456,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "DATABASUS" ""   \
     "DIRECTUS" "" \
     "DISCOURSE" "PRO" \
+    "DOCMOST" "PRO" \
     "DOCUMENSO" "PRO" \
     "DOCUSEAL" "PRO" \
     "DOZZLE" "PRO" \
@@ -465,31 +467,32 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "EVOLUTION CRM" ""  \
     "EVOLUTION GO" ""  \
     "EVO NEXUS" ""  \
-    "EXCALIDRAW" "" \
-    "FIRECRAWL" "" \
+    "EXCALIDRAW" "PRO" \
+    "FIRECRAWL" "PRO" \
     "FLOWISE" "" \
-    "FOCALBOARD" "" \
-    "FORMBRICKS" "" \
+    "FOCALBOARD" "PRO" \
+    "FORMBRICKS" "PRO" \
     "GHOST" "PRO" \
-    "GLPI" "" \
+    "GLPI" "PRO" \
     "GRAFANA/PROMETHEUS MONITOR" ""   \
     "HERMES AGENT" "PRO" \
     "HUMHUB" "PRO" \
+    "JITSI MEET" "PRO" \
     "KEYCLOAK" "PRO" \
     "KRAYIN CRM" "PRO" \
-    "LANGFLOW" "" \
+    "LANGFLOW" "PRO" \
     "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
     "LITELLM" "PRO" \
-    "MATTERMOST" "" \
+    "MATTERMOST" "PRO" \
     "MATOMO" "PRO" \
-    "MAUTIC 4 PADRÃO" "" \
+    "MAUTIC 4 PADRÃO" "PRO" \
     "MAUTIC 6 PADRÃO" "" \
     "MAUTIC 7 PADRÃO" "" \
     "MAUTIC 4 WHATSAPP MKT" "PRO" \
     "MAUTIC 6 WHATSAPP MKT" "PRO" \
     "MAUTIC 7 WHATSAPP MKT" "PRO" \
     "MEMGRAPH" "PRO" \
-    "METABASE" "" \
+    "METABASE" "PRO" \
     "MINIO" "" \
     "MONGODB" "" \
     "MYSQL" "" \
@@ -501,7 +504,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "NEXTCLOUD" "PRO" \
     "NOCODB" "" \
     "NTFY" "" \
-    "ODOO" "" \
+    "ODOO" "PRO" \
     "OLLAMA + OPENWEBUI*" "" \
     "OPENCLAW" "PRO" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
@@ -518,12 +521,12 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "SEARXNG" "PRO" \
     "SHLINK" "" \
     "STIRLING PDF" "" \
-    "TWENTY  CRM" "PRO" \
+    "TWENTY CRM" "PRO" \
     "TYPEBOT" "" \
     "TYPEBOT + MINIO*" "PRO" \
     "UPTIMEKUMA" "" \
     "VAULTWARDEN" "" \
-    "WOOFED CRM" "" \
+    "WOOFED CRM" "PRO" \
     "WORDPRESS" "" \
     "WUZAP" "" \
     "REINICIAR APPS/SERVIÇOS" "" \
@@ -649,17 +652,7 @@ fi
 if [ "$PLANO" == "free1" ]; then
 CHOICE=$(
 whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 20 70 10 \
-    "DATABASUS" ""   \
-    "EVOLUTION 2.0 API PADRÃO" ""  \
-    "EVOLUTION CRM" ""  \
-    "EVOLUTION GO" ""  \
-    "EVO NEXUS" ""  \
-    "N8N V1 - SEM FILA (MAIN)" "" \
-    "N8N V1 - FILA (QUEUE)" "" \
-    "N8N V2 - FILA (QUEUE)" "" \
-    "PGADMIN4" "" \
-    "MINIO" "" \
-    "REDIS" "" \
+    "ACTIVEPIECES" "PRO" \
     "AFFINE" "PRO" \
     "APPSMITH" "PRO" \
     "AUTOGEN STUDIO" "PRO" \
@@ -673,14 +666,20 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CHATWOOT AI CUSTOMER SERVICE*" "PRO"   \
     "CLICKHOUSE" "PRO"   \
     "COGNEE" "PRO"   \
+    "DATABASUS" ""   \
     "DIRECTUS" "PRO" \
     "DISCOURSE" "PRO" \
+    "DOCMOST" "PRO" \
     "DOCUMENSO" "PRO" \
     "DOCUSEAL" "PRO" \
     "DOZZLE" "PRO" \
     "EVOAI" "PRO"  \
     "EVOAI + EVOLUTION 2.0 + MINIO*" "PRO"  \
     "EVOLUTION 1.0 API PADRÃO" "PRO"  \
+    "EVOLUTION 2.0 API PADRÃO" ""  \
+    "EVOLUTION CRM" ""  \
+    "EVOLUTION GO" ""  \
+    "EVO NEXUS" ""  \
     "EXCALIDRAW" "PRO" \
     "FIRECRAWL" "PRO" \
     "FLOWISE" "PRO" \
@@ -691,6 +690,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "GRAFANA/PROMETHEUS MONITOR" "PRO"   \
     "HERMES AGENT" "PRO" \
     "HUMHUB" "PRO" \
+    "JITSI MEET" "PRO" \
     "KEYCLOAK" "PRO" \
     "KRAYIN CRM" "PRO" \
     "LANGFLOW" "PRO" \
@@ -706,8 +706,12 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MAUTIC 7 WHATSAPP MKT" "PRO" \
     "MEMGRAPH" "PRO" \
     "METABASE" "PRO" \
+    "MINIO" "" \
     "MONGODB" "PRO" \
     "MYSQL" "PRO" \
+    "N8N V1 - SEM FILA (MAIN)" "" \
+    "N8N V1 - FILA (QUEUE)" "" \
+    "N8N V2 - FILA (QUEUE)" "" \
     "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "PRO" \
     "NEO4J" "PRO" \
     "NEXTCLOUD" "PRO" \
@@ -720,15 +724,17 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPENFANG" "PRO" \
     "OPEN PROJECT" "PRO" \
     "PAPERCLIP" "PRO" \
+    "PGADMIN4" "" \
     "PHPMYADMIN" "PRO" \
     "QDRANT" "PRO" \
     "RABBITMQ" "PRO" \
+    "REDIS" "" \
     "REDIS COMMANDER" "PRO" \
     "REDISINSIGHT" "PRO" \
     "SEARXNG" "PRO" \
     "SHLINK" "PRO" \
     "STIRLING PDF" "PRO" \
-    "TWENTY  CRM" "PRO" \
+    "TWENTY CRM" "PRO" \
     "TYPEBOT" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
     "UPTIMEKUMA" "PRO" \
