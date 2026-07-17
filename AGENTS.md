@@ -451,6 +451,21 @@ Após criar o script da ferramenta em ambas as arquiteturas:
 5. **Empacotamento:** Rode `./2_empacotador/gerar_distribuicao.sh`.
 6. **Git:** Faça commit das alterações com mensagem descritiva (ex: `feat: adicionar Keycloak (IAM/SSO)`).
 
+### Checklist de Validação (ANTES de empacotar)
+**⚠️ NÃO empacote até verificar TODOS os itens:**
+- [ ] Script criado em x86 E ARM
+- [ ] Menu adicionado ao install.sh (x86 E ARM)
+- [ ] Case statement adicionado (x86 E ARM)
+- [ ] Bloco SHC adicionado (start_full.sh E start_arm_full.sh)
+- [ ] **VERSÃO ATUALIZADA** em TODOS os 4 arquivos:
+  - `install.sh` (x86) — `VERSIONSETUP`
+  - `install.sh` (ARM) — `VERSIONSETUP`
+  - `setup-mno.sh` — `VERSIONSETUP`
+  - `start_full.sh` — `VERSIONSETUP`
+  - `start_arm_full.sh` — `VERSIONSETUP`
+- [ ] **ferramentas.html atualizado** com nova ferramenta + versão + contadores
+- [ ] Empacotamento executado com sucesso
+
 ### Análise de Atualizações no Script Antigo
 O script antigo pode ser atualizado constantemente com novas ferramentas. Quando o usuário solicitar uma nova análise:
 
