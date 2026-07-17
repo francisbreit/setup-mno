@@ -439,6 +439,45 @@ fi
 if [ "$PLANO" == "free" ]; then
 CHOICE=$(
 whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 20 70 10 \
+    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" ""   \
+    "CLICKHOUSE" ""   \
+    "DATABASUS" ""   \
+    "DIRECTUS" "" \
+    "EVOAI" ""  \
+    "EVOLUTION 1.0 API PADRÃO" ""  \
+    "EVOLUTION 2.0 API PADRÃO" ""  \
+    "EVOLUTION CRM" ""  \
+    "EVOLUTION GO" ""  \
+    "EVO NEXUS" ""  \
+    "FLOWISE" "" \
+    "GRAFANA/PROMETHEUS MONITOR" ""   \
+    "MAUTIC 6 PADRÃO" "" \
+    "MAUTIC 7 PADRÃO" "" \
+    "MINIO" "" \
+    "MONGODB" "" \
+    "MYSQL" "" \
+    "N8N V1 - SEM FILA (MAIN)" "" \
+    "N8N V1 - FILA (QUEUE)" "" \
+    "N8N V2 - FILA (QUEUE)" "" \
+    "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "" \
+    "NOCODB" "" \
+    "NTFY" "" \
+    "OLLAMA + OPENWEBUI*" "" \
+    "PGADMIN4" "" \
+    "PHPMYADMIN" "" \
+    "QDRANT" "" \
+    "RABBITMQ" "" \
+    "REDIS" "" \
+    "REDIS COMMANDER" "" \
+    "REDISINSIGHT" "" \
+    "SHLINK" "" \
+    "STIRLING PDF" "" \
+    "TYPEBOT" "" \
+    "UPTIMEKUMA" "" \
+    "VAULTWARDEN" "" \
+    "WORDPRESS" "" \
+    "WUZAP" "" \
+    "─────────────────────────" "" \
     "ACTIVEPIECES" "PRO" \
     "AFFINE" "PRO" \
     "APPSMITH" "PRO" \
@@ -446,35 +485,23 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "BASEROW" "PRO" \
     # "BOTPRESS" "PRO" \
     # "CAL.COM" "PRO"  \
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" ""   \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOT AI CUSTOMER SERVICE*" "PRO"   \
-    "CLICKHOUSE" ""   \
     "COGNEE" "PRO"   \
-    "DATABASUS" ""   \
-    "DIRECTUS" "" \
     "DISCOURSE" "PRO" \
     "DOCMOST" "PRO" \
     "DOCUMENSO" "PRO" \
     "DOCUSEAL" "PRO" \
     "DOZZLE" "PRO" \
-    "EVOAI" ""  \
     "EVOAI + EVOLUTION 2.0 + MINIO*" "PRO"  \
-    "EVOLUTION 1.0 API PADRÃO" ""  \
-    "EVOLUTION 2.0 API PADRÃO" ""  \
-    "EVOLUTION CRM" ""  \
-    "EVOLUTION GO" ""  \
-    "EVO NEXUS" ""  \
     # "EXCALIDRAW" "PRO" \
     # "FIRECRAWL" "PRO" \
-    "FLOWISE" "" \
     # "FOCALBOARD" "PRO" \
     # "FORMBRICKS" "PRO" \
     "GHOST" "PRO" \
     # "GLPI" "PRO" \
-    "GRAFANA/PROMETHEUS MONITOR" ""   \
     "HERMES AGENT" "PRO" \
     # "HUMHUB" "PRO" \
     "JITSI MEET" "PRO" \
@@ -486,49 +513,23 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     # "MATTERMOST" "PRO" \
     "MATOMO" "PRO" \
     # "MAUTIC 4 PADRÃO" "PRO" \
-    "MAUTIC 6 PADRÃO" "" \
-    "MAUTIC 7 PADRÃO" "" \
     # "MAUTIC 4 WHATSAPP MKT" "PRO" \
     "MAUTIC 6 WHATSAPP MKT" "PRO" \
     "MAUTIC 7 WHATSAPP MKT" "PRO" \
     "MEMGRAPH" "PRO" \
     # "METABASE" "PRO" \
-    "MINIO" "" \
-    "MONGODB" "" \
-    "MYSQL" "" \
-    "N8N V1 - SEM FILA (MAIN)" "" \
-    "N8N V1 - FILA (QUEUE)" "" \
-    "N8N V2 - FILA (QUEUE)" "" \
-    "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "" \
     "NEO4J" "PRO" \
     "NEXTCLOUD" "PRO" \
-    "NOCODB" "" \
-    "NTFY" "" \
     # "ODOO" "PRO" \
-    "OLLAMA + OPENWEBUI*" "" \
     "OPENCLAW" "PRO" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
     "OPENFANG" "PRO" \
     "OPEN PROJECT" "PRO" \
     # "PAPERCLIP" "PRO" \
-    "PGADMIN4" "" \
-    "PHPMYADMIN" "" \
-    "QDRANT" "" \
-    "RABBITMQ" "" \
-    "REDIS" "" \
-    "REDIS COMMANDER" "" \
-    "REDISINSIGHT" "" \
     "SEARXNG" "PRO" \
-    "SHLINK" "" \
-    "STIRLING PDF" "" \
     # "TWENTY CRM" "PRO" \
-    "TYPEBOT" "" \
     "TYPEBOT + MINIO*" "PRO" \
-    "UPTIMEKUMA" "" \
-    "VAULTWARDEN" "" \
     # "WOOFED CRM" "PRO" \
-    "WORDPRESS" "" \
-    "WUZAP" "" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
     "GERADOR DE REGISTROS DNS" "" \
@@ -652,6 +653,18 @@ fi
 if [ "$PLANO" == "free1" ]; then
 CHOICE=$(
 whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 20 70 10 \
+    "DATABASUS" ""   \
+    "EVOLUTION 2.0 API PADRÃO" ""  \
+    "EVOLUTION CRM" ""  \
+    "EVOLUTION GO" ""  \
+    "EVO NEXUS" ""  \
+    "MINIO" "" \
+    "N8N V1 - SEM FILA (MAIN)" "" \
+    "N8N V1 - FILA (QUEUE)" "" \
+    "N8N V2 - FILA (QUEUE)" "" \
+    "PGADMIN4" "" \
+    "REDIS" "" \
+    "─────────────────────────" "" \
     "ACTIVEPIECES" "PRO" \
     "AFFINE" "PRO" \
     "APPSMITH" "PRO" \
@@ -666,7 +679,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CHATWOOT AI CUSTOMER SERVICE*" "PRO"   \
     "CLICKHOUSE" "PRO"   \
     "COGNEE" "PRO"   \
-    "DATABASUS" ""   \
     "DIRECTUS" "PRO" \
     "DISCOURSE" "PRO" \
     "DOCMOST" "PRO" \
@@ -676,10 +688,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "EVOAI" "PRO"  \
     "EVOAI + EVOLUTION 2.0 + MINIO*" "PRO"  \
     "EVOLUTION 1.0 API PADRÃO" "PRO"  \
-    "EVOLUTION 2.0 API PADRÃO" ""  \
-    "EVOLUTION CRM" ""  \
-    "EVOLUTION GO" ""  \
-    "EVO NEXUS" ""  \
     # "EXCALIDRAW" "PRO" \
     # "FIRECRAWL" "PRO" \
     "FLOWISE" "PRO" \
@@ -706,12 +714,8 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MAUTIC 7 WHATSAPP MKT" "PRO" \
     "MEMGRAPH" "PRO" \
     # "METABASE" "PRO" \
-    "MINIO" "" \
     "MONGODB" "PRO" \
     "MYSQL" "PRO" \
-    "N8N V1 - SEM FILA (MAIN)" "" \
-    "N8N V1 - FILA (QUEUE)" "" \
-    "N8N V2 - FILA (QUEUE)" "" \
     "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "PRO" \
     "NEO4J" "PRO" \
     "NEXTCLOUD" "PRO" \
@@ -724,11 +728,9 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPENFANG" "PRO" \
     "OPEN PROJECT" "PRO" \
     # "PAPERCLIP" "PRO" \
-    "PGADMIN4" "" \
     "PHPMYADMIN" "PRO" \
     "QDRANT" "PRO" \
     "RABBITMQ" "PRO" \
-    "REDIS" "" \
     "REDIS COMMANDER" "PRO" \
     "REDISINSIGHT" "PRO" \
     "SEARXNG" "PRO" \
@@ -865,17 +867,19 @@ fi
 if [ "$PLANO" == "free2" ]; then
 CHOICE=$(
 whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 20 70 10 \
-    "OPENCLAW" "" \
     "EVOLUTION 2.0 API PADRÃO" ""  \
     "EVOLUTION CRM" ""  \
     "EVOLUTION GO" ""  \
     "EVO NEXUS" ""  \
+    "MINIO" "" \
     "N8N V1 - SEM FILA (MAIN)" "" \
     "N8N V1 - FILA (QUEUE)" "" \
     "N8N V2 - FILA (QUEUE)" "" \
+    "OPENCLAW" "" \
     "PGADMIN4" "" \
-    "MINIO" "" \
     "REDIS" "" \
+    "─────────────────────────" "" \
+    "ACTIVEPIECES" "PRO" \
     "AFFINE" "PRO" \
     "APPSMITH" "PRO" \
     "AUTOGEN STUDIO" "PRO" \
@@ -892,6 +896,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "DATABASUS" "PRO"   \
     "DIRECTUS" "PRO" \
     "DISCOURSE" "PRO" \
+    "DOCMOST" "PRO" \
     "DOCUMENSO" "PRO" \
     "DOCUSEAL" "PRO" \
     "DOZZLE" "PRO" \
@@ -908,6 +913,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "GRAFANA/PROMETHEUS MONITOR" "PRO"   \
     "HERMES AGENT" "PRO" \
     # "HUMHUB" "PRO" \
+    "JITSI MEET" "PRO" \
     "KEYCLOAK" "PRO" \
     "KRAYIN CRM" "PRO" \
     # "LANGFLOW" "PRO" \
@@ -932,11 +938,10 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "NTFY" "PRO" \
     # "ODOO" "PRO" \
     "OLLAMA + OPENWEBUI*" "PRO" \
-    "OPENFANG" "PRO" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
+    "OPENFANG" "PRO" \
     "OPEN PROJECT" "PRO" \
     # "PAPERCLIP" "PRO" \
-    "PGADMIN4" "" \
     "PHPMYADMIN" "PRO" \
     "QDRANT" "PRO" \
     "RABBITMQ" "PRO" \
@@ -945,7 +950,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "SEARXNG" "PRO" \
     "SHLINK" "PRO" \
     "STIRLING PDF" "PRO" \
-    "TWENTY  CRM" "PRO" \
+    # "TWENTY CRM" "PRO" \
     "TYPEBOT" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
     "UPTIMEKUMA" "PRO" \

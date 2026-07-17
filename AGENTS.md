@@ -64,6 +64,7 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
 3. **Menu:** Atualize o menu `whiptail` no `install.sh` de ambas as arquiteturas.
    - **PRO:** Ferramentas PRO devem aparecer no menu de todos os planos (PRO, free, free1, free2), marcadas com `"PRO"` — para que os usuários vejam o que está disponível.
    - **Free:** Ferramentas Free devem aparecer com `""` (vazio) em todos os menus.
+   - **Ordem nos menus free/free1/free2:** Ferramentas free (liberadas) ficam PRIMEIRO em ordem alfabética, seguidas de um separador `"─────────────────────────" ""`, e depois as ferramentas PRO em ordem alfabética.
 4. **Espelhamento:** Toda alteração em x86 deve ser replicada em ARM (mesma lógica, tags de imagem diferentes).
 5. **Compilação SHC (OBRIGATÓRIO):** Adicione o bloco de compilação SHC em AMBOS os gatilhos (`start_full.sh` x86 e `start_arm_full.sh` ARM). Sem isso, o script não será compilado no runtime do cliente e o menu falhará. Formato do bloco:
    ```bash
