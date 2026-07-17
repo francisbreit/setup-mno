@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="4.27.0"
+VERSIONSETUP="4.28.0"
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
 CONTATO_GITHUB="github.com/francisbreit"
