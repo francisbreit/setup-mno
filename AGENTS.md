@@ -483,13 +483,31 @@ O script antigo e o projeto atual possuem diferenças fundamentais que afetam a 
 Para consultar o estado atual da migração, peça uma "análise de migração" ao agente — ele lerá o script antigo e o projeto atual, e gerará um relatório atualizado com a classificação de cada ferramenta.
 
 ### Scripts de Referência Validados (Migração)
-Os seguintes scripts foram validados em produção e devem ser usados como **referência padrão** para novas migrações:
+Os seguintes scripts foram validados em produção e devem ser usados como **referência padrão** para novas migrações ou instalações do zero:
 
 | Script | Uso como referência |
 |---|---|
 | `activepieces.sh` | Padrão para apps com PostgreSQL + Redis |
 | `jitsi.sh` | Padrão para apps com múltiplos containers |
 | `keycloak.sh` | Padrão para apps com PostgreSQL + proxy reverso |
+
+**Por banco de dados:**
+
+| Script | Banco | Observação |
+|---|---|---|
+| `mautic6padrao.sh` | MySQL | Padrão para apps com MySQL |
+| `ghost.sh` | MySQL | MySQL self-hosted + Node.js |
+| `wordpress.sh` | MySQL | WordPress com PHP |
+| `krayincrm.sh` | MySQL | CRM Laravel |
+| `glpi.sh` | MySQL | ITSM/GLPI |
+
+**Combos validados (múltiplos containers):**
+
+| Script | Componentes |
+|---|---|
+| `chatwootn_evo2_rabbitmq_minio.sh` | Chatwoot + Evolution 2.0 + RabbitMQ + MinIO |
+| `chatwootn_evon_rabbitmq.sh` | Chatwoot + Evolution + RabbitMQ |
+| `evoai_evo2_minio.sh` | Evo AI + Evolution 2.0 + MinIO |
 
 Ao migrar novas ferramentas, **copie a estrutura** de um desses scripts como base.
 
