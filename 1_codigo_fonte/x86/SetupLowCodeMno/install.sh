@@ -241,6 +241,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
     "CHATWOOT AI CUSTOMER SERVICE*" ""   \
     "CLICKHOUSE" ""   \
+    "CODE SERVER" ""   \
     "COGNEE" ""   \
     "DATABASUS" ""   \
     "DIRECTUS" "" \
@@ -353,6 +354,7 @@ case "$CHOICE" in
             "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
             "CHATWOOT AI CUSTOMER SERVICE*") run_app chatwoot_ai_customer_service ;;
             "CLICKHOUSE")                                            run_app clickhouse ;;
+            "CODE SERVER")                                           run_app codeserver ;;
             "COGNEE")                                                run_app cognee ;;
             "DATABASUS")                                             run_app databasus ;;
             "DIRECTUS")                                              run_app directus ;;
@@ -489,6 +491,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOT AI CUSTOMER SERVICE*" "PRO"   \
+    "CODE SERVER" "PRO"   \
     "COGNEE" "PRO"   \
     "DISCOURSE" "PRO" \
     "DOCMOST" "PRO" \
@@ -567,6 +570,7 @@ case "$CHOICE" in
             "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
             "CHATWOOT AI CUSTOMER SERVICE*") run_app chatwoot_ai_customer_service ;;
             "CLICKHOUSE")                                            run_app clickhouse ;;
+            "CODE SERVER")                                           run_app codeserver ;;
             "COGNEE")                                                run_app cognee ;;
             "DATABASUS")                                             run_app databasus ;;
             "DIRECTUS")                                              run_app directus ;;
@@ -678,6 +682,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOT AI CUSTOMER SERVICE*" "PRO"   \
     "CLICKHOUSE" "PRO"   \
+    "CODE SERVER" "PRO"   \
     "COGNEE" "PRO"   \
     "DIRECTUS" "PRO" \
     "DISCOURSE" "PRO" \
@@ -781,6 +786,7 @@ case "$CHOICE" in
             "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
             "CHATWOOT AI CUSTOMER SERVICE*") run_app chatwoot_ai_customer_service ;;
             "CLICKHOUSE")                                            run_app clickhouse ;;
+            "CODE SERVER")                                           run_app codeserver ;;
             "COGNEE")                                                run_app cognee ;;
             "DATABASUS")                                             run_app databasus ;;
             "DIRECTUS")                                              run_app directus ;;
@@ -892,6 +898,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOT AI CUSTOMER SERVICE*" "PRO"   \
     "CLICKHOUSE" "PRO"   \
+    "CODE SERVER" "PRO"   \
     "COGNEE" "PRO"   \
     "DATABASUS" "PRO"   \
     "DIRECTUS" "PRO" \
@@ -995,6 +1002,7 @@ case "$CHOICE" in
             "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
             "CHATWOOT AI CUSTOMER SERVICE*") run_app chatwoot_ai_customer_service ;;
             "CLICKHOUSE")                                            run_app clickhouse ;;
+            "CODE SERVER")                                           run_app codeserver ;;
             "COGNEE")                                                run_app cognee ;;
             "DATABASUS")                                             run_app databasus ;;
             "DIRECTUS")                                              run_app directus ;;

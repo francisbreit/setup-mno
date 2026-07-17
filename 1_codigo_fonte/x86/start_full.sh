@@ -296,6 +296,13 @@ rm clickhouse.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm clickhouse
 fi
+echo -e "XXX\n52.5\nINSTALANDO SETUPMNO 3/8 \nXXX"
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o codeserver -f codeserver.sh
+rm codeserver.sh
+rm codeserver.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm codeserver
+fi
 echo -e "XXX\n53\nINSTALANDO SETUPMNO 3/8 \nXXX"
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o directus -f directus.sh
 rm directus.sh
@@ -1011,10 +1018,7 @@ fi
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o openclawpro -f openclawpro.sh
 rm openclawpro.sh
 rm openclawpro.sh.x.c
-if [ "$PLANO" == "free" ]; then
-rm openclawpro
-fi
-if [ "$PLANO" == "free1" ]; then
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm openclawpro
 fi
 
