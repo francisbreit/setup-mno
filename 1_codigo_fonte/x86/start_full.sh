@@ -663,6 +663,13 @@ shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou.
 rm pgadmin.sh
 rm pgadmin.sh.x.c
 
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o planka -f planka.sh
+rm planka.sh
+rm planka.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm planka
+fi
+
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o mauticpadrao -f mauticpadrao.sh
 rm mauticpadrao.sh
 rm mauticpadrao.sh.x.c

@@ -303,6 +303,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "PAPERCLIP" "" \
     "PGADMIN4" "" \
     "PHPMYADMIN" "" \
+    "PLANKA" "" \
     "QDRANT" "" \
     "RABBITMQ" "" \
     "REDIS" "" \
@@ -415,6 +416,7 @@ case "$CHOICE" in
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PGADMIN4")                                              run_app pgadmin ;;
+            "PLANKA")                                               run_app planka ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
             "RABBITMQ")                                              run_app rabbitmq ;;
@@ -467,6 +469,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OLLAMA + OPENWEBUI*" "" \
     "PGADMIN4" "" \
     "PHPMYADMIN" "" \
+    "PLANKA" "" \
     "QDRANT" "" \
     "RABBITMQ" "" \
     "REDIS" "" \
@@ -532,6 +535,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "SEARXNG" "PRO" \
     "TWENTY CRM" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
+    "PLANKA" "PRO" \
     "WOOFED CRM" "PRO" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
@@ -631,6 +635,7 @@ case "$CHOICE" in
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PGADMIN4")                                              run_app pgadmin ;;
+            "PLANKA")                                               run_app planka ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
             "RABBITMQ")                                              run_app rabbitmq ;;
@@ -734,6 +739,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPEN PROJECT" "PRO" \
     "PAPERCLIP" "PRO" \
     "PHPMYADMIN" "PRO" \
+    "PLANKA" "PRO" \
     "QDRANT" "PRO" \
     "RABBITMQ" "PRO" \
     "REDIS COMMANDER" "PRO" \
@@ -847,6 +853,7 @@ case "$CHOICE" in
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PGADMIN4")                                              run_app pgadmin ;;
+            "PLANKA")                                               run_app planka ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
             "RABBITMQ")                                              run_app rabbitmq ;;
@@ -950,6 +957,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPEN PROJECT" "PRO" \
     "PAPERCLIP" "PRO" \
     "PHPMYADMIN" "PRO" \
+    "PLANKA" "PRO" \
     "QDRANT" "PRO" \
     "RABBITMQ" "PRO" \
     "REDIS COMMANDER" "PRO" \
@@ -1063,6 +1071,7 @@ case "$CHOICE" in
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PGADMIN4")                                              run_app pgadmin ;;
+            "PLANKA")                                               run_app planka ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
             "RABBITMQ")                                              run_app rabbitmq ;;
