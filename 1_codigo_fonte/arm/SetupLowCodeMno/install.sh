@@ -233,8 +233,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "APPSMITH" "" \
     "AUTOGEN STUDIO" "" \
     "BASEROW" "" \
-    #"BOTPRESS" "" \  # INCOMPATÍVEL COM ARM
-    #"CAL.COM" "" \  # INCOMPATÍVEL COM ARM
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" ""   \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
@@ -245,7 +243,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "DATABASUS" ""   \
     "DIRECTUS" "" \
     "DISCOURSE" "" \
-    #"DOCMOST" "" \  # INCOMPATÍVEL COM ARM
     "DOCUMENSO" "" \
     "DOCUSEAL" "" \
     "DOZZLE" "" \
@@ -256,32 +253,21 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "EVOLUTION CRM" ""  \
     "EVOLUTION GO" ""  \
     "EVO NEXUS" ""  \
-    #"EXCALIDRAW" "" \  # INCOMPATÍVEL COM ARM
-    #"FIRECRAWL" "" \  # INCOMPATÍVEL COM ARM
     "FLOWISE" "" \
-    #"FOCALBOARD" "" \  # INCOMPATÍVEL COM ARM
-    #"FORMBRICKS" "" \  # INCOMPATÍVEL COM ARM
     "GHOST" "" \
-    #"GLPI" "" \  # INCOMPATÍVEL COM ARM
     "GRAFANA/PROMETHEUS MONITOR" ""   \
     "HERMES AGENT" "" \
-    #"HUMHUB" "" \  # INCOMPATÍVEL COM ARM
     "JITSI MEET" "" \
     "KEYCLOAK" "" \
     "KRAYIN CRM" "" \
-    #"LANGFLOW" "" \  # INCOMPATÍVEL COM ARM
     "LANGFUSE + MINIO + CLICKHOUSE*" "" \
     "LITELLM" "" \
-    #"MATTERMOST" "" \  # INCOMPATÍVEL COM ARM
     "MATOMO" "" \
-    #"MAUTIC 4 PADRÃO" "" \  # INCOMPATÍVEL COM ARM
     "MAUTIC 6 PADRÃO" "" \
     "MAUTIC 7 PADRÃO" "" \
-    #"MAUTIC 4 WHATSAPP MKT" "" \  # INCOMPATÍVEL COM ARM
     "MAUTIC 6 WHATSAPP MKT" "" \
     "MAUTIC 7 WHATSAPP MKT" "" \
     "MEMGRAPH" "" \
-    #"METABASE" "" \  # INCOMPATÍVEL COM ARM
     "MINIO" "" \
     "MONGODB" "" \
     "MYSQL" "" \
@@ -293,13 +279,11 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "NEXTCLOUD" "" \
     "NOCODB" "" \
     "NTFY" "" \
-    #"ODOO" "" \  # INCOMPATÍVEL COM ARM
     "OLLAMA + OPENWEBUI*" "" \
     "OPENCLAW" "" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "" \
     "OPENFANG" "" \
     "OPEN PROJECT" "" \
-    #"PAPERCLIP" "" \  # INCOMPATÍVEL COM ARM
     "PGADMIN4" "" \
     "PHPMYADMIN" "" \
     "QDRANT" "" \
@@ -310,12 +294,10 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "SEARXNG" "" \
     "SHLINK" "" \
     "STIRLING PDF" "" \
-    #"TWENTY CRM" "" \  # INCOMPATÍVEL COM ARM
     "TYPEBOT" "" \
     "TYPEBOT + MINIO*" "" \
     "UPTIMEKUMA" "" \
     "VAULTWARDEN" "" \
-    #"WOOFED CRM" "" \  # INCOMPATÍVEL COM ARM
     "WORDPRESS" "" \
     "WUZAP" "" \
     "REINICIAR APPS/SERVIÇOS" "" \
@@ -465,11 +447,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "EVOLUTION CRM" ""  \
     "EVOLUTION GO" ""  \
     "EVO NEXUS" ""  \
-    #"EXCALIDRAW" "" \  # INCOMPATÍVEL COM ARM
-    #"FIRECRAWL" "" \  # INCOMPATÍVEL COM ARM
     "FLOWISE" "" \
-    #"FOCALBOARD" "" \  # INCOMPATÍVEL COM ARM
-    #"FORMBRICKS" "" \  # INCOMPATÍVEL COM ARM
     "GHOST" "PRO" \
     "GLPI" "" \
     "GRAFANA/PROMETHEUS MONITOR" ""   \
@@ -501,7 +479,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "NEXTCLOUD" "PRO" \
     "NOCODB" "" \
     "NTFY" "" \
-    #"ODOO" "" \  # INCOMPATÍVEL COM ARM
     "OLLAMA + OPENWEBUI*" "" \
     "OPENCLAW" "PRO" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
@@ -523,7 +500,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "TYPEBOT + MINIO*" "PRO" \
     "UPTIMEKUMA" "" \
     "VAULTWARDEN" "" \
-    #"WOOFED CRM" "" \  # INCOMPATÍVEL COM ARM
     "WORDPRESS" "" \
     "WUZAP" "" \
     "REINICIAR APPS/SERVIÇOS" "" \
