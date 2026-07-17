@@ -430,13 +430,22 @@ Antes de migrar, confirme:
 - [ ] O script será escrito para AMBAS as arquiteturas (x86 e ARM).
 - [ ] O bloco SHC será adicionado corretamente em ambos os gatilhos.
 
-### Passos Obrigatórios pós-Migraçãols
+### Passos Obrigatórios pós-Migração
 Após criar o script da ferramenta em ambas as arquiteturas:
 1. **Menu:** Atualize o menu `whiptail` no `install.sh` (x86 e ARM) — adicionar opção + case statement.
 2. **SHC:** Adicione o bloco de compilação em `start_full.sh` (x86) e `start_arm_full.sh` (ARM).
-3. **Versão:** Incremente o MINOR da versão nos 2 arquivos `install.sh` (x86 e ARM), no arquivo `setup-mno.sh`, no arquivo `start_full.sh` e no arquivo `start_arm_full.sh` — ex: `4.22.0` → `4.23.0`.
-4. **Empacotamento:** Rode `./2_empacotador/gerar_distribuicao.sh`.
-5. **Git:** Faça commit das alterações com mensagem descritiva (ex: `feat: adicionar Keycloak (IAM/SSO)`).
+3. **Versão:** Incremente o MINOR da versão nos seguintes arquivos:
+   - `install.sh` (x86 e ARM) — variável `VERSIONSETUP`
+   - `setup-mno.sh` — variável de versão
+   - `start_full.sh` — variável de versão
+   - `start_arm_full.sh` — variável de versão
+   - Ex: `4.22.0` → `4.23.0`
+4. **Ferramentas HTML:** Atualize o arquivo `ferramentas.html`:
+   - Adicionar nova ferramenta com descrição, categorias, uso e exemplos
+   - Atualizar contadores: Total de Setups, Total X86, Total ARM
+   - Adicionar campo de compatibilidade (X86 e ARM ou X86)
+5. **Empacotamento:** Rode `./2_empacotador/gerar_distribuicao.sh`.
+6. **Git:** Faça commit das alterações com mensagem descritiva (ex: `feat: adicionar Keycloak (IAM/SSO)`).
 
 ### Análise de Atualizações no Script Antigo
 O script antigo pode ser atualizado constantemente com novas ferramentas. Quando o usuário solicitar uma nova análise:
