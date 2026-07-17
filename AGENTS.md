@@ -557,9 +557,13 @@ Ao migrar novas ferramentas, **copie a estrutura** de um desses scripts como bas
 4. **Scripts de combo** devem ter TODAS as imagens compatíveis com ARM para funcionar.
 
 **Como ocultar ferramenta incompatível com ARM:**
-No `install.sh` do ARM, comente a linha correspondente usando `#`:
+No `install.sh` do ARM, DELETE a linha correspondente (NÃO comente):
 ```bash
-# "NOME_DA_FERRAMENTA_INCOMPATIVEL" "" \  # INCOMPATÍVEL COM ARM - NÃO DESCOMENTAR
+# NÃO fazer:
+# "NOME_DA_FERRAMENTA" "" \  # INCOMPATÍVEL COM ARM
+
+# FAZER:
+# Simplesmente deletar a linha do menu
 ```
 
 **Como verificar compatibilidade ARM:**
