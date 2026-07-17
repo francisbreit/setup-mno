@@ -513,3 +513,41 @@ Ao migrar novas ferramentas, **copie a estrutura** de um desses scripts como bas
 
 ### Aviso: Ferramentas com MySQL
 **ATENÇÃO:** Antes de migrar qualquer ferramenta que use MySQL, **PERGUNTE AO USUÁRIO** primeiro. Existem peculiaridades na migração que variam caso a caso (versão do MySQL, collation, charset, configurações de engine). Não assuma que o padrão PostgreSQL se aplica.
+
+### Compatibilidade com ARM (Importante)
+
+**O instalador antigo NÃO contempla ARM.** Algumas imagens Docker só possuem build para x86. O instalador atual suporta ambas as arquiteturas, mas requer validação.
+
+**Regras para adicionar ferramentas:**
+1. **Antes de adicionar ao menu ARM**, verifique se a imagem Docker possui build para `linux/arm64`:
+   ```bash
+   # No Docker Hub, verifique se existe tag arm64 ou multiarch
+   # Exemplo: docker manifest inspect imagem:tag | grep architecture
+   ```
+2. **Se NÃO existir build ARM**, oculte a ferramenta do menu ARM usando `PRO` como segundo parâmetro:
+   ```bash
+   "NOME_DA_FERRAMENTA" "PRO" \  # Visível apenas no plano PRO (oculto para free)
+   ```
+3. **Se existir build ARM**, a ferramenta pode ficar disponível para todos os planos.
+4. **Scripts de combo** devem ter TODAS as imagens compatíveis com ARM para funcionar.
+
+**Como verificar compatibilidade ARM:**
+```bash
+# Verificar se imagem suporta arm64
+docker manifest inspect imagem:tag | jq '.manifests[] | select(.platform.architecture=="arm64")'
+
+# Ou no Docker Hub: https://hub.docker.com/r/usuario/imagem -> Tags -> verificar se existe arm64
+```
+
+**Ferramentas conhecidas que NÃO funcionam em ARM (verificar periodicamente):**
+- Algumas imagens com binários compilados estaticamente para x86
+- Ferramentas com dependências de bibliotecas nativas x86 específicas
+
+**Fluxo ao adicionar nova ferramenta:**
+1. Criar script em `x86/SetupLowCodeMno/`
+2. Copiar para `arm/SetupLowCodeMno/`
+3. Verificar compatibilidade ARM da imagem Docker
+4. Se incompatível: ocultar do menu ARM (usar label "PRO")
+5. Se compatível: manter disponível em ambos os menus
+6. Adicionar SHC block em AMBOS os gatilhos
+7. Testar em ambas as arquiteturas quando possível
