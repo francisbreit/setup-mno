@@ -550,7 +550,10 @@ docker manifest inspect imagem:tag | jq '.manifests[] | select(.platform.archite
 1. Criar script em `x86/SetupLowCodeMno/`
 2. Copiar para `arm/SetupLowCodeMno/`
 3. Verificar compatibilidade ARM da imagem Docker
-4. Se incompatível: ocultar do menu ARM (usar label "PRO")
-5. Se compatível: manter disponível em ambos os menus
-6. Adicionar SHC block em AMBOS os gatilhos
-7. Testar em ambas as arquiteturas quando possível
+4. **Adicionar SHC block em AMBOS os gatilhos** (x86 e ARM)
+5. **No install.sh do ARM**: se incompatível, comentar a linha usando `#`
+
+**Regra de Espelhamento:**
+- **SEMPRE** replicar scripts, SHC blocks e zip para ARM
+- **APENAS** ocultar no `install.sh` do ARM quando incompatível
+- Com o tempo, descomentar conforme imagens ganham suporte ARM
