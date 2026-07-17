@@ -437,12 +437,14 @@ Antes de migrar, confirme:
 Após criar o script da ferramenta em ambas as arquiteturas:
 1. **Menu:** Atualize o menu `whiptail` no `install.sh` (x86 e ARM) — adicionar opção + case statement.
 2. **SHC:** Adicione o bloco de compilação em `start_full.sh` (x86) e `start_arm_full.sh` (ARM).
-3. **Versão:** Incremente o MINOR da versão nos seguintes arquivos:
-   - `install.sh` (x86 e ARM) — variável `VERSIONSETUP`
-   - `setup-mno.sh` — variável de versão
-   - `start_full.sh` — variável de versão
-   - `start_arm_full.sh` — variável de versão
-   - Ex: `4.22.0` → `4.23.0`
+3. **⚠️ VERSÃO (NÃO ESQUECER!):** Incremente o MINOR da versão em **TODOS** os seguintes arquivos:
+   - `install.sh` (x86) — variável `VERSIONSETUP`
+   - `install.sh` (ARM) — variável `VERSIONSETUP`
+   - `setup-mno.sh` — variável `VERSIONSETUP`
+   - `start_full.sh` — variável `VERSIONSETUP`
+   - `start_arm_full.sh` — variável `VERSIONSETUP`
+   - Ex: `4.25.0` → `4.26.0`
+   - **USE O COMANDO: `grep -rn "VERSIONSETUP" 1_codigo_fonte/` para verificar se TODOS foram atualizados**
 4. **Ferramentas HTML:** Atualize o arquivo `ferramentas.html`:
    - Adicionar nova ferramenta com descrição, categorias, uso e exemplos
    - Atualizar contadores: Total de Setups, Total X86, Total ARM
