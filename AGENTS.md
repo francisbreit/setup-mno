@@ -487,7 +487,7 @@ Os seguintes scripts foram validados em produção e devem ser usados como **ref
 
 | Script | Uso como referência |
 |---|---|
-| `activepieces.sh` | Padrão para apps com MySQL |
+| `activepieces.sh` | Padrão para apps com PostgreSQL + Redis |
 | `jitsi.sh` | Padrão para apps com múltiplos containers |
 | `keycloak.sh` | Padrão para apps com PostgreSQL + proxy reverso |
 
