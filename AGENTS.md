@@ -444,6 +444,7 @@ Após criar o script da ferramenta em ambas as arquiteturas:
    - Adicionar nova ferramenta com descrição, categorias, uso e exemplos
    - Atualizar contadores: Total de Setups, Total X86, Total ARM
    - Adicionar campo de compatibilidade (X86 e ARM ou X86)
+   - **Atualizar versão e data** no subtítulo (ex: "Versão 4.25.0 | Atualizado em Julho/2026")
 5. **Empacotamento:** Rode `./2_empacotador/gerar_distribuicao.sh`.
 6. **Git:** Faça commit das alterações com mensagem descritiva (ex: `feat: adicionar Keycloak (IAM/SSO)`).
 
