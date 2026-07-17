@@ -524,12 +524,15 @@ Ao migrar novas ferramentas, **copie a estrutura** de um desses scripts como bas
    # No Docker Hub, verifique se existe tag arm64 ou multiarch
    # Exemplo: docker manifest inspect imagem:tag | grep architecture
    ```
-2. **Se NÃO existir build ARM**, oculte a ferramenta do menu ARM usando `PRO` como segundo parâmetro:
-   ```bash
-   "NOME_DA_FERRAMENTA" "PRO" \  # Visível apenas no plano PRO (oculto para free)
-   ```
+2. **Se NÃO existir build ARM**, NÃO adicione a ferramenta ao menu ARM. A ferramenta simplesmente não deve aparecer para nenhum usuário (nem PRO).
 3. **Se existir build ARM**, a ferramenta pode ficar disponível para todos os planos.
 4. **Scripts de combo** devem ter TODAS as imagens compatíveis com ARM para funcionar.
+
+**Como ocultar ferramenta incompatível com ARM:**
+No `install.sh` do ARM, comente a linha correspondente usando `#`:
+```bash
+# "NOME_DA_FERRAMENTA_INCOMPATIVEL" "" \  # INCOMPATÍVEL COM ARM - NÃO DESCOMENTAR
+```
 
 **Como verificar compatibilidade ARM:**
 ```bash
