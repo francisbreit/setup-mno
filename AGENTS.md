@@ -62,6 +62,8 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
 1. **Criação:** Crie o script `ferramenta.sh` em ambos os diretórios de arquitetura.
 2. **Gestão de Planos:** Pergunte sempre se é Pro ou Free. Se houver variantes (Free1, Free2), a lógica de deleção/manutenção no `start_full` e a opção no menu do `install.sh` devem ser espelhadas.
 3. **Menu:** Atualize o menu `whiptail` no `install.sh` de ambas as arquiteturas.
+   - **PRO:** Ferramentas PRO devem aparecer no menu de todos os planos (PRO, free, free1, free2), marcadas com `"PRO"` — para que os usuários vejam o que está disponível.
+   - **Free:** Ferramentas Free devem aparecer com `""` (vazio) em todos os menus.
 4. **Espelhamento:** Toda alteração em x86 deve ser replicada em ARM (mesma lógica, tags de imagem diferentes).
 5. **Compilação SHC (OBRIGATÓRIO):** Adicione o bloco de compilação SHC em AMBOS os gatilhos (`start_full.sh` x86 e `start_arm_full.sh` ARM). Sem isso, o script não será compilado no runtime do cliente e o menu falhará. Formato do bloco:
    ```bash
