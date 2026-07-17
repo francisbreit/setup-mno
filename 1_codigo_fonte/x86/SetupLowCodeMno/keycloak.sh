@@ -605,12 +605,12 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
     if [[ "$dns_ip" != "$ip_servidor" ]]; then
         whiptail --title "Mensagem" --msgbox "Não foi possivel acessar o dominio do Keycloak ($url_keycloak). A instalação foi cancelada. Por favor, verifique se os apontamentos DNS estão corretos e propagados!. Depois, instale novamente. Pressione ENTER para voltar ao Menu Principal" 20 78
     else
-        whiptail --title "Mensagem" --msgbox "Parabéns, Keycloak foi instalado com sucesso!\n\nAcesse: https://$url_keycloak/auth\nUsuário: $user_keycloak\nSenha: $senha_keycloak\n\nPressione ENTER para voltar ao Menu Principal" 20 78
+        whiptail --title "Mensagem" --msgbox "Parabéns, Keycloak foi instalado com sucesso!\n\nAcesse: https://$url_keycloak\nUsuário: $user_keycloak\nSenha: $senha_keycloak\n\nPressione ENTER para voltar ao Menu Principal" 20 78
     fi
 else
     # Para Cloudflare Tunnel, verificação mais simples
     if nslookup "$url_keycloak" >/dev/null 2>&1; then
-        whiptail --title "Mensagem" --msgbox "Parabéns, Keycloak foi instalado com sucesso!\n\nConfiguração Cloudflare Tunnel concluída com rotas e DNS.\n\nAcesse: https://$url_keycloak/auth\nUsuário: $user_keycloak\nSenha: $senha_keycloak\n\nPressione ENTER para voltar ao Menu Principal" 20 78
+        whiptail --title "Mensagem" --msgbox "Parabéns, Keycloak foi instalado com sucesso!\n\nConfiguração Cloudflare Tunnel concluída com rotas e DNS.\n\nAcesse: https://$url_keycloak\nUsuário: $user_keycloak\nSenha: $senha_keycloak\n\nPressione ENTER para voltar ao Menu Principal" 20 78
     else
         whiptail --title "Mensagem" --msgbox "AVISO: O domínio do Keycloak ($url_keycloak) não está resolvendo.\nVerifique a configuração do Cloudflare Tunnel.\n\nA instalação foi concluída, mas o acesso pode não funcionar até que o DNS esteja configurado corretamente.\n\nPressione ENTER para voltar ao Menu Principal" 20 78
     fi

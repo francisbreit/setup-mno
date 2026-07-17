@@ -1,5 +1,6 @@
 #!/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 22:39:34
+VERSIONSETUP="4.24.0"
 
 
 
@@ -95,7 +96,7 @@ fix_wsl_clock() {
 
             # Tentativa 2 (Fallback): Caso o hwclock falhe, força a sincronização via servidor NTP
 
-            echo -e "${bege}⚠️ hwclock falhou. Forçando sincronização via NTP...${reset}"
+            echo -e "${bege}⚠️ hwclock Tentativa 1: Forçando sincronização via NTP...${reset}"
 
             sudo apt-get update -y >/dev/null 2>&1
 
@@ -103,7 +104,7 @@ fix_wsl_clock() {
 
             sudo ntpdate pool.ntp.org >/dev/null 2>&1
 
-            echo -e "${verde}✅ Relógio do sistema sincronizado via servidor NTP.${reset}"
+            echo -e "${verde}✅ Tentativa 2: Relógio do sistema sincronizado via servidor NTP.${reset}"
 
         fi
 
@@ -542,7 +543,7 @@ if [ -f "$INSTALL_TYPE_FILE" ]; then
 
     echo -n " ➤ "
 
-    type_effect "ATUALIZANDO/REINSTALANDO O SETUP MNO v4.20.2!"
+    type_effect "ATUALIZANDO/REINSTALANDO O SETUP MNO v${VERSIONSETUP}!"
 
 else
 
@@ -552,7 +553,7 @@ else
 
     echo -n " ➤ "
 
-    type_effect "INICIANDO INSTALAÇÂO DO SETUP MNO v4.20.2!"
+    type_effect "INICIANDO INSTALAÇÂO DO SETUP MNO v${VERSIONSETUP}!"
 
 fi
 
@@ -738,7 +739,7 @@ show_progress_whiptail() {
 
     done
 
-  } | whiptail --gauge "Preparando o Setup do Instalador do SetupMno v4.20.2..." 6 60 0
+  } | whiptail --gauge "Preparando o Setup do Instalador do SetupMno v${VERSIONSETUP}..." 6 60 0
 
 }
 
@@ -854,7 +855,7 @@ curl -o "$filename" "https://ativa2.manualnegocioonline.com.br/$filename" 2>/dev
 
 if [ -f "$filename" ]; then
 
-    dialog --title "Download do Setup do Instalador SetupMno v4.20.2" --infobox "Setup inicial baixado com sucesso." 8 70
+    dialog --title "Download do Setup do Instalador SetupMno v${VERSIONSETUP}" --infobox "Setup inicial baixado com sucesso." 8 70
 
     sleep 5
 
@@ -864,7 +865,7 @@ if [ -f "$filename" ]; then
 
     if [ -x "$filename" ]; then
 
-        dialog --title "Execução do Setup do Instalador do SetupMno v4.20.2" --infobox "Executando... Atenção, a seguir será necessário o login, para continuar..." 8 70
+        dialog --title "Execução do Setup do Instalador do SetupMno v${VERSIONSETUP}" --infobox "Executando... Atenção, a seguir será necessário o login, para continuar..." 8 70
 
         sleep 7
 

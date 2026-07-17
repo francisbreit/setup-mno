@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSION="4.22.0"
+VERSIONSETUP="4.25.0"
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
 CONTATO_GITHUB="github.com/francisbreit"
@@ -167,9 +167,9 @@ actcheckbox=white,green
 '
 
 if [ "$PLANO" == "trial pro" ]; then
-    TITULO="SETUP MNO v${VERSION} - Plano: $PLANO 7 Dias - Restam: $DIAS_RESTANTES dias"
+    TITULO="SETUP MNO v${VERSIONSETUP} - Plano: $PLANO 7 Dias - Restam: $DIAS_RESTANTES dias"
 else
-    TITULO="SETUP MNO v${VERSION} - Plano: $PLANO - Instalação: $INSTALL_TYPE"
+    TITULO="SETUP MNO v${VERSIONSETUP} - Plano: $PLANO - Instalação: $INSTALL_TYPE"
 fi
 
 # --- FUNÇÕES DE VALIDAÇÃO ---
@@ -228,6 +228,7 @@ if [[ ! "$PLANO" = *free* ]]; then
 
 CHOICE=$(
 whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 20 70 10 \
+    "ACTIVEPIECES" "" \
     "AFFINE" "" \
     "APPSMITH" "" \
     "AUTOGEN STUDIO" "" \
@@ -244,6 +245,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "DATABASUS" ""   \
     "DIRECTUS" "" \
     "DISCOURSE" "" \
+    "DOCMOST" "" \
     "DOCUMENSO" "" \
     "DOCUSEAL" "" \
     "DOZZLE" "" \
@@ -264,6 +266,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "GRAFANA/PROMETHEUS MONITOR" ""   \
     "HERMES AGENT" "" \
     "HUMHUB" "" \
+    "JITSI MEET" "" \
     "KEYCLOAK" "" \
     "KRAYIN CRM" "" \
     "LANGFLOW" "" \
@@ -337,6 +340,7 @@ case "$CHOICE" in
         fi
         # Mapeamento nome -> script
         case "$CHOICE" in
+            "ACTIVEPIECES")                                           run_app activepieces ;;
             "AFFINE")                                                run_app affine ;;
             "APPSMITH")                                              run_app appsmith ;;
             "AUTOGEN STUDIO")                                        run_app autogen ;;
@@ -353,6 +357,7 @@ case "$CHOICE" in
             "DATABASUS")                                             run_app databasus ;;
             "DIRECTUS")                                              run_app directus ;;
             "DISCOURSE")                                             run_app discourse ;;
+            "DOCMOST")                                               run_app docmost ;;
             "DOCUMENSO")                                             run_app documenso ;;
             "DOCUSEAL")                                              run_app docuseal ;;
             "DOZZLE")                                                run_app dozzle ;;
@@ -373,6 +378,7 @@ case "$CHOICE" in
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HUMHUB")                                                run_app humhub ;;
+            "JITSI MEET")                                            run_app jitsi ;;
             "KEYCLOAK")                                              run_app keycloak ;;
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "LANGFLOW")                                              run_app langflow ;;
@@ -561,6 +567,7 @@ case "$CHOICE" in
             "DATABASUS")                                             run_app databasus ;;
             "DIRECTUS")                                              run_app directus ;;
             "DISCOURSE")                                             run_app discourse ;;
+            "DOCMOST")                                               run_app docmost ;;
             "DOCUMENSO")                                             run_app documenso ;;
             "DOCUSEAL")                                              run_app docuseal ;;
             "DOZZLE")                                                run_app dozzle ;;
@@ -581,6 +588,7 @@ case "$CHOICE" in
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HUMHUB")                                                run_app humhub ;;
+            "JITSI MEET")                                            run_app jitsi ;;
             "KEYCLOAK")                                              run_app keycloak ;;
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "LANGFLOW")                                              run_app langflow ;;
@@ -769,6 +777,7 @@ case "$CHOICE" in
             "DATABASUS")                                             run_app databasus ;;
             "DIRECTUS")                                              run_app directus ;;
             "DISCOURSE")                                             run_app discourse ;;
+            "DOCMOST")                                               run_app docmost ;;
             "DOCUMENSO")                                             run_app documenso ;;
             "DOCUSEAL")                                              run_app docuseal ;;
             "DOZZLE")                                                run_app dozzle ;;
@@ -789,6 +798,7 @@ case "$CHOICE" in
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HUMHUB")                                                run_app humhub ;;
+            "JITSI MEET")                                            run_app jitsi ;;
             "KEYCLOAK")                                              run_app keycloak ;;
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "LANGFLOW")                                              run_app langflow ;;
@@ -978,6 +988,7 @@ case "$CHOICE" in
             "DATABASUS")                                             run_app databasus ;;
             "DIRECTUS")                                              run_app directus ;;
             "DISCOURSE")                                             run_app discourse ;;
+            "DOCMOST")                                               run_app docmost ;;
             "DOCUMENSO")                                             run_app documenso ;;
             "DOCUSEAL")                                              run_app docuseal ;;
             "DOZZLE")                                                run_app dozzle ;;
@@ -998,6 +1009,7 @@ case "$CHOICE" in
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HUMHUB")                                                run_app humhub ;;
+            "JITSI MEET")                                            run_app jitsi ;;
             "KEYCLOAK")                                              run_app keycloak ;;
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "LANGFLOW")                                              run_app langflow ;;

@@ -1,5 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
+VERSIONSETUP="4.24.0"
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
     echo "ERRO: Este script deve ser executado como root." >&2
@@ -316,6 +317,10 @@ rm directus.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm directus
 fi
+echo -e "XXX\n53.5\nINSTALANDO SETUPMNO 3/8 \nXXX"
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o docmost -f docmost.sh
+rm docmost.sh
+rm docmost.sh.x.c
 echo -e "XXX\n54\nINSTALANDO SETUPMNO 3/8 \nXXX"
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o documenso -f documenso.sh
 rm documenso.sh
@@ -1060,13 +1065,27 @@ if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]];
 rm chatwoot_ai_customer_service
 fi
 
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o jitsi -f jitsi.sh
+rm jitsi.sh
+rm jitsi.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm jitsi
+fi
+
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o activepieces -f activepieces.sh
+rm activepieces.sh
+rm activepieces.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm activepieces
+fi
+
 echo -e "XXX\n99\nINSTALANDO SETUPMNO 7/8 \nXXX"
 
 
 sleep 4
 echo -e "XXX\n100\nINSTALANDO SETUPMNO 8/8 - CONCLUIDO \nXXX"
 sleep 3
-}|whiptail --title "SETUPMNO v4.20.2" --gauge "Aguarde a instalação inicial" 6 60 0
+}|whiptail --title "SETUPMNO v${VERSIONSETUP}" --gauge "Aguarde a instalação inicial" 6 60 0
 clear
 cd /
 cd
