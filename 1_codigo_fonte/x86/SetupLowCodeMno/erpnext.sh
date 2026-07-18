@@ -170,6 +170,54 @@ button=black,white
 '
 
 clear
+
+# Verificar se Percona/MySQL já existe (ANTES do bloco whiptail)
+echo -e "XXX\n70\nVERIFICANDO PERCONA (MySQL)... \nXXX"
+
+mysql_container=$(docker ps -qf name=mysql)
+
+if [[ ("$mysql_container" == "") ]]; then
+    echo -e "XXX\n75\nPERCONA NÃO ENCONTRADO - INSTALANDO... \nXXX"
+    senha_mysql=$(openssl rand -hex 16)
+
+    cd
+    cd
+
+    cat > /root/mysql.yaml << EOL_MYSQL
+version: '3.7'
+services:
+    mysql:
+        image: percona/percona-server:8.0
+        environment:
+            - MYSQL_ROOT_PASSWORD=$senha_mysql
+            - TZ=America/Sao_Paulo
+        networks:
+            - externa
+            - interna
+        volumes:
+            - mysql_data:/var/lib/mysql
+        deploy:
+            placement:
+                constraints: [node.role == manager]
+        command:
+            --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --sql-mode="" --default-authentication-plugin=mysql_native_password --port=3306 --max-allowed-packet=512MB
+volumes:
+    mysql_data:
+networks:
+    externa:
+        external: true
+    interna:
+        external: true
+EOL_MYSQL
+
+    docker stack deploy --prune --resolve-image always -c /root/mysql.yaml mysql >/dev/null 2>&1
+    sleep 20
+else
+    senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml)
+fi
+
+echo -e "XXX\n80\nPERCONA CONFIGURADO \nXXX"
+
 {
 
 echo -e "XXX\n5\nVERIFICANDO CONFIGURAÇÃO... \nXXX"
@@ -305,64 +353,6 @@ else
 fi
 
 
-echo -e "XXX\n70\nVERIFICANDO PERCONA (MySQL)... \nXXX"
-
-# Verificar se Percona/MySQL já existe
-mysql_container=$(docker ps -qf name=mysql)
-
-if [[ ("$mysql_container" == "") ]]; then
-    echo -e "XXX\n75\nPERCONA NÃO ENCONTRADO - INSTALANDO... \nXXX"
-    # Instalar Percona
-    senha_mysql=$(openssl rand -hex 16)
-
-cd
-
-cd
-
-# Criar mysql.yaml ANTES do bloco whiptail
-cat > /root/mysql.yaml << EOL_MYSQL
-version: '3.7'
-services:
-    mysql:
-        image: percona/percona-server:8.0
-        environment:
-            - MYSQL_ROOT_PASSWORD=$senha_mysql
-            - TZ=America/Sao_Paulo
-        networks:
-            - externa
-            - interna
-        volumes:
-            - mysql_data:/var/lib/mysql
-        deploy:
-            placement:
-                constraints: [node.role == manager]
-        command:
-            --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --sql-mode="" --default-authentication-plugin=mysql_native_password --port=3306 --max-allowed-packet=512MB
-volumes:
-    mysql_data:
-networks:
-    externa:
-        external: true
-    interna:
-        external: true
-EOL_MYSQL
-
-# Deploy do MySQL
-docker stack deploy --prune --resolve-image always -c /root/mysql.yaml mysql >/dev/null 2>&1
-
-echo -e "XXX\n80\nPERCONA INSTALADO \nXXX"
-
-# Aguardar Percona ficar pronto
-sleep 20
-
-else
-    echo -e "XXX\n75\nPERCONA JÁ INSTALADO - EXTRANDO CREDENCIAIS... \nXXX"
-    senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml)
-    echo -e "XXX\n80\nCREDENCIAIS DO PERCONA OBTIDAS \nXXX"
-fi
-
-echo -e "XXX\n85\nPERCONA CONFIGURADO \nXXX"
-sleep 1
 echo -e "XXX\n50\nCRIANDO STACK DO ERPNEXT 2/4 \nXXX"
 sleep 1
 
