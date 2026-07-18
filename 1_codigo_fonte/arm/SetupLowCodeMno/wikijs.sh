@@ -113,6 +113,9 @@ clear
 nome_principal="wikijs"
 sufixo_app=$(date | md5sum | head -c7)
 nome_app=$nome_principal$sufixo_app
+postgres_password=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml)
+container_id=$(docker ps -qf name=postgres)
+docker exec -it $container_id psql -U postgres -d postgres -c "CREATE DATABASE $nome_app;" 2>/dev/null || echo "Aviso: Não foi possível criar o banco de dados, continuando..."
 
 {
   tput reset 2>/dev/null
@@ -330,8 +333,8 @@ services:
       - DB_TYPE=postgres
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_USER=wikijs
-      - DB_PASS=$wiki_postgres_password
+      - DB_USER=postgres
+      - DB_PASS=$postgres_password
       - DB_NAME=$nome_app
       - NODE_ENV=production
     deploy:
@@ -361,34 +364,11 @@ EOL
 fi
 cat >> $nome_app.yaml << EOL
 
-  ${nome_app}_db:
-    image: postgres:15-alpine
-    hostname: ${nome_app}_db
-    networks:
-      - interna
-    volumes:
-      - ${nome_app}_db:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_DB=$nome_app
-      - POSTGRES_USER=wikijs
-      - POSTGRES_PASSWORD=$wiki_postgres_password
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-        - node.role == manager
-
 networks:
   externa:
     external: true
   interna:
     external: true
-
-volumes:
-  ${nome_app}_db:
-    external: true
-    name: ${nome_app}_db
 
 EOL
 
