@@ -321,7 +321,7 @@ cat > $nome_app.yaml << EOL
 version: "3.8"
 services:
   ${nome_app}_app:
-    image: ghcr.io/heyform/community-edition:latest
+    image: heyform/community-edition:v0.1.0
     hostname: ${nome_app}_app
     networks:
       - externa
