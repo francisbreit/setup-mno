@@ -323,6 +323,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WORDPRESS" "" \
     "WIKI.JS" "" \
     "WUZAP" "" \
+    "WEKAN" "" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
     "GERADOR DE REGISTROS DNS" "" \
@@ -440,6 +441,7 @@ case "$CHOICE" in
             "WORDPRESS")                                             run_app wordpress ;;
             "WIKI.JS")                                               run_app wikijs ;;
             "WUZAP")                                                 run_app wuzap ;;
+            "WEKAN")                                                 run_app wekan ;;
         esac
         ;;
 esac
@@ -490,6 +492,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WORDPRESS" "" \
     "WIKI.JS" "" \
     "WUZAP" "" \
+    "WEKAN" "" \
     "─────────────────────────" "" \
     "ACTIVEPIECES" "PRO" \
     "AFFINE" "PRO" \
@@ -650,6 +653,7 @@ case "$CHOICE" in
             "WORDPRESS")                                             run_app wordpress ;;
             "WIKI.JS")                                               run_app wikijs ;;
             "WUZAP")                                                 run_app wuzap ;;
+            "WEKAN")                                                 run_app wekan ;;
         esac
         ;;
 esac
@@ -738,6 +742,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WORDPRESS" "PRO" \
     "WIKI.JS" "PRO" \
     "WUZAP" "PRO" \
+    "WEKAN" "PRO" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
     "GERADOR DE REGISTROS DNS" "" \
@@ -857,6 +862,7 @@ case "$CHOICE" in
             "WORDPRESS")                                             run_app wordpress ;;
             "WIKI.JS")                                               run_app wikijs ;;
             "WUZAP")                                                 run_app wuzap ;;
+            "WEKAN")                                                 run_app wekan ;;
         esac
         ;;
 esac
@@ -945,6 +951,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WORDPRESS" "PRO" \
     "WIKI.JS" "PRO" \
     "WUZAP" "PRO" \
+    "WEKAN" "PRO" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
     "GERADOR DE REGISTROS DNS" "" \
@@ -1064,6 +1071,7 @@ case "$CHOICE" in
             "WORDPRESS")                                             run_app wordpress ;;
             "WIKI.JS")                                               run_app wikijs ;;
             "WUZAP")                                                 run_app wuzap ;;
+            "WEKAN")                                                 run_app wekan ;;
         esac
         ;;
 esac

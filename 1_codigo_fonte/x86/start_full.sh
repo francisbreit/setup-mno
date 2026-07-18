@@ -579,6 +579,14 @@ rm yourl.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm yourl
 fi
+
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o wekan -f wekan.sh
+rm wekan.sh
+rm wekan.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm wekan
+fi
+
 echo -e "XXX\n85\nINSTALANDO SETUPMNO 4/8 \nXXX"
 
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o grafana -f grafana.sh
