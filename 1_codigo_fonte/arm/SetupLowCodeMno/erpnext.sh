@@ -508,7 +508,7 @@ cat >> $nome_app.yaml << EOL
   ${nome_app}_db:
     image: percona/percona-server:8.0
     hostname: ${nome_app}_db
-    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci", "--skip-character-set-client-handshake", "--skip-innodb-read-only-compressed"]
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --sql-mode="" --default-authentication-plugin=mysql_native_password --port=3306 --max-allowed-packet=512MB
     networks:
       - interna
     volumes:
