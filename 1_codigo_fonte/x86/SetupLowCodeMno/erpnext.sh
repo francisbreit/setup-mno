@@ -486,6 +486,7 @@ cat >> $nome_app.yaml << EOL
     environment:
       - SOCKETIO_PORT=9000
       - REDIS_SOCKETIO=redis://${nome_app}_socketio:6379
+      - BACKEND=${nome_app}_backend:8000
     deploy:
       mode: replicated
       replicas: 1
