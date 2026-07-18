@@ -1063,6 +1063,13 @@ if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]];
 rm hermes
 fi
 
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o heyform -f heyform.sh
+rm heyform.sh
+rm heyform.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm heyform
+fi
+
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o chatwooto_evo2_rabbitmq_minio -f chatwooto_evo2_rabbitmq_minio.sh
 rm chatwooto_evo2_rabbitmq_minio.sh
 rm chatwooto_evo2_rabbitmq_minio.sh.x.c

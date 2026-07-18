@@ -266,6 +266,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "GLPI" "" \
     "GRAFANA/PROMETHEUS MONITOR" ""   \
     "HERMES AGENT" "" \
+    "HEYFORM" "" \
     "HUMHUB" "" \
     "JITSI MEET" "" \
     "KEYCLOAK" "" \
@@ -380,6 +381,7 @@ case "$CHOICE" in
             "GLPI")                                                  run_app glpi ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
+            "HEYFORM")                                               run_app heyform ;;
             "HUMHUB")                                                run_app humhub ;;
             "JITSI MEET")                                            run_app jitsi ;;
             "KEYCLOAK")                                              run_app keycloak ;;
@@ -509,6 +511,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "GHOST" "PRO" \
     "GLPI" "PRO" \
     "HERMES AGENT" "PRO" \
+    "HEYFORM" "PRO" \
     "HUMHUB" "PRO" \
     "JITSI MEET" "PRO" \
     "KEYCLOAK" "PRO" \
@@ -599,6 +602,7 @@ case "$CHOICE" in
             "GLPI")                                                  run_app glpi ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
+            "HEYFORM")                                               run_app heyform ;;
             "HUMHUB")                                                run_app humhub ;;
             "JITSI MEET")                                            run_app jitsi ;;
             "KEYCLOAK")                                              run_app keycloak ;;
@@ -707,6 +711,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "GLPI" "PRO" \
     "GRAFANA/PROMETHEUS MONITOR" "PRO"   \
     "HERMES AGENT" "PRO" \
+    "HEYFORM" "PRO" \
     "HUMHUB" "PRO" \
     "JITSI MEET" "PRO" \
     "KEYCLOAK" "PRO" \
@@ -817,6 +822,7 @@ case "$CHOICE" in
             "GLPI")                                                  run_app glpi ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
+            "HEYFORM")                                               run_app heyform ;;
             "HUMHUB")                                                run_app humhub ;;
             "JITSI MEET")                                            run_app jitsi ;;
             "KEYCLOAK")                                              run_app keycloak ;;
@@ -926,6 +932,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "GLPI" "PRO" \
     "GRAFANA/PROMETHEUS MONITOR" "PRO"   \
     "HERMES AGENT" "PRO" \
+    "HEYFORM" "PRO" \
     "HUMHUB" "PRO" \
     "JITSI MEET" "PRO" \
     "KEYCLOAK" "PRO" \
@@ -1035,6 +1042,7 @@ case "$CHOICE" in
             "GLPI")                                                  run_app glpi ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
+            "HEYFORM")                                               run_app heyform ;;
             "HUMHUB")                                                run_app humhub ;;
             "JITSI MEET")                                            run_app jitsi ;;
             "KEYCLOAK")                                              run_app keycloak ;;
