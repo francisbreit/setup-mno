@@ -351,6 +351,14 @@ fi
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm docuseal
 fi
+
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o duplicati -f duplicati.sh
+rm duplicati.sh
+rm duplicati.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm duplicati
+fi
+
 echo -e "XXX\n56\nINSTALANDO SETUPMNO 3/8 \nXXX"
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o easyappointments -f easyappointments.sh
 rm easyappointments.sh

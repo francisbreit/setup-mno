@@ -246,6 +246,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "DATABASUS" ""   \
     "DIRECTUS" "" \
     "DISCOURSE" "" \
+    "DUPLICATI" "" \
     "DOCMOST" "" \
     "DOCUMENSO" "" \
     "DOCUSEAL" "" \
@@ -361,6 +362,7 @@ case "$CHOICE" in
             "COGNEE")                                                run_app cognee ;;
             "DATABASUS")                                             run_app databasus ;;
             "DIRECTUS")                                              run_app directus ;;
+            "DUPLICATI")                                             run_app duplicati ;;
             "DISCOURSE")                                             run_app discourse ;;
             "DOCMOST")                                               run_app docmost ;;
             "DOCUMENSO")                                             run_app documenso ;;
@@ -451,6 +453,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CLICKHOUSE" ""   \
     "DATABASUS" ""   \
     "DIRECTUS" "" \
+    "DUPLICATI" "" \
     "EVOAI" ""  \
     "EVOLUTION 1.0 API PADRÃO" ""  \
     "EVOLUTION 2.0 API PADRÃO" ""  \
@@ -501,6 +504,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "COGNEE" "PRO"   \
     "DISCOURSE" "PRO" \
     "DOCMOST" "PRO" \
+    "DUPLICATI" "PRO" \
     "DOCUMENSO" "PRO" \
     "DOCUSEAL" "PRO" \
     "DOZZLE" "PRO" \
@@ -568,6 +572,7 @@ case "$CHOICE" in
             "COGNEE")                                                run_app cognee ;;
             "DATABASUS")                                             run_app databasus ;;
             "DIRECTUS")                                              run_app directus ;;
+            "DUPLICATI")                                             run_app duplicati ;;
             "DISCOURSE")                                             run_app discourse ;;
             "DOCMOST")                                               run_app docmost ;;
             "DOCUMENSO")                                             run_app documenso ;;
@@ -682,6 +687,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "DIRECTUS" "PRO" \
     "DISCOURSE" "PRO" \
     "DOCMOST" "PRO" \
+    "DUPLICATI" "PRO" \
     "DOCUMENSO" "PRO" \
     "DOCUSEAL" "PRO" \
     "DOZZLE" "PRO" \
@@ -773,6 +779,7 @@ case "$CHOICE" in
             "COGNEE")                                                run_app cognee ;;
             "DATABASUS")                                             run_app databasus ;;
             "DIRECTUS")                                              run_app directus ;;
+            "DUPLICATI")                                             run_app duplicati ;;
             "DISCOURSE")                                             run_app discourse ;;
             "DOCMOST")                                               run_app docmost ;;
             "DOCUMENSO")                                             run_app documenso ;;
@@ -888,6 +895,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "DIRECTUS" "PRO" \
     "DISCOURSE" "PRO" \
     "DOCMOST" "PRO" \
+    "DUPLICATI" "PRO" \
     "DOCUMENSO" "PRO" \
     "DOCUSEAL" "PRO" \
     "DOZZLE" "PRO" \
@@ -978,6 +986,7 @@ case "$CHOICE" in
             "COGNEE")                                                run_app cognee ;;
             "DATABASUS")                                             run_app databasus ;;
             "DIRECTUS")                                              run_app directus ;;
+            "DUPLICATI")                                             run_app duplicati ;;
             "DISCOURSE")                                             run_app discourse ;;
             "DOCMOST")                                               run_app docmost ;;
             "DOCUMENSO")                                             run_app documenso ;;
