@@ -170,8 +170,8 @@ button=black,white
 '
 
 clear
-{
 
+# Verificar se Percona/MySQL já existe (ANTES do bloco whiptail)
 echo -e "XXX\n70\nVERIFICANDO PERCONA (MySQL)... \nXXX"
 
 mysql_container=$(docker ps --format "{{.Names}}" | grep -q "^mysql$")
