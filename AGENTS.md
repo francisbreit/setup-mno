@@ -527,6 +527,8 @@ Os seguintes scripts foram validados em produção e devem ser usados como **ref
 |---|---|---|
 | `mautic6padrao.sh` | MySQL | Padrão para apps com MySQL |
 | `ghost.sh` | MySQL | MySQL self-hosted + Node.js |
+| `wekan.sh` | MongoDB | Padrão para apps com MongoDB |
+| `heyform.sh` | MongoDB | Padrão para apps com MongoDB + Redis |
 | `wordpress.sh` | MySQL | WordPress com PHP |
 | `krayincrm.sh` | MySQL | CRM Laravel |
 | `glpi.sh` | MySQL | ITSM/GLPI |
@@ -543,6 +545,46 @@ Ao migrar novas ferramentas, **copie a estrutura** de um desses scripts como bas
 
 ### Aviso: Ferramentas com MySQL
 **ATENÇÃO:** Antes de migrar qualquer ferramenta que use MySQL, **PERGUNTE AO USUÁRIO** primeiro. Existem peculiaridades na migração que variam caso a caso (versão do MySQL, collation, charset, configurações de engine). Não assuma que o padrão PostgreSQL se aplica.
+
+### Aviso: Ferramentas com MongoDB
+**ATENÇÃO:** MongoDB e MySQL NÃO são essenciais como Redis e PostgreSQL (que são instalados no início). Para aplicações que usam MongoDB, siga o mesmo padrão do MySQL:
+
+1. **Verificar se MongoDB já existe:**
+   ```bash
+   if docker ps -a --format "{{.Names}}" | grep -q "mongodb"; then
+       user_mongo=$(grep "MONGO_INITDB_ROOT_USERNAME" /root/mongodb.yaml | awk -F '=' '{print $2}')
+       pass_mongo=$(grep "MONGO_INITDB_ROOT_PASSWORD" /root/mongodb.yaml | awk -F '=' '{print $2}')
+   else
+       # Criar stack MongoDB
+   fi
+   ```
+
+2. **Se não existir, criar stack MongoDB automaticamente:**
+   - Usar `mongo:7` como imagem
+   - Salvar credenciais em `/root/mongodb.yaml`
+   - Criar volumes externos
+   - Deploy via Portainer ou Docker
+
+3. **Exemplo de criação de stack:**
+   ```bash
+   user_mongo="admin"
+   pass_mongo=$(openssl rand -hex 16)
+   
+   # Salvar credenciais
+   cat > /root/mongodb.yaml << EOL_CRED
+   MONGO_INITDB_ROOT_USERNAME=$user_mongo
+   MONGO_INITDB_ROOT_PASSWORD=$pass_mongo
+   EOL_CRED
+   
+   # Criar volumes
+   docker volume create mongodb_data >/dev/null 2>&1
+   docker volume create mongodb_configdb >/dev/null 2>&1
+   
+   # Deploy
+   docker stack deploy --prune --resolve-image always -c mongodb.yaml mongodb >/dev/null 2>&1
+   ```
+
+4. **Referências:** `wekan.sh`, `heyform.sh`
 
 ### Compatibilidade com ARM (Importante)
 

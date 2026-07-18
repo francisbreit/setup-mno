@@ -323,6 +323,12 @@ else
     user_mongo="admin"
     pass_mongo=$(openssl rand -hex 16)
 
+    # Salvar credenciais do MongoDB
+    cat > /root/mongodb.yaml << EOL_CRED
+MONGO_INITDB_ROOT_USERNAME=$user_mongo
+MONGO_INITDB_ROOT_PASSWORD=$pass_mongo
+EOL_CRED
+
     cat > /tmp/mongodb_wekan.yaml << EOL_MONGO
 version: "3.8"
 services:
