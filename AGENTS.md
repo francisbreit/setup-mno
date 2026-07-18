@@ -546,6 +546,21 @@ Ao migrar novas ferramentas, **copie a estrutura** de um desses scripts como bas
 ### Aviso: Ferramentas com MySQL
 **ATENÇÃO:** Antes de migrar qualquer ferramenta que use MySQL, **PERGUNTE AO USUÁRIO** primeiro. Existem peculiaridades na migração que variam caso a caso (versão do MySQL, collation, charset, configurações de engine). Não assuma que o padrão PostgreSQL se aplica.
 
+**⚠️ REGRA OBRIGATÓRIA PARA VERIFICAÇÃO DO CONTAINER MySQL 8.0:**
+```bash
+# NÃO usar (encontra MySQL 8.0 E 8.4):
+mysql_container=$(docker ps -qf name=mysql)
+
+# USAR (encontra APENAS MySQL 8.0):
+mysql_container=$(docker ps --format "{{.Names}}" | grep -q "^mysql$")
+```
+
+**Por que?** O Percona 8.4 (usado pelo Mautic 7) tem o container nomeado "mysql84", que contém "mysql" no nome. O filtro `name=mysql` encontra AMBOS.
+
+**Arquivos MySQL:**
+- MySQL 8.0: `/root/mysql.yaml` (usado por todas as aplicações)
+- MySQL 8.4: `/root/mysql84.yaml` (usado apenas por Mautic 7)
+
 ### Aviso: Ferramentas com MongoDB
 **ATENÇÃO:** MongoDB e MySQL NÃO são essenciais como Redis e PostgreSQL (que são instalados no início). Para aplicações que usam MongoDB, siga o mesmo padrão do MySQL:
 
