@@ -319,7 +319,7 @@ cd
 
 cd
 
-cat > mysql.yaml << EOL_MYSQL
+cat > /root/mysql.yaml << EOL_MYSQL
 version: '3.7'
 services:
     mysql:
@@ -347,7 +347,7 @@ networks:
 EOL_MYSQL
 
 # Deploy do MySQL
-docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
+docker stack deploy --prune --resolve-image always -c /root/mysql.yaml mysql >/dev/null 2>&1
 
 echo -e "XXX\n80\nPERCONA INSTALADO \nXXX"
 
