@@ -308,11 +308,9 @@ fi
 echo -e "XXX\n70\nVERIFICANDO PERCONA (MySQL)... \nXXX"
 
 # Verificar se Percona/MySQL já existe
-if docker ps -a --format "{{.Names}}" | grep -q "mysql"; then
-    echo -e "XXX\n75\nPERCONA JÁ INSTALADO - EXTRANDO CREDENCIAIS... \nXXX"
-    senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml)
-    echo -e "XXX\n80\nCREDENCIAIS DO PERCONA OBTIDAS \nXXX"
-else
+mysql_container=$(docker ps -qf name=mysql)
+
+if [[ ("$mysql_container" == "") ]]; then
     echo -e "XXX\n75\nPERCONA NÃO ENCONTRADO - INSTALANDO... \nXXX"
     # Instalar Percona
     senha_mysql=$(openssl rand -hex 16)
@@ -348,115 +346,18 @@ networks:
         external: true
 EOL_MYSQL
 
-if [[ "$criar_portainer" == "0" ]]; then
-
-{
-  tput reset 2>/dev/null
-  exec 0</dev/tty 1>/dev/tty 2>&1
-  sleep 0.01
-  clear
-} || true
-
-export NEWT_COLORS='
-root=,white
-window=,black
-border=white,black
-textbox=white,black
-button=black,white
-'
-
-clear
-{
-
-dados_file="$HOME/dados_portainer/dados_portainer"
-
-if [[ -f "$dados_file" ]]; then
-PORTAINER_URL=$(grep "Dominio do portainer:" "$dados_file" | cut -d':' -f2 | xargs)
-ADMIN_USERNAME=$(grep "Usuario:" "$dados_file" | cut -d':' -f2 | xargs)
-ADMIN_PASSWORD=$(grep "Senha:" "$dados_file" | cut -d':' -f2 | xargs)
-STACK_NAME=mysql
-STACK_FILE_PATH="/root/mysql.yaml"
-
-else
-    sleep 5
+# Deploy do MySQL
 docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
-sleep 5
-    exit 1
-fi
-
-get_auth_token() {
-    RESPONSE=$(curl -sk -X POST "https://$PORTAINER_URL/api/auth" \
-        -H "Content-Type: application/json" \
-        -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
-    TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
-    if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
-        exit 1
-    fi
-}
-
-get_endpoint_id() {
-    RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints" \
-        -H "Authorization: Bearer $TOKEN")
-    ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
-    if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
-        docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
-        exit 1
-    fi
-}
-
-get_swarm_id() {
-    RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
-        -H "Authorization: Bearer $TOKEN")
-    SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
-    if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
-        docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
-        exit 1
-    fi
-}
-
-create_stack() {
-    if [ ! -f "$STACK_FILE_PATH" ]; then
-        docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
-        exit 1
-    fi
-
-    response_output=$(mktemp)
-    erro_output=$(mktemp)
-
-    http_code=$(curl -s -o "$response_output" -w "%{http_code}" -k -X POST \
-        -H "Authorization: Bearer $TOKEN" \
-        -F "Name=$STACK_NAME" \
-        -F "file=@$STACK_FILE_PATH" \
-        -F "SwarmID=$SWARM_ID" \
-        -F "endpointId=$ENDPOINT_ID" \
-        "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
-
-    response=$(cat "$response_output")
-    rm -f "$response_output" "$erro_output"
-
-    if [ "$http_code" -ne 200 ]; then
-        docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
-        exit 1
-    fi
-}
-
-get_auth_token || exit 1
-get_endpoint_id || exit 1
-get_swarm_id || exit 1
-create_stack || exit 1
-
-elif [[ "$criar_portainer" == "1" ]]; then
-    docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
-else
-docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
-    exit 1
-fi
 
 echo -e "XXX\n80\nPERCONA INSTALADO \nXXX"
 
 # Aguardar Percona ficar pronto
 sleep 20
+
+else
+    echo -e "XXX\n75\nPERCONA JÁ INSTALADO - EXTRANDO CREDENCIAIS... \nXXX"
+    senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml)
+    echo -e "XXX\n80\nCREDENCIAIS DO PERCONA OBTIDAS \nXXX"
 fi
 
 echo -e "XXX\n85\nPERCONA CONFIGURADO \nXXX"
