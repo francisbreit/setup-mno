@@ -320,6 +320,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "VAULTWARDEN" "" \
     "WOOFED CRM" "" \
     "WORDPRESS" "" \
+    "WIKI.JS" "" \
     "WUZAP" "" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
@@ -435,6 +436,7 @@ case "$CHOICE" in
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;
+            "WIKI.JS")                                               run_app wikijs ;;
             "WUZAP")                                                 run_app wuzap ;;
         esac
         ;;
@@ -483,6 +485,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "UPTIMEKUMA" "" \
     "VAULTWARDEN" "" \
     "WORDPRESS" "" \
+    "WIKI.JS" "" \
     "WUZAP" "" \
     "─────────────────────────" "" \
     "ACTIVEPIECES" "PRO" \
@@ -523,6 +526,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "SEARXNG" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
     "PLANKA" "PRO" \
+    "WIKI.JS" "PRO" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
     "GERADOR DE REGISTROS DNS" "" \
@@ -639,6 +643,7 @@ case "$CHOICE" in
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;
+            "WIKI.JS")                                               run_app wikijs ;;
             "WUZAP")                                                 run_app wuzap ;;
         esac
         ;;
@@ -725,6 +730,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "UPTIMEKUMA" "PRO" \
     "VAULTWARDEN" "PRO" \
     "WORDPRESS" "PRO" \
+    "WIKI.JS" "PRO" \
     "WUZAP" "PRO" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
@@ -842,6 +848,7 @@ case "$CHOICE" in
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;
+            "WIKI.JS")                                               run_app wikijs ;;
             "WUZAP")                                                 run_app wuzap ;;
         esac
         ;;
@@ -928,6 +935,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "UPTIMEKUMA" "PRO" \
     "VAULTWARDEN" "PRO" \
     "WORDPRESS" "PRO" \
+    "WIKI.JS" "PRO" \
     "WUZAP" "PRO" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
@@ -1045,6 +1053,7 @@ case "$CHOICE" in
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;
+            "WIKI.JS")                                               run_app wikijs ;;
             "WUZAP")                                                 run_app wuzap ;;
         esac
         ;;
