@@ -296,7 +296,73 @@ else
 fi
 
 
-echo -e "XXX\n21\nCRIANDO STACK DO HEYFORM 1/3 \nXXX"
+echo -e "XXX\n70\nVERIFICANDO MONGODB... \nXXX"
+
+# Verificar se MongoDB já existe
+if docker ps -a --format "{{.Names}}" | grep -q "mongodb"; then
+    echo -e "XXX\n75\nMONGODB JÁ INSTALADO - EXTRANDO CREDENCIAIS... \nXXX"
+    user_mongo=$(grep "MONGO_INITDB_ROOT_USERNAME" /root/mongodb.yaml | awk -F '=' '{print $2}')
+    pass_mongo=$(grep "MONGO_INITDB_ROOT_PASSWORD" /root/mongodb.yaml | awk -F '=' '{print $2}')
+    echo -e "XXX\n80\nCREDENCIAIS DO MONGODB OBTIDAS \nXXX"
+else
+    echo -e "XXX\n75\nMONGODB NÃO ENCONTRADO - INSTALANDO... \nXXX"
+    # Instalar MongoDB
+    nome_mongodb_app="mongodb"
+    nome_mongodb_sufixo=$(date | md5sum | head -c7)
+    nome_mongodb_stack=$nome_mongodb_app$nome_mongodb_sufixo
+
+    user_mongo="admin"
+    pass_mongo=$(openssl rand -hex 16)
+
+    cat > /tmp/mongodb_heyform.yaml << EOL_MONGO
+version: "3.8"
+services:
+  mongodb:
+    image: mongo:7
+    hostname: mongodb
+    networks:
+      - interna
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=$user_mongo
+      - MONGO_INITDB_ROOT_PASSWORD=$pass_mongo
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_configdb:/data/configdb
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+
+networks:
+  interna:
+    external: true
+
+volumes:
+  mongodb_data:
+    external: true
+    name: mongodb_heyform_data
+  mongodb_configdb:
+    external: true
+    name: mongodb_heyform_configdb
+EOL_MONGO
+
+    # Criar volumes externos
+    docker volume create mongodb_heyform_data >/dev/null 2>&1
+    docker volume create mongodb_heyform_configdb >/dev/null 2>&1
+
+    # Deploy do MongoDB
+    docker stack deploy --prune --resolve-image always -c /tmp/mongodb_heyform.yaml mongodb_heyform >/dev/null 2>&1
+    rm -f /tmp/mongodb_heyform.yaml
+
+    echo -e "XXX\n80\nMONGODB INSTALADO \nXXX"
+
+    # Aguardar MongoDB ficar pronto
+    sleep 15
+fi
+
+echo -e "XXX\n85\nMONGODB CONFIGURADO \nXXX"
 sleep 1
 echo -e "XXX\n50\nCRIANDO STACK DO HEYFORM 2/3 \nXXX"
 sleep 1
@@ -340,6 +406,8 @@ services:
       - SESSION_MAX_AGE=15d
       - FORM_ENCRYPTION_KEY=$encryptionkey_heyform
       - MONGO_URI=mongodb://mongodb:27017/$nome_app?authSource=admin
+      - MONGO_USER=$user_mongo
+      - MONGO_PASSWORD=$pass_mongo
       - REDIS_HOST=${nome_app}_redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=
