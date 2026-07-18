@@ -319,6 +319,7 @@ cd
 
 cd
 
+# Criar mysql.yaml ANTES do bloco whiptail
 cat > /root/mysql.yaml << EOL_MYSQL
 version: '3.7'
 services:
