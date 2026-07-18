@@ -374,11 +374,7 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm excalidraw
 fi
 
-shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o erpnext -f erpnext.sh
-rm erpnext.sh
-rm erpnext.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
-rm erpnext
 fi
 
 echo -e "XXX\n58\nINSTALANDO SETUPMNO 3/8 \nXXX"
