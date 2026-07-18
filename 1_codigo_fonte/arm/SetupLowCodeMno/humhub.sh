@@ -197,7 +197,7 @@ if [ "$porta_smtp_humhub" -eq 465 ] || [ "$porta_smtp_humhub" -eq 25 ]; then
 nome_principal="humhub"  #nome do app
 sufixo_app=$(date | md5sum | head -c7)
 nome_app=$nome_principal$sufixo_app
-mysql_container=$(docker ps -qf name=mysql)
+mysql_container=$(docker ps --format "{{.Names}}" | grep -q "^mysql$")
 
 if [[ ("$mysql_container" == "") ]]; then
  senha_mysql=$(openssl rand -hex 8)
@@ -210,7 +210,7 @@ cat > mysql.yaml << EOL
 version: '3.7'
 services:
     mysql:
-        image: percona/percona-server:8.0.39-30.1-multi
+        image: percona/percona-server:8.0
         environment:
             - MYSQL_ROOT_PASSWORD=$senha_mysql
             - TZ=America/Fortaleza
@@ -238,14 +238,45 @@ EOL
 #docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
 
 if [[ "$criar_portainer" == "0" ]]; then
+
+
+{
+  tput reset 2>/dev/null         # Reinicia o terminal de forma segura
+  exec 0</dev/tty 1>/dev/tty 2>&1 # Força redirecionamentos explícitos
+  sleep 0.01                     # Pausa microscópica para sincronia
+  clear                          # Limpeza final antes do whiptail
+} || true
+
+export NEWT_COLORS='
+#root=,white
+#window=,black
+#border=white,black
+#textbox=white,black
+#button=black,white
+
+root=,white
+border=black,gray
+title=white,black
+roottext=red,gray
+window=red,gray
+textbox=white,gray
+button=white,green
+compactbutton=white,black
+listbox=black,white
+actlistbox=white,black
+actsellistbox=white,blue
+checkbox=red,black
+actcheckbox=white,blue
+'
+
+clear
+{
+
+
+
     # A stack será criada no Portainer
     echo -e "XXX\n6\nCRIANDO STACK NO PORTAINER 3/4  \nXXX"
-   # echo "Criando a stack no Portainer para edição."
-    # Substituir pelo comando ou rotina para criar a stack no Portainer
-    # Aqui pode chamar um novo script ou rotina específica, exemplo:
-   ## /path/to/criar_stack_no_portainer.sh "$nome_app" "$painelpma"
 
-#!/bin/bash
 
 # Configurações
 
@@ -374,7 +405,7 @@ get_swarm_id || exit 1
 create_stack || exit 1
 # echo "[SUCESSO] Processo concluído."
 
-
+}|whiptail --title "CRIANDO STACK MYSQL" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
 
 
 elif [[ "$criar_portainer" == "1" ]]; then
@@ -393,19 +424,102 @@ sleep 5
     exit 1
 fi
 
-
 fi 	
 
 
+#CRIAÇÃO DE BANCO MYSQL INICIO
+
+{
+  tput reset 2>/dev/null         # Reinicia o terminal de forma segura
+  exec 0</dev/tty 1>/dev/tty 2>&1 # Força redirecionamentos explícitos
+  sleep 0.01                     # Pausa microscópica para sincronia
+  clear                          # Limpeza final antes do whiptail
+} || true
+
+export NEWT_COLORS='
+#root=,white
+#window=,black
+#border=white,black
+#textbox=white,black
+#button=black,white
+
+root=,white
+border=black,gray
+title=white,black
+roottext=red,gray
+window=red,gray
+textbox=white,gray
+button=white,green
+compactbutton=white,black
+listbox=black,white
+actlistbox=white,black
+actsellistbox=white,blue
+checkbox=red,black
+actcheckbox=white,blue
+'
+
+clear
+{
 
 
+sleep 1
+echo -e "XXX\n23\nINICIANDO CRIAÇÃO DO BANCO DE DADOS DO HUMHUB\nXXX"
+sleep 15
+# Aguardar container MySQL ficar disponível
+max_wait_time=800  # 2 minutos máximo
+wait_interval=60
+elapsed_time=0
+container_id2=""
+
+while [ $elapsed_time -lt $max_wait_time ]; do
+    container_id2=$(docker ps -q -f "label=com.docker.stack.namespace=mysql")
+    if [ -n "$container_id2" ]; then
+        break
+    fi
+    sleep $wait_interval
+    elapsed_time=$((elapsed_time + wait_interval))  # CORREÇÃO: removed extra 'a'
+done
+
+if [ -z "$container_id2" ]; then
+    echo -e "XXX\n23\nERRO: Container MySQL não encontrado\nXXX"
+    sleep 5
+    exit 1
+fi
+
+echo -e "XXX\n24\nCONTAINER MYSQL ENCONTRADO\nXXX"
+
+# Extrair senha do MySQL
 senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml)
 
-# Identifica o ID do container do MySQL
-container_id=$(docker ps -qf name=mysql)
+if [ -z "$senha_mysql" ]; then
+    echo -e "XXX\n25\nERRO: Senha MySQL não encontrada, cancelando a instalação\nXXX"
+    sleep 5
+setup-mno
+fi
 
-# Cria o banco de dados usando a senha extraída
-docker exec -i $container_id mysql -u root -p"$senha_mysql" -e "CREATE DATABASE $nome_app;"
+echo -e "XXX\n26\nCRIANDO BANCO: $nome_app\nXXX"
+
+# Criar banco de dados (versão mais segura)
+ if docker exec -i $container_id2 bash -c "MYSQL_PWD=\"$senha_mysql\" mysql -u root -e \"CREATE DATABASE $nome_app;\"" >/dev/null 2>&1; then
+    echo -e "XXX\n27\nBANCO $nome_app CRIADO COM SUCESSO\nXXX"
+    sleep 5
+else
+    echo -e "XXX\n28\nERRO AO CRIAR BANCO DE DADOS, CANCELANDO INSTALAÇÃO\nXXX"
+    sleep 5
+setup-mno
+fi
+
+echo -e "XXX\n29\nCRIAÇÃO DO BANCO FINALIZADA\nXXX"
+sleep 5
+
+
+
+
+
+}|whiptail --title "CRIANDO BANCO MYSQL" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
+
+#CRIAÇÃO DE BANCO MYSQL FIM
+
 
 # Ajuste do terminal para garantir compatibilidade
 {
@@ -688,6 +802,7 @@ cd
 
 
 clear
+
 senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml)
 
 cat > $nome_app.yaml << EOL

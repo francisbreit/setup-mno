@@ -125,7 +125,7 @@ done
 nome_principal="matomo"  #nome do app
 sufixo_app=$(date | md5sum | head -c7)
 nome_app=$nome_principal$sufixo_app
-mysql_container=$(docker ps -qf name=mysql)
+mysql_container=$(docker ps --format "{{.Names}}" | grep -q "^mysql$")
 
 if [[ ("$mysql_container" == "") ]]; then
  senha_mysql=$(openssl rand -hex 8)
@@ -138,7 +138,7 @@ cat > mysql.yaml << EOL
 version: '3.7'
 services:
     mysql:
-        image: percona/percona-server:8.0.39-30.1-multi
+        image: percona/percona-server:8.0
         environment:
             - MYSQL_ROOT_PASSWORD=$senha_mysql
             - TZ=America/Fortaleza
@@ -396,7 +396,7 @@ elapsed_time=0
 container_id2=""
 
 while [ $elapsed_time -lt $max_wait_time ]; do
-     container_id2=$(docker ps -q -f "label=com.docker.stack.namespace=mysql")
+    container_id2=$(docker ps -q -f "label=com.docker.stack.namespace=mysql")
     if [ -n "$container_id2" ]; then
         break
     fi
@@ -727,7 +727,6 @@ cd
 #secret_key="base64:$(openssl rand -base64 32)"
 
 clear
-
 senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml)
 
 cat > $nome_app.yaml << EOL

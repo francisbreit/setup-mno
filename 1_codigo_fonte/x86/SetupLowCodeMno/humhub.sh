@@ -197,7 +197,7 @@ if [ "$porta_smtp_humhub" -eq 465 ] || [ "$porta_smtp_humhub" -eq 25 ]; then
 nome_principal="humhub"  #nome do app
 sufixo_app=$(date | md5sum | head -c7)
 nome_app=$nome_principal$sufixo_app
-mysql_container=$(docker ps -qf name=mysql)
+mysql_container=$(docker ps --format "{{.Names}}" | grep -q "^mysql$")
 
 if [[ ("$mysql_container" == "") ]]; then
  senha_mysql=$(openssl rand -hex 8)

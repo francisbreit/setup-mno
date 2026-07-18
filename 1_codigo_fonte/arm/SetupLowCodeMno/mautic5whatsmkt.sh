@@ -114,7 +114,7 @@ done
 nome_principal="mautic"  #nome do app
 sufixo_app=$(date | md5sum | head -c7)
 nome_app=$nome_principal$sufixo_app
-mysql_container=$(docker ps -qf name=mysql)
+mysql_container=$(docker ps --format "{{.Names}}" | grep -q "^mysql$")
 
 if [[ ("$mysql_container" == "") ]]; then
  senha_mysql=$(openssl rand -hex 8)
@@ -127,7 +127,7 @@ cat > mysql.yaml << EOL
 version: '3.7'
 services:
     mysql:
-        image: percona/percona-server:8.0.39-30.1-multi
+        image: percona/percona-server:8.0
         environment:
             - MYSQL_ROOT_PASSWORD=$senha_mysql
             - TZ=America/Fortaleza

@@ -1,16 +1,9 @@
 #!/usr/bin/bash
 #########################################################
+# # cloudflare tunnel - records automáticos
+#    LOADING
 #
-# LOADING
-#
-
 export NEWT_COLORS='
-#root=,white
-#window=,black
-#border=white,black
-#textbox=white,black
-#button=black,white
-
 root=,white
 border=black,gray
 title=white,black
@@ -24,14 +17,16 @@ actlistbox=white,black
 actsellistbox=white,blue
 checkbox=red,black
 actcheckbox=white,blue
-'  
+'    
 
 clear
 
-
-amarelo="\e[33m"   # Amarelo
-branco="\e[97m"    # Branco
-reset="\e[0m"      # Reseta
+amarelo="\e[33m"
+verde="\e[32m"
+branco="\e[97m"
+bege="\e[93m"
+vermelho="\e[91m"
+reset="\e[0m"
 
 #
 # FIM DE LOADING
@@ -48,6 +43,24 @@ reset="\e[0m"      # Reseta
   clear                          # Limpeza final antes do whiptail
 } || true
 
+# VERIFICAR TIPO DE INSTALAÇÃO
+INSTALL_TYPE_FILE="/root/.cloudflared_config/installation_type"
+if [ -f "$INSTALL_TYPE_FILE" ]; then
+    INSTALL_TYPE=$(cat "$INSTALL_TYPE_FILE")
+else
+    INSTALL_TYPE="TRADICIONAL"
+fi
+
+# CARREGAR CREDENCIAIS CONFORME TIPO DE INSTALAÇÃO
+if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+    if [ -f "/root/.cloudflared_config/cloudflare_credentials" ]; then
+        source "/root/.cloudflared_config/cloudflare_credentials"
+    fi
+else
+    if [ -f "/root/.tradicional_config/tradicional_credentials" ]; then
+        source "/root/.tradicional_config/tradicional_credentials"
+    fi
+fi
 
 function msg() {
 		msg=$1
@@ -56,7 +69,7 @@ function msg() {
 
   while true; do
 CHOICE=$(
-whiptail --title "MAUTIC 4 + WHATSAPP MKT: AUTOMAÇÃO DE MARKETING" --menu "Aperte ENTER para iniciar a instalação do Mautic 4 com WhatsApp e SMS Marketing ou selecione SAIR (Utilize setas e Enter)\nINSTRUÇÕES\nAntes de prosseguir, apontar registros DNS para o(s) seguinte(s) dominio(s):\nRECORD A: Dê um nome para seu servidor (exemplo: manager1.seudominio.com.br) e aponte para o IP do seu servidor\nRECORD CNAME: Crie um subdominio para o Mautic (exemplo: mkt.seudominio.com.br) a aponte para o nome do servidor criado (exemplo: manager1.seudominio.com.br)" 20 70 2 \
+whiptail --title "MAUTIC 4 + WHATSAPP MKT: AUTOMAÇÃO DE MARKETING" --menu "Aperte ENTER para iniciar a instalação do MAUTIC 4 + WHATSAPP MKT ou selecione SAIR (Utilize setas e Enter)\n\nTIPO DE INSTALAÇÃO DETECTADA: $INSTALL_TYPE\n\nINSTRUÇÕES:\nAntes de prosseguir, verifique os registros DNS conforme seu tipo de instalação:" 20 70 2 \
 	"1)" "CONTINUAR"   \
 	"2)" "SAIR"  3>&2 2>&1 1>&3	
 )
@@ -74,7 +87,6 @@ case $CHOICE in
         exit 0
         ;; 
 esac
-#whiptail --msgbox "Pressione ENTER para voltar ao Menu Principal" 20 78
 done
 
 
@@ -140,7 +152,7 @@ done
 nome_principal="mautic"  #nome do app
 sufixo_app=$(date | md5sum | head -c7)
 nome_app=$nome_principal$sufixo_app
-mysql_container=$(docker ps -qf name=mysql)
+mysql_container=$(docker ps --format "{{.Names}}" | grep -q "^mysql$")
 
 if [[ ("$mysql_container" == "") ]]; then
  senha_mysql=$(openssl rand -hex 8)
@@ -153,12 +165,14 @@ cat > mysql.yaml << EOL
 version: '3.7'
 services:
     mysql:
-        image: percona/percona-server:8.0.39-30.1-multi
+        image: percona/percona-server:8.0
         environment:
             - MYSQL_ROOT_PASSWORD=$senha_mysql
             - TZ=America/Fortaleza
-        networks:
-            - network_public
+
+        networks: 
+            - externa
+            - interna
         volumes:
             - mysql_data:/var/lib/mysql
         deploy:
@@ -168,10 +182,11 @@ services:
             --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --sql-mode="" --default-authentication-plugin=mysql_native_password  --port=3306 --max-allowed-packet=512MB
 volumes:
     mysql_data:
-networks:
-    network_public:
+networks: 
+    externa: 
         external: true
-        name: network_public
+    interna: 
+        external: true
 
 EOL
 
@@ -179,14 +194,42 @@ EOL
 
 
 if [[ "$criar_portainer" == "0" ]]; then
+
+{
+  tput reset 2>/dev/null         # Reinicia o terminal de forma segura
+  exec 0</dev/tty 1>/dev/tty 2>&1 # Força redirecionamentos explícitos
+  sleep 0.01                     # Pausa microscópica para sincronia
+  clear                          # Limpeza final antes do whiptail
+} || true
+
+export NEWT_COLORS='
+#root=,white
+#window=,black
+#border=white,black
+#textbox=white,black
+#button=black,white
+
+root=,white
+border=black,gray
+title=white,black
+roottext=red,gray
+window=red,gray
+textbox=white,gray
+button=white,green
+compactbutton=white,black
+listbox=black,white
+actlistbox=white,black
+actsellistbox=white,blue
+checkbox=red,black
+actcheckbox=white,blue
+'
+
+clear
+{
+
+
     # A stack será criada no Portainer
     echo -e "XXX\n6\nCRIANDO STACK NO PORTAINER 3/4  \nXXX"
-   # echo "Criando a stack no Portainer para edição."
-    # Substituir pelo comando ou rotina para criar a stack no Portainer
-    # Aqui pode chamar um novo script ou rotina específica, exemplo:
-   ## /path/to/criar_stack_no_portainer.sh "$nome_app" "$painelpma"
-
-#!/bin/bash
 
 # Configurações
 
@@ -315,12 +358,11 @@ get_swarm_id || exit 1
 create_stack || exit 1
 # echo "[SUCESSO] Processo concluído."
 
-
-
+}|whiptail --title "CRIANDO STACK MYSQL" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
 
 elif [[ "$criar_portainer" == "1" ]]; then
     # A stack será criada diretamente no Docker
-    echo -e "XXX\n22\nCRIANDO STACK NO PORTAINER 3/4  \nXXX"
+    echo "Criando a stack diretamente no Docker (não editável no Portainer)."
     docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
 else
     # Caso inesperado (não deve ocorrer devido à validação anterior no while loop)
@@ -337,25 +379,132 @@ fi
 fi 	
 
 
+#CRIAÇÃO DE BANCO MYSQL INICIO
 
+{
+  tput reset 2>/dev/null         # Reinicia o terminal de forma segura
+  exec 0</dev/tty 1>/dev/tty 2>&1 # Força redirecionamentos explícitos
+  sleep 0.01                     # Pausa microscópica para sincronia
+  clear                          # Limpeza final antes do whiptail
+} || true
 
-mysql_password=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml)
-#container_id=$(docker ps -qf name=postgres)
-#docker exec -it $container_id psql -U postgres -d postgres -c "CREATE  DATABASE $nome_app;" 
+export NEWT_COLORS='
+#root=,white
+#window=,black
+#border=white,black
+#textbox=white,black
+#button=black,white
 
+root=,white
+border=black,gray
+title=white,black
+roottext=red,gray
+window=red,gray
+textbox=white,gray
+button=white,green
+compactbutton=white,black
+listbox=black,white
+actlistbox=white,black
+actsellistbox=white,blue
+checkbox=red,black
+actcheckbox=white,blue
+'
 
 clear
+{
 
-echo ""
-echo -e "URL do Mautic: \e[33m$urlmautic\e[0m"
-echo -e "Usuário Admin do Mautic: \e[33m$usermautic\e[0m"
-echo -e "Email do admin do Mautic: \e[33m$emailmautic\e[0m"
-echo -e "Senha do Mautic: \e[33m$senhamautic\e[0m"
-echo -e "Criar Stack no Portainer: \e[33m$criar_portainer\e[0m"
-echo ""
-echo ""
-read -p "As informações estão certas? (y/n): " confirma1
-if [ "$confirma1" == "y" ]; then
+
+sleep 1
+echo -e "XXX\n23\nINICIANDO CRIAÇÃO DO BANCO DE DADOS DO MAUTIC\nXXX"
+sleep 15
+# Aguardar container MySQL ficar disponível
+max_wait_time=800  # 2 minutos máximo
+wait_interval=60
+elapsed_time=0
+container_id2=""
+
+while [ $elapsed_time -lt $max_wait_time ]; do
+    container_id2=$(docker ps -q -f "label=com.docker.stack.namespace=mysql")
+    if [ -n "$container_id2" ]; then
+        break
+    fi
+    sleep $wait_interval
+    elapsed_time=$((elapsed_time + wait_interval))  # CORREÇÃO: removed extra 'a'
+done
+
+if [ -z "$container_id2" ]; then
+    echo -e "XXX\n23\nERRO: Container MySQL não encontrado\nXXX"
+    sleep 5
+    exit 1
+fi
+
+echo -e "XXX\n24\nCONTAINER MYSQL ENCONTRADO\nXXX"
+
+# Extrair senha do MySQL
+senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml)
+
+if [ -z "$senha_mysql" ]; then
+    echo -e "XXX\n25\nERRO: Senha MySQL não encontrada\nXXX"
+    sleep 5
+    exit 1
+fi
+
+echo -e "XXX\n26\nCRIANDO BANCO: $nome_app\nXXX"
+
+# Criar banco de dados (versão mais segura)
+ if docker exec -i $container_id2 bash -c "MYSQL_PWD=\"$senha_mysql\" mysql -u root -e \"CREATE DATABASE $nome_app;\"" >/dev/null 2>&1; then
+    echo -e "XXX\n27\nBANCO $nome_app CRIADO COM SUCESSO\nXXX"
+    sleep 5
+else
+    echo -e "XXX\n28\nERRO AO CRIAR BANCO DE DADOS, CANCELANDO INSTALAÇÃO\nXXX"
+    sleep 5
+setup-mno
+fi
+
+echo -e "XXX\n29\nCRIAÇÃO DO BANCO FINALIZADA\nXXX"
+sleep 5
+
+
+
+}|whiptail --title "CRIANDO BANCO MYSQL" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
+
+#CRIAÇÃO DE BANCO MYSQL FIM
+
+# Ajuste do terminal para garantir compatibilidade
+{
+  tput reset 2>/dev/null         # Reinicia o terminal de forma segura
+  exec 0</dev/tty 1>/dev/tty 2>&1 # Força redirecionamentos explícitos
+  sleep 0.01                     # Pausa microscópica para sincronia
+  clear                          # Limpeza final antes do whiptail
+} || true
+
+    # Exibe as informações formatadas com mais espaço na tela
+    whiptail --title "Dados Fornecidos" \
+    --msgbox "TIPO DE INSTALAÇÃO: $INSTALL_TYPE\n\nDados Preenchidos:\n\n1) URL do Mautic: $urlmautic\n2) Usuário Admin do Mautic: $usermautic\n3) Email do admin do Mautic: $emailmautic\n4) Senha do Mautic: $senhamautic\n5) Criar Stack no Portainer: $([ "$criar_portainer" == "0" ] && echo "0 (Editável)" || echo "1 (Não editável)")\n\nConfira e Tecle Enter para continuar. Na próxima etapa você poderá confirmar os dados ou corrigir, se necessário." \
+    --fb 22 80
+
+# Solicita confirmação dentro de um loop
+while true; do
+# Ajuste do terminal para garantir compatibilidade
+{
+  tput reset 2>/dev/null         # Reinicia o terminal de forma segura
+  exec 0</dev/tty 1>/dev/tty 2>&1 # Força redirecionamentos explícitos
+  sleep 0.01                     # Pausa microscópica para sincronia
+  clear                          # Limpeza final antes do whiptail
+} || true
+    confirma1=$(whiptail --title "Confirmação" \
+    --inputbox "Informações estavam corretas? Digite 'y' para confirmar e instalar ou 'n' para voltar e corrigir:" \
+    --fb 10 60 3>&1 1>&2 2>&3)
+    if [[ "$confirma1" =~ ^[yY]$ ]]; then
+        break
+    elif [[ "$confirma1" =~ ^[nN]$ ]]; then
+        msg "Você digitou N e não confirmou os dados preenchidos. Tecle Enter para sair da instalação"
+        exit 0
+    else
+        msg "Entrada inválida! Por favor, use apenas 'y' para sim ou 'n' para não. Digite Enter para continuar"
+    fi
+done
+
 
 #
 # FIM DE VERIFICAÇÃO DE DADOS
@@ -374,16 +523,216 @@ button=black,white
 
 clear
 {
-echo -e "XXX\n23\nCRIANDO STACK DO MAUTIC 1/4 \nXXX"
+# Função para verificar o domínio
+echo -e "XXX\n5\nVERIFICANDO CONFIGURAÇÃO... \nXXX"
+
+if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
+    # CONFIGURAÇÃO TRADICIONAL COM DNS AUTOMÁTICO
+    echo -e "XXX\n10\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
+    
+    DOMINIO_PRINCIPAL=$(echo "$urlmautic" | cut -d'.' -f2-)
+    SUBDOMINIO=${urlmautic%%.$DOMINIO_PRINCIPAL}
+
+    # Verificar e remover registros existentes
+    echo -e "XXX\n15\nVERIFICANDO REGISTROS EXISTENTES... \nXXX"
+    EXISTING_RECORDS=$(curl -s -X GET \
+        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${urlmautic}" \
+        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+        -H "Content-Type: application/json")
+
+    COUNT=$(echo "$EXISTING_RECORDS" | jq '.result | length')
+    if [[ "$COUNT" -gt 0 ]]; then
+        echo -e "XXX\n20\nREMOVENDO REGISTROS ANTIGOS... \nXXX"
+        echo "$EXISTING_RECORDS" | jq -r '.result[].id' | while read -r REC_ID; do
+            [[ -z "$REC_ID" ]] && continue
+            curl -s -X DELETE \
+                "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${REC_ID}" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                -H "Content-Type: application/json" >/dev/null 2>&1
+        done
+    fi
+
+    # Criar registro CNAME
+    echo -e "XXX\n25\nCRIANDO REGISTRO CNAME... \nXXX"
+    CNAME_RESPONSE=$(curl -s -X POST \
+        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
+        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+        -H "Content-Type: application/json" \
+        --data '{"type":"CNAME","name":"'${urlmautic}'","content":"'${nome_servidor}'.'${DOMINIO_PRINCIPAL}'","ttl":1,"proxied":false}')
+
+    if echo "$CNAME_RESPONSE" | grep -q '"success":true'; then
+        echo -e "XXX\n30\nREGISTRO CNAME CRIADO COM SUCESSO! \nXXX"
+    else
+        echo -e "XXX\n30\nAVISO: ERRO AO CRIAR REGISTRO CNAME \nXXX"
+    fi
+
+elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+    # CONFIGURAÇÃO CLOUDFLARE TUNNEL - DNS E ROTAS
+    echo -e "XXX\n10\nCONFIGURANDO CLOUDFLARE TUNNEL (DNS + ROTAS)... \nXXX"
+    
+    DOMINIO_PRINCIPAL=$(echo "$urlmautic" | cut -d'.' -f2-)
+    SUBDOMINIO=${urlmautic%%.$DOMINIO_PRINCIPAL}
+
+    # 1. PRIMEIRO CONFIGURAR O DNS
+    echo -e "XXX\n15\nCONFIGURANDO REGISTRO DNS... \nXXX"
+    
+    # Verificar e remover registros existentes
+    EXISTING_RECORDS=$(curl -s -X GET \
+        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${urlmautic}" \
+        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+        -H "Content-Type: application/json")
+
+    COUNT=$(echo "$EXISTING_RECORDS" | jq '.result | length')
+    if [[ "$COUNT" -gt 0 ]]; then
+        echo -e "XXX\n20\nREMOVENDO REGISTROS DNS ANTIGOS... \nXXX"
+        echo "$EXISTING_RECORDS" | jq -r '.result[].id' | while read -r REC_ID; do
+            [[ -z "$REC_ID" ]] && continue
+            curl -s -X DELETE \
+                "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${REC_ID}" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                -H "Content-Type: application/json" >/dev/null 2>&1
+        done
+    fi
+
+    # Criar registro CNAME para o tunnel
+    echo -e "XXX\n25\nCRIANDO REGISTRO CNAME PARA TUNNEL... \nXXX"
+    DNS_RESPONSE=$(curl -s -X POST \
+        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
+        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+        -H "Content-Type: application/json" \
+        --data "{\"type\":\"CNAME\",\"name\":\"${urlmautic}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}")
+
+    if echo "$DNS_RESPONSE" | grep -q '"success":true'; then
+        echo -e "XXX\n30\nREGISTRO DNS CRIADO COM SUCESSO! \nXXX"
+    else
+        echo -e "XXX\n30\nAVISO: ERRO AO CRIAR REGISTRO DNS \nXXX"
+    fi
+
+    # 2. AGORA ATUALIZAR AS ROTAS DO TUNNEL
+    echo -e "XXX\n35\nATUALIZANDO CONFIGURAÇÃO DO TUNNEL... \nXXX"
+
+    # Configuração do novo serviço para o Baserow
+    NEW_SERVICE="http://${nome_app}:80"
+    
+    # Arquivos temporários
+    TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+    TMPDIR=$(mktemp -d)
+    BACKUP_RAW="$TMPDIR/backup_raw.$TIMESTAMP.json"
+    TO_PUT="$TMPDIR/to_put.$TIMESTAMP.json"
+
+    # 1) Obter configuração atual do tunnel
+    echo -e "XXX\n40\nOBTENDO CONFIGURAÇÃO ATUAL DO TUNNEL... \nXXX"
+    curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+      "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+      | jq '.' > "$BACKUP_RAW"
+
+    # Verificar se obteve sucesso
+    if ! jq -e '.success == true' "$BACKUP_RAW" >/dev/null 2>&1; then
+        echo -e "XXX\n45\nERRO: FALHA AO OBTER CONFIGURAÇÃO DO TUNNEL \nXXX"
+        sleep 3
+    else
+        echo -e "XXX\n45\nCONFIGURAÇÃO OBTIDA COM SUCESSO \nXXX"
+    fi
+
+    # 2) Construir novo payload
+    echo -e "XXX\n50\nCONFIGURANDO NOVAS ROTAS... \nXXX"
+    
+    jq --arg host "$urlmautic" --arg service "$NEW_SERVICE" '
+      (.result.config // {}) as $cfg
+      | ($cfg.ingress // []) as $ing
+      # Remover entradas catch-all existentes no meio
+      | ($ing | map(select(.service != "http_status:404"))) as $clean
+      # Coletar hostnames existentes para evitar duplicatas
+      | ($clean | map(.hostname // "")) as $existing_names
+      # Se o novo host já existe, não adicionar duplicata; senão adicionar nova rota
+      | (if ($existing_names | index($host)) then $clean else ($clean + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) end) as $merged
+      # Adicionar exatamente um catch-all
+      | ($merged + [{ service: "http_status:404" }]) as $final_ing
+      # Construir novo objeto de configuração, preservando outras chaves
+      | ($cfg + { ingress: $final_ing }) as $newcfg
+      | { config: $newcfg }
+    ' "$BACKUP_RAW" > "$TO_PUT"
+
+    # 3) Aplicar nova configuração
+    echo -e "XXX\n55\nAPLICANDO NOVA CONFIGURAÇÃO DO TUNNEL... \nXXX"
+    APPLY_RESPONSE=$(curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+      -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+      -H "Content-Type: application/json" \
+      --data-binary @"$TO_PUT")
+
+    if echo "$APPLY_RESPONSE" | grep -q '"success":true'; then
+        echo -e "XXX\n60\nTUNNEL CONFIGURADO COM SUCESSO! \nXXX"
+    else
+        echo -e "XXX\n60\nAVISO: ERRO AO CONFIGURAR TUNNEL \nXXX"
+    fi
+
+    # Limpeza
+    rm -rf "$TMPDIR"
+
+ else
+    # INSTALAÇÃO TRADICIONAL SEM DNS AUTOMÁTICO
+    echo -e "XXX\n10\nVERIFICANDO CONFIGURAÇÃO (TRADICIONAL SEM AUTOMAÇÃO)... \nXXX"
+    # Verificação básica de DNS
+    if nslookup "$urlmautic" >/dev/null 2>&1; then
+        echo -e "XXX\n15\nDNS CONFIGURADO \nXXX"
+    else
+        echo -e "XXX\n15\nAVISO: VERIFIQUE A CONFIGURAÇÃO DNS \nXXX"
+    fi
+fi
+
+
+if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "1" ]; then
+
+
+# Função para verificar o domínio quando fora do cloudflare
+# urlmautic=$1
+ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
+
+echo -e "XXX\n3\nVERIFICANDO SUBDOMÍNIO: $urlmautic \nXXX"
 sleep 3
-echo -e "XXX\n24\nCRIANDO STACK DO MAUTIC 1/4 - CONCLUIDO \nXXX"
-sleep 3 
-echo -e "XXX\n25\nFAZENDO O BUILD DO STACK DO MAUTIC 2/4 \nXXX"
-sleep 3
+
+tentativas=5
+tentativa_atual=1
+sucesso=0
+
+while [ $tentativa_atual -le $tentativas ]; do
+    echo -e "XXX\n$(( (tentativa_atual * 12) / tentativas + 3 ))\nTentativa $tentativa_atual de $tentativas...\nXXX"
+    
+    dns_ip=$(timeout 10 nslookup -type=A "$urlmautic" | grep -E "Address: [0-9]+\." | awk '{print $2}' | head -n1)
+    
+    if [[ -n "$dns_ip" && "$dns_ip" == "$ip_servidor" ]]; then
+        sucesso=1
+       # break
+    fi
+    
+  #  sleep $((tentativa_atual * 2))
+  sleep 1
+    ((tentativa_atual++))
+done
+
+if [ $sucesso -eq 0 ]; then
+
+    echo -e "XXX\n10\nERRO: SUBDOMÍNIO NÃO APONTA PARA O IP ($ip_servidor) \nXXX"
+    sleep 3
+    echo -e "XXX\n18\nERRO: DNS NÃO CONFIGURADO CORRETAMENTE \nXXX"
+    sleep 3
+    exit 1
+fi
+    echo -e "XXX\n18\nDOMÍNIO VERIFICADO COM SUCESSO \nXXX"
+sleep 4
+fi
+
+
+####### fim de verificando dominio 
+
+echo -e "XXX\n27\nCRIANDO STACK DO MAUTIC 1/4 \nXXX"
+sleep 1
+echo -e "XXX\n29\nFAZENDO O BUILD DO STACK DO MAUTIC 2/4 \nXXX"
+sleep 1
 echo -e "XXX\n50\nFAZENDO O BUILD DO STACK DO MAUTIC 2/4 - CONCLUIDO \nXXX"
-sleep 3
+sleep 1
 echo -e "XXX\n50\nCRIANDO BANCO DE DADOS DO MAUTIC 3/4 \nXXX"
-sleep 3
+sleep 1
 echo -e "XXX\n75\nCRIANDO BANCO DE DADOS DO MAUTIC 3/4 - CONCLUIDO \nXXX"
 
 
@@ -399,7 +748,7 @@ cd
 
 cd
 clear
-
+senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml)
 
 cat > $nome_app.yaml << EOL
 
@@ -413,15 +762,17 @@ services:
     volumes:
     - $nome_app-data:/var/www/html
     - $nome_app-cron:/etc/cron.d
-    networks:
-    - network_public
+
+    networks: 
+      - externa
+      - interna
     environment:
     - MAUTIC_DB_NAME=$nome_app
     - VIRTUAL_HOST=$urlmautic
     - MAUTIC_DB_HOST=mysql
     - MAUTIC_DB_PORT=3306
     - MAUTIC_DB_USER=root
-    - MAUTIC_DB_PASSWORD=$mysql_password
+    - MAUTIC_DB_PASSWORD=$senha_mysql
     - MAUTIC_ADMIN_EMAIL=$emailmautic
     - MAUTIC_ADMIN_PASSWORD=$senhamautic
     - MAUTIC_ADMIN_USERNAME=$usermautic
@@ -433,6 +784,10 @@ services:
       placement:
         constraints:
         - node.role == manager
+EOL
+# Adicionar as labels apenas se for instalação tradicional
+if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
+cat >> $nome_app.yaml << EOL
       labels:
       - traefik.enable=1
       - traefik.http.routers.$nome_app.rule=Host(\`$urlmautic\`)
@@ -442,6 +797,9 @@ services:
       - traefik.http.routers.$nome_app.service=$nome_app
       - traefik.http.services.$nome_app.loadbalancer.server.port=80
       - traefik.http.services.$nome_app.loadbalancer.passHostHeader=1
+EOL
+fi
+cat >> $nome_app.yaml << EOL
 volumes:
  $nome_app-data:
     external: true
@@ -449,9 +807,11 @@ volumes:
  $nome_app-cron:
     external: true
     name: $nome_app-crond
-networks:
-  network_public:
-    name: network_public
+
+networks: 
+  externa: 
+    external: true
+  interna: 
     external: true
 
 
@@ -463,12 +823,7 @@ EOL
 if [[ "$criar_portainer" == "0" ]]; then
     # A stack será criada no Portainer
     echo -e "XXX\n76\nCRIANDO STACK NO PORTAINER 3/4  \nXXX"
-   # echo "Criando a stack no Portainer para edição."
-    # Substituir pelo comando ou rotina para criar a stack no Portainer
-    # Aqui pode chamar um novo script ou rotina específica, exemplo:
-   ## /path/to/criar_stack_no_portainer.sh "$nome_app" "$painelpma"
 
-#!/bin/bash
 
 # Configurações
 
@@ -621,7 +976,7 @@ fi
 
 echo -e "XXX\n93\nFINALIZANDO BUILD DO MAUTIC 4/4  \nXXX"
 
-sleep 2
+sleep 12
 
 echo -e "XXX\n100\nFINALIZANDO BUILD DO MAUTIC 4/4 - CONCLUIDO  \nXXX"
 
@@ -631,32 +986,27 @@ sleep 3
 # FIM DE INSTALANDO O MAUTIC
 #
 #######################################################
-
-
-#
-# MENSAGEM DE INSTLADO + DADOS
+# VERIFICAÇÃO FINAL
 #
 
-whiptail --msgbox "Parabéns seu Mautic 4 com WhatsApp e SMS Marketing foi instalado com sucesso! Pressione ENTER para voltar ao Menu Principal" 20 78
+# Verificação conforme tipo de instalação
+if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
+    ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
+    dns_ip=$(timeout 10 nslookup "$urlmautic" | grep "Address" | tail -n1 | awk '{print $2}' 2>/dev/null)
 
-
-#
-# FIM DE MENSAGEM DE INSTLADO + DADOS
-#
-#########################################################
-#
-# USUARIO PREENCHEU DADOS ERRADOS
-#
-
-elif [ "$confirma1" == "n" ]; then
-    echo "Encerrando a instalação, por favor, inicie a instalaão novamente."
-    exit 0
+    if [[ "$dns_ip" != "$ip_servidor" ]]; then
+        whiptail --title "Mensagem" --msgbox "Não foi possivel acessar o dominio do Mautic 4 com WhatsApp e SMS Marketing ($urlmautic). A instalação foi cancelada. Por favor, verifique se os apontamentos DNS estão corretos e propagados!. Depois, instale novamente. Pressione ENTER para voltar ao Menu Principal" 20 78
+    else
+        whiptail --title "Mensagem" --msgbox "Parabéns, Mautic 4 com WhatsApp e SMS Marketing foi instalado com sucesso!\n\nAcesse: https://$urlmautic\n\nPressione ENTER para voltar ao Menu Principal" 20 78
+    fi
 else
-    echo "Resposta inválida. Digite 'y' para confirmar ou 'n' para encerrar a instalação."
-    exit 1
+    # Para Cloudflare Tunnel, verificação mais simples
+    if nslookup "$urlmautic" >/dev/null 2>&1; then
+        whiptail --title "Mensagem" --msgbox "Parabéns, Mautic 4 com WhatsApp e SMS Marketing foi instalado com sucesso!\n\nAcesse: https://$urlmautic\n\nConfiguração Cloudflare Tunnel concluída com rotas e DNS.\n\nPressione ENTER para voltar ao Menu Principal" 20 78
+    else
+        whiptail --title "Mensagem" --msgbox "AVISO: O domínio do Mautic 4 com WhatsApp e SMS Marketing ($urlmautic) não está resolvendo.\nVerifique a configuração do Cloudflare Tunnel.\n\nA instalação foi concluída, mas o acesso pode não funcionar até que o DNS esteja configurado corretamente.\n\nPressione ENTER para voltar ao Menu Principal" 20 78
+    fi
 fi
 
-#
-# FIM DE USUARIO PREENCHEU DADOS ERRADOS
-#
-#########################################################
+exit 0
+

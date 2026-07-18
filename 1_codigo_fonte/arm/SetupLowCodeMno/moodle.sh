@@ -184,7 +184,7 @@ porta_smtp_moodle=$(whiptail --title "10/10 - Porta SMTP do Email" --inputbox "P
 nome_principal="moodle"  #nome do app
 sufixo_app=$(date | md5sum | head -c7)
 nome_app=$nome_principal$sufixo_app
-#mysql_container=$(docker ps -qf name=mysql)
+#mysql_container=$(docker ps --format "{{.Names}}" | grep -q "^mysql$")
 
 
 

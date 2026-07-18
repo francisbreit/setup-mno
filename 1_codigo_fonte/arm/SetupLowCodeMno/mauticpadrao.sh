@@ -69,7 +69,7 @@ function msg() {
 
   while true; do
 CHOICE=$(
-whiptail --title "MAUTIC 4 PADRÃO: AUTOMAÇÃO DE MARKETING" --menu "Aperte ENTER para iniciar a instalação do MAUTIC 4 PADRÃO ou selecione SAIR (Utilize setas e Enter)\n\nTIPO DE INSTALAÇÃO DETECTADO: $INSTALL_TYPE\n\nINSTRUÇÕES:\nAntes de prosseguir, verifique os registros DNS conforme seu tipo de instalação:" 20 70 2 \
+whiptail --title "MAUTIC 4 PADRÃO: AUTOMAÇÃO DE MARKETING" --menu "Aperte ENTER para iniciar a instalação do MAUTIC 4 PADRÃO ou selecione SAIR (Utilize setas e Enter)\n\nTIPO DE INSTALAÇÃO DETECTADA: $INSTALL_TYPE\n\nINSTRUÇÕES:\nAntes de prosseguir, verifique os registros DNS conforme seu tipo de instalação:" 20 70 2 \
 	"1)" "CONTINUAR"   \
 	"2)" "SAIR"  3>&2 2>&1 1>&3	
 )
@@ -152,7 +152,7 @@ done
 nome_principal="mautic"  #nome do app
 sufixo_app=$(date | md5sum | head -c7)
 nome_app=$nome_principal$sufixo_app
-mysql_container=$(docker ps -qf name=mysql)
+mysql_container=$(docker ps --format "{{.Names}}" | grep -q "^mysql$")
 
 if [[ ("$mysql_container" == "") ]]; then
  senha_mysql=$(openssl rand -hex 8)
@@ -165,7 +165,7 @@ cat > mysql.yaml << EOL
 version: '3.7'
 services:
     mysql:
-        image: percona/percona-server:8.0.39-30.1-multi
+        image: percona/percona-server:8.0
         environment:
             - MYSQL_ROOT_PASSWORD=$senha_mysql
             - TZ=America/Fortaleza
@@ -195,6 +195,40 @@ EOL
 
 
 if [[ "$criar_portainer" == "0" ]]; then
+
+{
+  tput reset 2>/dev/null         # Reinicia o terminal de forma segura
+  exec 0</dev/tty 1>/dev/tty 2>&1 # Força redirecionamentos explícitos
+  sleep 0.01                     # Pausa microscópica para sincronia
+  clear                          # Limpeza final antes do whiptail
+} || true
+
+export NEWT_COLORS='
+#root=,white
+#window=,black
+#border=white,black
+#textbox=white,black
+#button=black,white
+
+root=,white
+border=black,gray
+title=white,black
+roottext=red,gray
+window=red,gray
+textbox=white,gray
+button=white,green
+compactbutton=white,black
+listbox=black,white
+actlistbox=white,black
+actsellistbox=white,blue
+checkbox=red,black
+actcheckbox=white,blue
+'
+
+clear
+{
+
+
     # A stack será criada no Portainer
     echo -e "XXX\n6\nCRIANDO STACK NO PORTAINER 3/4  \nXXX"
 
@@ -326,7 +360,7 @@ get_swarm_id || exit 1
 create_stack || exit 1
 # echo "[SUCESSO] Processo concluído."
 
-
+}|whiptail --title "CRIANDO STACK MYSQL" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
 
 
 elif [[ "$criar_portainer" == "1" ]]; then
@@ -348,12 +382,98 @@ fi
 fi 	
 
 
+#CRIAÇÃO DE BANCO MYSQL INICIO
+
+{
+  tput reset 2>/dev/null         # Reinicia o terminal de forma segura
+  exec 0</dev/tty 1>/dev/tty 2>&1 # Força redirecionamentos explícitos
+  sleep 0.01                     # Pausa microscópica para sincronia
+  clear                          # Limpeza final antes do whiptail
+} || true
+
+export NEWT_COLORS='
+#root=,white
+#window=,black
+#border=white,black
+#textbox=white,black
+#button=black,white
+
+root=,white
+border=black,gray
+title=white,black
+roottext=red,gray
+window=red,gray
+textbox=white,gray
+button=white,green
+compactbutton=white,black
+listbox=black,white
+actlistbox=white,black
+actsellistbox=white,blue
+checkbox=red,black
+actcheckbox=white,blue
+'
+
+clear
+{
 
 
-mysql_password=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml)
-#container_id=$(docker ps -qf name=postgres)
-#docker exec -it $container_id psql -U postgres -d postgres -c "CREATE  DATABASE $nome_app;" 
+sleep 1
+echo -e "XXX\n23\nINICIANDO CRIAÇÃO DO BANCO DE DADOS DO MAUTIC\nXXX"
+sleep 15
+# Aguardar container MySQL ficar disponível
+max_wait_time=800  # 2 minutos máximo
+wait_interval=60
+elapsed_time=0
+container_id2=""
 
+while [ $elapsed_time -lt $max_wait_time ]; do
+    container_id2=$(docker ps -q -f "label=com.docker.stack.namespace=mysql")
+    if [ -n "$container_id2" ]; then
+        break
+    fi
+    sleep $wait_interval
+    elapsed_time=$((elapsed_time + wait_interval))  # CORREÇÃO: removed extra 'a'
+done
+
+if [ -z "$container_id2" ]; then
+    echo -e "XXX\n23\nERRO: Container MySQL não encontrado\nXXX"
+    sleep 5
+    exit 1
+fi
+
+echo -e "XXX\n24\nCONTAINER MYSQL ENCONTRADO\nXXX"
+
+# Extrair senha do MySQL
+senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml)
+
+if [ -z "$senha_mysql" ]; then
+    echo -e "XXX\n25\nERRO: Senha MySQL não encontrada\nXXX"
+    sleep 5
+    exit 1
+fi
+
+echo -e "XXX\n26\nCRIANDO BANCO: $nome_app\nXXX"
+
+# Criar banco de dados (versão mais segura)
+ if docker exec -i $container_id2 bash -c "MYSQL_PWD=\"$senha_mysql\" mysql -u root -e \"CREATE DATABASE $nome_app;\"" >/dev/null 2>&1; then
+    echo -e "XXX\n27\nBANCO $nome_app CRIADO COM SUCESSO\nXXX"
+    sleep 5
+else
+    echo -e "XXX\n28\nERRO AO CRIAR BANCO DE DADOS, CANCELANDO INSTALAÇÃO\nXXX"
+    sleep 5
+setup-mno
+fi
+
+echo -e "XXX\n29\nCRIAÇÃO DO BANCO FINALIZADA\nXXX"
+sleep 5
+
+
+
+
+
+}|whiptail --title "CRIANDO BANCO MYSQL" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
+
+#CRIAÇÃO DE BANCO MYSQL FIM
 
 # Ajuste do terminal para garantir compatibilidade
 {
@@ -636,7 +756,7 @@ cd
 
 cd
 clear
-
+senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml)
 
 cat > $nome_app.yaml << EOL
 
@@ -661,7 +781,7 @@ services:
     - MAUTIC_DB_HOST=mysql
     - MAUTIC_DB_PORT=3306
     - MAUTIC_DB_USER=root
-    - MAUTIC_DB_PASSWORD=$mysql_password
+    - MAUTIC_DB_PASSWORD=$senha_mysql
     - MAUTIC_ADMIN_EMAIL=$emailmautic
     - MAUTIC_ADMIN_PASSWORD=$senhamautic
     - MAUTIC_ADMIN_USERNAME=$usermautic
@@ -673,6 +793,10 @@ services:
       placement:
         constraints:
         - node.role == manager
+EOL
+# Adicionar as labels apenas se for instalação tradicional
+if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
+cat >> $nome_app.yaml << EOL
       labels:
       - traefik.enable=1
       - traefik.http.routers.$nome_app.rule=Host(\`$urlmautic\`)
@@ -682,6 +806,9 @@ services:
       - traefik.http.routers.$nome_app.service=$nome_app
       - traefik.http.services.$nome_app.loadbalancer.server.port=80
       - traefik.http.services.$nome_app.loadbalancer.passHostHeader=1
+EOL
+fi
+cat >> $nome_app.yaml << EOL
 volumes:
  $nome_app-data:
     external: true
@@ -873,19 +1000,19 @@ sleep 3
 # Verificação conforme tipo de instalação
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
     ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
-    dns_ip=$(timeout 10 nslookup $urlmautic | grep "Address" | tail -n1 | awk '{print $2}' 2>/dev/null)
+    dns_ip=$(timeout 10 nslookup "$urlmautic" | grep "Address" | tail -n1 | awk '{print $2}' 2>/dev/null)
 
     if [[ "$dns_ip" != "$ip_servidor" ]]; then
         whiptail --title "Mensagem" --msgbox "Não foi possivel acessar o dominio do Mautic 4 ($urlmautic). A instalação foi cancelada. Por favor, verifique se os apontamentos DNS estão corretos e propagados!. Depois, instale novamente. Pressione ENTER para voltar ao Menu Principal" 20 78
     else
-        whiptail --title "Mensagem" --msgbox "Parabéns, Mautic 4 foi instalado com sucesso!\n\nAcesse: https://$urlmautic\n\nPressione ENTER para voltar ao Menu Principal" 20 78
+        whiptail --title "Mensagem" --msgbox "Parabéns, Mautic 4 foi instalado com sucesso!\nAcesse: https://$urlmautic\nPressione ENTER para voltar ao Menu Principal" 20 78
     fi
 else
     # Para Cloudflare Tunnel, verificação mais simples
     if nslookup "$urlmautic" >/dev/null 2>&1; then
-        whiptail --title "Mensagem" --msgbox "Parabéns, Mautic 4 foi instalado com sucesso!\n\nAcesse: https://$urlmautic\n\nConfiguração Cloudflare Tunnel concluída com rotas e DNS.\n\nPressione ENTER para voltar ao Menu Principal" 20 78
+        whiptail --title "Mensagem" --msgbox "Parabéns, Mautic 4 foi instalado com sucesso!\nAcesse: https://$urlmautic\nConfiguração Cloudflare Tunnel concluída com rotas e DNS.\nPressione ENTER para voltar ao Menu Principal" 20 78
     else
-        whiptail --title "Mensagem" --msgbox "AVISO: O domínio do Mautic 4 ($urlmautic) não está resolvendo.\nVerifique a configuração do Cloudflare Tunnel.\n\nA instalação foi concluída, mas o acesso pode não funcionar até que o DNS esteja configurado corretamente.\n\nPressione ENTER para voltar ao Menu Principal" 20 78
+        whiptail --title "Mensagem" --msgbox "AVISO: O domínio do Mautic 4 ($urlmautic) não está resolvendo.\nVerifique a configuração do Cloudflare Tunnel.\nA instalação foi concluída, mas o acesso pode não funcionar até que o DNS esteja configurado corretamente.\nPressione ENTER para voltar ao Menu Principal" 20 78
     fi
 fi
 
