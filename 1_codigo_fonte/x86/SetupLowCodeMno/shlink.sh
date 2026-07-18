@@ -629,7 +629,7 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
     fi
 else
     if nslookup "$url_shlink" >/dev/null 2>&1; then
-        whiptail --title "Mensagem" --msgbox "Parabéns, Shlink foi instalado com sucesso!\n\nPainel: https://$url_shlink\nAPI: https://$url_shlink_api\nUsuário: $shlink_user\nApiKey: $shlink_api_key\n\nPressione ENTER para voltar ao Menu Principal" 20 78
+        whiptail --title "Mensagem" --msgbox "Parabéns, Shlink foi instalado com sucesso!\n\nPainel: https://$url_shlink\nAPI: https://$url_shlink_api\nUsuário: $shlink_user\nApiKey: $shlink_api_key\n\nPressione ENTER para voltar ao Menu Principal" 20 100
     else
         whiptail --title "Mensagem" --msgbox "AVISO: O domínio do Shlink ($url_shlink) não está resolvendo.\nVerifique a configuração do Cloudflare Tunnel.\n\nPressione ENTER para voltar ao Menu Principal" 20 78
     fi
