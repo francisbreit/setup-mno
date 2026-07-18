@@ -170,8 +170,8 @@ button=black,white
 '
 
 clear
+{
 
-# Verificar se Percona/MySQL já existe (ANTES do bloco whiptail)
 echo -e "XXX\n70\nVERIFICANDO PERCONA (MySQL)... \nXXX"
 
 mysql_container=$(docker ps --format "{{.Names}}" | grep -q "^mysql$")
@@ -483,6 +483,9 @@ cat >> $nome_app.yaml << EOL
     volumes:
       - ${nome_app}_sites:/home/frappe/frappe-bench/sites
       - ${nome_app}_logs:/home/frappe/frappe-bench/logs
+    environment:
+      - SOCKETIO_PORT=9000
+      - REDIS_SOCKETIO=redis://${nome_app}_socketio:6379
     deploy:
       mode: replicated
       replicas: 1
