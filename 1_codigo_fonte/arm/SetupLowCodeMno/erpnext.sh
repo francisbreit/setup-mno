@@ -317,49 +317,146 @@ else
     # Instalar Percona
     senha_mysql=$(openssl rand -hex 16)
 
-    # Salvar credenciais do MySQL
-    cat > /root/mysql.yaml << EOL_CRED
-MYSQL_ROOT_PASSWORD=$senha_mysql
-EOL_CRED
+cd
 
-    cat > /tmp/mysql_erpnext.yaml << EOL_MYSQL
+cd
+
+cat > mysql.yaml << EOL_MYSQL
 version: '3.7'
 services:
-  mysql:
-    image: percona/percona-server:8.0
-    hostname: mysql
-    environment:
-      - MYSQL_ROOT_PASSWORD=$senha_mysql
-      - TZ=America/Sao_Paulo
-    networks:
-      - interna
-    volumes:
-      - mysql_data:/var/lib/mysql
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-    command:
-      --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --sql-mode="" --default-authentication-plugin=mysql_native_password --port=3306 --max-allowed-packet=512MB
-
+    mysql:
+        image: percona/percona-server:8.0
+        environment:
+            - MYSQL_ROOT_PASSWORD=$senha_mysql
+            - TZ=America/Sao_Paulo
+        networks:
+            - externa
+            - interna
+        volumes:
+            - mysql_data:/var/lib/mysql
+        deploy:
+            placement:
+                constraints: [node.role == manager]
+        command:
+            --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --sql-mode="" --default-authentication-plugin=mysql_native_password --port=3306 --max-allowed-packet=512MB
 volumes:
-  mysql_data:
-
+    mysql_data:
 networks:
-  interna:
-    external: true
+    externa:
+        external: true
+    interna:
+        external: true
 EOL_MYSQL
 
-    # Deploy do Percona
-    docker stack deploy --prune --resolve-image always -c /tmp/mysql_erpnext.yaml mysql >/dev/null 2>&1
-    rm -f /tmp/mysql_erpnext.yaml
+if [[ "$criar_portainer" == "0" ]]; then
 
-    echo -e "XXX\n80\nPERCONA INSTALADO \nXXX"
+{
+  tput reset 2>/dev/null
+  exec 0</dev/tty 1>/dev/tty 2>&1
+  sleep 0.01
+  clear
+} || true
 
-    # Aguardar Percona ficar pronto
-    sleep 20
+export NEWT_COLORS='
+root=,white
+window=,black
+border=white,black
+textbox=white,black
+button=black,white
+'
+
+clear
+{
+
+dados_file="$HOME/dados_portainer/dados_portainer"
+
+if [[ -f "$dados_file" ]]; then
+PORTAINER_URL=$(grep "Dominio do portainer:" "$dados_file" | cut -d':' -f2 | xargs)
+ADMIN_USERNAME=$(grep "Usuario:" "$dados_file" | cut -d':' -f2 | xargs)
+ADMIN_PASSWORD=$(grep "Senha:" "$dados_file" | cut -d':' -f2 | xargs)
+STACK_NAME=mysql
+STACK_FILE_PATH="/root/mysql.yaml"
+
+else
+    sleep 5
+docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
+sleep 5
+    exit 1
+fi
+
+get_auth_token() {
+    RESPONSE=$(curl -sk -X POST "https://$PORTAINER_URL/api/auth" \
+        -H "Content-Type: application/json" \
+        -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
+    TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
+    if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
+        exit 1
+    fi
+}
+
+get_endpoint_id() {
+    RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints" \
+        -H "Authorization: Bearer $TOKEN")
+    ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
+    if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
+        docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
+        exit 1
+    fi
+}
+
+get_swarm_id() {
+    RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
+        -H "Authorization: Bearer $TOKEN")
+    SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
+    if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
+        docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
+        exit 1
+    fi
+}
+
+create_stack() {
+    if [ ! -f "$STACK_FILE_PATH" ]; then
+        docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
+        exit 1
+    fi
+
+    response_output=$(mktemp)
+    erro_output=$(mktemp)
+
+    http_code=$(curl -s -o "$response_output" -w "%{http_code}" -k -X POST \
+        -H "Authorization: Bearer $TOKEN" \
+        -F "Name=$STACK_NAME" \
+        -F "file=@$STACK_FILE_PATH" \
+        -F "SwarmID=$SWARM_ID" \
+        -F "endpointId=$ENDPOINT_ID" \
+        "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
+
+    response=$(cat "$response_output")
+    rm -f "$response_output" "$erro_output"
+
+    if [ "$http_code" -ne 200 ]; then
+        docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
+        exit 1
+    fi
+}
+
+get_auth_token || exit 1
+get_endpoint_id || exit 1
+get_swarm_id || exit 1
+create_stack || exit 1
+
+elif [[ "$criar_portainer" == "1" ]]; then
+    docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
+else
+docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
+    exit 1
+fi
+
+echo -e "XXX\n80\nPERCONA INSTALADO \nXXX"
+
+# Aguardar Percona ficar pronto
+sleep 20
 fi
 
 echo -e "XXX\n85\nPERCONA CONFIGURADO \nXXX"
