@@ -259,6 +259,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "EVOLUTION GO" ""  \
     "EVO NEXUS" ""  \
     "EXCALIDRAW" "" \
+    "ERPNEXT" "" \
     "FIRECRAWL" "" \
     "FLOWISE" "" \
     "FOCALBOARD" "" \
@@ -377,6 +378,7 @@ case "$CHOICE" in
             "EVOLUTION GO")                                          run_app evolutiongo ;;
             "EVO NEXUS")                                             run_app evonexus ;;
             "EXCALIDRAW")                                            run_app excalidraw ;;
+            "ERPNEXT")                                               run_app erpnext ;;
             "FIRECRAWL")                                             run_app firecrawl ;;
             "FLOWISE")                                               run_app flowise ;;
             "FOCALBOARD")                                            run_app focalboard ;;
@@ -512,6 +514,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "DOCUSEAL" "PRO" \
     "DOZZLE" "PRO" \
     "EVOAI + EVOLUTION 2.0 + MINIO*" "PRO"  \
+    "ERPNEXT" "PRO" \
     "GHOST" "PRO" \
     "HERMES AGENT" "PRO" \
     "HEYFORM" "PRO" \
@@ -589,6 +592,7 @@ case "$CHOICE" in
             "EVOLUTION GO")                                          run_app evolutiongo ;;
             "EVO NEXUS")                                             run_app evonexus ;;
             "EXCALIDRAW")                                            run_app excalidraw ;;
+            "ERPNEXT")                                               run_app erpnext ;;
             "FIRECRAWL")                                             run_app firecrawl ;;
             "FLOWISE")                                               run_app flowise ;;
             "FOCALBOARD")                                            run_app focalboard ;;
@@ -698,6 +702,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "EVOAI" "PRO"  \
     "EVOAI + EVOLUTION 2.0 + MINIO*" "PRO"  \
     "EVOLUTION 1.0 API PADRÃO" "PRO"  \
+    "ERPNEXT" "PRO" \
     "FLOWISE" "PRO" \
     "GHOST" "PRO" \
     "GRAFANA/PROMETHEUS MONITOR" "PRO"   \
@@ -798,6 +803,7 @@ case "$CHOICE" in
             "EVOLUTION GO")                                          run_app evolutiongo ;;
             "EVO NEXUS")                                             run_app evonexus ;;
             "EXCALIDRAW")                                            run_app excalidraw ;;
+            "ERPNEXT")                                               run_app erpnext ;;
             "FIRECRAWL")                                             run_app firecrawl ;;
             "FLOWISE")                                               run_app flowise ;;
             "FOCALBOARD")                                            run_app focalboard ;;
@@ -908,6 +914,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "EVOAI" "PRO"  \
     "EVOAI + EVOLUTION 2.0 + MINIO*" "PRO"  \
     "EVOLUTION 1.0 API PADRÃO" "PRO"  \
+    "ERPNEXT" "PRO" \
     "FLOWISE" "PRO" \
     "GHOST" "PRO" \
     "GRAFANA/PROMETHEUS MONITOR" "PRO"   \
@@ -1007,6 +1014,7 @@ case "$CHOICE" in
             "EVOLUTION GO")                                          run_app evolutiongo ;;
             "EVO NEXUS")                                             run_app evonexus ;;
             "EXCALIDRAW")                                            run_app excalidraw ;;
+            "ERPNEXT")                                               run_app erpnext ;;
             "FIRECRAWL")                                             run_app firecrawl ;;
             "FLOWISE")                                               run_app flowise ;;
             "FOCALBOARD")                                            run_app focalboard ;;
