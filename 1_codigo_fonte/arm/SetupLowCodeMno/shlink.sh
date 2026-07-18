@@ -224,11 +224,12 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
 
     # Criar também para a API
     echo -e "XXX\n32\nCRIANDO REGISTRO CNAME PARA API... \nXXX"
+    DOMINIO_PRINCIPAL_API=$(echo "$url_shlink_api" | cut -d'.' -f2-)
     CNAME_RESPONSE_API=$(curl -s -X POST \
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
         -H "Content-Type: application/json" \
-        --data '{"type":"CNAME","name":"'${url_shlink_api}'","content":"'${nome_servidor}'.'${DOMINIO_PRINCIPAL}'","ttl":1,"proxied":false}')
+        --data '{"type":"CNAME","name":"'${url_shlink_api}'","content":"'${nome_servidor}'.'${DOMINIO_PRINCIPAL_API}'","ttl":1,"proxied":false}')
 
     if echo "$CNAME_RESPONSE_API" | grep -q '"success":true'; then
         echo -e "XXX\n35\nREGISTRO CNAME API CRIADO COM SUCESSO! \nXXX"
