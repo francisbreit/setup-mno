@@ -87,7 +87,7 @@ done
 
 
 while true ; do
-    url_shlink=$(whiptail --title "1/6 - URL do Painel Shlink" --inputbox "Digite o dominio para o Painel do Shlink (ex: painel.dominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
+    url_shlink=$(whiptail --title "1/4 - URL do Painel Shlink" --inputbox "Digite o dominio para o Painel do Shlink (ex: painel.dominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
     if [[ $saida -eq '0' ]] ; then
         if [[ -z $url_shlink ]] ; then msg "Digite o link do SHLINK para poder continuar" ; continue ; else break; fi
     else
@@ -96,7 +96,7 @@ while true ; do
 done
 
 while true ; do
-    url_shlink_api=$(whiptail --title "2/6 - URL da API Shlink" --inputbox "Digite o dominio para a API do Shlink (ex: s.dominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
+    url_shlink_api=$(whiptail --title "2/4 - URL da API Shlink" --inputbox "Digite o dominio para a API do Shlink (ex: s.dominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
     if [[ $saida -eq '0' ]] ; then
         if [[ -z $url_shlink_api ]] ; then msg "Digite o link da API do SHLINK para poder continuar" ; continue ; else break; fi
     else
@@ -105,7 +105,7 @@ while true ; do
 done
 
 while true ; do
-    shlink_user=$(whiptail --title "3/6 - Usuário" --inputbox "Digite o usuário (sem caracteres especiais):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
+    shlink_user=$(whiptail --title "3/4 - Usuário" --inputbox "Digite o usuário (sem caracteres especiais):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
     if [[ $saida -eq '0' ]] ; then
         if [[ -z $shlink_user ]] ; then msg "Digite o usuário para poder continuar" ; continue ; else break; fi
     else
@@ -114,16 +114,7 @@ while true ; do
 done
 
 while true ; do
-    shlink_pass=$(whiptail --title "4/6 - Senha" --inputbox "Digite a senha (sem caracteres especiais):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
-    if [[ $saida -eq '0' ]] ; then
-        if [[ -z $shlink_pass ]] ; then msg "Digite a senha para poder continuar" ; continue ; else break; fi
-    else
-        echo $shlink_pass ; echo "saindo..."  &  exit 0 ;
-    fi
-done
-
-while true ; do
-    criar_portainer=$(whiptail --title "5/6 - Criar Stack no Portainer?" --inputbox "Digite 0 para criar stack editável no Portainer ou 1 para criar direto no Docker:" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
+    criar_portainer=$(whiptail --title "4/4 - Criar Stack no Portainer?" --inputbox "Digite 0 para criar stack editável no Portainer ou 1 para criar direto no Docker:" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
     if [[ $saida -eq '0' ]] ; then
         if [[ "$criar_portainer" != "0" && "$criar_portainer" != "1" ]] ; then msg "Digite apenas 0 ou 1" ; continue ; else break; fi
     else
