@@ -377,6 +377,7 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
     6. **Blanks line após `<< EOL`** antes de `version:`
     7. **Blanks line entre `cat >>`** de blocos diferentes (services extras)
     8. **`cat >` para primeiro bloco, `cat >>` para blocos seguintes** — NUNCA `cat >>` no primeiro
+    9. **`openssl rand -base64` SEMPRE com `tr -d '\n'`** — base64 longo quebra linha em 76 chars, invalidando o YAML. Ex: `$(openssl rand -base64 64 | tr -d '\n')`
 
     **SCRIPT DE REFERÊNCIA:** `waha.sh`, `keycloak.sh` — seguem esta estrutura EXATA.
 15. **Deploy com Tratamento de Erro (OBRIGATÓRIO):** O script DEVE tratar erros em cada etapa do deployment. O padrão correto usa funções separadas (como `keycloak.sh` e `baserow.sh`):

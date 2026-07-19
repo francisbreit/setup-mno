@@ -313,7 +313,7 @@ cd
 
 cd
 
-penpot_secret_key=$(openssl rand -base64 64)
+penpot_secret_key=$(openssl rand -base64 64 | tr -d '\n')
 
 cat > $nome_app.yaml << EOL
 
