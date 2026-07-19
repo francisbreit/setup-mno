@@ -507,7 +507,7 @@ O script antigo e o projeto atual possuem diferenças fundamentais que afetam a 
 - PgAdmin, Adminer, Uptime Kuma, Grafana, Metabase, RedisInsight
 
 **Ferramentas Específicas** (migrar apenas se houver demanda):
-- Frappe/ERPNext, Odoo, Moodle, AzuraCast, Traccar, etc.
+- Odoo, Moodle, AzuraCast, Traccar, etc.
 
 ### Estado da Migração (referência rápida)
 Para consultar o estado atual da migração, peça uma "análise de migração" ao agente — ele lerá o script antigo e o projeto atual, e gerará um relatório atualizado com a classificação de cada ferramenta.
