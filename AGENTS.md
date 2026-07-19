@@ -468,12 +468,11 @@ Após criar o script da ferramenta em ambas as arquiteturas:
    - `start_arm_full.sh` — variável `VERSIONSETUP`
    - Ex: `4.25.0` → `4.26.0`
    - **USE O COMANDO: `grep -rn "VERSIONSETUP" 1_codigo_fonte/` para verificar se TODOS foram atualizados**
-4. **Ferramentas HTML/PHP:** Atualize os arquivos `ferramentas.html` E `ferramentas.php` (espelho para WordPress):
+4. **Ferramentas HTML:** Atualize o arquivo `ferramentas.html`:
    - Adicionar nova ferramenta com descrição, categorias, uso e exemplos
    - Atualizar contadores: Total de Setups, Total X86, Total ARM
    - Adicionar campo de compatibilidade (X86 e ARM ou X86)
    - **Atualizar versão e data** no subtítulo (ex: "Versão 4.25.0 | Atualizado em Julho/2026")
-   - **REGRA:** `ferramentas.html` e `ferramentas.php` SEMPRE com CONTEÚDO IDÊNTICO — ao editar um, copie para o outro
 5. **Empacotamento:** Rode `./2_empacotador/gerar_distribuicao.sh`.
 6. **Git:** Faça commit das alterações com mensagem descritiva (ex: `feat: adicionar Keycloak (IAM/SSO)`).
 
@@ -490,7 +489,6 @@ Após criar o script da ferramenta em ambas as arquiteturas:
   - `start_full.sh` — `VERSIONSETUP`
   - `start_arm_full.sh` — `VERSIONSETUP`
 - [ ] **ferramentas.html atualizado** com nova ferramenta + versão + contadores
-- [ ] **ferramentas.php atualizado** (espelho idêntico do HTML para WordPress)
 - [ ] Empacotamento executado com sucesso
 
 ### Análise de Atualizações no Script Antigo
