@@ -303,6 +303,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPENFANG" "" \
     "OPEN PROJECT" "" \
     "PAPERCLIP" "" \
+    "PENPOT" "" \
     "PGADMIN4" "" \
     "PHPMYADMIN" "" \
     "PLANKA" "" \
@@ -422,6 +423,7 @@ case "$CHOICE" in
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
+            "PENPOT")                                                run_app penpot ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;
             "PHPMYADMIN")                                            run_app pma ;;
@@ -548,6 +550,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPENFANG" "PRO" \
     "OPEN PROJECT" "PRO" \
     "PAPERCLIP" "PRO" \
+    "PENPOT" "PRO" \
     "SEARXNG" "PRO" \
     "TWENTY CRM" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
@@ -653,6 +656,7 @@ case "$CHOICE" in
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
+            "PENPOT")                                                run_app penpot ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;
             "PHPMYADMIN")                                            run_app pma ;;
@@ -762,6 +766,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPENFANG" "PRO" \
     "OPEN PROJECT" "PRO" \
     "PAPERCLIP" "PRO" \
+    "PENPOT" "PRO" \
     "PHPMYADMIN" "PRO" \
     "PLANKA" "PRO" \
     "QDRANT" "PRO" \
@@ -881,6 +886,7 @@ case "$CHOICE" in
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
+            "PENPOT")                                                run_app penpot ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;
             "PHPMYADMIN")                                            run_app pma ;;
@@ -990,6 +996,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPENFANG" "PRO" \
     "OPEN PROJECT" "PRO" \
     "PAPERCLIP" "PRO" \
+    "PENPOT" "PRO" \
     "PHPMYADMIN" "PRO" \
     "PLANKA" "PRO" \
     "QDRANT" "PRO" \
@@ -1109,6 +1116,7 @@ case "$CHOICE" in
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
+            "PENPOT")                                                run_app penpot ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;
             "PHPMYADMIN")                                            run_app pma ;;
