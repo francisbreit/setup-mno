@@ -318,6 +318,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "TYPEBOT" "" \
     "TYPEBOT + MINIO*" "" \
     "UPTIMEKUMA" "" \
+    "WAHA API" "" \
     "VAULTWARDEN" "" \
     "WOOFED CRM" "" \
     "WORDPRESS" "" \
@@ -436,6 +437,7 @@ case "$CHOICE" in
             "TYPEBOT")                                               run_app typebot ;;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
+            "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;
@@ -488,6 +490,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "STIRLING PDF" "" \
     "TYPEBOT" "" \
     "UPTIMEKUMA" "" \
+    "WAHA API" "" \
     "VAULTWARDEN" "" \
     "WORDPRESS" "" \
     "WIKI.JS" "" \
@@ -665,6 +668,7 @@ case "$CHOICE" in
             "TYPEBOT")                                               run_app typebot ;;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
+            "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;
@@ -771,6 +775,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "TYPEBOT" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
     "UPTIMEKUMA" "PRO" \
+    "WAHA API" "PRO" \
     "VAULTWARDEN" "PRO" \
     "WOOFED CRM" "PRO" \
     "WORDPRESS" "PRO" \
@@ -891,6 +896,7 @@ case "$CHOICE" in
             "TYPEBOT")                                               run_app typebot ;;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
+            "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;
@@ -997,6 +1003,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "TYPEBOT" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
     "UPTIMEKUMA" "PRO" \
+    "WAHA API" "PRO" \
     "VAULTWARDEN" "PRO" \
     "WOOFED CRM" "PRO" \
     "WORDPRESS" "PRO" \
@@ -1117,6 +1124,7 @@ case "$CHOICE" in
             "TYPEBOT")                                               run_app typebot ;;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
+            "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;

@@ -318,6 +318,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "TYPEBOT" "" \
     "TYPEBOT + MINIO*" "" \
     "UPTIMEKUMA" "" \
+    "WAHA API" "" \
     "VAULTWARDEN" "" \
     "WOOFED CRM" "" \
     "WORDPRESS" "" \
@@ -436,6 +437,7 @@ case "$CHOICE" in
             "TYPEBOT")                                               run_app typebot ;;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
+            "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;
@@ -488,6 +490,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "STIRLING PDF" "" \
     "TYPEBOT" "" \
     "UPTIMEKUMA" "" \
+    "WAHA API" "" \
     "VAULTWARDEN" "" \
     "WORDPRESS" "" \
     "WIKI.JS" "" \
@@ -499,6 +502,8 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "APPSMITH" "PRO" \
     "AUTOGEN STUDIO" "PRO" \
     "BASEROW" "PRO" \
+    "BOTPRESS" "PRO" \
+    "CAL.COM" "PRO"  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
@@ -512,27 +517,42 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "DOCUSEAL" "PRO" \
     "DOZZLE" "PRO" \
     "EVOAI + EVOLUTION 2.0 + MINIO*" "PRO"  \
+    "EXCALIDRAW" "PRO" \
+    "FIRECRAWL" "PRO" \
+    "FOCALBOARD" "PRO" \
+    "FORMBRICKS" "PRO" \
     "GHOST" "PRO" \
+    "GLPI" "PRO" \
     "HERMES AGENT" "PRO" \
     "HEYFORM" "PRO" \
+    "HUMHUB" "PRO" \
     "JITSI MEET" "PRO" \
     "KEYCLOAK" "PRO" \
     "KRAYIN CRM" "PRO" \
+    "LANGFLOW" "PRO" \
     "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
     "LITELLM" "PRO" \
+    "MATTERMOST" "PRO" \
     "MATOMO" "PRO" \
+    "MAUTIC 4 PADRÃO" "PRO" \
+    "MAUTIC 4 WHATSAPP MKT" "PRO" \
     "MAUTIC 6 WHATSAPP MKT" "PRO" \
     "MAUTIC 7 WHATSAPP MKT" "PRO" \
     "MEMGRAPH" "PRO" \
+    "METABASE" "PRO" \
     "NEO4J" "PRO" \
     "NEXTCLOUD" "PRO" \
+    "ODOO" "PRO" \
     "OPENCLAW" "PRO" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
     "OPENFANG" "PRO" \
     "OPEN PROJECT" "PRO" \
+    "PAPERCLIP" "PRO" \
     "SEARXNG" "PRO" \
+    "TWENTY CRM" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
     "PLANKA" "PRO" \
+    "WOOFED CRM" "PRO" \
     "WIKI.JS" "PRO" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
@@ -648,6 +668,7 @@ case "$CHOICE" in
             "TYPEBOT")                                               run_app typebot ;;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
+            "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;
@@ -680,6 +701,8 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "APPSMITH" "PRO" \
     "AUTOGEN STUDIO" "PRO" \
     "BASEROW" "PRO" \
+    "BOTPRESS" "PRO" \
+    "CAL.COM" "PRO"  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" "PRO"   \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
@@ -698,22 +721,33 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "EVOAI" "PRO"  \
     "EVOAI + EVOLUTION 2.0 + MINIO*" "PRO"  \
     "EVOLUTION 1.0 API PADRÃO" "PRO"  \
+    "EXCALIDRAW" "PRO" \
+    "FIRECRAWL" "PRO" \
     "FLOWISE" "PRO" \
+    "FOCALBOARD" "PRO" \
+    "FORMBRICKS" "PRO" \
     "GHOST" "PRO" \
+    "GLPI" "PRO" \
     "GRAFANA/PROMETHEUS MONITOR" "PRO"   \
     "HERMES AGENT" "PRO" \
     "HEYFORM" "PRO" \
+    "HUMHUB" "PRO" \
     "JITSI MEET" "PRO" \
     "KEYCLOAK" "PRO" \
     "KRAYIN CRM" "PRO" \
+    "LANGFLOW" "PRO" \
     "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
     "LITELLM" "PRO" \
+    "MATTERMOST" "PRO" \
     "MATOMO" "PRO" \
+    "MAUTIC 4 PADRÃO" "PRO" \
     "MAUTIC 6 PADRÃO" "PRO" \
     "MAUTIC 7 PADRÃO" "PRO" \
+    "MAUTIC 4 WHATSAPP MKT" "PRO" \
     "MAUTIC 6 WHATSAPP MKT" "PRO" \
     "MAUTIC 7 WHATSAPP MKT" "PRO" \
     "MEMGRAPH" "PRO" \
+    "METABASE" "PRO" \
     "MONGODB" "PRO" \
     "MYSQL" "PRO" \
     "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "PRO" \
@@ -721,11 +755,13 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "NEXTCLOUD" "PRO" \
     "NOCODB" "PRO" \
     "NTFY" "PRO" \
+    "ODOO" "PRO" \
     "OLLAMA + OPENWEBUI*" "PRO" \
     "OPENCLAW" "PRO" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
     "OPENFANG" "PRO" \
     "OPEN PROJECT" "PRO" \
+    "PAPERCLIP" "PRO" \
     "PHPMYADMIN" "PRO" \
     "PLANKA" "PRO" \
     "QDRANT" "PRO" \
@@ -735,10 +771,13 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "SEARXNG" "PRO" \
     "SHLINK" "PRO" \
     "STIRLING PDF" "PRO" \
+    "TWENTY CRM" "PRO" \
     "TYPEBOT" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
     "UPTIMEKUMA" "PRO" \
+    "WAHA API" "PRO" \
     "VAULTWARDEN" "PRO" \
+    "WOOFED CRM" "PRO" \
     "WORDPRESS" "PRO" \
     "WIKI.JS" "PRO" \
     "WUZAP" "PRO" \
@@ -857,6 +896,7 @@ case "$CHOICE" in
             "TYPEBOT")                                               run_app typebot ;;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
+            "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;
@@ -889,6 +929,8 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "APPSMITH" "PRO" \
     "AUTOGEN STUDIO" "PRO" \
     "BASEROW" "PRO" \
+    "BOTPRESS" "PRO" \
+    "CAL.COM" "PRO"  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" "PRO"   \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
@@ -908,22 +950,33 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "EVOAI" "PRO"  \
     "EVOAI + EVOLUTION 2.0 + MINIO*" "PRO"  \
     "EVOLUTION 1.0 API PADRÃO" "PRO"  \
+    "EXCALIDRAW" "PRO" \
+    "FIRECRAWL" "PRO" \
     "FLOWISE" "PRO" \
+    "FOCALBOARD" "PRO" \
+    "FORMBRICKS" "PRO" \
     "GHOST" "PRO" \
+    "GLPI" "PRO" \
     "GRAFANA/PROMETHEUS MONITOR" "PRO"   \
     "HERMES AGENT" "PRO" \
     "HEYFORM" "PRO" \
+    "HUMHUB" "PRO" \
     "JITSI MEET" "PRO" \
     "KEYCLOAK" "PRO" \
     "KRAYIN CRM" "PRO" \
+    "LANGFLOW" "PRO" \
     "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
     "LITELLM" "PRO" \
+    "MATTERMOST" "PRO" \
     "MATOMO" "PRO" \
+    "MAUTIC 4 PADRÃO" "PRO" \
     "MAUTIC 6 PADRÃO" "PRO" \
     "MAUTIC 7 PADRÃO" "PRO" \
+    "MAUTIC 4 WHATSAPP MKT" "PRO" \
     "MAUTIC 6 WHATSAPP MKT" "PRO" \
     "MAUTIC 7 WHATSAPP MKT" "PRO" \
     "MEMGRAPH" "PRO" \
+    "METABASE" "PRO" \
     "MONGODB" "PRO" \
     "MYSQL" "PRO" \
     "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "PRO" \
@@ -931,10 +984,12 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "NEXTCLOUD" "PRO" \
     "NOCODB" "PRO" \
     "NTFY" "PRO" \
+    "ODOO" "PRO" \
     "OLLAMA + OPENWEBUI*" "PRO" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
     "OPENFANG" "PRO" \
     "OPEN PROJECT" "PRO" \
+    "PAPERCLIP" "PRO" \
     "PHPMYADMIN" "PRO" \
     "PLANKA" "PRO" \
     "QDRANT" "PRO" \
@@ -944,10 +999,13 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "SEARXNG" "PRO" \
     "SHLINK" "PRO" \
     "STIRLING PDF" "PRO" \
+    "TWENTY CRM" "PRO" \
     "TYPEBOT" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
     "UPTIMEKUMA" "PRO" \
+    "WAHA API" "PRO" \
     "VAULTWARDEN" "PRO" \
+    "WOOFED CRM" "PRO" \
     "WORDPRESS" "PRO" \
     "WIKI.JS" "PRO" \
     "WUZAP" "PRO" \
@@ -1066,6 +1124,7 @@ case "$CHOICE" in
             "TYPEBOT")                                               run_app typebot ;;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
+            "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;
