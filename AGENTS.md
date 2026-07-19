@@ -325,6 +325,60 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
     ```
     **REGRA:** Sempre use formato de lista (`- KEY=value`) ou map (`KEY: value`) com variáveis inline. Nunca use `&anchors`, `*references`, nem `<<` merge keys.
     **SCRIPT DE REFERÊNCIA:** `penpot.sh` — corrigido de YAML anchors para inline.
+14.6. **Estrutura do YAML Docker Compose (OBRIGATÓRIO):** O YAML DEVE seguir EXATAMENTE a estrutura dos scripts validados (waha.sh, keycloak.sh). **Erros de estrutura causam `yaml: line X: could not find expected ':'` no Portainer.**
+    ```yaml
+    # ✅ ESTRUTURA CORRETA (ordem exata):
+    # BLOCO 1: cat > $nome_app.yaml << EOL
+
+    version: "3.7"
+    services:
+      $nome_app:
+        image: ...
+        hostname: $nome_app
+        networks:
+          - externa
+          - interna
+        environment:
+          - CHAVE=valor          # ← Lista com "- " (NÃO map)
+        deploy:
+          mode: replicated
+          replicas: 1
+          placement:
+            constraints:
+            - node.role == manager
+          resources:
+            limits:
+              cpus: "1"
+              memory: 1024M
+    EOL
+
+    # BLOCO 2: if TRADICIONAL → cat >> labels
+    # BLOCO 3: cat >> networks + volumes (SEMPRE no final)
+
+    networks:
+      externa:
+        external: true
+      interna:
+        external: true
+
+    volumes:
+      ${nome_app}_cache:
+        external: true
+        name: ${nome_app}_cache
+    EOL
+    ```
+
+    **REGRAS ABSOLUTAS (causam erro silencioso no Portainer):**
+    1. **`services:` PRIMEIRO** — nunca `networks:` ou `volumes:` antes de `services:`
+    2. **`networks:` e `volumes:` SOMENTE no final** — chaves duplicadas no nível raiz rejeitam o YAML
+    3. **`version: "3.7"`** — usar sempre 3.7 (não 3.8)
+    4. **`environment` em formato LISTA** (`- CHAVE=valor`) — NUNCA map (`CHAVE: valor`) nem YAML anchors
+    5. **`depends_on` em formato LISTA** (`- nome_servico`) — NUNCA map com `condition:`
+    6. **Blanks line após `<< EOL`** antes de `version:`
+    7. **Blanks line entre `cat >>`** de blocos diferentes (services extras)
+    8. **`cat >` para primeiro bloco, `cat >>` para blocos seguintes** — NUNCA `cat >>` no primeiro
+
+    **SCRIPT DE REFERÊNCIA:** `waha.sh`, `keycloak.sh` — seguem esta estrutura EXATA.
 15. **Deploy com Tratamento de Erro (OBRIGATÓRIO):** O script DEVE tratar erros em cada etapa do deployment. O padrão correto usa funções separadas (como `keycloak.sh` e `baserow.sh`):
     ```bash
     # Caminho CORRETO do arquivo de credenciais do Portainer

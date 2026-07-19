@@ -316,18 +316,8 @@ cd
 penpot_secret_key=$(openssl rand -base64 64)
 
 cat > $nome_app.yaml << EOL
-version: "3.8"
 
-networks:
-  externa:
-    external: true
-  interna:
-    external: true
-
-volumes:
-  ${nome_app}_postgres:
-  ${nome_app}_assets:
-
+version: "3.7"
 services:
   ${nome_app}_frontend:
     image: penpotapp/frontend:2.16
@@ -383,10 +373,8 @@ cat >> $nome_app.yaml << EOL
     volumes:
       - ${nome_app}_assets:/opt/data/assets
     depends_on:
-      ${nome_app}_postgres:
-        condition: service_healthy
-      ${nome_app}_valkey:
-        condition: service_healthy
+      - ${nome_app}_postgres
+      - ${nome_app}_valkey
     environment:
       - PENPOT_FLAGS=disable-email-verification enable-smtp enable-prepl-server disable-secure-session-cookies enable-mcp
       - PENPOT_PUBLIC_URI=https://${url_penpot}
@@ -437,8 +425,7 @@ cat >> $nome_app.yaml << EOL
     networks:
       - interna
     depends_on:
-      ${nome_app}_valkey:
-        condition: service_healthy
+      - ${nome_app}_valkey
     environment:
       - PENPOT_SECRET_KEY=${penpot_secret_key}
       - PENPOT_PUBLIC_URI=https://${url_penpot}
@@ -511,6 +498,12 @@ cat >> $nome_app.yaml << EOL
       placement:
         constraints:
         - node.role == manager
+
+networks:
+  externa:
+    external: true
+  interna:
+    external: true
 
 volumes:
   ${nome_app}_postgres:
