@@ -316,20 +316,7 @@ cd
 penpot_secret_key=$(openssl rand -base64 64)
 
 cat > $nome_app.yaml << EOL
-
 version: "3.8"
-
-x-flags: &penpot-flags
-  PENPOT_FLAGS: disable-email-verification enable-smtp enable-prepl-server disable-secure-session-cookies enable-mcp
-
-x-uri: &penpot-public-uri
-  PENPOT_PUBLIC_URI: https://$url_penpot
-
-x-body-size: &penpot-http-body-size
-  PENPOT_HTTP_SERVER_MAX_BODY_SIZE: 367001600
-
-x-secret-key: &penpot-secret-key
-  PENPOT_SECRET_KEY: $penpot_secret_key
 
 networks:
   externa:
@@ -355,7 +342,9 @@ services:
       - ${nome_app}_exporter
       - ${nome_app}_mcp
     environment:
-      << : [*penpot-flags, *penpot-http-body-size, *penpot-public-uri]
+      - PENPOT_FLAGS=disable-email-verification enable-smtp enable-prepl-server disable-secure-session-cookies enable-mcp
+      - PENPOT_PUBLIC_URI=https://$url_penpot
+      - PENPOT_HTTP_SERVER_MAX_BODY_SIZE=367001600
     deploy:
       mode: replicated
       replicas: 1
@@ -367,20 +356,23 @@ services:
           cpus: "2"
           memory: 2048M
 EOL
+
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
 cat >> $nome_app.yaml << EOL
       labels:
       - traefik.enable=true
-      - traefik.http.routers.$nome_app.rule=Host(\`$url_penpot\`)
-      - traefik.http.routers.$nome_app.entrypoints=websecure
-      - traefik.http.routers.$nome_app.priority=1
-      - traefik.http.routers.$nome_app.tls.certresolver=letsencryptresolver
-      - traefik.http.routers.$nome_app.tls=true
-      - traefik.http.routers.$nome_app.service=$nome_app
-      - traefik.http.services.$nome_app.loadbalancer.server.port=8080
-      - traefik.http.services.$nome_app.loadbalancer.passHostHeader=1
+      - traefik.docker.network=externa
+      - traefik.http.routers.${nome_app}.rule=Host(\`${url_penpot}\`)
+      - traefik.http.routers.${nome_app}.entrypoints=websecure
+      - traefik.http.routers.${nome_app}.priority=1
+      - traefik.http.routers.${nome_app}.tls.certresolver=letsencryptresolver
+      - traefik.http.routers.${nome_app}.tls=true
+      - traefik.http.routers.${nome_app}.service=${nome_app}
+      - traefik.http.services.${nome_app}.loadbalancer.server.port=8080
+      - traefik.http.services.${nome_app}.loadbalancer.passHostHeader=1
 EOL
 fi
+
 cat >> $nome_app.yaml << EOL
 
   ${nome_app}_backend:
@@ -396,23 +388,26 @@ cat >> $nome_app.yaml << EOL
       ${nome_app}_valkey:
         condition: service_healthy
     environment:
-      << : [*penpot-flags, *penpot-public-uri, *penpot-http-body-size, *penpot-secret-key]
-      PENPOT_DATABASE_URI: postgresql://${nome_app}_postgres/penpot
-      PENPOT_DATABASE_USERNAME: penpot
-      PENPOT_DATABASE_PASSWORD: penpot
-      PENPOT_REDIS_URI: redis://${nome_app}_valkey/0
-      PENPOT_OBJECTS_STORAGE_BACKEND: fs
-      PENPOT_OBJECTS_STORAGE_FS_DIRECTORY: /opt/data/assets
-      PENPOT_TELEMETRY_ENABLED: "true"
-      PENPOT_TELEMETRY_REFERER: compose
-      PENPOT_SMTP_DEFAULT_FROM: no-reply@$url_penpot
-      PENPOT_SMTP_DEFAULT_REPLY_TO: no-reply@$url_penpot
-      PENPOT_SMTP_HOST: ${nome_app}_mailcatch
-      PENPOT_SMTP_PORT: 1025
-      PENPOT_SMTP_USERNAME:
-      PENPOT_SMTP_PASSWORD:
-      PENPOT_SMTP_TLS: "false"
-      PENPOT_SMTP_SSL: "false"
+      - PENPOT_FLAGS=disable-email-verification enable-smtp enable-prepl-server disable-secure-session-cookies enable-mcp
+      - PENPOT_PUBLIC_URI=https://${url_penpot}
+      - PENPOT_HTTP_SERVER_MAX_BODY_SIZE=367001600
+      - PENPOT_SECRET_KEY=${penpot_secret_key}
+      - PENPOT_DATABASE_URI=postgresql://${nome_app}_postgres/penpot
+      - PENPOT_DATABASE_USERNAME=penpot
+      - PENPOT_DATABASE_PASSWORD=penpot
+      - PENPOT_REDIS_URI=redis://${nome_app}_valkey/0
+      - PENPOT_OBJECTS_STORAGE_BACKEND=fs
+      - PENPOT_OBJECTS_STORAGE_FS_DIRECTORY=/opt/data/assets
+      - PENPOT_TELEMETRY_ENABLED=true
+      - PENPOT_TELEMETRY_REFERER=compose
+      - PENPOT_SMTP_DEFAULT_FROM=no-reply@${url_penpot}
+      - PENPOT_SMTP_DEFAULT_REPLY_TO=no-reply@${url_penpot}
+      - PENPOT_SMTP_HOST=${nome_app}_mailcatch
+      - PENPOT_SMTP_PORT=1025
+      - PENPOT_SMTP_USERNAME=
+      - PENPOT_SMTP_PASSWORD=
+      - PENPOT_SMTP_TLS=false
+      - PENPOT_SMTP_SSL=false
     deploy:
       mode: replicated
       replicas: 1
@@ -445,9 +440,10 @@ cat >> $nome_app.yaml << EOL
       ${nome_app}_valkey:
         condition: service_healthy
     environment:
-      << : [*penpot-secret-key, *penpot-public-uri]
-      PENPOT_INTERNAL_URI: http://${nome_app}_frontend:8080
-      PENPOT_REDIS_URI: redis://${nome_app}_valkey/0
+      - PENPOT_SECRET_KEY=${penpot_secret_key}
+      - PENPOT_PUBLIC_URI=https://${url_penpot}
+      - PENPOT_INTERNAL_URI=http://${nome_app}_frontend:8080
+      - PENPOT_REDIS_URI=redis://${nome_app}_valkey/0
     deploy:
       mode: replicated
       replicas: 1
@@ -523,7 +519,6 @@ volumes:
   ${nome_app}_assets:
     external: true
     name: ${nome_app}_assets
-
 EOL
 
 
