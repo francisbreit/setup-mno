@@ -302,6 +302,29 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
     - Se as labels estiverem presentes no CLOUDFLARE_TUNNEL, o Portainer pode ter problemas ao gerenciar a stack (serviços com labels de Traefik mas sem rede `externa` conectada ao Traefik).
 
     **SCRIPTS DE REFERÊNCIA:** `keycloak.sh`, `baserow.sh` — estes scripts usam o padrão correto com `cat >` + `cat >>` condicional.
+14.5. **NÃO usar YAML Anchors no docker-compose.yaml (OBRIGATÓRIO):** O parser YAML do Portainer/Docker Compose NÃO suporta YAML anchors (`&nome`), merge keys (`<< : *nome`) nem merge keys com arrays (`<< : [*anchor1, *anchor2]`). **Este é um erro silencioso — o YAML parece válido mas o Portainer rejeita com `yaml: line X: could not find expected ':'`.**
+    ```bash
+    # ❌ ERRADO (Portainer REJEITA):
+    x-flags: &penpot-flags
+      PENPOT_FLAGS: disable-email-verification enable-smtp
+    x-uri: &penpot-public-uri
+      PENPOT_PUBLIC_URI: https://domain.com
+    services:
+      app:
+        environment:
+          << : [*penpot-flags, *penpot-public-uri]
+          APP_EXTRA_VAR: value
+
+    # ✅ CORRETO (variáveis inline em cada serviço):
+    services:
+      app:
+        environment:
+          - PENPOT_FLAGS=disable-email-verification enable-smtp
+          - PENPOT_PUBLIC_URI=https://domain.com
+          - APP_EXTRA_VAR=value
+    ```
+    **REGRA:** Sempre use formato de lista (`- KEY=value`) ou map (`KEY: value`) com variáveis inline. Nunca use `&anchors`, `*references`, nem `<<` merge keys.
+    **SCRIPT DE REFERÊNCIA:** `penpot.sh` — corrigido de YAML anchors para inline.
 15. **Deploy com Tratamento de Erro (OBRIGATÓRIO):** O script DEVE tratar erros em cada etapa do deployment. O padrão correto usa funções separadas (como `keycloak.sh` e `baserow.sh`):
     ```bash
     # Caminho CORRETO do arquivo de credenciais do Portainer
