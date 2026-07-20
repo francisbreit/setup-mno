@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="4.38.0"
+VERSIONSETUP="4.39.0"
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
 CONTATO_GITHUB="github.com/francisbreit"
@@ -324,6 +324,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "PAPERCLIP" "" \
     "PENPOT" "" \
     "PGADMIN4" "" \
+    "PLAUSIBLE" "" \
     "PHPMYADMIN" "" \
     "PLANKA" "" \
     "QDRANT" "" \
@@ -448,6 +449,7 @@ case "$CHOICE" in
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
+            "PLAUSIBLE")                                              run_app plausible ;;
             "PLANKA")                                               run_app planka ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
@@ -505,6 +507,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "NTFY" "" \
     "OLLAMA + OPENWEBUI*" "" \
     "PGADMIN4" "" \
+    "PLAUSIBLE" "" \
     "PHPMYADMIN" "" \
     "PLANKA" "" \
     "QDRANT" "" \
@@ -687,6 +690,7 @@ case "$CHOICE" in
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
+            "PLAUSIBLE")                                              run_app plausible ;;
             "PLANKA")                                               run_app planka ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
@@ -728,6 +732,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "N8N V1 - FILA (QUEUE)" "" \
     "N8N V2 - FILA (QUEUE)" "" \
     "PGADMIN4" "" \
+    "PLAUSIBLE" "" \
     "REDIS" "" \
     "WAHA API" "" \
     "─────────────────────────" "" \
@@ -921,6 +926,7 @@ case "$CHOICE" in
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
+            "PLAUSIBLE")                                              run_app plausible ;;
             "PLANKA")                                               run_app planka ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
@@ -962,6 +968,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "N8N V2 - FILA (QUEUE)" "" \
     "OPENCLAW" "" \
     "PGADMIN4" "" \
+    "PLAUSIBLE" "" \
     "REDIS" "" \
     "WAHA API" "" \
     "─────────────────────────" "" \
@@ -1155,6 +1162,7 @@ case "$CHOICE" in
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
+            "PLAUSIBLE")                                              run_app plausible ;;
             "PLANKA")                                               run_app planka ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
