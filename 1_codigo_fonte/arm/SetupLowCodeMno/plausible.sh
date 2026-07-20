@@ -363,8 +363,7 @@ services:
       - interna
     command: sh -c "/entrypoint.sh db createdb && /entrypoint.sh db migrate && /entrypoint.sh run"
     depends_on:
-      ${nome_app}_clickhouse:
-        condition: service_healthy
+      - ${nome_app}_clickhouse
     environment:
       - BASE_URL=https://${url_plausible}
       - SECRET_KEY_BASE=${plausible_secret}
