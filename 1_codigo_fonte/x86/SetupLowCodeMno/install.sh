@@ -91,6 +91,13 @@ EMAIL="$EMAIL"
 SENHA="$SENHA"
 EOF
 
+# --- REBRANDING POR PLANO ---
+if [ "$PLANO" = "free1" ]; then
+    CONTATO_WP="+55 (19) 99398-4964"
+    CONTATO_EMAIL="contato@marciocalicchio.com.br"
+    CONTATO_GITHUB="github.com/marciocalicchio"
+fi
+
 # --- DOCKER CHECKS ---
 if command -v docker > /dev/null 2>&1; then
     network_id_agent_network=$(docker network ls --filter name=agent_network --format "{{.ID}}")
