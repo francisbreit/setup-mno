@@ -149,6 +149,17 @@ run_app() {
     cd && cd SetupLowCodeMno && ./"$script"
 }
 
+warn_heavy() {
+    local app_name="$1"
+    local ram_needed="$2"
+    local response
+    response=$(whiptail --title "⚠️ ALERTA DE RECURSOS" --yesno "⚠️ ATENÇÃO: O $app_name consome aproximadamente $ram_needed de RAM.\n\nSeu servidor pode não ter recursos suficientes.\n\nDeseja prosseguir com a instalação?" --fb 14 70 3>&1 1>&2 2>&3)
+    if [[ $? -ne 0 ]]; then
+        return 1
+    fi
+    return 0
+}
+
 # --- TÍTULO ---
 export NEWT_COLORS='
 root=,white
@@ -388,7 +399,7 @@ case "$CHOICE" in
             "FORMBRICKS")                                            run_app formbricks ;;
             "GHOST")                                                 run_app ghost ;;
             "GLPI")                                                  run_app glpi ;;
-            "GITLAB")                                                run_app gitlab ;;
+            "GITLAB")                                                warn_heavy "GitLab" "4GB" && run_app gitlab ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HEYFORM")                                               run_app heyform ;;
@@ -421,14 +432,14 @@ case "$CHOICE" in
             "NOCODB")                                                run_app nocodb ;;
             "NTFY")                                                  run_app ntfy ;;
             "ODOO")                                                  run_app odoo ;;
-            "OLLAMA + OPENWEBUI*")                                   run_app ollama ;;
+            "OLLAMA + OPENWEBUI*")                                   warn_heavy "Ollama" "8GB+" && run_app ollama ;;
             "OPENCLAW")                                              run_app openclaw ;;
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
-            "PENPOT")                                                run_app penpot ;;
-            "POSTHOG")                                               run_app posthog ;;
+            "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
+            "POSTHOG")                                               warn_heavy "PostHog" "6GB" && run_app posthog ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;
@@ -627,7 +638,7 @@ case "$CHOICE" in
             "FORMBRICKS")                                            run_app formbricks ;;
             "GHOST")                                                 run_app ghost ;;
             "GLPI")                                                  run_app glpi ;;
-            "GITLAB")                                                run_app gitlab ;;
+            "GITLAB")                                                warn_heavy "GitLab" "4GB" && run_app gitlab ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HEYFORM")                                               run_app heyform ;;
@@ -660,14 +671,14 @@ case "$CHOICE" in
             "NOCODB")                                                run_app nocodb ;;
             "NTFY")                                                  run_app ntfy ;;
             "ODOO")                                                  run_app odoo ;;
-            "OLLAMA + OPENWEBUI*")                                   run_app ollama ;;
+            "OLLAMA + OPENWEBUI*")                                   warn_heavy "Ollama" "8GB+" && run_app ollama ;;
             "OPENCLAW")                                              run_app openclaw ;;
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
-            "PENPOT")                                                run_app penpot ;;
-            "POSTHOG")                                               run_app posthog ;;
+            "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
+            "POSTHOG")                                               warn_heavy "PostHog" "6GB" && run_app posthog ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;
@@ -711,6 +722,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "N8N V2 - FILA (QUEUE)" "" \
     "PGADMIN4" "" \
     "REDIS" "" \
+    "WAHA API" "" \
     "─────────────────────────" "" \
     "ACTIVEPIECES" "PRO" \
     "AFFINE" "PRO" \
@@ -792,7 +804,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "TYPEBOT" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
     "UPTIMEKUMA" "PRO" \
-    "WAHA API" "PRO" \
     "VAULTWARDEN" "PRO" \
     "WOOFED CRM" "PRO" \
     "WORDPRESS" "PRO" \
@@ -819,7 +830,7 @@ case "$CHOICE" in
             whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
-        if [[ ("$CHOICE" != "DATABASUS") && ("$CHOICE" != "EVOLUTION 2.0 API PADRÃO") && ("$CHOICE" != "N8N V1 - SEM FILA (MAIN)") && ("$CHOICE" != "N8N V1 - FILA (QUEUE)") && ("$CHOICE" != "N8N V2 - FILA (QUEUE)") && ("$CHOICE" != "PGADMIN4") && ("$CHOICE" != "MINIO") && ("$CHOICE" != "REDIS") && ("$CHOICE" != "EVOLUTION CRM") && ("$CHOICE" != "EVOLUTION GO") && ("$CHOICE" != "EVO NEXUS") ]]; then
+        if [[ ("$CHOICE" != "DATABASUS") && ("$CHOICE" != "EVOLUTION 2.0 API PADRÃO") && ("$CHOICE" != "N8N V1 - SEM FILA (MAIN)") && ("$CHOICE" != "N8N V1 - FILA (QUEUE)") && ("$CHOICE" != "N8N V2 - FILA (QUEUE)") && ("$CHOICE" != "PGADMIN4") && ("$CHOICE" != "MINIO") && ("$CHOICE" != "REDIS") && ("$CHOICE" != "EVOLUTION CRM") && ("$CHOICE" != "EVOLUTION GO") && ("$CHOICE" != "EVO NEXUS") && ("$CHOICE" != "WAHA API") ]]; then
             whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free1.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
@@ -860,7 +871,7 @@ case "$CHOICE" in
             "FORMBRICKS")                                            run_app formbricks ;;
             "GHOST")                                                 run_app ghost ;;
             "GLPI")                                                  run_app glpi ;;
-            "GITLAB")                                                run_app gitlab ;;
+            "GITLAB")                                                warn_heavy "GitLab" "4GB" && run_app gitlab ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HEYFORM")                                               run_app heyform ;;
@@ -893,14 +904,14 @@ case "$CHOICE" in
             "NOCODB")                                                run_app nocodb ;;
             "NTFY")                                                  run_app ntfy ;;
             "ODOO")                                                  run_app odoo ;;
-            "OLLAMA + OPENWEBUI*")                                   run_app ollama ;;
+            "OLLAMA + OPENWEBUI*")                                   warn_heavy "Ollama" "8GB+" && run_app ollama ;;
             "OPENCLAW")                                              run_app openclaw ;;
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
-            "PENPOT")                                                run_app penpot ;;
-            "POSTHOG")                                               run_app posthog ;;
+            "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
+            "POSTHOG")                                               warn_heavy "PostHog" "6GB" && run_app posthog ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;
@@ -944,6 +955,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPENCLAW" "" \
     "PGADMIN4" "" \
     "REDIS" "" \
+    "WAHA API" "" \
     "─────────────────────────" "" \
     "ACTIVEPIECES" "PRO" \
     "AFFINE" "PRO" \
@@ -1025,7 +1037,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "TYPEBOT" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
     "UPTIMEKUMA" "PRO" \
-    "WAHA API" "PRO" \
     "VAULTWARDEN" "PRO" \
     "WOOFED CRM" "PRO" \
     "WORDPRESS" "PRO" \
@@ -1052,7 +1063,7 @@ case "$CHOICE" in
             whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
-        if [[ ("$CHOICE" != "OPENCLAW") && ("$CHOICE" != "EVOLUTION 2.0 API PADRÃO") && ("$CHOICE" != "N8N V1 - SEM FILA (MAIN)") && ("$CHOICE" != "N8N V1 - FILA (QUEUE)") && ("$CHOICE" != "N8N V2 - FILA (QUEUE)") && ("$CHOICE" != "PGADMIN4") && ("$CHOICE" != "MINIO") && ("$CHOICE" != "REDIS") && ("$CHOICE" != "EVOLUTION CRM") && ("$CHOICE" != "EVOLUTION GO") && ("$CHOICE" != "EVO NEXUS") ]]; then
+        if [[ ("$CHOICE" != "OPENCLAW") && ("$CHOICE" != "EVOLUTION 2.0 API PADRÃO") && ("$CHOICE" != "N8N V1 - SEM FILA (MAIN)") && ("$CHOICE" != "N8N V1 - FILA (QUEUE)") && ("$CHOICE" != "N8N V2 - FILA (QUEUE)") && ("$CHOICE" != "PGADMIN4") && ("$CHOICE" != "MINIO") && ("$CHOICE" != "REDIS") && ("$CHOICE" != "EVOLUTION CRM") && ("$CHOICE" != "EVOLUTION GO") && ("$CHOICE" != "EVO NEXUS") && ("$CHOICE" != "WAHA API") ]]; then
             whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free2.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
@@ -1093,7 +1104,7 @@ case "$CHOICE" in
             "FORMBRICKS")                                            run_app formbricks ;;
             "GHOST")                                                 run_app ghost ;;
             "GLPI")                                                  run_app glpi ;;
-            "GITLAB")                                                run_app gitlab ;;
+            "GITLAB")                                                warn_heavy "GitLab" "4GB" && run_app gitlab ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HEYFORM")                                               run_app heyform ;;
@@ -1126,14 +1137,14 @@ case "$CHOICE" in
             "NOCODB")                                                run_app nocodb ;;
             "NTFY")                                                  run_app ntfy ;;
             "ODOO")                                                  run_app odoo ;;
-            "OLLAMA + OPENWEBUI*")                                   run_app ollama ;;
+            "OLLAMA + OPENWEBUI*")                                   warn_heavy "Ollama" "8GB+" && run_app ollama ;;
             "OPENCLAW")                                              run_app openclaw ;;
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
-            "PENPOT")                                                run_app penpot ;;
-            "POSTHOG")                                               run_app posthog ;;
+            "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
+            "POSTHOG")                                               warn_heavy "PostHog" "6GB" && run_app posthog ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;

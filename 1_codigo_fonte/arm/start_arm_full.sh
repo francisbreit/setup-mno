@@ -688,7 +688,7 @@ fi
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o waha -f waha.sh
 rm waha.sh
 rm waha.sh.x.c
-if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+if [[ ("$PLANO" == "free") ]]; then
 rm waha
 fi
 
