@@ -25,9 +25,10 @@ Quando solicitado para atualizar ou adicionar ferramentas:
 
 ## HIERARQUIA E FLUXO DE EXECUÇÃO
 1. **`setup-mno.sh`:** Verificação de ambiente e escolha do gatilho (x86/ARM).
-2. **`start_full.sh` (e ARM):** Validação de API e descompactação seletiva por plano.
-3. **`install.sh`:** O cérebro. Valida ambiente Docker/Swarm, chama `dockerswarm.sh` se necessário, e abre o menu de aplicações.
-4. **Scripts de Deploy:** Scripts individuais (ex: `n8n.sh`) chamados pelo `install.sh`.
+2. **`setup-mno-oracle.sh`:** Verificação de ambiente e escolha do gatilho (x86/ARM).
+3. **`start_full.sh` (e ARM):** Validação de API e descompactação seletiva por plano.
+4. **`install.sh`:** O cérebro. Valida ambiente Docker/Swarm, chama `dockerswarm.sh` se necessário, e abre o menu de aplicações.
+5. **Scripts de Deploy:** Scripts individuais (ex: `n8n.sh`) chamados pelo `install.sh`.
 
 ## CONTROLE DE VERSÃO (GIT)
 O projeto utiliza Git para rastrear todas as alterações. Regras obrigatórias:
@@ -38,7 +39,7 @@ O projeto utiliza Git para rastrear todas as alterações. Regras obrigatórias:
 - **Diferença:** `git diff <hash1> <hash2>` para comparar versões.
 
 ### Versionamento
-- Versão definida na variável `VERSIONSETUP` no topo do `install.sh` (x86 e ARM), no topo do `setup-mno.sh`, no topo do `start_full.sh` e no topo do `start_arm_full.sh`.
+- Versão definida na variável `VERSIONSETUP` no topo do `install.sh` (x86 e ARM), no topo do `setup-mno.sh`, no topo do `setup-mno-oracle.sh`, no topo do `start_full.sh` e no topo do `start_arm_full.sh`.
 - Formato: `MAJOR.MINOR.PATCH` (ex: `4.20.2`)
 - **MAJOR:** Mudança arquitetural (ex: novo menu, novo fluxo de licenciamento)
 - **MINOR:** Nova ferramenta ou combo adicionado
@@ -519,6 +520,7 @@ Após criar o script da ferramenta em ambas as arquiteturas:
    - `install.sh` (x86) — variável `VERSIONSETUP`
    - `install.sh` (ARM) — variável `VERSIONSETUP`
    - `setup-mno.sh` — variável `VERSIONSETUP`
+   - `setup-mno-oracle.sh` — variável `VERSIONSETUP`
    - `start_full.sh` — variável `VERSIONSETUP`
    - `start_arm_full.sh` — variável `VERSIONSETUP`
    - Ex: `4.25.0` → `4.26.0`
@@ -542,6 +544,7 @@ Após criar o script da ferramenta em ambas as arquiteturas:
   - `install.sh` (x86) — `VERSIONSETUP`
   - `install.sh` (ARM) — `VERSIONSETUP`
   - `setup-mno.sh` — `VERSIONSETUP`
+  - `setup-mno-oracle.sh` — `VERSIONSETUP`
   - `start_full.sh` — `VERSIONSETUP`
   - `start_arm_full.sh` — `VERSIONSETUP`
 - [ ] **ferramentas.html atualizado** com nova ferramenta + versão + contadores
