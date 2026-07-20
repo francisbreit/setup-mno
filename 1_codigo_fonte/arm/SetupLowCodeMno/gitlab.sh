@@ -333,7 +333,7 @@ services:
       - externa
       - interna
     environment:
-      - GITLAB_OMNIBUS_CONFIG=external_url 'https://$url_gitlab'; nginx['listen_port'] = 80; nginx['listen_https'] = false; letsencrypt['enable'] = false; registry_external_url 'https://$url_gitlab:443'
+      - GITLAB_OMNIBUS_CONFIG=external_url 'https://$url_gitlab'; nginx['listen_port'] = 80; nginx['listen_https'] = false; nginx['redirect_http_to_https'] = false; letsencrypt['enable'] = false; nginx['ssl_certificate'] = ''; nginx['ssl_certificate_key'] = ''; registry_external_url 'https://$url_gitlab:443'; registry_nginx['listen_port'] = 80; registry_nginx['listen_https'] = false; registry_nginx['ssl_certificate'] = ''; registry_nginx['ssl_certificate_key'] = ''
     volumes:
       - ${nome_app}_config:/etc/gitlab
       - ${nome_app}_logs:/var/log/gitlab
