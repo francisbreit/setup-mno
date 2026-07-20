@@ -298,14 +298,6 @@ fi
 
 echo -e "XXX\n21\nCRIANDO STACK DO PLAUSIBLE 1/3 \nXXX"
 sleep 1
-echo -e "XXX\n35\nCRIANDO BANCOS DE DADOS 2/3 \nXXX"
-
-container_id=$(docker ps -qf name=postgres)
-docker exec $container_id psql -U postgres -d postgres -c "CREATE DATABASE plausible_db;" >/dev/null 2>&1
-docker exec $container_id psql -U postgres -d postgres -c "CREATE USER plausible WITH PASSWORD '${plausible_secret}';" >/dev/null 2>&1
-docker exec $container_id psql -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE plausible_db TO plausible;" >/dev/null 2>&1
-docker exec $container_id psql -U postgres -d plausible_db -c "GRANT ALL ON SCHEMA public TO plausible;" >/dev/null 2>&1
-
 echo -e "XXX\n50\nCRIANDO STACK DO PLAUSIBLE 2/3 \nXXX"
 sleep 1
 
@@ -323,6 +315,16 @@ cd
 
 plausible_secret=$(openssl rand -hex 32)
 postgres_password=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml)
+
+# Criar bancos no PostgreSQL compartilhado (ANTES do gauge para garantir execução)
+echo "Criando banco plausible_db no PostgreSQL..."
+container_id=$(docker ps -qf name=postgres)
+docker exec $container_id psql -U postgres -d postgres -c "CREATE DATABASE plausible_db;" 2>/dev/null
+docker exec $container_id psql -U postgres -d postgres -c "CREATE USER plausible WITH PASSWORD '${plausible_secret}';" 2>/dev/null
+docker exec $container_id psql -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE plausible_db TO plausible;" 2>/dev/null
+docker exec $container_id psql -U postgres -d postgres -c "ALTER DATABASE plausible_db OWNER TO plausible;" 2>/dev/null
+docker exec $container_id psql -U postgres -d plausible_db -c "GRANT ALL ON SCHEMA public TO plausible;" 2>/dev/null
+echo "Bancos criados com sucesso."
 
 cat > $nome_app.yaml << EOL
 
