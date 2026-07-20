@@ -61,12 +61,12 @@ fi
 
 function msg() {
     msg=$1
-    whiptail --title "INSTALAÇÃO DO PLAUSIBLE: ANALYTICS" --msgbox "$msg" --fb 10 70;
+    whiptail --title "INSTALAÇÃO DO FIREFLY III: FINANÇAS" --msgbox "$msg" --fb 10 70;
 }
 
 while true; do
 CHOICE=$(
-whiptail --title "INSTALAÇÃO DO PLAUSIBLE: ANALYTICS" --menu "Aperte ENTER para iniciar a instalação ou selecione SAIR (Utilize setas e Enter)\n\nTIPO DE INSTALAÇÃO DETECTADA: $INSTALL_TYPE\n\nINSTRUÇÕES:\nAntes de prosseguir, verifique os registros DNS conforme seu tipo de instalação:" 20 70 2 \
+whiptail --title "INSTALAÇÃO DO FIREFLY III: FINANÇAS" --menu "Aperte ENTER para iniciar a instalação ou selecione SAIR (Utilize setas e Enter)\n\nTIPO DE INSTALAÇÃO DETECTADA: $INSTALL_TYPE\n\nINSTRUÇÕES:\nAntes de prosseguir, verifique os registros DNS conforme seu tipo de instalação:" 20 70 2 \
     "1)" "CONTINUAR"   \
     "2)" "SAIR"  3>&2 2>&1 1>&3
 )
@@ -87,11 +87,11 @@ done
 
 
 while true ; do
-    url_plausible=$(whiptail --title "1/3 - URL do Plausible" --inputbox "Digite o dominio para acessar o Plausible (ex: analytics.dominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
+    url_firefly=$(whiptail --title "1/3 - URL do Firefly III" --inputbox "Digite o dominio para acessar o Firefly III (ex: finance.dominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
     if [[ $saida -eq '0' ]] ; then
-        if [[ -z $url_plausible ]] ; then msg "Digite o link do PLAUSIBLE para poder continuar" ; continue ; else break; fi
+        if [[ -z $url_firefly ]] ; then msg "Digite o link do FIREFLY III para poder continuar" ; continue ; else break; fi
     else
-        echo $url_plausible ; echo "saindo..."  &  exit 0 ;
+        echo $url_firefly ; echo "saindo..."  &  exit 0 ;
     fi
 done
 
@@ -110,7 +110,7 @@ clear
 # VERIFICAÇÃO DE DADOS
 #
 
-nome_principal="plausible"
+nome_principal="fireflyiii"
 sufixo_app=$(date | md5sum | head -c7)
 nome_app=$nome_principal$sufixo_app
 
@@ -122,7 +122,7 @@ nome_app=$nome_principal$sufixo_app
 } || true
 
     whiptail --title "Dados Fornecidos" \
-    --msgbox "TIPO DE INSTALAÇÃO: $INSTALL_TYPE\n\nDados Preenchidos:\n\n1) Dominio do Plausible: $url_plausible\n2) Criar Stack no Portainer: $([ "$criar_portainer" == "0" ] && echo "0 (Editável)" || echo "1 (Não editável)")\n\nConfira e Tecle Enter para continuar." \
+    --msgbox "TIPO DE INSTALAÇÃO: $INSTALL_TYPE\n\nDados Preenchidos:\n\n1) Dominio do Firefly III: $url_firefly\n2) Criar Stack no Portainer: $([ "$criar_portainer" == "0" ] && echo "0 (Editável)" || echo "1 (Não editável)")\n\nConfira e Tecle Enter para continuar." \
     --fb 16 80
 
 while true; do
@@ -168,11 +168,11 @@ echo -e "XXX\n5\nVERIFICANDO CONFIGURAÇÃO... \nXXX"
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
     echo -e "XXX\n10\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
 
-    DOMINIO_PRINCIPAL=$(echo "$url_plausible" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL=$(echo "$url_firefly" | cut -d'.' -f2-)
 
     echo -e "XXX\n15\nVERIFICANDO REGISTROS EXISTENTES... \nXXX"
     EXISTING_RECORDS=$(curl -s -X GET \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${url_plausible}" \
+        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${url_firefly}" \
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
         -H "Content-Type: application/json")
 
@@ -193,7 +193,7 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
         -H "Content-Type: application/json" \
-        --data '{"type":"CNAME","name":"'${url_plausible}'","content":"'${nome_servidor}'.'${DOMINIO_PRINCIPAL}'","ttl":1,"proxied":false}')
+        --data '{"type":"CNAME","name":"'${url_firefly}'","content":"'${nome_servidor}'.'${DOMINIO_PRINCIPAL}'","ttl":1,"proxied":false}')
 
     if echo "$CNAME_RESPONSE" | grep -q '"success":true'; then
         echo -e "XXX\n30\nREGISTRO CNAME CRIADO COM SUCESSO! \nXXX"
@@ -204,12 +204,12 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
 elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     echo -e "XXX\n10\nCONFIGURANDO CLOUDFLARE TUNNEL (DNS + ROTAS)... \nXXX"
 
-    DOMINIO_PRINCIPAL=$(echo "$url_plausible" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL=$(echo "$url_firefly" | cut -d'.' -f2-)
 
     echo -e "XXX\n15\nCONFIGURANDO REGISTRO DNS... \nXXX"
 
     EXISTING_RECORDS=$(curl -s -X GET \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${url_plausible}" \
+        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${url_firefly}" \
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
         -H "Content-Type: application/json")
 
@@ -230,7 +230,7 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
         -H "Content-Type: application/json" \
-        --data "{\"type\":\"CNAME\",\"name\":\"${url_plausible}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}")
+        --data "{\"type\":\"CNAME\",\"name\":\"${url_firefly}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}")
 
     if echo "$DNS_RESPONSE" | grep -q '"success":true'; then
         echo -e "XXX\n30\nREGISTRO DNS CRIADO COM SUCESSO! \nXXX"
@@ -240,7 +240,7 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
 
     echo -e "XXX\n35\nATUALIZANDO CONFIGURAÇÃO DO TUNNEL... \nXXX"
 
-    NEW_SERVICE="http://${nome_app}:8000"
+    NEW_SERVICE="http://${nome_app}_app:8080"
 
     TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
     TMPDIR=$(mktemp -d)
@@ -261,7 +261,7 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
 
     echo -e "XXX\n50\nCONFIGURANDO NOVAS ROTAS... \nXXX"
 
-    jq --arg host "$url_plausible" --arg service "$NEW_SERVICE" '
+    jq --arg host "$url_firefly" --arg service "$NEW_SERVICE" '
       (.result.config // {}) as $cfg
       | ($cfg.ingress // []) as $ing
       | ($ing | map(select(.service != "http_status:404"))) as $clean
@@ -288,7 +288,7 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
 
 else
     echo -e "XXX\n10\nVERIFICANDO CONFIGURAÇÃO (TRADICIONAL SEM AUTOMAÇÃO)... \nXXX"
-    if nslookup "$url_plausible" >/dev/null 2>&1; then
+    if nslookup "$url_firefly" >/dev/null 2>&1; then
         echo -e "XXX\n15\nDNS CONFIGURADO \nXXX"
     else
         echo -e "XXX\n15\nAVISO: VERIFIQUE A CONFIGURAÇÃO DNS \nXXX"
@@ -296,9 +296,9 @@ else
 fi
 
 
-echo -e "XXX\n21\nCRIANDO STACK DO PLAUSIBLE 1/3 \nXXX"
+echo -e "XXX\n21\nCRIANDO STACK DO FIREFLY III 1/3 \nXXX"
 sleep 1
-echo -e "XXX\n50\nCRIANDO STACK DO PLAUSIBLE 2/3 \nXXX"
+echo -e "XXX\n50\nCRIANDO STACK DO FIREFLY III 2/3 \nXXX"
 sleep 1
 
 
@@ -306,59 +306,51 @@ sleep 1
 #
 #######################################################
 #
-#  INSTALANDO O PLAUSIBLE
+#  INSTALANDO O FIREFLY III
 #
 
 cd
 
 cd
 
-plausible_secret=$(openssl rand -hex 32)
+firefly_secret=$(openssl rand -hex 32)
 postgres_password=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml)
 
-# Criar bancos no PostgreSQL compartilhado (ANTES do gauge para garantir execução)
-echo "Criando banco plausible_db no PostgreSQL..."
+# Criar banco no PostgreSQL compartilhado
 container_id=$(docker ps -qf name=postgres)
-docker exec $container_id psql -U postgres -d postgres -c "CREATE DATABASE plausible_db;" 2>/dev/null
-docker exec $container_id psql -U postgres -d postgres -c "CREATE USER plausible WITH PASSWORD '${plausible_secret}';" 2>/dev/null
-docker exec $container_id psql -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE plausible_db TO plausible;" 2>/dev/null
-docker exec $container_id psql -U postgres -d postgres -c "ALTER DATABASE plausible_db OWNER TO plausible;" 2>/dev/null
-docker exec $container_id psql -U postgres -d plausible_db -c "GRANT ALL ON SCHEMA public TO plausible;" 2>/dev/null
-echo "Bancos criados com sucesso."
+docker exec $container_id psql -U postgres -d postgres -c "CREATE DATABASE fireflyiii;" 2>/dev/null
+docker exec $container_id psql -U postgres -d postgres -c "CREATE USER firefly WITH PASSWORD '${firefly_secret}';" 2>/dev/null
+docker exec $container_id psql -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE fireflyiii TO firefly;" 2>/dev/null
+docker exec $container_id psql -U postgres -d postgres -c "ALTER DATABASE fireflyiii OWNER TO firefly;" 2>/dev/null
+docker exec $container_id psql -U postgres -d fireflyiii -c "GRANT ALL ON SCHEMA public TO firefly;" 2>/dev/null
 
 cat > $nome_app.yaml << EOL
 
 version: "3.7"
 services:
-  ${nome_app}_clickhouse:
-    image: clickhouse/clickhouse-server:24.12-alpine
-    hostname: ${nome_app}_clickhouse
+  ${nome_app}_app:
+    image: fireflyiii/core:latest
+    hostname: ${nome_app}_app
     networks:
+      - externa
       - interna
+    depends_on:
+      - postgres
     environment:
-      - CLICKHOUSE_SKIP_USER_SETUP=1
-    command: >
-      sh -c '
-        clickhouse-server --config-file=/etc/clickhouse-server/config.xml &
-        CH_PID=$$
-        until wget --no-verbose --tries=1 -O - http://127.0.0.1:8123/ping >/dev/null 2>&1; do
-          sleep 2
-        done
-        wget --no-verbose --tries=1 -O - "http://127.0.0.1:8123/?query=CREATE+DATABASE+IF+NOT+EXISTS+plausible_events_db" >/dev/null 2>&1
-        echo "ClickHouse database plausible_events_db criada!"
-        wait $CH_PID
-      '
+      - APP_KEY=base64:${firefly_secret}
+      - APP_URL=https://${url_firefly}
+      - DB_CONNECTION=pgsql
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=fireflyiii
+      - DB_USERNAME=firefly
+      - DB_PASSWORD=${firefly_secret}
+      - TRUSTED_PROXIES=**
+      - DEFAULT_LANGUAGE=pt_BR
+      - DEFAULT_LOCALE=equal
+      - TZ=America/Sao_Paulo
     volumes:
-      - ${nome_app}_chdata:/var/lib/clickhouse
-    ulimits:
-      nofile:
-        soft: 262144
-        hard: 262144
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 -O - http://127.0.0.1:8123/ping || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - ${nome_app}_upload:/var/www/html/storage/upload
     deploy:
       mode: replicated
       replicas: 1
@@ -368,47 +360,20 @@ services:
       resources:
         limits:
           cpus: "1"
-          memory: 1024M
-
-  ${nome_app}:
-    image: ghcr.io/plausible/community-edition:v3.2.1
-    hostname: ${nome_app}
-    networks:
-      - externa
-      - interna
-    command: sh -c "/entrypoint.sh db createdb && /entrypoint.sh db migrate && /entrypoint.sh run"
-    depends_on:
-      - ${nome_app}_clickhouse
-    environment:
-      - BASE_URL=https://${url_plausible}
-      - SECRET_KEY_BASE=${plausible_secret}
-      - DATABASE_URL=postgresql://plausible:${plausible_secret}@postgres:5432/plausible_db
-      - CLICKHOUSE_DATABASE_URL=http://${nome_app}_clickhouse:8123/plausible_events_db
-      - DISABLE_REGISTRATION=invite_only
-      - HTTP_PORT=8000
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-        - node.role == manager
-      resources:
-        limits:
-          cpus: "2"
-          memory: 1024M
+          memory: 512M
 EOL
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
 cat >> $nome_app.yaml << EOL
       labels:
       - traefik.enable=true
       - traefik.docker.network=externa
-      - traefik.http.routers.${nome_app}.rule=Host(\`${url_plausible}\`)
+      - traefik.http.routers.${nome_app}.rule=Host(\`${url_firefly}\`)
       - traefik.http.routers.${nome_app}.entrypoints=websecure
       - traefik.http.routers.${nome_app}.priority=1
       - traefik.http.routers.${nome_app}.tls.certresolver=letsencryptresolver
       - traefik.http.routers.${nome_app}.tls=true
       - traefik.http.routers.${nome_app}.service=${nome_app}
-      - traefik.http.services.${nome_app}.loadbalancer.server.port=8000
+      - traefik.http.services.${nome_app}.loadbalancer.server.port=8080
       - traefik.http.services.${nome_app}.loadbalancer.passHostHeader=1
 EOL
 fi
@@ -421,9 +386,9 @@ networks:
     external: true
 
 volumes:
-  ${nome_app}_chdata:
+  ${nome_app}_upload:
     external: true
-    name: ${nome_app}_chdata
+    name: ${nome_app}_upload
 
 EOL
 
@@ -544,15 +509,15 @@ sleep 5
 fi
 
 
-echo -e "XXX\n95\nFINALIZANDO BUILD DO PLAUSIBLE 3/3  \nXXX"
+echo -e "XXX\n95\nFINALIZANDO BUILD DO FIREFLY III 3/3  \nXXX"
 
 sleep 12
 
-echo -e "XXX\n100\nFINALIZANDO BUILD DO PLAUSIBLE 3/3 - CONCLUIDO  \nXXX"
+echo -e "XXX\n100\nFINALIZANDO BUILD DO FIREFLY III 3/3 - CONCLUIDO  \nXXX"
 
 sleep 3
 
-}|whiptail --title "PLAUSIBLE - PROGRESSO DA INSTALAÇÃO" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
+}|whiptail --title "FIREFLY III - PROGRESSO DA INSTALAÇÃO" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
 
 
 #######################################################
@@ -562,18 +527,18 @@ sleep 3
 
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
     ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
-    dns_ip=$(timeout 10 nslookup "$url_plausible" | grep "Address" | tail -n1 | awk '{print $2}' 2>/dev/null)
+    dns_ip=$(timeout 10 nslookup "$url_firefly" | grep "Address" | tail -n1 | awk '{print $2}' 2>/dev/null)
 
     if [[ "$dns_ip" != "$ip_servidor" ]]; then
-        whiptail --title "Mensagem" --msgbox "Não foi possivel acessar o dominio do Plausible ($url_plausible). Verifique os apontamentos DNS. Pressione ENTER para voltar ao Menu Principal" 20 78
+        whiptail --title "Mensagem" --msgbox "Não foi possivel acessar o dominio do Firefly III ($url_firefly). Verifique os apontamentos DNS. Pressione ENTER para voltar ao Menu Principal" 20 78
     else
-        whiptail --title "Mensagem" --msgbox "Parabéns, Plausible foi instalado com sucesso!\n\nAcesse: https://$url_plausible\nCrie sua conta no primeiro acesso.\n\nPressione ENTER para voltar ao Menu Principal" 22 78
+        whiptail --title "Mensagem" --msgbox "Parabéns, Firefly III foi instalado com sucesso!\n\nAcesse: https://$url_firefly\nCrie sua conta no primeiro acesso.\n\nPressione ENTER para voltar ao Menu Principal" 22 78
     fi
 else
-    if nslookup "$url_plausible" >/dev/null 2>&1; then
-        whiptail --title "Mensagem" --msgbox "Parabéns, Plausible foi instalado com sucesso!\n\nAcesse: https://$url_plausible\nCrie sua conta no primeiro acesso.\n\nPressione ENTER para voltar ao Menu Principal" 22 78
+    if nslookup "$url_firefly" >/dev/null 2>&1; then
+        whiptail --title "Mensagem" --msgbox "Parabéns, Firefly III foi instalado com sucesso!\n\nAcesse: https://$url_firefly\nCrie sua conta no primeiro acesso.\n\nPressione ENTER para voltar ao Menu Principal" 22 78
     else
-        whiptail --title "Mensagem" --msgbox "AVISO: O domínio do Plausible ($url_plausible) não está resolvendo.\nVerifique a configuração do Cloudflare Tunnel.\n\nPressione ENTER para voltar ao Menu Principal" 20 78
+        whiptail --title "Mensagem" --msgbox "AVISO: O domínio do Firefly III ($url_firefly) não está resolvendo.\nVerifique a configuração do Cloudflare Tunnel.\n\nPressione ENTER para voltar ao Menu Principal" 20 78
     fi
 fi
 

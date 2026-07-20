@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="4.39.0"
+VERSIONSETUP="4.40.0"
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
     echo "ERRO: Este script deve ser executado como root." >&2
@@ -1086,11 +1086,7 @@ shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou.
 rm umami.sh
 rm umami.sh.x.c
 
-shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o plausible -f plausible.sh
-rm plausible.sh
-rm plausible.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
-rm plausible
 fi
 
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o searxng -f searxng.sh
