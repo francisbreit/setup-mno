@@ -153,7 +153,7 @@ warn_heavy() {
     local app_name="$1"
     local ram_needed="$2"
     local response
-    response=$(whiptail --title "⚠️ ALERTA DE RECURSOS" --yesno "⚠️ ATENÇÃO: O $app_name consome aproximadamente $ram_needed de RAM.\n\nSeu servidor pode não ter recursos suficientes.\n\nDeseja prosseguir com a instalação?" --fb 14 70 3>&1 1>&2 2>&3)
+    response=$(whiptail --title "⚠️ ALERTA DE RECURSOS" --yesno "⚠️ ATENÇÃO: O $app_name consome aproximadamente $ram_needed de RAM.\n\nAntes de prosseguir, verifique se existem recursos suficientes disponíveis, caso contrário, você precisará fazer upgrade de servidor ou deletar outras aplicações.\n\nDeseja prosseguir com a instalação?" --fb 16 70 3>&1 1>&2 2>&3)
     if [[ $? -ne 0 ]]; then
         return 1
     fi
