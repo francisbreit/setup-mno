@@ -525,6 +525,7 @@ Após criar o script da ferramenta em ambas as arquiteturas:
    - **USE O COMANDO: `grep -rn "VERSIONSETUP" 1_codigo_fonte/` para verificar se TODOS foram atualizados**
 4. **Ferramentas HTML:** Atualize o arquivo `ferramentas.html`:
    - Adicionar nova ferramenta com descrição, categorias, uso e exemplos
+   - **Adicionar campo RAM** logo após os "Exemplos práticos": `<div class="tool-examples"><strong>RAM:</strong> ~XGB</div>`
    - Atualizar contadores: Total de Setups, Total X86, Total ARM
    - Adicionar campo de compatibilidade (X86 e ARM ou X86)
    - **Atualizar versão e data** no subtítulo (ex: "Versão 4.25.0 | Atualizado em Julho/2026")
