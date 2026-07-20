@@ -331,6 +331,12 @@ services:
       - POSTGRES_PASSWORD=${posthog_secret}
     volumes:
       - ${nome_app}_pgdata:/var/lib/postgresql/data
+    command: >
+      sh -c '
+        echo "CREATE DATABASE posthog_persons;" > /docker-entrypoint-initdb.d/init-persons.sh
+        echo "GRANT ALL PRIVILEGES ON DATABASE posthog_persons TO posthog;" >> /docker-entrypoint-initdb.d/init-persons.sh
+        docker-entrypoint.sh postgres
+      '
     deploy:
       mode: replicated
       replicas: 1
@@ -470,6 +476,7 @@ services:
       - REDIS_URL=redis://${nome_app}_redis:6379/
       - CLICKHOUSE_HOST=${nome_app}_clickhouse
       - CLICKHOUSE_PORT=8123
+      - CLICKHOUSE_SECURE=false
       - CLICKHOUSE_DATABASE=posthog
       - CLICKHOUSE_USER=posthog
       - CLICKHOUSE_PASSWORD=${posthog_secret}
