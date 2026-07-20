@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="4.35.0"
+VERSIONSETUP="4.36.0"
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
 CONTATO_GITHUB="github.com/francisbreit"
@@ -265,6 +265,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "FORMBRICKS" "" \
     "GHOST" "" \
     "GLPI" "" \
+    "GITLAB" "" \
     "GRAFANA/PROMETHEUS MONITOR" ""   \
     "HERMES AGENT" "" \
     "HEYFORM" "" \
@@ -386,6 +387,7 @@ case "$CHOICE" in
             "FORMBRICKS")                                            run_app formbricks ;;
             "GHOST")                                                 run_app ghost ;;
             "GLPI")                                                  run_app glpi ;;
+            "GITLAB")                                                run_app gitlab ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HEYFORM")                                               run_app heyform ;;
@@ -527,6 +529,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "FORMBRICKS" "PRO" \
     "GHOST" "PRO" \
     "GLPI" "PRO" \
+    "GITLAB" "PRO" \
     "HERMES AGENT" "PRO" \
     "HEYFORM" "PRO" \
     "HUMHUB" "PRO" \
@@ -621,6 +624,7 @@ case "$CHOICE" in
             "FORMBRICKS")                                            run_app formbricks ;;
             "GHOST")                                                 run_app ghost ;;
             "GLPI")                                                  run_app glpi ;;
+            "GITLAB")                                                run_app gitlab ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HEYFORM")                                               run_app heyform ;;
@@ -852,6 +856,7 @@ case "$CHOICE" in
             "FORMBRICKS")                                            run_app formbricks ;;
             "GHOST")                                                 run_app ghost ;;
             "GLPI")                                                  run_app glpi ;;
+            "GITLAB")                                                run_app gitlab ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HEYFORM")                                               run_app heyform ;;
@@ -1083,6 +1088,7 @@ case "$CHOICE" in
             "FORMBRICKS")                                            run_app formbricks ;;
             "GHOST")                                                 run_app ghost ;;
             "GLPI")                                                  run_app glpi ;;
+            "GITLAB")                                                run_app gitlab ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HEYFORM")                                               run_app heyform ;;
