@@ -313,14 +313,16 @@ cd
 
 cd
 
-plausible_secret=$(openssl rand -base64 48 | tr -d '\n')
+plausible_secret=$(openssl rand -hex 32)
 postgres_password=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml)
 
-# Criar bancos de dados no PostgreSQL compartilhado
+# Criar bancos de dados no PostgreSQL compartilhado (FORA do gauge)
 container_id=$(docker ps -qf name=postgres)
-docker exec $container_id psql -U postgres -d postgres -c "CREATE DATABASE plausible_db;" 2>/dev/null || echo "Aviso: banco plausible_db pode já existir, continuando..."
-docker exec $container_id psql -U postgres -d postgres -c "CREATE USER plausible WITH PASSWORD '${plausible_secret}';" 2>/dev/null || echo "Aviso: usuário plausible pode já existir, continuando..."
-docker exec $container_id psql -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE plausible_db TO plausible;" 2>/dev/null || echo "Aviso: permissões podem já existir, continuando..."
+docker exec $container_id psql -U postgres -d postgres -c "CREATE DATABASE plausible_db;" 2>/dev/null
+docker exec $container_id psql -U postgres -d postgres -c "CREATE USER plausible WITH PASSWORD '${plausible_secret}';" 2>/dev/null
+docker exec $container_id psql -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE plausible_db TO plausible;" 2>/dev/null
+docker exec $container_id psql -U postgres -d postgres -c "ALTER DATABASE plausible_db OWNER TO plausible;" 2>/dev/null
+docker exec $container_id psql -U postgres -d plausible_db -c "GRANT ALL ON SCHEMA public TO plausible;" 2>/dev/null
 
 cat > $nome_app.yaml << EOL
 
@@ -333,6 +335,17 @@ services:
       - interna
     environment:
       - CLICKHOUSE_SKIP_USER_SETUP=1
+    command: >
+      sh -c '
+        clickhouse-server --config-file=/etc/clickhouse-server/config.xml &
+        CH_PID=$$
+        until wget --no-verbose --tries=1 -O - http://127.0.0.1:8123/ping >/dev/null 2>&1; do
+          sleep 2
+        done
+        wget --no-verbose --tries=1 -O - "http://127.0.0.1:8123/?query=CREATE+DATABASE+IF+NOT+EXISTS+plausible_events_db" >/dev/null 2>&1
+        echo "ClickHouse database plausible_events_db criada!"
+        wait $CH_PID
+      '
     volumes:
       - ${nome_app}_chdata:/var/lib/clickhouse
     ulimits:
