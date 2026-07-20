@@ -644,9 +644,9 @@ mysql_container=$(docker ps --format "{{.Names}}" | grep -q "^mysql$")
 
 1. **Verificar se MongoDB já existe:**
    ```bash
-   if docker ps -a --format "{{.Names}}" | grep -q "mongodb"; then
-       user_mongo=$(grep "MONGO_INITDB_ROOT_USERNAME" /root/mongodb.yaml | awk -F '=' '{print $2}')
-       pass_mongo=$(grep "MONGO_INITDB_ROOT_PASSWORD" /root/mongodb.yaml | awk -F '=' '{print $2}')
+   if docker stack ls | grep -q "mongodb "; then
+       user_mongo=$(grep -oP '(?<=MONGO_INITDB_ROOT_USERNAME=).+' /root/mongodb.yaml)
+       pass_mongo=$(grep -oP '(?<=MONGO_INITDB_ROOT_PASSWORD=).+' /root/mongodb.yaml)
    else
        # Criar stack MongoDB
    fi
@@ -654,30 +654,46 @@ mysql_container=$(docker ps --format "{{.Names}}" | grep -q "^mysql$")
 
 2. **Se não existir, criar stack MongoDB automaticamente:**
    - Usar `mongo:7` como imagem
-   - Salvar credenciais em `/root/mongodb.yaml`
-   - Criar volumes externos
-   - Deploy via Portainer ou Docker
+   - Criar `/root/mongodb.yaml` COMPLETO (não apenas credenciais — stack inteira, como MySQL)
+   - Deploy único: `docker stack deploy --prune --resolve-image always -c mongodb.yaml mongodb`
 
 3. **Exemplo de criação de stack:**
    ```bash
    user_mongo="admin"
    pass_mongo=$(openssl rand -hex 16)
-   
-   # Salvar credenciais
-   cat > /root/mongodb.yaml << EOL_CRED
-   MONGO_INITDB_ROOT_USERNAME=$user_mongo
-   MONGO_INITDB_ROOT_PASSWORD=$pass_mongo
-   EOL_CRED
-   
-   # Criar volumes
-   docker volume create mongodb_data >/dev/null 2>&1
-   docker volume create mongodb_configdb >/dev/null 2>&1
-   
-   # Deploy
+
+   # Criar mongodb.yaml COMPLETO em /root (padrão MySQL)
+   cat > /root/mongodb.yaml << EOL
+   version: '3.7'
+   services:
+       mongodb:
+           image: mongo:7
+           hostname: mongodb
+           environment:
+               - MONGO_INITDB_ROOT_USERNAME=$user_mongo
+               - MONGO_INITDB_ROOT_PASSWORD=$pass_mongo
+           networks:
+               - interna
+           volumes:
+               - mongodb_data:/data/db
+               - mongodb_configdb:/data/configdb
+           deploy:
+               placement:
+                   constraints: [node.role == manager]
+   volumes:
+       mongodb_data:
+       mongodb_configdb:
+   networks:
+       interna:
+           external: true
+           name: interna
+   EOL
+
+   # Deploy único
    docker stack deploy --prune --resolve-image always -c mongodb.yaml mongodb >/dev/null 2>&1
    ```
 
-4. **Referências:** `wekan.sh`, `heyform.sh`
+4. **Referências:** `wekan.sh`, `heyform.sh`, `rocketchat.sh`
 
 ### Compatibilidade com ARM (Importante)
 

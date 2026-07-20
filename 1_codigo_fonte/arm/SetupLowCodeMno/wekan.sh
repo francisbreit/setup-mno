@@ -316,57 +316,41 @@ cd
 cd
 
 # Verificar se MongoDB já existe
-if docker ps -a --format "{{.Names}}" | grep -q "mongodb"; then
-    user_mongo=$(grep "MONGO_INITDB_ROOT_USERNAME" /root/mongodb.yaml | awk -F '=' '{print $2}')
-    pass_mongo=$(grep "MONGO_INITDB_ROOT_PASSWORD" /root/mongodb.yaml | awk -F '=' '{print $2}')
+if docker stack ls | grep -q "mongodb "; then
+    user_mongo=$(grep -oP '(?<=MONGO_INITDB_ROOT_USERNAME=).+' /root/mongodb.yaml)
+    pass_mongo=$(grep -oP '(?<=MONGO_INITDB_ROOT_PASSWORD=).+' /root/mongodb.yaml)
 else
     user_mongo="admin"
     pass_mongo=$(openssl rand -hex 16)
 
-    # Salvar credenciais do MongoDB
-    cat > /root/mongodb.yaml << EOL_CRED
-MONGO_INITDB_ROOT_USERNAME=$user_mongo
-MONGO_INITDB_ROOT_PASSWORD=$pass_mongo
-EOL_CRED
-
-    cat > /tmp/mongodb_wekan.yaml << EOL_MONGO
-version: "3.8"
+    # Criar mongodb.yaml completo em /root (padrão MySQL)
+    cat > /root/mongodb.yaml << EOL
+version: '3.7'
 services:
-  mongodb:
-    image: mongo:7
-    hostname: mongodb
-    networks:
-      - interna
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=$user_mongo
-      - MONGO_INITDB_ROOT_PASSWORD=$pass_mongo
-    volumes:
-      - mongodb_data:/data/db
-      - mongodb_configdb:/data/configdb
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-
-networks:
-  interna:
-    external: true
-
+    mongodb:
+        image: mongo:7
+        hostname: mongodb
+        environment:
+            - MONGO_INITDB_ROOT_USERNAME=$user_mongo
+            - MONGO_INITDB_ROOT_PASSWORD=$pass_mongo
+        networks:
+            - interna
+        volumes:
+            - mongodb_data:/data/db
+            - mongodb_configdb:/data/configdb
+        deploy:
+            placement:
+                constraints: [node.role == manager]
 volumes:
-  mongodb_data:
-    external: true
-    name: mongodb_wekan_data
-  mongodb_configdb:
-    external: true
-    name: mongodb_wekan_configdb
-EOL_MONGO
+    mongodb_data:
+    mongodb_configdb:
+networks:
+    interna:
+        external: true
+        name: interna
+EOL
 
-    docker volume create mongodb_wekan_data >/dev/null 2>&1
-    docker volume create mongodb_wekan_configdb >/dev/null 2>&1
-    docker stack deploy --prune --resolve-image always -c /tmp/mongodb_wekan.yaml mongodb_wekan >/dev/null 2>&1
-    rm -f /tmp/mongodb_wekan.yaml
+    docker stack deploy --prune --resolve-image always -c mongodb.yaml mongodb >/dev/null 2>&1
     sleep 15
 fi
 
