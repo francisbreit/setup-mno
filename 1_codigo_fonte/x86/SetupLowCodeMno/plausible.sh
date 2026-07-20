@@ -314,38 +314,18 @@ cd
 cd
 
 plausible_secret=$(openssl rand -base64 48 | tr -d '\n')
+postgres_password=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml)
+
+# Criar bancos de dados no PostgreSQL compartilhado
+container_id=$(docker ps -qf name=postgres)
+docker exec $container_id psql -U postgres -d postgres -c "CREATE DATABASE plausible_db;" 2>/dev/null || echo "Aviso: banco plausible_db pode já existir, continuando..."
+docker exec $container_id psql -U postgres -d postgres -c "CREATE USER plausible WITH PASSWORD '${plausible_secret}';" 2>/dev/null || echo "Aviso: usuário plausible pode já existir, continuando..."
+docker exec $container_id psql -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE plausible_db TO plausible;" 2>/dev/null || echo "Aviso: permissões podem já existir, continuando..."
 
 cat > $nome_app.yaml << EOL
 
 version: "3.7"
 services:
-  ${nome_app}_db:
-    image: postgres:16-alpine
-    hostname: ${nome_app}_db
-    networks:
-      - interna
-    environment:
-      - POSTGRES_DB=plausible_db
-      - POSTGRES_USER=plausible
-      - POSTGRES_PASSWORD=${plausible_secret}
-    volumes:
-      - ${nome_app}_pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U plausible -d plausible_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-        - node.role == manager
-      resources:
-        limits:
-          cpus: "1"
-          memory: 512M
-
   ${nome_app}_clickhouse:
     image: clickhouse/clickhouse-server:24.12-alpine
     hostname: ${nome_app}_clickhouse
@@ -383,14 +363,12 @@ services:
       - interna
     command: sh -c "/entrypoint.sh db createdb && /entrypoint.sh db migrate && /entrypoint.sh run"
     depends_on:
-      ${nome_app}_db:
-        condition: service_healthy
       ${nome_app}_clickhouse:
         condition: service_healthy
     environment:
       - BASE_URL=https://${url_plausible}
       - SECRET_KEY_BASE=${plausible_secret}
-      - DATABASE_URL=postgresql://plausible:${plausible_secret}@${nome_app}_db:5432/plausible_db
+      - DATABASE_URL=postgresql://plausible:${plausible_secret}@postgres:5432/plausible_db
       - CLICKHOUSE_DATABASE_URL=http://${nome_app}_clickhouse:8123/plausible_events_db
       - DISABLE_REGISTRATION=invite_only
       - HTTP_PORT=8000
@@ -429,9 +407,6 @@ networks:
     external: true
 
 volumes:
-  ${nome_app}_pgdata:
-    external: true
-    name: ${nome_app}_pgdata
   ${nome_app}_chdata:
     external: true
     name: ${nome_app}_chdata
