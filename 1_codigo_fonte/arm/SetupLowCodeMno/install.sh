@@ -439,7 +439,7 @@ case "$CHOICE" in
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
-            "POSTHOG")                                               warn_heavy "PostHog" "6GB" && run_app posthog ;;
+            "POSTHOG")                                               warn_heavy "PostHog" "7GB" && run_app posthog ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;
@@ -678,7 +678,7 @@ case "$CHOICE" in
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
-            "POSTHOG")                                               warn_heavy "PostHog" "6GB" && run_app posthog ;;
+            "POSTHOG")                                               warn_heavy "PostHog" "7GB" && run_app posthog ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;
@@ -911,7 +911,7 @@ case "$CHOICE" in
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
-            "POSTHOG")                                               warn_heavy "PostHog" "6GB" && run_app posthog ;;
+            "POSTHOG")                                               warn_heavy "PostHog" "7GB" && run_app posthog ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;
@@ -1144,7 +1144,7 @@ case "$CHOICE" in
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
-            "POSTHOG")                                               warn_heavy "PostHog" "6GB" && run_app posthog ;;
+            "POSTHOG")                                               warn_heavy "PostHog" "7GB" && run_app posthog ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;

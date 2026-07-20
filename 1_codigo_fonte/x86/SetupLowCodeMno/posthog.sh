@@ -519,52 +519,8 @@ cat >> $nome_app.yaml << EOL
       - traefik.http.services.${nome_app}.loadbalancer.passHostHeader=1
 EOL
 fi
-cat >> $nome_app.yaml << EOL
 
-  ${nome_app}_worker:
-    image: posthog/posthog:latest
-    hostname: ${nome_app}_worker
-    networks:
-      - interna
-    command: /compose/start-worker
-    environment:
-      - DATABASE_URL=postgres://posthog:${posthog_secret}@${nome_app}_db:5432/posthog
-      - REDIS_URL=redis://${nome_app}_redis:6379/
-      - CLICKHOUSE_HOST=${nome_app}_clickhouse
-      - CLICKHOUSE_PORT=8123
-      - CLICKHOUSE_DATABASE=posthog
-      - CLICKHOUSE_USER=posthog
-      - CLICKHOUSE_PASSWORD=${posthog_secret}
-      - KAFKA_HOSTS=${nome_app}_kafka:9092
-      - SECRET_KEY=${posthog_secret}
-      - SITE_URL=https://${url_posthog}
-      - OBJECT_STORAGE_ACCESS_KEY_ID=object_storage_root_user
-      - OBJECT_STORAGE_SECRET_ACCESS_KEY=object_storage_root_password
-      - OBJECT_STORAGE_ENDPOINT=http://${nome_app}_objectstorage:19000
-      - OBJECT_STORAGE_BUCKET=posthog
-      - OBJECT_STORAGE_ENABLED=true
-      - OPT_OUT_CAPTURE=false
-      - DEPLOYMENT=hobby
-      - PGHOST=${nome_app}_db
-      - PGPORT=5432
-      - PGDATABASE=posthog
-      - PGUSER=posthog
-      - PGPASSWORD=${posthog_secret}
-    depends_on:
-      - ${nome_app}_db
-      - ${nome_app}_redis
-      - ${nome_app}_clickhouse
-      - ${nome_app}_kafka
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-        - node.role == manager
-      resources:
-        limits:
-          cpus: "2"
-          memory: 2048M
+cat >> $nome_app.yaml << EOL
 
 networks:
   externa:
