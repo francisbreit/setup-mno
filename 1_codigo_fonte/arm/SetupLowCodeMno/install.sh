@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="4.37.0"
+VERSIONSETUP="4.38.0"
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
 CONTATO_GITHUB="github.com/francisbreit"
@@ -323,7 +323,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPEN PROJECT" "" \
     "PAPERCLIP" "" \
     "PENPOT" "" \
-    "POSTHOG" "" \
     "PGADMIN4" "" \
     "PHPMYADMIN" "" \
     "PLANKA" "" \
@@ -338,6 +337,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "STIRLING PDF" "" \
     "TWENTY CRM" "" \
     "TYPEBOT" "" \
+    "UMAMI" "" \
     "TYPEBOT + MINIO*" "" \
     "UPTIMEKUMA" "" \
     "WAHA API" "" \
@@ -446,7 +446,6 @@ case "$CHOICE" in
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
-            "POSTHOG")                                               warn_heavy "PostHog" "7GB" && run_app posthog ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;
@@ -461,8 +460,10 @@ case "$CHOICE" in
             "STIRLING PDF")                                          run_app stirlingpdf ;;
             "TWENTY CRM")                                            warn_heavy "Twenty CRM" "5GB" && run_app twentycrm ;;
             "TYPEBOT")                                               run_app typebot ;;
+            "UMAMI")                                                 run_app umami ;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
+            "UMAMI")                                                  run_app umami ;
             "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
@@ -515,6 +516,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "SHLINK" "" \
     "STIRLING PDF" "" \
     "TYPEBOT" "" \
+    "UMAMI" "" \
     "UPTIMEKUMA" "" \
     "WAHA API" "" \
     "VAULTWARDEN" "" \
@@ -576,7 +578,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPEN PROJECT" "PRO" \
     "PAPERCLIP" "PRO" \
     "PENPOT" "PRO" \
-    "POSTHOG" "PRO" \
     "ROCKET.CHAT" "PRO" \
     "SEARXNG" "PRO" \
     "TWENTY CRM" "PRO" \
@@ -685,7 +686,6 @@ case "$CHOICE" in
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
-            "POSTHOG")                                               warn_heavy "PostHog" "7GB" && run_app posthog ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;
@@ -700,8 +700,10 @@ case "$CHOICE" in
             "STIRLING PDF")                                          run_app stirlingpdf ;;
             "TWENTY CRM")                                            warn_heavy "Twenty CRM" "5GB" && run_app twentycrm ;;
             "TYPEBOT")                                               run_app typebot ;;
+            "UMAMI")                                                 run_app umami ;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
+            "UMAMI")                                                  run_app umami ;
             "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
@@ -809,6 +811,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "STIRLING PDF" "PRO" \
     "TWENTY CRM" "PRO" \
     "TYPEBOT" "PRO" \
+    "UMAMI" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
     "UPTIMEKUMA" "PRO" \
     "VAULTWARDEN" "PRO" \
@@ -918,7 +921,6 @@ case "$CHOICE" in
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
-            "POSTHOG")                                               warn_heavy "PostHog" "7GB" && run_app posthog ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;
@@ -933,8 +935,10 @@ case "$CHOICE" in
             "STIRLING PDF")                                          run_app stirlingpdf ;;
             "TWENTY CRM")                                            warn_heavy "Twenty CRM" "5GB" && run_app twentycrm ;;
             "TYPEBOT")                                               run_app typebot ;;
+            "UMAMI")                                                 run_app umami ;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
+            "UMAMI")                                                  run_app umami ;
             "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
@@ -1042,6 +1046,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "STIRLING PDF" "PRO" \
     "TWENTY CRM" "PRO" \
     "TYPEBOT" "PRO" \
+    "UMAMI" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
     "UPTIMEKUMA" "PRO" \
     "VAULTWARDEN" "PRO" \
@@ -1151,7 +1156,6 @@ case "$CHOICE" in
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
-            "POSTHOG")                                               warn_heavy "PostHog" "7GB" && run_app posthog ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;
@@ -1166,8 +1170,10 @@ case "$CHOICE" in
             "STIRLING PDF")                                          run_app stirlingpdf ;;
             "TWENTY CRM")                                            warn_heavy "Twenty CRM" "5GB" && run_app twentycrm ;;
             "TYPEBOT")                                               run_app typebot ;;
+            "UMAMI")                                                 run_app umami ;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
+            "UMAMI")                                                  run_app umami ;
             "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;

@@ -61,12 +61,12 @@ fi
 
 function msg() {
     msg=$1
-    whiptail --title "INSTALAÇÃO DO POSTHOG: ANALYTICS" --msgbox "$msg" --fb 10 70;
+    whiptail --title "INSTALAÇÃO DO UMAMI: ANALYTICS" --msgbox "$msg" --fb 10 70;
 }
 
 while true; do
 CHOICE=$(
-whiptail --title "INSTALAÇÃO DO POSTHOG: ANALYTICS" --menu "Aperte ENTER para iniciar a instalação ou selecione SAIR (Utilize setas e Enter)\n\nTIPO DE INSTALAÇÃO DETECTADA: $INSTALL_TYPE\n\nINSTRUÇÕES:\nAntes de prosseguir, verifique os registros DNS conforme seu tipo de instalação:" 20 70 2 \
+whiptail --title "INSTALAÇÃO DO UMAMI: ANALYTICS" --menu "Aperte ENTER para iniciar a instalação ou selecione SAIR (Utilize setas e Enter)\n\nTIPO DE INSTALAÇÃO DETECTADA: $INSTALL_TYPE\n\nINSTRUÇÕES:\nAntes de prosseguir, verifique os registros DNS conforme seu tipo de instalação:" 20 70 2 \
     "1)" "CONTINUAR"   \
     "2)" "SAIR"  3>&2 2>&1 1>&3
 )
@@ -87,11 +87,11 @@ done
 
 
 while true ; do
-    url_posthog=$(whiptail --title "1/3 - URL do PostHog" --inputbox "Digite o dominio para acessar o PostHog (ex: analytics.dominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
+    url_umami=$(whiptail --title "1/3 - URL do Umami" --inputbox "Digite o dominio para acessar o Umami (ex: analytics.dominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
     if [[ $saida -eq '0' ]] ; then
-        if [[ -z $url_posthog ]] ; then msg "Digite o link do POSTHOG para poder continuar" ; continue ; else break; fi
+        if [[ -z $url_umami ]] ; then msg "Digite o link do UMAMI para poder continuar" ; continue ; else break; fi
     else
-        echo $url_posthog ; echo "saindo..."  &  exit 0 ;
+        echo $url_umami ; echo "saindo..."  &  exit 0 ;
     fi
 done
 
@@ -110,7 +110,7 @@ clear
 # VERIFICAÇÃO DE DADOS
 #
 
-nome_principal="posthog"
+nome_principal="umami"
 sufixo_app=$(date | md5sum | head -c7)
 nome_app=$nome_principal$sufixo_app
 
@@ -122,8 +122,8 @@ nome_app=$nome_principal$sufixo_app
 } || true
 
     whiptail --title "Dados Fornecidos" \
-    --msgbox "TIPO DE INSTALAÇÃO: $INSTALL_TYPE\n\nDados Preenchidos:\n\n1) Dominio do PostHog: $url_posthog\n2) Criar Stack no Portainer: $([ "$criar_portainer" == "0" ] && echo "0 (Editável)" || echo "1 (Não editável)")\n\n⚠️ ATENÇÃO: PostHog consome ~6GB RAM.\n\nConfira e Tecle Enter para continuar." \
-    --fb 20 80
+    --msgbox "TIPO DE INSTALAÇÃO: $INSTALL_TYPE\n\nDados Preenchidos:\n\n1) Dominio do Umami: $url_umami\n2) Criar Stack no Portainer: $([ "$criar_portainer" == "0" ] && echo "0 (Editável)" || echo "1 (Não editável)")\n\nConfira e Tecle Enter para continuar." \
+    --fb 16 80
 
 while true; do
 {
@@ -168,11 +168,11 @@ echo -e "XXX\n5\nVERIFICANDO CONFIGURAÇÃO... \nXXX"
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
     echo -e "XXX\n10\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
 
-    DOMINIO_PRINCIPAL=$(echo "$url_posthog" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL=$(echo "$url_umami" | cut -d'.' -f2-)
 
     echo -e "XXX\n15\nVERIFICANDO REGISTROS EXISTENTES... \nXXX"
     EXISTING_RECORDS=$(curl -s -X GET \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${url_posthog}" \
+        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${url_umami}" \
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
         -H "Content-Type: application/json")
 
@@ -193,7 +193,7 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
         -H "Content-Type: application/json" \
-        --data '{"type":"CNAME","name":"'${url_posthog}'","content":"'${nome_servidor}'.'${DOMINIO_PRINCIPAL}'","ttl":1,"proxied":false}')
+        --data '{"type":"CNAME","name":"'${url_umami}'","content":"'${nome_servidor}'.'${DOMINIO_PRINCIPAL}'","ttl":1,"proxied":false}')
 
     if echo "$CNAME_RESPONSE" | grep -q '"success":true'; then
         echo -e "XXX\n30\nREGISTRO CNAME CRIADO COM SUCESSO! \nXXX"
@@ -204,12 +204,12 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
 elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     echo -e "XXX\n10\nCONFIGURANDO CLOUDFLARE TUNNEL (DNS + ROTAS)... \nXXX"
 
-    DOMINIO_PRINCIPAL=$(echo "$url_posthog" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL=$(echo "$url_umami" | cut -d'.' -f2-)
 
     echo -e "XXX\n15\nCONFIGURANDO REGISTRO DNS... \nXXX"
 
     EXISTING_RECORDS=$(curl -s -X GET \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${url_posthog}" \
+        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${url_umami}" \
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
         -H "Content-Type: application/json")
 
@@ -230,7 +230,7 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
         -H "Content-Type: application/json" \
-        --data "{\"type\":\"CNAME\",\"name\":\"${url_posthog}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}")
+        --data "{\"type\":\"CNAME\",\"name\":\"${url_umami}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}")
 
     if echo "$DNS_RESPONSE" | grep -q '"success":true'; then
         echo -e "XXX\n30\nREGISTRO DNS CRIADO COM SUCESSO! \nXXX"
@@ -240,7 +240,7 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
 
     echo -e "XXX\n35\nATUALIZANDO CONFIGURAÇÃO DO TUNNEL... \nXXX"
 
-    NEW_SERVICE="http://${nome_app}_web:8000"
+    NEW_SERVICE="http://${nome_app}:3000"
 
     TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
     TMPDIR=$(mktemp -d)
@@ -261,7 +261,7 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
 
     echo -e "XXX\n50\nCONFIGURANDO NOVAS ROTAS... \nXXX"
 
-    jq --arg host "$url_posthog" --arg service "$NEW_SERVICE" '
+    jq --arg host "$url_umami" --arg service "$NEW_SERVICE" '
       (.result.config // {}) as $cfg
       | ($cfg.ingress // []) as $ing
       | ($ing | map(select(.service != "http_status:404"))) as $clean
@@ -288,7 +288,7 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
 
 else
     echo -e "XXX\n10\nVERIFICANDO CONFIGURAÇÃO (TRADICIONAL SEM AUTOMAÇÃO)... \nXXX"
-    if nslookup "$url_posthog" >/dev/null 2>&1; then
+    if nslookup "$url_umami" >/dev/null 2>&1; then
         echo -e "XXX\n15\nDNS CONFIGURADO \nXXX"
     else
         echo -e "XXX\n15\nAVISO: VERIFIQUE A CONFIGURAÇÃO DNS \nXXX"
@@ -296,9 +296,9 @@ else
 fi
 
 
-echo -e "XXX\n21\nCRIANDO STACK DO POSTHOG 1/3 \nXXX"
+echo -e "XXX\n21\nCRIANDO STACK DO UMAMI 1/3 \nXXX"
 sleep 1
-echo -e "XXX\n50\nCRIANDO STACK DO POSTHOG 2/3 \nXXX"
+echo -e "XXX\n50\nCRIANDO STACK DO UMAMI 2/3 \nXXX"
 sleep 1
 
 
@@ -306,232 +306,36 @@ sleep 1
 #
 #######################################################
 #
-#  INSTALANDO O POSTHOG
+#  INSTALANDO O UMAMI
 #
 
 cd
 
 cd
 
-posthog_secret=$(openssl rand -hex 32)
-posthog_salt=$(openssl rand -hex 16)
+umami_secret=$(openssl rand -hex 32)
+postgres_password=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml)
+
+# Criar banco de dados umami
+container_id=$(docker ps -qf name=postgres)
+docker exec $container_id psql -U postgres -d postgres -c "CREATE DATABASE umami;" 2>/dev/null || echo "Aviso: Não foi possível criar o banco de dados, continuando..."
 
 cat > $nome_app.yaml << EOL
 
 version: "3.7"
 services:
-  ${nome_app}_db:
-    image: postgres:15.12-alpine
-    hostname: ${nome_app}_db
-    networks:
-      - interna
-    environment:
-      - POSTGRES_DB=posthog
-      - POSTGRES_USER=posthog
-      - POSTGRES_PASSWORD=${posthog_secret}
-    volumes:
-      - ${nome_app}_pgdata:/var/lib/postgresql/data
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-        - node.role == manager
-      resources:
-        limits:
-          cpus: "1"
-          memory: 1024M
-
-  ${nome_app}_init_db:
-    image: postgres:15.12-alpine
-    hostname: ${nome_app}_init_db
-    networks:
-      - interna
-    entrypoint: >
-      sh -c '
-        echo "Aguardando PostgreSQL ficar pronto..."
-        until pg_isready -h ${nome_app}_db -U posthog -d posthog >/dev/null 2>&1; do
-          sleep 2
-        done
-        echo "PostgreSQL pronto. Verificando banco posthog_persons..."
-        EXISTS=$(psql -h ${nome_app}_db -U posthog -d posthog -tAc "SELECT 1 FROM pg_database WHERE datname='\''posthog_persons'\''")
-        if [ "$EXISTS" != "1" ]; then
-          echo "Criando banco posthog_persons..."
-          psql -h ${nome_app}_db -U posthog -d posthog -c "CREATE DATABASE posthog_persons OWNER posthog;"
-          echo "Banco posthog_persons criado com sucesso!"
-        else
-          echo "Banco posthog_persons ja existe."
-        fi
-      '
-    environment:
-      - PGPASSWORD=${posthog_secret}
-    depends_on:
-      - ${nome_app}_db
-    deploy:
-      restart_policy:
-        condition: none
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-        - node.role == manager
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: 128M
-
-  ${nome_app}_redis:
-    image: redis:7-alpine
-    hostname: ${nome_app}_redis
-    networks:
-      - interna
-    volumes:
-      - ${nome_app}_redis:/data
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-        - node.role == manager
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 256M
-
-  ${nome_app}_zookeeper:
-    image: bitnami/zookeeper:latest
-    hostname: ${nome_app}_zookeeper
-    networks:
-      - interna
-    environment:
-      - ZOOKEEPER_CLIENT_PORT=2181
-      - ZOOKEEPER_TICK_TIME=2000
-    volumes:
-      - ${nome_app}_zookeeper_data:/bitnami/zookeeper
-      - ${nome_app}_zookeeper_log:/bitnami/zookeeper/log
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-        - node.role == manager
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 256M
-
-  ${nome_app}_kafka:
-    image: bitnami/kafka:latest
-    hostname: ${nome_app}_kafka
-    networks:
-      - interna
-    environment:
-      - KAFKA_CFG_ZOOKEEPER_CONNECT=${nome_app}_zookeeper:2181
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://${nome_app}_kafka:9092
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT
-      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
-      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
-      - ALLOW_PLAINTEXT_LISTENER=yes
-    volumes:
-      - ${nome_app}_kafka:/bitnami/kafka
-    depends_on:
-      - ${nome_app}_zookeeper
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-        - node.role == manager
-      resources:
-        limits:
-          cpus: "1"
-          memory: 1024M
-
-  ${nome_app}_clickhouse:
-    image: clickhouse/clickhouse-server:24.3-alpine
-    hostname: ${nome_app}_clickhouse
-    networks:
-      - interna
-    environment:
-      - CLICKHOUSE_DB=posthog
-      - CLICKHOUSE_USER=posthog
-      - CLICKHOUSE_PASSWORD=${posthog_secret}
-      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
-    volumes:
-      - ${nome_app}_clickhouse:/var/lib/clickhouse
-    ulimits:
-      nofile:
-        soft: 262144
-        hard: 262144
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-        - node.role == manager
-      resources:
-        limits:
-          cpus: "2"
-          memory: 2048M
-
-  ${nome_app}_objectstorage:
-    image: minio/minio:latest
-    hostname: ${nome_app}_objectstorage
-    networks:
-      - interna
-    environment:
-      - MINIO_ROOT_USER=object_storage_root_user
-      - MINIO_ROOT_PASSWORD=object_storage_root_password
-    command: server /data --address ":19000" --console-address ":19001"
-    volumes:
-      - ${nome_app}_minio:/data
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-        - node.role == manager
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 256M
-
-  ${nome_app}_web:
-    image: posthog/posthog:latest
-    hostname: ${nome_app}_web
+  $nome_app:
+    image: ghcr.io/umami-software/umami:postgresql-latest
+    hostname: $nome_app
     networks:
       - externa
       - interna
     environment:
-      - DATABASE_URL=postgres://posthog:${posthog_secret}@${nome_app}_db:5432/posthog
-      - REDIS_URL=redis://${nome_app}_redis:6379/
-      - CLICKHOUSE_HOST=${nome_app}_clickhouse
-      - CLICKHOUSE_PORT=8123
-      - CLICKHOUSE_SECURE=false
-      - CLICKHOUSE_DATABASE=posthog
-      - CLICKHOUSE_USER=posthog
-      - CLICKHOUSE_PASSWORD=${posthog_secret}
-      - KAFKA_HOSTS=${nome_app}_kafka:9092
-      - SECRET_KEY=${posthog_secret}
-      - SITE_URL=https://${url_posthog}
-      - OBJECT_STORAGE_ACCESS_KEY_ID=object_storage_root_user
-      - OBJECT_STORAGE_SECRET_ACCESS_KEY=object_storage_root_password
-      - OBJECT_STORAGE_ENDPOINT=http://${nome_app}_objectstorage:19000
-      - OBJECT_STORAGE_BUCKET=posthog
-      - OBJECT_STORAGE_ENABLED=true
-      - OPT_OUT_CAPTURE=false
-      - DEPLOYMENT=hobby
-      - PGHOST=${nome_app}_db
-      - PGPORT=5432
-      - PGDATABASE=posthog
-      - PGUSER=posthog
-      - PGPASSWORD=${posthog_secret}
+      - DATABASE_URL=postgresql://postgres:${postgres_password}@postgres:5432/umami
+      - DATABASE_TYPE=postgresql
+      - APP_SECRET=${umami_secret}
     depends_on:
-      - ${nome_app}_db
-      - ${nome_app}_redis
-      - ${nome_app}_clickhouse
-      - ${nome_app}_kafka
+      - postgres
     deploy:
       mode: replicated
       replicas: 1
@@ -540,25 +344,24 @@ services:
         - node.role == manager
       resources:
         limits:
-          cpus: "2"
-          memory: 2048M
+          cpus: "1"
+          memory: 512M
 EOL
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
 cat >> $nome_app.yaml << EOL
       labels:
       - traefik.enable=true
       - traefik.docker.network=externa
-      - traefik.http.routers.${nome_app}.rule=Host(\`${url_posthog}\`)
-      - traefik.http.routers.${nome_app}.entrypoints=websecure
-      - traefik.http.routers.${nome_app}.priority=1
-      - traefik.http.routers.${nome_app}.tls.certresolver=letsencryptresolver
-      - traefik.http.routers.${nome_app}.tls=true
-      - traefik.http.routers.${nome_app}.service=${nome_app}
-      - traefik.http.services.${nome_app}.loadbalancer.server.port=8000
-      - traefik.http.services.${nome_app}.loadbalancer.passHostHeader=1
+      - traefik.http.routers.$nome_app.rule=Host(\`$url_umami\`)
+      - traefik.http.routers.$nome_app.entrypoints=websecure
+      - traefik.http.routers.$nome_app.priority=1
+      - traefik.http.routers.$nome_app.tls.certresolver=letsencryptresolver
+      - traefik.http.routers.$nome_app.tls=true
+      - traefik.http.routers.$nome_app.service=$nome_app
+      - traefik.http.services.$nome_app.loadbalancer.server.port=3000
+      - traefik.http.services.$nome_app.loadbalancer.passHostHeader=1
 EOL
 fi
-
 cat >> $nome_app.yaml << EOL
 
 networks:
@@ -566,29 +369,6 @@ networks:
     external: true
   interna:
     external: true
-
-volumes:
-  ${nome_app}_pgdata:
-    external: true
-    name: ${nome_app}_pgdata
-  ${nome_app}_redis:
-    external: true
-    name: ${nome_app}_redis
-  ${nome_app}_zookeeper_data:
-    external: true
-    name: ${nome_app}_zookeeper_data
-  ${nome_app}_zookeeper_log:
-    external: true
-    name: ${nome_app}_zookeeper_log
-  ${nome_app}_kafka:
-    external: true
-    name: ${nome_app}_kafka
-  ${nome_app}_clickhouse:
-    external: true
-    name: ${nome_app}_clickhouse
-  ${nome_app}_minio:
-    external: true
-    name: ${nome_app}_minio
 
 EOL
 
@@ -709,15 +489,15 @@ sleep 5
 fi
 
 
-echo -e "XXX\n95\nFINALIZANDO BUILD DO POSTHOG 3/3  \nXXX"
+echo -e "XXX\n95\nFINALIZANDO BUILD DO UMAMI 3/3  \nXXX"
 
 sleep 12
 
-echo -e "XXX\n100\nFINALIZANDO BUILD DO POSTHOG 3/3 - CONCLUIDO  \nXXX"
+echo -e "XXX\n100\nFINALIZANDO BUILD DO UMAMI 3/3 - CONCLUIDO  \nXXX"
 
 sleep 3
 
-}|whiptail --title "POSTHOG - PROGRESSO DA INSTALAÇÃO" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
+}|whiptail --title "UMAMI - PROGRESSO DA INSTALAÇÃO" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
 
 
 #######################################################
@@ -727,18 +507,18 @@ sleep 3
 
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
     ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
-    dns_ip=$(timeout 10 nslookup "$url_posthog" | grep "Address" | tail -n1 | awk '{print $2}' 2>/dev/null)
+    dns_ip=$(timeout 10 nslookup "$url_umami" | grep "Address" | tail -n1 | awk '{print $2}' 2>/dev/null)
 
     if [[ "$dns_ip" != "$ip_servidor" ]]; then
-        whiptail --title "Mensagem" --msgbox "Não foi possivel acessar o dominio do PostHog ($url_posthog). Verifique os apontamentos DNS. Pressione ENTER para voltar ao Menu Principal" 20 78
+        whiptail --title "Mensagem" --msgbox "Não foi possivel acessar o dominio do Umami ($url_umami). Verifique os apontamentos DNS. Pressione ENTER para voltar ao Menu Principal" 20 78
     else
-        whiptail --title "Mensagem" --msgbox "Parabéns, PostHog foi instalado com sucesso!\n\nAcesse: https://$url_posthog\nCrie sua conta no primeiro acesso.\n\n⚠️ O PostHog pode levar 3-5 minutos para inicializar completamente.\n\nPressione ENTER para voltar ao Menu Principal" 22 78
+        whiptail --title "Mensagem" --msgbox "Parabéns, Umami foi instalado com sucesso!\n\nAcesse: https://$url_umami\nUsuário: admin\nSenha: umami\n\n⚠️ Altere a senha após o primeiro login.\n\nPressione ENTER para voltar ao Menu Principal" 22 78
     fi
 else
-    if nslookup "$url_posthog" >/dev/null 2>&1; then
-        whiptail --title "Mensagem" --msgbox "Parabéns, PostHog foi instalado com sucesso!\n\nAcesse: https://$url_posthog\nCrie sua conta no primeiro acesso.\n\n⚠️ O PostHog pode levar 3-5 minutos para inicializar completamente.\n\nPressione ENTER para voltar ao Menu Principal" 22 78
+    if nslookup "$url_umami" >/dev/null 2>&1; then
+        whiptail --title "Mensagem" --msgbox "Parabéns, Umami foi instalado com sucesso!\n\nAcesse: https://$url_umami\nUsuário: admin\nSenha: umami\n\n⚠️ Altere a senha após o primeiro login.\n\nPressione ENTER para voltar ao Menu Principal" 22 78
     else
-        whiptail --title "Mensagem" --msgbox "AVISO: O domínio do PostHog ($url_posthog) não está resolvendo.\nVerifique a configuração do Cloudflare Tunnel.\n\nPressione ENTER para voltar ao Menu Principal" 20 78
+        whiptail --title "Mensagem" --msgbox "AVISO: O domínio do Umami ($url_umami) não está resolvendo.\nVerifique a configuração do Cloudflare Tunnel.\n\nPressione ENTER para voltar ao Menu Principal" 20 78
     fi
 fi
 
