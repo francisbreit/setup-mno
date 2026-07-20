@@ -19,11 +19,12 @@ rm -rf ../3_distribuicao/*
 mkdir -p ../3_distribuicao/x86
 mkdir -p ../3_distribuicao/arm
 
-# 2. Copiar o setup-mno.sh (Texto puro)
-echo "📄 Copiando setup-mno.sh..."
+# 2. Copiar os setup-mno.sh e setup-mno-oracle.sh (Texto puro)
+echo "📄 Copiando setup-mno.sh e setup-mno-oracle.sh..."
 
 # Usa o caminho absoluto garantido
 cp "$BASE_DIR/1_codigo_fonte/setup-mno.sh" "$BASE_DIR/3_distribuicao/"
+cp "$BASE_DIR/1_codigo_fonte/setup-mno-oracle.sh" "$BASE_DIR/3_distribuicao/"
 
 # 3. Zipar os ficheiros x86 com senha
 echo -e "${amarelo}📦 Compactando arquivos x86...${reset}"
