@@ -240,7 +240,7 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
 
     echo -e "XXX\n35\nATUALIZANDO CONFIGURAÇÃO DO TUNNEL... \nXXX"
 
-    NEW_SERVICE="http://${nome_app}_frontend:8080"
+    NEW_SERVICE="http://penpot-frontend:8080"
 
     TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
     TMPDIR=$(mktemp -d)
@@ -319,18 +319,18 @@ cat > $nome_app.yaml << EOL
 
 version: "3.7"
 services:
-  ${nome_app}_frontend:
+  penpot-frontend:
     image: penpotapp/frontend:2.16
-    hostname: ${nome_app}_frontend
+    hostname: penpot-frontend
     networks:
       - externa
       - interna
     volumes:
       - ${nome_app}_assets:/opt/data/assets
     depends_on:
-      - ${nome_app}_backend
-      - ${nome_app}_exporter
-      - ${nome_app}_mcp
+      - penpot-backend
+      - penpot-exporter
+      - penpot-mcp
     environment:
       - PENPOT_FLAGS=disable-email-verification enable-smtp enable-prepl-server disable-secure-session-cookies enable-mcp
       - PENPOT_PUBLIC_URI=https://$url_penpot
@@ -357,7 +357,7 @@ cat >> $nome_app.yaml << EOL
       - traefik.http.routers.${nome_app}.priority=1
       - traefik.http.routers.${nome_app}.tls.certresolver=letsencryptresolver
       - traefik.http.routers.${nome_app}.tls=true
-      - traefik.http.routers.${nome_app}.service=${nome_app}
+      - traefik.http.routers.${nome_app}.service=penpot-frontend
       - traefik.http.services.${nome_app}.loadbalancer.server.port=8080
       - traefik.http.services.${nome_app}.loadbalancer.passHostHeader=1
 EOL
@@ -365,32 +365,32 @@ fi
 
 cat >> $nome_app.yaml << EOL
 
-  ${nome_app}_backend:
+  penpot-backend:
     image: penpotapp/backend:2.16
-    hostname: ${nome_app}_backend
+    hostname: penpot-backend
     networks:
       - interna
     volumes:
       - ${nome_app}_assets:/opt/data/assets
     depends_on:
-      - ${nome_app}_postgres
-      - ${nome_app}_valkey
+      - penpot-postgres
+      - penpot-valkey
     environment:
       - PENPOT_FLAGS=disable-email-verification enable-smtp enable-prepl-server disable-secure-session-cookies enable-mcp
       - PENPOT_PUBLIC_URI=https://${url_penpot}
       - PENPOT_HTTP_SERVER_MAX_BODY_SIZE=367001600
       - PENPOT_SECRET_KEY=${penpot_secret_key}
-      - PENPOT_DATABASE_URI=postgresql://${nome_app}_postgres/penpot
+      - PENPOT_DATABASE_URI=postgresql://penpot-postgres/penpot
       - PENPOT_DATABASE_USERNAME=penpot
       - PENPOT_DATABASE_PASSWORD=penpot
-      - PENPOT_REDIS_URI=redis://${nome_app}_valkey/0
+      - PENPOT_REDIS_URI=redis://penpot-valkey/0
       - PENPOT_OBJECTS_STORAGE_BACKEND=fs
       - PENPOT_OBJECTS_STORAGE_FS_DIRECTORY=/opt/data/assets
       - PENPOT_TELEMETRY_ENABLED=true
       - PENPOT_TELEMETRY_REFERER=compose
       - PENPOT_SMTP_DEFAULT_FROM=no-reply@${url_penpot}
       - PENPOT_SMTP_DEFAULT_REPLY_TO=no-reply@${url_penpot}
-      - PENPOT_SMTP_HOST=${nome_app}_mailcatch
+      - PENPOT_SMTP_HOST=penpot-mailcatch
       - PENPOT_SMTP_PORT=1025
       - PENPOT_SMTP_USERNAME=
       - PENPOT_SMTP_PASSWORD=
@@ -407,9 +407,9 @@ cat >> $nome_app.yaml << EOL
           cpus: "2"
           memory: 2048M
 
-  ${nome_app}_mcp:
+  penpot-mcp:
     image: penpotapp/mcp:2.16
-    hostname: ${nome_app}_mcp
+    hostname: penpot-mcp
     networks:
       - interna
     deploy:
@@ -419,18 +419,18 @@ cat >> $nome_app.yaml << EOL
         constraints:
         - node.role == manager
 
-  ${nome_app}_exporter:
+  penpot-exporter:
     image: penpotapp/exporter:2.16
-    hostname: ${nome_app}_exporter
+    hostname: penpot-exporter
     networks:
       - interna
     depends_on:
-      - ${nome_app}_valkey
+      - penpot-valkey
     environment:
       - PENPOT_SECRET_KEY=${penpot_secret_key}
       - PENPOT_PUBLIC_URI=https://${url_penpot}
-      - PENPOT_INTERNAL_URI=http://${nome_app}_frontend:8080
-      - PENPOT_REDIS_URI=redis://${nome_app}_valkey/0
+      - PENPOT_INTERNAL_URI=http://penpot-frontend:8080
+      - PENPOT_REDIS_URI=redis://penpot-valkey/0
     deploy:
       mode: replicated
       replicas: 1
@@ -438,9 +438,9 @@ cat >> $nome_app.yaml << EOL
         constraints:
         - node.role == manager
 
-  ${nome_app}_postgres:
+  penpot-postgres:
     image: postgres:15
-    hostname: ${nome_app}_postgres
+    hostname: penpot-postgres
     networks:
       - interna
     volumes:
@@ -463,9 +463,9 @@ cat >> $nome_app.yaml << EOL
         constraints:
         - node.role == manager
 
-  ${nome_app}_valkey:
+  penpot-valkey:
     image: valkey/valkey:8.1
-    hostname: ${nome_app}_valkey
+    hostname: penpot-valkey
     networks:
       - interna
     healthcheck:
@@ -483,9 +483,9 @@ cat >> $nome_app.yaml << EOL
         constraints:
         - node.role == manager
 
-  ${nome_app}_mailcatch:
+  penpot-mailcatch:
     image: sj26/mailcatcher:latest
-    hostname: ${nome_app}_mailcatch
+    hostname: penpot-mailcatch
     networks:
       - interna
     expose:
