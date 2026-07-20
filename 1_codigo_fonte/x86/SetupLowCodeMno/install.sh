@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="4.36.0"
+VERSIONSETUP="4.37.0"
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
 CONTATO_GITHUB="github.com/francisbreit"
@@ -305,6 +305,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPEN PROJECT" "" \
     "PAPERCLIP" "" \
     "PENPOT" "" \
+    "POSTHOG" "" \
     "PGADMIN4" "" \
     "PHPMYADMIN" "" \
     "PLANKA" "" \
@@ -427,6 +428,7 @@ case "$CHOICE" in
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PENPOT")                                                run_app penpot ;;
+            "POSTHOG")                                               run_app posthog ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;
@@ -556,6 +558,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPEN PROJECT" "PRO" \
     "PAPERCLIP" "PRO" \
     "PENPOT" "PRO" \
+    "POSTHOG" "PRO" \
     "ROCKET.CHAT" "PRO" \
     "SEARXNG" "PRO" \
     "TWENTY CRM" "PRO" \
@@ -664,6 +667,7 @@ case "$CHOICE" in
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PENPOT")                                                run_app penpot ;;
+            "POSTHOG")                                               run_app posthog ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;
@@ -896,6 +900,7 @@ case "$CHOICE" in
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PENPOT")                                                run_app penpot ;;
+            "POSTHOG")                                               run_app posthog ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;
@@ -1128,6 +1133,7 @@ case "$CHOICE" in
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PENPOT")                                                run_app penpot ;;
+            "POSTHOG")                                               run_app posthog ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
             "PLANKA")                                               run_app planka ;;
