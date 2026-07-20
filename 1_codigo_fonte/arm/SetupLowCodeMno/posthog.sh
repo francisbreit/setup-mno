@@ -331,12 +331,6 @@ services:
       - POSTGRES_PASSWORD=${posthog_secret}
     volumes:
       - ${nome_app}_pgdata:/var/lib/postgresql/data
-    command: >
-      sh -c '
-        echo "CREATE DATABASE posthog_persons;" > /docker-entrypoint-initdb.d/init-persons.sh
-        echo "GRANT ALL PRIVILEGES ON DATABASE posthog_persons TO posthog;" >> /docker-entrypoint-initdb.d/init-persons.sh
-        docker-entrypoint.sh postgres
-      '
     deploy:
       mode: replicated
       replicas: 1
@@ -347,6 +341,44 @@ services:
         limits:
           cpus: "1"
           memory: 1024M
+
+  ${nome_app}_init_db:
+    image: postgres:15.12-alpine
+    hostname: ${nome_app}_init_db
+    networks:
+      - interna
+    entrypoint: >
+      sh -c '
+        echo "Aguardando PostgreSQL ficar pronto..."
+        until pg_isready -h ${nome_app}_db -U posthog -d posthog >/dev/null 2>&1; do
+          sleep 2
+        done
+        echo "PostgreSQL pronto. Verificando banco posthog_persons..."
+        EXISTS=$(psql -h ${nome_app}_db -U posthog -d posthog -tAc "SELECT 1 FROM pg_database WHERE datname='\''posthog_persons'\''")
+        if [ "$EXISTS" != "1" ]; then
+          echo "Criando banco posthog_persons..."
+          psql -h ${nome_app}_db -U posthog -d posthog -c "CREATE DATABASE posthog_persons OWNER posthog;"
+          echo "Banco posthog_persons criado com sucesso!"
+        else
+          echo "Banco posthog_persons ja existe."
+        fi
+      '
+    environment:
+      - PGPASSWORD=${posthog_secret}
+    depends_on:
+      - ${nome_app}_db
+    deploy:
+      restart_policy:
+        condition: none
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+        - node.role == manager
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
 
   ${nome_app}_redis:
     image: redis:7-alpine
