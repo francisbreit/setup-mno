@@ -1,6 +1,6 @@
 #!/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 22:39:34
-VERSIONSETUP="4.34.0"
+VERSIONSETUP="4.35.0"
 
 
 
