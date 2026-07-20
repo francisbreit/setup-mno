@@ -460,10 +460,9 @@ case "$CHOICE" in
             "STIRLING PDF")                                          run_app stirlingpdf ;;
             "TWENTY CRM")                                            warn_heavy "Twenty CRM" "5GB" && run_app twentycrm ;;
             "TYPEBOT")                                               run_app typebot ;;
-            "UMAMI")                                                 run_app umami ;
+            "UMAMI")                                                 run_app umami ;;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
-            "UMAMI")                                                  run_app umami ;
             "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
@@ -700,10 +699,9 @@ case "$CHOICE" in
             "STIRLING PDF")                                          run_app stirlingpdf ;;
             "TWENTY CRM")                                            warn_heavy "Twenty CRM" "5GB" && run_app twentycrm ;;
             "TYPEBOT")                                               run_app typebot ;;
-            "UMAMI")                                                 run_app umami ;
+            "UMAMI")                                                 run_app umami ;;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
-            "UMAMI")                                                  run_app umami ;
             "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
@@ -935,10 +933,9 @@ case "$CHOICE" in
             "STIRLING PDF")                                          run_app stirlingpdf ;;
             "TWENTY CRM")                                            warn_heavy "Twenty CRM" "5GB" && run_app twentycrm ;;
             "TYPEBOT")                                               run_app typebot ;;
-            "UMAMI")                                                 run_app umami ;
+            "UMAMI")                                                 run_app umami ;;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
-            "UMAMI")                                                  run_app umami ;
             "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
@@ -1170,10 +1167,9 @@ case "$CHOICE" in
             "STIRLING PDF")                                          run_app stirlingpdf ;;
             "TWENTY CRM")                                            warn_heavy "Twenty CRM" "5GB" && run_app twentycrm ;;
             "TYPEBOT")                                               run_app typebot ;;
-            "UMAMI")                                                 run_app umami ;
+            "UMAMI")                                                 run_app umami ;;
             "TYPEBOT + MINIO*")                                      run_app typebot_minio ;;
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
-            "UMAMI")                                                  run_app umami ;
             "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
