@@ -253,6 +253,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "AUTOGEN STUDIO" "" \
     "BASEROW" "" \
     "BOTPRESS" "" \
+    "BOOKSTACK" "" \
     "CAL.COM" ""  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" ""   \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
@@ -378,6 +379,7 @@ case "$CHOICE" in
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
             "BOTPRESS")                                              run_app botpress ;;
+            "BOOKSTACK")                                               run_app bookstack ;;
             "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
@@ -535,6 +537,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "AUTOGEN STUDIO" "PRO" \
     "BASEROW" "PRO" \
     "BOTPRESS" "PRO" \
+    "BOOKSTACK" "PRO" \
     "CAL.COM" "PRO"  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
@@ -621,6 +624,7 @@ case "$CHOICE" in
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
             "BOTPRESS")                                              run_app botpress ;;
+            "BOOKSTACK")                                               run_app bookstack ;;
             "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
@@ -746,6 +750,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "AUTOGEN STUDIO" "PRO" \
     "BASEROW" "PRO" \
     "BOTPRESS" "PRO" \
+    "BOOKSTACK" "PRO" \
     "CAL.COM" "PRO"  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" "PRO"   \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
@@ -859,6 +864,7 @@ case "$CHOICE" in
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
             "BOTPRESS")                                              run_app botpress ;;
+            "BOOKSTACK")                                               run_app bookstack ;;
             "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
@@ -984,6 +990,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "AUTOGEN STUDIO" "PRO" \
     "BASEROW" "PRO" \
     "BOTPRESS" "PRO" \
+    "BOOKSTACK" "PRO" \
     "CAL.COM" "PRO"  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" "PRO"   \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
@@ -1097,6 +1104,7 @@ case "$CHOICE" in
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
             "BOTPRESS")                                              run_app botpress ;;
+            "BOOKSTACK")                                               run_app bookstack ;;
             "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
