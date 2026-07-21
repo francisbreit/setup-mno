@@ -352,6 +352,9 @@ fi
 
 senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml)
 
+# Gerar APP_KEY para BookStack (base64 32 bytes)
+bookstack_app_key=$(openssl rand -base64 32)
+
 # Criar banco de dados
 container_id2=$(docker ps --format "{{.Names}}" | grep -q "^mysql$" && docker ps -qf name=mysql)
 if [ -n "$container_id2" ]; then
@@ -373,6 +376,7 @@ services:
       - PGID=1000
       - TZ=America/Sao_Paulo
       - APP_URL=https://${url_bookstack}
+      - APP_KEY=base64:${bookstack_app_key}
       - DB_HOST=mysql
       - DB_PORT=3306
       - DB_DATABASE=bookstack
