@@ -320,11 +320,13 @@ postgres_password=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml)
 # Criar banco no PostgreSQL compartilhado (ANTES do gauge)
 echo "Criando banco fireflyiii no PostgreSQL..."
 container_id=$(docker ps -qf name=postgres)
-docker exec $container_id psql -U postgres -d postgres -c "CREATE DATABASE fireflyiii;" 2>/dev/null
-docker exec $container_id psql -U postgres -d postgres -c "CREATE USER firefly WITH PASSWORD '${firefly_db_pass}';" 2>/dev/null
-docker exec $container_id psql -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE fireflyiii TO firefly;" 2>/dev/null
-docker exec $container_id psql -U postgres -d postgres -c "ALTER DATABASE fireflyiii OWNER TO firefly;" 2>/dev/null
-docker exec $container_id psql -U postgres -d fireflyiii -c "GRANT ALL ON SCHEMA public TO firefly;" 2>/dev/null
+docker exec $container_id psql -U postgres -d postgres -c "DROP DATABASE IF EXISTS fireflyiii;"
+docker exec $container_id psql -U postgres -d postgres -c "DROP USER IF EXISTS firefly;"
+docker exec $container_id psql -U postgres -d postgres -c "CREATE USER firefly WITH PASSWORD '${firefly_db_pass}';"
+docker exec $container_id psql -U postgres -d postgres -c "CREATE DATABASE fireflyiii OWNER firefly;"
+docker exec $container_id psql -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE fireflyiii TO firefly;"
+docker exec $container_id psql -U postgres -d fireflyiii -c "GRANT ALL ON SCHEMA public TO firefly;"
+docker exec $container_id psql -U postgres -d postgres -c "SELECT usename FROM pg_user WHERE usename='firefly';"
 echo "Banco criado com sucesso."
 
 cat > $nome_app.yaml << EOL
