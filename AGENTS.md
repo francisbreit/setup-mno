@@ -227,6 +227,31 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
     rm -rf "$TMPDIR"
     ```
     **NUNCA** use `systemctl restart cloudflared` — o serviço pode não existir.
+13.5. **Verificar rota existente antes de criar (OBRIGATÓRIO):** Para instalações CLOUDFLARE_TUNNEL, SEMPRE verifique se a URL já existe no tunnel antes de criar a rota. O jq DEVE SUBSTITUIR rotas existentes, nunca pular:
+    ```bash
+    # CHECK ANTES DO GAUGE (no input da URL, antes do whiptail gauge)
+    if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+        CHECK_RESPONSE=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+          "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations")
+        EXISTING_HOST=$(echo "$CHECK_RESPONSE" | jq -r --arg h "$url_app" '.result.config.ingress[] | select(.hostname == $h) | .hostname' 2>/dev/null)
+        if [[ -n "$EXISTING_HOST" ]]; then
+            EXISTING_SERVICE=$(echo "$CHECK_RESPONSE" | jq -r --arg h "$url_app" '.result.config.ingress[] | select(.hostname == $h) | .service' 2>/dev/null)
+            whiptail --title "Rota Existente" --msgbox "Já existe uma rota configurada para:\n\nURL: $url_app\nServiço: $EXISTING_SERVICE\n\nA rota será substituída pela nova aplicação." --fb 14 70
+        fi
+    fi
+
+    # JQ DEVE SEMPRE SUBSTITUIR (nunca pular se hostname já existe):
+    jq --arg host "$url_app" --arg service "$NEW_SERVICE" '
+      (.result.config // {}) as $cfg
+      | ($cfg.ingress // []) as $ing
+      | ($ing | map(select(.service != "http_status:404"))) as $clean
+      | ($clean | map(select(.hostname != $host))) as $filtered
+      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
+      | ($merged + [{ service: "http_status:404" }]) as $final_ing
+      | ($cfg + { ingress: $final_ing }) as $newcfg
+      | { config: $newcfg }
+    ' "$BACKUP_RAW" > "$TO_PUT"
+    ```
 14. **Geração do YAML com Labels Condicionais (OBRIGATÓRIO):** O docker-compose.yaml DEVE ser gerado em 3 blocos separados. As labels do Traefik são adicionadas APENAS quando `INSTALL_TYPE = "TRADICIONAL"`. **Este é o erro mais comum e mais difícil de detectar — labels do Traefik no CLOUDFLARE_TUNNEL causam conflito e impedem a stack de ficar editável no Portainer.**
 
     **ATENÇÃO - ANTES de criar o YAML, execute `cd` + `cd` para garantir que o arquivo seja salvo em `/root/`:**
