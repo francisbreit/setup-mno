@@ -488,9 +488,10 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
       # Remover entradas catch-all existentes no meio
       | ($ing | map(select(.service != "http_status:404"))) as $clean
       # Coletar hostnames existentes para evitar duplicatas
-      | ($clean | map(.hostname // "")) as $existing_names
+      
       # Se o novo host já existe, não adicionar duplicata; senão adicionar nova rota
-      | (if ($existing_names | index($host)) then $clean else ($clean + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) end) as $merged
+      | ($clean | map(select(.hostname != $host))) as $filtered
+      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
       # Adicionar exatamente um catch-all
       | ($merged + [{ service: "http_status:404" }]) as $final_ing
       # Construir novo objeto de configuração, preservando outras chaves
@@ -688,9 +689,10 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
       # Remover entradas catch-all existentes no meio
       | ($ing | map(select(.service != "http_status:404"))) as $clean
       # Coletar hostnames existentes para evitar duplicatas
-      | ($clean | map(.hostname // "")) as $existing_names
+      
       # Se o novo host já existe, não adicionar duplicata; senão adicionar nova rota
-      | (if ($existing_names | index($host)) then $clean else ($clean + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) end) as $merged
+      | ($clean | map(select(.hostname != $host))) as $filtered
+      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
       # Adicionar exatamente um catch-all
       | ($merged + [{ service: "http_status:404" }]) as $final_ing
       # Construir novo objeto de configuração, preservando outras chaves
@@ -1081,9 +1083,10 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
       # Remover entradas catch-all existentes no meio
       | ($ing | map(select(.service != "http_status:404"))) as $clean
       # Coletar hostnames existentes para evitar duplicatas
-      | ($clean | map(.hostname // "")) as $existing_names
+      
       # Se o novo host já existe, não adicionar duplicata; senão adicionar nova rota
-      | (if ($existing_names | index($host)) then $clean else ($clean + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) end) as $merged
+      | ($clean | map(select(.hostname != $host))) as $filtered
+      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
       # Adicionar exatamente um catch-all
       | ($merged + [{ service: "http_status:404" }]) as $final_ing
       # Construir novo objeto de configuração, preservando outras chaves
@@ -1283,9 +1286,10 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
       # Remover entradas catch-all existentes no meio
       | ($ing | map(select(.service != "http_status:404"))) as $clean
       # Coletar hostnames existentes para evitar duplicatas
-      | ($clean | map(.hostname // "")) as $existing_names
+      
       # Se o novo host já existe, não adicionar duplicata; senão adicionar nova rota
-      | (if ($existing_names | index($host)) then $clean else ($clean + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) end) as $merged
+      | ($clean | map(select(.hostname != $host))) as $filtered
+      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
       # Adicionar exatamente um catch-all
       | ($merged + [{ service: "http_status:404" }]) as $final_ing
       # Construir novo objeto de configuração, preservando outras chaves
@@ -1411,10 +1415,9 @@ if [ -z "$CONTAINER_ID" ]; then
     whiptail --title "Erro" --msgbox "O container do Minio não foi encontrado após $max_wait_time segundos" 10 60
     exit 0
 fi
-
-
 # aguarda 60 segundos
 sleep 60
+
 
 # Instalar mc (Minio Client) e jq se necessário
 if ! command -v mc &> /dev/null; then
@@ -1789,6 +1792,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
         whiptail --title "Aviso" --msgbox "Instalação concluída, mas $failed_domains domínio(s) podem precisar de ajustes no DNS.\n\nIsso é normal logo após a criação - o DNS pode levar alguns minutos para propagar.\n\nSe o problema persistir, verifique:\n1. Os registros CNAME no Cloudflare\n2. A configuração do Tunnel\n3. As rotas no Cloudflare Tunnel\n\nPressione ENTER para voltar ao Menu Principal" 20 78
     fi
 else
+
     # [Mantém o código existente para INSTALAÇÃO TRADICIONAL]
     ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
     status=0
@@ -1800,7 +1804,7 @@ else
         [[ "$dns_ip2" != "$ip_servidor" ]] && status=1
     fi
 
-    dns_ip3=$(timeout 10 nslookuptimeout 10 nslookup "$builder" 2>/dev/null | grep "Address" | tail -n1 | awk '{print $2}')
+    dns_ip3=$(timeout 10 nslookup "$builder" 2>/dev/null | grep "Address" | tail -n1 | awk '{print $2}')
     dns_ip4=$(timeout 10 nslookup "$viewer" 2>/dev/null | grep "Address" | tail -n1 | awk '{print $2}')
     [[ "$dns_ip3" != "$ip_servidor" ]] && status=1
     [[ "$dns_ip4" != "$ip_servidor" ]] && status=1

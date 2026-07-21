@@ -452,9 +452,10 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
       # Remover entradas catch-all existentes no meio
       | ($ing | map(select(.service != "http_status:404"))) as $clean
       # Coletar hostnames existentes para evitar duplicatas
-      | ($clean | map(.hostname // "")) as $existing_names
+      
       # Se o novo host já existe, não adicionar duplicata; senão adicionar nova rota
-      | (if ($existing_names | index($host)) then $clean else ($clean + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) end) as $merged
+      | ($clean | map(select(.hostname != $host))) as $filtered
+      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
       # Adicionar exatamente um catch-all
       | ($merged + [{ service: "http_status:404" }]) as $final_ing
       # Construir novo objeto de configuração, preservando outras chaves
@@ -654,9 +655,10 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
       # Remover entradas catch-all existentes no meio
       | ($ing | map(select(.service != "http_status:404"))) as $clean
       # Coletar hostnames existentes para evitar duplicatas
-      | ($clean | map(.hostname // "")) as $existing_names
+      
       # Se o novo host já existe, não adicionar duplicata; senão adicionar nova rota
-      | (if ($existing_names | index($host)) then $clean else ($clean + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) end) as $merged
+      | ($clean | map(select(.hostname != $host))) as $filtered
+      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
       # Adicionar exatamente um catch-all
       | ($merged + [{ service: "http_status:404" }]) as $final_ing
       # Construir novo objeto de configuração, preservando outras chaves
@@ -852,9 +854,10 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
       # Remover entradas catch-all existentes no meio
       | ($ing | map(select(.service != "http_status:404"))) as $clean
       # Coletar hostnames existentes para evitar duplicatas
-      | ($clean | map(.hostname // "")) as $existing_names
+      
       # Se o novo host já existe, não adicionar duplicata; senão adicionar nova rota
-      | (if ($existing_names | index($host)) then $clean else ($clean + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) end) as $merged
+      | ($clean | map(select(.hostname != $host))) as $filtered
+      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
       # Adicionar exatamente um catch-all
       | ($merged + [{ service: "http_status:404" }]) as $final_ing
       # Construir novo objeto de configuração, preservando outras chaves
@@ -1624,7 +1627,7 @@ version: "3.7"
 
 services:
   $nome_app_chatwoot-app:
-    image: sendingtk/chatwoot-arm:v3.15.8
+    image: sendingtk/chatwoot:v3.15.8
     hostname: $nome_app_chatwoot
     command: bundle exec rails s -p 3000 -b 0.0.0.0
     entrypoint: docker/entrypoints/rails.sh
@@ -1718,7 +1721,7 @@ EOL
 fi
 cat >> $nome_app_chatwoot.yaml << EOL
   $nome_app_chatwoot-sidekiq:
-    image: sendingtk/chatwoot-arm:v3.15.8
+    image: sendingtk/chatwoot:v3.15.8
     hostname: $nome_app_chatwoot
     command: bundle exec sidekiq -C config/sidekiq.yml
     restart: always

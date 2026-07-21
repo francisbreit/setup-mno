@@ -69,7 +69,7 @@ function msg() {
 
   while true; do
 CHOICE=$(
-whiptail --title "INSTALAÇÃO DO SUPABASE: FERRAMENTA DE BD" --menu "Aperte ENTER para iniciar a instalação do Baserow ou selecione SAIR (Utilize setas e Enter)\n\nTIPO DE INSTALAÇÃO DETECTADO: $INSTALL_TYPE\n\nINSTRUÇÕES:\nAntes de prosseguir, verifique os registros DNS conforme seu tipo de instalação:" 20 70 2 \
+whiptail --title "INSTALAÇÃO DO SUPABASE: FERRAMENTA DE BD" --menu "Aperte ENTER para iniciar a instalação do Baserow ou selecione SAIR (Utilize setas e Enter)\n\nTIPO DE INSTALAÇÃO DETECTADA: $INSTALL_TYPE\n\nINSTRUÇÕES:\nAntes de prosseguir, verifique os registros DNS conforme seu tipo de instalação:" 20 70 2 \
 	"1)" "CONTINUAR"   \
 	"2)" "SAIR"  3>&2 2>&1 1>&3	
 )
@@ -468,9 +468,10 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
       # Remover entradas catch-all existentes no meio
       | ($ing | map(select(.service != "http_status:404"))) as $clean
       # Coletar hostnames existentes para evitar duplicatas
-      | ($clean | map(.hostname // "")) as $existing_names
+      
       # Se o novo host já existe, não adicionar duplicata; senão adicionar nova rota
-      | (if ($existing_names | index($host)) then $clean else ($clean + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) end) as $merged
+      | ($clean | map(select(.hostname != $host))) as $filtered
+      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
       # Adicionar exatamente um catch-all
       | ($merged + [{ service: "http_status:404" }]) as $final_ing
       # Construir novo objeto de configuração, preservando outras chaves

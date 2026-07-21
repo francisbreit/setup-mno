@@ -860,7 +860,7 @@ version: "3.7"
 
 services:
   $nome_app_chatwoot-app:
-    image: sendingtk/chatwoot-arm:v3.15.7
+    image: francisbreit/chatwoot-n:v3.10.3-pt-br
     hostname: $nome_app_chatwoot
     command: bundle exec rails s -p 3000 -b 0.0.0.0
     entrypoint: docker/entrypoints/rails.sh
@@ -944,7 +944,7 @@ services:
         - traefik.http.routers.$nome_app_chatwoot.middlewares=$nome_app_chatwoot_sslheader@docker
 
   $nome_app_chatwoot-sidekiq:
-    image: sendingtk/chatwoot-arm:v3.15.7
+    image: francisbreit/chatwoot-n:v3.10.3-pt-br
     hostname: $nome_app_chatwoot
     command: bundle exec sidekiq -C config/sidekiq.yml
     volumes:
@@ -1598,3 +1598,4 @@ whiptail --title "Mensagem" --msgbox "Não foi possivel acessar um ou mais subdo
 
 
 exit 0
+

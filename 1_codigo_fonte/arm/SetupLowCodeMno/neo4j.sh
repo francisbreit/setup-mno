@@ -258,8 +258,9 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
       (.result.config // {}) as $cfg
       | ($cfg.ingress // []) as $ing
       | ($ing | map(select(.service != "http_status:404"))) as $clean
-      | ($clean | map(.hostname // "")) as $existing_names
-      | (if ($existing_names | index($host)) then $clean else ($clean + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) end) as $merged
+      
+      | ($clean | map(select(.hostname != $host))) as $filtered
+      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
       | ($merged + [{ service: "http_status:404" }]) as $final_ing
       | ($cfg + { ingress: $final_ing }) as $newcfg
       | { config: $newcfg }

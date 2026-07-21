@@ -53,7 +53,7 @@ function msg() {
 
 while true; do
 CHOICE=$(
-whiptail --title "GERADOR DE REGISTROS DE DNS (CLOUDFLARE)" --menu "Aperte ENTER para iniciar o Gerador automático ou manual de registros de Dns (compatível com Cloudflare) ou selecione SAIR (Utilize setas e Enter)\nINSTRUÇÕES\nAntes de instalar ferramentas você precisa ter apontados todos os registros de DNS para todos os subdominios.\nSe você usa Cloudflare, use esse gerador para criar todos os apontamentos de Dns de suas aplicações, para este servidor.\nBasta informar os subdominios.\nObservação: Você precisa ter uma conta ativa com seu dominio e um token de API com permissões para modificar DNS." 20 70 2 \
+whiptail --title "GERADOR DE REGISTROS DE DNS (CLOUDFLARE)" --menu "Aperte ENTER para iniciar o Gerador automático ou manual de registros de Dns (compatível com Cloudflare) ou selecione SAIR (Utilize setas e Enter)\nINSTRUÇÕES\nO Setup MNO precisa que sejam apontados todos os registros de DNS.\nSe você usa Cloudflare, use esse gerador para criar todos os apontamentos de Dns de suas aplicações, para este servidor.\nBasta informar os subdominios.\nObservação: Para o modo gerador automático de registros, você precisa ter uma conta ativa na Cloudflare com seu dominio e um token de API com permissões para modificar DNS." 20 70 2 \
 	"1)" "CONTINUAR"   \
 	"2)" "SAIR"  3>&2 2>&1 1>&3	
 )
@@ -119,18 +119,28 @@ fi
 #
 
 dominio_principal=""
-while [[ -z $dominio_principal ]]; do
-    dominio_principal=$(whiptail --title "DOMÍNIO PRINCIPAL" --inputbox "Digite o domínio principal (sem https:// ou www . Exemplo: seudominio.com.br):" --fb 10 70 3>&1 1>&2 2>&3)
-    if [[ $dominio_principal =~ https://|www ]]; then
-        msg "O domínio não pode conter 'https://' ou 'www'."
-        dominio_principal=""
-    fi
-done
+
+      while true ; do
+		dominio_principal=$(whiptail --title "DOMÍNIO PRINCIPAL" --inputbox "Digite o domínio principal (sem https:// ou www . Exemplo: seudominio.com.br):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
+		if [[ $saida -eq '0' ]] ; then
+		#	if [[ -z $usuariomq ]] ; then msg "Digite o usuário do Rabbitmq para poder continuar" ; continue ; else break; fi
+		if [[ (-z $dominio_principal) || (${#dominio_principal} -gt 100) || ($dominio_principal =~ https://|www) ]] ; then msg "Digite o dominio principal, sem caracteres especiais, sem https:// ou www e com até 100 digitos para poder continuar" ; continue ; else break; fi
+    else
+			echo $dominio_principal ; echo "saindo..."  &  exit 0 ;
+		fi
+	done
 
 nome_do_servidor=""
-while [[ -z $nome_do_servidor ]]; do
-    nome_do_servidor=$(whiptail --title "NOME DO SERVIDOR" --inputbox "Digite o nome do servidor c/ letras minúsculas, sem acento e sem o dominio (exemplo: manager1, server02, etc):" --fb 10 70 3>&1 1>&2 2>&3)
-done
+
+      while true ; do
+		nome_do_servidor=$(whiptail --title "NOME DO SERVIDOR" --inputbox "Digite o nome do servidor c/ letras minúsculas, sem acento e sem o dominio (exemplo: manager1, server02, etc):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
+		if [[ $saida -eq '0' ]] ; then
+		#	if [[ -z $usuariomq ]] ; then msg "Digite o usuário do Rabbitmq para poder continuar" ; continue ; else break; fi
+		if [[ (-z $nome_do_servidor) || ("$nome_do_servidor" =~ [^a-zA-Z0-9]) || (${#nome_do_servidor} -gt 50) ]] ; then msg "Digite o nome do servidor, sem caracteres especiais e até 50 digitos para poder continuar" ; continue ; else break; fi
+    else
+			echo $nome_do_servidor ; echo "saindo..."  &  exit 0 ;
+		fi
+	done
 
 #########################################################
 #
@@ -160,9 +170,10 @@ done
 # SELEÇÃO DO MÉTODO DE CONFIGURAÇÃO DO DNS
 #
 
-metodo_dns=$(whiptail --title "MÉTODO DE CONFIGURAÇÃO DNS" --menu "Escolha como deseja configurar os registros DNS:" 15 70 2 \
+metodo_dns=$(whiptail --title "MÉTODO DE CONFIGURAÇÃO DNS" --menu "Escolha como deseja configurar os registros DNS:" 20 70 3 \
     "1)" "Configuração Manual (Gerar arquivo para importação)" \
-    "2)" "Configuração Automática (Via API Cloudflare)" 3>&2 2>&1 1>&3)
+    "2)" "Configuração Automática (Via API Cloudflare)" \
+    "3)" "Sair" 3>&2 2>&1 1>&3)
 
 case $metodo_dns in
     "1)")
@@ -401,6 +412,13 @@ case $metodo_dns in
 
         whiptail --title "RESULTADO DA CONFIGURAÇÃO DNS" --msgbox "$mensagem_resultado" 20 78
         ;;
+
+    	"3)") 
+        cd /
+        cd
+        exit 0
+        ;; 
+
 esac
 
 exit 0

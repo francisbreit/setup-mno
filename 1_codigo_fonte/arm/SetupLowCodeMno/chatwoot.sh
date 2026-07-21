@@ -185,7 +185,7 @@ while true; do
     if [[ "$confirma1" =~ ^[yY]$ ]]; then
         break
     elif [[ "$confirma1" =~ ^[nN]$ ]]; then
-        msg "Você digitou N e não confirmou os dados preenchidos. Tecle Enter para sair da instalação"
+        msg "Você digitou N e não confirmou os dados preenchidos. Tecle Enter para sair da instalação do Minio"
         exit 0
     else
         msg "Entrada inválida! Por favor, use apenas 'y' para sim ou 'n' para não. Digite Enter para continuar"
@@ -278,7 +278,7 @@ version: "3.7"
 
 services:
   $nome_app_chatwoot-app:
-    image: sendingtk/chatwoot-arm:v3.10.3
+    image: francisbreit/chatwoot-n:v3.10.3-pt-br
     hostname: $nome_app_chatwoot
     command: bundle exec rails s -p 3000 -b 0.0.0.0
     entrypoint: docker/entrypoints/rails.sh
@@ -294,6 +294,10 @@ services:
       - INSTALLATION_NAME=$nome_app_chatwoot
       - NODE_ENV=production
       - RAILS_ENV=production
+      - DISABLE_DATABASE_ENVIRONMENT_CHECK=1
+      - ENABLE_DB_POOLING=true
+      - DB_POOL=10  # Deve ser <= max_client_conn do PgBouncer
+      - PGSSLMODE=disable  # Se não usar SSL
       - INSTALLATION_ENV=docker
       - SECRET_KEY_BASE=$encryption_key
       - FRONTEND_URL=https://$dominiochat
@@ -306,6 +310,7 @@ services:
       - POSTGRES_USERNAME=postgres
       - POSTGRES_PASSWORD=$postgres_password
       - POSTGRES_DATABASE=$nome_app_chatwoot
+      - DATABASE_URL=postgresql://postgres:$postgres_password@postgres:5432/$nome_app_chatwoot?prepared_statements=false
       - ACTIVE_STORAGE_SERVICE=local
       - RAILS_LOG_TO_STDOUT=true
       - USE_INBOX_AVATAR_FOR_BOT=true
@@ -347,7 +352,7 @@ services:
         - traefik.http.routers.$nome_app_chatwoot.middlewares=$nome_app_chatwoot_sslheader@docker
 
   $nome_app_chatwoot-sidekiq:
-    image: sendingtk/chatwoot-arm:v3.10.3
+    image: francisbreit/chatwoot-n:v3.10.3-pt-br
     hostname: $nome_app_chatwoot
     command: bundle exec sidekiq -C config/sidekiq.yml
     volumes:
@@ -363,6 +368,10 @@ services:
       - INSTALLATION_NAME=$nome_app_chatwoot
       - NODE_ENV=production
       - RAILS_ENV=production
+      - DISABLE_DATABASE_ENVIRONMENT_CHECK=1
+      - ENABLE_DB_POOLING=true
+      - DB_POOL=10  # Deve ser <= max_client_conn do PgBouncer
+      - PGSSLMODE=disable  # Se não usar SSL
       - INSTALLATION_ENV=docker
       - SECRET_KEY_BASE=$encryption_key
       - FRONTEND_URL=https://$dominiochat
@@ -375,6 +384,7 @@ services:
       - POSTGRES_USERNAME=postgres
       - POSTGRES_PASSWORD=$postgres_password
       - POSTGRES_DATABASE=$nome_app_chatwoot
+      - DATABASE_URL=postgresql://postgres:$postgres_password@postgres:5432/$nome_app_chatwoot?prepared_statements=false
       - ACTIVE_STORAGE_SERVICE=local
       - RAILS_LOG_TO_STDOUT=true
       - USE_INBOX_AVATAR_FOR_BOT=true

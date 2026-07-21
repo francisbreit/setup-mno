@@ -69,7 +69,7 @@ function msg() {
 
   while true; do
 CHOICE=$(
-whiptail --title "INSTALAÇÃO DO N8N V1 SEM FILA: PLATAFORMA DE AUTOMAÇÃO" --menu "Aperte ENTER para iniciar a instalação do N8N SEM FILA ou selecione SAIR (Utilize setas e Enter)\n\nTIPO DE INSTALAÇÃO DETECTADA: $INSTALL_TYPE\n\nINSTRUÇÕES:\nAntes de prosseguir, verifique os registros DNS conforme seu tipo de instalação:" 20 70 2 \
+whiptail --title "INSTALAÇÃO DO N8N V1 SEM FILA: PLATAFORMA DE AUTOMAÇÃO" --menu "Aperte ENTER para iniciar a instalação do N8N V1 SEM FILA ou selecione SAIR (Utilize setas e Enter)\n\nTIPO DE INSTALAÇÃO DETECTADA: $INSTALL_TYPE\n\nINSTRUÇÕES:\nAntes de prosseguir, verifique os registros DNS conforme seu tipo de instalação:" 20 70 2 \
 	"1)" "CONTINUAR"   \
 	"2)" "SAIR"  3>&2 2>&1 1>&3	
 )
@@ -334,9 +334,10 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
       # Remover entradas catch-all existentes no meio
       | ($ing | map(select(.service != "http_status:404"))) as $clean
       # Coletar hostnames existentes para evitar duplicatas
-      | ($clean | map(.hostname // "")) as $existing_names
+      
       # Se o novo host já existe, não adicionar duplicata; senão adicionar nova rota
-      | (if ($existing_names | index($host)) then $clean else ($clean + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) end) as $merged
+      | ($clean | map(select(.hostname != $host))) as $filtered
+      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
       # Adicionar exatamente um catch-all
       | ($merged + [{ service: "http_status:404" }]) as $final_ing
       # Construir novo objeto de configuração, preservando outras chaves
@@ -716,14 +717,14 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
     if [[ "$dns_ip" != "$ip_servidor" ]]; then
         whiptail --title "Mensagem" --msgbox "Não foi possivel acessar o dominio do N8N em modo regular ($dominioadmin). A instalação foi cancelada. Por favor, verifique se os apontamentos DNS estão corretos e propagados!. Depois, instale novamente. Pressione ENTER para voltar ao Menu Principal" 20 78
     else
-        whiptail --title "Mensagem" --msgbox "Parabéns, N8N em modo regular foi instalado com sucesso!\n\nAcesse: https://$dominioadmin\n\nPressione ENTER para voltar ao Menu Principal" 20 78
+        whiptail --title "Mensagem" --msgbox "Parabéns, N8N V1 em modo regular foi instalado com sucesso!\n\nAcesse: https://$dominioadmin\n\nPressione ENTER para voltar ao Menu Principal" 20 78
     fi
 else
     # Para Cloudflare Tunnel, verificação mais simples
     if timeout 10 nslookup "$dominioadmin" >/dev/null 2>&1; then
-        whiptail --title "Mensagem" --msgbox "Parabéns, N8N em modo regular foi instalado com sucesso!\n\nAcesse: https://$dominioadmin\n\nConfiguração Cloudflare Tunnel concluída com rotas e DNS.\n\nPressione ENTER para voltar ao Menu Principal" 20 78
+        whiptail --title "Mensagem" --msgbox "Parabéns, N8N V1 em modo regular foi instalado com sucesso!\n\nAcesse: https://$dominioadmin\n\nConfiguração Cloudflare Tunnel concluída com rotas e DNS.\n\nPressione ENTER para voltar ao Menu Principal" 20 78
     else
-        whiptail --title "Mensagem" --msgbox "AVISO: O domínio do N8N em modo regular ($dominioadmin) não está resolvendo.\nVerifique a configuração do Cloudflare Tunnel.\n\nA instalação foi concluída, mas o acesso pode não funcionar até que o DNS esteja configurado corretamente.\n\nPressione ENTER para voltar ao Menu Principal" 20 78
+        whiptail --title "Mensagem" --msgbox "AVISO: O domínio do N8N V1 em modo regular ($dominioadmin) não está resolvendo.\nVerifique a configuração do Cloudflare Tunnel.\n\nA instalação foi concluída, mas o acesso pode não funcionar até que o DNS esteja configurado corretamente.\n\nPressione ENTER para voltar ao Menu Principal" 20 78
     fi
 fi
 

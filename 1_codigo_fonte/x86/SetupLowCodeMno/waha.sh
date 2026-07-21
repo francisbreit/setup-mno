@@ -113,6 +113,17 @@ while true ; do
     fi
 done
 
+# Verificar se URL já existe no Cloudflare Tunnel (ANTES do gauge)
+if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+    CHECK_RESPONSE=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+      "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations")
+    EXISTING_HOST=$(echo "$CHECK_RESPONSE" | jq -r --arg h "$url_waha" '.result.config.ingress[] | select(.hostname == $h) | .hostname' 2>/dev/null)
+    if [[ -n "$EXISTING_HOST" ]]; then
+        EXISTING_SERVICE=$(echo "$CHECK_RESPONSE" | jq -r --arg h "$url_waha" '.result.config.ingress[] | select(.hostname == $h) | .service' 2>/dev/null)
+        whiptail --title "Rota Existente" --msgbox "Já existe uma rota configurada para:\n\nURL: $url_waha\nServiço atual: $EXISTING_SERVICE\n\nA rota será substituída pela nova aplicação." --fb 14 70
+    fi
+fi
+
 while true ; do
     criar_portainer=$(whiptail --title "4/5 - Criar Stack no Portainer?" --inputbox "Digite 0 para criar stack editável no Portainer ou 1 para criar direto no Docker:" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
     if [[ $saida -eq '0' ]] ; then
@@ -286,8 +297,9 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
       (.result.config // {}) as $cfg
       | ($cfg.ingress // []) as $ing
       | ($ing | map(select(.service != "http_status:404"))) as $clean
-      | ($clean | map(.hostname // "")) as $existing_names
-      | (if ($existing_names | index($host)) then $clean else ($clean + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) end) as $merged
+      
+      | ($clean | map(select(.hostname != $host))) as $filtered
+      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
       | ($merged + [{ service: "http_status:404" }]) as $final_ing
       | ($cfg + { ingress: $final_ing }) as $newcfg
       | { config: $newcfg }

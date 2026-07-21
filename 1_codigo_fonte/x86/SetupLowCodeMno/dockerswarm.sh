@@ -1080,9 +1080,10 @@ jq --arg host "$dominio" --arg service "$NEW_SERVICE" '
   # remove any existing catch-all entries in the middle
   | ($ing | map(select(.service != "http_status:404"))) as $clean
   # gather existing hostnames for dedupe (empty string for entries that have no hostname)
-  | ($clean | map(.hostname // "")) as $existing_names
+  
   # if new host already present, do not append duplicate; else append new route
-  | (if ($existing_names | index($host)) then $clean else ($clean + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) end) as $merged
+  | ($clean | map(select(.hostname != $host))) as $filtered
+      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
   # append exactly one catch-all
   | ($merged + [{ service: "http_status:404" }]) as $final_ing
   # construct new config object, preserve other keys in config (warp-routing, etc.)

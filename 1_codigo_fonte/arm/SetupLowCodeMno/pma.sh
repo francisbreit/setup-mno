@@ -281,9 +281,10 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
       # Remover entradas catch-all existentes no meio
       | ($ing | map(select(.service != "http_status:404"))) as $clean
       # Coletar hostnames existentes para evitar duplicatas
-      | ($clean | map(.hostname // "")) as $existing_names
+      
       # Se o novo host já existe, não adicionar duplicata; senão adicionar nova rota
-      | (if ($existing_names | index($host)) then $clean else ($clean + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) end) as $merged
+      | ($clean | map(select(.hostname != $host))) as $filtered
+      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
       # Adicionar exatamente um catch-all
       | ($merged + [{ service: "http_status:404" }]) as $final_ing
       # Construir novo objeto de configuração, preservando outras chaves
@@ -396,7 +397,7 @@ version: "3.7"
 
 services:
   $nome_app:
-    image: arm64v8/phpmyadmin:latest
+    image: phpmyadmin/phpmyadmin:latest
     networks: 
       - externa
       - interna
@@ -605,7 +606,7 @@ fi
 
 echo -e "XXX\n95\nFINALIZANDO BUILD DO PHPMYADMIN 4/4  \nXXX"
 
-sleep 2
+sleep 12
 
 echo -e "XXX\n100\nINSTALAÇÃO DO PHPMYADMIN 4/4 - CONCLUIDO  \nXXX"
 

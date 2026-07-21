@@ -334,9 +334,10 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
       # Remover entradas catch-all existentes no meio
       | ($ing | map(select(.service != "http_status:404"))) as $clean
       # Coletar hostnames existentes para evitar duplicatas
-      | ($clean | map(.hostname // "")) as $existing_names
+      
       # Se o novo host já existe, não adicionar duplicata; senão adicionar nova rota
-      | (if ($existing_names | index($host)) then $clean else ($clean + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) end) as $merged
+      | ($clean | map(select(.hostname != $host))) as $filtered
+      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
       # Adicionar exatamente um catch-all
       | ($merged + [{ service: "http_status:404" }]) as $final_ing
       # Construir novo objeto de configuração, preservando outras chaves
@@ -468,7 +469,7 @@ services:
       - NEXTAUTH_URL=https://$url_formbricks
 
       ## Banco de dados Postgres
-      - DATABASE_URL=postgresql://postgres:$postgres_password@postgres:5432/$nome_app?schema=public
+      - DATABASE_URL=postgres://postgres:$postgres_password@postgres:5432/$nome_app
 
       ## Licença Enterprise ou Self-hosting
       ## Solicitar licenta Self-hosting --> https://manualnegocioonline.com.br/formbricks_licence/ <-- ##

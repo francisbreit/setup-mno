@@ -173,7 +173,7 @@ cat > mysql.yaml << EOL
 version: '3.7'
 services:
     mysql:
-        image: percona/percona-server:8.0.39-30.1-multi
+        image: percona/percona-server:8.0
         environment:
             - MYSQL_ROOT_PASSWORD=$senha_mysql
             - TZ=America/Fortaleza
@@ -379,4 +379,5 @@ else
 whiptail --msgbox "Atenção: Já havia um Mysql instalado e o mesmo foi mantido! Pressione ENTER para voltar ao Menu Principal" 20 78
 
 fi
+
 exit 0

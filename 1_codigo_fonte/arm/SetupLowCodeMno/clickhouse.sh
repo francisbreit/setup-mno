@@ -119,6 +119,17 @@ done
 	done
 
 # Pergunta ao usuário se deseja criar a stack no Portainer
+# Verificar se URL já existe no Cloudflare Tunnel (ANTES do gauge)
+if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+    CHECK_RESPONSE=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+      "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations")
+    EXISTING_HOST=$(echo "$CHECK_RESPONSE" | jq -r --arg h "$url_clickhouse" '.result.config.ingress[] | select(.hostname == $h) | .hostname' 2>/dev/null)
+    if [[ -n "$EXISTING_HOST" ]]; then
+        EXISTING_SERVICE=$(echo "$CHECK_RESPONSE" | jq -r --arg h "$url_clickhouse" '.result.config.ingress[] | select(.hostname == $h) | .service' 2>/dev/null)
+        whiptail --title "Rota Existente" --msgbox "Já existe uma rota configurada para:\n\nURL: $url_clickhouse\nServiço atual: $EXISTING_SERVICE\n\nA rota será substituída pela nova aplicação." --fb 14 70
+    fi
+fi
+
 while true ; do
     criar_portainer=$(whiptail --title "Criar Stack no Portainer? - 0 ou 1" --inputbox "Digite 0 para poder editar a stack no Portainer ou 1 para não poder editar:" --fb 12 60 3>&1 1>&2 2>&3) 
     saida=$?
@@ -336,9 +347,10 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
       # Remover entradas catch-all existentes no meio
       | ($ing | map(select(.service != "http_status:404"))) as $clean
       # Coletar hostnames existentes para evitar duplicatas
-      | ($clean | map(.hostname // "")) as $existing_names
+      
       # Se o novo host já existe, não adicionar duplicata; senão adicionar nova rota
-      | (if ($existing_names | index($host)) then $clean else ($clean + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) end) as $merged
+      | ($clean | map(select(.hostname != $host))) as $filtered
+      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
       # Adicionar exatamente um catch-all
       | ($merged + [{ service: "http_status:404" }]) as $final_ing
       # Construir novo objeto de configuração, preservando outras chaves
@@ -699,7 +711,4 @@ else
 fi
 
 exit 0
-
-
-
 
