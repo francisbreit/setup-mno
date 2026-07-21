@@ -325,6 +325,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPENFANG" "" \
     "OPEN PROJECT" "" \
     "PAPERCLIP" "" \
+    "PAPERLESS" "" \
     "PENPOT" "" \
     "PGADMIN4" "" \
     "PHPMYADMIN" "" \
@@ -451,6 +452,7 @@ case "$CHOICE" in
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
+            "PAPERLESS")                                               run_app paperless ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
@@ -585,6 +587,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPENFANG" "PRO" \
     "OPEN PROJECT" "PRO" \
     "PAPERCLIP" "PRO" \
+    "PAPERLESS" "PRO" \
     "PENPOT" "PRO" \
     "ROCKET.CHAT" "PRO" \
     "SEARXNG" "PRO" \
@@ -696,6 +699,7 @@ case "$CHOICE" in
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
+            "PAPERLESS")                                               run_app paperless ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
@@ -812,6 +816,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPENFANG" "PRO" \
     "OPEN PROJECT" "PRO" \
     "PAPERCLIP" "PRO" \
+    "PAPERLESS" "PRO" \
     "PENPOT" "PRO" \
     "PHPMYADMIN" "PRO" \
     "PLANKA" "PRO" \
@@ -936,6 +941,7 @@ case "$CHOICE" in
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
+            "PAPERLESS")                                               run_app paperless ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
@@ -1052,6 +1058,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPENFANG" "PRO" \
     "OPEN PROJECT" "PRO" \
     "PAPERCLIP" "PRO" \
+    "PAPERLESS" "PRO" \
     "PENPOT" "PRO" \
     "PHPMYADMIN" "PRO" \
     "PLANKA" "PRO" \
@@ -1176,6 +1183,7 @@ case "$CHOICE" in
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
+            "PAPERLESS")                                               run_app paperless ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;

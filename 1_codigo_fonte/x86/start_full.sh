@@ -1080,6 +1080,10 @@ shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou.
 rm bookstack.sh
 rm bookstack.sh.x.c
 
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o paperless -f paperless.sh
+rm paperless.sh
+rm paperless.sh.x.c
+
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o fireflyiii -f fireflyiii.sh
 rm fireflyiii.sh
 rm fireflyiii.sh.x.c
