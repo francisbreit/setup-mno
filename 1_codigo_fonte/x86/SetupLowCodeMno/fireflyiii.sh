@@ -313,7 +313,7 @@ cd
 
 cd
 
-firefly_secret=$(openssl rand -hex 32)
+firefly_secret=$(openssl rand -base64 32)
 postgres_password=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml)
 
 # Criar banco no PostgreSQL compartilhado
