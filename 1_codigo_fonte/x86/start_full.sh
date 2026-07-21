@@ -1076,13 +1076,6 @@ shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou.
 rm actualbudget.sh
 rm actualbudget.sh.x.c
 
-shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o plausible -f plausible.sh
-rm plausible.sh
-rm plausible.sh.x.c
-if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
-rm plausible
-fi
-
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o fireflyiii -f fireflyiii.sh
 rm fireflyiii.sh
 rm fireflyiii.sh.x.c
