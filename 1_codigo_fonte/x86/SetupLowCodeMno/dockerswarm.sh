@@ -460,6 +460,17 @@ fi
                 fi
         done
 
+# Verificar se URL já existe no Cloudflare Tunnel
+if [ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ]; then
+    CHECK_RESPONSE=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+      "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations")
+    EXISTING_HOST=$(echo "$CHECK_RESPONSE" | jq -r --arg h "$dominio" '.result.config.ingress[] | select(.hostname == $h) | .hostname' 2>/dev/null)
+    if [[ -n "$EXISTING_HOST" ]]; then
+        EXISTING_SERVICE=$(echo "$CHECK_RESPONSE" | jq -r --arg h "$dominio" '.result.config.ingress[] | select(.hostname == $h) | .service' 2>/dev/null)
+        whiptail --title "Rota Existente" --msgbox "Já existe uma rota configurada para:\n\nURL: $dominio\nServiço: $EXISTING_SERVICE\n\nA rota será substituída pela nova aplicação." --fb 14 70
+    fi
+fi
+
     while true ; do
                 usuariopt=$(whiptail --title "Crie o Usuário do Portainer" --inputbox "Digite o Usuario do Portainer(ex: Nome):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
                 if [[ $saida -eq '0' ]] ; then
@@ -1901,19 +1912,6 @@ if [ "$INSTALL_CHOICE" = "TRADICIONAL" ]; then
     fi
 else
     # Para Cloudflare Tunnel, apenas verificar se o domínio resolve
-    if ! nslookup "$dominio" >/dev/null 2>&1; then
-        whiptail --title "Mensagem" --msgbox "Não foi possivel resolver o dominio do Portainer ($dominio). Verifique se o domínio está configurado no Cloudflare. Pressione ENTER para sair." 20 78
-        $SHELL
-    else
-        exit 0
-    fi
-fi
-
-# FIM DE MENSAGEM DE INSTALADO + DADOS
-
-# USUARIO PREENCHEU DADOS ERRADOS
-
-# Para Cloudflare Tunnel, apenas verificar se o domínio resolve
     if ! nslookup "$dominio" >/dev/null 2>&1; then
         whiptail --title "Mensagem" --msgbox "Não foi possivel resolver o dominio do Portainer ($dominio). Verifique se o domínio está configurado no Cloudflare. Pressione ENTER para sair." 20 78
         $SHELL
