@@ -556,6 +556,7 @@ Após criar o script da ferramenta em ambas as arquiteturas:
    - Atualizar contadores: Total de Setups, Total X86, Total ARM
    - Adicionar campo de compatibilidade (X86 e ARM ou X86)
    - **Atualizar versão e data** no subtítulo (ex: "Versão 4.25.0 | Atualizado em Julho/2026")
+   - **⚠️ REGRA DE INSERÇÃO:** NUNCA usar `c.replace('tool-name">NOME'` para inserir cards — isso cria tags `<div class="tool-card">` vazias e perde a tag de abertura do card seguinte. SEMPRE usar `grep -n` para encontrar a linha exata do card ANTERIOR ao ponto de inserção, e usar `sed -i` com o contexto completo da linha `</div>` + `<div class="tool-card">` + `<div class="tool-name">NOME_ANTERIOR`. Após inserir, verificar com `grep -c tool-card` e `grep -c tool-name` que os números são iguais.
 5. **Empacotamento:** Rode `./2_empacotador/gerar_distribuicao.sh`.
 6. **Git:** Faça commit das alterações com mensagem descritiva (ex: `feat: adicionar Keycloak (IAM/SSO)`).
 
