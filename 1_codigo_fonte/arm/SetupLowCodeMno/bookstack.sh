@@ -317,9 +317,9 @@ cd
 cd
 
 # Verificar se MySQL já existe
-mysql_container=$(docker ps --format "{{.Names}}" | grep -q "^mysql$")
-if [[ ("$mysql_container" == "") ]]; then
-    senha_mysql=$(openssl rand -hex 8)
+if docker ps -a --format "{{.Names}}" | grep -q "^mysql$"; then
+    senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml)
+else
 
     cat > mysql.yaml << EOL
 version: '3.7'
