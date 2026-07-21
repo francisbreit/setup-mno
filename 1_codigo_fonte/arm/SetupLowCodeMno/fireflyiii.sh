@@ -313,16 +313,19 @@ cd
 
 cd
 
-firefly_secret=$(openssl rand -base64 32)
+firefly_db_pass=$(openssl rand -hex 32)
+firefly_app_key=$(openssl rand -base64 32)
 postgres_password=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml)
 
-# Criar banco no PostgreSQL compartilhado
+# Criar banco no PostgreSQL compartilhado (ANTES do gauge)
+echo "Criando banco fireflyiii no PostgreSQL..."
 container_id=$(docker ps -qf name=postgres)
 docker exec $container_id psql -U postgres -d postgres -c "CREATE DATABASE fireflyiii;" 2>/dev/null
-docker exec $container_id psql -U postgres -d postgres -c "CREATE USER firefly WITH PASSWORD '${firefly_secret}';" 2>/dev/null
+docker exec $container_id psql -U postgres -d postgres -c "CREATE USER firefly WITH PASSWORD '${firefly_db_pass}';" 2>/dev/null
 docker exec $container_id psql -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE fireflyiii TO firefly;" 2>/dev/null
 docker exec $container_id psql -U postgres -d postgres -c "ALTER DATABASE fireflyiii OWNER TO firefly;" 2>/dev/null
 docker exec $container_id psql -U postgres -d fireflyiii -c "GRANT ALL ON SCHEMA public TO firefly;" 2>/dev/null
+echo "Banco criado com sucesso."
 
 cat > $nome_app.yaml << EOL
 
@@ -337,14 +340,14 @@ services:
     depends_on:
       - postgres
     environment:
-      - APP_KEY=base64:${firefly_secret}
+      - APP_KEY=base64:${firefly_app_key}
       - APP_URL=https://${url_firefly}
       - DB_CONNECTION=pgsql
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_DATABASE=fireflyiii
       - DB_USERNAME=firefly
-      - DB_PASSWORD=${firefly_secret}
+      - DB_PASSWORD=${firefly_db_pass}
       - TRUSTED_PROXIES=**
       - DEFAULT_LANGUAGE=pt_BR
       - DEFAULT_LOCALE=equal
