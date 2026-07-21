@@ -302,6 +302,9 @@ cd ~/
 
 key_secret=$(openssl rand -hex 16)
 
+# Criar volume persistente ANTES do deploy
+docker volume create ${nome_app}-data >/dev/null 2>&1
+
 cat > $nome_app.yaml << EOL
 version: "3.9"
 
