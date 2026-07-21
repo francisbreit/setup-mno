@@ -248,6 +248,7 @@ CHOICE=$(
 whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 20 70 10 \
     "ACTIVEPIECES" "" \
     "AFFINE" "" \
+    "ACTUAL BUDGET" "" \
     "APPSMITH" "" \
     "AUTOGEN STUDIO" "" \
     "BASEROW" "" \
@@ -372,6 +373,7 @@ case "$CHOICE" in
         case "$CHOICE" in
             "ACTIVEPIECES")                                           run_app activepieces ;;
             "AFFINE")                                                run_app affine ;;
+            "ACTUAL BUDGET")                                          run_app actualbudget ;;
             "APPSMITH")                                              run_app appsmith ;;
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
@@ -528,6 +530,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "─────────────────────────" "" \
     "ACTIVEPIECES" "PRO" \
     "AFFINE" "PRO" \
+    "ACTUAL BUDGET" "PRO" \
     "APPSMITH" "PRO" \
     "AUTOGEN STUDIO" "PRO" \
     "BASEROW" "PRO" \
@@ -613,6 +616,7 @@ case "$CHOICE" in
         fi
         case "$CHOICE" in
             "AFFINE")                                                run_app affine ;;
+            "ACTUAL BUDGET")                                          run_app actualbudget ;;
             "APPSMITH")                                              run_app appsmith ;;
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
@@ -737,6 +741,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "─────────────────────────" "" \
     "ACTIVEPIECES" "PRO" \
     "AFFINE" "PRO" \
+    "ACTUAL BUDGET" "PRO" \
     "APPSMITH" "PRO" \
     "AUTOGEN STUDIO" "PRO" \
     "BASEROW" "PRO" \
@@ -849,6 +854,7 @@ case "$CHOICE" in
         fi
         case "$CHOICE" in
             "AFFINE")                                                run_app affine ;;
+            "ACTUAL BUDGET")                                          run_app actualbudget ;;
             "APPSMITH")                                              run_app appsmith ;;
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
@@ -973,6 +979,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "─────────────────────────" "" \
     "ACTIVEPIECES" "PRO" \
     "AFFINE" "PRO" \
+    "ACTUAL BUDGET" "PRO" \
     "APPSMITH" "PRO" \
     "AUTOGEN STUDIO" "PRO" \
     "BASEROW" "PRO" \
@@ -1085,6 +1092,7 @@ case "$CHOICE" in
         fi
         case "$CHOICE" in
             "AFFINE")                                                run_app affine ;;
+            "ACTUAL BUDGET")                                          run_app actualbudget ;;
             "APPSMITH")                                              run_app appsmith ;;
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
