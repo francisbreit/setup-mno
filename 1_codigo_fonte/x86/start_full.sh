@@ -1072,6 +1072,10 @@ shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou.
 rm umami.sh
 rm umami.sh.x.c
 
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o actualbudget -f actualbudget.sh
+rm actualbudget.sh
+rm actualbudget.sh.x.c
+
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o plausible -f plausible.sh
 rm plausible.sh
 rm plausible.sh.x.c
