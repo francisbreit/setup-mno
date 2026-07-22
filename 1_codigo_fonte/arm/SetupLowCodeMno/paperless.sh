@@ -126,6 +126,18 @@ while true; do
     fi
 done
 
+# CRIAR USUARIO E BANCO NO POSTGRESQL COMPARTILHADO
+# (ANTES do gauge para garantir execucao)
+paperless_secret=$(openssl rand -hex 32)
+
+container_id=$(docker ps -qf name=postgres)
+docker exec $container_id psql -U postgres -d postgres -c "DROP DATABASE IF EXISTS paperless;" >/dev/null 2>&1
+docker exec $container_id psql -U postgres -d postgres -c "DROP USER IF EXISTS paperless;" >/dev/null 2>&1
+docker exec $container_id psql -U postgres -d postgres -c "CREATE USER paperless WITH PASSWORD '${paperless_secret}';" >/dev/null 2>&1
+docker exec $container_id psql -U postgres -d postgres -c "CREATE DATABASE paperless OWNER paperless;" >/dev/null 2>&1
+docker exec $container_id psql -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE paperless TO paperless;" >/dev/null 2>&1
+docker exec $container_id psql -U postgres -d paperless -c "GRANT ALL ON SCHEMA public TO paperless;" >/dev/null 2>&1
+
 #########################################################
 # MENSAGEM DE INSTALANDO
 #
@@ -273,8 +285,6 @@ sleep 1
 cd
 
 cd
-
-paperless_secret=$(openssl rand -hex 32)
 
 cat > $nome_app.yaml << EOL
 
