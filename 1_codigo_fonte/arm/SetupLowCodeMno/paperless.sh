@@ -325,7 +325,7 @@ services:
       - PAPERLESS_DBPASS=${paperless_secret}
       - PAPERLESS_REDIS=redis://${nome_app}_broker:6379
       - PAPERLESS_TIME_ZONE=America/Sao_Paulo
-      - PAPERLESS_OCR_LANGUAGE=por+eng
+      - PAPERLESS_OCR_LANGUAGE=eng
       - USERMAP_UID=1000
       - USERMAP_GID=1000
     volumes:
