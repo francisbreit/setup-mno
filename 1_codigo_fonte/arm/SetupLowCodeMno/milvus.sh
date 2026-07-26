@@ -583,46 +583,40 @@ EOL
 fi
 
 #######################################################
-# 2) INSTALAR mc + CRIAR BUCKET + SERVICE ACCOUNT
+# 2) CRIAR BUCKET + SERVICE ACCOUNT (via container Docker)
 #######################################################
-echo -e "XXX\n55\nINSTALANDO MC (MINIO CLIENT)... \nXXX"
+# Usamos docker run --rm --network interna com a imagem minio/mc
+# para que o mc consiga resolver o hostname do Minio na rede Docker.
+# O host não resolve nomes de serviços Docker (ex: minio3a7f2b1).
 
-if ! command -v mc &> /dev/null; then
-    ARCH=$(uname -m)
-    if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-        wget -q https://dl.min.io/client/mc/release/linux-arm64/mc -O /usr/local/bin/mc >/dev/null 2>&1
-    else
-        wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc >/dev/null 2>&1
-    fi
-    chmod +x /usr/local/bin/mc
-fi
-
-echo -e "XXX\n60\nCONFIGURANDO ALIAS MINIO... \nXXX"
-mc alias set minio https://$MINIO_PUBLIC_URL $MINIO_USER $MINIO_PASSWORD --api S3v4 2>/dev/null || \
-    mc alias set minio http://$MINIO_HOST:9000 $MINIO_USER $MINIO_PASSWORD --api S3v4 2>/dev/null || true
-
-echo -e "XXX\n65\nCRIANDO BUCKET E SERVICE ACCOUNT... \nXXX"
-
-# Criar bucket para o Milvus
-bucket_name="$nome_app"
-mc mb minio/$bucket_name 2>/dev/null || true
-mc anonymous set public minio/$bucket_name 2>/dev/null || true
+echo -e "XXX\n55\nCRIANDO BUCKET E CREDENCIAIS NO MINIO... \nXXX"
 
 # Gerar credenciais para o service account
 access_key="$nome_app"
 secret_key=$(openssl rand -hex 16)
+bucket_name="$nome_app"
+
+# Criar bucket
+MC_RUN="docker run --rm --network interna minio/mc:latest"
+MC_ALIAS="http://${MINIO_HOST}:9000 ${MINIO_USER} ${MINIO_PASSWORD}"
+
+$MC_RUN alias set minio $MC_ALIAS --api S3v4 2>/dev/null || true
+sleep 2
+$MC_RUN mb minio/$bucket_name 2>/dev/null || true
+$MC_RUN anonymous set public minio/$bucket_name 2>/dev/null || true
 
 # Criar service account (credenciais restritas para o Milvus)
-credentials=$(mc admin user svcacct add minio "$MINIO_USER" \
+credentials=$($MC_RUN admin user svcacct add minio ${MINIO_USER} \
     --access-key "$access_key" \
     --secret-key "$secret_key" \
     --json 2>&1)
 
-# Extrair as credenciais geradas (se o MinIO aceitou as nossas, usa as mesmas)
+# Extrair as credenciais geradas
 if echo "$credentials" | jq -e '.accessKey' >/dev/null 2>&1; then
     access_key_final=$(echo "$credentials" | jq -r '.accessKey')
     secret_key_final=$(echo "$credentials" | jq -r '.secretKey')
 else
+    # Fallback: usar as credenciais geradas localmente
     access_key_final="$access_key"
     secret_key_final="$secret_key"
 fi
