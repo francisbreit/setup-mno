@@ -655,6 +655,11 @@ services:
       placement:
         constraints:
           - node.role == manager
+      resources:
+        limits:
+          memory: 1024M
+        reservations:
+          memory: 256M
 
   ${nome_app}_milvus:
     image: milvusdb/milvus:v2.4.16
@@ -676,6 +681,13 @@ services:
       placement:
         constraints:
           - node.role == manager
+      resources:
+        limits:
+          cpus: "2"
+          memory: 8192M
+        reservations:
+          cpus: "1"
+          memory: 2048M
     depends_on:
       - ${nome_app}_etcd
 
