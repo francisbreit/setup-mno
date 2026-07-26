@@ -313,7 +313,7 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
         -H "Content-Type: application/json" \
         --data "{\"type\":\"CNAME\",\"name\":\"${urlmilvus}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}")
 
-    echo -e "XXX\n35\nATUALIZANDO CONFIGURAÇÃO DO TUNNEL... \nXXX"
+    echo -e "XXX\n15\nATUALIZANDO CONFIGURAÇÃO DO TUNNEL (ATTU)... \nXXX"
     NEW_SERVICE="http://${nome_app}_attu:3000"
     
     TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
@@ -329,7 +329,6 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
       (.result.config // {}) as $cfg
       | ($cfg.ingress // []) as $ing
       | ($ing | map(select(.service != "http_status:404"))) as $clean
-      
       | ($clean | map(select(.hostname != $host))) as $filtered
       | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
       | ($merged + [{ service: "http_status:404" }]) as $final_ing
@@ -343,12 +342,6 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
       --data-binary @"$TO_PUT")
 
     rm -rf "$TMPDIR"
-
-else
-    echo -e "XXX\n10\nVERIFICANDO CONFIGURAÇÃO (TRADICIONAL SEM AUTOMAÇÃO)... \nXXX"
-    if ! nslookup "$urlmilvus" >/dev/null 2>&1; then
-        echo -e "XXX\n15\nAVISO: VERIFIQUE A CONFIGURAÇÃO DNS \nXXX"
-    fi
 fi
 
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "1" ]; then
@@ -379,11 +372,10 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "1" ]; then
 fi
 
 #######################################################
-#  INSTALAÇÃO
+# DNS DO MINIO (via tunnel)
 #######################################################
-# SE MINIO NÃO EXISTE, CRIAR DNS PARA ELE TAMBÉM (via tunnel)
 if [[ ("$minio_container" == "") ]] && [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-    echo -e "XXX\n40\nCONFIGURANDO DNS DO MINIO NO TUNNEL... \nXXX"
+    echo -e "XXX\n35\nCONFIGURANDO DNS DO MINIO NO TUNNEL... \nXXX"
 
     DNS_RESPONSE=$(curl -s -X POST \
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
@@ -397,7 +389,6 @@ if [[ ("$minio_container" == "") ]] && [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]
         -H "Content-Type: application/json" \
         --data "{\"type\":\"CNAME\",\"name\":\"${publico}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}")
 
-    # Adicionar rotas do Minio no tunnel
     TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
     TMPDIR2=$(mktemp -d)
     BACKUP_RAW2="$TMPDIR2/backup_raw.$TIMESTAMP.json"
@@ -446,7 +437,10 @@ if [[ ("$minio_container" == "") ]] && [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]
     rm -rf "$TMPDIR2"
 fi
 
-echo -e "XXX\n45\nCRIANDO VOLUMES EXTERNOS... \nXXX"
+#######################################################
+# 1) DEPLOY DO MINIO (SE NOVO)
+#######################################################
+echo -e "XXX\n40\nCRIANDO VOLUMES EXTERNOS... \nXXX"
 
 docker volume create ${nome_app}_etcd 2>/dev/null || true
 docker volume create ${nome_app}_data 2>/dev/null || true
@@ -454,10 +448,6 @@ docker volume create ${nome_app}_data 2>/dev/null || true
 if [[ ("$minio_container" == "") ]]; then
     docker volume create ${nome_app2}-data 2>/dev/null || true
 fi
-
-echo -e "XXX\n50\nCRIANDO STACK DO MILVUS + ATTU... \nXXX"
-cd ~/
-cd
 
 # DETERMINAR O HOSTNAME DO MINIO
 if [[ ("$minio_container" != "") ]]; then
@@ -472,9 +462,10 @@ if [[ ("$minio_container" != "") ]]; then
     if [[ -f "$dados_minio_file" ]]; then
         MINIO_USER=$(grep "MINIO_USER:" "$dados_minio_file" | awk '{print $2}')
         MINIO_PASSWORD=$(grep "MINIO_PASSWORD:" "$dados_minio_file" | awk '{print $2}')
+        MINIO_PUBLIC_URL=$(grep "MINIO_PUBLIC_URL:" "$dados_minio_file" | awk '{print $2}')
     else
-        MINIO_USER="minioadmin"
-        MINIO_PASSWORD="minioadmin"
+        msg "Minio instalado, mas os dados de acesso não foram encontrados em ~/dados_minio/dados_minio.\nAbortando instalação."
+        exit 0
     fi
     MINIO_ADDRESS="${MINIO_HOST}:9000"
 else
@@ -482,110 +473,10 @@ else
     MINIO_ADDRESS="${MINIO_HOST}:9000"
     MINIO_USER=$usuariominio
     MINIO_PASSWORD=$senhaminio
-fi
+    MINIO_PUBLIC_URL=$publico
 
-cat > $nome_app.yaml << EOL
-version: "3.9"
+    echo -e "XXX\n45\nCRIANDO STACK DO MINIO COMPARTILHADO... \nXXX"
 
-services:
-
-  ${nome_app}_etcd:
-    image: quay.io/coreos/etcd:v3.5.25
-    hostname: ${nome_app}_etcd
-    networks:
-      - interna
-    environment:
-      - ETCD_AUTO_COMPACTION_MODE=revision
-      - ETCD_AUTO_COMPACTION_RETENTION=1000
-      - ETCD_QUOTA_BACKEND_BYTES=4294967296
-      - ETCD_SNAPSHOT_COUNT=50000
-    volumes:
-      - ${nome_app}_etcd:/etcd
-    command: ["etcd", "-advertise-client-urls=http://0.0.0.0:2379", "-listen-client-urls", "http://0.0.0.0:2379", "--data-dir", "/etcd"]
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-
-  ${nome_app}_milvus:
-    image: milvusdb/milvus:v2.4.16
-    command: ["milvus", "run", "standalone"]
-    hostname: ${nome_app}_milvus
-    networks:
-      - externa
-      - interna
-    environment:
-      - ETCD_ENDPOINTS=${nome_app}_etcd:2379
-      - MINIO_ADDRESS=${MINIO_ADDRESS}
-      - MINIO_ACCESS_KEY=${MINIO_USER}
-      - MINIO_SECRET_KEY=${MINIO_PASSWORD}
-    volumes:
-      - ${nome_app}_data:/var/lib/milvus
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-    depends_on:
-      - ${nome_app}_etcd
-
-  ${nome_app}_attu:
-    image: zilliz/attu:v3.0.0-beta.6
-    hostname: ${nome_app}_attu
-    networks:
-      - externa
-      - interna
-    environment:
-      - MILVUS_ADDRESS=${nome_app}_milvus:19530
-    depends_on:
-      - ${nome_app}_milvus
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-EOL
-
-if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
-cat >> $nome_app.yaml << EOL
-
-      labels:
-        - traefik.enable=true
-        - traefik.docker.network=externa
-        - traefik.http.routers.${nome_app}_attu.rule=Host(\`${urlmilvus}\`)
-        - traefik.http.routers.${nome_app}_attu.entrypoints=websecure
-        - traefik.http.routers.${nome_app}_attu.priority=1
-        - traefik.http.routers.${nome_app}_attu.tls.certresolver=letsencryptresolver
-        - traefik.http.routers.${nome_app}_attu.service=${nome_app}_attu
-        - traefik.http.services.${nome_app}_attu.loadbalancer.server.port=3000
-EOL
-fi
-
-cat >> $nome_app.yaml << EOL
-
-volumes:
-  ${nome_app}_etcd:
-    external: true
-    name: ${nome_app}_etcd
-  ${nome_app}_data:
-    external: true
-    name: ${nome_app}_data
-
-networks:
-  externa:
-    external: true
-  interna:
-    external: true
-EOL
-
-# SE MINIO NÃO EXISTE, CRIAR STACK DO MINIO TAMBÉM
-if [[ ("$minio_container" == "") ]]; then
-    echo -e "XXX\n60\nCRIANDO STACK DO MINIO COMPARTILHADO... \nXXX"
-    
     cd
     mkdir -p ~/dados_minio
     echo "MINIO_USER: $usuariominio" > ~/dados_minio/dados_minio
@@ -658,20 +549,20 @@ EOL
         STACK_NAME=$nome_app2
         STACK_FILE_PATH="/root/$nome_app2.yaml"
 
-        get_auth_token() {
+        get_auth_token_minio() {
             RESPONSE=$(curl -sk -X POST "https://$PORTAINER_URL/api/auth" -H "Content-Type: application/json" -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
             TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
             [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ] && return 1
         }
-        get_endpoint_id() {
+        get_endpoint_id_minio() {
             RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
             ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
         }
-        get_swarm_id() {
+        get_swarm_id_minio() {
             RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
             SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
         }
-        create_stack() {
+        create_stack_minio() {
             response_output=$(mktemp)
             erro_output=$(mktemp)
             http_code=$(curl -s -o "$response_output" -w "%{http_code}" -k -X POST \
@@ -681,17 +572,176 @@ EOL
             rm -f "$response_output" "$erro_output"
             [ "$http_code" -ne 200 ] && return 1
         }
-        get_auth_token && get_endpoint_id && get_swarm_id && create_stack || \
+        get_auth_token_minio && get_endpoint_id_minio && get_swarm_id_minio && create_stack_minio || \
             docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
     else
         docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
     fi
+
+    echo -e "XXX\n50\nAGUARDANDO MINIO INICIAR... \nXXX"
+    sleep 15
 fi
 
-echo -e "XXX\n75\nIMPLANTANDO MILVUS + ATTU... \nXXX"
+#######################################################
+# 2) INSTALAR mc + CRIAR BUCKET + SERVICE ACCOUNT
+#######################################################
+echo -e "XXX\n55\nINSTALANDO MC (MINIO CLIENT)... \nXXX"
+
+if ! command -v mc &> /dev/null; then
+    ARCH=$(uname -m)
+    if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+        wget -q https://dl.min.io/client/mc/release/linux-arm64/mc -O /usr/local/bin/mc >/dev/null 2>&1
+    else
+        wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc >/dev/null 2>&1
+    fi
+    chmod +x /usr/local/bin/mc
+fi
+
+echo -e "XXX\n60\nCONFIGURANDO ALIAS MINIO... \nXXX"
+mc alias set minio https://$MINIO_PUBLIC_URL $MINIO_USER $MINIO_PASSWORD --api S3v4 2>/dev/null || \
+    mc alias set minio http://$MINIO_HOST:9000 $MINIO_USER $MINIO_PASSWORD --api S3v4 2>/dev/null || true
+
+echo -e "XXX\n65\nCRIANDO BUCKET E SERVICE ACCOUNT... \nXXX"
+
+# Criar bucket para o Milvus
+bucket_name="$nome_app"
+mc mb minio/$bucket_name 2>/dev/null || true
+mc anonymous set public minio/$bucket_name 2>/dev/null || true
+
+# Gerar credenciais para o service account
+access_key="$nome_app"
+secret_key=$(openssl rand -hex 16)
+
+# Criar service account (credenciais restritas para o Milvus)
+credentials=$(mc admin user svcacct add minio "$MINIO_USER" \
+    --access-key "$access_key" \
+    --secret-key "$secret_key" \
+    --json 2>&1)
+
+# Extrair as credenciais geradas (se o MinIO aceitou as nossas, usa as mesmas)
+if echo "$credentials" | jq -e '.accessKey' >/dev/null 2>&1; then
+    access_key_final=$(echo "$credentials" | jq -r '.accessKey')
+    secret_key_final=$(echo "$credentials" | jq -r '.secretKey')
+else
+    access_key_final="$access_key"
+    secret_key_final="$secret_key"
+fi
+
+echo -e "XXX\n70\nBUCKET: $bucket_name | ACCESS KEY CRIADA \nXXX"
+sleep 2
+
+#######################################################
+# 3) CRIAR YAML DO MILVUS COM AS CREDENCIAIS
+#######################################################
+echo -e "XXX\n75\nCRIANDO STACK DO MILVUS + ATTU... \nXXX"
+cd ~/
+cd
+
+cat > $nome_app.yaml << EOL
+version: "3.9"
+
+services:
+
+  ${nome_app}_etcd:
+    image: quay.io/coreos/etcd:v3.5.25
+    hostname: ${nome_app}_etcd
+    networks:
+      - interna
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - ${nome_app}_etcd:/etcd
+    command: ["etcd", "-advertise-client-urls=http://0.0.0.0:2379", "-listen-client-urls", "http://0.0.0.0:2379", "--data-dir", "/etcd"]
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+
+  ${nome_app}_milvus:
+    image: milvusdb/milvus:v2.4.16
+    command: ["milvus", "run", "standalone"]
+    hostname: ${nome_app}_milvus
+    networks:
+      - externa
+      - interna
+    environment:
+      - ETCD_ENDPOINTS=${nome_app}_etcd:2379
+      - MINIO_ADDRESS=${MINIO_ADDRESS}
+      - MINIO_ACCESS_KEY=${access_key_final}
+      - MINIO_SECRET_KEY=${secret_key_final}
+    volumes:
+      - ${nome_app}_data:/var/lib/milvus
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+    depends_on:
+      - ${nome_app}_etcd
+
+  ${nome_app}_attu:
+    image: zilliz/attu:v3.0.0-beta.6
+    hostname: ${nome_app}_attu
+    networks:
+      - externa
+      - interna
+    environment:
+      - MILVUS_ADDRESS=${nome_app}_milvus:19530
+    depends_on:
+      - ${nome_app}_milvus
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+EOL
+
+if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
+cat >> $nome_app.yaml << EOL
+
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=externa
+        - traefik.http.routers.${nome_app}_attu.rule=Host(\`${urlmilvus}\`)
+        - traefik.http.routers.${nome_app}_attu.entrypoints=websecure
+        - traefik.http.routers.${nome_app}_attu.priority=1
+        - traefik.http.routers.${nome_app}_attu.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.${nome_app}_attu.service=${nome_app}_attu
+        - traefik.http.services.${nome_app}_attu.loadbalancer.server.port=3000
+EOL
+fi
+
+cat >> $nome_app.yaml << EOL
+
+volumes:
+  ${nome_app}_etcd:
+    external: true
+    name: ${nome_app}_etcd
+  ${nome_app}_data:
+    external: true
+    name: ${nome_app}_data
+
+networks:
+  externa:
+    external: true
+  interna:
+    external: true
+EOL
+
+#######################################################
+# 4) DEPLOY DO MILVUS + ATTU
+#######################################################
+echo -e "XXX\n80\nIMPLANTANDO MILVUS + ATTU... \nXXX"
 
 if [[ "$criar_portainer" == "0" ]]; then
-    echo -e "XXX\n76\nCRIANDO STACK NO PORTAINER 3/4  \nXXX"
+    echo -e "XXX\n83\nCRIANDO STACK NO PORTAINER 3/4  \nXXX"
     dados_file="$HOME/dados_portainer/dados_portainer"
     
     if [[ -f "$dados_file" ]]; then
@@ -749,10 +799,9 @@ else
 fi
 
 #######################################################
-# FINALIZANDO INSTALAÇÃO DO MILVUS + ATTU
+# 5) AGUARDAR ATTU
 #######################################################
-
-echo -e "XXX\n85\nAGUARDANDO INICIALIZAÇÃO DOS CONTAINERS... \nXXX"
+echo -e "XXX\n90\nAGUARDANDO INICIALIZAÇÃO DOS CONTAINERS... \nXXX"
 max_wait_time=300
 wait_interval=5
 elapsed_time=0
@@ -765,7 +814,7 @@ while [ $elapsed_time -lt $max_wait_time ]; do
 done
 
 if [ -z "$CONTAINER_ID" ]; then
-    echo "O container não foi encontrado após $max_wait_time segundos."
+    echo "O container do Attu não foi encontrado após $max_wait_time segundos."
     exit 1
 fi
 
@@ -782,10 +831,10 @@ sleep 3
 # VERIFICAÇÃO FINAL E INSTRUÇÕES DE SETUP
 #######################################################
 
-TEXTO_ACESSO="👉 Acesse Attu (Web UI): https://$urlmilvus\n\n👉 Milvus API (interno): ${nome_app}_milvus:19530\n\n👉 etcd interno: ${nome_app}_etcd:2379\n👉 MinIO: $MINIO_ADDRESS (user: $MINIO_USER / pass: $MINIO_PASSWORD)\n\nUtilize o Attu para gerenciar collections e inserir dados visualmente.\nConecte outros apps (n8n, Flowise, Dify) ao Milvus via host: ${nome_app}_milvus porta: 19530"
+TEXTO_ACESSO="👉 Acesse Attu (Web UI): https://$urlmilvus\n\n👉 Milvus API (interno): ${nome_app}_milvus:19530\n\n👉 etcd interno: ${nome_app}_etcd:2379\n👉 MinIO Bucket: $bucket_name\n👉 MinIO Access Key: $access_key_final\n👉 MinIO Secret Key: $secret_key_final\n👉 MinIO Endpoint: $MINIO_ADDRESS"
 
 if [[ ("$minio_container" == "") ]]; then
-    TEXTO_ACESSO="$TEXTO_ACESSO\n\n👉 Minio Console: https://$painel\n👉 Minio S3: https://$publico"
+    TEXTO_ACESSO="$TEXTO_ACESSO\n\n👉 Minio Console: https://$painel\n👉 Minio S3: https://$publico\n👉 Minio User: $MINIO_USER\n👉 Minio Password: $MINIO_PASSWORD"
 fi
 
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
