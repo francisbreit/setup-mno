@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 # LOADING
 SCRIPTS_VERSION="4.77.0"
 loading() {
