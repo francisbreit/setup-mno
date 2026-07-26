@@ -102,6 +102,76 @@ while true; do
     fi
 done
 
+########################################################
+# VERIFICAR SE MINIO JÁ EXISTE
+########################################################
+minio_container=$(docker ps -qf "name=minio")
+
+if [[ ("$minio_container" == "") ]]; then
+    # MINIO NÃO EXISTE - SOLICITAR DADOS
+    msg "Minio não encontrado no servidor. Vamos instalar um Minio compartilhado junto com o Milvus.\n\nVocê precisará fornecer URLs e credenciais para o Minio."
+
+    while true ; do
+        painel=$(whiptail --title "Dominio do Painel do Minio" --inputbox "Digite o Dominio do Painel do Minio (ex: admins3.seudominio.com):" --fb 12 60 3>&1 1>&2 2>&3) 
+        saida=$?
+        if [[ $saida -eq '0' ]]; then
+            if [[ -z $painel ]]; then 
+                msg "Digite o dominio do painel do Minio para poder continuar" 
+                continue 
+            else 
+                break
+            fi
+        else
+            echo "$painel"; echo "Saindo..."; exit 0
+        fi
+    done
+
+    while true ; do
+        publico=$(whiptail --title "Dominio Pública do Minio" --inputbox "Digite o dominio Público (ex: s3.seudominio.com):" --fb 12 60 3>&1 1>&2 2>&3) 
+        saida=$?
+        if [[ $saida -eq '0' ]]; then
+            if [[ -z $publico ]]; then 
+                msg "Digite o dominio público do Minio para poder continuar" 
+                continue 
+            else 
+                break
+            fi
+        else
+            echo "$publico"; echo "Saindo..."; exit 0
+        fi
+    done
+
+    while true ; do
+        usuariominio=$(whiptail --title "Nome do Usuário do Minio" --inputbox "Digite o Usuário do Minio (ex: SeuNome):" --fb 12 60 3>&1 1>&2 2>&3) 
+        saida=$?
+        if [[ $saida -eq '0' ]]; then
+            if [[ (-z $usuariominio) || ("$usuariominio" =~ [^a-zA-Z0-9]) || (${#usuariominio} -gt 16) ]]; then 
+                msg "Digite o nome do usuário do Minio, sem caracteres especiais e até 16 dígitos para poder continuar" 
+                continue 
+            else 
+                break
+            fi
+        else
+            echo "$usuariominio"; echo "Saindo..."; exit 0
+        fi
+    done
+
+    while true ; do
+        senhaminio=$(whiptail --title "Senha do Minio" --inputbox "Crie sua Senha do Minio (ex: senha de acesso. Use uma senha de 8 a 16 dígitos, sem caracteres especiais):" --fb 12 60 3>&1 1>&2 2>&3) 
+        saida=$?
+        if [[ $saida -eq '0' ]]; then
+            if [[ (-z $senhaminio) || ("$senhaminio" =~ [^a-zA-Z0-9]) || (${#senhaminio} -lt 8) || (${#senhaminio} -gt 16) ]]; then 
+                msg "Digite a senha do Minio, sem caracteres especiais e de 8 até 16 dígitos para poder continuar" 
+                continue 
+            else 
+                break
+            fi
+        else
+            echo "$senhaminio"; echo "Saindo..."; exit 0
+        fi
+    done
+fi
+
 # SOLICITAR SE CRIA STACK NO PORTAINER
 while true; do
     criar_portainer=$(whiptail --title "Criar Stack no Portainer? - 0 ou 1" --inputbox "Digite 0 para poder editar stack no portainer ou 1 para não poder editar" --fb 12 60 3>&1 1>&2 2>&3)
@@ -128,6 +198,12 @@ nome_principal="milvus"
 sufixo_app=$(date | md5sum | head -c7)
 nome_app=$nome_principal$sufixo_app
 
+# Se minio não existe, gerar nome para ele também
+if [[ ("$minio_container" == "") ]]; then
+    nome_principal2="minio"
+    nome_app2=$nome_principal2$sufixo_app
+fi
+
 {
   tput reset 2>/dev/null
   exec 0</dev/tty 1>/dev/tty 2>&1
@@ -135,9 +211,15 @@ nome_app=$nome_principal$sufixo_app
   clear
 } || true
 
-whiptail --title "Dados Fornecidos" \
- --msgbox "TIPO DE INSTALAÇÃO: $INSTALL_TYPE\n\nDados Preenchidos:\n\n1) Url: $urlmilvus\n2) Criar Stack no Portainer: $([ "$criar_portainer" == "0" ] && echo "0 (Editável)" || echo "1 (Não editável)")\n\nConfira e Tecle Enter para continuar." \
- --fb 22 80
+if [[ ("$minio_container" == "") ]]; then
+    whiptail --title "Dados Fornecidos" \
+     --msgbox "TIPO DE INSTALAÇÃO: $INSTALL_TYPE\n\nDados Preenchidos:\n\n1) Url: $urlmilvus\n2) Link do Painel Minio: $painel\n3) Link Público Minio: $publico\n4) Usuário do Minio: $usuariominio\n5) Senha do Minio: $senhaminio\n6) Criar Stack no Portainer: $([ "$criar_portainer" == "0" ] && echo "0 (Editável)" || echo "1 (Não editável)")\n\nConfira e Tecle Enter para continuar." \
+     --fb 22 80
+else
+    whiptail --title "Dados Fornecidos" \
+     --msgbox "TIPO DE INSTALAÇÃO: $INSTALL_TYPE\n\nDados Preenchidos:\n\n1) Url: $urlmilvus\n2) Minio já existente no servidor - será reutilizado\n3) Criar Stack no Portainer: $([ "$criar_portainer" == "0" ] && echo "0 (Editável)" || echo "1 (Não editável)")\n\nConfira e Tecle Enter para continuar." \
+     --fb 22 80
+fi
 
 while true; do
     confirma1=$(whiptail --title "Confirmação" \
@@ -297,17 +379,110 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "1" ]; then
 fi
 
 #######################################################
-#  INSTALAÇÃO DO MILVUS + ATTU
+#  INSTALAÇÃO
 #######################################################
-echo -e "XXX\n55\nCRIANDO VOLUMES EXTERNOS... \nXXX"
+# SE MINIO NÃO EXISTE, CRIAR DNS PARA ELE TAMBÉM (via tunnel)
+if [[ ("$minio_container" == "") ]] && [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+    echo -e "XXX\n40\nCONFIGURANDO DNS DO MINIO NO TUNNEL... \nXXX"
+
+    DNS_RESPONSE=$(curl -s -X POST \
+        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
+        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+        -H "Content-Type: application/json" \
+        --data "{\"type\":\"CNAME\",\"name\":\"${painel}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}")
+
+    DNS_RESPONSE2=$(curl -s -X POST \
+        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
+        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+        -H "Content-Type: application/json" \
+        --data "{\"type\":\"CNAME\",\"name\":\"${publico}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}")
+
+    # Adicionar rotas do Minio no tunnel
+    TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+    TMPDIR2=$(mktemp -d)
+    BACKUP_RAW2="$TMPDIR2/backup_raw.$TIMESTAMP.json"
+    TO_PUT2="$TMPDIR2/to_put.$TIMESTAMP.json"
+
+    curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+      "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+      | jq '.' > "$BACKUP_RAW2"
+
+    jq --arg host "$painel" --arg service "http://${nome_app2}:9001" '
+      (.result.config // {}) as $cfg
+      | ($cfg.ingress // []) as $ing
+      | ($ing | map(select(.service != "http_status:404"))) as $clean
+      | ($clean | map(select(.hostname != $host))) as $filtered
+      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
+      | ($merged + [{ service: "http_status:404" }]) as $final_ing
+      | ($cfg + { ingress: $final_ing }) as $newcfg
+      | { config: $newcfg }
+    ' "$BACKUP_RAW2" > "$TO_PUT2"
+
+    curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+      -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+      -H "Content-Type: application/json" \
+      --data-binary @"$TO_PUT2" >/dev/null 2>&1
+
+    curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+      "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+      | jq '.' > "$BACKUP_RAW2"
+
+    jq --arg host "$publico" --arg service "http://${nome_app2}:9000" '
+      (.result.config // {}) as $cfg
+      | ($cfg.ingress // []) as $ing
+      | ($ing | map(select(.service != "http_status:404"))) as $clean
+      | ($clean | map(select(.hostname != $host))) as $filtered
+      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
+      | ($merged + [{ service: "http_status:404" }]) as $final_ing
+      | ($cfg + { ingress: $final_ing }) as $newcfg
+      | { config: $newcfg }
+    ' "$BACKUP_RAW2" > "$TO_PUT2"
+
+    curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+      -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+      -H "Content-Type: application/json" \
+      --data-binary @"$TO_PUT2" >/dev/null 2>&1
+
+    rm -rf "$TMPDIR2"
+fi
+
+echo -e "XXX\n45\nCRIANDO VOLUMES EXTERNOS... \nXXX"
 
 docker volume create ${nome_app}_etcd 2>/dev/null || true
-docker volume create ${nome_app}_minio 2>/dev/null || true
 docker volume create ${nome_app}_data 2>/dev/null || true
 
-echo -e "XXX\n60\nCRIANDO STACK DO MILVUS + ATTU... \nXXX"
+if [[ ("$minio_container" == "") ]]; then
+    docker volume create ${nome_app2}-data 2>/dev/null || true
+fi
+
+echo -e "XXX\n50\nCRIANDO STACK DO MILVUS + ATTU... \nXXX"
 cd ~/
 cd
+
+# DETERMINAR O HOSTNAME DO MINIO
+if [[ ("$minio_container" != "") ]]; then
+    minio_service=$(docker service ls --format "{{.Name}}" 2>/dev/null | grep "minio" | head -1)
+    if [[ -n "$minio_service" ]]; then
+        MINIO_HOST=$minio_service
+    else
+        minio_container_name=$(docker ps --format "{{.Names}}" | grep "minio" | head -1)
+        MINIO_HOST=$(echo $minio_container_name | cut -d'.' -f1)
+    fi
+    dados_minio_file="$HOME/dados_minio/dados_minio"
+    if [[ -f "$dados_minio_file" ]]; then
+        MINIO_USER=$(grep "MINIO_USER:" "$dados_minio_file" | awk '{print $2}')
+        MINIO_PASSWORD=$(grep "MINIO_PASSWORD:" "$dados_minio_file" | awk '{print $2}')
+    else
+        MINIO_USER="minioadmin"
+        MINIO_PASSWORD="minioadmin"
+    fi
+    MINIO_ADDRESS="${MINIO_HOST}:9000"
+else
+    MINIO_HOST=$nome_app2
+    MINIO_ADDRESS="${MINIO_HOST}:9000"
+    MINIO_USER=$usuariominio
+    MINIO_PASSWORD=$senhaminio
+fi
 
 cat > $nome_app.yaml << EOL
 version: "3.9"
@@ -334,24 +509,6 @@ services:
         constraints:
           - node.role == manager
 
-  ${nome_app}_minio:
-    image: minio/minio:RELEASE.2024-05-28T17-19-04Z
-    hostname: ${nome_app}_minio
-    networks:
-      - interna
-    environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
-    volumes:
-      - ${nome_app}_minio:/minio_data
-    command: ["minio", "server", "/minio_data", "--console-address", ":9001"]
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-
   ${nome_app}_milvus:
     image: milvusdb/milvus:v2.4.16
     command: ["milvus", "run", "standalone"]
@@ -361,7 +518,9 @@ services:
       - interna
     environment:
       - ETCD_ENDPOINTS=${nome_app}_etcd:2379
-      - MINIO_ADDRESS=${nome_app}_minio:9000
+      - MINIO_ADDRESS=${MINIO_ADDRESS}
+      - MINIO_ACCESS_KEY=${MINIO_USER}
+      - MINIO_SECRET_KEY=${MINIO_PASSWORD}
     volumes:
       - ${nome_app}_data:/var/lib/milvus
     deploy:
@@ -372,7 +531,6 @@ services:
           - node.role == manager
     depends_on:
       - ${nome_app}_etcd
-      - ${nome_app}_minio
 
   ${nome_app}_attu:
     image: zilliz/attu:v3.0.0-beta.6
@@ -413,9 +571,6 @@ volumes:
   ${nome_app}_etcd:
     external: true
     name: ${nome_app}_etcd
-  ${nome_app}_minio:
-    external: true
-    name: ${nome_app}_minio
   ${nome_app}_data:
     external: true
     name: ${nome_app}_data
@@ -427,7 +582,113 @@ networks:
     external: true
 EOL
 
-echo -e "XXX\n70\nIMPLANTANDO MILVUS + ATTU... \nXXX"
+# SE MINIO NÃO EXISTE, CRIAR STACK DO MINIO TAMBÉM
+if [[ ("$minio_container" == "") ]]; then
+    echo -e "XXX\n60\nCRIANDO STACK DO MINIO COMPARTILHADO... \nXXX"
+    
+    cd
+    mkdir -p ~/dados_minio
+    echo "MINIO_USER: $usuariominio" > ~/dados_minio/dados_minio
+    echo "MINIO_PASSWORD: $senhaminio" >> ~/dados_minio/dados_minio
+    echo "MINIO_PUBLIC_URL: $publico" >> ~/dados_minio/dados_minio
+    echo "MINIO_ADMIN_URL: $painel" >> ~/dados_minio/dados_minio
+
+    cat > $nome_app2.yaml << EOL
+version: "3.7"
+
+services:
+  $nome_app2:
+    image: quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z
+    command: server /data --console-address ":9001"
+    networks: 
+      - interna
+      - externa
+    volumes:
+      - $nome_app2-data:/data
+    environment:
+      - MINIO_ROOT_USER=$usuariominio
+      - MINIO_ROOT_PASSWORD=$senhaminio
+      - MINIO_BROWSER_REDIRECT_URL=https://$painel
+      - MINIO_SERVER_URL=https://$publico
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+EOL
+
+if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
+    cat >> $nome_app2.yaml << EOL
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.${nome_app2}_public.rule=Host(\`$publico\`)
+        - traefik.http.routers.${nome_app2}_public.entrypoints=websecure
+        - traefik.http.routers.${nome_app2}_public.tls.certresolver=letsencryptresolver
+        - traefik.http.services.${nome_app2}_public.loadbalancer.server.port=9000
+        - traefik.http.services.${nome_app2}_public.loadbalancer.passHostHeader=true
+        - traefik.http.routers.${nome_app2}_public.service=${nome_app2}_public
+        - traefik.http.routers.${nome_app2}_console.rule=Host(\`$painel\`)
+        - traefik.http.routers.${nome_app2}_console.entrypoints=websecure
+        - traefik.http.routers.${nome_app2}_console.tls.certresolver=letsencryptresolver
+        - traefik.http.services.${nome_app2}_console.loadbalancer.server.port=9001
+        - traefik.http.services.${nome_app2}_console.loadbalancer.passHostHeader=true
+        - traefik.http.routers.${nome_app2}_console.service=${nome_app2}_console
+EOL
+fi
+
+cat >> $nome_app2.yaml << EOL
+volumes:
+  $nome_app2-data:
+    external: true
+    name: $nome_app2-data
+
+networks: 
+  interna: 
+    external: true
+  externa: 
+    external: true
+EOL
+
+    if [[ "$criar_portainer" == "0" ]] && [[ -f "$HOME/dados_portainer/dados_portainer" ]]; then
+        dados_file="$HOME/dados_portainer/dados_portainer"
+        PORTAINER_URL=$(grep "Dominio do portainer:" "$dados_file" | cut -d':' -f2 | xargs)
+        ADMIN_USERNAME=$(grep "Usuario:" "$dados_file" | cut -d':' -f2 | xargs)
+        ADMIN_PASSWORD=$(grep "Senha:" "$dados_file" | cut -d':' -f2 | xargs)
+        STACK_NAME=$nome_app2
+        STACK_FILE_PATH="/root/$nome_app2.yaml"
+
+        get_auth_token() {
+            RESPONSE=$(curl -sk -X POST "https://$PORTAINER_URL/api/auth" -H "Content-Type: application/json" -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
+            TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
+            [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ] && return 1
+        }
+        get_endpoint_id() {
+            RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
+            ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
+        }
+        get_swarm_id() {
+            RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
+            SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
+        }
+        create_stack() {
+            response_output=$(mktemp)
+            erro_output=$(mktemp)
+            http_code=$(curl -s -o "$response_output" -w "%{http_code}" -k -X POST \
+                -H "Authorization: Bearer $TOKEN" -F "Name=$STACK_NAME" -F "file=@$STACK_FILE_PATH" \
+                -F "SwarmID=$SWARM_ID" -F "endpointId=$ENDPOINT_ID" \
+                "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
+            rm -f "$response_output" "$erro_output"
+            [ "$http_code" -ne 200 ] && return 1
+        }
+        get_auth_token && get_endpoint_id && get_swarm_id && create_stack || \
+            docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
+    else
+        docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
+    fi
+fi
+
+echo -e "XXX\n75\nIMPLANTANDO MILVUS + ATTU... \nXXX"
 
 if [[ "$criar_portainer" == "0" ]]; then
     echo -e "XXX\n76\nCRIANDO STACK NO PORTAINER 3/4  \nXXX"
@@ -521,7 +782,11 @@ sleep 3
 # VERIFICAÇÃO FINAL E INSTRUÇÕES DE SETUP
 #######################################################
 
-TEXTO_ACESSO="👉 Acesse Attu (Web UI): https://$urlmilvus\n\n👉 Milvus API (interno): ${nome_app}_milvus:19530\n\n👉 etcd interno: ${nome_app}_etcd:2379\n👉 MinIO interno: ${nome_app}_minio:9000 (user: minioadmin / pass: minioadmin)\n\nUtilize o Attu para gerenciar collections e inserir dados visualmente.\nConecte outros apps (n8n, Flowise, Dify) ao Milvus via host: ${nome_app}_milvus porta: 19530"
+TEXTO_ACESSO="👉 Acesse Attu (Web UI): https://$urlmilvus\n\n👉 Milvus API (interno): ${nome_app}_milvus:19530\n\n👉 etcd interno: ${nome_app}_etcd:2379\n👉 MinIO: $MINIO_ADDRESS (user: $MINIO_USER / pass: $MINIO_PASSWORD)\n\nUtilize o Attu para gerenciar collections e inserir dados visualmente.\nConecte outros apps (n8n, Flowise, Dify) ao Milvus via host: ${nome_app}_milvus porta: 19530"
+
+if [[ ("$minio_container" == "") ]]; then
+    TEXTO_ACESSO="$TEXTO_ACESSO\n\n👉 Minio Console: https://$painel\n👉 Minio S3: https://$publico"
+fi
 
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
     ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
