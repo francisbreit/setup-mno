@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="4.76.0"
+VERSIONSETUP="4.77.0"
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
 CONTATO_GITHUB="github.com/francisbreit"
@@ -376,6 +376,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WAHA API" "" \
     "VAULTWARDEN" "" \
     "VIKUNJA" "" \
+    "VLLM" "" \
     "WEAVIATE" "" \
     "WINDMILL" "" \
     "WOOFED CRM" "" \
@@ -535,6 +536,7 @@ case "$CHOICE" in
             "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "VIKUNJA")                                               run_app vikunja ;;
+            "VLLM")                                                  run_app vllm ;;
             "WEAVIATE")                                             run_app weaviate ;;
             "WINDMILL")                                             run_app windmill ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
@@ -844,6 +846,7 @@ case "$CHOICE" in
             "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "VIKUNJA")                                               run_app vikunja ;;
+            "VLLM")                                                  run_app vllm ;;
             "WEAVIATE")                                             run_app weaviate ;;
             "WINDMILL")                                             run_app windmill ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
@@ -984,6 +987,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "UPTIMEKUMA" "PRO" \
     "VAULTWARDEN" "PRO" \
     "VIKUNJA" "PRO" \
+    "VLLM" "PRO" \
     "WEAVIATE" "PRO" \
     "WINDMILL" "PRO" \
     "WOOFED CRM" "PRO" \
@@ -1144,6 +1148,7 @@ case "$CHOICE" in
             "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "VIKUNJA")                                               run_app vikunja ;;
+            "VLLM")                                                  run_app vllm ;;
             "WEAVIATE")                                             run_app weaviate ;;
             "WINDMILL")                                             run_app windmill ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
@@ -1284,6 +1289,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "UPTIMEKUMA" "PRO" \
     "VAULTWARDEN" "PRO" \
     "VIKUNJA" "PRO" \
+    "VLLM" "PRO" \
     "WEAVIATE" "PRO" \
     "WINDMILL" "PRO" \
     "WOOFED CRM" "PRO" \
@@ -1444,6 +1450,7 @@ case "$CHOICE" in
             "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
             "VIKUNJA")                                               run_app vikunja ;;
+            "VLLM")                                                  run_app vllm ;;
             "WEAVIATE")                                             run_app weaviate ;;
             "WINDMILL")                                             run_app windmill ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
