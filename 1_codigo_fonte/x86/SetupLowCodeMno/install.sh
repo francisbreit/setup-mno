@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="4.77.0"
+VERSIONSETUP="4.78.0"
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
 CONTATO_GITHUB="github.com/francisbreit"
@@ -316,6 +316,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MATOMO" "" \
     "MAYBE" "" \
     "MEILISEARCH" "" \
+    "MILVUS + ATTU*" "" \
     "MEMOS" "" \
     "MAUTIC 4 PADRÃO" "" \
     "MAUTIC 6 PADRÃO" "" \
@@ -475,6 +476,7 @@ case "$CHOICE" in
             "MATOMO")                                                run_app matomo ;;
             "MAYBE")                                                run_app maybe ;;
             "MEILISEARCH")                                           run_app meilisearch ;;
+            "MILVUS + ATTU*")                                        run_app milvus ;;
             "MEMOS")                                                run_app memos ;;
             "MAUTIC 4 PADRÃO")                                       warn_heavy "Mautic 4" "4.5GB" && run_app mauticpadrao ;;
             "MAUTIC 6 PADRÃO")                                       warn_heavy "Mautic 6" "6GB" && run_app mautic6padrao ;;
@@ -657,6 +659,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MATOMO" "PRO" \
     "MAYBE" "PRO" \
     "MEILISEARCH" "PRO" \
+    "MILVUS + ATTU*" "PRO" \
     "MEMOS" "PRO" \
     "MAUTIC 4 PADRÃO" "PRO" \
     "MAUTIC 4 WHATSAPP MKT" "PRO" \
@@ -785,6 +788,7 @@ case "$CHOICE" in
             "MATOMO")                                                run_app matomo ;;
             "MAYBE")                                                run_app maybe ;;
             "MEILISEARCH")                                           run_app meilisearch ;;
+            "MILVUS + ATTU*")                                        run_app milvus ;;
             "MEMOS")                                                run_app memos ;;
             "MAUTIC 4 PADRÃO")                                       warn_heavy "Mautic 4" "4.5GB" && run_app mauticpadrao ;;
             "MAUTIC 6 PADRÃO")                                       warn_heavy "Mautic 6" "6GB" && run_app mautic6padrao ;;
@@ -936,6 +940,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MATOMO" "PRO" \
     "MAYBE" "PRO" \
     "MEILISEARCH" "PRO" \
+    "MILVUS + ATTU*" "PRO" \
     "MEMOS" "PRO" \
     "MAUTIC 4 PADRÃO" "PRO" \
     "MAUTIC 6 PADRÃO" "PRO" \
@@ -1087,6 +1092,7 @@ case "$CHOICE" in
             "MATOMO")                                                run_app matomo ;;
             "MAYBE")                                                run_app maybe ;;
             "MEILISEARCH")                                           run_app meilisearch ;;
+            "MILVUS + ATTU*")                                        run_app milvus ;;
             "MEMOS")                                                run_app memos ;;
             "MAUTIC 4 PADRÃO")                                       warn_heavy "Mautic 4" "4.5GB" && run_app mauticpadrao ;;
             "MAUTIC 6 PADRÃO")                                       warn_heavy "Mautic 6" "6GB" && run_app mautic6padrao ;;
@@ -1239,6 +1245,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MATOMO" "PRO" \
     "MAYBE" "PRO" \
     "MEILISEARCH" "PRO" \
+    "MILVUS + ATTU*" "PRO" \
     "MEMOS" "PRO" \
     "MAUTIC 4 PADRÃO" "PRO" \
     "MAUTIC 6 PADRÃO" "PRO" \
@@ -1389,6 +1396,7 @@ case "$CHOICE" in
             "MATOMO")                                                run_app matomo ;;
             "MAYBE")                                                run_app maybe ;;
             "MEILISEARCH")                                           run_app meilisearch ;;
+            "MILVUS + ATTU*")                                        run_app milvus ;;
             "MEMOS")                                                run_app memos ;;
             "MAUTIC 4 PADRÃO")                                       warn_heavy "Mautic 4" "4.5GB" && run_app mauticpadrao ;;
             "MAUTIC 6 PADRÃO")                                       warn_heavy "Mautic 6" "6GB" && run_app mautic6padrao ;;
