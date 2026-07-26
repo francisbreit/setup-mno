@@ -261,6 +261,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
     "CHATWOOT AI CUSTOMER SERVICE*" ""   \
+    "CHROMADB" ""   \
     "CLICKHOUSE" ""   \
     "CODE SERVER" ""   \
     "COGNEE" ""   \
@@ -341,7 +342,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "PHPMYADMIN" "" \
     "PLANKA" "" \
     "QDRANT" "" \
-    "CHROMADB" "" \
     "RABBITMQ" "" \
     "REACTIVE RESUME" "" \
     "REDIS" "" \
