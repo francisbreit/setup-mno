@@ -134,6 +134,16 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
 
    **Por que isso acontece:** O SHC tenta resolver o caminho do interpretador a partir do shebang. `#!/usr/bin/env bash` usa o comando `env` como wrapper, e o SHC não consegue extrair o caminho direto do bash. Todos os scripts existentes no projeto usam `#!/usr/bin/bash`.
 
+7.6 **MinIO Compartilhado (ESTRATÉGIA PADRÃO ⚠️):** SEMPRE que for adicionar uma nova ferramenta que usa MinIO/S3 como storage, você DEVE:
+
+    1. **PERGUNTAR AO USUÁRIO** se deseja usar a estratégia do `typebot + minio` (MinIO compartilhado com `mc`, bucket, service account).
+    2. **SE SIM**: Seguir exatamente o padrão do `typebot_minio.sh` e `milvus.sh`.
+    3. **SE NÃO**: Instalar MinIO dedicado por app (apenas para casos específicos onde isolamento é necessário).
+
+    **SCRIPTS DE REFERÊNCIA:** `typebot_minio.sh`, `milvus.sh` — implementam o padrão completo (mc, bucket, service account).
+
+    **Motivo:** Evitar múltiplas instâncias de MinIO consumindo recursos. Um único MinIO compartilhado atende todas as apps, cada uma com seu bucket + service account restrito.
+
 6. **Versionamento:** Incremente o MINOR da versão (ex: 4.20.2 → 4.21.0).
 7. **Empacotamento:** Finalize com o comando de build após validar a sintaxe.
 8. **Pergunta Portainer (OBRIGATÓRIO):** Todo script de instalação DEVE perguntar "Criar Stack no Portainer?" com opções 0 (editável) ou 1 (direto no Docker). Esta pergunta deve aparecer após todas as outras coletas de dados e antes da tela de confirmação. O deployment deve usar a API do Portainer quando opção 0 for selecionada, ou `docker stack deploy` quando opção 1 for selecionada. **Este é um erro comum — nunca esqueça esta pergunta.**
