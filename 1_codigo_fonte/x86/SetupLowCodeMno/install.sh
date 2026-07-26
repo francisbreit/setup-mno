@@ -476,7 +476,7 @@ case "$CHOICE" in
             "MATOMO")                                                run_app matomo ;;
             "MAYBE")                                                run_app maybe ;;
             "MEILISEARCH")                                           run_app meilisearch ;;
-            "MILVUS + ATTU*")                                        run_app milvus ;;
+            "MILVUS + ATTU*")                                        warn_heavy "Milvus + Attu" "4GB" && run_app milvus ;;
             "MEMOS")                                                run_app memos ;;
             "MAUTIC 4 PADRÃO")                                       warn_heavy "Mautic 4" "4.5GB" && run_app mauticpadrao ;;
             "MAUTIC 6 PADRÃO")                                       warn_heavy "Mautic 6" "6GB" && run_app mautic6padrao ;;
@@ -788,7 +788,7 @@ case "$CHOICE" in
             "MATOMO")                                                run_app matomo ;;
             "MAYBE")                                                run_app maybe ;;
             "MEILISEARCH")                                           run_app meilisearch ;;
-            "MILVUS + ATTU*")                                        run_app milvus ;;
+            "MILVUS + ATTU*")                                        warn_heavy "Milvus + Attu" "4GB" && run_app milvus ;;
             "MEMOS")                                                run_app memos ;;
             "MAUTIC 4 PADRÃO")                                       warn_heavy "Mautic 4" "4.5GB" && run_app mauticpadrao ;;
             "MAUTIC 6 PADRÃO")                                       warn_heavy "Mautic 6" "6GB" && run_app mautic6padrao ;;
@@ -1092,7 +1092,7 @@ case "$CHOICE" in
             "MATOMO")                                                run_app matomo ;;
             "MAYBE")                                                run_app maybe ;;
             "MEILISEARCH")                                           run_app meilisearch ;;
-            "MILVUS + ATTU*")                                        run_app milvus ;;
+            "MILVUS + ATTU*")                                        warn_heavy "Milvus + Attu" "4GB" && run_app milvus ;;
             "MEMOS")                                                run_app memos ;;
             "MAUTIC 4 PADRÃO")                                       warn_heavy "Mautic 4" "4.5GB" && run_app mauticpadrao ;;
             "MAUTIC 6 PADRÃO")                                       warn_heavy "Mautic 6" "6GB" && run_app mautic6padrao ;;
@@ -1396,7 +1396,7 @@ case "$CHOICE" in
             "MATOMO")                                                run_app matomo ;;
             "MAYBE")                                                run_app maybe ;;
             "MEILISEARCH")                                           run_app meilisearch ;;
-            "MILVUS + ATTU*")                                        run_app milvus ;;
+            "MILVUS + ATTU*")                                        warn_heavy "Milvus + Attu" "4GB" && run_app milvus ;;
             "MEMOS")                                                run_app memos ;;
             "MAUTIC 4 PADRÃO")                                       warn_heavy "Mautic 4" "4.5GB" && run_app mauticpadrao ;;
             "MAUTIC 6 PADRÃO")                                       warn_heavy "Mautic 6" "6GB" && run_app mautic6padrao ;;

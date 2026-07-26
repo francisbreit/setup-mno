@@ -684,10 +684,10 @@ services:
       resources:
         limits:
           cpus: "2"
-          memory: 8192M
+          memory: 4096M
         reservations:
           cpus: "1"
-          memory: 2048M
+          memory: 1024M
     depends_on:
       - ${nome_app}_etcd
 
