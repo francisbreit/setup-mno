@@ -247,7 +247,6 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
       (.result.config // {}) as $cfg
       | ($cfg.ingress // []) as $ing
       | ($ing | map(select(.service != "http_status:404"))) as $clean
-      
       | ($clean | map(select(.hostname != $host))) as $filtered
       | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
       | ($merged + [{ service: "http_status:404" }]) as $final_ing
@@ -297,9 +296,16 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "1" ]; then
 fi
 
 #######################################################
-#  INSTALAÇÃO DO MILVUS + ATTU
+#  INSTALAÇÃO DO MILVUS + ATTU (com etcd + minio)
 #######################################################
-echo -e "XXX\n65\nCRIANDO STACK DO MILVUS + ATTU... \nXXX"
+echo -e "XXX\n55\nCRIANDO VOLUMES EXTERNOS... \nXXX"
+
+# Criar volumes externos (necessários para Docker Swarm)
+docker volume create ${nome_app}_etcd 2>/dev/null || true
+docker volume create ${nome_app}_minio 2>/dev/null || true
+docker volume create ${nome_app}_data 2>/dev/null || true
+
+echo -e "XXX\n60\nCRIANDO STACK DO MILVUS + ATTU... \nXXX"
 cd ~/
 cd
 
@@ -308,13 +314,54 @@ version: "3.9"
 
 services:
 
+  ${nome_app}_etcd:
+    image: quay.io/coreos/etcd:v3.5.25
+    hostname: ${nome_app}_etcd
+    networks:
+      - interna
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - ${nome_app}_etcd:/etcd
+    command: ["etcd", "-advertise-client-urls=http://0.0.0.0:2379", "-listen-client-urls", "http://0.0.0.0:2379", "--data-dir", "/etcd"]
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+
+  ${nome_app}_minio:
+    image: minio/minio:RELEASE.2024-05-28T17-19-04Z
+    hostname: ${nome_app}_minio
+    networks:
+      - interna
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    volumes:
+      - ${nome_app}_minio:/minio_data
+    command: ["minio", "server", "/minio_data", "--console-address", ":9001"]
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+
   ${nome_app}_milvus:
-    image: milvusdb/milvus:latest
+    image: milvusdb/milvus:v2.4.16
     command: ["milvus", "run", "standalone"]
     hostname: ${nome_app}_milvus
     networks:
       - externa
       - interna
+    environment:
+      - ETCD_ENDPOINTS=${nome_app}_etcd:2379
+      - MINIO_ADDRESS=${nome_app}_minio:9000
     volumes:
       - ${nome_app}_data:/var/lib/milvus
     deploy:
@@ -323,12 +370,9 @@ services:
       placement:
         constraints:
           - node.role == manager
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+    depends_on:
+      - ${nome_app}_etcd
+      - ${nome_app}_minio
 
   ${nome_app}_attu:
     image: zilliz/attu:v3.0.0-beta.6
@@ -366,6 +410,12 @@ fi
 cat >> $nome_app.yaml << EOL
 
 volumes:
+  ${nome_app}_etcd:
+    external: true
+    name: ${nome_app}_etcd
+  ${nome_app}_minio:
+    external: true
+    name: ${nome_app}_minio
   ${nome_app}_data:
     external: true
     name: ${nome_app}_data
@@ -454,7 +504,7 @@ while [ $elapsed_time -lt $max_wait_time ]; do
 done
 
 if [ -z "$CONTAINER_ID" ]; then
-    echo "O container não foi encontrado após $max_wait_time segundos."
+    echo "O container do Attu não foi encontrado após $max_wait_time segundos."
     exit 1
 fi
 
@@ -471,7 +521,7 @@ sleep 3
 # VERIFICAÇÃO FINAL E INSTRUÇÕES DE SETUP
 #######################################################
 
-TEXTO_ACESSO="👉 Acesse Attu (Web UI): https://$urlmilvus\n\n👉 Milvus API (interno): ${nome_app}_milvus:19530\n\nUtilize o Attu para gerenciar collections e inserir dados visualmente.\nConecte outros apps (n8n, Flowise, Dify) ao Milvus via host: ${nome_app}_milvus porta: 19530"
+TEXTO_ACESSO="👉 Acesse Attu (Web UI): https://$urlmilvus\n\n👉 Milvus API (interno): ${nome_app}_milvus:19530\n\n👉 etcd interno: ${nome_app}_etcd:2379\n👉 MinIO interno: ${nome_app}_minio:9000 (user: minioadmin / pass: minioadmin)\n\nUtilize o Attu para gerenciar collections e inserir dados visualmente.\nConecte outros apps (n8n, Flowise, Dify) ao Milvus via host: ${nome_app}_milvus porta: 19530"
 
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
     ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
