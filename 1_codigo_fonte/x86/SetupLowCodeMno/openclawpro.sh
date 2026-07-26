@@ -1164,7 +1164,7 @@ services:
     volumes:
       - ${nome_app_cognee}-data:/app/cognee
     ports:
-      - "8000:8000"
+      - "8001:8000"
     # ✅ CORREÇÃO PRINCIPAL: NÃO apagar .cognee_system
     command: >
       bash -c "/app/.venv/bin/python3 -m cognee.api.v1.server"

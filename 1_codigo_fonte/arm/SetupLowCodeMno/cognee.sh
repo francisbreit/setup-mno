@@ -349,7 +349,7 @@ services:
     volumes:
       - ${nome_app}-data:/root/.cognee
     ports:
-      - "8000:8000"
+      - "8001:8000"
     command: bash -c "pip install --upgrade pip && pip install cognee fastapi uvicorn && uvicorn cognee.api.client:app --host 0.0.0.0 --port 8000"
     environment:
       - ENABLE_BACKEND_ACCESS_CONTROL=false

@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="4.43.0"
+VERSIONSETUP="4.75.0"
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
     echo "ERRO: Este script deve ser executado como root." >&2
@@ -388,6 +388,20 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm focalboard
 fi
 echo -e "XXX\n60\nINSTALANDO SETUPMNO 3/8 \nXXX"
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o freshrss -f freshrss.sh
+rm freshrss.sh
+rm freshrss.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm freshrss
+fi
+echo -e "XXX\n61\nINSTALANDO SETUPMNO 3/8 \nXXX"
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o filebrowser -f filebrowser.sh
+rm filebrowser.sh
+rm filebrowser.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm filebrowser
+fi
+echo -e "XXX\n62\nINSTALANDO SETUPMNO 3/8 \nXXX"
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o formbricks -f formbricks.sh
 rm formbricks.sh
 rm formbricks.sh.x.c
@@ -426,6 +440,13 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm krayincrm
 fi
 echo -e "XXX\n64\nINSTALANDO SETUPMNO 3/8 \nXXX"
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o karakeep -f karakeep.sh
+rm karakeep.sh
+rm karakeep.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm karakeep
+fi
+echo -e "XXX\n65\nINSTALANDO SETUPMNO 3/8 \nXXX"
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o lowcoder -f lowcoder.sh
 rm lowcoder.sh
 rm lowcoder.sh.x.c
@@ -464,6 +485,12 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm moodle
 fi
 echo -e "XXX\n69\nINSTALANDO SETUPMNO 3/8 \nXXX"
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o nginxproxymanager -f nginxproxymanager.sh
+rm nginxproxymanager.sh
+rm nginxproxymanager.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm nginxproxymanager
+fi
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o nextcloud -f nextcloud.sh
 rm nextcloud.sh
 rm nextcloud.sh.x.c
@@ -495,16 +522,6 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm ollama
 fi
 echo -e "XXX\n73\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o openproject -f openproject.sh
-rm openproject.sh
-rm openproject.sh.x.c
-if [ "$PLANO" == "free" ]; then
-rm openproject
-fi
-if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
-rm openproject
-fi
-echo -e "XXX\n74\nINSTALANDO SETUPMNO 3/8 \nXXX"
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o outline -f outline.sh
 rm outline.sh
 rm outline.sh.x.c
@@ -514,7 +531,17 @@ fi
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm outline
 fi
-echo -e "XXX\n75\nINSTALANDO SETUPMNO 3/4 \nXXX"
+echo -e "XXX\n74\nINSTALANDO SETUPMNO 3/8 \nXXX"
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o openproject -f openproject.sh
+rm openproject.sh
+rm openproject.sh.x.c
+if [ "$PLANO" == "free" ]; then
+rm openproject
+fi
+if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm openproject
+fi
+echo -e "XXX\n75\nINSTALANDO SETUPMNO 3/8 \nXXX"
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o quepasa -f quepasa.sh
 rm quepasa.sh
 rm quepasa.sh.x.c
@@ -536,6 +563,13 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm stirlingpdf
 fi
 echo -e "XXX\n78\nINSTALANDO SETUPMNO 3/8 \nXXX"
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o superset -f superset.sh
+rm superset.sh
+rm superset.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm superset
+fi
+echo -e "XXX\n79\nINSTALANDO SETUPMNO 3/8 \nXXX"
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o strap -f strap.sh
 rm strap.sh
 rm strap.sh.x.c
@@ -550,6 +584,13 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm toojet
 fi
 echo -e "XXX\n80\nINSTALANDO SETUPMNO 3/8 \nXXX"
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o triliumnext -f triliumnext.sh
+rm triliumnext.sh
+rm triliumnext.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm triliumnext
+fi
+echo -e "XXX\n81\nINSTALANDO SETUPMNO 3/8 \nXXX"
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o twentycrm -f twentycrm.sh
 rm twentycrm.sh
 rm twentycrm.sh.x.c
@@ -567,6 +608,13 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm vaultwarden
 fi
 echo -e "XXX\n82\nINSTALANDO SETUPMNO 4/8 \nXXX"
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o vikunja -f vikunja.sh
+rm vikunja.sh
+rm vikunja.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm vikunja
+fi
+echo -e "XXX\n83\nINSTALANDO SETUPMNO 4/8 \nXXX"
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o woofedcrm -f woofedcrm.sh
 rm woofedcrm.sh
 rm woofedcrm.sh.x.c
@@ -723,7 +771,18 @@ rm wikijs.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm wikijs
 fi
-
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o weaviate -f weaviate.sh
+rm weaviate.sh
+rm weaviate.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm weaviate
+fi
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o windmill -f windmill.sh
+rm windmill.sh
+rm windmill.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm windmill
+fi
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o botpress -f botpress.sh
 rm botpress.sh
 rm botpress.sh.x.c
@@ -734,11 +793,24 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm botpress
 fi
 echo -e "XXX\n96\nINSTALANDO SETUPMNO 6/8 \nXXX"
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o budibase -f budibase.sh
+rm budibase.sh
+rm budibase.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm budibase
+fi
+echo -e "XXX\n97\nINSTALANDO SETUPMNO 6/8 \nXXX"
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o nocodb -f nocodb.sh
 rm nocodb.sh
 rm nocodb.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm nocodb
+fi
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o nocobase -f nocobase.sh
+rm nocobase.sh
+rm nocobase.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm nocobase
 fi
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o baserow -f baserow.sh
 rm baserow.sh
@@ -748,6 +820,13 @@ rm baserow
 fi
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm baserow
+fi
+
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o beszel -f beszel.sh
+rm beszel.sh
+rm beszel.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm beszel
 fi
 
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o mysql -f mysql.sh
@@ -845,6 +924,34 @@ if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]];
 rm shlink
 fi
 
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o siyuan -f siyuan.sh
+rm siyuan.sh
+rm siyuan.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm siyuan
+fi
+
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o tooljet -f tooljet.sh
+rm tooljet.sh
+rm tooljet.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm tooljet
+fi
+
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o reactiveresume -f reactiveresume.sh
+rm reactiveresume.sh
+rm reactiveresume.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm reactiveresume
+fi
+
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o photoprism -f photoprism.sh
+rm photoprism.sh
+rm photoprism.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm photoprism
+fi
+
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o geracloudflare -f geracloudflare.sh
 rm geracloudflare.sh
 rm geracloudflare.sh.x.c
@@ -880,6 +987,12 @@ rm qdrant.sh
 rm qdrant.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm qdrant
+fi
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o chromadb -f chromadb.sh
+rm chromadb.sh
+rm chromadb.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm chromadb
 fi
 
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o essenciais -f essenciais.sh
@@ -935,6 +1048,27 @@ fi
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm litellm
 fi
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o librechat -f librechat.sh
+rm librechat.sh
+rm librechat.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm librechat
+fi
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o listmonk -f listmonk.sh
+rm listmonk.sh
+rm listmonk.sh.x.c
+if [ "$PLANO" == "free" ]; then
+rm listmonk
+fi
+if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm listmonk
+fi
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o lobechat -f lobechat.sh
+rm lobechat.sh
+rm lobechat.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm lobechat
+fi
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o mautic6padrao -f mautic6padrao.sh
 rm mautic6padrao.sh
 rm mautic6padrao.sh.x.c
@@ -970,6 +1104,25 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm matomo
 fi
 
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o maybe -f maybe.sh
+rm maybe.sh
+rm maybe.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm maybe
+fi
+
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o meilisearch -f meilisearch.sh
+rm meilisearch.sh
+rm meilisearch.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm meilisearch
+fi
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o memos -f memos.sh
+rm memos.sh
+rm memos.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm memos
+fi
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o openclaw -f openclaw.sh
 rm openclaw.sh
 rm openclaw.sh.x.c
@@ -1068,11 +1221,31 @@ if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]];
 rm penpot
 fi
 
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o pihole -f pihole.sh
+rm pihole.sh
+rm pihole.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm pihole
+fi
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o pocketbase -f pocketbase.sh
+rm pocketbase.sh
+rm pocketbase.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm pocketbase
+fi
+
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o rocketchat -f rocketchat.sh
 rm rocketchat.sh
 rm rocketchat.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm rocketchat
+fi
+
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o gitea -f gitea.sh
+rm gitea.sh
+rm gitea.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm gitea
 fi
 
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o gitlab -f gitlab.sh
@@ -1085,18 +1258,30 @@ fi
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o umami -f umami.sh
 rm umami.sh
 rm umami.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm umami
+fi
 
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o actualbudget -f actualbudget.sh
 rm actualbudget.sh
 rm actualbudget.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm actualbudget
+fi
 
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o bookstack -f bookstack.sh
 rm bookstack.sh
 rm bookstack.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm bookstack
+fi
 
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o paperless -f paperless.sh
 rm paperless.sh
 rm paperless.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm paperless
+fi
 
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o fireflyiii -f fireflyiii.sh
 rm fireflyiii.sh
@@ -1145,7 +1330,12 @@ rm heyform.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm heyform
 fi
-
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o infisical -f infisical.sh
+rm infisical.sh
+rm infisical.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm infisical
+fi
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o chatwooto_evo2_rabbitmq_minio -f chatwooto_evo2_rabbitmq_minio.sh
 rm chatwooto_evo2_rabbitmq_minio.sh
 rm chatwooto_evo2_rabbitmq_minio.sh.x.c
@@ -1174,11 +1364,32 @@ if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]];
 rm jitsi
 fi
 
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o joplin -f joplin.sh
+rm joplin.sh
+rm joplin.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm joplin
+fi
+
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o jellyfin -f jellyfin.sh
+rm jellyfin.sh
+rm jellyfin.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm jellyfin
+fi
+
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o activepieces -f activepieces.sh
 rm activepieces.sh
 rm activepieces.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm activepieces
+fi
+
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o adguardhome -f adguardhome.sh
+rm adguardhome.sh
+rm adguardhome.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm adguardhome
 fi
 
 echo -e "XXX\n99\nINSTALANDO SETUPMNO 7/8 \nXXX"

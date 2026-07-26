@@ -433,7 +433,7 @@ services:
       - externa
       - interna
     ports:
-      - "8081:8081"
+      - "8082:8081"
     environment:
       - HTTP_USER=default
       - REDIS_HOST=redis

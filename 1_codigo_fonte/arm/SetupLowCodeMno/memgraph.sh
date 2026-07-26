@@ -323,7 +323,7 @@ services:
       - ${nome_app}-etc:/etc/memgraph
     ports:
       - "7687:7687"
-      - "3000:3000"
+      - "7688:3000"
     deploy:
       mode: replicated
       replicas: 1

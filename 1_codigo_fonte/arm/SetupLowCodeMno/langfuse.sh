@@ -1218,9 +1218,9 @@ services:
       - interna
 
     #ports:
-    #  - "8123:8123"
-    #  - "9000:9000"
-    #  - "9009:9009"
+    #  - "8124:8123"
+    #  - "9001:9000"
+    #  - "9010:9009"
 
     environment:
       - CLICKHOUSE_DB=default

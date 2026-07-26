@@ -58,6 +58,9 @@ O projeto utiliza Git para rastrear todas as alterações. Regras obrigatórias:
 5. Commit do empacotamento: `git commit -am "release: vX.Y.Z - [descrição]"`
 6. Tag: `git tag -a vX.Y.Z -m "[descrição]"`
 
+### Backup automático antes do empacotamento
+O script `gerar_distribuicao.sh` cria automaticamente um backup do conteúdo atual de `3_distribuicao/` na pasta `3_distribuicao/backup/` antes de iniciar o novo empacotamento. Se o empacotamento falhar, o backup anterior pode ser restaurado manualmente. **NÃO delete a pasta `backup/` — ela é sua segurança contra empacotamentos corruptos.**
+
 ## REGRA PARA ADIÇÃO DE NOVAS FERRAMENTAS
 Ao adicionar uma ferramenta (CRM, IA, etc):
 1. **Criação:** Crie o script `ferramenta.sh` em ambos os diretórios de arquitetura.
@@ -66,8 +69,46 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
    - **PRO:** Ferramentas PRO devem aparecer no menu de todos os planos (PRO, free, free1, free2), marcadas com `"PRO"` — para que os usuários vejam o que está disponível.
    - **Free:** Ferramentas Free devem aparecer com `""` (vazio) em todos os menus.
    - **Ordem nos menus free/free1/free2:** Ferramentas free (liberadas) ficam PRIMEIRO em ordem alfabética, seguidas de um separador `"─────────────────────────" ""`, e depois as ferramentas PRO em ordem alfabética.
+   - **ARM incompatível:** Se a ferramenta NÃO tem imagem ARM, NÃO adicione ao menu do `install.sh` ARM (delete a linha, não comente). Mantenha script .sh, SHC block e case statement espelhados.
 4. **Espelhamento:** Toda alteração em x86 deve ser replicada em ARM (mesma lógica, tags de imagem diferentes).
-5. **Compilação SHC (OBRIGATÓRIO):** Adicione o bloco de compilação SHC em AMBOS os gatilhos (`start_full.sh` x86 e `start_arm_full.sh` ARM). Sem isso, o script não será compilado no runtime do cliente e o menu falhará. Formato do bloco:
+5. **VERIFICAR CONFLITO DE PORTA (OBRIGATÓRIO)**: Antes de adicionar porta `ports:` no YAML, executar o verificador de portas:
+   ```bash
+   ./2_empacotador/verificar_portas.sh [porta]
+   ```
+   - Sem argumento: lista todas as portas e conflitos
+   - Com argumento (ex: `./2_empacotador/verificar_portas.sh 8080`): verifica se a porta específica tem conflito
+   - **Se retornar conflito**, usar porta alternativa
+   - **Conflitos de "exclusão mútua"** (combo vs standalone) são aceitáveis — o usuário só instala um por vez
+6. **REDIS DEDICADO POR APP (OBRIGATÓRIO)**: Toda aplicação que usa Redis DEVE ter seu próprio Redis dedicado. NUNCA usar o Redis compartilhado para novas aplicações. Padrão:
+   ```bash
+   # YAML do Redis dedicado ($app-redis.yaml)
+   cat > ${nome_app}-redis.yaml << EOREDIS
+   version: '3.7'
+   services:
+       ${nome_app}_redis:
+           image: redis:7-alpine
+           command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+           hostname: ${nome_app}_redis
+           networks:
+               - interna
+           volumes:
+               - ${nome_app}_redis_data:/data
+           deploy:
+               placement:
+                   constraints: [node.role == manager]
+   volumes:
+       ${nome_app}_redis_data:
+   networks:
+       interna:
+           external: true
+           name: interna
+   EOREDIS
+   ```
+   - Deploy ANTES do stack principal: `docker stack deploy --prune -c ${app}-redis.yaml ${app}-redis`
+   - Conectar via: `REDIS_URL=redis://${app}_redis:6379`
+   - **Se `criar_portainer == "0"`, o Redis dedicado TAMBÉM deve ser criado via Portainer API (editável).** Usar a mesma autenticação/token para criar AMBOS os stacks (Redis + App) via API do Portainer. O Redis deve ser criado ANTES do stack principal.
+   - **Referência:** `evoai.sh`, `infisical.sh`, `photoprism.sh`
+7. **Compilação SHC (OBRIGATÓRIO):** Adicione o bloco de compilação SHC em AMBOS os gatilhos (`start_full.sh` x86 e `start_arm_full.sh` ARM). Sem isso, o script não será compilado no runtime do cliente e o menu falhará. Formato do bloco:
    ```bash
    shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o nome_da_ferramenta -f nome_da_ferramenta.sh
    rm nome_da_ferramenta.sh
@@ -493,6 +534,10 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
     - [ ] Menu adicionado ao install.sh (x86 E ARM)
     - [ ] Case statement adicionado (x86 E ARM)
     - [ ] Bloco SHC adicionado (start_full.sh E start_arm_full.sh)
+    - [ ] **SHC com `if PLANO free`**: Todo app PRO DEVE ter o bloco de deleção `if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then rm <binário>; fi` em AMBOS os gatilhos
+    - [ ] **Menu PRO com tag `"PRO"`**: Todo app PRO DEVE aparecer com tag `"PRO"` em TODOS os menus free/free1/free2 — visível mas bloqueado
+    - [ ] **Menu PRO com tag `""`**: Todo app PRO DEVE aparecer com tag `""` (disponível) no menu PRO
+    - [ ] **ferramentas.html**: Atualizar TODAS as menções de versão (subtítulo E rodapé) — usar `grep -n "4\." ferramentas.html` para encontrar todas
     - [ ] Pergunta Portainer adicionada
     - [ ] Variáveis Cloudflare verificadas antes de usar
     - [ ] `nome_servidor` com fallback para IP
@@ -501,6 +546,7 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
     - [ ] **Labels Traefik condicionais** (APENAS quando `INSTALL_TYPE = "TRADICIONAL"`)
     - [ ] **`cd` + `cd` antes de criar YAML** (garante salvamento em `/root/`)
     - [ ] **NÃO deletar o YAML após deploy** (`rm -f $nome_app.yaml` — o arquivo DEVE permanecer em `/root/`)
+    - [ ] **Redis dedicado via Portainer API**: Se `criar_portainer == "0"`, AMBOS os stacks (Redis + App) DEVEM ser criados via API do Portainer
     - [ ] Deploy com tratamento de erro em cada etapa
     - [ ] Versão incrementada no install.sh (x86 E ARM)
     - [ ] Empacotamento executado com sucesso
@@ -548,6 +594,7 @@ Após criar o script da ferramenta em ambas as arquiteturas:
    - `setup-mno-oracle.sh` — variável `VERSIONSETUP`
    - `start_full.sh` — variável `VERSIONSETUP`
    - `start_arm_full.sh` — variável `VERSIONSETUP`
+   - `ferramentas.html` — **TODAS** as menções da versão: subtítulo (`Versão X.Y.Z | Atualizado em...`) E rodapé (`Setup MNO vX.Y.Z | Documentação gerada automaticamente`). Use `grep -n "4\." ferramentas.html` para encontrar TODAS as ocorrências antes de alterar.
    - Ex: `4.25.0` → `4.26.0`
    - **USE O COMANDO: `grep -rn "VERSIONSETUP" 1_codigo_fonte/` para verificar se TODOS foram atualizados**
 4. **Ferramentas HTML:** Atualize o arquivo `ferramentas.html`:
@@ -563,17 +610,19 @@ Após criar o script da ferramenta em ambas as arquiteturas:
 ### Checklist de Validação (ANTES de empacotar)
 **⚠️ NÃO empacote até verificar TODOS os itens:**
 - [ ] Script criado em x86 E ARM
-- [ ] Menu adicionado ao install.sh (x86 E ARM)
+- [ ] Menu adicionado ao install.sh (x86 E ARM) — **se incompatível com ARM, omitir do menu ARM**
 - [ ] Case statement adicionado (x86 E ARM)
 - [ ] Bloco SHC adicionado (start_full.sh E start_arm_full.sh)
-- [ ] **VERSÃO ATUALIZADA** em TODOS os 4 arquivos:
+- [ ] **VERIFICAR CONFLITO DE PORTA**: Antes de adicionar porta `ports:` no YAML, verificar se já existe outra app usando a mesma porta host. Se conflitar, usar porta alternativa. Portas atuais: 53(Pi-hole), 80(Filebrowser), 3000(Gitea), 3001(AdGuard), 3002(Grafana), 3080(LibreChat), 4200(OpenFang), 5672(RabbitMQ), 6333(Qdrant), 6334(Qdrant), 7474(Neo4j), 7687(Memgraph), 7688(Memgraph), 8000(Windmill), 8001(Cognee), 8080(Ghost), 8081(Autogen), 8082(RedisCommander), 8083(Matomo), 8090(PocketBase), 8091(Beszel), 8123(ClickHouse), 8124(Langfuse), 8880(SearXNG), 9000(ClickHouse), 9001(Langfuse), 9009(ClickHouse), 9010(Langfuse), 13000(NocoBase), 18789(OpenClaw), 2222(Gitea SSH)
+- [ ] **VERSÃO ATUALIZADA** em TODOS os 6 arquivos:
   - `install.sh` (x86) — `VERSIONSETUP`
   - `install.sh` (ARM) — `VERSIONSETUP`
   - `setup-mno.sh` — `VERSIONSETUP`
   - `setup-mno-oracle.sh` — `VERSIONSETUP`
   - `start_full.sh` — `VERSIONSETUP`
   - `start_arm_full.sh` — `VERSIONSETUP`
-- [ ] **ferramentas.html atualizado** com nova ferramenta + versão + contadores
+  - `ferramentas.html` — **TODAS** as menções: subtítulo + rodapé
+- [ ] **ferramentas.html atualizado** com nova ferramenta + versão + contadores (baseados nos menus whiptail)
 - [ ] Empacotamento executado com sucesso
 
 ### Análise de Atualizações no Script Antigo
@@ -729,46 +778,54 @@ mysql_container=$(docker ps --format "{{.Names}}" | grep -q "^mysql$")
 
 **O instalador antigo NÃO contempla ARM.** Algumas imagens Docker só possuem build para x86. O instalador atual suporta ambas as arquiteturas, mas requer validação.
 
+**Regra de Espelhamento (ESTRATÉGIA):**
+- **Scripts .sh**: SEMPRE espelhar em `x86/SetupLowCodeMno/` E `arm/SetupLowCodeMno/` — mesmo para ferramentas x86-only. No futuro, se surgir imagem ARM, basta liberar no menu.
+- **SHC blocks**: SEMPRE adicionar em AMBOS os gatilhos (`start_full.sh` x86 E `start_arm_full.sh` ARM).
+- **Case statements**: SEMPRE espelhar em ambas as versões do `install.sh` (x86 E ARM).
+- **Menu whiptail**: é a ÚNICA coisa que difere entre x86 e ARM. Ferramentas incompatíveis com ARM são ** OMITIDAS ** (deletadas, não comentadas) do menu do `install.sh` ARM.
+
 **Regras para adicionar ferramentas:**
-1. **Antes de adicionar ao menu ARM**, verifique se a imagem Docker possui build para `linux/arm64`:
+1. **Verificar compatibilidade ARM** antes de adicionar ao menu:
    ```bash
-   # No Docker Hub, verifique se existe tag arm64 ou multiarch
-   # Exemplo: docker manifest inspect imagem:tag | grep architecture
+   docker manifest inspect imagem:tag | jq '.manifests[] | select(.platform.architecture=="arm64")'
    ```
-2. **Se NÃO existir build ARM**, NÃO adicione a ferramenta ao menu ARM. A ferramenta simplesmente não deve aparecer para nenhum usuário (nem PRO).
-3. **Se existir build ARM**, a ferramenta pode ficar disponível para todos os planos.
+2. **Se NÃO existir build ARM**: NÃO adicione ao menu do `install.sh` ARM. Mantenha scripts .sh, SHC blocks e case statements espelhados.
+3. **Se existir build ARM**: adicione ao menu de AMBOS (x86 e ARM).
 4. **Scripts de combo** devem ter TODAS as imagens compatíveis com ARM para funcionar.
 
 **Como ocultar ferramenta incompatível com ARM:**
-No `install.sh` do ARM, DELETE a linha correspondente (NÃO comente):
+No `install.sh` do ARM, DELETE a linha do menu whiptail (NÃO comente):
 ```bash
-# NÃO fazer:
-# "NOME_DA_FERRAMENTA" "" \  # INCOMPATÍVEL COM ARM
+# NÃO fazer (quebra whiptail):
+# "NOME_DA_FERRAMENTA" "" \
 
 # FAZER:
-# Simplesmente deletar a linha do menu
+# Simplesmente deletar a linha do menu whiptail
+# Manter: script .sh, SHC block, case statement — tudo espelhado
 ```
 
-**Como verificar compatibilidade ARM:**
-```bash
-# Verificar se imagem suporta arm64
-docker manifest inspect imagem:tag | jq '.manifests[] | select(.platform.architecture=="arm64")'
+**Contagem de apps:**
+- A contagem de apps no `ferramentas.html` é baseada nos ** menus whiptail ** do `install.sh`.
+- x86 e ARM podem ter contagens diferentes.
+- Para contar: `grep -oP '^\s+"[^"]+"\s+"(PRO|)?"' install.sh | sed 's/^\s*"//;s/".*//' | grep -E '^[A-Z]' | sort -u | wc -l`
 
-# Ou no Docker Hub: https://hub.docker.com/r/usuario/imagem -> Tags -> verificar se existe arm64
-```
+**Fluxo ao adicionar nova ferramenta x86-only:**
+1. Criar script em `x86/SetupLowCodeMno/`
+2. Copiar para `arm/SetupLowCodeMno/` (mesmo sendo x86-only)
+3. Adicionar SHC block em AMBOS os gatilhos
+4. Adicionar case statement em AMBOS os install.sh
+5. Adicionar ao menu whiptail APENAS no `install.sh` x86
+6. NÃO adicionar ao menu do `install.sh` ARM
+7. Atualizar contadores no `ferramentas.html`
+
+**Fluxo ao adicionar nova ferramenta multi-arch:**
+1. Criar script em `x86/SetupLowCodeMno/`
+2. Copiar para `arm/SetupLowCodeMno/`
+3. Adicionar SHC block em AMBOS os gatilhos
+4. Adicionar case statement em AMBOS os install.sh
+5. Adicionar ao menu whiptail em AMBOS (x86 e ARM)
+6. Atualizar contadores no `ferramentas.html`
 
 **Ferramentas conhecidas que NÃO funcionam em ARM (verificar periodicamente):**
 - Algumas imagens com binários compilados estaticamente para x86
 - Ferramentas com dependências de bibliotecas nativas x86 específicas
-
-**Fluxo ao adicionar nova ferramenta:**
-1. Criar script em `x86/SetupLowCodeMno/`
-2. Copiar para `arm/SetupLowCodeMno/`
-3. Verificar compatibilidade ARM da imagem Docker
-4. **Adicionar SHC block em AMBOS os gatilhos** (x86 e ARM)
-5. **No install.sh do ARM**: se incompatível, comentar a linha usando `#`
-
-**Regra de Espelhamento:**
-- **SEMPRE** replicar scripts, SHC blocks e zip para ARM
-- **APENAS** ocultar no `install.sh` do ARM quando incompatível
-- Com o tempo, descomentar conforme imagens ganham suporte ARM

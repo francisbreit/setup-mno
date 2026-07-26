@@ -466,7 +466,7 @@ services:
       - externa
       - interna
     # ports:
-    #   - "3000:3000"
+    #   - "3002:3000"
     deploy: 
 EOL
 # Adicionar as labels apenas se for instalação tradicional

@@ -343,7 +343,7 @@ services:
     volumes:
       - ${nome_app}-data:/etc/searxng
     ports:
-      - "8080:8080"
+      - "8880:8080"
     environment:
       - SEARXNG_BASE_URL=https://${urlsearxng}/
       - SEARXNG_SECRET=${auth_secret}

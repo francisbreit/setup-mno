@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="4.43.0"
+VERSIONSETUP="4.75.0"
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
 CONTATO_GITHUB="github.com/francisbreit"
@@ -247,12 +247,15 @@ if [[ ! "$PLANO" = *free* ]]; then
 CHOICE=$(
 whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 20 70 10 \
     "ACTIVEPIECES" "" \
+    "ADGUARDHOME" "" \
     "AFFINE" "" \
     "ACTUAL BUDGET" "" \
     "APPSMITH" "" \
     "AUTOGEN STUDIO" "" \
     "BASEROW" "" \
+    "BESZEL" "" \
     "BOTPRESS" "" \
+    "BUDIBASE" "" \
     "BOOKSTACK" "" \
     "CAL.COM" ""  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" ""   \
@@ -282,23 +285,36 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "FIRECRAWL" "" \
     "FLOWISE" "" \
     "FOCALBOARD" "" \
+    "FRESHRSS" "" \
+    "FILEBROWSER" "" \
     "FIREFLY III" "" \
     "FORMBRICKS" "" \
     "GHOST" "" \
     "GLPI" "" \
+    "GITEA" "" \
     "GITLAB" "" \
     "GRAFANA/PROMETHEUS MONITOR" ""   \
     "HERMES AGENT" "" \
     "HEYFORM" "" \
     "HUMHUB" "" \
+    "INFISICAL" "" \
     "JITSI MEET" "" \
+    "JELLYFIN" "" \
+    "JOPLIN" "" \
     "KEYCLOAK" "" \
     "KRAYIN CRM" "" \
+    "KARAKEEP" "" \
     "LANGFLOW" "" \
     "LANGFUSE + MINIO + CLICKHOUSE*" "" \
     "LITELLM" "" \
+    "LIBRECHAT" "" \
+    "LISTMONK" "" \
+    "LOBECHAT" "" \
     "MATTERMOST" "" \
     "MATOMO" "" \
+    "MAYBE" "" \
+    "MEILISEARCH" "" \
+    "MEMOS" "" \
     "MAUTIC 4 PADRÃO" "" \
     "MAUTIC 6 PADRÃO" "" \
     "MAUTIC 7 PADRÃO" "" \
@@ -315,8 +331,10 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "N8N V2 - FILA (QUEUE)" "" \
     "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "" \
     "NEO4J" "" \
+    "NGINXPROXYMANAGER" "" \
     "NEXTCLOUD" "" \
     "NOCODB" "" \
+    "NOCOBASE" "" \
     "NTFY" "" \
     "ODOO" "" \
     "OLLAMA + OPENWEBUI*" "" \
@@ -324,21 +342,31 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "" \
     "OPENFANG" "" \
     "OPEN PROJECT" "" \
+    "OUTLINE" "" \
     "PAPERCLIP" "" \
     "PAPERLESS" "" \
     "PENPOT" "" \
+    "PI-HOLE" "" \
+    "POCKETBASE" "" \
     "PGADMIN4" "" \
+    "PHOTOPRISM" "" \
     "PHPMYADMIN" "" \
     "PLANKA" "" \
     "QDRANT" "" \
+    "CHROMADB" "" \
     "RABBITMQ" "" \
+    "REACTIVE RESUME" "" \
     "REDIS" "" \
     "REDIS COMMANDER" "" \
     "REDISINSIGHT" "" \
     "ROCKET.CHAT" "" \
     "SEARXNG" "" \
     "SHLINK" "" \
+    "SIYUAN" "" \
     "STIRLING PDF" "" \
+    "TOOLJET" "" \
+    "SUPERSET" "" \
+    "TRILIUMNEXT" "" \
     "TWENTY CRM" "" \
     "TYPEBOT" "" \
     "UMAMI" "" \
@@ -346,6 +374,9 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "UPTIMEKUMA" "" \
     "WAHA API" "" \
     "VAULTWARDEN" "" \
+    "VIKUNJA" "" \
+    "WEAVIATE" "" \
+    "WINDMILL" "" \
     "WOOFED CRM" "" \
     "WORDPRESS" "" \
     "WIKI.JS" "" \
@@ -374,12 +405,15 @@ case "$CHOICE" in
         # Mapeamento nome -> script
         case "$CHOICE" in
             "ACTIVEPIECES")                                           run_app activepieces ;;
+            "ADGUARDHOME")                                          run_app adguardhome ;;
             "AFFINE")                                                run_app affine ;;
             "ACTUAL BUDGET")                                          run_app actualbudget ;;
             "APPSMITH")                                              run_app appsmith ;;
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
+            "BESZEL")                                               run_app beszel ;;
             "BOTPRESS")                                              run_app botpress ;;
+            "BUDIBASE")                                              run_app budibase ;;
             "BOOKSTACK")                                               run_app bookstack ;;
             "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
@@ -409,23 +443,36 @@ case "$CHOICE" in
             "FIRECRAWL")                                             run_app firecrawl ;;
             "FLOWISE")                                               run_app flowise ;;
             "FOCALBOARD")                                            run_app focalboard ;;
+            "FRESHRSS")                                              run_app freshrss ;;
+            "FILEBROWSER")                                          run_app filebrowser ;;
             "FIREFLY III")                                              run_app fireflyiii ;;
             "FORMBRICKS")                                            run_app formbricks ;;
             "GHOST")                                                 run_app ghost ;;
             "GLPI")                                                  run_app glpi ;;
+            "GITEA")                                                run_app gitea ;;
             "GITLAB")                                                warn_heavy "GitLab" "4GB" && run_app gitlab ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HEYFORM")                                               run_app heyform ;;
             "HUMHUB")                                                run_app humhub ;;
+            "INFISICAL")                                            run_app infisical ;;
             "JITSI MEET")                                            warn_heavy "Jitsi Meet" "5GB" && run_app jitsi ;;
+            "JELLYFIN")                                             run_app jellyfin ;;
+            "JOPLIN")                                               run_app joplin ;;
             "KEYCLOAK")                                              run_app keycloak ;;
             "KRAYIN CRM")                                            run_app krayincrm ;;
+            "KARAKEEP")                                              run_app karakeep ;;
             "LANGFLOW")                                              run_app langflow ;;
             "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
+            "LIBRECHAT")                                             run_app librechat ;;
+            "LISTMONK")                                              run_app listmonk ;;
+            "LOBECHAT")                                              run_app lobechat ;;
             "MATTERMOST")                                            run_app mattermost ;;
             "MATOMO")                                                run_app matomo ;;
+            "MAYBE")                                                run_app maybe ;;
+            "MEILISEARCH")                                           run_app meilisearch ;;
+            "MEMOS")                                                run_app memos ;;
             "MAUTIC 4 PADRÃO")                                       warn_heavy "Mautic 4" "4.5GB" && run_app mauticpadrao ;;
             "MAUTIC 6 PADRÃO")                                       warn_heavy "Mautic 6" "6GB" && run_app mautic6padrao ;;
             "MAUTIC 7 PADRÃO")                                       warn_heavy "Mautic 7" "6GB" && run_app mautic7padrao ;;
@@ -442,30 +489,42 @@ case "$CHOICE" in
             "N8N V2 - FILA (QUEUE)")                                 warn_heavy "N8N V2 (Fila)" "7GB" && run_app n8n2 ;;
             "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
             "NEO4J")                                                 run_app neo4j ;;
+            "NGINXPROXYMANAGER")                                   run_app nginxproxymanager ;;
             "NEXTCLOUD")                                             run_app nextcloud ;;
             "NOCODB")                                                run_app nocodb ;;
+            "NOCOBASE")                                             run_app nocobase ;;
             "NTFY")                                                  run_app ntfy ;;
             "ODOO")                                                  run_app odoo ;;
             "OLLAMA + OPENWEBUI*")                                   warn_heavy "Ollama" "8GB+" && run_app ollama ;;
             "OPENCLAW")                                              run_app openclaw ;;
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
+            "OUTLINE")                                               run_app outline ;;
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PAPERLESS")                                               run_app paperless ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
+            "PI-HOLE")                                               run_app pihole ;;
+            "POCKETBASE")                                           run_app pocketbase ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
+            "PHOTOPRISM")                                           warn_heavy "PhotoPrism" "2GB" && run_app photoprism ;;
             "PLANKA")                                               run_app planka ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
+            "CHROMADB")                                              run_app chromadb ;;
             "RABBITMQ")                                              run_app rabbitmq ;;
+            "REACTIVE RESUME")                                      run_app reactiveresume ;;
+            "TOOLJET")                                              warn_heavy "ToolJet" "2GB" && run_app tooljet ;;
             "REDIS")                                                 run_app redis ;;
             "REDIS COMMANDER")                                       run_app redicommander ;;
             "REDISINSIGHT")                                          run_app redisinsight ;;
             "SEARXNG")                                               run_app searxng ;;
             "SHLINK")                                                run_app shlink ;;
+            "SIYUAN")                                                run_app siyuan ;;
             "STIRLING PDF")                                          run_app stirlingpdf ;;
+            "SUPERSET")                                             run_app superset ;;
+            "TRILIUMNEXT")                                           run_app triliumnext ;;
             "TWENTY CRM")                                            warn_heavy "Twenty CRM" "5GB" && run_app twentycrm ;;
             "TYPEBOT")                                               run_app typebot ;;
             "UMAMI")                                                 run_app umami ;;
@@ -473,6 +532,9 @@ case "$CHOICE" in
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
             "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
+            "VIKUNJA")                                               run_app vikunja ;;
+            "WEAVIATE")                                             run_app weaviate ;;
+            "WINDMILL")                                             run_app windmill ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;
             "WIKI.JS")                                               run_app wikijs ;;
@@ -510,6 +572,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "N8N V2 - FILA (QUEUE)" "" \
     "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "" \
     "NOCODB" "" \
+    "NOCOBASE" "" \
     "NTFY" "" \
     "OLLAMA + OPENWEBUI*" "" \
     "PGADMIN4" "" \
@@ -522,6 +585,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "REDISINSIGHT" "" \
     "SHLINK" "" \
     "STIRLING PDF" "" \
+    "SUPERSET" "" \
     "TYPEBOT" "" \
     "UMAMI" "" \
     "UPTIMEKUMA" "" \
@@ -533,12 +597,15 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WEKAN" "" \
     "─────────────────────────" "" \
     "ACTIVEPIECES" "PRO" \
+    "ADGUARDHOME" "PRO" \
     "AFFINE" "PRO" \
     "ACTUAL BUDGET" "PRO" \
     "APPSMITH" "PRO" \
     "AUTOGEN STUDIO" "PRO" \
     "BASEROW" "PRO" \
+    "BESZEL" "PRO" \
     "BOTPRESS" "PRO" \
+    "BUDIBASE" "PRO" \
     "BOOKSTACK" "PRO" \
     "CAL.COM" "PRO"  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
@@ -557,22 +624,35 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "EXCALIDRAW" "PRO" \
     "FIRECRAWL" "PRO" \
     "FOCALBOARD" "PRO" \
+    "FRESHRSS" "PRO" \
+    "FILEBROWSER" "PRO" \
     "FIREFLY III" "PRO" \
     "FORMBRICKS" "PRO" \
     "GHOST" "PRO" \
     "GLPI" "PRO" \
+    "GITEA" "PRO" \
     "GITLAB" "PRO" \
     "HERMES AGENT" "PRO" \
     "HEYFORM" "PRO" \
     "HUMHUB" "PRO" \
+    "INFISICAL" "PRO" \
     "JITSI MEET" "PRO" \
+    "JELLYFIN" "PRO" \
+    "JOPLIN" "PRO" \
     "KEYCLOAK" "PRO" \
     "KRAYIN CRM" "PRO" \
+    "KARAKEEP" "PRO" \
     "LANGFLOW" "PRO" \
     "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
     "LITELLM" "PRO" \
+    "LIBRECHAT" "PRO" \
+    "LISTMONK" "PRO" \
+    "LOBECHAT" "PRO" \
     "MATTERMOST" "PRO" \
     "MATOMO" "PRO" \
+    "MAYBE" "PRO" \
+    "MEILISEARCH" "PRO" \
+    "MEMOS" "PRO" \
     "MAUTIC 4 PADRÃO" "PRO" \
     "MAUTIC 4 WHATSAPP MKT" "PRO" \
     "MAUTIC 6 WHATSAPP MKT" "PRO" \
@@ -580,20 +660,32 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MEMGRAPH" "PRO" \
     "METABASE" "PRO" \
     "NEO4J" "PRO" \
+    "NGINXPROXYMANAGER" "PRO" \
     "NEXTCLOUD" "PRO" \
     "ODOO" "PRO" \
     "OPENCLAW" "PRO" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
     "OPENFANG" "PRO" \
     "OPEN PROJECT" "PRO" \
+    "OUTLINE" "PRO" \
     "PAPERCLIP" "PRO" \
     "PAPERLESS" "PRO" \
     "PENPOT" "PRO" \
+    "PI-HOLE" "PRO" \
+    "POCKETBASE" "PRO" \
+    "PGADMIN4" "PRO" \
+    "PHOTOPRISM" "PRO" \
+    "REACTIVE RESUME" "PRO" \
     "ROCKET.CHAT" "PRO" \
     "SEARXNG" "PRO" \
+    "SIYUAN" "PRO" \
+    "TRILIUMNEXT" "PRO" \
+    "TOOLJET" "PRO" \
     "TWENTY CRM" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
     "PLANKA" "PRO" \
+    "WEAVIATE" "PRO" \
+    "WINDMILL" "PRO" \
     "WOOFED CRM" "PRO" \
     "WIKI.JS" "PRO" \
     "REINICIAR APPS/SERVIÇOS" "" \
@@ -626,7 +718,9 @@ case "$CHOICE" in
             "APPSMITH")                                              run_app appsmith ;;
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
+            "BESZEL")                                               run_app beszel ;;
             "BOTPRESS")                                              run_app botpress ;;
+            "BUDIBASE")                                              run_app budibase ;;
             "BOOKSTACK")                                               run_app bookstack ;;
             "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
@@ -656,23 +750,36 @@ case "$CHOICE" in
             "FIRECRAWL")                                             run_app firecrawl ;;
             "FLOWISE")                                               run_app flowise ;;
             "FOCALBOARD")                                            run_app focalboard ;;
+            "FRESHRSS")                                              run_app freshrss ;;
+            "FILEBROWSER")                                          run_app filebrowser ;;
             "FIREFLY III")                                              run_app fireflyiii ;;
             "FORMBRICKS")                                            run_app formbricks ;;
             "GHOST")                                                 run_app ghost ;;
             "GLPI")                                                  run_app glpi ;;
+            "GITEA")                                                run_app gitea ;;
             "GITLAB")                                                warn_heavy "GitLab" "4GB" && run_app gitlab ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HEYFORM")                                               run_app heyform ;;
             "HUMHUB")                                                run_app humhub ;;
+            "INFISICAL")                                            run_app infisical ;;
             "JITSI MEET")                                            warn_heavy "Jitsi Meet" "5GB" && run_app jitsi ;;
+            "JELLYFIN")                                             run_app jellyfin ;;
+            "JOPLIN")                                               run_app joplin ;;
             "KEYCLOAK")                                              run_app keycloak ;;
             "KRAYIN CRM")                                            run_app krayincrm ;;
+            "KARAKEEP")                                              run_app karakeep ;;
             "LANGFLOW")                                              run_app langflow ;;
             "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
+            "LIBRECHAT")                                             run_app librechat ;;
+            "LISTMONK")                                              run_app listmonk ;;
+            "LOBECHAT")                                              run_app lobechat ;;
             "MATTERMOST")                                            run_app mattermost ;;
             "MATOMO")                                                run_app matomo ;;
+            "MAYBE")                                                run_app maybe ;;
+            "MEILISEARCH")                                           run_app meilisearch ;;
+            "MEMOS")                                                run_app memos ;;
             "MAUTIC 4 PADRÃO")                                       warn_heavy "Mautic 4" "4.5GB" && run_app mauticpadrao ;;
             "MAUTIC 6 PADRÃO")                                       warn_heavy "Mautic 6" "6GB" && run_app mautic6padrao ;;
             "MAUTIC 7 PADRÃO")                                       warn_heavy "Mautic 7" "6GB" && run_app mautic7padrao ;;
@@ -689,30 +796,42 @@ case "$CHOICE" in
             "N8N V2 - FILA (QUEUE)")                                 warn_heavy "N8N V2 (Fila)" "7GB" && run_app n8n2 ;;
             "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
             "NEO4J")                                                 run_app neo4j ;;
+            "NGINXPROXYMANAGER")                                   run_app nginxproxymanager ;;
             "NEXTCLOUD")                                             run_app nextcloud ;;
             "NOCODB")                                                run_app nocodb ;;
+            "NOCOBASE")                                             run_app nocobase ;;
             "NTFY")                                                  run_app ntfy ;;
             "ODOO")                                                  run_app odoo ;;
             "OLLAMA + OPENWEBUI*")                                   warn_heavy "Ollama" "8GB+" && run_app ollama ;;
             "OPENCLAW")                                              run_app openclaw ;;
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
+            "OUTLINE")                                               run_app outline ;;
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PAPERLESS")                                               run_app paperless ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
+            "PI-HOLE")                                               run_app pihole ;;
+            "POCKETBASE")                                           run_app pocketbase ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
+            "PHOTOPRISM")                                           warn_heavy "PhotoPrism" "2GB" && run_app photoprism ;;
             "PLANKA")                                               run_app planka ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
+            "CHROMADB")                                              run_app chromadb ;;
             "RABBITMQ")                                              run_app rabbitmq ;;
+            "REACTIVE RESUME")                                      run_app reactiveresume ;;
+            "TOOLJET")                                              warn_heavy "ToolJet" "2GB" && run_app tooljet ;;
             "REDIS")                                                 run_app redis ;;
             "REDIS COMMANDER")                                       run_app redicommander ;;
             "REDISINSIGHT")                                          run_app redisinsight ;;
             "SEARXNG")                                               run_app searxng ;;
             "SHLINK")                                                run_app shlink ;;
+            "SIYUAN")                                                run_app siyuan ;;
             "STIRLING PDF")                                          run_app stirlingpdf ;;
+            "SUPERSET")                                             run_app superset ;;
+            "TRILIUMNEXT")                                           run_app triliumnext ;;
             "TWENTY CRM")                                            warn_heavy "Twenty CRM" "5GB" && run_app twentycrm ;;
             "TYPEBOT")                                               run_app typebot ;;
             "UMAMI")                                                 run_app umami ;;
@@ -720,6 +839,9 @@ case "$CHOICE" in
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
             "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
+            "VIKUNJA")                                               run_app vikunja ;;
+            "WEAVIATE")                                             run_app weaviate ;;
+            "WINDMILL")                                             run_app windmill ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;
             "WIKI.JS")                                               run_app wikijs ;;
@@ -748,12 +870,15 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WAHA API" "" \
     "─────────────────────────" "" \
     "ACTIVEPIECES" "PRO" \
+    "ADGUARDHOME" "PRO" \
     "AFFINE" "PRO" \
     "ACTUAL BUDGET" "PRO" \
     "APPSMITH" "PRO" \
     "AUTOGEN STUDIO" "PRO" \
     "BASEROW" "PRO" \
+    "BESZEL" "PRO" \
     "BOTPRESS" "PRO" \
+    "BUDIBASE" "PRO" \
     "BOOKSTACK" "PRO" \
     "CAL.COM" "PRO"  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" "PRO"   \
@@ -761,6 +886,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOT AI CUSTOMER SERVICE*" "PRO"   \
+    "CHROMADB" "PRO"   \
     "CLICKHOUSE" "PRO"   \
     "CODE SERVER" "PRO"   \
     "COGNEE" "PRO"   \
@@ -786,14 +912,24 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "HERMES AGENT" "PRO" \
     "HEYFORM" "PRO" \
     "HUMHUB" "PRO" \
+    "INFISICAL" "PRO" \
     "JITSI MEET" "PRO" \
+    "JELLYFIN" "PRO" \
+    "JOPLIN" "PRO" \
     "KEYCLOAK" "PRO" \
     "KRAYIN CRM" "PRO" \
+    "KARAKEEP" "PRO" \
     "LANGFLOW" "PRO" \
     "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
     "LITELLM" "PRO" \
+    "LIBRECHAT" "PRO" \
+    "LISTMONK" "PRO" \
+    "LOBECHAT" "PRO" \
     "MATTERMOST" "PRO" \
     "MATOMO" "PRO" \
+    "MAYBE" "PRO" \
+    "MEILISEARCH" "PRO" \
+    "MEMOS" "PRO" \
     "MAUTIC 4 PADRÃO" "PRO" \
     "MAUTIC 6 PADRÃO" "PRO" \
     "MAUTIC 7 PADRÃO" "PRO" \
@@ -806,8 +942,10 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MYSQL" "PRO" \
     "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "PRO" \
     "NEO4J" "PRO" \
+    "NGINXPROXYMANAGER" "PRO" \
     "NEXTCLOUD" "PRO" \
     "NOCODB" "PRO" \
+    "NOCOBASE" "PRO" \
     "NTFY" "PRO" \
     "ODOO" "PRO" \
     "OLLAMA + OPENWEBUI*" "PRO" \
@@ -818,21 +956,32 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "PAPERCLIP" "PRO" \
     "PAPERLESS" "PRO" \
     "PENPOT" "PRO" \
+    "PHOTOPRISM" "PRO" \
+    "PI-HOLE" "PRO" \
+    "POCKETBASE" "PRO" \
     "PHPMYADMIN" "PRO" \
     "PLANKA" "PRO" \
     "QDRANT" "PRO" \
     "RABBITMQ" "PRO" \
+    "REACTIVE RESUME" "PRO" \
     "REDIS COMMANDER" "PRO" \
     "REDISINSIGHT" "PRO" \
     "SEARXNG" "PRO" \
     "SHLINK" "PRO" \
+    "SIYUAN" "PRO" \
     "STIRLING PDF" "PRO" \
+    "TOOLJET" "PRO" \
+    "SUPERSET" "PRO" \
+    "TRILIUMNEXT" "PRO" \
     "TWENTY CRM" "PRO" \
     "TYPEBOT" "PRO" \
     "UMAMI" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
     "UPTIMEKUMA" "PRO" \
     "VAULTWARDEN" "PRO" \
+    "VIKUNJA" "PRO" \
+    "WEAVIATE" "PRO" \
+    "WINDMILL" "PRO" \
     "WOOFED CRM" "PRO" \
     "WORDPRESS" "PRO" \
     "WIKI.JS" "PRO" \
@@ -868,7 +1017,9 @@ case "$CHOICE" in
             "APPSMITH")                                              run_app appsmith ;;
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
+            "BESZEL")                                               run_app beszel ;;
             "BOTPRESS")                                              run_app botpress ;;
+            "BUDIBASE")                                              run_app budibase ;;
             "BOOKSTACK")                                               run_app bookstack ;;
             "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
@@ -898,23 +1049,36 @@ case "$CHOICE" in
             "FIRECRAWL")                                             run_app firecrawl ;;
             "FLOWISE")                                               run_app flowise ;;
             "FOCALBOARD")                                            run_app focalboard ;;
+            "FRESHRSS")                                              run_app freshrss ;;
+            "FILEBROWSER")                                          run_app filebrowser ;;
             "FIREFLY III")                                              run_app fireflyiii ;;
             "FORMBRICKS")                                            run_app formbricks ;;
             "GHOST")                                                 run_app ghost ;;
             "GLPI")                                                  run_app glpi ;;
+            "GITEA")                                                run_app gitea ;;
             "GITLAB")                                                warn_heavy "GitLab" "4GB" && run_app gitlab ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HEYFORM")                                               run_app heyform ;;
             "HUMHUB")                                                run_app humhub ;;
+            "INFISICAL")                                            run_app infisical ;;
             "JITSI MEET")                                            warn_heavy "Jitsi Meet" "5GB" && run_app jitsi ;;
+            "JELLYFIN")                                             run_app jellyfin ;;
+            "JOPLIN")                                               run_app joplin ;;
             "KEYCLOAK")                                              run_app keycloak ;;
             "KRAYIN CRM")                                            run_app krayincrm ;;
+            "KARAKEEP")                                              run_app karakeep ;;
             "LANGFLOW")                                              run_app langflow ;;
             "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
+            "LIBRECHAT")                                             run_app librechat ;;
+            "LISTMONK")                                              run_app listmonk ;;
+            "LOBECHAT")                                              run_app lobechat ;;
             "MATTERMOST")                                            run_app mattermost ;;
             "MATOMO")                                                run_app matomo ;;
+            "MAYBE")                                                run_app maybe ;;
+            "MEILISEARCH")                                           run_app meilisearch ;;
+            "MEMOS")                                                run_app memos ;;
             "MAUTIC 4 PADRÃO")                                       warn_heavy "Mautic 4" "4.5GB" && run_app mauticpadrao ;;
             "MAUTIC 6 PADRÃO")                                       warn_heavy "Mautic 6" "6GB" && run_app mautic6padrao ;;
             "MAUTIC 7 PADRÃO")                                       warn_heavy "Mautic 7" "6GB" && run_app mautic7padrao ;;
@@ -931,30 +1095,42 @@ case "$CHOICE" in
             "N8N V2 - FILA (QUEUE)")                                 warn_heavy "N8N V2 (Fila)" "7GB" && run_app n8n2 ;;
             "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
             "NEO4J")                                                 run_app neo4j ;;
+            "NGINXPROXYMANAGER")                                   run_app nginxproxymanager ;;
             "NEXTCLOUD")                                             run_app nextcloud ;;
             "NOCODB")                                                run_app nocodb ;;
+            "NOCOBASE")                                             run_app nocobase ;;
             "NTFY")                                                  run_app ntfy ;;
             "ODOO")                                                  run_app odoo ;;
             "OLLAMA + OPENWEBUI*")                                   warn_heavy "Ollama" "8GB+" && run_app ollama ;;
             "OPENCLAW")                                              run_app openclaw ;;
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
+            "OUTLINE")                                               run_app outline ;;
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PAPERLESS")                                               run_app paperless ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
+            "PI-HOLE")                                               run_app pihole ;;
+            "POCKETBASE")                                           run_app pocketbase ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
+            "PHOTOPRISM")                                           warn_heavy "PhotoPrism" "2GB" && run_app photoprism ;;
             "PLANKA")                                               run_app planka ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
+            "CHROMADB")                                              run_app chromadb ;;
             "RABBITMQ")                                              run_app rabbitmq ;;
+            "REACTIVE RESUME")                                      run_app reactiveresume ;;
+            "TOOLJET")                                              warn_heavy "ToolJet" "2GB" && run_app tooljet ;;
             "REDIS")                                                 run_app redis ;;
             "REDIS COMMANDER")                                       run_app redicommander ;;
             "REDISINSIGHT")                                          run_app redisinsight ;;
             "SEARXNG")                                               run_app searxng ;;
             "SHLINK")                                                run_app shlink ;;
+            "SIYUAN")                                                run_app siyuan ;;
             "STIRLING PDF")                                          run_app stirlingpdf ;;
+            "SUPERSET")                                             run_app superset ;;
+            "TRILIUMNEXT")                                           run_app triliumnext ;;
             "TWENTY CRM")                                            warn_heavy "Twenty CRM" "5GB" && run_app twentycrm ;;
             "TYPEBOT")                                               run_app typebot ;;
             "UMAMI")                                                 run_app umami ;;
@@ -962,6 +1138,9 @@ case "$CHOICE" in
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
             "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
+            "VIKUNJA")                                               run_app vikunja ;;
+            "WEAVIATE")                                             run_app weaviate ;;
+            "WINDMILL")                                             run_app windmill ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;
             "WIKI.JS")                                               run_app wikijs ;;
@@ -990,12 +1169,15 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WAHA API" "" \
     "─────────────────────────" "" \
     "ACTIVEPIECES" "PRO" \
+    "ADGUARDHOME" "PRO" \
     "AFFINE" "PRO" \
     "ACTUAL BUDGET" "PRO" \
     "APPSMITH" "PRO" \
     "AUTOGEN STUDIO" "PRO" \
     "BASEROW" "PRO" \
+    "BESZEL" "PRO" \
     "BOTPRESS" "PRO" \
+    "BUDIBASE" "PRO" \
     "BOOKSTACK" "PRO" \
     "CAL.COM" "PRO"  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" "PRO"   \
@@ -1003,6 +1185,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOT AI CUSTOMER SERVICE*" "PRO"   \
+    "CHROMADB" "PRO"   \
     "CLICKHOUSE" "PRO"   \
     "CODE SERVER" "PRO"   \
     "COGNEE" "PRO"   \
@@ -1029,14 +1212,24 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "HERMES AGENT" "PRO" \
     "HEYFORM" "PRO" \
     "HUMHUB" "PRO" \
+    "INFISICAL" "PRO" \
     "JITSI MEET" "PRO" \
+    "JELLYFIN" "PRO" \
+    "JOPLIN" "PRO" \
     "KEYCLOAK" "PRO" \
     "KRAYIN CRM" "PRO" \
+    "KARAKEEP" "PRO" \
     "LANGFLOW" "PRO" \
     "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
     "LITELLM" "PRO" \
+    "LIBRECHAT" "PRO" \
+    "LISTMONK" "PRO" \
+    "LOBECHAT" "PRO" \
     "MATTERMOST" "PRO" \
     "MATOMO" "PRO" \
+    "MAYBE" "PRO" \
+    "MEILISEARCH" "PRO" \
+    "MEMOS" "PRO" \
     "MAUTIC 4 PADRÃO" "PRO" \
     "MAUTIC 6 PADRÃO" "PRO" \
     "MAUTIC 7 PADRÃO" "PRO" \
@@ -1049,8 +1242,10 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MYSQL" "PRO" \
     "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "PRO" \
     "NEO4J" "PRO" \
+    "NGINXPROXYMANAGER" "PRO" \
     "NEXTCLOUD" "PRO" \
     "NOCODB" "PRO" \
+    "NOCOBASE" "PRO" \
     "NTFY" "PRO" \
     "ODOO" "PRO" \
     "OLLAMA + OPENWEBUI*" "PRO" \
@@ -1060,21 +1255,32 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "PAPERCLIP" "PRO" \
     "PAPERLESS" "PRO" \
     "PENPOT" "PRO" \
+    "PHOTOPRISM" "PRO" \
+    "PI-HOLE" "PRO" \
+    "POCKETBASE" "PRO" \
     "PHPMYADMIN" "PRO" \
     "PLANKA" "PRO" \
     "QDRANT" "PRO" \
     "RABBITMQ" "PRO" \
+    "REACTIVE RESUME" "PRO" \
     "REDIS COMMANDER" "PRO" \
     "REDISINSIGHT" "PRO" \
     "SEARXNG" "PRO" \
     "SHLINK" "PRO" \
+    "SIYUAN" "PRO" \
     "STIRLING PDF" "PRO" \
+    "TOOLJET" "PRO" \
+    "SUPERSET" "PRO" \
+    "TRILIUMNEXT" "PRO" \
     "TWENTY CRM" "PRO" \
     "TYPEBOT" "PRO" \
     "UMAMI" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
     "UPTIMEKUMA" "PRO" \
     "VAULTWARDEN" "PRO" \
+    "VIKUNJA" "PRO" \
+    "WEAVIATE" "PRO" \
+    "WINDMILL" "PRO" \
     "WOOFED CRM" "PRO" \
     "WORDPRESS" "PRO" \
     "WIKI.JS" "PRO" \
@@ -1110,7 +1316,9 @@ case "$CHOICE" in
             "APPSMITH")                                              run_app appsmith ;;
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
+            "BESZEL")                                               run_app beszel ;;
             "BOTPRESS")                                              run_app botpress ;;
+            "BUDIBASE")                                              run_app budibase ;;
             "BOOKSTACK")                                               run_app bookstack ;;
             "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
@@ -1140,23 +1348,36 @@ case "$CHOICE" in
             "FIRECRAWL")                                             run_app firecrawl ;;
             "FLOWISE")                                               run_app flowise ;;
             "FOCALBOARD")                                            run_app focalboard ;;
+            "FRESHRSS")                                              run_app freshrss ;;
+            "FILEBROWSER")                                          run_app filebrowser ;;
             "FIREFLY III")                                              run_app fireflyiii ;;
             "FORMBRICKS")                                            run_app formbricks ;;
             "GHOST")                                                 run_app ghost ;;
             "GLPI")                                                  run_app glpi ;;
+            "GITEA")                                                run_app gitea ;;
             "GITLAB")                                                warn_heavy "GitLab" "4GB" && run_app gitlab ;;
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HEYFORM")                                               run_app heyform ;;
             "HUMHUB")                                                run_app humhub ;;
+            "INFISICAL")                                            run_app infisical ;;
             "JITSI MEET")                                            warn_heavy "Jitsi Meet" "5GB" && run_app jitsi ;;
+            "JELLYFIN")                                             run_app jellyfin ;;
+            "JOPLIN")                                               run_app joplin ;;
             "KEYCLOAK")                                              run_app keycloak ;;
             "KRAYIN CRM")                                            run_app krayincrm ;;
+            "KARAKEEP")                                              run_app karakeep ;;
             "LANGFLOW")                                              run_app langflow ;;
             "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
+            "LIBRECHAT")                                             run_app librechat ;;
+            "LISTMONK")                                              run_app listmonk ;;
+            "LOBECHAT")                                              run_app lobechat ;;
             "MATTERMOST")                                            run_app mattermost ;;
             "MATOMO")                                                run_app matomo ;;
+            "MAYBE")                                                run_app maybe ;;
+            "MEILISEARCH")                                           run_app meilisearch ;;
+            "MEMOS")                                                run_app memos ;;
             "MAUTIC 4 PADRÃO")                                       warn_heavy "Mautic 4" "4.5GB" && run_app mauticpadrao ;;
             "MAUTIC 6 PADRÃO")                                       warn_heavy "Mautic 6" "6GB" && run_app mautic6padrao ;;
             "MAUTIC 7 PADRÃO")                                       warn_heavy "Mautic 7" "6GB" && run_app mautic7padrao ;;
@@ -1173,30 +1394,42 @@ case "$CHOICE" in
             "N8N V2 - FILA (QUEUE)")                                 warn_heavy "N8N V2 (Fila)" "7GB" && run_app n8n2 ;;
             "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
             "NEO4J")                                                 run_app neo4j ;;
+            "NGINXPROXYMANAGER")                                   run_app nginxproxymanager ;;
             "NEXTCLOUD")                                             run_app nextcloud ;;
             "NOCODB")                                                run_app nocodb ;;
+            "NOCOBASE")                                             run_app nocobase ;;
             "NTFY")                                                  run_app ntfy ;;
             "ODOO")                                                  run_app odoo ;;
             "OLLAMA + OPENWEBUI*")                                   warn_heavy "Ollama" "8GB+" && run_app ollama ;;
             "OPENCLAW")                                              run_app openclaw ;;
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
+            "OUTLINE")                                               run_app outline ;;
             "OPENFANG")                                              run_app openfang ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PAPERLESS")                                               run_app paperless ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
+            "PI-HOLE")                                               run_app pihole ;;
+            "POCKETBASE")                                           run_app pocketbase ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
+            "PHOTOPRISM")                                           warn_heavy "PhotoPrism" "2GB" && run_app photoprism ;;
             "PLANKA")                                               run_app planka ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
+            "CHROMADB")                                              run_app chromadb ;;
             "RABBITMQ")                                              run_app rabbitmq ;;
+            "REACTIVE RESUME")                                      run_app reactiveresume ;;
+            "TOOLJET")                                              warn_heavy "ToolJet" "2GB" && run_app tooljet ;;
             "REDIS")                                                 run_app redis ;;
             "REDIS COMMANDER")                                       run_app redicommander ;;
             "REDISINSIGHT")                                          run_app redisinsight ;;
             "SEARXNG")                                               run_app searxng ;;
             "SHLINK")                                                run_app shlink ;;
+            "SIYUAN")                                                run_app siyuan ;;
             "STIRLING PDF")                                          run_app stirlingpdf ;;
+            "SUPERSET")                                             run_app superset ;;
+            "TRILIUMNEXT")                                           run_app triliumnext ;;
             "TWENTY CRM")                                            warn_heavy "Twenty CRM" "5GB" && run_app twentycrm ;;
             "TYPEBOT")                                               run_app typebot ;;
             "UMAMI")                                                 run_app umami ;;
@@ -1204,6 +1437,9 @@ case "$CHOICE" in
             "UPTIMEKUMA")                                            run_app uptimekuma ;;
             "WAHA API")                                             run_app waha ;;
             "VAULTWARDEN")                                           run_app vaultwarden ;;
+            "VIKUNJA")                                               run_app vikunja ;;
+            "WEAVIATE")                                             run_app weaviate ;;
+            "WINDMILL")                                             run_app windmill ;;
             "WOOFED CRM")                                            run_app woofedcrm ;;
             "WORDPRESS")                                             run_app wordpress ;;
             "WIKI.JS")                                               run_app wikijs ;;
