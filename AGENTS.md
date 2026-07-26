@@ -120,6 +120,20 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
    - Inserir o bloco na seção de compilação SHC (antes do `echo "INSTALANDO SETUPMNO 7/8"`)
    - Ajuste a condição `if` conforme o plano: Pro-only = delete para free/free1/free2; Free = delete apenas para free; etc.
    - **Este é o erro mais comum ao adicionar ferramentas novas — sempre verifique se o bloco SHC foi adicionado.**
+7.5 **SHEBANG OBRIGATÓRIO (⚠️ ERRO COMUM):** O SHC (Shell Script Compiler) NÃO reconhece `#!/usr/bin/env bash` como shebang válido. Use **SEMPRE** `#!/usr/bin/bash` no início dos scripts `.sh`.
+
+   ```bash
+   # ✅ CORRETO (SHC funciona):
+   #!/usr/bin/bash
+   
+   # ❌ ERRADO (SHC falha com "Unknown shell (env)"):
+   #!/usr/bin/env bash
+   ```
+
+   **Sintoma do erro:** Ao executar o `start_full`, o SHC mostra `shc: Success` mas o binário NÃO é gerado, e aparece `Unknown shell (env): s` no terminal. O `rm nome_ferramenta.sh.x.c` também falha porque o arquivo `.x.c` intermediário nunca foi criado.
+
+   **Por que isso acontece:** O SHC tenta resolver o caminho do interpretador a partir do shebang. `#!/usr/bin/env bash` usa o comando `env` como wrapper, e o SHC não consegue extrair o caminho direto do bash. Todos os scripts existentes no projeto usam `#!/usr/bin/bash`.
+
 6. **Versionamento:** Incremente o MINOR da versão (ex: 4.20.2 → 4.21.0).
 7. **Empacotamento:** Finalize com o comando de build após validar a sintaxe.
 8. **Pergunta Portainer (OBRIGATÓRIO):** Todo script de instalação DEVE perguntar "Criar Stack no Portainer?" com opções 0 (editável) ou 1 (direto no Docker). Esta pergunta deve aparecer após todas as outras coletas de dados e antes da tela de confirmação. O deployment deve usar a API do Portainer quando opção 0 for selecionada, ou `docker stack deploy` quando opção 1 for selecionada. **Este é um erro comum — nunca esqueça esta pergunta.**
@@ -546,6 +560,7 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
     - [ ] **Labels Traefik condicionais** (APENAS quando `INSTALL_TYPE = "TRADICIONAL"`)
     - [ ] **`cd` + `cd` antes de criar YAML** (garante salvamento em `/root/`)
     - [ ] **NÃO deletar o YAML após deploy** (`rm -f $nome_app.yaml` — o arquivo DEVE permanecer em `/root/`)
+    - [ ] **Shebang `#!/usr/bin/bash`** (NUNCA usar `#!/usr/bin/env bash` — SHC não reconhece)
     - [ ] **Redis dedicado via Portainer API**: Se `criar_portainer == "0"`, AMBOS os stacks (Redis + App) DEVEM ser criados via API do Portainer
     - [ ] Deploy com tratamento de erro em cada etapa
     - [ ] Versão incrementada no install.sh (x86 E ARM)
