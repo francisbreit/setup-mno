@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="4.75.0"
+VERSIONSETUP="4.76.0"
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
 CONTATO_GITHUB="github.com/francisbreit"
@@ -307,10 +307,11 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "KARAKEEP" "" \
     "LANGFLOW" "" \
     "LANGFUSE + MINIO + CLICKHOUSE*" "" \
-    "LITELLM" "" \
     "LIBRECHAT" "" \
     "LISTMONK" "" \
+    "LITELLM" "" \
     "LOBECHAT" "" \
+    "LOCALAI" "" \
     "MATTERMOST" "" \
     "MATOMO" "" \
     "MAYBE" "" \
@@ -465,6 +466,7 @@ case "$CHOICE" in
             "LANGFLOW")                                              run_app langflow ;;
             "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
+            "LOCALAI")                                                run_app localai ;;
             "LIBRECHAT")                                             run_app librechat ;;
             "LISTMONK")                                              run_app listmonk ;;
             "LOBECHAT")                                              run_app lobechat ;;
@@ -644,10 +646,11 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "KARAKEEP" "PRO" \
     "LANGFLOW" "PRO" \
     "LANGFUSE + MINIO + CLICKHOUSE*" "PRO" \
-    "LITELLM" "PRO" \
     "LIBRECHAT" "PRO" \
     "LISTMONK" "PRO" \
+    "LITELLM" "PRO" \
     "LOBECHAT" "PRO" \
+    "LOCALAI" "PRO" \
     "MATTERMOST" "PRO" \
     "MATOMO" "PRO" \
     "MAYBE" "PRO" \
@@ -772,6 +775,7 @@ case "$CHOICE" in
             "LANGFLOW")                                              run_app langflow ;;
             "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
+            "LOCALAI")                                                run_app localai ;;
             "LIBRECHAT")                                             run_app librechat ;;
             "LISTMONK")                                              run_app listmonk ;;
             "LOBECHAT")                                              run_app lobechat ;;
@@ -1071,6 +1075,7 @@ case "$CHOICE" in
             "LANGFLOW")                                              run_app langflow ;;
             "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
+            "LOCALAI")                                                run_app localai ;;
             "LIBRECHAT")                                             run_app librechat ;;
             "LISTMONK")                                              run_app listmonk ;;
             "LOBECHAT")                                              run_app lobechat ;;
@@ -1370,6 +1375,7 @@ case "$CHOICE" in
             "LANGFLOW")                                              run_app langflow ;;
             "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
+            "LOCALAI")                                                run_app localai ;;
             "LIBRECHAT")                                             run_app librechat ;;
             "LISTMONK")                                              run_app listmonk ;;
             "LOBECHAT")                                              run_app lobechat ;;
