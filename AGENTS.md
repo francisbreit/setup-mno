@@ -106,8 +106,9 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
    ```
    - Deploy ANTES do stack principal: `docker stack deploy --prune -c ${app}-redis.yaml ${app}-redis`
    - Conectar via: `REDIS_URL=redis://${app}_redis:6379`
-   - **Se `criar_portainer == "0"`, o Redis dedicado TAMBÉM deve ser criado via Portainer API (editável).** Usar a mesma autenticação/token para criar AMBOS os stacks (Redis + App) via API do Portainer. O Redis deve ser criado ANTES do stack principal.
-   - **Referência:** `evoai.sh`, `infisical.sh`, `photoprism.sh`
+    - **Se `criar_portainer == "0"`, o Redis dedicado TAMBÉM deve ser criado via Portainer API (editável).** Usar a mesma autenticação/token para criar AMBOS os stacks (Redis + App) via API do Portainer. O Redis deve ser criado ANTES do stack principal.
+    - **Para combos e apps multi-container (ex: Plane com Redis + RabbitMQ + App principal):** TODAS as substacks (Redis, RabbitMQ, MinIO quando instalado, etc.) DEVEM ser stacks separadas no Portainer, cada uma com seu próprio YAML, stack name e fluxo de autenticação Portainer. **NUNCA** agrupar todas as dependências em um único YAML. Cada stack deve ter seu próprio bloco `get_auth_token()` / `get_endpoint_id()` / `get_swarm_id()` / `create_stack()`.
+    - **Referência:** `chatwootn_evo2_rabbitmq_minio.sh` (padrão combo com stacks separadas para MinIO, RabbitMQ, Chatwoot, Evolution API), `plane.sh` (Redis, RabbitMQ e App principal em stacks separadas).
 7. **Compilação SHC (OBRIGATÓRIO):** Adicione o bloco de compilação SHC em AMBOS os gatilhos (`start_full.sh` x86 e `start_arm_full.sh` ARM). Sem isso, o script não será compilado no runtime do cliente e o menu falhará. Formato do bloco:
    ```bash
    shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o nome_da_ferramenta -f nome_da_ferramenta.sh
@@ -747,6 +748,7 @@ Os seguintes scripts foram validados em produção e devem ser usados como **ref
 | `chatwootn_evo2_rabbitmq_minio.sh` | Chatwoot + Evolution 2.0 + RabbitMQ + MinIO |
 | `chatwootn_evon_rabbitmq.sh` | Chatwoot + Evolution + RabbitMQ |
 | `evoai_evo2_minio.sh` | Evo AI + Evolution 2.0 + MinIO |
+| `plane.sh` | Plane (API + Web + Admin + Space + Nginx) + Redis + RabbitMQ |
 
 Ao migrar novas ferramentas, **copie a estrutura** de um desses scripts como base.
 

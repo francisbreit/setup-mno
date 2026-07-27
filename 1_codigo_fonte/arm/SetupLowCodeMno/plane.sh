@@ -163,6 +163,8 @@ done
 nome_principal="plane"
 sufixo_app=$(date | md5sum | head -c7 | tr '[:upper:]' '[:lower:]')
 nome_app=$nome_principal$sufixo_app
+nome_redis="${nome_app}_redis"
+nome_mq="${nome_app}_mq"
 postgres_password=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml)
 
 {
@@ -415,6 +417,7 @@ networks:
 EOL
 
     if [[ "$criar_portainer" == "0" ]]; then
+        echo -e "XXX\n42\nCRIANDO STACK MINIO NO PORTAINER... \nXXX"
         dados_file="$HOME/dados_portainer/dados_portainer"
         if [[ -f "$dados_file" ]]; then
             PORTAINER_URL=$(grep "Dominio do portainer:" "$dados_file" | cut -d':' -f2 | xargs)
@@ -423,20 +426,46 @@ EOL
             STACK_NAME=$nome_app2
             STACK_FILE_PATH="/root/$nome_app2.yaml"
 
-            get_auth_token_minio() {
+            get_auth_token() {
+                echo -e "XXX\n43\nAUTENTICANDO NO PORTAINER... \nXXX"
                 RESPONSE=$(curl -sk -X POST "https://$PORTAINER_URL/api/auth" -H "Content-Type: application/json" -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
                 TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
-                [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ] && return 1
+                if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+                    echo -e "XXX\n44\nFALHA NA AUTENTICAÇÃO, USANDO DOCKER... \nXXX"
+                    docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
+                    exit 1
+                fi
+                echo -e "XXX\n44\nAUTENTICAÇÃO OK \nXXX"
             }
-            get_endpoint_id_minio() {
+            get_endpoint_id() {
+                echo -e "XXX\n45\nOBTENDO ENDPOINT ID... \nXXX"
                 RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
                 ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
+                if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
+                    echo -e "XXX\n46\nERRO: ENDPOINT ID NÃO ENCONTRADO \nXXX"
+                    docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
+                    exit 1
+                fi
+                echo -e "XXX\n46\nENDPOINT ID OBTIDO \nXXX"
             }
-            get_swarm_id_minio() {
+            get_swarm_id() {
+                echo -e "XXX\n47\nOBTENDO SWARM ID... \nXXX"
                 RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
                 SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
+                if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
+                    echo -e "XXX\n48\nERRO: SWARM ID NÃO ENCONTRADO \nXXX"
+                    docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
+                    exit 1
+                fi
+                echo -e "XXX\n48\nSWARM ID OBTIDO \nXXX"
             }
-            create_stack_minio() {
+            create_stack() {
+                echo -e "XXX\n49\nCRIANDO STACK $STACK_NAME NO PORTAINER... \nXXX"
+                if [ ! -f "$STACK_FILE_PATH" ]; then
+                    echo -e "XXX\n50\nARQUIVO YAML NÃO ENCONTRADO \nXXX"
+                    docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
+                    exit 1
+                fi
                 response_output=$(mktemp)
                 erro_output=$(mktemp)
                 http_code=$(curl -s -o "$response_output" -w "%{http_code}" -k -X POST \
@@ -444,10 +473,17 @@ EOL
                     -F "SwarmID=$SWARM_ID" -F "endpointId=$ENDPOINT_ID" \
                     "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
                 rm -f "$response_output" "$erro_output"
-                [ "$http_code" -ne 200 ] && return 1
+                if [ "$http_code" -ne 200 ]; then
+                    echo -e "XXX\n51\nERRO AO CRIAR STACK, USANDO DOCKER... \nXXX"
+                    docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
+                    exit 1
+                fi
+                echo -e "XXX\n51\nSTACK $STACK_NAME CRIADA COM SUCESSO \nXXX"
             }
-            get_auth_token_minio && get_endpoint_id_minio && get_swarm_id_minio && create_stack_minio || \
-                docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
+            get_auth_token || exit 1
+            get_endpoint_id || exit 1
+            get_swarm_id || exit 1
+            create_stack || exit 1
         else
             docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
         fi
@@ -455,14 +491,14 @@ EOL
         docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
     fi
 
-    echo -e "XXX\n45\nAGUARDANDO MINIO INICIAR... \nXXX"
+    echo -e "XXX\n52\nAGUARDANDO MINIO INICIAR... \nXXX"
     sleep 15
 fi
 
 #######################################################
 # CRIAR BUCKET + SERVICE ACCOUNT NO MINIO
 #######################################################
-echo -e "XXX\n50\nCRIANDO BUCKET E CREDENCIAIS NO MINIO... \nXXX"
+echo -e "XXX\n55\nCRIANDO BUCKET E CREDENCIAIS NO MINIO... \nXXX"
 
 if [[ ("$minio_container" != "") ]]; then
     minio_service=$(docker service ls --format "{{.Name}}" 2>/dev/null | grep "minio" | head -1)
@@ -512,7 +548,7 @@ else
     secret_key_final="$secret_key"
 fi
 
-echo -e "XXX\n55\nBUCKET: $bucket_name | ACCESS KEY CRIADA \nXXX"
+echo -e "XXX\n58\nBUCKET: $bucket_name | ACCESS KEY CRIADA \nXXX"
 sleep 2
 
 #######################################################
@@ -573,21 +609,17 @@ sed -i "s/NGINX_APP_SPACE/${nome_app}_space/g" /root/${nome_app}_proxy.conf
 sed -i "s/NGINX_APP_WEB/${nome_app}_web/g" /root/${nome_app}_proxy.conf
 
 #######################################################
-# CRIAR YAML DO PLANE
+# CRIAR YAML DO REDIS DEDICADO
 #######################################################
-echo -e "XXX\n65\nCRIANDO STACK DO PLANE... \nXXX"
+echo -e "XXX\n62\nCRIANDO STACK REDIS DEDICADO... \nXXX"
 
 cd
 cd
 
-S3_ENDPOINT="https://${MINIO_PUBLIC_URL}"
-CORS_ALLOWED="https://${url_plane}"
-
-cat > $nome_app.yaml << EOL
+cat > ${nome_app}-redis.yaml << EOL
 version: "3.7"
 
 services:
-
   ${nome_app}_redis:
     image: redis:7-alpine
     command: redis-server --appendonly yes --port 6379
@@ -606,6 +638,107 @@ services:
         limits:
           memory: 512M
 
+volumes:
+  ${nome_app}_redis_data:
+    external: true
+    name: ${nome_app}_redis_data
+
+networks:
+  interna:
+    external: true
+    name: interna
+EOL
+
+if [[ "$criar_portainer" == "0" ]]; then
+    echo -e "XXX\n64\nCRIANDO STACK REDIS NO PORTAINER... \nXXX"
+    dados_file="$HOME/dados_portainer/dados_portainer"
+    if [[ -f "$dados_file" ]]; then
+        PORTAINER_URL=$(grep "Dominio do portainer:" "$dados_file" | cut -d':' -f2 | xargs)
+        ADMIN_USERNAME=$(grep "Usuario:" "$dados_file" | cut -d':' -f2 | xargs)
+        ADMIN_PASSWORD=$(grep "Senha:" "$dados_file" | cut -d':' -f2 | xargs)
+        STACK_NAME="${nome_app}-redis"
+        STACK_FILE_PATH="/root/${nome_app}-redis.yaml"
+
+        get_auth_token() {
+            echo -e "XXX\n65\nAUTENTICANDO NO PORTAINER... \nXXX"
+            RESPONSE=$(curl -sk -X POST "https://$PORTAINER_URL/api/auth" -H "Content-Type: application/json" -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
+            TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
+            if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+                echo -e "XXX\n66\nFALHA NA AUTENTICAÇÃO, USANDO DOCKER... \nXXX"
+                docker stack deploy --prune --resolve-image always -c ${nome_app}-redis.yaml ${nome_app}-redis >/dev/null 2>&1
+                exit 1
+            fi
+            echo -e "XXX\n66\nAUTENTICAÇÃO OK \nXXX"
+        }
+        get_endpoint_id() {
+            echo -e "XXX\n67\nOBTENDO ENDPOINT ID... \nXXX"
+            RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
+            ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
+            if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
+                echo -e "XXX\n68\nERRO: ENDPOINT ID NÃO ENCONTRADO \nXXX"
+                docker stack deploy --prune --resolve-image always -c ${nome_app}-redis.yaml ${nome_app}-redis >/dev/null 2>&1
+                exit 1
+            fi
+            echo -e "XXX\n68\nENDPOINT ID OBTIDO \nXXX"
+        }
+        get_swarm_id() {
+            echo -e "XXX\n69\nOBTENDO SWARM ID... \nXXX"
+            RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
+            SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
+            if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
+                echo -e "XXX\n70\nERRO: SWARM ID NÃO ENCONTRADO \nXXX"
+                docker stack deploy --prune --resolve-image always -c ${nome_app}-redis.yaml ${nome_app}-redis >/dev/null 2>&1
+                exit 1
+            fi
+            echo -e "XXX\n70\nSWARM ID OBTIDO \nXXX"
+        }
+        create_stack() {
+            echo -e "XXX\n71\nCRIANDO STACK $STACK_NAME NO PORTAINER... \nXXX"
+            if [ ! -f "$STACK_FILE_PATH" ]; then
+                echo -e "XXX\n72\nARQUIVO YAML NÃO ENCONTRADO \nXXX"
+                docker stack deploy --prune --resolve-image always -c ${nome_app}-redis.yaml ${nome_app}-redis >/dev/null 2>&1
+                exit 1
+            fi
+            response_output=$(mktemp)
+            erro_output=$(mktemp)
+            http_code=$(curl -s -o "$response_output" -w "%{http_code}" -k -X POST \
+                -H "Authorization: Bearer $TOKEN" -F "Name=$STACK_NAME" -F "file=@$STACK_FILE_PATH" \
+                -F "SwarmID=$SWARM_ID" -F "endpointId=$ENDPOINT_ID" \
+                "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
+            rm -f "$response_output" "$erro_output"
+            if [ "$http_code" -ne 200 ]; then
+                echo -e "XXX\n73\nERRO AO CRIAR STACK, USANDO DOCKER... \nXXX"
+                docker stack deploy --prune --resolve-image always -c ${nome_app}-redis.yaml ${nome_app}-redis >/dev/null 2>&1
+                exit 1
+            fi
+            echo -e "XXX\n73\nSTACK $STACK_NAME CRIADA COM SUCESSO \nXXX"
+        }
+        get_auth_token || exit 1
+        get_endpoint_id || exit 1
+        get_swarm_id || exit 1
+        create_stack || exit 1
+    else
+        docker stack deploy --prune --resolve-image always -c ${nome_app}-redis.yaml ${nome_app}-redis >/dev/null 2>&1
+    fi
+else
+    docker stack deploy --prune --resolve-image always -c ${nome_app}-redis.yaml ${nome_app}-redis >/dev/null 2>&1
+fi
+
+echo -e "XXX\n74\nAGUARDANDO REDIS INICIAR... \nXXX"
+sleep 10
+
+#######################################################
+# CRIAR YAML DO RABBITMQ DEDICADO
+#######################################################
+echo -e "XXX\n75\nCRIANDO STACK RABBITMQ DEDICADO... \nXXX"
+
+cd
+cd
+
+cat > ${nome_app}-mq.yaml << EOL
+version: "3.7"
+
+services:
   ${nome_app}_mq:
     image: rabbitmq:3.13.6-management-alpine
     hostname: ${nome_app}_mq
@@ -627,14 +760,116 @@ services:
         limits:
           memory: 256M
 
+volumes:
+  ${nome_app}_mq_data:
+    external: true
+    name: ${nome_app}_mq_data
+
+networks:
+  interna:
+    external: true
+    name: interna
+EOL
+
+if [[ "$criar_portainer" == "0" ]]; then
+    echo -e "XXX\n76\nCRIANDO STACK RABBITMQ NO PORTAINER... \nXXX"
+    dados_file="$HOME/dados_portainer/dados_portainer"
+    if [[ -f "$dados_file" ]]; then
+        PORTAINER_URL=$(grep "Dominio do portainer:" "$dados_file" | cut -d':' -f2 | xargs)
+        ADMIN_USERNAME=$(grep "Usuario:" "$dados_file" | cut -d':' -f2 | xargs)
+        ADMIN_PASSWORD=$(grep "Senha:" "$dados_file" | cut -d':' -f2 | xargs)
+        STACK_NAME="${nome_app}-mq"
+        STACK_FILE_PATH="/root/${nome_app}-mq.yaml"
+
+        get_auth_token() {
+            echo -e "XXX\n77\nAUTENTICANDO NO PORTAINER... \nXXX"
+            RESPONSE=$(curl -sk -X POST "https://$PORTAINER_URL/api/auth" -H "Content-Type: application/json" -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
+            TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
+            if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+                echo -e "XXX\n78\nFALHA NA AUTENTICAÇÃO, USANDO DOCKER... \nXXX"
+                docker stack deploy --prune --resolve-image always -c ${nome_app}-mq.yaml ${nome_app}-mq >/dev/null 2>&1
+                exit 1
+            fi
+            echo -e "XXX\n78\nAUTENTICAÇÃO OK \nXXX"
+        }
+        get_endpoint_id() {
+            echo -e "XXX\n79\nOBTENDO ENDPOINT ID... \nXXX"
+            RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
+            ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
+            if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
+                echo -e "XXX\n80\nERRO: ENDPOINT ID NÃO ENCONTRADO \nXXX"
+                docker stack deploy --prune --resolve-image always -c ${nome_app}-mq.yaml ${nome_app}-mq >/dev/null 2>&1
+                exit 1
+            fi
+            echo -e "XXX\n80\nENDPOINT ID OBTIDO \nXXX"
+        }
+        get_swarm_id() {
+            echo -e "XXX\n81\nOBTENDO SWARM ID... \nXXX"
+            RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
+            SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
+            if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
+                echo -e "XXX\n82\nERRO: SWARM ID NÃO ENCONTRADO \nXXX"
+                docker stack deploy --prune --resolve-image always -c ${nome_app}-mq.yaml ${nome_app}-mq >/dev/null 2>&1
+                exit 1
+            fi
+            echo -e "XXX\n82\nSWARM ID OBTIDO \nXXX"
+        }
+        create_stack() {
+            echo -e "XXX\n83\nCRIANDO STACK $STACK_NAME NO PORTAINER... \nXXX"
+            if [ ! -f "$STACK_FILE_PATH" ]; then
+                echo -e "XXX\n84\nARQUIVO YAML NÃO ENCONTRADO \nXXX"
+                docker stack deploy --prune --resolve-image always -c ${nome_app}-mq.yaml ${nome_app}-mq >/dev/null 2>&1
+                exit 1
+            fi
+            response_output=$(mktemp)
+            erro_output=$(mktemp)
+            http_code=$(curl -s -o "$response_output" -w "%{http_code}" -k -X POST \
+                -H "Authorization: Bearer $TOKEN" -F "Name=$STACK_NAME" -F "file=@$STACK_FILE_PATH" \
+                -F "SwarmID=$SWARM_ID" -F "endpointId=$ENDPOINT_ID" \
+                "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
+            rm -f "$response_output" "$erro_output"
+            if [ "$http_code" -ne 200 ]; then
+                echo -e "XXX\n85\nERRO AO CRIAR STACK, USANDO DOCKER... \nXXX"
+                docker stack deploy --prune --resolve-image always -c ${nome_app}-mq.yaml ${nome_app}-mq >/dev/null 2>&1
+                exit 1
+            fi
+            echo -e "XXX\n85\nSTACK $STACK_NAME CRIADA COM SUCESSO \nXXX"
+        }
+        get_auth_token || exit 1
+        get_endpoint_id || exit 1
+        get_swarm_id || exit 1
+        create_stack || exit 1
+    else
+        docker stack deploy --prune --resolve-image always -c ${nome_app}-mq.yaml ${nome_app}-mq >/dev/null 2>&1
+    fi
+else
+    docker stack deploy --prune --resolve-image always -c ${nome_app}-mq.yaml ${nome_app}-mq >/dev/null 2>&1
+fi
+
+echo -e "XXX\n86\nAGUARDANDO RABBITMQ INICIAR... \nXXX"
+sleep 10
+
+#######################################################
+# CRIAR YAML PRINCIPAL DO PLANE
+#######################################################
+echo -e "XXX\n87\nCRIANDO STACK PRINCIPAL DO PLANE... \nXXX"
+
+cd
+cd
+
+S3_ENDPOINT="https://${MINIO_PUBLIC_URL}"
+CORS_ALLOWED="https://${url_plane}"
+
+cat > $nome_app.yaml << EOL
+version: "3.7"
+
+services:
+
   ${nome_app}_api:
     image: makeplane/plane-backend:stable
     hostname: ${nome_app}_api
     networks:
       - interna
-    depends_on:
-      - ${nome_app}_redis
-      - ${nome_app}_mq
     environment:
       - DATABASE_URL=postgresql://postgres:${postgres_password}@postgres:5432/${nome_app}
       - REDIS_URL=redis://${nome_app}_redis:6379
@@ -669,10 +904,6 @@ services:
     hostname: ${nome_app}_worker
     networks:
       - interna
-    depends_on:
-      - ${nome_app}_redis
-      - ${nome_app}_mq
-      - ${nome_app}_api
     environment:
       - DATABASE_URL=postgresql://postgres:${postgres_password}@postgres:5432/${nome_app}
       - REDIS_URL=redis://${nome_app}_redis:6379
@@ -706,10 +937,6 @@ services:
     hostname: ${nome_app}_beat
     networks:
       - interna
-    depends_on:
-      - ${nome_app}_redis
-      - ${nome_app}_mq
-      - ${nome_app}_api
     environment:
       - DATABASE_URL=postgresql://postgres:${postgres_password}@postgres:5432/${nome_app}
       - REDIS_URL=redis://${nome_app}_redis:6379
@@ -742,8 +969,6 @@ services:
     hostname: ${nome_app}_web
     networks:
       - interna
-    depends_on:
-      - ${nome_app}_api
     environment:
       - NEXT_PUBLIC_API_BASE_URL=https://${url_plane}/api
       - NEXT_PUBLIC_DEPLOY_URL=https://${url_plane}
@@ -763,8 +988,6 @@ services:
     hostname: ${nome_app}_admin
     networks:
       - interna
-    depends_on:
-      - ${nome_app}_api
     environment:
       - NEXT_PUBLIC_API_BASE_URL=https://${url_plane}/api
       - NEXT_PUBLIC_DEPLOY_URL=https://${url_plane}
@@ -784,8 +1007,6 @@ services:
     hostname: ${nome_app}_space
     networks:
       - interna
-    depends_on:
-      - ${nome_app}_api
     environment:
       - NEXT_PUBLIC_API_BASE_URL=https://${url_plane}/api
       - NEXT_PUBLIC_DEPLOY_URL=https://${url_plane}
@@ -808,11 +1029,6 @@ services:
       - interna
     volumes:
       - /root/${nome_app}_proxy.conf:/etc/nginx/conf.d/default.conf
-    depends_on:
-      - ${nome_app}_web
-      - ${nome_app}_api
-      - ${nome_app}_admin
-      - ${nome_app}_space
     deploy:
       mode: replicated
       replicas: 1
@@ -834,7 +1050,6 @@ cat >> $nome_app.yaml << EOL
         - traefik.http.routers.${nome_app}.entrypoints=websecure
         - traefik.http.routers.${nome_app}.priority=1
         - traefik.http.routers.${nome_app}.tls.certresolver=letsencryptresolver
-        - traefik.http.routers.${nome_app}.service=${nome_app}
         - traefik.http.services.${nome_app}.loadbalancer.server.port=80
 EOL
 fi
@@ -842,12 +1057,6 @@ fi
 cat >> $nome_app.yaml << EOL
 
 volumes:
-  ${nome_app}_redis_data:
-    external: true
-    name: ${nome_app}_redis_data
-  ${nome_app}_mq_data:
-    external: true
-    name: ${nome_app}_mq_data
   ${nome_app}_uploads:
     external: true
     name: ${nome_app}_uploads
@@ -862,16 +1071,17 @@ EOL
 #######################################################
 # RODAR MIGRATIONS
 #######################################################
-echo -e "XXX\n75\nRODANDO MIGRAÇÕES DO BANCO DE DADOS... \nXXX"
+echo -e "XXX\n88\nRODANDO MIGRAÇÕES DO BANCO DE DADOS... \nXXX"
 
 docker run --rm --network interna \
     -e DATABASE_URL="postgresql://postgres:${postgres_password}@postgres:5432/${nome_app}" \
     makeplane/plane-backend:stable \
     python manage.py migrate >/dev/null 2>&1 || true
 
-echo -e "XXX\n80\nCRIANDO STACK DO PLANE... \nXXX"
+echo -e "XXX\n90\nCRIANDO STACK PRINCIPAL DO PLANE... \nXXX"
 
 if [[ "$criar_portainer" == "0" ]]; then
+    echo -e "XXX\n91\nCRIANDO STACK PRINCIPAL NO PORTAINER... \nXXX"
     dados_file="$HOME/dados_portainer/dados_portainer"
     if [[ -f "$dados_file" ]]; then
         PORTAINER_URL=$(grep "Dominio do portainer:" "$dados_file" | cut -d':' -f2 | xargs)
@@ -880,23 +1090,47 @@ if [[ "$criar_portainer" == "0" ]]; then
         STACK_NAME=$nome_app
         STACK_FILE_PATH="/root/$nome_app.yaml"
 
-        get_auth_token_plane() {
+        get_auth_token() {
+            echo -e "XXX\n92\nAUTENTICANDO NO PORTAINER... \nXXX"
             RESPONSE=$(curl -sk -X POST "https://$PORTAINER_URL/api/auth" -H "Content-Type: application/json" \
                 -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
             TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
-            [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ] && return 1
+            if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+                echo -e "XXX\n93\nFALHA NA AUTENTICAÇÃO, USANDO DOCKER... \nXXX"
+                docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
+                exit 1
+            fi
+            echo -e "XXX\n93\nAUTENTICAÇÃO OK \nXXX"
         }
-        get_endpoint_id_plane() {
+        get_endpoint_id() {
+            echo -e "XXX\n94\nOBTENDO ENDPOINT ID... \nXXX"
             RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
             ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
-            [ -z "$ENDPOINT_ID" ] && return 1
+            if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
+                echo -e "XXX\n95\nERRO: ENDPOINT ID NÃO ENCONTRADO \nXXX"
+                docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
+                exit 1
+            fi
+            echo -e "XXX\n95\nENDPOINT ID OBTIDO \nXXX"
         }
-        get_swarm_id_plane() {
+        get_swarm_id() {
+            echo -e "XXX\n96\nOBTENDO SWARM ID... \nXXX"
             RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
             SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
-            [ -z "$SWARM_ID" ] && return 1
+            if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
+                echo -e "XXX\n97\nERRO: SWARM ID NÃO ENCONTRADO \nXXX"
+                docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
+                exit 1
+            fi
+            echo -e "XXX\n97\nSWARM ID OBTIDO \nXXX"
         }
-        create_stack_plane() {
+        create_stack() {
+            echo -e "XXX\n98\nCRIANDO STACK $STACK_NAME NO PORTAINER... \nXXX"
+            if [ ! -f "$STACK_FILE_PATH" ]; then
+                echo -e "XXX\n99\nARQUIVO YAML NÃO ENCONTRADO \nXXX"
+                docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
+                exit 1
+            fi
             response_output=$(mktemp)
             erro_output=$(mktemp)
             http_code=$(curl -s -o "$response_output" -w "%{http_code}" -k -X POST \
@@ -904,19 +1138,23 @@ if [[ "$criar_portainer" == "0" ]]; then
                 -F "SwarmID=$SWARM_ID" -F "endpointId=$ENDPOINT_ID" \
                 "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
             rm -f "$response_output" "$erro_output"
-            [ "$http_code" -ne 200 ] && return 1
+            if [ "$http_code" -ne 200 ]; then
+                echo -e "XXX\n100\nERRO AO CRIAR STACK, USANDO DOCKER... \nXXX"
+                docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
+                exit 1
+            fi
+            echo -e "XXX\n100\nSTACK $STACK_NAME CRIADA COM SUCESSO \nXXX"
         }
-        get_auth_token_plane && get_endpoint_id_plane && get_swarm_id_plane && create_stack_plane || \
-            docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
+        get_auth_token || exit 1
+        get_endpoint_id || exit 1
+        get_swarm_id || exit 1
+        create_stack || exit 1
     else
         docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
     fi
 else
     docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
 fi
-
-echo -e "XXX\n90\nAGUARDANDO SERVIÇOS INICIAREM... \nXXX"
-sleep 20
 
 echo -e "XXX\n100\nINSTALAÇÃO CONCLUÍDA! \nXXX"
 sleep 2
@@ -926,5 +1164,5 @@ sleep 2
 clear
 
 whiptail --title "PLANE INSTALADO COM SUCESSO!" \
---msgbox "✅ Plane instalado com sucesso!\n\nStack: $nome_app\n\n📌 ACESSO:\nhttps://$url_plane\n\n📧 Email admin: $email_plane\n\n🗄️ PostgreSQL: Compartilhado\n💾 Redis: Dedicado ($nome_app_redis)\n📎 MinIO: Compartilhado (bucket: $bucket_name)\n\n⚠️ Crie sua conta no primeiro acesso.\n\nPressione Enter para finalizar." \
+--msgbox "✅ Plane instalado com sucesso!\n\nStacks criadas:\n- ${nome_app} (App principal)\n- ${nome_app}-redis (Redis dedicado)\n- ${nome_app}-mq (RabbitMQ dedicado)\n\n📌 ACESSO:\nhttps://$url_plane\n\n📧 Email admin: $email_plane\n\n🗄️ PostgreSQL: Compartilhado\n💾 Redis: Dedicado (stack: ${nome_app}-redis)\n📎 MinIO: Compartilhado (bucket: $bucket_name)\n\n⚠️ Crie sua conta no primeiro acesso.\n\nPressione Enter para finalizar." \
 --fb 18 70
