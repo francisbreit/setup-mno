@@ -213,13 +213,15 @@ cat > $nome_app.yaml << EOL
 version: "3.7"
 services:
   ${nome_app}:
-    image: syncthing/syncthing:latest
+    image: lscr.io/linuxserver/syncthing:latest
     hostname: ${nome_app}
     networks:
       - externa
       - interna
     environment:
-      - STGUIADDRESS=0.0.0.0:8384
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Sao_Paulo
     volumes:
       - ${nome_app}_config:/var/syncthing/config
       - ${nome_app}_data:/var/syncthing/data
