@@ -921,7 +921,7 @@ services:
       - CORS_ALLOWED_ORIGINS=$CORS_ALLOWED
       - GUNICORN_WORKERS=2
       - FILE_SIZE_LIMIT=5242880
-    command: celery -z plane.plane worker -l info -c 2
+    command: celery -A plane.plane worker -l info -c 2
     deploy:
       mode: replicated
       replicas: 1
@@ -953,7 +953,7 @@ services:
       - WEB_URL=https://${url_plane}
       - CORS_ALLOWED_ORIGINS=$CORS_ALLOWED
       - FILE_SIZE_LIMIT=5242880
-    command: celery -z plane.plane beat -l info
+    command: celery -A plane.plane beat -l info
     deploy:
       mode: replicated
       replicas: 1
@@ -972,7 +972,6 @@ services:
     environment:
       - NEXT_PUBLIC_API_BASE_URL=https://${url_plane}/api
       - NEXT_PUBLIC_DEPLOY_URL=https://${url_plane}
-    command: node web/server.js web
     deploy:
       mode: replicated
       replicas: 1
@@ -991,7 +990,6 @@ services:
     environment:
       - NEXT_PUBLIC_API_BASE_URL=https://${url_plane}/api
       - NEXT_PUBLIC_DEPLOY_URL=https://${url_plane}
-    command: node admin/server.js admin
     deploy:
       mode: replicated
       replicas: 1
@@ -1010,7 +1008,6 @@ services:
     environment:
       - NEXT_PUBLIC_API_BASE_URL=https://${url_plane}/api
       - NEXT_PUBLIC_DEPLOY_URL=https://${url_plane}
-    command: node space/server.js space
     deploy:
       mode: replicated
       replicas: 1
