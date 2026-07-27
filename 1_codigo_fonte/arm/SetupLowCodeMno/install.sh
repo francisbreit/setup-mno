@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="4.83.0"
+VERSIONSETUP="4.84.0"
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
 CONTATO_GITHUB="github.com/francisbreit"
@@ -346,6 +346,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "PGADMIN4" "" \
     "PHOTOPRISM" "PRO" \
     "PHPMYADMIN" "" \
+    "PLANE" "" \
     "PLANKA" "" \
     "QDRANT" "" \
     "RABBITMQ" "" \
@@ -509,6 +510,7 @@ case "$CHOICE" in
             "PGADMIN4")                                              run_app pgadmin ;;
             "PHOTOPRISM")                                           warn_heavy "PhotoPrism" "2GB" && run_app photoprism ;;
             "PLANKA")                                               run_app planka ;;
+            "PLANE")                                                run_app plane ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
             "CHROMADB")                                              run_app chromadb ;;
@@ -677,6 +679,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "SYNCTHING" "PRO" \
     "SIYUAN" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
+    "PLANE" "PRO" \
     "PLANKA" "PRO" \
     "WEAVIATE" "PRO" \
     "WINDMILL" "PRO" \
@@ -816,6 +819,7 @@ case "$CHOICE" in
             "PGADMIN4")                                              run_app pgadmin ;;
             "PHOTOPRISM")                                           warn_heavy "PhotoPrism" "2GB" && run_app photoprism ;;
             "PLANKA")                                               run_app planka ;;
+            "PLANE")                                                run_app plane ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
             "CHROMADB")                                              run_app chromadb ;;
@@ -954,6 +958,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "PI-HOLE" "PRO" \
     "POCKETBASE" "PRO" \
     "PHPMYADMIN" "PRO" \
+    "PLANE" "PRO" \
     "PLANKA" "PRO" \
     "QDRANT" "PRO" \
     "RABBITMQ" "PRO" \
@@ -1115,6 +1120,7 @@ case "$CHOICE" in
             "PGADMIN4")                                              run_app pgadmin ;;
             "PHOTOPRISM")                                           warn_heavy "PhotoPrism" "2GB" && run_app photoprism ;;
             "PLANKA")                                               run_app planka ;;
+            "PLANE")                                                run_app plane ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
             "CHROMADB")                                              run_app chromadb ;;
@@ -1252,6 +1258,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "PENPOT" "PRO" \
     "PI-HOLE" "PRO" \
     "POCKETBASE" "PRO" \
+    "PLANE" "PRO" \
     "PHPMYADMIN" "PRO" \
     "PLANKA" "PRO" \
     "QDRANT" "PRO" \
@@ -1414,6 +1421,7 @@ case "$CHOICE" in
             "PGADMIN4")                                              run_app pgadmin ;;
             "PHOTOPRISM")                                           warn_heavy "PhotoPrism" "2GB" && run_app photoprism ;;
             "PLANKA")                                               run_app planka ;;
+            "PLANE")                                                run_app plane ;;
             "PHPMYADMIN")                                            run_app pma ;;
             "QDRANT")                                                run_app qdrant ;;
             "CHROMADB")                                              run_app chromadb ;;
