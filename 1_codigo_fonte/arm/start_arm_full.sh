@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="4.81.0"
+VERSIONSETUP="4.82.0"
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
     echo "ERRO: Este script deve ser executado como root." >&2
@@ -953,6 +953,12 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm dozzle
 fi
 
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o syncthing -f syncthing.sh
+rm syncthing.sh
+rm syncthing.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm syncthing
+fi
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o shlink -f shlink.sh
 rm shlink.sh
 rm shlink.sh.x.c
