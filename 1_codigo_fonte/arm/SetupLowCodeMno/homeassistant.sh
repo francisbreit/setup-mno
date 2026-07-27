@@ -221,6 +221,21 @@ services:
       - TZ=America/Sao_Paulo
     volumes:
       - ${nome_app}_config:/config
+    command:
+      - sh
+      - -c
+      - |
+        if [ ! -f /config/configuration.yaml ]; then
+          echo "default_config:" > /config/configuration.yaml
+          echo "" >> /config/configuration.yaml
+          echo "http:" >> /config/configuration.yaml
+          echo "  use_x_forwarded_for: true" >> /config/configuration.yaml
+          echo "  trusted_proxies:" >> /config/configuration.yaml
+          echo "    - 10.0.0.0/8" >> /config/configuration.yaml
+          echo "    - 172.16.0.0/12" >> /config/configuration.yaml
+          echo "    - 192.168.0.0/16" >> /config/configuration.yaml
+        fi
+        exec /init
     deploy:
       mode: replicated
       replicas: 1
