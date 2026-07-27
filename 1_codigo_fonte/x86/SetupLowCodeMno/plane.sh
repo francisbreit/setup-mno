@@ -921,7 +921,7 @@ services:
       - CORS_ALLOWED_ORIGINS=$CORS_ALLOWED
       - GUNICORN_WORKERS=2
       - FILE_SIZE_LIMIT=5242880
-    command: celery -A plane.plane worker -l info -c 2
+    command: ./bin/docker-entrypoint.sh worker
     deploy:
       mode: replicated
       replicas: 1
@@ -953,7 +953,7 @@ services:
       - WEB_URL=https://${url_plane}
       - CORS_ALLOWED_ORIGINS=$CORS_ALLOWED
       - FILE_SIZE_LIMIT=5242880
-    command: celery -A plane.plane beat -l info
+    command: ./bin/docker-entrypoint.sh beat
     deploy:
       mode: replicated
       replicas: 1
@@ -972,6 +972,7 @@ services:
     environment:
       - NEXT_PUBLIC_API_BASE_URL=https://${url_plane}/api
       - NEXT_PUBLIC_DEPLOY_URL=https://${url_plane}
+    command: ./bin/docker-entrypoint.sh web
     deploy:
       mode: replicated
       replicas: 1
@@ -990,6 +991,7 @@ services:
     environment:
       - NEXT_PUBLIC_API_BASE_URL=https://${url_plane}/api
       - NEXT_PUBLIC_DEPLOY_URL=https://${url_plane}
+    command: ./bin/docker-entrypoint.sh admin
     deploy:
       mode: replicated
       replicas: 1
@@ -1008,6 +1010,7 @@ services:
     environment:
       - NEXT_PUBLIC_API_BASE_URL=https://${url_plane}/api
       - NEXT_PUBLIC_DEPLOY_URL=https://${url_plane}
+    command: ./bin/docker-entrypoint.sh space
     deploy:
       mode: replicated
       replicas: 1
