@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="4.78.0"
+VERSIONSETUP="4.81.0"
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
 CONTATO_GITHUB="github.com/francisbreit"
@@ -297,6 +297,8 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "GRAFANA/PROMETHEUS MONITOR" ""   \
     "HERMES AGENT" "" \
     "HEYFORM" "" \
+    "HOME ASSISTANT" "" \
+    "IMMICH" "" \
     "HUMHUB" "" \
     "INFISICAL" "" \
     "JITSI MEET" "" \
@@ -341,6 +343,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "NTFY" "" \
     "ODOO" "" \
     "OLLAMA + OPENWEBUI*" "" \
+    "OPEN WEBUI" "" \
     "OPENCLAW" "" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "" \
     "OPENFANG" "" \
@@ -457,6 +460,8 @@ case "$CHOICE" in
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HEYFORM")                                               run_app heyform ;;
+            "HOME ASSISTANT")                                        run_app homeassistant ;;
+            "IMMICH")                                                warn_heavy "Immich" "6GB" && run_app immich ;;
             "HUMHUB")                                                run_app humhub ;;
             "INFISICAL")                                            run_app infisical ;;
             "JITSI MEET")                                            warn_heavy "Jitsi Meet" "5GB" && run_app jitsi ;;
@@ -501,6 +506,7 @@ case "$CHOICE" in
             "NTFY")                                                  run_app ntfy ;;
             "ODOO")                                                  run_app odoo ;;
             "OLLAMA + OPENWEBUI*")                                   warn_heavy "Ollama" "8GB+" && run_app ollama ;;
+            "OPEN WEBUI")                                            run_app openwebui ;;
             "OPENCLAW")                                              run_app openclaw ;;
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
             "OUTLINE")                                               run_app outline ;;
@@ -640,6 +646,8 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "GITLAB" "PRO" \
     "HERMES AGENT" "PRO" \
     "HEYFORM" "PRO" \
+    "HOME ASSISTANT" "PRO" \
+    "IMMICH" "PRO" \
     "HUMHUB" "PRO" \
     "INFISICAL" "PRO" \
     "JITSI MEET" "PRO" \
@@ -671,6 +679,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "NGINXPROXYMANAGER" "PRO" \
     "NEXTCLOUD" "PRO" \
     "ODOO" "PRO" \
+    "OPEN WEBUI" "PRO" \
     "OPENCLAW" "PRO" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
     "OPENFANG" "PRO" \
@@ -716,7 +725,7 @@ case "$CHOICE" in
             whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
-        if [[ ("$CHOICE" == "AFFINE") || ("$CHOICE" == "APPSMITH") || ("$CHOICE" == "AUTOGEN STUDIO") || ("$CHOICE" == "BASEROW") || ("$CHOICE" == "BOTPRESS") || ("$CHOICE" == "CAL.COM") || ("$CHOICE" == "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "DOCUMENSO") || ("$CHOICE" == "DOCUSEAL") || ("$CHOICE" == "DOZZLE") || ("$CHOICE" == "EVOAI + EVOLUTION 2.0 + MINIO*") || ("$CHOICE" == "HUMHUB") || ("$CHOICE" == "KRAYIN CRM") || ("$CHOICE" == "LANGFUSE + MINIO + CLICKHOUSE*") || ("$CHOICE" == "LITELLM") || ("$CHOICE" == "MAUTIC 4 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 6 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 7 WHATSAPP MKT") || ("$CHOICE" == "MATOMO") || ("$CHOICE" == "NEXTCLOUD") || ("$CHOICE" == "OPEN PROJECT") || ("$CHOICE" == "TWENTY CRM") || ("$CHOICE" == "TYPEBOT + MINIO*") || ("$CHOICE" == "OPENCLAW") || ("$CHOICE" == "DISCOURSE") || ("$CHOICE" == "GHOST") || ("$CHOICE" == "COGNEE") || ("$CHOICE" == "MEMGRAPH") || ("$CHOICE" == "NEO4J") || ("$CHOICE" == "OPENFANG") || ("$CHOICE" == "PAPERCLIP") || ("$CHOICE" == "SEARXNG") || ("$CHOICE" == "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*") || ("$CHOICE" == "HERMES AGENT") || ("$CHOICE" == "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOT AI CUSTOMER SERVICE*") ]]; then
+        if [[ ("$CHOICE" == "AFFINE") || ("$CHOICE" == "APPSMITH") || ("$CHOICE" == "AUTOGEN STUDIO") || ("$CHOICE" == "BASEROW") || ("$CHOICE" == "BOTPRESS") || ("$CHOICE" == "CAL.COM") || ("$CHOICE" == "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "DOCUMENSO") || ("$CHOICE" == "DOCUSEAL") || ("$CHOICE" == "DOZZLE") || ("$CHOICE" == "EVOAI + EVOLUTION 2.0 + MINIO*") || ("$CHOICE" == "IMMICH") || ("$CHOICE" == "HOME ASSISTANT") || ("$CHOICE" == "HUMHUB") || ("$CHOICE" == "KRAYIN CRM") || ("$CHOICE" == "LANGFUSE + MINIO + CLICKHOUSE*") || ("$CHOICE" == "LITELLM") || ("$CHOICE" == "MAUTIC 4 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 6 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 7 WHATSAPP MKT") || ("$CHOICE" == "MATOMO") || ("$CHOICE" == "NEXTCLOUD") || ("$CHOICE" == "OPEN PROJECT") || ("$CHOICE" == "TWENTY CRM") || ("$CHOICE" == "TYPEBOT + MINIO*") || ("$CHOICE" == "OPENCLAW") || ("$CHOICE" == "DISCOURSE") || ("$CHOICE" == "GHOST") || ("$CHOICE" == "COGNEE") || ("$CHOICE" == "MEMGRAPH") || ("$CHOICE" == "NEO4J") || ("$CHOICE" == "OPENFANG") || ("$CHOICE" == "PAPERCLIP") || ("$CHOICE" == "SEARXNG") || ("$CHOICE" == "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*") || ("$CHOICE" == "HERMES AGENT") || ("$CHOICE" == "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOT AI CUSTOMER SERVICE*") ]]; then
             whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
@@ -769,6 +778,8 @@ case "$CHOICE" in
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HEYFORM")                                               run_app heyform ;;
+            "HOME ASSISTANT")                                        run_app homeassistant ;;
+            "IMMICH")                                                warn_heavy "Immich" "6GB" && run_app immich ;;
             "HUMHUB")                                                run_app humhub ;;
             "INFISICAL")                                            run_app infisical ;;
             "JITSI MEET")                                            warn_heavy "Jitsi Meet" "5GB" && run_app jitsi ;;
@@ -813,6 +824,7 @@ case "$CHOICE" in
             "NTFY")                                                  run_app ntfy ;;
             "ODOO")                                                  run_app odoo ;;
             "OLLAMA + OPENWEBUI*")                                   warn_heavy "Ollama" "8GB+" && run_app ollama ;;
+            "OPEN WEBUI")                                            run_app openwebui ;;
             "OPENCLAW")                                              run_app openclaw ;;
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
             "OUTLINE")                                               run_app outline ;;
@@ -922,6 +934,8 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "GRAFANA/PROMETHEUS MONITOR" "PRO"   \
     "HERMES AGENT" "PRO" \
     "HEYFORM" "PRO" \
+    "HOME ASSISTANT" "PRO" \
+    "IMMICH" "PRO" \
     "HUMHUB" "PRO" \
     "INFISICAL" "PRO" \
     "JITSI MEET" "PRO" \
@@ -961,6 +975,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "NTFY" "PRO" \
     "ODOO" "PRO" \
     "OLLAMA + OPENWEBUI*" "PRO" \
+    "OPEN WEBUI" "PRO" \
     "OPENCLAW" "PRO" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
     "OPENFANG" "PRO" \
@@ -1073,6 +1088,8 @@ case "$CHOICE" in
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HEYFORM")                                               run_app heyform ;;
+            "HOME ASSISTANT")                                        run_app homeassistant ;;
+            "IMMICH")                                                warn_heavy "Immich" "6GB" && run_app immich ;;
             "HUMHUB")                                                run_app humhub ;;
             "INFISICAL")                                            run_app infisical ;;
             "JITSI MEET")                                            warn_heavy "Jitsi Meet" "5GB" && run_app jitsi ;;
@@ -1117,6 +1134,7 @@ case "$CHOICE" in
             "NTFY")                                                  run_app ntfy ;;
             "ODOO")                                                  run_app odoo ;;
             "OLLAMA + OPENWEBUI*")                                   warn_heavy "Ollama" "8GB+" && run_app ollama ;;
+            "OPEN WEBUI")                                            run_app openwebui ;;
             "OPENCLAW")                                              run_app openclaw ;;
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
             "OUTLINE")                                               run_app outline ;;
@@ -1227,6 +1245,8 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "GRAFANA/PROMETHEUS MONITOR" "PRO"   \
     "HERMES AGENT" "PRO" \
     "HEYFORM" "PRO" \
+    "HOME ASSISTANT" "PRO" \
+    "IMMICH" "PRO" \
     "HUMHUB" "PRO" \
     "INFISICAL" "PRO" \
     "JITSI MEET" "PRO" \
@@ -1266,6 +1286,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "NTFY" "PRO" \
     "ODOO" "PRO" \
     "OLLAMA + OPENWEBUI*" "PRO" \
+    "OPEN WEBUI" "PRO" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
     "OPENFANG" "PRO" \
     "OPEN PROJECT" "PRO" \
@@ -1377,6 +1398,8 @@ case "$CHOICE" in
             "GRAFANA/PROMETHEUS MONITOR")                            run_app grafana ;;
             "HERMES AGENT")                                          run_app hermes ;;
             "HEYFORM")                                               run_app heyform ;;
+            "HOME ASSISTANT")                                        run_app homeassistant ;;
+            "IMMICH")                                                warn_heavy "Immich" "6GB" && run_app immich ;;
             "HUMHUB")                                                run_app humhub ;;
             "INFISICAL")                                            run_app infisical ;;
             "JITSI MEET")                                            warn_heavy "Jitsi Meet" "5GB" && run_app jitsi ;;
@@ -1421,6 +1444,7 @@ case "$CHOICE" in
             "NTFY")                                                  run_app ntfy ;;
             "ODOO")                                                  run_app odoo ;;
             "OLLAMA + OPENWEBUI*")                                   warn_heavy "Ollama" "8GB+" && run_app ollama ;;
+            "OPEN WEBUI")                                            run_app openwebui ;;
             "OPENCLAW")                                              run_app openclaw ;;
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
             "OUTLINE")                                               run_app outline ;;

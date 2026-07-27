@@ -144,6 +144,18 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
 
     **Motivo:** Evitar múltiplas instâncias de MinIO consumindo recursos. Um único MinIO compartilhado atende todas as apps, cada uma com seu bucket + service account restrito.
 
+7.7 **warn_heavy() — Alerta de Recursos para apps ≥4GB RAM (OBRIGATÓRIO ⚠️):** Toda ferramenta que consuma **4GB de RAM ou mais** DEVE usar a função `warn_heavy "Nome da App" "XGB"` no `case "$CHOICE" in` do `install.sh` (x86 e ARM), exatamente antes do `run_app`:
+
+    ```bash
+    "NOME_DA_APP") warn_heavy "Nome da App" "4GB" && run_app nome_app ;;
+    ```
+
+    A função exibe um whiptail de confirmação (`⚠️ ALERTA DE RECURSOS`) que o usuário precisa aceitar para prosseguir. Apps com <4GB RAM **NÃO** devem usar `warn_heavy`.
+
+    **SCRIPTS DE REFERÊNCIA:** `gitlab.sh` (4GB), `jitsi.sh` (5GB), `twentycrm.sh` (5GB), `ollama.sh` (8GB+).
+
+    **Erro comum:** Esquecer de adicionar `warn_heavy` em apps pesadas, fazendo o usuário instalar sem saber do consumo de RAM.
+
 6. **Versionamento:** Incremente o MINOR da versão (ex: 4.20.2 → 4.21.0).
 7. **Empacotamento:** Finalize com o comando de build após validar a sintaxe.
 8. **Pergunta Portainer (OBRIGATÓRIO):** Todo script de instalação DEVE perguntar "Criar Stack no Portainer?" com opções 0 (editável) ou 1 (direto no Docker). Esta pergunta deve aparecer após todas as outras coletas de dados e antes da tela de confirmação. O deployment deve usar a API do Portainer quando opção 0 for selecionada, ou `docker stack deploy` quando opção 1 for selecionada. **Este é um erro comum — nunca esqueça esta pergunta.**
@@ -186,6 +198,19 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
     fi
     ```
     **Variáveis esperadas:** `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ZONE_ID`, `nome_servidor`, `TUNNEL_ID`, `CLOUDFLARE_ACCOUNT_ID`
+10.5 **PostgreSQL Compartilhado (ESTRATÉGIA PADRÃO ⚠️):** Por padrão, SEMPRE usar o PostgreSQL compartilhado para novas aplicações. A senha é extraída de `/root/postgres.yaml` (regra 11 abaixo). Apenas criar PostgreSQL dedicado se a aplicação EXIGIR (ex: Supabase, GitLab).
+
+    **USAR O COMPARTILHADO (quase sempre):**
+    - Conectar via hostname `postgres` na porta `5432`
+    - Criar database: `CREATE DATABASE $nome_app;`
+    - Connection string: `postgresql://postgres:$postgres_password@postgres:5432/$nome_app`
+    - SCRIPTS DE REFERÊNCIA: `outline.sh`, `tooljet.sh`, `fireflyiii.sh`
+
+    **QUANDO USAR DEDICADO (exceção):**
+    - Se a aplicação EXIGIR extensões específicas do PostgreSQL (pgvector, etc.)
+    - Se a aplicação precisar de superuser ou configurações que afetariam outras databases
+    - Exemplos: Supabase (extensões + superuser), GitLab (banco isolado)
+    - Nestes casos, criar stack separada com `postgres:16-alpine`
 11. **Carregamento da Senha do Postgres (OBRIGATÓRIO):** Todo script que usa PostgreSQL DEVE extrair a senha do arquivo `/root/postgres.yaml`. **NUNCA use variável de ambiente `$POSTGRES_PASSWORD` diretamente — ela não existe no runtime.**
     ```bash
     # CARREGAR SENHA DO POSTGRES (padrão dos scripts validados)
