@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="4.82.0"
+VERSIONSETUP="4.83.0"
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
 CONTATO_GITHUB="github.com/francisbreit"
@@ -263,6 +263,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
     "CHATWOOT AI CUSTOMER SERVICE*" ""   \
+    "CHANGEDETECTION.IO" ""   \
     "CHROMADB" ""   \
     "CLICKHOUSE" ""   \
     "CODE SERVER" ""   \
@@ -429,6 +430,7 @@ case "$CHOICE" in
             "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") warn_heavy "Chatwoot Desbloqueado + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
             "CHATWOOT AI CUSTOMER SERVICE*") warn_heavy "Chatwoot AI Customer Service" "10GB" && run_app chatwoot_ai_customer_service ;;
             "CLICKHOUSE")                                            run_app clickhouse ;;
+            "CHANGEDETECTION.IO")                                     run_app changedetection ;;
             "CODE SERVER")                                           run_app codeserver ;;
             "COGNEE")                                                run_app cognee ;;
             "DATABASUS")                                             run_app databasus ;;
@@ -626,6 +628,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOT AI CUSTOMER SERVICE*" "PRO"   \
+    "CHANGEDETECTION.IO" "PRO"   \
     "CODE SERVER" "PRO"   \
     "COGNEE" "PRO"   \
     "DISCOURSE" "PRO" \
@@ -728,7 +731,7 @@ case "$CHOICE" in
             whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
-        if [[ ("$CHOICE" == "AFFINE") || ("$CHOICE" == "APPSMITH") || ("$CHOICE" == "AUTOGEN STUDIO") || ("$CHOICE" == "BASEROW") || ("$CHOICE" == "BOTPRESS") || ("$CHOICE" == "CAL.COM") || ("$CHOICE" == "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "DOCUMENSO") || ("$CHOICE" == "DOCUSEAL") || ("$CHOICE" == "DOZZLE") || ("$CHOICE" == "EVOAI + EVOLUTION 2.0 + MINIO*") || ("$CHOICE" == "IMMICH") || ("$CHOICE" == "HOME ASSISTANT") || ("$CHOICE" == "HUMHUB") || ("$CHOICE" == "KRAYIN CRM") || ("$CHOICE" == "LANGFUSE + MINIO + CLICKHOUSE*") || ("$CHOICE" == "LITELLM") || ("$CHOICE" == "MAUTIC 4 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 6 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 7 WHATSAPP MKT") || ("$CHOICE" == "MATOMO") || ("$CHOICE" == "NEXTCLOUD") || ("$CHOICE" == "OPEN PROJECT") || ("$CHOICE" == "TWENTY CRM") || ("$CHOICE" == "TYPEBOT + MINIO*") || ("$CHOICE" == "OPENCLAW") || ("$CHOICE" == "DISCOURSE") || ("$CHOICE" == "GHOST") || ("$CHOICE" == "COGNEE") || ("$CHOICE" == "MEMGRAPH") || ("$CHOICE" == "NEO4J") || ("$CHOICE" == "OPENFANG") || ("$CHOICE" == "PAPERCLIP") || ("$CHOICE" == "SEARXNG") || ("$CHOICE" == "SYNCTHING") || ("$CHOICE" == "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*") || ("$CHOICE" == "HERMES AGENT") || ("$CHOICE" == "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOT AI CUSTOMER SERVICE*") ]]; then
+        if [[ ("$CHOICE" == "AFFINE") || ("$CHOICE" == "APPSMITH") || ("$CHOICE" == "AUTOGEN STUDIO") || ("$CHOICE" == "BASEROW") || ("$CHOICE" == "BOTPRESS") || ("$CHOICE" == "CAL.COM") || ("$CHOICE" == "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "DOCUMENSO") || ("$CHOICE" == "DOCUSEAL") || ("$CHOICE" == "DOZZLE") || ("$CHOICE" == "EVOAI + EVOLUTION 2.0 + MINIO*") || ("$CHOICE" == "IMMICH") || ("$CHOICE" == "HOME ASSISTANT") || ("$CHOICE" == "HUMHUB") || ("$CHOICE" == "KRAYIN CRM") || ("$CHOICE" == "LANGFUSE + MINIO + CLICKHOUSE*") || ("$CHOICE" == "LITELLM") || ("$CHOICE" == "MAUTIC 4 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 6 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 7 WHATSAPP MKT") || ("$CHOICE" == "MATOMO") || ("$CHOICE" == "NEXTCLOUD") || ("$CHOICE" == "OPEN PROJECT") || ("$CHOICE" == "TWENTY CRM") || ("$CHOICE" == "TYPEBOT + MINIO*") || ("$CHOICE" == "OPENCLAW") || ("$CHOICE" == "DISCOURSE") || ("$CHOICE" == "GHOST") || ("$CHOICE" == "COGNEE") || ("$CHOICE" == "MEMGRAPH") || ("$CHOICE" == "NEO4J") || ("$CHOICE" == "OPENFANG") || ("$CHOICE" == "PAPERCLIP") || ("$CHOICE" == "SEARXNG") || ("$CHOICE" == "SYNCTHING") || ("$CHOICE" == "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*") || ("$CHOICE" == "HERMES AGENT") || ("$CHOICE" == "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOT AI CUSTOMER SERVICE*") || ("$CHOICE" == "CHANGEDETECTION.IO") ]]; then
             whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
@@ -748,6 +751,7 @@ case "$CHOICE" in
             "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    warn_heavy "Chatwoot Original + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwooto_evo2_rabbitmq_minio ;;
             "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") warn_heavy "Chatwoot Desbloqueado + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
             "CHATWOOT AI CUSTOMER SERVICE*") warn_heavy "Chatwoot AI Customer Service" "10GB" && run_app chatwoot_ai_customer_service ;;
+            "CHANGEDETECTION.IO")                                     run_app changedetection ;;
             "CLICKHOUSE")                                            run_app clickhouse ;;
             "CODE SERVER")                                           run_app codeserver ;;
             "COGNEE")                                                run_app cognee ;;
@@ -913,6 +917,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOT AI CUSTOMER SERVICE*" "PRO"   \
+    "CHANGEDETECTION.IO" "PRO"   \
     "CHROMADB" "PRO"   \
     "CLICKHOUSE" "PRO"   \
     "CODE SERVER" "PRO"   \
@@ -1058,6 +1063,7 @@ case "$CHOICE" in
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
             "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    warn_heavy "Chatwoot Original + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwooto_evo2_rabbitmq_minio ;;
+            "CHANGEDETECTION.IO")                                     run_app changedetection ;;
             "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") warn_heavy "Chatwoot Desbloqueado + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
             "CHATWOOT AI CUSTOMER SERVICE*") warn_heavy "Chatwoot AI Customer Service" "10GB" && run_app chatwoot_ai_customer_service ;;
             "CLICKHOUSE")                                            run_app clickhouse ;;
@@ -1225,6 +1231,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOT AI CUSTOMER SERVICE*" "PRO"   \
+    "CHANGEDETECTION.IO" "PRO"   \
     "CHROMADB" "PRO"   \
     "CLICKHOUSE" "PRO"   \
     "CODE SERVER" "PRO"   \
@@ -1368,6 +1375,7 @@ case "$CHOICE" in
             "BOOKSTACK")                                               run_app bookstack ;;
             "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
+            "CHANGEDETECTION.IO")                                     run_app changedetection ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
             "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    warn_heavy "Chatwoot Original + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwooto_evo2_rabbitmq_minio ;;
             "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") warn_heavy "Chatwoot Desbloqueado + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
