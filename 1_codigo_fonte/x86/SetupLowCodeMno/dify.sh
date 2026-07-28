@@ -523,16 +523,16 @@ EOL
             PORTAINER_URL=$(grep "Dominio do portainer:" "$dados_file" | cut -d':' -f2 | xargs)
             ADMIN_USERNAME=$(grep "Usuario:" "$dados_file" | cut -d':' -f2 | xargs)
             ADMIN_PASSWORD=$(grep "Senha:" "$dados_file" | cut -d':' -f2 | xargs)
-            RESPONSE=$(curl -sk -X POST "https://$PORTAINER_URL/api/auth" -H "Content-Type: application/json" -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
+            RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" -H "Content-Type: application/json" -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
             TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
             if [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ]; then
-                RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
+                RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
                 ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
                 if [ -n "$ENDPOINT_ID" ] && [ "$ENDPOINT_ID" != "null" ]; then
-                    RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
+                    RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
                     SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
                     if [ -n "$SWARM_ID" ] && [ "$SWARM_ID" != "null" ] && [ -f "/root/$nome_app2.yaml" ]; then
-                        http_code=$(curl -s -o /dev/null -w "%{http_code}" -k -X POST \
+                        http_code=$(curl -s -o /dev/null -w "%{http_code}"  -X POST \
                             -H "Authorization: Bearer $TOKEN" -F "Name=$nome_app2" -F "file=@/root/$nome_app2.yaml" \
                             -F "SwarmID=$SWARM_ID" -F "endpointId=$ENDPOINT_ID" \
                             "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2>/dev/null)
@@ -674,18 +674,18 @@ if [[ "$criar_portainer" == "0" ]]; then
         REDIS_STACK_NAME="${nome_app}-redis"
         REDIS_STACK_FILE="/root/${nome_app}-redis.yaml"
 
-        RESPONSE=$(curl -sk -X POST "https://$PORTAINER_URL/api/auth" \
+        RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
             -H "Content-Type: application/json" \
             -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
         TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
         if [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ]; then
-            RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
+            RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
             ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
             if [ -n "$ENDPOINT_ID" ] && [ "$ENDPOINT_ID" != "null" ]; then
-                RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
+                RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
                 SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
                 if [ -n "$SWARM_ID" ] && [ "$SWARM_ID" != "null" ] && [ -f "$REDIS_STACK_FILE" ]; then
-                    http_code=$(curl -s -o /dev/null -w "%{http_code}" -k -X POST \
+                    http_code=$(curl -s -o /dev/null -w "%{http_code}"  -X POST \
                         -H "Authorization: Bearer $TOKEN" \
                         -F "Name=$REDIS_STACK_NAME" \
                         -F "file=@$REDIS_STACK_FILE" \
@@ -755,7 +755,7 @@ if [[ "$criar_portainer" == "0" ]] && [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ];
     WEAVIATE_STACK_NAME="${nome_app}-weaviate"
     WEAVIATE_STACK_FILE="/root/${nome_app}-weaviate.yaml"
     if [ -f "$WEAVIATE_STACK_FILE" ]; then
-        http_code=$(curl -s -o /dev/null -w "%{http_code}" -k -X POST \
+        http_code=$(curl -s -o /dev/null -w "%{http_code}"  -X POST \
             -H "Authorization: Bearer $TOKEN" \
             -F "Name=$WEAVIATE_STACK_NAME" \
             -F "file=@$WEAVIATE_STACK_FILE" \
@@ -1058,7 +1058,7 @@ if [[ "$criar_portainer" == "0" ]] && [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ];
     STACK_NAME=$nome_app
     STACK_FILE_PATH="/root/$nome_app.yaml"
     if [ -f "$STACK_FILE_PATH" ]; then
-        http_code=$(curl -s -o /dev/null -w "%{http_code}" -k -X POST \
+        http_code=$(curl -s -o /dev/null -w "%{http_code}"  -X POST \
             -H "Authorization: Bearer $TOKEN" \
             -F "Name=$STACK_NAME" \
             -F "file=@$STACK_FILE_PATH" \

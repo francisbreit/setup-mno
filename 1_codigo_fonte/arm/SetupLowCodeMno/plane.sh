@@ -497,7 +497,7 @@ EOL
 
             get_auth_token() {
                 echo -e "XXX\n43\nAUTENTICANDO NO PORTAINER... \nXXX"
-                RESPONSE=$(curl -sk -X POST "https://$PORTAINER_URL/api/auth" -H "Content-Type: application/json" -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
+                RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" -H "Content-Type: application/json" -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
                 TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
                 if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
                     echo -e "XXX\n44\nFALHA NA AUTENTICAÇÃO, USANDO DOCKER... \nXXX"
@@ -508,7 +508,7 @@ EOL
             }
             get_endpoint_id() {
                 echo -e "XXX\n45\nOBTENDO ENDPOINT ID... \nXXX"
-                RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
+                RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
                 ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
                 if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
                     echo -e "XXX\n46\nERRO: ENDPOINT ID NÃO ENCONTRADO \nXXX"
@@ -519,7 +519,7 @@ EOL
             }
             get_swarm_id() {
                 echo -e "XXX\n47\nOBTENDO SWARM ID... \nXXX"
-                RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
+                RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
                 SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
                 if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
                     echo -e "XXX\n48\nERRO: SWARM ID NÃO ENCONTRADO \nXXX"
@@ -537,7 +537,7 @@ EOL
                 fi
                 response_output=$(mktemp)
                 erro_output=$(mktemp)
-                http_code=$(curl -s -o "$response_output" -w "%{http_code}" -k -X POST \
+                http_code=$(curl -s -o "$response_output" -w "%{http_code}"  -X POST \
                     -H "Authorization: Bearer $TOKEN" -F "Name=$STACK_NAME" -F "file=@$STACK_FILE_PATH" \
                     -F "SwarmID=$SWARM_ID" -F "endpointId=$ENDPOINT_ID" \
                     "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
@@ -740,7 +740,7 @@ if [[ "$criar_portainer" == "0" ]]; then
 
         get_auth_token() {
             echo -e "XXX\n65\nAUTENTICANDO NO PORTAINER... \nXXX"
-            RESPONSE=$(curl -sk -X POST "https://$PORTAINER_URL/api/auth" -H "Content-Type: application/json" -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
+            RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" -H "Content-Type: application/json" -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
             TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
             if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
                 echo -e "XXX\n66\nFALHA NA AUTENTICAÇÃO, USANDO DOCKER... \nXXX"
@@ -751,7 +751,7 @@ if [[ "$criar_portainer" == "0" ]]; then
         }
         get_endpoint_id() {
             echo -e "XXX\n67\nOBTENDO ENDPOINT ID... \nXXX"
-            RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
+            RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
             ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
             if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
                 echo -e "XXX\n68\nERRO: ENDPOINT ID NÃO ENCONTRADO \nXXX"
@@ -762,7 +762,7 @@ if [[ "$criar_portainer" == "0" ]]; then
         }
         get_swarm_id() {
             echo -e "XXX\n69\nOBTENDO SWARM ID... \nXXX"
-            RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
+            RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
             SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
             if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
                 echo -e "XXX\n70\nERRO: SWARM ID NÃO ENCONTRADO \nXXX"
@@ -780,7 +780,7 @@ if [[ "$criar_portainer" == "0" ]]; then
             fi
             response_output=$(mktemp)
             erro_output=$(mktemp)
-            http_code=$(curl -s -o "$response_output" -w "%{http_code}" -k -X POST \
+            http_code=$(curl -s -o "$response_output" -w "%{http_code}"  -X POST \
                 -H "Authorization: Bearer $TOKEN" -F "Name=$STACK_NAME" -F "file=@$STACK_FILE_PATH" \
                 -F "SwarmID=$SWARM_ID" -F "endpointId=$ENDPOINT_ID" \
                 "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
@@ -862,7 +862,7 @@ if [[ "$criar_portainer" == "0" ]]; then
 
         get_auth_token() {
             echo -e "XXX\n77\nAUTENTICANDO NO PORTAINER... \nXXX"
-            RESPONSE=$(curl -sk -X POST "https://$PORTAINER_URL/api/auth" -H "Content-Type: application/json" -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
+            RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" -H "Content-Type: application/json" -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
             TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
             if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
                 echo -e "XXX\n78\nFALHA NA AUTENTICAÇÃO, USANDO DOCKER... \nXXX"
@@ -873,7 +873,7 @@ if [[ "$criar_portainer" == "0" ]]; then
         }
         get_endpoint_id() {
             echo -e "XXX\n79\nOBTENDO ENDPOINT ID... \nXXX"
-            RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
+            RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
             ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
             if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
                 echo -e "XXX\n80\nERRO: ENDPOINT ID NÃO ENCONTRADO \nXXX"
@@ -884,7 +884,7 @@ if [[ "$criar_portainer" == "0" ]]; then
         }
         get_swarm_id() {
             echo -e "XXX\n81\nOBTENDO SWARM ID... \nXXX"
-            RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
+            RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
             SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
             if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
                 echo -e "XXX\n82\nERRO: SWARM ID NÃO ENCONTRADO \nXXX"
@@ -902,7 +902,7 @@ if [[ "$criar_portainer" == "0" ]]; then
             fi
             response_output=$(mktemp)
             erro_output=$(mktemp)
-            http_code=$(curl -s -o "$response_output" -w "%{http_code}" -k -X POST \
+            http_code=$(curl -s -o "$response_output" -w "%{http_code}"  -X POST \
                 -H "Authorization: Bearer $TOKEN" -F "Name=$STACK_NAME" -F "file=@$STACK_FILE_PATH" \
                 -F "SwarmID=$SWARM_ID" -F "endpointId=$ENDPOINT_ID" \
                 "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
@@ -1199,7 +1199,7 @@ if [[ "$criar_portainer" == "0" ]]; then
 
         get_auth_token() {
             echo -e "XXX\n92\nAUTENTICANDO NO PORTAINER... \nXXX"
-            RESPONSE=$(curl -sk -X POST "https://$PORTAINER_URL/api/auth" -H "Content-Type: application/json" \
+            RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" -H "Content-Type: application/json" \
                 -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
             TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
             if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
@@ -1211,7 +1211,7 @@ if [[ "$criar_portainer" == "0" ]]; then
         }
         get_endpoint_id() {
             echo -e "XXX\n94\nOBTENDO ENDPOINT ID... \nXXX"
-            RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
+            RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
             ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
             if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
                 echo -e "XXX\n95\nERRO: ENDPOINT ID NÃO ENCONTRADO \nXXX"
@@ -1222,7 +1222,7 @@ if [[ "$criar_portainer" == "0" ]]; then
         }
         get_swarm_id() {
             echo -e "XXX\n96\nOBTENDO SWARM ID... \nXXX"
-            RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
+            RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
             SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
             if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
                 echo -e "XXX\n97\nERRO: SWARM ID NÃO ENCONTRADO \nXXX"
@@ -1240,7 +1240,7 @@ if [[ "$criar_portainer" == "0" ]]; then
             fi
             response_output=$(mktemp)
             erro_output=$(mktemp)
-            http_code=$(curl -s -o "$response_output" -w "%{http_code}" -k -X POST \
+            http_code=$(curl -s -o "$response_output" -w "%{http_code}"  -X POST \
                 -H "Authorization: Bearer $TOKEN" -F "Name=$STACK_NAME" -F "file=@$STACK_FILE_PATH" \
                 -F "SwarmID=$SWARM_ID" -F "endpointId=$ENDPOINT_ID" \
                 "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")

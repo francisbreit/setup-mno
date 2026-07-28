@@ -227,7 +227,7 @@ if [[ "$criar_portainer" == "0" ]]; then
         exit 1
     fi
     get_auth_token() {
-        RESPONSE=$(curl -sk -X POST "https://$PORTAINER_URL/api/auth" -H "Content-Type: application/json" -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
+        RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" -H "Content-Type: application/json" -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
         TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
         if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
             docker stack deploy --prune --resolve-image always -c ${nome_app}-redis.yaml ${nome_app}-redis >/dev/null 2>&1
@@ -236,7 +236,7 @@ if [[ "$criar_portainer" == "0" ]]; then
         fi
     }
     get_endpoint_id() {
-        RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
+        RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN")
         ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
         if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
             docker stack deploy --prune --resolve-image always -c ${nome_app}-redis.yaml ${nome_app}-redis >/dev/null 2>&1
@@ -245,7 +245,7 @@ if [[ "$criar_portainer" == "0" ]]; then
         fi
     }
     get_swarm_id() {
-        RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
+        RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN")
         SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
         if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
             docker stack deploy --prune --resolve-image always -c ${nome_app}-redis.yaml ${nome_app}-redis >/dev/null 2>&1
@@ -257,7 +257,7 @@ if [[ "$criar_portainer" == "0" ]]; then
         REDIS_STACK_FILE_PATH="/root/${nome_app}-redis.yaml"
         if [ ! -f "$REDIS_STACK_FILE_PATH" ]; then docker stack deploy --prune --resolve-image always -c ${nome_app}-redis.yaml ${nome_app}-redis >/dev/null 2>&1; exit 1; fi
         response_output=$(mktemp); erro_output=$(mktemp)
-        http_code=$(curl -s -o "$response_output" -w "%{http_code}" -k -X POST -H "Authorization: Bearer $TOKEN" -F "Name=${nome_app}-redis" -F "file=@$REDIS_STACK_FILE_PATH" -F "SwarmID=$SWARM_ID" -F "endpointId=$ENDPOINT_ID" "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
+        http_code=$(curl -s -o "$response_output" -w "%{http_code}"  -X POST -H "Authorization: Bearer $TOKEN" -F "Name=${nome_app}-redis" -F "file=@$REDIS_STACK_FILE_PATH" -F "SwarmID=$SWARM_ID" -F "endpointId=$ENDPOINT_ID" "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
         response=$(cat "$response_output"); rm -f "$response_output" "$erro_output"
         if [ "$http_code" -ne 200 ]; then docker stack deploy --prune --resolve-image always -c ${nome_app}-redis.yaml ${nome_app}-redis >/dev/null 2>&1; exit 1; fi
     }
@@ -265,7 +265,7 @@ if [[ "$criar_portainer" == "0" ]]; then
         STACK_FILE_PATH="/root/$nome_app.yaml"
         if [ ! -f "$STACK_FILE_PATH" ]; then docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1; exit 1; fi
         response_output=$(mktemp); erro_output=$(mktemp)
-        http_code=$(curl -s -o "$response_output" -w "%{http_code}" -k -X POST -H "Authorization: Bearer $TOKEN" -F "Name=$nome_app" -F "file=@$STACK_FILE_PATH" -F "SwarmID=$SWARM_ID" -F "endpointId=$ENDPOINT_ID" "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
+        http_code=$(curl -s -o "$response_output" -w "%{http_code}"  -X POST -H "Authorization: Bearer $TOKEN" -F "Name=$nome_app" -F "file=@$STACK_FILE_PATH" -F "SwarmID=$SWARM_ID" -F "endpointId=$ENDPOINT_ID" "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
         response=$(cat "$response_output"); rm -f "$response_output" "$erro_output"
         if [ "$http_code" -ne 200 ]; then docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1; exit 1; fi
     }

@@ -390,11 +390,11 @@ if [[ "$criar_portainer" == "0" ]]; then
         P_USER=$(grep "Usuario:" "$dados_file" | cut -d':' -f2 | xargs)
         P_PASS=$(grep "Senha:" "$dados_file" | cut -d':' -f2 | xargs)
         
-        TOKEN=$(curl -sk -X POST "https://$P_URL/api/auth" -H "Content-Type: application/json" -d "{\"username\": \"$P_USER\", \"password\": \"$P_PASS\"}" | jq -r '.jwt')
+        TOKEN=$(curl -sS -X POST "https://$P_URL/api/auth" -H "Content-Type: application/json" -d "{\"username\": \"$P_USER\", \"password\": \"$P_PASS\"}" | jq -r '.jwt')
         if [[ "$TOKEN" != "null" && -n "$TOKEN" ]]; then
-            E_ID=$(curl -sk -X GET "https://$P_URL/api/endpoints" -H "Authorization: Bearer $TOKEN" | jq -r '.[0].Id')
-            S_ID=$(curl -sk -X GET "https://$P_URL/api/endpoints/$E_ID/docker/swarm" -H "Authorization: Bearer $TOKEN" | jq -r '.ID')
-            curl -s -o /dev/null -k -X POST -H "Authorization: Bearer $TOKEN" -F "Name=$nome_app" -F "file=@/root/$nome_app.yaml" -F "SwarmID=$S_ID" -F "endpointId=$E_ID" "https://$P_URL/api/stacks/create/swarm/file"
+            E_ID=$(curl -sS -X GET "https://$P_URL/api/endpoints" -H "Authorization: Bearer $TOKEN" | jq -r '.[0].Id')
+            S_ID=$(curl -sS -X GET "https://$P_URL/api/endpoints/$E_ID/docker/swarm" -H "Authorization: Bearer $TOKEN" | jq -r '.ID')
+            curl -s -o /dev/null  -X POST -H "Authorization: Bearer $TOKEN" -F "Name=$nome_app" -F "file=@/root/$nome_app.yaml" -F "SwarmID=$S_ID" -F "endpointId=$E_ID" "https://$P_URL/api/stacks/create/swarm/file"
         else
             docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
         fi

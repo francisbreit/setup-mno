@@ -1,6 +1,7 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="4.85.11"
+VERSIONSETUP="4.86.0"
+umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
     echo "ERRO: Este script deve ser executado como root." >&2
@@ -131,6 +132,7 @@ if [ $? -ne 0 ]; then exit 1; fi
 
 # Valida o cliente antes de prosseguir
 verificar_cliente "$EMAIL" "$SENHA"
+unset SENHA
 
 # Prossegue apenas se o cliente estiver regularizado
 clear
@@ -259,8 +261,6 @@ fi
 echo "DATA_INSTALACAO=$DATAAQ" >> "$TRIAL_FILE"
 echo "DAYS_TRIAL=$DAYS_TRIAL" >> "$TRIAL_FILE"
 echo "PLANO=\"$PLANO\"" >> "$TRIAL_FILE"
-echo "EMAIL=\"$EMAIL\"" >> "$TRIAL_FILE"
-echo "SENHA=\"$SENHA\"" >> "$TRIAL_FILE"
 
 
 if [ "$PLANO" = "pro" ] || [ "$PLANO" == "free" ] || [ "$PLANO" == "free1" ] || [ "$PLANO" == "free2" ] ; then

@@ -527,7 +527,7 @@ if [ "$criar_portainer" = "0" ]; then
         echo -e "XXX\n78\nCONECTANDO AO PORTAINER: $PORTAINER_URL \nXXX"
         
         # Autenticar no Portainer
-        RESPONSE=$(curl -sk -X POST "https://$PORTAINER_URL/api/auth" \
+        RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
             -H "Content-Type: application/json" \
             -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
         TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
@@ -536,19 +536,19 @@ if [ "$criar_portainer" = "0" ]; then
             echo -e "XXX\n79\nAUTENTICAÇÃO OK - OBTENDO ENDPOINTS... \nXXX"
             
             # Obter EndpointID
-            RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints" \
+            RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
                 -H "Authorization: Bearer $TOKEN")
             ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
             
             # Obter SwarmID
-            RESPONSE=$(curl -sk -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
+            RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
                 -H "Authorization: Bearer $TOKEN")
             SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
             
             echo -e "XXX\n80\nCRIANDO STACK $STACK_NAME NO PORTAINER... \nXXX"
             
             # Criar stack
-            http_code=$(curl -s -o /dev/null -w "%{http_code}" -k -X POST \
+            http_code=$(curl -s -o /dev/null -w "%{http_code}"  -X POST \
                 -H "Authorization: Bearer $TOKEN" \
                 -F "Name=$STACK_NAME" \
                 -F "file=@$STACK_FILE_PATH" \

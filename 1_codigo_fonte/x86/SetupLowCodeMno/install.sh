@@ -5,7 +5,8 @@
 #########################################################
 
 clear
-VERSIONSETUP="4.85.11"
+VERSIONSETUP="4.86.0"
+umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
 CONTATO_GITHUB="github.com/francisbreit"
@@ -87,8 +88,6 @@ cat > "$TRIAL_FILE" <<EOF
 DATA_INSTALACAO=$DATA_INSTALACAO
 DAYS_TRIAL=$DIAS_RESTANTES
 PLANO="$PLANO"
-EMAIL="$EMAIL"
-SENHA="$SENHA"
 EOF
 
 # --- REBRANDING POR PLANO ---
