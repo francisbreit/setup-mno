@@ -1070,10 +1070,41 @@ EOL
 #######################################################
 echo -e "XXX\n88\nRODANDO MIGRAÇÕES DO BANCO DE DADOS... \nXXX"
 
-docker run --rm --network interna \
+docker service create \
+    --name ${nome_app}_migrate \
+    --network interna \
+    --restart-condition none \
     -e DATABASE_URL="postgresql://postgres:${postgres_password}@postgres:5432/${nome_app}" \
+    -e REDIS_URL="redis://${nome_app}_redis:6379" \
+    -e SECRET_KEY="$secret_key" \
+    -e AWS_ACCESS_KEY_ID="$access_key_final" \
+    -e AWS_SECRET_ACCESS_KEY="$secret_key_final" \
+    -e AWS_S3_BUCKET_NAME="$bucket_name" \
+    -e AWS_S3_ENDPOINT_URL="$S3_ENDPOINT" \
+    -e AWS_REGION="us-east-1" \
+    -e WEB_URL="https://${url_plane}" \
+    -e CORS_ALLOWED_ORIGINS="$CORS_ALLOWED" \
+    -e FILE_SIZE_LIMIT="5242880" \
+    -e GUNICORN_WORKERS="2" \
+    -e DJANGO_SETTINGS_MODULE="plane.settings.production" \
     makeplane/plane-backend:stable \
     python manage.py migrate >/dev/null 2>&1 || true
+
+sleep 5
+for i in $(seq 1 30); do
+    state=$(docker service ps ${nome_app}_migrate --format '{{.CurrentState}}' 2>/dev/null | head -1)
+    if echo "$state" | grep -q "Complete"; then
+        echo -e "XXX\n89\nMIGRAÇÕES CONCLUÍDAS! \nXXX"
+        break
+    fi
+    if echo "$state" | grep -q "Failed"; then
+        echo -e "XXX\n89\nERRO NAS MIGRAÇÕES! \nXXX"
+        break
+    fi
+    sleep 5
+done
+
+docker service rm ${nome_app}_migrate >/dev/null 2>&1 || true
 
 echo -e "XXX\n90\nCRIANDO STACK PRINCIPAL DO PLANE... \nXXX"
 
