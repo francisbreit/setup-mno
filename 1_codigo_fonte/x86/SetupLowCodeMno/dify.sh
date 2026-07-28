@@ -605,7 +605,7 @@ if [[ -z "$MINIO_USER" ]]; then
     MINIO_PASSWORD=$(docker exec $MINIO_CONTAINER printenv MINIO_ROOT_PASSWORD 2>/dev/null)
 fi
 
-# Criar service account (tenta com docker exec, fallback para mc local)
+# Criar service account (tenta svcacct add, fallback user add)
 svcacct_ok=false
 if docker exec $MINIO_CONTAINER mc admin user svcacct add minio "$MINIO_USER" --access-key "$s3_access_key" --secret-key "$s3_secret_key" >/dev/null 2>&1; then
     svcacct_ok=true
@@ -613,7 +613,17 @@ elif command -v mc &>/dev/null && mc admin user svcacct add minio "$MINIO_USER" 
     svcacct_ok=true
 fi
 if ! $svcacct_ok; then
-    echo -e "XXX\n61\nAVISO: service account nao criado - usando chaves pre-geradas \nXXX"
+    echo -e "XXX\n61\nTENTANDO CRIAR USUARIO DIRETO... \nXXX"
+    if docker exec $MINIO_CONTAINER mc admin user add minio "$s3_access_key" "$s3_secret_key" >/dev/null 2>&1; then
+        docker exec $MINIO_CONTAINER mc admin policy set minio readwrite user="$s3_access_key" >/dev/null 2>&1 || true
+        svcacct_ok=true
+    elif command -v mc &>/dev/null && mc admin user add minio "$s3_access_key" "$s3_secret_key" >/dev/null 2>&1; then
+        mc admin policy set minio readwrite user="$s3_access_key" >/dev/null 2>&1 || true
+        svcacct_ok=true
+    fi
+fi
+if ! $svcacct_ok; then
+    echo -e "XXX\n61\nAVISO: service account nao criado - chaves pre-geradas podem nao funcionar \nXXX"
 fi
 
 # --- CRIAR VOLUMES ---
