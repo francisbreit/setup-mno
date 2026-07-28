@@ -45,10 +45,13 @@ O projeto utiliza Git para rastrear todas as alterações. Regras obrigatórias:
 - **MINOR:** Nova ferramenta ou combo adicionado
 - **PATCH:** Correção de bug, melhoria de performance, ajuste de layout
 
-### Sincronização obrigatória do catálogo HTML
-- `ferramentas.html` faz parte de **toda** release, inclusive correções sem nova ferramenta.
-- Ao alterar `VERSIONSETUP`, atualize obrigatoriamente as duas referências em `ferramentas.html`: o subtítulo `Versão X.Y.Z` e o rodapé `Setup MNO vX.Y.Z`.
-- Antes de empacotar, o gate obrigatório é: `grep -n "4\\." ferramentas.html` e `grep -rn "VERSIONSETUP" 1_codigo_fonte/`; todas as versões devem ser idênticas.
+### Sincronização obrigatória dos catálogos HTML
+- `ferramentas.html` e `1_codigo_fonte/ferramentas2.html` fazem parte de **toda** release, inclusive correções sem nova ferramenta.
+- `ferramentas.html` permanece com seu layout original; `ferramentas2.html` mantém as mesmas aplicações, dados, versão, quantitativos do header e informações/links do rodapé, usando apenas o layout alternativo.
+- Ao alterar `VERSIONSETUP`, atualize obrigatoriamente as duas referências em **ambos** os catálogos: o subtítulo `Versão X.Y.Z` e o rodapé `Setup MNO vX.Y.Z`.
+- Ao inserir, remover ou alterar aplicações, categorias, contadores ou links em `ferramentas.html`, replique a alteração em `ferramentas2.html` sem alterar o arquivo original.
+- O empacotador deve copiar os dois arquivos para a raiz de `3_distribuicao/`.
+- Antes de empacotar, o gate obrigatório é: `grep -n "4\\." ferramentas.html ferramentas2.html` e `grep -rn "VERSIONSETUP" 1_codigo_fonte/`; todas as versões e quantitativos devem ser idênticos.
 - Não execute o empacotamento enquanto qualquer referência estiver divergente.
 
 ### Releases
@@ -595,7 +598,7 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
     - [ ] **SHC com `if PLANO free`**: Todo app PRO DEVE ter o bloco de deleção `if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then rm <binário>; fi` em AMBOS os gatilhos
     - [ ] **Menu PRO com tag `"PRO"`**: Todo app PRO DEVE aparecer com tag `"PRO"` em TODOS os menus free/free1/free2 — visível mas bloqueado
     - [ ] **Menu PRO com tag `""`**: Todo app PRO DEVE aparecer com tag `""` (disponível) no menu PRO
-    - [ ] **ferramentas.html**: Atualizar TODAS as menções de versão (subtítulo E rodapé) — usar `grep -n "4\." ferramentas.html` para encontrar todas
+    - [ ] **ferramentas.html e ferramentas2.html**: Atualizar TODAS as menções de versão (subtítulo E rodapé) — usar `grep -n "4\." ferramentas.html ferramentas2.html` para encontrar todas
     - [ ] Pergunta Portainer adicionada
     - [ ] Variáveis Cloudflare verificadas antes de usar
     - [ ] `nome_servidor` com fallback para IP
@@ -653,10 +656,10 @@ Após criar o script da ferramenta em ambas as arquiteturas:
    - `setup-mno-oracle.sh` — variável `VERSIONSETUP`
    - `start_full.sh` — variável `VERSIONSETUP`
    - `start_arm_full.sh` — variável `VERSIONSETUP`
-   - `ferramentas.html` — **TODAS** as menções da versão: subtítulo (`Versão X.Y.Z | Atualizado em...`) E rodapé (`Setup MNO vX.Y.Z | Documentação gerada automaticamente`). Use `grep -n "4\." ferramentas.html` para encontrar TODAS as ocorrências antes de alterar.
+   - `ferramentas.html` e `ferramentas2.html` — **TODAS** as menções da versão: subtítulo (`Versão X.Y.Z | Atualizado em...`) E rodapé (`Setup MNO vX.Y.Z | Documentação gerada automaticamente`). Use `grep -n "4\." ferramentas.html ferramentas2.html` para encontrar TODAS as ocorrências antes de alterar.
    - Ex: `4.25.0` → `4.26.0`
    - **USE O COMANDO: `grep -rn "VERSIONSETUP" 1_codigo_fonte/` para verificar se TODOS foram atualizados**
-4. **Ferramentas HTML:** Atualize o arquivo `ferramentas.html`:
+4. **Ferramentas HTML:** Atualize os arquivos `ferramentas.html` e `ferramentas2.html`:
    - Adicionar nova ferramenta com descrição, categorias, uso e exemplos
    - **Adicionar campo RAM** logo após os "Exemplos práticos": `<div class="tool-examples"><strong>RAM:</strong> ~XGB</div>`
    - Atualizar contadores: Total de Setups, Total X86, Total ARM
@@ -673,15 +676,15 @@ Após criar o script da ferramenta em ambas as arquiteturas:
 - [ ] Case statement adicionado (x86 E ARM)
 - [ ] Bloco SHC adicionado (start_full.sh E start_arm_full.sh)
 - [ ] **VERIFICAR CONFLITO DE PORTA**: Antes de adicionar porta `ports:` no YAML, verificar se já existe outra app usando a mesma porta host. Se conflitar, usar porta alternativa. Portas atuais: 53(Pi-hole), 80(Filebrowser), 3000(Gitea), 3001(AdGuard), 3002(Grafana), 3080(LibreChat), 4200(OpenFang), 5672(RabbitMQ), 6333(Qdrant), 6334(Qdrant), 7474(Neo4j), 7687(Memgraph), 7688(Memgraph), 8000(Windmill), 8001(Cognee), 8080(Ghost), 8081(Autogen), 8082(RedisCommander), 8083(Matomo), 8090(PocketBase), 8091(Beszel), 8123(ClickHouse), 8124(Langfuse), 8880(SearXNG), 9000(ClickHouse), 9001(Langfuse), 9009(ClickHouse), 9010(Langfuse), 13000(NocoBase), 18789(OpenClaw), 2222(Gitea SSH)
-- [ ] **VERSÃO ATUALIZADA** em TODOS os 6 arquivos:
+- [ ] **VERSÃO ATUALIZADA** nos 6 arquivos de instalação e nos 2 catálogos:
   - `install.sh` (x86) — `VERSIONSETUP`
   - `install.sh` (ARM) — `VERSIONSETUP`
   - `setup-mno.sh` — `VERSIONSETUP`
   - `setup-mno-oracle.sh` — `VERSIONSETUP`
   - `start_full.sh` — `VERSIONSETUP`
   - `start_arm_full.sh` — `VERSIONSETUP`
-  - `ferramentas.html` — **TODAS** as menções: subtítulo + rodapé
-- [ ] **ferramentas.html atualizado** com nova ferramenta + versão + contadores (baseados nos menus whiptail)
+  - `ferramentas.html` e `ferramentas2.html` — **TODAS** as menções: subtítulo + rodapé + mesmos contadores/aplicações
+- [ ] **ferramentas.html e ferramentas2.html atualizados** com nova ferramenta + versão + contadores (baseados nos menus whiptail)
 - [ ] Empacotamento executado com sucesso
 
 ### Análise de Atualizações no Script Antigo
@@ -865,7 +868,7 @@ No `install.sh` do ARM, DELETE a linha do menu whiptail (NÃO comente):
 ```
 
 **Contagem de apps:**
-- A contagem de apps no `ferramentas.html` é baseada nos ** menus whiptail ** do `install.sh`.
+- A contagem de apps em `ferramentas.html` e `ferramentas2.html` é baseada nos ** menus whiptail ** do `install.sh`.
 - x86 e ARM podem ter contagens diferentes.
 - Para contar: `grep -oP '^\s+"[^"]+"\s+"(PRO|)?"' install.sh | sed 's/^\s*"//;s/".*//' | grep -E '^[A-Z]' | sort -u | wc -l`
 
@@ -876,7 +879,7 @@ No `install.sh` do ARM, DELETE a linha do menu whiptail (NÃO comente):
 4. Adicionar case statement em AMBOS os install.sh
 5. Adicionar ao menu whiptail APENAS no `install.sh` x86
 6. NÃO adicionar ao menu do `install.sh` ARM
-7. Atualizar contadores no `ferramentas.html`
+7. Atualizar contadores nos catálogos `ferramentas.html` e `ferramentas2.html`
 
 **Fluxo ao adicionar nova ferramenta multi-arch:**
 1. Criar script em `x86/SetupLowCodeMno/`
@@ -884,7 +887,7 @@ No `install.sh` do ARM, DELETE a linha do menu whiptail (NÃO comente):
 3. Adicionar SHC block em AMBOS os gatilhos
 4. Adicionar case statement em AMBOS os install.sh
 5. Adicionar ao menu whiptail em AMBOS (x86 e ARM)
-6. Atualizar contadores no `ferramentas.html`
+6. Atualizar contadores nos catálogos `ferramentas.html` e `ferramentas2.html`
 
 **Ferramentas conhecidas que NÃO funcionam em ARM (verificar periodicamente):**
 - Algumas imagens com binários compilados estaticamente para x86

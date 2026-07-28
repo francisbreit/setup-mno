@@ -20,7 +20,7 @@
   </style>
 </head>
 <body>
-  <header><div class="eyebrow">Setup MNO · catálogo alternativo</div><h1>Encontre a ferramenta certa em segundos.</h1><p class="lead">Uma camada moderna de descoberta sobre o catálogo original: filtros combináveis, pesquisa, arquitetura, recursos e popularidade documentada.</p></header>
+  <header><div class="eyebrow">Setup MNO · catálogo alternativo</div><h1>Encontre a ferramenta certa em segundos.</h1><p class="lead">Uma camada moderna de descoberta sobre o catálogo original: filtros combináveis, pesquisa, arquitetura, recursos e popularidade documentada.</p><div class="catalog-meta" id="catalog-meta"><p>Versão 4.86.0 | Atualizado em Julho/2026</p><p>Total de Setups (Individuais/Combos): 151</p><p>Total de Setups Arquitetura X86: 151</p><p>Total de Setups Arquitetura ARM: 136</p></div></header>
   <main>
     <section class="panel" aria-label="Filtros do catálogo">
       <div class="toolbar">
@@ -38,7 +38,7 @@
     <section class="status"><h2 id="result">Carregando catálogo…</h2><select id="sort" class="sort" aria-label="Ordenar resultados"><option value="name">Ordenar: nome</option><option value="stars">Ordenar: popularidade GitHub</option><option value="ram">Ordenar: menor RAM</option></select></section>
     <section class="grid" id="grid" aria-live="polite"></section>
   </main>
-  <footer class="footer">Ferramentas2 é uma visualização independente. Os dados são lidos do <code>ferramentas.html</code> original, preservando-o integralmente.</footer>
+  <footer class="footer"><p>Setup MNO v4.86.0 | Documentação gerada automaticamente</p><p>Ferramentas2 é uma visualização independente. Os dados são lidos do <code>ferramentas.html</code> original, preservando-o integralmente.</p><p>Para mais informações, acesse: <a class="link" href="https://manualnegocioonline.com.br/instalador" target="_blank" rel="noopener">manualnegocioonline.com.br/instalador</a></p></footer>
   <script>
     const state={tools:[],theme:localStorage.getItem('mno-theme')||'light'};
     const $=id=>document.getElementById(id), controls=['search','category','type','ram','arch','popularity','sort'].map($);
@@ -54,7 +54,7 @@
     function filtered(){const q=$('search').value.toLowerCase().trim(),cat=$('category').value,type=$('type').value,ram=+$('ram').value,arch=$('arch').value,pop=$('popularity').value;let items=state.tools.filter(t=>{const ramOk=!ram||!t.ram||(ram===9?t.ram>8:t.ram<=ram);return (!q||t.search.includes(q))&&(!cat||t.cats.split(',').map(clean).includes(cat))&&(!type||t.type===type)&&ramOk&&(!arch||t.arch.includes(arch))&&(!pop||popularity(t)===pop)});const sort=$('sort').value;items.sort(sort==='stars'?(a,b)=>b.stars-a.stars||a.name.localeCompare(b.name):sort==='ram'?(a,b)=>(a.ram??99)-(b.ram??99)||a.name.localeCompare(b.name):(a,b)=>a.name.localeCompare(b.name,'pt-BR'));return items}
     function render(){const items=filtered();$('result').textContent=`${items.length} de ${state.tools.length} ferramentas encontradas`;$('grid').innerHTML=items.length?items.map(t=>`<article class="card"><div class="top"><div class="name">${t.name}</div><span class="type">${t.type}</span></div><div class="tags">${t.cats.split(',').map(clean).filter(Boolean).slice(0,4).map(x=>`<span class="tag">${x}</span>`).join('')}</div><p class="description">${t.desc}</p><div class="facts"><div class="fact"><b>RAM estimada</b>${t.ramLabel}</div><div class="fact arch"><b>Arquitetura</b>${t.arch==='x86-arm'?'X86 + ARM':'X86'}</div><div class="fact star"><b>GitHub</b>${t.stars?t.stars.toLocaleString('pt-BR')+' ★':'Sem métrica'}</div><div class="fact"><b>Docker Hub</b>Sem métrica</div></div></article>`).join(''):'<div class="empty">Nenhuma ferramenta corresponde aos filtros selecionados.</div>'}
     controls.forEach(el=>el.addEventListener(el.id==='search'?'input':'change',render));$('reset').onclick=()=>{controls.forEach(x=>x.value='');render()};
-    function load(html){state.tools=extract(html);populate();render();$('notice').classList.add('hidden')}
+    function load(html){const doc=new DOMParser().parseFromString(html,'text/html');const sourceMeta=[...doc.querySelectorAll('.header p')].filter(p=>/Versão|Total de Setups/i.test(p.textContent));if(sourceMeta.length)$('catalog-meta').innerHTML=sourceMeta.map(p=>`<p>${p.textContent.trim()}</p>`).join('');state.tools=extract(html);populate();render();$('notice').classList.add('hidden')}
     async function autoload(){for(const path of ['../ferramentas.html','ferramentas.html'])try{const r=await fetch(path);if(r.ok){load(await r.text());return}}catch(_){}$('notice').classList.remove('hidden');$('result').textContent='Selecione o catálogo original para começar'}
     $('pick').onclick=()=>$('file').click();$('file').onchange=e=>{const f=e.target.files[0];if(f){const r=new FileReader();r.onload=()=>load(r.result);r.readAsText(f)}};autoload();
   </script>
