@@ -595,9 +595,7 @@ bucket_name="$nome_app"
 docker exec $MINIO_CONTAINER mc mb minio/$bucket_name >/dev/null 2>&1 || true
 docker exec $MINIO_CONTAINER mc anonymous set public minio/$bucket_name >/dev/null 2>&1 || true
 
-echo -e "XXX\n61\nCRIANDO SERVICE ACCOUNT... \nXXX"
-s3_access_key=$(openssl rand -hex 16)
-s3_secret_key=$(openssl rand -hex 32)
+echo -e "XXX\n61\nCRIANDO SERVICE ACCOUNT NO MINIO... \nXXX"
 
 # Detectar usuário do MinIO se vazio
 if [[ -z "$MINIO_USER" ]]; then
@@ -605,25 +603,20 @@ if [[ -z "$MINIO_USER" ]]; then
     MINIO_PASSWORD=$(docker exec $MINIO_CONTAINER printenv MINIO_ROOT_PASSWORD 2>/dev/null)
 fi
 
-# Criar service account (tenta svcacct add, fallback user add)
-svcacct_ok=false
-if docker exec $MINIO_CONTAINER mc admin user svcacct add minio "$MINIO_USER" --access-key "$s3_access_key" --secret-key "$s3_secret_key" >/dev/null 2>&1; then
-    svcacct_ok=true
-elif command -v mc &>/dev/null && mc admin user svcacct add minio "$MINIO_USER" --access-key "$s3_access_key" --secret-key "$s3_secret_key" >/dev/null 2>&1; then
-    svcacct_ok=true
-fi
-if ! $svcacct_ok; then
-    echo -e "XXX\n61\nTENTANDO CRIAR USUARIO DIRETO... \nXXX"
-    if docker exec $MINIO_CONTAINER mc admin user add minio "$s3_access_key" "$s3_secret_key" >/dev/null 2>&1; then
-        docker exec $MINIO_CONTAINER mc admin policy set minio readwrite user="$s3_access_key" >/dev/null 2>&1 || true
-        svcacct_ok=true
-    elif command -v mc &>/dev/null && mc admin user add minio "$s3_access_key" "$s3_secret_key" >/dev/null 2>&1; then
-        mc admin policy set minio readwrite user="$s3_access_key" >/dev/null 2>&1 || true
-        svcacct_ok=true
-    fi
-fi
-if ! $svcacct_ok; then
-    echo -e "XXX\n61\nAVISO: service account nao criado - chaves pre-geradas podem nao funcionar \nXXX"
+# Mesmo padrao do plane.sh: svcacct add com --access-key + --secret-key (32 chars, dentro do limite 8-40)
+s3_access_key="$nome_app"
+s3_secret_key=$(openssl rand -hex 16)
+
+credentials=$(docker exec $MINIO_CONTAINER mc admin user svcacct add minio ${MINIO_USER} \
+    --access-key "$s3_access_key" \
+    --secret-key "$s3_secret_key" \
+    --json 2>&1)
+
+if echo "$credentials" | jq -e '.accessKey' >/dev/null 2>&1; then
+    s3_access_key=$(echo "$credentials" | jq -r '.accessKey')
+    s3_secret_key=$(echo "$credentials" | jq -r '.secretKey')
+else
+    echo -e "XXX\n61\nAVISO: service account nao criado - chaves pre-geradas \nXXX"
 fi
 
 # --- CRIAR VOLUMES ---
@@ -803,6 +796,7 @@ services:
       - CONSOLE_WEB_URL=https://$url_dify
       - CONSOLE_API_URL=https://$url_api_dify
       - SERVICE_API_URL=https://$url_api_dify
+      - COOKIE_DOMAIN=.$(echo "$url_dify" | cut -d'.' -f2-)
       - APP_WEB_URL=https://$url_dify
       - APP_API_URL=https://$url_api_dify
       - FILES_URL=https://$url_api_dify
@@ -966,6 +960,9 @@ services:
       - CONSOLE_API_URL=https://$url_api_dify
       - APP_API_URL=https://$url_api_dify
       - SENTRY_DSN=
+      - SECRET_KEY=$secret_key
+      - INIT_PASSWORD=setupmno_admin
+      - NEXT_PUBLIC_COOKIE_DOMAIN=.$(echo "$url_dify" | cut -d'.' -f2-)
     deploy:
       mode: replicated
       replicas: 1
