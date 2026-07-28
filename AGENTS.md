@@ -45,6 +45,12 @@ O projeto utiliza Git para rastrear todas as alterações. Regras obrigatórias:
 - **MINOR:** Nova ferramenta ou combo adicionado
 - **PATCH:** Correção de bug, melhoria de performance, ajuste de layout
 
+### Sincronização obrigatória do catálogo HTML
+- `ferramentas.html` faz parte de **toda** release, inclusive correções sem nova ferramenta.
+- Ao alterar `VERSIONSETUP`, atualize obrigatoriamente as duas referências em `ferramentas.html`: o subtítulo `Versão X.Y.Z` e o rodapé `Setup MNO vX.Y.Z`.
+- Antes de empacotar, o gate obrigatório é: `grep -n "4\\." ferramentas.html` e `grep -rn "VERSIONSETUP" 1_codigo_fonte/`; todas as versões devem ser idênticas.
+- Não execute o empacotamento enquanto qualquer referência estiver divergente.
+
 ### Releases
 - **Tag antes de cada release:** `git tag -a v4.21.0 -m "Descrição"`
 - **Commit de release:** Mensagem no formato `release: vX.Y.Z - Descrição`
