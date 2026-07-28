@@ -962,6 +962,7 @@ services:
       - SENTRY_DSN=
       - SECRET_KEY=$secret_key
       - INIT_PASSWORD=setupmno_admin
+      - HOSTNAME=0.0.0.0
       - NEXT_PUBLIC_COOKIE_DOMAIN=.$(echo "$url_dify" | cut -d'.' -f2-)
     deploy:
       mode: replicated
