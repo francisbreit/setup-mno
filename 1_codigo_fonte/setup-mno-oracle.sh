@@ -62,6 +62,9 @@ fix_wsl_clock() {
 
             echo -e "${bege}⚠️ hwclock Tentativa 1: Forçando sincronização via NTP...${reset}"
 
+            sudo rm -rf /var/lib/apt/lists/* >/dev/null 2>&1
+            sudo apt-get clean >/dev/null 2>&1
+
             sudo apt-get update -y >/dev/null 2>&1
 
             sudo DEBIAN_FRONTEND=noninteractive apt-get install ntpdate -y >/dev/null 2>&1
