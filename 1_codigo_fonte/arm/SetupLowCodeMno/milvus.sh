@@ -372,6 +372,45 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "1" ]; then
 fi
 
 #######################################################
+# DNS DO MINIO (via tradicional)
+#######################################################
+if [[ ("$minio_container" == "") ]] && [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
+    if [ "$criar_dns" = "0" ]; then
+        echo -e "XXX\n30\nCONFIGURANDO DNS DO MINIO (TRADICIONAL)... \nXXX"
+        DOMINIO_PRINCIPAL=$(echo "$urlmilvus" | cut -d'.' -f2-)
+        for minio_url in "$painel" "$publico"; do
+            EXISTING=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${minio_url}" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json")
+            echo "$EXISTING" | jq -r '.result[].id' | while read -r REC_ID; do
+                [[ -z "$REC_ID" ]] && continue
+                curl -s -X DELETE "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${REC_ID}" \
+                    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" >/dev/null 2>&1
+            done
+            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" \
+                --data '{"type":"CNAME","name":"'"$minio_url"'","content":"'"$nome_servidor"'.'"$DOMINIO_PRINCIPAL"'","ttl":1,"proxied":false}' >/dev/null 2>&1
+        done
+    elif [ "$criar_dns" = "1" ]; then
+        echo -e "XXX\n30\nVERIFICANDO DNS DO MINIO... \nXXX"
+        ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
+        for minio_url in "$painel" "$publico"; do
+            tentativas=5
+            tentativa_atual=1
+            sucesso=0
+            while [ $tentativa_atual -le $tentativas ]; do
+                dns_ip=$(timeout 10 nslookup -type=A "$minio_url" | grep -E "Address: [0-9]+\." | awk '{print $2}' | head -n1)
+                if [[ -n "$dns_ip" && "$dns_ip" == "$ip_servidor" ]]; then
+                    sucesso=1
+                    break
+                fi
+                sleep 1
+                ((tentativa_atual++))
+            done
+        done
+    fi
+fi
+
+#######################################################
 # DNS DO MINIO (via tunnel)
 #######################################################
 if [[ ("$minio_container" == "") ]] && [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then

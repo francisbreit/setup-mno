@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="4.84.1"
+VERSIONSETUP="4.85.1"
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
     echo "ERRO: Este script deve ser executado como root." >&2
@@ -911,12 +911,7 @@ rm      chatwootn_evo2_rabbitmq_redisevo.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm chatwootn_evo2_rabbitmq_redisevo
 fi
-shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o dify -f dify.sh
-rm dify.sh
-rm dify.sh.x.c
-if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
-rm dify
-fi
+
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o langfuse -f langfuse.sh
 rm langfuse.sh
 rm langfuse.sh.x.c
@@ -1444,6 +1439,13 @@ rm adguardhome.sh
 rm adguardhome.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm adguardhome
+fi
+
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o dify -f dify.sh
+rm dify.sh
+rm dify.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm dify
 fi
 
 echo -e "XXX\n99\nINSTALANDO SETUPMNO 7/8 \nXXX"

@@ -416,6 +416,75 @@ networks:
     external: true
 EOL
 
+    echo -e "XXX\n41\nCONFIGURANDO DNS/ROTAS DO MINIO... \nXXX"
+
+    DOMINIO_PRINCIPAL=$(echo "$url_plane" | cut -d'.' -f2-)
+
+    if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
+        for minio_url in "$painel" "$publico"; do
+            EXISTING=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${minio_url}" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json")
+            echo "$EXISTING" | jq -r '.result[].id' | while read -r REC_ID; do
+                [[ -z "$REC_ID" ]] && continue
+                curl -s -X DELETE "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${REC_ID}" \
+                    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" >/dev/null 2>&1
+            done
+            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" \
+                --data '{"type":"CNAME","name":"'"$minio_url"'","content":"'"$nome_servidor"'.'"$DOMINIO_PRINCIPAL"'","ttl":1,"proxied":false}' >/dev/null 2>&1
+        done
+    elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+        TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+        TMPDIR=$(mktemp -d)
+        BACKUP_RAW="$TMPDIR/backup_raw.$TIMESTAMP.json"
+        TO_PUT="$TMPDIR/to_put.$TIMESTAMP.json"
+
+        curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+            | jq '.' > "$BACKUP_RAW"
+
+        for minio_url in "$painel" "$publico"; do
+            DNS_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" \
+                --data "{\"type\":\"CNAME\",\"name\":\"${minio_url}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}")
+        done
+
+        jq --arg host_admin "$painel" --arg host_public "$publico" --arg service_admin "http://${nome_app2}:9001" --arg service_public "http://${nome_app2}:9000" '
+          (.result.config // {}) as $cfg
+          | ($cfg.ingress // []) as $ing
+          | ($ing | map(select(.service != "http_status:404"))) as $clean
+          | ($clean | map(select(.hostname != $host_admin and .hostname != $host_public))) as $filtered
+          | ($filtered + [
+              { hostname: $host_admin, service: $service_admin, originRequest: { noTlsVerify: true, httpHostHeader: $host_admin } },
+              { hostname: $host_public, service: $service_public, originRequest: { noTlsVerify: true, httpHostHeader: $host_public } }
+            ]) as $merged
+          | ($merged + [{ service: "http_status:404" }]) as $final_ing
+          | ($cfg + { ingress: $final_ing }) as $newcfg
+          | { config: $newcfg }
+        ' "$BACKUP_RAW" > "$TO_PUT"
+
+        curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+            --data-binary @"$TO_PUT" >/dev/null 2>&1
+
+        rm -rf "$TMPDIR"
+    elif [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "1" ]; then
+        ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
+        for minio_url in "$painel" "$publico"; do
+            tentativas=5
+            tentativa_atual=1
+            sucesso=0
+            while [ $tentativa_atual -le $tentativas ]; do
+                dns_ip=$(timeout 10 nslookup -type=A "$minio_url" | grep -E "Address: [0-9]+\." | awk '{print $2}' | head -n1)
+                if [[ -n "$dns_ip" && "$dns_ip" == "$ip_servidor" ]]; then
+                    sucesso=1
+                fi
+                sleep 1
+                ((tentativa_atual++))
+            done
+        done
+    fi
+
     if [[ "$criar_portainer" == "0" ]]; then
         echo -e "XXX\n42\nCRIANDO STACK MINIO NO PORTAINER... \nXXX"
         dados_file="$HOME/dados_portainer/dados_portainer"
@@ -523,29 +592,39 @@ else
     MINIO_PUBLIC_URL=$publico
 fi
 
-access_key="$nome_app"
-secret_key=$(openssl rand -hex 16)
 bucket_name="$nome_app"
 
-MC_RUN="docker run --rm --network interna minio/mc:latest"
-MC_ALIAS="http://${MINIO_HOST}:9000 ${MINIO_USER} ${MINIO_PASSWORD}"
+# Usar docker exec no container do MinIO (mc vem embutido na imagem)
+# Evita "network interna not manually attachable" do docker run
+MINIO_CONTAINER=$(docker ps --format "{{.Names}}" | grep "minio\." | head -1)
+if [[ -z "$MINIO_CONTAINER" ]]; then
+    MINIO_CONTAINER=$(docker ps --format "{{.Names}}" | grep "minio" | head -1)
+fi
 
-$MC_RUN alias set minio $MC_ALIAS --api S3v4 2>/dev/null || true
-sleep 2
-$MC_RUN mb minio/$bucket_name 2>/dev/null || true
-$MC_RUN anonymous set public minio/$bucket_name 2>/dev/null || true
+echo -e "XXX\n56\nAGUARDANDO MINIO FICAR PRONTO... \nXXX"
+for i in $(seq 1 30); do
+    docker exec $MINIO_CONTAINER mc alias set minio http://localhost:9000 ${MINIO_USER} ${MINIO_PASSWORD} --api S3v4 >/dev/null 2>&1 && break
+    sleep 5
+done
 
-credentials=$($MC_RUN admin user svcacct add minio ${MINIO_USER} \
-    --access-key "$access_key" \
-    --secret-key "$secret_key" \
+echo -e "XXX\n57\nCRIANDO BUCKET NO MINIO... \nXXX"
+docker exec $MINIO_CONTAINER mc mb minio/$bucket_name >/dev/null 2>&1 || true
+docker exec $MINIO_CONTAINER mc anonymous set public minio/$bucket_name >/dev/null 2>&1 || true
+
+plane_s3_access_key="$nome_app"
+plane_s3_secret_key=$(openssl rand -hex 16)
+echo -e "XXX\n58\nCRIANDO SERVICE ACCOUNT... \nXXX"
+credentials=$(docker exec $MINIO_CONTAINER mc admin user svcacct add minio ${MINIO_USER} \
+    --access-key "$plane_s3_access_key" \
+    --secret-key "$plane_s3_secret_key" \
     --json 2>&1)
 
 if echo "$credentials" | jq -e '.accessKey' >/dev/null 2>&1; then
     access_key_final=$(echo "$credentials" | jq -r '.accessKey')
     secret_key_final=$(echo "$credentials" | jq -r '.secretKey')
 else
-    access_key_final="$access_key"
-    secret_key_final="$secret_key"
+    access_key_final="$plane_s3_access_key"
+    secret_key_final="$plane_s3_secret_key"
 fi
 
 echo -e "XXX\n58\nBUCKET: $bucket_name | ACCESS KEY CRIADA \nXXX"
