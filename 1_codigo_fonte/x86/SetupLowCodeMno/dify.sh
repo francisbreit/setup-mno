@@ -661,6 +661,7 @@ networks:
     name: interna
 EOL
 
+redis_deployed=false
 if [[ "$criar_portainer" == "0" ]]; then
     dados_file="$HOME/dados_portainer/dados_portainer"
     if [[ -f "$dados_file" ]]; then
@@ -688,11 +689,13 @@ if [[ "$criar_portainer" == "0" ]]; then
                         -F "SwarmID=$SWARM_ID" \
                         -F "endpointId=$ENDPOINT_ID" \
                         "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2>/dev/null)
+                    if [ "$http_code" = "200" ]; then redis_deployed=true; fi
                 fi
             fi
         fi
     fi
-else
+fi
+if ! $redis_deployed; then
     docker stack deploy --prune --resolve-image always -c ${nome_app}-redis.yaml ${nome_app}-redis >/dev/null 2>&1
 fi
 
@@ -744,6 +747,7 @@ networks:
     name: interna
 EOL
 
+weaviate_deployed=false
 if [[ "$criar_portainer" == "0" ]] && [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ]; then
     WEAVIATE_STACK_NAME="${nome_app}-weaviate"
     WEAVIATE_STACK_FILE="/root/${nome_app}-weaviate.yaml"
@@ -755,8 +759,10 @@ if [[ "$criar_portainer" == "0" ]] && [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ];
             -F "SwarmID=$SWARM_ID" \
             -F "endpointId=$ENDPOINT_ID" \
             "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2>/dev/null)
+        if [ "$http_code" = "200" ]; then weaviate_deployed=true; fi
     fi
-else
+fi
+if ! $weaviate_deployed; then
     docker stack deploy --prune --resolve-image always -c ${nome_app}-weaviate.yaml ${nome_app}-weaviate >/dev/null 2>&1
 fi
 
