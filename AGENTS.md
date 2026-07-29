@@ -17,6 +17,70 @@ Quando solicitado para atualizar ou adicionar ferramentas:
 - **Passo 2 (Empacotamento):** Execute autonomamente o comando `./2_empacotador/gerar_distribuicao.sh` no terminal.
 - **Passo 3 (Validação):** Verifique a pasta `/3_distribuicao/` e confirme o sucesso da geração.
 
+### 3. MODO SETUP MNO UPGRADE (EVOLUÇÃO E HOMOLOGAÇÃO CONTROLADA)
+Ative este modo quando o usuário disser **“Setup MNO Upgrade”** ou **“Modo Setup MNO Upgrade”**. Seu objetivo é pesquisar, projetar, homologar e priorizar melhorias que mantenham o Setup MNO moderno, competitivo, simples para usuários comuns e seguro em VPS ou Windows com WSL2.
+
+#### Escopo do modo
+- Descobrir aplicações open-source relevantes, tendências de infraestrutura e oportunidades de novos setups.
+- Melhorar arquitetura, desempenho, segurança, confiabilidade, experiência do instalador, Whiptail, catálogo HTML e demais interfaces.
+- Avaliar compatibilidade com Debian/Ubuntu em VPS e Windows 10/11 com WSL2 + Docker Desktop.
+- Inspecionar o ambiente de homologação para validar hipóteses, imagens, portas, comandos, healthchecks, consumo de recursos e comportamento em Docker Swarm.
+- Produzir um backlog priorizado por impacto, demanda, risco, esforço, manutenção e benefício para o usuário final.
+
+#### Autoridade ao ativar o modo
+- A simples ativação autoriza pesquisa web, leitura do projeto e diagnósticos **read-only** no ambiente de homologação.
+- Não altere o código nem recursos persistentes apenas porque o modo foi ativado. Para implementar, o usuário deve pedir explicitamente com verbos como **“aplique”**, **“implemente”**, **“corrija”** ou **“instale”**.
+- Quando houver autorização de implementação, aplique integralmente o **MODO WORKFLOW DE PRODUÇÃO**, incluindo espelhamento, versionamento, commits, empacotamento e validação.
+- Antes de uma mudança arquitetural ampla, apresente objetivo, ganho esperado, riscos, impacto de compatibilidade e estratégia de rollback.
+
+#### Ciclo obrigatório de upgrade
+1. **Baseline:** identifique versão, estado do Git, componentes afetados e comportamento atual.
+2. **Pesquisa:** use fontes oficiais para validar imagens, tags, arquiteturas, requisitos, licenças, atividade do projeto e procedimento de instalação.
+3. **Projeto:** proponha a menor mudança capaz de produzir ganho mensurável, sem quebrar planos, SHC, menus ou instalações existentes.
+4. **Homologação isolada:** teste com recursos temporários e nomes exclusivos no Docker Swarm de homologação.
+5. **Implementação:** somente após autorização explícita, altere o código vivo em `1_codigo_fonte/`.
+6. **Gates:** valide Bash, YAML, menus, SHC, catálogo, arquitetura, Whiptail, logs, plano de acesso e artefatos.
+7. **Release:** execute o workflow de produção e confirme os arquivos de `3_distribuicao/`.
+8. **Entrega:** informe resultado, evidências, limitações, rollback, commits, tag e próximos upgrades recomendados.
+
+#### Resultado esperado
+Ao trabalhar neste modo, entregue recomendações ou implementações classificadas, sempre que aplicável, por:
+- **Impacto:** crítico, alto, médio ou baixo.
+- **Tipo:** aplicação, infraestrutura, segurança, desempenho, UX/UI, confiabilidade ou manutenção.
+- **Esforço:** rápido, moderado ou estrutural.
+- **Evidência:** teste local, documentação oficial, métrica pública ou inferência claramente identificada.
+
+## CONTEXTO DOS AMBIENTES DO SETUP MNO
+
+### Projeto de construção
+- Este repositório é o ambiente que mantém o código-fonte, monta, protege com SHC, criptografa e empacota o instalador do Setup MNO.
+- O código editável permanece em `1_codigo_fonte/`; `2_empacotador/` constrói os artefatos e `3_distribuicao/` contém a saída de release.
+- Os bootstraps públicos são `setup-mno.sh` e `setup-mno-oracle.sh`. Em uma instalação limpa Debian/Ubuntu, eles preparam e extraem o runtime em `/root/SetupLowCodeMno`.
+
+### Fluxo do usuário final
+- Bootstrap padrão:
+  `curl -O https://ativa2.manualnegocioonline.com.br/setup-mno.sh && chmod +x setup-mno.sh && ./setup-mno.sh`
+- Bootstrap Oracle:
+  `curl -O https://ativa2.manualnegocioonline.com.br/setup-mno-oracle.sh && chmod +x setup-mno-oracle.sh && ./setup-mno-oracle.sh`
+- Ao iniciar `install.sh`, o runtime verifica Docker, Swarm, redes e serviços-base como PostgreSQL e Redis.
+- Se a base estiver pronta, o menu de setups é aberto. Caso contrário, o fluxo direciona para `dockerswarm.sh`, que prepara o ambiente inicial.
+
+### Ambiente local de homologação
+- A mesma máquina de desenvolvimento possui Windows 10/11, WSL2 e Docker Desktop com uma instalação de homologação do Setup MNO.
+- O acesso privilegiado pode ser usado quando necessário para testes autorizados. Credenciais fornecidas pelo usuário devem permanecer apenas na sessão: **nunca grave, imprima, versione ou inclua senhas em comandos exibidos, logs, arquivos ou relatórios**.
+- A instalação existente em `/root/SetupLowCodeMno`, suas stacks, serviços, bancos, volumes, secrets, configs e redes são referência de homologação e devem ser tratados como **imutáveis**.
+- É permitido inspecionar componentes preexistentes de forma read-only e criar recursos temporários para testar novas aplicações ou recursos.
+- É proibido editar, substituir, reiniciar, reconfigurar ou remover qualquer recurso preexistente sem autorização explícita e específica do usuário.
+
+### Isolamento obrigatório dos testes
+- Use nomes únicos e reconhecíveis para stacks, serviços, bancos, volumes, configs e arquivos temporários.
+- Prefira `/tmp` para arquivos de teste e não copie protótipos para `/root/SetupLowCodeMno`.
+- Antes de criar recursos, registre internamente seus nomes exatos. Ao terminar, remova **somente** os recursos criados pelo próprio teste.
+- Nunca reutilize banco, volume, secret, config ou nome de stack de uma instalação existente.
+- Não publique DNS real nem altere rotas Cloudflare durante smoke tests, salvo autorização explícita. Teste primeiro por rede interna, container ou hostname temporário.
+- Não exponha portas no host sem executar o gate de conflito de portas.
+- Se um teste revelar risco para os dados ou para o ambiente instalado, interrompa-o e apresente a alternativa segura.
+
 ## DIRETRIZES DE ARQUITETURA
 1. **O Código Vivo:** Código editável estritamente na pasta `/1_codigo_fonte/`.
 2. **Regra de Espelhamento:** Atualizações de lógica de instalação devem ocorrer simultaneamente em `x86` e `arm`. A lógica é a mesma, mudando apenas tags de imagem Docker e binários.
