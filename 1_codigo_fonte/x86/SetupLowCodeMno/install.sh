@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="4.88.1"
+VERSIONSETUP="4.88.2"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -368,6 +368,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "SYNCTHING" "" \
     "SHLINK" "" \
     "SIYUAN" "" \
+    "STRAPI" "" \
     "STIRLING PDF" "" \
     "TOOLJET" "" \
     "SUPERSET" "" \
@@ -388,7 +389,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WIKI.JS" "" \
     "WUZAP" "" \
     "WEKAN" "" \
-    "STRAPI" "" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
     "GERADOR DE REGISTROS DNS" "" \
@@ -602,6 +602,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "REDIS COMMANDER" "" \
     "REDISINSIGHT" "" \
     "SHLINK" "" \
+    "STRAPI" "" \
     "STIRLING PDF" "" \
     "SUPERSET" "" \
     "TYPEBOT" "" \
@@ -715,7 +716,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WINDMILL" "PRO" \
     "WOOFED CRM" "PRO" \
     "WIKI.JS" "PRO" \
-    "STRAPI" "" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
     "GERADOR DE REGISTROS DNS" "" \
@@ -1016,6 +1016,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "SYNCTHING" "PRO" \
     "SHLINK" "PRO" \
     "SIYUAN" "PRO" \
+    "STRAPI" "PRO" \
     "STIRLING PDF" "PRO" \
     "TOOLJET" "PRO" \
     "SUPERSET" "PRO" \
@@ -1035,7 +1036,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WIKI.JS" "PRO" \
     "WUZAP" "PRO" \
     "WEKAN" "PRO" \
-    "STRAPI" "" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
     "GERADOR DE REGISTROS DNS" "" \
@@ -1336,6 +1336,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "SYNCTHING" "PRO" \
     "SHLINK" "PRO" \
     "SIYUAN" "PRO" \
+    "STRAPI" "PRO" \
     "STIRLING PDF" "PRO" \
     "TOOLJET" "PRO" \
     "SUPERSET" "PRO" \
@@ -1355,7 +1356,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WIKI.JS" "PRO" \
     "WUZAP" "PRO" \
     "WEKAN" "PRO" \
-    "STRAPI" "" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
     "GERADOR DE REGISTROS DNS" "" \
