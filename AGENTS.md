@@ -194,6 +194,53 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
    #   8. Aguardar serviços
    # TELA FINAL COM DADOS DE ACESSO
    ```
+9.5. **Build e instalação integralmente no Whiptail — ZERO TELA PRETA (⚠️ GATE DE RELEASE):** Todo o processo operacional de instalação DEVE ocorrer dentro de um `whiptail --gauge`. É proibido deixar o usuário exposto ao terminal durante build, download, criação ou envio de imagem, preparação de dependências, banco de dados, volumes, DNS, Portainer ou deploy.
+
+    **REGRA ABSOLUTA:** telas pretas, retorno temporário ao terminal, saída bruta de comandos e mensagens de erro fora do Whiptail são falhas bloqueantes de release.
+
+    - Comandos como `docker build`, `docker pull`, `docker save`, `docker load`, `docker stack deploy`, `docker exec`, `curl`, `git clone`, `npm`, `npx`, `yarn`, `pnpm`, `pip`, compiladores e instaladores de pacotes DEVEM redirecionar `stdout` e `stderr` para um arquivo de log.
+    - O usuário deve ver somente mensagens de progresso controladas pelo protocolo `XXX` do `whiptail --gauge`.
+    - Cada etapa crítica DEVE verificar explicitamente o código de saída. Nunca presuma sucesso apenas porque o gauge chegou a 100%.
+    - Em caso de falha, interrompa o fluxo com código diferente de zero, feche o gauge e mostre um `whiptail --scrolltext --msgbox` com resumo legível, últimas linhas úteis do log e caminho do log completo.
+    - Capture o status do bloco de instalação com `${PIPESTATUS[0]}` imediatamente após o pipeline do gauge. Usar apenas `$?` nesse ponto captura o status do Whiptail e pode esconder a falha real.
+    - Logs devem usar nome único por instalação em `/tmp`, não podem expor senhas, tokens ou secrets e devem receber toda saída técnica que poderia poluir a interface.
+    - É proibido executar uma segunda etapa pesada depois que o gauge terminar. Build, criação da imagem, upload ao Portainer e deploy devem estar dentro do mesmo fluxo visual ou de gauges subsequentes.
+    - É proibido mascarar erros com `>/dev/null 2>&1` sem guardar diagnóstico em log e sem apresentar a falha dentro do Whiptail.
+
+    **PADRÃO OBRIGATÓRIO:**
+    ```bash
+    install_log="/tmp/${nome_app}-install.log"
+    error_file="/tmp/${nome_app}-error.log"
+    : > "$install_log"
+    : > "$error_file"
+
+    {
+        echo "XXX\n10\nPREPARANDO INSTALAÇÃO...\nXXX"
+
+        if ! comando_de_build >>"$install_log" 2>&1; then
+            {
+                echo "Falha ao construir a aplicação."
+                echo
+                tail -n 20 "$install_log"
+            } > "$error_file"
+            echo "XXX\n100\nERRO DURANTE O BUILD\nXXX"
+            exit 20
+        fi
+
+        echo "XXX\n100\nINSTALAÇÃO CONCLUÍDA\nXXX"
+    } | whiptail --title "INSTALAÇÃO" --gauge "Preparando aplicação..." 8 70 0
+    install_status=${PIPESTATUS[0]}
+
+    if [ "$install_status" -ne 0 ]; then
+        error_detail=$(cat "$error_file" 2>/dev/null)
+        [ -n "$error_detail" ] || error_detail=$(tail -n 20 "$install_log" 2>/dev/null)
+        whiptail --title "ERRO NA INSTALAÇÃO" --scrolltext --msgbox \
+            "A instalação foi interrompida.\n\n$error_detail\n\nLog completo: $install_log" 24 90
+        exit "$install_status"
+    fi
+    ```
+
+    **Validação obrigatória antes do empacotamento:** revise o script inteiro e confirme que nenhum comando potencialmente verboso ou demorado está fora do fluxo Whiptail e que todas as saídas técnicas possuem redirecionamento para log. Só empacote quando for impossível surgir tela preta durante uma instalação normal ou durante uma falha.
 10. **Credenciais Cloudflare (OBRIGATÓRIO):** O script DEVE carregar as credenciais conforme o tipo de instalação:
     ```bash
     # DETECÇÃO DO TIPO
@@ -612,6 +659,10 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
     - [ ] **Shebang `#!/usr/bin/bash`** (NUNCA usar `#!/usr/bin/env bash` — SHC não reconhece)
     - [ ] **Redis dedicado via Portainer API**: Se `criar_portainer == "0"`, AMBOS os stacks (Redis + App) DEVEM ser criados via API do Portainer
     - [ ] Deploy com tratamento de erro em cada etapa
+    - [ ] **ZERO TELA PRETA:** Build, downloads, criação/envio de imagem, Portainer e deploy executados integralmente dentro do Whiptail
+    - [ ] **LOG DE ERROS:** `stdout`/`stderr` técnicos direcionados para log único em `/tmp`, sem secrets, com falhas exibidas em `whiptail --scrolltext --msgbox`
+    - [ ] **STATUS REAL DO GAUGE:** `${PIPESTATUS[0]}` capturado imediatamente após o pipeline e validado antes da tela de sucesso
+    - [ ] Nenhum comando verboso/demorado executado depois do fechamento do gauge
     - [ ] Versão incrementada no install.sh (x86 E ARM)
     - [ ] Empacotamento executado com sucesso
 
