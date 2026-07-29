@@ -867,10 +867,12 @@ No `install.sh` do ARM, DELETE a linha do menu whiptail (NÃO comente):
 # Manter: script .sh, SHC block, case statement — tudo espelhado
 ```
 
-**Contagem de apps:**
-- A contagem de apps em `ferramentas.html` e `ferramentas2.html` é baseada nos ** menus whiptail ** do `install.sh`.
+**Contagem de setups:**
+- O campo **Total de Setups (Individuais/Combos)** representa a soma das configurações instaláveis do menu PRO do `install.sh`, não a quantidade de cards/aplicações do catálogo.
+- Os campos de arquitetura usam a mesma regra no menu PRO de cada arquitetura: `Total X86` vem do menu x86 e `Total ARM` vem do menu ARM.
+- Exclua sempre os utilitários de sistema, que não são setups: `REINICIAR APPS/SERVIÇOS`, `DELETAR APPS/STACKS`, `GERADOR DE REGISTROS DNS`, `ESSENCIAIS EDITÁVEIS NO PORTAINER` e `SAIR`. O separador visual também não entra na soma.
 - x86 e ARM podem ter contagens diferentes.
-- Para contar: `grep -oP '^\s+"[^"]+"\s+"(PRO|)?"' install.sh | sed 's/^\s*"//;s/".*//' | grep -E '^[A-Z]' | sort -u | wc -l`
+- Para auditar, conte as entradas entre `whiptail --menu` e `3>&2 2>&1 1>&3` do primeiro menu (PRO), removendo os cinco utilitários acima e o separador; valide manualmente antes de atualizar os dois catálogos.
 
 **Fluxo ao adicionar nova ferramenta x86-only:**
 1. Criar script em `x86/SetupLowCodeMno/`
