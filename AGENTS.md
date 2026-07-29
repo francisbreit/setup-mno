@@ -868,11 +868,13 @@ No `install.sh` do ARM, DELETE a linha do menu whiptail (NÃO comente):
 ```
 
 **Contagem de setups:**
-- O campo **Total de Setups (Individuais/Combos)** representa a soma das configurações instaláveis do menu PRO do `install.sh`, não a quantidade de cards/aplicações do catálogo.
+- O campo **Total de Setups (Deploys / Instalações)** representa a soma das configurações instaláveis do primeiro menu PRO do `install.sh` x86 (o bloco `if [[ ! "$PLANO" = *free* ]]; then`), não a quantidade de cards/aplicações únicas do catálogo.
 - Os campos de arquitetura usam a mesma regra no menu PRO de cada arquitetura: `Total X86` vem do menu x86 e `Total ARM` vem do menu ARM.
 - Exclua sempre os utilitários de sistema, que não são setups: `REINICIAR APPS/SERVIÇOS`, `DELETAR APPS/STACKS`, `GERADOR DE REGISTROS DNS`, `ESSENCIAIS EDITÁVEIS NO PORTAINER` e `SAIR`. O separador visual também não entra na soma.
 - x86 e ARM podem ter contagens diferentes.
 - Para auditar, conte as entradas entre `whiptail --menu` e `3>&2 2>&1 1>&3` do primeiro menu (PRO), removendo os cinco utilitários acima e o separador; valide manualmente antes de atualizar os dois catálogos.
+- Um combo é qualquer entrada cujo nome termina com `*` no menu PRO. Não deduplicate componentes: ferramentas podem aparecer em mais de um setup.
+- Métricas de GitHub só podem ser atribuídas a setups individuais; combos devem exibir `Não aplicável` e não herdar estrelas de seus componentes.
 
 **Fluxo ao adicionar nova ferramenta x86-only:**
 1. Criar script em `x86/SetupLowCodeMno/`
