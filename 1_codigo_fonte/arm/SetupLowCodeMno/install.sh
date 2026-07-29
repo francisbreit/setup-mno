@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="4.88.5"
+VERSIONSETUP="4.89.0"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -291,6 +291,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "HOME ASSISTANT" "" \
     "IMMICH" "" \
     "INFISICAL" "" \
+    "IT-TOOLS" "" \
     "JITSI MEET" "" \
     "JELLYFIN" "" \
     "JOPLIN" "" \
@@ -453,6 +454,7 @@ case "$CHOICE" in
             "IMMICH")                                                warn_heavy "Immich" "6GB" && run_app immich ;;
             "HUMHUB")                                                run_app humhub ;;
             "INFISICAL")                                            run_app infisical ;;
+            "IT-TOOLS")                                             run_app it_tools ;;
             "JITSI MEET")                                            warn_heavy "Jitsi Meet" "5GB" && run_app jitsi ;;
             "JELLYFIN")                                             run_app jellyfin ;;
             "JOPLIN")                                               run_app joplin ;;
@@ -638,6 +640,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "HOME ASSISTANT" "PRO" \
     "IMMICH" "PRO" \
     "INFISICAL" "PRO" \
+    "IT-TOOLS" "PRO" \
     "JITSI MEET" "PRO" \
     "JELLYFIN" "PRO" \
     "JOPLIN" "PRO" \
@@ -766,6 +769,7 @@ case "$CHOICE" in
             "IMMICH")                                                warn_heavy "Immich" "6GB" && run_app immich ;;
             "HUMHUB")                                                run_app humhub ;;
             "INFISICAL")                                            run_app infisical ;;
+            "IT-TOOLS")                                             run_app it_tools ;;
             "JITSI MEET")                                            warn_heavy "Jitsi Meet" "5GB" && run_app jitsi ;;
             "JELLYFIN")                                             run_app jellyfin ;;
             "JOPLIN")                                               run_app joplin ;;
@@ -919,6 +923,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "HOME ASSISTANT" "PRO" \
     "IMMICH" "PRO" \
     "INFISICAL" "PRO" \
+    "IT-TOOLS" "PRO" \
     "JITSI MEET" "PRO" \
     "JELLYFIN" "PRO" \
     "JOPLIN" "PRO" \
@@ -1071,6 +1076,7 @@ case "$CHOICE" in
             "IMMICH")                                                warn_heavy "Immich" "6GB" && run_app immich ;;
             "HUMHUB")                                                run_app humhub ;;
             "INFISICAL")                                            run_app infisical ;;
+            "IT-TOOLS")                                             run_app it_tools ;;
             "JITSI MEET")                                            warn_heavy "Jitsi Meet" "5GB" && run_app jitsi ;;
             "JELLYFIN")                                             run_app jellyfin ;;
             "JOPLIN")                                               run_app joplin ;;
@@ -1225,6 +1231,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "HOME ASSISTANT" "PRO" \
     "IMMICH" "PRO" \
     "INFISICAL" "PRO" \
+    "IT-TOOLS" "PRO" \
     "JITSI MEET" "PRO" \
     "JELLYFIN" "PRO" \
     "JOPLIN" "PRO" \
@@ -1376,6 +1383,7 @@ case "$CHOICE" in
             "IMMICH")                                                warn_heavy "Immich" "6GB" && run_app immich ;;
             "HUMHUB")                                                run_app humhub ;;
             "INFISICAL")                                            run_app infisical ;;
+            "IT-TOOLS")                                             run_app it_tools ;;
             "JITSI MEET")                                            warn_heavy "Jitsi Meet" "5GB" && run_app jitsi ;;
             "JELLYFIN")                                             run_app jellyfin ;;
             "JOPLIN")                                               run_app joplin ;;
