@@ -498,6 +498,12 @@ func (a *webApp) terminalProxy() http.Handler {
 		req.Header.Set("X-Forwarded-Host", originalHost)
 		req.Header.Set("X-Forwarded-Proto", "https")
 	}
+	proxy.ModifyResponse = func(resp *http.Response) error {
+		resp.Header.Set("Cache-Control", "no-store, no-cache, must-revalidate")
+		resp.Header.Set("Pragma", "no-cache")
+		resp.Header.Set("Expires", "0")
+		return nil
+	}
 	proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, _ error) {
 		writeError(w, http.StatusBadGateway, "terminal seguro indisponível")
 	}
@@ -557,6 +563,11 @@ func (a *webApp) securityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
+		if r.Method == http.MethodGet && !strings.HasPrefix(r.URL.Path, "/api/") {
+			w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
+			w.Header().Set("Pragma", "no-cache")
+			w.Header().Set("Expires", "0")
+		}
 		if strings.HasPrefix(r.URL.Path, "/terminal/") {
 			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
 		} else {

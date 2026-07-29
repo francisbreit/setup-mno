@@ -273,7 +273,8 @@ nav { display: grid; gap: 5px; }
   .health-summary { grid-template-columns: 1fr; }
   .recent-row { grid-template-columns: 1fr 70px; }.recent-row > span:last-child { display: none; }
   .audit-row { grid-template-columns: 95px 1fr; }.audit-row span:nth-child(3), .audit-row span:nth-child(4) { grid-column: 2; }
-  .terminal-dialog { width: 100%; height: 100%; max-width: none; max-height: none; border: 0; border-radius: 0; }
+  .terminal-dialog[open] { width: 100%; height: 100dvh; max-width: none; max-height: none; display: grid; grid-template-rows: 54px auto minmax(0,1fr); border: 0; border-radius: 0; }
+  .terminal-head { height: auto; padding-left: 14px; }
   .terminal-warning { height: auto; min-height: 45px; line-height: 1.4; }
-  .terminal-dialog iframe { height: calc(100% - 107px); }
+  .terminal-dialog iframe { min-height: 0; height: 100%; }
 }

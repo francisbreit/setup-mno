@@ -16,5 +16,14 @@ RUN apt-get update \
     && echo "${TTYD_SHA256}  /usr/local/bin/ttyd" | sha256sum -c - \
     && chmod 0755 /usr/local/bin/ttyd
 
+COPY web/terminal-bridge.js /usr/local/share/ttyd/terminal-bridge.js
+COPY prepare-ttyd-index.sh /usr/local/bin/prepare-ttyd-index
+RUN chmod 0755 /usr/local/bin/prepare-ttyd-index \
+    && /usr/local/bin/prepare-ttyd-index \
+       /usr/local/share/ttyd/terminal-bridge.js \
+       /usr/local/share/ttyd/index.html \
+    && rm /usr/local/bin/prepare-ttyd-index \
+          /usr/local/share/ttyd/terminal-bridge.js
+
 EXPOSE 7681
-ENTRYPOINT ["ttyd"]
+ENTRYPOINT ["ttyd", "-I", "/usr/local/share/ttyd/index.html"]

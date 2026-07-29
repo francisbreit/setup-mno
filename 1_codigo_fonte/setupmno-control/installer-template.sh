@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="1.0.2"
+CONTROL_VERSION="1.0.3"
 
 extract_control_bundle() {
     base64 -d <<'SETUPMNO_CONTROL_ARCHIVE'
@@ -196,7 +196,8 @@ error_file="/tmp/${nome_app}-error.log"
         tar -xzf - -C "$work_dir/source" >>"$install_log" 2>&1; then
         fail_install 20 "BUNDLE DO PAINEL INVÁLIDO" "Não foi possível validar e extrair os fontes internos do Control Center."
     fi
-    for source_file in go.mod Dockerfile terminal.Dockerfile main.go catalog.json web/index.html; do
+    for source_file in go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
+        main.go catalog.json web/index.html web/terminal-bridge.js; do
         [ -s "$work_dir/source/$source_file" ] ||
             fail_install 21 "FONTE INCOMPLETO" "O arquivo interno '$source_file' não foi encontrado no bundle."
     done

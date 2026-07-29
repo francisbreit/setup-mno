@@ -335,7 +335,10 @@ function navigate(view) {
 
 function openTerminal() {
   const dialog = $("terminal-dialog");
-  $("terminal-frame").src = "/terminal/";
+  const mobile = window.matchMedia("(max-width: 650px), (pointer: coarse)").matches;
+  $("terminal-frame").src = mobile
+    ? "/terminal/?rendererType=dom&fontSize=10&lineHeight=1&disableResizeOverlay=true&disableLeaveAlert=true&setupmnoTouch=5"
+    : "/terminal/";
   dialog.showModal();
 }
 

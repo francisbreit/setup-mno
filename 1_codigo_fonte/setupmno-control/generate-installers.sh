@@ -13,7 +13,7 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
 (
     cd "$project_dir"
     tar -czf "$bundle" \
-        go.mod Dockerfile terminal.Dockerfile main.go catalog.json web
+        go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh main.go catalog.json web
 )
 base64 -w 76 "$bundle" >"$temporary_dir/bundle.b64"
 
