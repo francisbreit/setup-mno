@@ -445,11 +445,7 @@ services:
       - SELF_HOSTED_WEBHOOK_URL=
       - LOGGING_LEVEL=DEBUG
 
-      ## Dados do Supabase
       - USE_DB_AUTHENTICATION=false
-      #- SUPABASE_URL=
-      #- SUPABASE_ANON_TOKEN=
-      #- SUPABASE_SERVICE_TOKEN=
 
       ## Outras configurações
       - PORT=3002
@@ -512,11 +508,7 @@ cat >> $nome_app.yaml << EOL
       - SELF_HOSTED_WEBHOOK_URL=
       - LOGGING_LEVEL=DEBUG
 
-      ## Dados do Supabase
       - USE_DB_AUTHENTICATION=false
-      #- SUPABASE_URL=
-      #- SUPABASE_ANON_TOKEN=
-      #- SUPABASE_SERVICE_TOKEN=
 
       ## Outras configurações
       - PORT=3002

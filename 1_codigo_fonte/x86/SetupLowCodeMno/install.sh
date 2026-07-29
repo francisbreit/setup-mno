@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="4.87.8"
+VERSIONSETUP="4.87.9"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -108,7 +108,6 @@ if command -v docker > /dev/null 2>&1; then
     redis_container=$(docker ps -qf name=redis)
     pgbouncer_container=$(docker ps -qf name=pgbouncer)
     langfuse_container=$(docker ps -qf name=langfuse)
-    supabase_container=$(docker ps -qf name=supabase)
     dify_container=$(docker ps -qf name=dify)
     mysql_container=$(docker ps -qf name=mysql)
     flowise_container=$(docker ps -qf name=flowise)
@@ -129,7 +128,6 @@ else
     redis_container=""
     pgbouncer_container=""
     langfuse_container=""
-    supabase_container=""
     dify_container=""
     mysql_container=""
     flowise_container=""
@@ -202,7 +200,6 @@ check_already_installed() {
         "CAL.COM")                         c="$calcom_container" ;;
         "LANGFUSE + MINIO + CLICKHOUSE*") c="$langfuse_container" ;;
         "DIFY")                            c="$dify_container" ;;
-        "SUPABASE")                        c="$supabase_container" ;;
         *) return 1 ;;
     esac
     [ -n "$c" ]

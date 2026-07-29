@@ -210,7 +210,7 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
     fi
     ```
     **Variáveis esperadas:** `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ZONE_ID`, `nome_servidor`, `TUNNEL_ID`, `CLOUDFLARE_ACCOUNT_ID`
-10.5 **PostgreSQL Compartilhado (ESTRATÉGIA PADRÃO ⚠️):** Por padrão, SEMPRE usar o PostgreSQL compartilhado para novas aplicações. A senha é extraída de `/root/postgres.yaml` (regra 11 abaixo). Apenas criar PostgreSQL dedicado se a aplicação EXIGIR (ex: Supabase, GitLab).
+10.5 **PostgreSQL Compartilhado (ESTRATÉGIA PADRÃO ⚠️):** Por padrão, SEMPRE usar o PostgreSQL compartilhado para novas aplicações. A senha é extraída de `/root/postgres.yaml` (regra 11 abaixo). Apenas criar PostgreSQL dedicado se a aplicação EXIGIR (ex: GitLab).
 
     **USAR O COMPARTILHADO (quase sempre):**
     - Conectar via hostname `postgres` na porta `5432`
@@ -221,7 +221,7 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
     **QUANDO USAR DEDICADO (exceção):**
     - Se a aplicação EXIGIR extensões específicas do PostgreSQL (pgvector, etc.)
     - Se a aplicação precisar de superuser ou configurações que afetariam outras databases
-    - Exemplos: Supabase (extensões + superuser), GitLab (banco isolado)
+    - Exemplo: GitLab (banco isolado)
     - Nestes casos, criar stack separada com `postgres:16-alpine`
 11. **Carregamento da Senha do Postgres (OBRIGATÓRIO):** Todo script que usa PostgreSQL DEVE extrair a senha do arquivo `/root/postgres.yaml`. **NUNCA use variável de ambiente `$POSTGRES_PASSWORD` diretamente — ela não existe no runtime.**
     ```bash
@@ -720,7 +720,7 @@ O script antigo e o projeto atual possuem diferenças fundamentais que afetam a 
 - Traefik, Portainer, Docker Swarm, MongoDB, PostgreSQL, Redis, RabbitMQ, ClickHouse
 
 **Aplicações Principais** (alta demanda, migrar primeiro):
-- Chatwoot, Evolution API, N8N, Typebot, Flowise, Dify AI, Supabase
+- Chatwoot, Evolution API, N8N, Typebot, Flowise, Dify AI
 
 **Ferramentas de Suporte** (migrar conforme demanda):
 - PgAdmin, Adminer, Uptime Kuma, Grafana, Metabase, RedisInsight

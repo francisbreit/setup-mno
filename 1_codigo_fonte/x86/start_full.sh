@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="4.87.8"
+VERSIONSETUP="4.87.9"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -910,12 +910,6 @@ rm langfuse
 fi
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm langfuse
-fi
-shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o supabase -f supabase.sh
-rm supabase.sh
-rm supabase.sh.x.c
-if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
-rm supabase
 fi
 echo -e "XXX\n99\nINSTALANDO SETUPMNO 7/8 \nXXX"
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o langflow -f langflow.sh
