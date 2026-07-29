@@ -78,6 +78,8 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
    - **PRO:** Ferramentas PRO devem aparecer no menu de todos os planos (PRO, free, free1, free2), marcadas com `"PRO"` — para que os usuários vejam o que está disponível.
    - **Free:** Ferramentas Free devem aparecer com `""` (vazio) em todos os menus.
    - **Ordem nos menus free/free1/free2:** Ferramentas free (liberadas) ficam PRIMEIRO em ordem alfabética, seguidas de um separador `"─────────────────────────" ""`, e depois as ferramentas PRO em ordem alfabética.
+   - **ORDEM ALFABÉTICA OBRIGATÓRIA (⚠️ GATE DE RELEASE):** Toda nova ferramenta ou combo deve ser inserido na posição alfabética correta em **cada menu whiptail afetado**, nunca no fim da lista. Isto inclui o menu PRO e os menus `free`, `free1` e `free2` de x86 e ARM. Nos menus Free, ordene separadamente os dois blocos: itens liberados antes do separador e itens PRO depois dele. Exemplo: `STRAPI` deve ficar entre `SIYUAN` e `STIRLING PDF`.
+   - **Validação antes do empacotamento:** confira visualmente o contexto da nova opção nos dois `install.sh` com `rg -n -C 3 '"NOME DA FERRAMENTA"' 1_codigo_fonte/x86/SetupLowCodeMno/install.sh 1_codigo_fonte/arm/SetupLowCodeMno/install.sh`. Só empacote se a posição e o marcador (`""` ou `"PRO"`) estiverem corretos em todos os menus aplicáveis.
    - **ARM incompatível:** Se a ferramenta NÃO tem imagem ARM, NÃO adicione ao menu do `install.sh` ARM (delete a linha, não comente). Mantenha script .sh, SHC block e case statement espelhados.
 4. **Espelhamento:** Toda alteração em x86 deve ser replicada em ARM (mesma lógica, tags de imagem diferentes).
 5. **VERIFICAR CONFLITO DE PORTA (OBRIGATÓRIO)**: Antes de adicionar porta `ports:` no YAML, executar o verificador de portas:
