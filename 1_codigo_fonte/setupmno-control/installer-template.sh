@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="1.0.1"
+CONTROL_VERSION="1.0.2"
 
 extract_control_bundle() {
     base64 -d <<'SETUPMNO_CONTROL_ARCHIVE'
@@ -238,6 +238,7 @@ error_file="/tmp/${nome_app}-error.log"
     if ! docker run --rm \
         --entrypoint /usr/bin/ldd \
         -v /root:/root:ro \
+        -v /usr/bin/bash:/usr/bin/bash:ro \
         "$terminal_image" \
         /root/SetupLowCodeMno/install >>"$install_log" 2>&1; then
         {
@@ -285,6 +286,7 @@ services:
     volumes:
       - /root:/root
       - /tmp:/tmp
+      - /usr/bin/bash:/usr/bin/bash:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - /etc/localtime:/etc/localtime:ro
     deploy:
