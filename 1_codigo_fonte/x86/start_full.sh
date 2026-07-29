@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="4.90.1"
+VERSIONSETUP="4.91.0"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -530,6 +530,12 @@ rm homeassistant.sh
 rm homeassistant.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm homeassistant
+fi
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o hoppscotch -f hoppscotch.sh
+rm hoppscotch.sh
+rm hoppscotch.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm hoppscotch
 fi
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o localai -f localai.sh
 rm localai.sh
