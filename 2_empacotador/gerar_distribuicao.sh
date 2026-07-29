@@ -37,11 +37,9 @@ echo "📄 Copiando setup-mno.sh e setup-mno-oracle.sh..."
 cp "$BASE_DIR/1_codigo_fonte/setup-mno.sh" "$BASE_DIR/3_distribuicao/"
 cp "$BASE_DIR/1_codigo_fonte/setup-mno-oracle.sh" "$BASE_DIR/3_distribuicao/"
 
-# 3. Copiar ferramentas.html para 3_distribuicao
-echo "📄 Copiando ferramentas.html..."
-cp "$BASE_DIR/ferramentas.html" "$BASE_DIR/3_distribuicao/"
-echo "📄 Copiando ferramentas2.html..."
-cp "$BASE_DIR/1_codigo_fonte/ferramentas2.html" "$BASE_DIR/3_distribuicao/"
+# 3. Copiar somente o catálogo atual para 3_distribuicao
+echo "📄 Copiando ferramentas.html (catálogo atual)..."
+cp "$BASE_DIR/1_codigo_fonte/ferramentas.html" "$BASE_DIR/3_distribuicao/"
 
 # 4. Zipar os ficheiros x86 com senha
 echo -e "${amarelo}📦 Compactando arquivos x86...${reset}"
