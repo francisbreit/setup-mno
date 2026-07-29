@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="4.87.9"
+VERSIONSETUP="4.88.0"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -589,7 +589,7 @@ echo -e "XXX\n79\nINSTALANDO SETUPMNO 3/8 \nXXX"
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o strap -f strap.sh
 rm strap.sh
 rm strap.sh.x.c
-if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm strap
 fi
 echo -e "XXX\n79\nINSTALANDO SETUPMNO 3/8 \nXXX"

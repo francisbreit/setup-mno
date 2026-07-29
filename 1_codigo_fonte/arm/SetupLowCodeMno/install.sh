@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="4.87.9"
+VERSIONSETUP="4.88.0"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -373,6 +373,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WIKI.JS" "" \
     "WUZAP" "" \
     "WEKAN" "" \
+    "STRAPI" "" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
     "GERADOR DE REGISTROS DNS" "" \
@@ -383,6 +384,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
 [ -z "$CHOICE" ] && do_exit
 
 case "$CHOICE" in
+    "STRAPI") run_app strap ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
     "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;
@@ -683,6 +685,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WEAVIATE" "PRO" \
     "WINDMILL" "PRO" \
     "WIKI.JS" "PRO" \
+    "STRAPI" "" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
     "GERADOR DE REGISTROS DNS" "" \
@@ -693,6 +696,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
 [ -z "$CHOICE" ] && do_exit
 
 case "$CHOICE" in
+    "STRAPI") run_app strap ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
     "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;
@@ -986,6 +990,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WIKI.JS" "PRO" \
     "WUZAP" "PRO" \
     "WEKAN" "PRO" \
+    "STRAPI" "" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
     "GERADOR DE REGISTROS DNS" "" \
@@ -996,6 +1001,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
 [ -z "$CHOICE" ] && do_exit
 
 case "$CHOICE" in
+    "STRAPI") run_app strap ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
     "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;
@@ -1289,6 +1295,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WIKI.JS" "PRO" \
     "WUZAP" "PRO" \
     "WEKAN" "PRO" \
+    "STRAPI" "" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
     "GERADOR DE REGISTROS DNS" "" \
@@ -1299,6 +1306,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
 [ -z "$CHOICE" ] && do_exit
 
 case "$CHOICE" in
+    "STRAPI") run_app strap ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
     "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;

@@ -1,330 +1,144 @@
 #!/usr/bin/bash
-#########################################################
-#
-# LOADING
-#
+# STRAPI PRO — imagem própria gerada a partir do projeto oficial Strapi v5.
+set -o pipefail
 
-export NEWT_COLORS='
-#root=,white
-#window=,black
-#border=white,black
-#textbox=white,black
-#button=black,white
+INSTALL_TYPE_FILE="/root/.cloudflared_config/installation_type"
+INSTALL_TYPE="TRADICIONAL"
+[ -f "$INSTALL_TYPE_FILE" ] && INSTALL_TYPE=$(cat "$INSTALL_TYPE_FILE")
+if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+  [ -f /root/.cloudflared_config/cloudflare_credentials ] && source /root/.cloudflared_config/cloudflare_credentials
+else
+  [ -f /root/.tradicional_config/tradicional_credentials ] && source /root/.tradicional_config/tradicional_credentials
+fi
 
-root=,white
-border=black,gray
-title=white,black
-roottext=red,gray
-window=red,gray
-textbox=white,gray
-button=white,green
-compactbutton=white,black
-listbox=black,white
-actlistbox=white,black
-actsellistbox=white,blue
-checkbox=red,black
-actcheckbox=white,blue
-'  
+msg(){ whiptail --title "STRAPI" --msgbox "$1" 12 72; }
+ask(){ local value status; while true; do value=$(whiptail --title "STRAPI" --inputbox "$1" 12 72 3>&1 1>&2 2>&3); status=$?; [ "$status" -ne 0 ] && exit 0; [ -n "$value" ] && { printf '%s' "$value"; return; }; msg "Este campo é obrigatório."; done; }
 
-clear
+whiptail --title "STRAPI PRO" --yesno "Instalar Strapi v5 como stack PRO?\n\nA imagem será construída localmente a partir do projeto oficial." 12 72 || exit 0
+url_strapi=$(ask "1/3 — Domínio do Strapi (ex.: strapi.seudominio.com):")
+criar_portainer=$(ask "2/3 — Criar Stack no Portainer?\n0 = editável no Portainer | 1 = Docker direto")
+[[ "$criar_portainer" =~ ^[01]$ ]] || { msg "Digite somente 0 ou 1."; exit 1; }
 
+nome_principal="strapi"
+sufixo_app=$(date +%s | md5sum | head -c7)
+nome_app="${nome_principal}${sufixo_app}"
+postgres_password=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml)
+[ -n "$postgres_password" ] || { msg "Não foi possível obter a senha de /root/postgres.yaml."; exit 1; }
 
-amarelo="\e[33m"   # Amarelo
-branco="\e[97m"    # Branco
-reset="\e[0m"      # Reseta
+if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+  CHECK_RESPONSE=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations")
+  EXISTING_SERVICE=$(echo "$CHECK_RESPONSE" | jq -r --arg h "$url_strapi" '.result.config.ingress[] | select(.hostname == $h) | .service' 2>/dev/null)
+  [ -n "$EXISTING_SERVICE" ] && [ "$EXISTING_SERVICE" != "null" ] && msg "A rota $url_strapi será substituída.\nServiço atual: $EXISTING_SERVICE"
+fi
 
-#
-# FIM DE LOADING
-#
-
-#
-# NOME DO PROGRAMA
-#
+whiptail --title "Confirmar instalação" --yesno "Strapi PRO\nDomínio: $url_strapi\nInstalação: $INSTALL_TYPE\nPortainer: $criar_portainer" 14 72 || exit 0
 
 {
-  tput reset 2>/dev/null         # Reinicia o terminal de forma segura
-  exec 0</dev/tty 1>/dev/tty 2>&1 # Força redirecionamentos explícitos
-  sleep 0.01                     # Pausa microscópica para sincronia
-  clear                          # Limpeza final antes do whiptail
-} || true
+echo "XXX\n5\nCRIANDO BANCO DE DADOS...\nXXX"
+postgres_id=$(docker ps -qf name=postgres | head -n1)
+[ -n "$postgres_id" ] || { echo "XXX\n100\nPOSTGRES COMPARTILHADO NÃO ENCONTRADO\nXXX"; exit 1; }
+docker exec -i "$postgres_id" psql -U postgres -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='$nome_app'" | grep -q 1 || docker exec -i "$postgres_id" psql -U postgres -d postgres -c "CREATE DATABASE $nome_app;" >/dev/null
 
-
-function msg() {
-		msg=$1
-		whiptail --title "INSTALAÇÃO DO STRAPI:" --msgbox "$msg" --fb 10 70;
-	}
-
-  while true; do
-CHOICE=$(
-whiptail --title "INSTALAÇÃO DO STRAPI:" --menu "Aperte ENTER para iniciar a instalação do STRAPI ou selecione SAIR (Utilize setas e Enter)\nINSTRUÇÕES\nAntes de prosseguir, apontar registros DNS para o(s) seguinte(s) dominio(s):\nRECORD A: Dê um nome para seu servidor (exemplo: manager1.seudominio.com.br) e aponte para o IP do seu servidor\nRECORD CNAME: Crie um subdominio para o STRAPI (exemplo: strapi.seudominio.com.br) a aponte para o nome do servidor criado (exemplo: manager1.seudominio.com.br)" 20 70 2 \
-	"1)" "CONTINUAR"   \
-	"2)" "SAIR"  3>&2 2>&1 1>&3	
-)
-
-case $CHOICE in
-	"1)")   
-		clear
-        break
-	;;
-	
-	"2)") 
-      #  sleep 1
-        cd /
-        cd
-        exit 0
-        ;; 
-esac
-#whiptail --msgbox "Pressione ENTER para voltar ao Menu Principal" 20 78
-done
-
-
-  while true ; do
-		url_strapi=$(whiptail --title "1/4 - URL do STRAPI" --inputbox "Digite o Link do STRAPI (ex: strapi.seudominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
-		if [[ $saida -eq '0' ]] ; then
-			if [[ -z $url_strapi ]] ; then msg "Digite o link do strapi, para poder continuar" ; continue ; else break; fi
-		else
-			echo $url_strapi ; echo "saindo..."  &  exit 0 ;
-		fi
-	done
-
-  
-
-    
- 
-# FIM DE PERGUNTAS PARA VARIAVEIS
-#
-#########################################################
-#
-# VERIFICAÇÃO DE DADOS
-#
-
-
-nome_principal="strapi"  #nome do app
-sufixo_app=$(date | md5sum | head -c7)
-nome_app=$nome_principal$sufixo_app
-mysql_container=$(docker ps --format "{{.Names}}" | grep -q "^mysql$")
-
-if [[ ("$mysql_container" == "") ]]; then
- senha_mysql=$(openssl rand -hex 8)
-
-cd
-
-cd
-
-cat > mysql.yaml << EOL
-version: '3.7'
-services:
-    mysql:
-        image: percona/percona-server:8.0
-        environment:
-            - MYSQL_ROOT_PASSWORD=$senha_mysql
-            - TZ=America/Fortaleza
-        networks:
-            - network_public
-        volumes:
-            - mysql_data:/var/lib/mysql
-        deploy:
-            placement:
-                constraints: [node.role == manager]
-        command:
-            --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --sql-mode="" --default-authentication-plugin=mysql_native_password  --port=3306 --max-allowed-packet=512MB
-volumes:
-    mysql_data:
-networks:
-    network_public:
-        external: true
-        name: network_public
-
+echo "XXX\n20\nGERANDO IMAGEM STRAPI V5...\nXXX"
+cd; cd
+build_dir="/root/${nome_app}-build"
+mkdir -p "$build_dir"
+cat > "$build_dir/Dockerfile" <<'EOL'
+FROM node:22-alpine
+RUN apk add --no-cache libc6-compat
+WORKDIR /opt/strapi
+RUN npx --yes create-strapi@5.46.1 . --skip-cloud --no-run --use-npm --typescript --dbclient=postgres --dbhost=postgres --dbport=5432 --dbname=strapi --dbusername=postgres --dbpassword=strapi --dbssl=false
+RUN npm run build
+EXPOSE 1337
+CMD ["npm", "run", "start"]
 EOL
+docker build --pull -t "${nome_app}:5.46.1" "$build_dir" >/dev/null
 
-docker stack deploy --prune --resolve-image always -c mysql.yaml mysql >/dev/null 2>&1
-
-fi 	
-
-
-
-
-mysql_password=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml)
-
-# Identifica o ID do container do MySQL
-container_id=$(docker ps -qf name=mysql)
-
-# Cria o banco de dados usando a senha extraída
-docker exec -i $container_id mysql -u root -p"$mysql_password" -e "CREATE DATABASE $nome_app;"
-
-clear
-
-echo ""
-echo -e "URL do STRAPI: \e[33m$url_strapi\e[0m"
-echo ""
-echo ""
-read -p "As informações estão certas? (y/n): " confirma1
-if [ "$confirma1" == "y" ]; then
-
-#
-# FIM DE VERIFICAÇÃO DE DADOS
-#
-#########################################################
-#
-# MENSAGEM DE INSTALANDO
-#
-export NEWT_COLORS='
-root=,white
-window=,black
-border=white,black
-textbox=white,black
-button=black,white
-'  
-
-clear
-{
-echo -e "XXX\n0\nCRIANDO STACK DO STRAPI 1/4 \nXXX"
-sleep 3
-echo -e "XXX\n25\nCRIANDO STACK DO STRAPI 1/4 - CONCLUIDO \nXXX"
-sleep 3 
-echo -e "XXX\n25\nFAZENDO O BUILD DO STACK DO STRAPI 2/4 \nXXX"
-sleep 3
-echo -e "XXX\n50\nFAZENDO O BUILD DO STACK DO STRAPI 2/4 - CONCLUIDO \nXXX"
-sleep 3
-echo -e "XXX\n50\nCRIANDO BANCO DE DADOS DO STRAPI 3/4 \nXXX"
-sleep 3
-echo -e "XXX\n75\nCRIANDO BANCO DE DADOS DO STRAPI 3/4 - CONCLUIDO \nXXX"
-
-
-
-
-
-#######################################################
-#
-#  INSTALANDO O STRAPI
-#
-
-cd
-
-cd
-jwt_secret=$(openssl rand -hex 16)
-
-admin_jwt=$(openssl rand -hex 16)
-
-app_key=$(openssl rand -hex 16)
-
-clear
-
-
-cat > $nome_app.yaml << EOL
+echo "XXX\n55\nGERANDO STACK...\nXXX"
+app_keys="$(openssl rand -hex 16),$(openssl rand -hex 16),$(openssl rand -hex 16),$(openssl rand -hex 16)"
+cat > "/root/$nome_app.yaml" <<EOL
 
 version: "3.7"
 services:
-
-
-  $nome_app-app:
-    image: strapi/strapi
-
-    volumes:
-      - $nome_app-config:/srv/app/config
-      - $nome_app-src:/srv/app/src
-      - $nome_app-public_uploads:/srv/app/public/uploads
-      - $nome_app-data:/srv/app
-
+  $nome_app:
+    image: ${nome_app}:5.46.1
+    hostname: $nome_app
     networks:
-      - network_public
-
+      - externa
+      - interna
     environment:
-      ## Dados MySQL
-      - DATABASE_CLIENT=mysql
-      - DATABASE_HOST=mysql
-      - DATABASE_NAME=$nome_app
-      - DATABASE_PORT=3306
-      - DATABASE_USERNAME=root
-      - DATABASE_PASSWORD=$mysql_password
-
-      ## Secret Keys
-      - JWT_SECRET=$jwt_secret
-      - ADMIN_JWT_SECRET=$admin_jwt
-      - APP_KEYS=$app_key
-
-      ## Outros dados
       - NODE_ENV=production
+      - HOST=0.0.0.0
+      - PORT=1337
+      - APP_KEYS=$app_keys
+      - API_TOKEN_SALT=$(openssl rand -hex 16)
+      - ADMIN_JWT_SECRET=$(openssl rand -hex 32)
+      - TRANSFER_TOKEN_SALT=$(openssl rand -hex 16)
+      - JWT_SECRET=$(openssl rand -hex 32)
+      - DATABASE_CLIENT=postgres
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=$nome_app
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=$postgres_password
+      - DATABASE_SSL=false
       - STRAPI_TELEMETRY_DISABLED=true
-
+    volumes:
+      - ${nome_app}_uploads:/opt/strapi/public/uploads
     deploy:
       mode: replicated
       replicas: 1
       placement:
         constraints:
-          - node.role == manager
+        - node.role == manager
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1536M
+EOL
+if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then cat >> "/root/$nome_app.yaml" <<EOL
       labels:
-        - traefik.enable=true
-        - traefik.http.routers.$nome_app.rule=Host(\`$url_strapi\`)
-        - traefik.http.routers.$nome_app.entrypoints=web,websecure
-        - traefik.http.routers.$nome_app.tls.certresolver=letsencryptresolver
-        - traefik.http.routers.$nome_app.service=$nome_app
-        - traefik.http.services.$nome_app.loadbalancer.server.port=1337
-        - traefik.http.services.$nome_app.loadbalancer.passHostHeader=true
-
-volumes:
-  $nome_app-config:
-    external: true
-    name: $nome_app-config
-  $nome_app-src:
-    external: true
-    name: $nome_app-src
-  $nome_app-public_uploads:
-    external: true
-    name: $nome_app-public_uploads
-  $nome_app-data:
-    external: true
-    name: $nome_app-data
-
+      - traefik.enable=true
+      - traefik.docker.network=externa
+      - traefik.http.routers.$nome_app.rule=Host(\`$url_strapi\`)
+      - traefik.http.routers.$nome_app.entrypoints=websecure
+      - traefik.http.routers.$nome_app.priority=1
+      - traefik.http.routers.$nome_app.tls.certresolver=letsencryptresolver
+      - traefik.http.routers.$nome_app.tls=true
+      - traefik.http.routers.$nome_app.service=$nome_app
+      - traefik.http.services.$nome_app.loadbalancer.server.port=1337
+EOL
+fi
+cat >> "/root/$nome_app.yaml" <<EOL
 
 networks:
-  network_public:
+  externa:
     external: true
-    name: network_public
-
-
+  interna:
+    external: true
+volumes:
+  ${nome_app}_uploads:
+    external: true
+    name: ${nome_app}_uploads
 EOL
+docker volume create "${nome_app}_uploads" >/dev/null
 
-docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
-
-echo -e "XXX\n75\nFINALIZANDO BUILD DO STRAPI 4/4  \nXXX"
-
-sleep 2
-
-echo -e "XXX\n100\nFINALIZANDO BUILD DO STRAPI 4/4 - CONCLUIDO  \nXXX"
-
-sleep 3
-}|whiptail --title "STRAPI - PROGRESSO DA INSTALAÇÃO" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
-
-# FIM DE INSTALANDO O STRAPI
-#
-#######################################################
-
-
-#
-# MENSAGEM DE INSTLADO + DADOS
-#
-
-whiptail --msgbox "Parabéns seu STRAPI foi instalado com sucesso! Pressione ENTER para voltar ao Menu Principal" 20 78
-
-
-#
-# FIM DE MENSAGEM DE INSTLADO + DADOS
-#
-#########################################################
-#
-# USUARIO PREENCHEU DADOS ERRADOS
-#
-
-elif [ "$confirma1" == "n" ]; then
-    echo "Encerrando a instalaço, por favor, inicie a instalaão novamente."
-    exit 0
-else
-    echo "Resposta inválida. Digite 'y' para confirmar ou 'n' para encerrar a instalação."
-    exit 1
+echo "XXX\n70\nCONFIGURANDO DNS...\nXXX"
+if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+  curl -sS -X POST "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" --data '{"type":"CNAME","name":"'"$url_strapi"'","content":"'"$TUNNEL_ID"'.cfargotunnel.com","ttl":1,"proxied":true}' >/dev/null
+  curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" | jq --arg host "$url_strapi" --arg service "http://${nome_app}:1337" '(.result.config // {}) as $cfg | ($cfg.ingress // []) | map(select(.service != "http_status:404" and .hostname != $host)) + [{hostname:$host,service:$service,originRequest:{noTlsVerify:true,httpHostHeader:$host}},{service:"http_status:404"}] | {config:($cfg + {ingress:.})}' > /tmp/${nome_app}-tunnel.json
+  curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data-binary @/tmp/${nome_app}-tunnel.json >/dev/null
+  rm -f /tmp/${nome_app}-tunnel.json
 fi
 
-#
-# FIM DE USUARIO PREENCHEU DADOS ERRADOS
-#
-#########################################################
+echo "XXX\n85\nPUBLICANDO STACK...\nXXX"
+if [ "$criar_portainer" = "0" ] && [ -f "$HOME/dados_portainer/dados_portainer" ]; then
+  PORTAINER_URL=$(grep "Dominio do portainer:" "$HOME/dados_portainer/dados_portainer" | cut -d: -f2- | xargs); ADMIN_USERNAME=$(grep "Usuario:" "$HOME/dados_portainer/dados_portainer" | cut -d: -f2- | xargs); ADMIN_PASSWORD=$(grep "Senha:" "$HOME/dados_portainer/dados_portainer" | cut -d: -f2- | xargs)
+  TOKEN=$(curl -sk -X POST "https://$PORTAINER_URL/api/auth" -H 'Content-Type: application/json' -d "{\"username\":\"$ADMIN_USERNAME\",\"password\":\"$ADMIN_PASSWORD\"}" | jq -r .jwt)
+  ENDPOINT_ID=$(curl -sk "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN" | jq -r '.[0].Id'); SWARM_ID=$(curl -sk "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN" | jq -r .ID)
+  curl -sk -X POST -H "Authorization: Bearer $TOKEN" -F "Name=$nome_app" -F "file=@/root/$nome_app.yaml" -F "SwarmID=$SWARM_ID" -F "endpointId=$ENDPOINT_ID" "https://$PORTAINER_URL/api/stacks/create/swarm/file" >/dev/null || docker stack deploy --prune --resolve-image never -c "/root/$nome_app.yaml" "$nome_app"
+else docker stack deploy --prune --resolve-image never -c "/root/$nome_app.yaml" "$nome_app"; fi
+echo "XXX\n100\nSTRAPI INSTALADO\nXXX"
+} | whiptail --title "STRAPI PRO" --gauge "Preparando Strapi..." 8 70 0
+
+whiptail --title "STRAPI PRO" --msgbox "Strapi instalado.\n\nAcesse: https://$url_strapi/admin\n\nCrie o primeiro administrador na tela inicial." 14 72
