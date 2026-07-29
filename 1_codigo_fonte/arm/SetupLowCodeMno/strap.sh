@@ -22,11 +22,11 @@ criar_portainer=$(ask "2/3 — Criar Stack no Portainer?\n0 = editável no Porta
 nome_principal="strapi"
 sufixo_app=$(date +%s | md5sum | head -c7)
 nome_app="${nome_principal}${sufixo_app}"
-postgres_password=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml)
+postgres_password=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml 2>/dev/null)
 [ -n "$postgres_password" ] || { msg "Não foi possível obter a senha de /root/postgres.yaml."; exit 1; }
 
 if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-  CHECK_RESPONSE=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations")
+  CHECK_RESPONSE=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" 2>/dev/null)
   EXISTING_SERVICE=$(echo "$CHECK_RESPONSE" | jq -r --arg h "$url_strapi" '.result.config.ingress[] | select(.hostname == $h) | .service' 2>/dev/null)
   [ -n "$EXISTING_SERVICE" ] && [ "$EXISTING_SERVICE" != "null" ] && msg "A rota $url_strapi será substituída.\nServiço atual: $EXISTING_SERVICE"
 fi
@@ -78,7 +78,7 @@ if ! docker build --pull --progress=plain -t "${nome_app}:5.46.1" "$build_dir" >
   echo "XXX\n100\nERRO AO CRIAR IMAGEM STRAPI\nXXX"
   exit 20
 fi
-if ! docker image inspect "${nome_app}:5.46.1" >>"$install_log" 2>&1; then
+if ! docker image inspect --format 'Imagem local: {{.Id}} | {{.Architecture}} | {{.Size}} bytes' "${nome_app}:5.46.1" >>"$install_log" 2>&1; then
   echo "O build terminou, mas a imagem ${nome_app}:5.46.1 não foi encontrada no Docker." > "$error_file"
   echo "XXX\n100\nIMAGEM STRAPI NÃO ENCONTRADA\nXXX"
   exit 21
@@ -159,14 +159,89 @@ fi
 
 echo "XXX\n70\nCONFIGURANDO DNS...\nXXX"
 if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-  curl -sS -X POST "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" --data '{"type":"CNAME","name":"'"$url_strapi"'","content":"'"$TUNNEL_ID"'.cfargotunnel.com","ttl":1,"proxied":true}' >>"$install_log" 2>&1
-  curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" 2>>"$install_log" | jq --arg host "$url_strapi" --arg service "http://${nome_app}:1337" '(.result.config // {}) as $cfg | ($cfg.ingress // []) | map(select(.service != "http_status:404" and .hostname != $host)) + [{hostname:$host,service:$service,originRequest:{noTlsVerify:true,httpHostHeader:$host}},{service:"http_status:404"}] | {config:($cfg + {ingress:.})}' > /tmp/${nome_app}-tunnel.json 2>>"$install_log"
-  curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data-binary @/tmp/${nome_app}-tunnel.json >>"$install_log" 2>&1
-  rm -f /tmp/${nome_app}-tunnel.json
+  dns_lookup=$(mktemp)
+  dns_response=$(mktemp)
+  tunnel_raw=$(mktemp)
+  tunnel_payload=$(mktemp)
+  tunnel_response=$(mktemp)
+  dns_payload=$(jq -nc --arg name "$url_strapi" --arg content "${TUNNEL_ID}.cfargotunnel.com" '{type:"CNAME",name:$name,content:$content,ttl:1,proxied:true}')
+
+  if ! curl -sS --get "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
+      -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+      --data-urlencode "name=$url_strapi" >"$dns_lookup" 2>>"$install_log"; then
+    echo "Falha ao consultar o DNS $url_strapi no Cloudflare." > "$error_file"
+    rm -f "$dns_lookup" "$dns_response" "$tunnel_raw" "$tunnel_payload" "$tunnel_response"
+    echo "XXX\n100\nERRO AO CONSULTAR DNS\nXXX"
+    exit 31
+  fi
+  dns_record_id=$(jq -r '.result[0].id // empty' "$dns_lookup")
+  dns_record_type=$(jq -r '.result[0].type // empty' "$dns_lookup")
+  if [ -n "$dns_record_id" ] && [ "$dns_record_type" != "CNAME" ]; then
+    echo "Já existe um registro $dns_record_type para $url_strapi. Remova ou altere esse registro antes de instalar o Strapi." > "$error_file"
+    rm -f "$dns_lookup" "$dns_response" "$tunnel_raw" "$tunnel_payload" "$tunnel_response"
+    echo "XXX\n100\nCONFLITO DE REGISTRO DNS\nXXX"
+    exit 32
+  fi
+  if [ -n "$dns_record_id" ]; then
+    dns_method="PUT"
+    dns_url="https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${dns_record_id}"
+  else
+    dns_method="POST"
+    dns_url="https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records"
+  fi
+  if ! curl -sS -X "$dns_method" "$dns_url" \
+      -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+      -H "Content-Type: application/json" \
+      --data "$dns_payload" >"$dns_response" 2>>"$install_log" ||
+      [ "$(jq -r '.success // false' "$dns_response")" != "true" ]; then
+    dns_error=$(jq -r '[.errors[]?.message] | join("; ")' "$dns_response" 2>/dev/null)
+    echo "Falha ao configurar o CNAME $url_strapi no Cloudflare: ${dns_error:-resposta inválida da API}." > "$error_file"
+    rm -f "$dns_lookup" "$dns_response" "$tunnel_raw" "$tunnel_payload" "$tunnel_response"
+    echo "XXX\n100\nERRO AO CONFIGURAR DNS\nXXX"
+    exit 33
+  fi
+  echo "DNS CNAME confirmado: $url_strapi -> ${TUNNEL_ID}.cfargotunnel.com" >>"$install_log"
+
+  if ! curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+      "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+      >"$tunnel_raw" 2>>"$install_log" ||
+      [ "$(jq -r '.success // false' "$tunnel_raw")" != "true" ]; then
+    echo "Falha ao obter a configuração atual do Cloudflare Tunnel." > "$error_file"
+    rm -f "$dns_lookup" "$dns_response" "$tunnel_raw" "$tunnel_payload" "$tunnel_response"
+    echo "XXX\n100\nERRO AO CONSULTAR TUNNEL\nXXX"
+    exit 34
+  fi
+  if ! jq --arg host "$url_strapi" --arg service "http://${nome_app}:1337" \
+      '(.result.config // {}) as $cfg | ($cfg.ingress // []) | map(select(.service != "http_status:404" and .hostname != $host)) + [{hostname:$host,service:$service,originRequest:{noTlsVerify:true,httpHostHeader:$host}},{service:"http_status:404"}] | {config:($cfg + {ingress:.})}' \
+      "$tunnel_raw" >"$tunnel_payload" 2>>"$install_log"; then
+    echo "Falha ao preparar a nova rota do Cloudflare Tunnel." > "$error_file"
+    rm -f "$dns_lookup" "$dns_response" "$tunnel_raw" "$tunnel_payload" "$tunnel_response"
+    echo "XXX\n100\nERRO AO PREPARAR ROTA DO TUNNEL\nXXX"
+    exit 35
+  fi
+  if ! curl -sS -X PUT \
+      "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+      -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+      -H "Content-Type: application/json" \
+      --data-binary @"$tunnel_payload" >"$tunnel_response" 2>>"$install_log" ||
+      [ "$(jq -r '.success // false' "$tunnel_response")" != "true" ]; then
+    tunnel_error=$(jq -r '[.errors[]?.message] | join("; ")' "$tunnel_response" 2>/dev/null)
+    echo "Falha ao atualizar a rota $url_strapi no Cloudflare Tunnel: ${tunnel_error:-resposta inválida da API}." > "$error_file"
+    rm -f "$dns_lookup" "$dns_response" "$tunnel_raw" "$tunnel_payload" "$tunnel_response"
+    echo "XXX\n100\nERRO AO ATUALIZAR TUNNEL\nXXX"
+    exit 36
+  fi
+  echo "Rota do Tunnel confirmada: $url_strapi -> http://${nome_app}:1337" >>"$install_log"
+  rm -f "$dns_lookup" "$dns_response" "$tunnel_raw" "$tunnel_payload" "$tunnel_response"
 fi
 
-echo "XXX\n85\nPUBLICANDO STACK...\nXXX"
-if [ "$criar_portainer" = "0" ] && [ -f "$HOME/dados_portainer/dados_portainer" ]; then
+echo "XXX\n80\nPUBLICANDO STACK...\nXXX"
+if [ "$criar_portainer" = "0" ]; then
+  if [ ! -f "$HOME/dados_portainer/dados_portainer" ]; then
+    echo "Arquivo de credenciais do Portainer não encontrado em $HOME/dados_portainer/dados_portainer." > "$error_file"
+    echo "XXX\n100\nCREDENCIAIS DO PORTAINER NÃO ENCONTRADAS\nXXX"
+    exit 39
+  fi
   PORTAINER_URL=$(grep "Dominio do portainer:" "$HOME/dados_portainer/dados_portainer" | cut -d: -f2- | xargs); ADMIN_USERNAME=$(grep "Usuario:" "$HOME/dados_portainer/dados_portainer" | cut -d: -f2- | xargs); ADMIN_PASSWORD=$(grep "Senha:" "$HOME/dados_portainer/dados_portainer" | cut -d: -f2- | xargs)
   TOKEN=$(curl -sk -X POST "https://$PORTAINER_URL/api/auth" -H 'Content-Type: application/json' -d "{\"username\":\"$ADMIN_USERNAME\",\"password\":\"$ADMIN_PASSWORD\"}" 2>>"$install_log" | jq -r .jwt 2>>"$install_log")
   if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
@@ -181,41 +256,28 @@ if [ "$criar_portainer" = "0" ] && [ -f "$HOME/dados_portainer/dados_portainer" 
     echo "XXX\n100\nERRO AO LER O SWARM NO PORTAINER\nXXX"
     exit 41
   fi
-  echo "XXX\n82\nENVIANDO IMAGEM PARA O PORTAINER...\nXXX"
-  image_load_response=$(mktemp)
-  image_archive=$(mktemp --suffix=.tar)
-  if ! docker save -o "$image_archive" "${nome_app}:5.46.1" >>"$install_log" 2>&1; then
-    echo "Falha ao exportar a imagem ${nome_app}:5.46.1 para envio ao Portainer." > "$error_file"
-    rm -f "$image_load_response" "$image_archive"
-    echo "XXX\n100\nERRO AO EXPORTAR IMAGEM STRAPI\nXXX"
-    exit 42
-  fi
-  if ! curl -sk --fail-with-body -X POST \
-      -H "Authorization: Bearer $TOKEN" \
-      -H "Content-Type: application/x-tar" \
-      --data-binary @"$image_archive" \
-      "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/images/load?quiet=1" \
-      >"$image_load_response" 2>>"$install_log"; then
-    {
-      echo "Falha ao enviar a imagem ${nome_app}:5.46.1 para o Portainer."
-      echo
-      cat "$image_load_response"
-      tail -n 12 "$install_log"
-    } > "$error_file"
-    rm -f "$image_load_response" "$image_archive"
-    echo "XXX\n100\nERRO AO ENVIAR IMAGEM AO PORTAINER\nXXX"
-    exit 42
-  fi
-  cat "$image_load_response" >>"$install_log"
-  rm -f "$image_load_response" "$image_archive"
-  if ! curl -sk --fail \
+  echo "XXX\n85\nVALIDANDO IMAGEM NO PORTAINER...\nXXX"
+  portainer_image_response=$(mktemp)
+  image_http_code=$(curl -sk -o "$portainer_image_response" -w "%{http_code}" \
       -H "Authorization: Bearer $TOKEN" \
       "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/images/${nome_app}:5.46.1/json" \
-      >>"$install_log" 2>&1; then
-    echo "A API do Portainer não confirmou a imagem ${nome_app}:5.46.1 após o upload." > "$error_file"
+      2>>"$install_log")
+  if ! [[ "$image_http_code" =~ ^[0-9]{3}$ ]] ||
+      [ "$image_http_code" -lt 200 ] || [ "$image_http_code" -ge 300 ] ||
+      [ -z "$(jq -r '.Id // empty' "$portainer_image_response" 2>/dev/null)" ]; then
+    {
+      echo "A imagem ${nome_app}:5.46.1 foi criada localmente, mas não está visível no endpoint $ENDPOINT_ID do Portainer."
+      echo "HTTP: ${image_http_code:-indisponível}"
+      echo "Confirme se o Portainer gerencia o mesmo Docker onde o Setup MNO está sendo executado."
+    } > "$error_file"
+    rm -f "$portainer_image_response"
     echo "XXX\n100\nPORTAINER NÃO CONFIRMOU A IMAGEM\nXXX"
     exit 43
   fi
+  image_id=$(jq -r '.Id' "$portainer_image_response")
+  echo "Imagem confirmada no Portainer: $image_id" >>"$install_log"
+  rm -f "$portainer_image_response"
+  echo "XXX\n92\nCRIANDO STACK NO PORTAINER...\nXXX"
   portainer_response=$(mktemp)
   http_code=$(curl -sk -o "$portainer_response" -w "%{http_code}" -X POST -H "Authorization: Bearer $TOKEN" -F "Name=$nome_app" -F "file=@/root/$nome_app.yaml" -F "SwarmID=$SWARM_ID" -F "endpointId=$ENDPOINT_ID" "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2>>"$install_log")
   if ! [[ "$http_code" =~ ^[0-9]{3}$ ]] || [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
@@ -231,6 +293,7 @@ if [ "$criar_portainer" = "0" ] && [ -f "$HOME/dados_portainer/dados_portainer" 
   cat "$portainer_response" >>"$install_log"
   rm -f "$portainer_response"
 else
+  echo "XXX\n90\nCRIANDO STACK NO DOCKER...\nXXX"
   if ! docker stack deploy --prune --resolve-image never -c "/root/$nome_app.yaml" "$nome_app" >>"$install_log" 2>&1; then
     {
       echo "Falha ao criar a stack diretamente no Docker."
