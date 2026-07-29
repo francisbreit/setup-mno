@@ -134,7 +134,7 @@ error_file="/tmp/${nome_app}-error.log"
     }
 
     echo -e "XXX\n5\nVALIDANDO AMBIENTE... \nXXX"
-    for required_command in docker curl jq openssl; do
+    for required_command in docker curl jq base64; do
         command -v "$required_command" >/dev/null 2>&1 ||
             fail_install 10 "DEPENDÊNCIA NÃO ENCONTRADA" "O comando obrigatório '$required_command' não está instalado."
     done
@@ -249,8 +249,20 @@ EOL
     : >"$assets_dir/user.css"
     chmod 600 "$assets_dir/user.css"
 
-    echo -e "XXX\n40\nVALIDANDO CONFIGURAÇÃO DO GLANCE... \nXXX"
-    printf '%s' "validation-secret-key" >"$work_dir/$auth_secret_name"
+    echo -e "XXX\n40\nGERANDO E VALIDANDO SEGREDO OFICIAL... \nXXX"
+    if ! auth_secret_value=$(docker run --rm "$IMAGE_REF" secret:make 2>>"$install_log"); then
+        fail_install 31 "ERRO AO GERAR SEGREDO" "O gerador oficial do Glance não conseguiu criar o segredo de autenticação."
+    fi
+    if ! printf '%s' "$auth_secret_value" |
+        base64 -d >"$work_dir/auth-secret-decoded" 2>>"$install_log"; then
+        fail_install 32 "SEGREDO OFICIAL INVÁLIDO" "O segredo gerado pelo Glance não está em Base64 válido."
+    fi
+    auth_secret_bytes=$(wc -c <"$work_dir/auth-secret-decoded")
+    rm -f "$work_dir/auth-secret-decoded"
+    if [ "$auth_secret_bytes" -ne 64 ]; then
+        fail_install 33 "TAMANHO DE SEGREDO INVÁLIDO" "O segredo oficial decodificado possui $auth_secret_bytes bytes; o Glance exige exatamente 64 bytes."
+    fi
+    printf '%s' "$auth_secret_value" >"$work_dir/$auth_secret_name"
     printf '%s' "validation-password" >"$work_dir/$password_secret_name"
     if ! docker run --rm \
         -v "$config_dir:/app/config:ro" \
@@ -267,9 +279,6 @@ EOL
     fi
 
     echo -e "XXX\n50\nCRIANDO SEGREDOS DE AUTENTICAÇÃO... \nXXX"
-    auth_secret_value=$(openssl rand -hex 32)
-    [ -n "$auth_secret_value" ] ||
-        fail_install 40 "ERRO AO GERAR SEGREDO" "Não foi possível gerar o segredo de autenticação do Glance."
     if ! printf '%s' "$auth_secret_value" |
         docker secret create "$auth_secret_name" - >>"$install_log" 2>&1; then
         fail_install 41 "ERRO AO CRIAR SEGREDO" "Não foi possível criar o segredo de autenticação no Docker Swarm."
