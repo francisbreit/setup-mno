@@ -61,8 +61,10 @@ mkdir -p "$build_dir"
 cat > "$build_dir/Dockerfile" <<'EOL'
 FROM node:22-alpine
 RUN apk add --no-cache libc6-compat build-base gcc autoconf automake zlib-dev libpng-dev vips-dev git
+WORKDIR /opt
+RUN npx --yes create-strapi@5.46.1 --typescript --no-run --use-npm --install --skip-cloud --no-example --no-git-init --non-interactive --dbclient=postgres --dbhost=postgres --dbport=5432 --dbname=strapi --dbusername=postgres --dbpassword=strapi --dbssl=false strapi
 WORKDIR /opt/strapi
-RUN npx --yes create-strapi@5.46.1 . --skip-cloud --no-run --use-npm --typescript --dbclient=postgres --dbhost=postgres --dbport=5432 --dbname=strapi --dbusername=postgres --dbpassword=strapi --dbssl=false
+RUN test -s package.json && npm pkg get scripts.build | grep -vq '^{}$'
 RUN npm run build
 EXPOSE 1337
 CMD ["npm", "run", "start"]
