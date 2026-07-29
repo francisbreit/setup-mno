@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="1.0.0"
+CONTROL_VERSION="1.0.1"
 
 extract_control_bundle() {
     base64 -d <<'SETUPMNO_CONTROL_ARCHIVE'
@@ -232,6 +232,21 @@ error_file="/tmp/${nome_app}-error.log"
         'Terminal: {{.Id}} | Arquitetura: {{.Architecture}} | Tamanho: {{.Size}} bytes' \
         "$terminal_image" >>"$install_log" 2>&1; then
         fail_install 33 "IMAGEM DO TERMINAL NÃO ENCONTRADA" "O build terminou, mas a imagem do terminal não foi confirmada."
+    fi
+
+    echo -e "XXX\n46\nVALIDANDO COMPATIBILIDADE DO INSTALADOR... \nXXX"
+    if ! docker run --rm \
+        --entrypoint /usr/bin/ldd \
+        -v /root:/root:ro \
+        "$terminal_image" \
+        /root/SetupLowCodeMno/install >>"$install_log" 2>&1; then
+        {
+            echo "O terminal foi construído, mas sua GLIBC não é compatível com o instalador do Setup MNO."
+            echo
+            tail -n 16 "$install_log"
+        } >"$error_file"
+        echo -e "XXX\n100\nTERMINAL INCOMPATÍVEL COM O INSTALADOR\nXXX"
+        exit 34
     fi
 
     echo -e "XXX\n51\nCRIANDO SEGREDOS DO PAINEL... \nXXX"

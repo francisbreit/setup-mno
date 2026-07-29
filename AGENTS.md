@@ -133,6 +133,7 @@ O projeto utiliza Git para rastrear todas as alterações. Regras obrigatórias:
 - O agente interno permanece somente leitura e com endpoints permitidos explicitamente. É proibido adicionar ao agente uma API genérica de comandos Docker, shell remoto, criação, alteração ou exclusão de recursos.
 - O instalador original só pode ser exposto pelo terminal interno autenticado, sem porta publicada diretamente, sem labels do Traefik e sem rota própria no Cloudflare.
 - As imagens locais do Control Center devem ser construídas integralmente dentro do Whiptail. Na opção Portainer, valide que as imagens já são visíveis no endpoint e **nunca** use `docker save`, upload de tar ou envio pelo domínio Cloudflare, evitando falhas `413 Payload Too Large`.
+- A imagem do terminal deve usar uma distribuição cuja GLIBC seja igual ou superior à exigida pelos binários SHC atuais. Depois do build e antes de criar qualquer secret ou stack, execute obrigatoriamente `ldd /root/SetupLowCodeMno/install` dentro da imagem com `/root` montado como somente leitura. Qualquer símbolo `GLIBC_X.Y not found` é falha bloqueante e deve aparecer no Whiptail com o caminho do log.
 
 ### Releases
 - **Tag antes de cada release:** `git tag -a v4.21.0 -m "Descrição"`
