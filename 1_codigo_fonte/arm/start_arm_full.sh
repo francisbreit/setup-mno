@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="4.91.0"
+VERSIONSETUP="4.92.0"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -1458,6 +1458,13 @@ rm dify.sh
 rm dify.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm dify
+fi
+
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o setupmno_control -f setupmno_control.sh
+rm setupmno_control.sh
+rm setupmno_control.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm setupmno_control
 fi
 
 echo -e "XXX\n99\nINSTALANDO SETUPMNO 7/8 \nXXX"

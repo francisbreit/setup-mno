@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#070a0f">
+  <title>Setup MNO Control Center</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+
+  <main id="login-view" class="login-shell">
+    <section class="login-brand">
+      <div class="brand-mark large">M</div>
+      <p class="eyebrow">Setup MNO · Control Center</p>
+      <h1>Seu servidor,<br><span>sob controle.</span></h1>
+      <p class="login-copy">Deploys, saúde da infraestrutura e operações do Setup MNO em uma central segura e responsiva.</p>
+      <div class="login-features">
+        <span>Docker Swarm</span><span>Tempo real</span><span>Instalador seguro</span>
+      </div>
+    </section>
+    <section class="login-panel">
+      <form id="login-form" class="login-card" autocomplete="on">
+        <div class="login-card-head">
+          <div>
+            <p class="eyebrow">Acesso administrativo</p>
+            <h2>Bem-vindo de volta</h2>
+          </div>
+          <span class="secure-pill"><i></i> TLS</span>
+        </div>
+        <label>
+          <span>Usuário</span>
+          <input id="login-user" name="username" autocomplete="username" required maxlength="64" placeholder="seu usuário">
+        </label>
+        <label>
+          <span>Senha</span>
+          <div class="password-field">
+            <input id="login-password" name="password" type="password" autocomplete="current-password" required maxlength="256" placeholder="••••••••••••">
+            <button id="toggle-password" type="button" aria-label="Mostrar senha">Mostrar</button>
+          </div>
+        </label>
+        <p id="login-error" class="form-error" role="alert"></p>
+        <button class="primary-button wide" type="submit">
+          <span>Entrar no Control Center</span><b>→</b>
+        </button>
+        <p class="login-note">Sessão protegida, expiração automática e bloqueio contra tentativas repetidas.</p>
+      </form>
+    </section>
+  </main>
+
+  <div id="app-view" class="app-shell hidden">
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark">M</div>
+        <div><strong>Setup MNO</strong><small>Control Center</small></div>
+        <button id="sidebar-close" class="icon-button mobile-only" aria-label="Fechar menu">×</button>
+      </div>
+      <nav id="navigation" aria-label="Navegação principal">
+        <button class="nav-item active" data-view="dashboard"><span class="nav-icon">⌂</span><span>Visão geral</span></button>
+        <button class="nav-item" data-view="installed"><span class="nav-icon">◫</span><span>Aplicações instaladas</span><b id="nav-app-count">0</b></button>
+        <button class="nav-item" data-view="catalog"><span class="nav-icon">◇</span><span>Catálogo de setups</span></button>
+        <button class="nav-item" data-view="assistant"><span class="nav-icon">✦</span><span>Assistente MNO</span><em>Beta</em></button>
+        <button class="nav-item" data-view="audit"><span class="nav-icon">≡</span><span>Auditoria</span></button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="server-mini">
+          <span class="pulse"></span>
+          <div><strong id="mini-host">Servidor</strong><small id="mini-engine">Conectando...</small></div>
+        </div>
+        <button id="logout-button" class="logout-button"><span>↗</span> Encerrar sessão</button>
+      </div>
+    </aside>
+
+    <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+
+    <section class="workspace">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button id="sidebar-open" class="icon-button mobile-only" aria-label="Abrir menu">☰</button>
+          <div>
+            <p id="page-kicker" class="eyebrow">Infraestrutura em tempo real</p>
+            <h1 id="page-title">Visão geral</h1>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <span id="last-update" class="last-update">Atualizando...</span>
+          <button id="refresh-button" class="icon-button" aria-label="Atualizar dados">↻</button>
+          <button id="open-terminal-top" class="primary-button"><span class="desktop-only">Novo deploy</span><b>＋</b></button>
+          <div class="user-chip"><span id="user-initial">A</span><div><strong id="current-user">admin</strong><small>Administrador</small></div></div>
+        </div>
+      </header>
+
+      <div id="global-alert" class="global-alert hidden" role="alert"></div>
+
+      <div class="content">
+        <section id="view-dashboard" class="view active">
+          <article class="hero-card">
+            <div class="hero-content">
+              <p class="eyebrow light">Setup MNO <span id="app-version">—</span></p>
+              <h2>Bom trabalho, <span id="hero-user">admin</span>.</h2>
+              <p id="hero-status">Estamos verificando a saúde do seu ambiente.</p>
+              <div class="hero-actions">
+                <button class="light-button" data-action="terminal">Abrir instalador seguro <b>→</b></button>
+                <button class="ghost-button" data-action="assistant">Analisar com MNO Insights</button>
+              </div>
+            </div>
+            <div class="hero-orbit" aria-hidden="true">
+              <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+              <div class="orbit-core">M</div>
+              <span class="orbit-dot one"></span><span class="orbit-dot two"></span><span class="orbit-dot three"></span>
+            </div>
+          </article>
+
+          <div class="stats-grid">
+            <article class="stat-card">
+              <div class="stat-top"><span class="metric-icon cpu">⌁</span><span id="cpu-state" class="trend neutral">Aguardando</span></div>
+              <p>Processamento</p><strong id="cpu-value">—</strong><small id="cpu-detail">Carga —</small>
+              <div class="meter"><i id="cpu-meter"></i></div>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span class="metric-icon ram">▤</span><span id="ram-state" class="trend neutral">Aguardando</span></div>
+              <p>Memória RAM</p><strong id="ram-value">—</strong><small id="ram-detail">— de —</small>
+              <div class="meter"><i id="ram-meter"></i></div>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span class="metric-icon disk">◉</span><span id="disk-state" class="trend neutral">Aguardando</span></div>
+              <p>Armazenamento</p><strong id="disk-value">—</strong><small id="disk-detail">— de —</small>
+              <div class="meter"><i id="disk-meter"></i></div>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span class="metric-icon apps">◇</span><span id="services-state" class="trend good">Monitorado</span></div>
+              <p>Aplicações</p><strong id="apps-value">—</strong><small id="services-detail">— serviços no Swarm</small>
+              <div class="stack-dots" id="stack-dots"></div>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <article class="panel wide-panel">
+              <div class="panel-head">
+                <div><p class="eyebrow">Operação</p><h3>Saúde dos serviços</h3></div>
+                <button class="text-button" data-nav="installed">Ver todos <span>→</span></button>
+              </div>
+              <div id="health-summary" class="health-summary skeleton-block"></div>
+              <div id="recent-apps" class="recent-apps"></div>
+            </article>
+            <article class="panel quick-panel">
+              <div class="panel-head"><div><p class="eyebrow">Atalhos</p><h3>Ações rápidas</h3></div></div>
+              <div class="quick-actions">
+                <button data-action="terminal"><span class="quick-icon orange">＋</span><div><strong>Instalar setup</strong><small>Abra o menu completo</small></div><b>›</b></button>
+                <button data-nav="catalog"><span class="quick-icon violet">◇</span><div><strong>Explorar catálogo</strong><small>Encontre a solução ideal</small></div><b>›</b></button>
+                <button data-action="assistant"><span class="quick-icon cyan">✦</span><div><strong>Analisar servidor</strong><small>Recomendações locais</small></div><b>›</b></button>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="view-installed" class="view">
+          <div class="section-tools">
+            <div class="search-box"><span>⌕</span><input id="installed-search" placeholder="Buscar stack ou serviço..."></div>
+            <select id="installed-filter"><option value="">Todos os status</option><option value="online">Online</option><option value="degraded">Com atenção</option></select>
+            <button class="primary-button" data-action="terminal">Novo deploy <b>＋</b></button>
+          </div>
+          <div id="installed-summary" class="inline-summary"></div>
+          <div id="installed-grid" class="installed-grid"></div>
+        </section>
+
+        <section id="view-catalog" class="view">
+          <div class="catalog-intro">
+            <div><p class="eyebrow">Deploys disponíveis</p><h2>Escolha. Configure. Publique.</h2><p>O catálogo completo do Setup MNO, agora com descoberta inteligente e acesso ao instalador seguro.</p></div>
+            <div class="catalog-total"><strong id="catalog-total">—</strong><span>setups</span></div>
+          </div>
+          <div class="section-tools sticky-tools">
+            <div class="search-box grow"><span>⌕</span><input id="catalog-search" placeholder="Buscar por nome, categoria ou finalidade..."></div>
+            <select id="catalog-category"><option value="">Todas as categorias</option></select>
+            <select id="catalog-arch"><option value="">X86 e ARM</option><option value="x86-arm">Multi-arquitetura</option><option value="x86">Somente X86</option></select>
+          </div>
+          <p id="catalog-result" class="result-count"></p>
+          <div id="catalog-grid" class="catalog-grid"></div>
+        </section>
+
+        <section id="view-assistant" class="view">
+          <div class="assistant-layout">
+            <article class="assistant-main panel">
+              <div class="assistant-identity"><span>✦</span><div><p class="eyebrow">MNO Insights</p><h2>Copiloto de infraestrutura</h2></div><em>Local</em></div>
+              <div id="assistant-conversation" class="conversation">
+                <div class="message assistant-message">
+                  <span class="message-avatar">M</span>
+                  <div><strong>Olá! Eu analiso seu ambiente sem enviar dados para terceiros.</strong><p>Posso avaliar capacidade, serviços degradados e prontidão para novos deploys. Ações críticas continuam dependendo da sua confirmação.</p></div>
+                </div>
+              </div>
+              <div class="prompt-chips">
+                <button>Analise a saúde do servidor</button>
+                <button>Posso instalar uma aplicação de 2 GB?</button>
+                <button>Existem serviços com falha?</button>
+              </div>
+              <form id="assistant-form" class="assistant-form">
+                <textarea id="assistant-input" rows="2" maxlength="1200" placeholder="Pergunte sobre capacidade, saúde ou próximos deploys..."></textarea>
+                <button type="submit" class="primary-button" aria-label="Enviar">↑</button>
+              </form>
+            </article>
+            <aside class="assistant-side">
+              <article class="panel guardrail-card"><span class="guard-icon">◎</span><h3>IA com limites claros</h3><p>O modo local apenas interpreta métricas. Ele não remove stacks, altera configurações ou executa comandos.</p><ul><li>Dados permanecem no servidor</li><li>Sem acesso direto ao Docker</li><li>Confirmação humana obrigatória</li></ul></article>
+              <article class="panel"><p class="eyebrow">Próxima evolução</p><h3>Conectores de IA opcionais</h3><p class="muted">OpenAI, modelos locais e provedores compatíveis poderão ser adicionados com secrets, auditoria e aprovação por ação.</p></article>
+            </aside>
+          </div>
+        </section>
+
+        <section id="view-audit" class="view">
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">Segurança</p><h3>Eventos da sessão</h3></div><span class="secure-pill"><i></i> Protegido</span></div>
+            <div id="audit-list" class="audit-list"></div>
+          </article>
+        </section>
+      </div>
+    </section>
+  </div>
+
+  <dialog id="terminal-dialog" class="terminal-dialog">
+    <div class="terminal-head">
+      <div><span class="terminal-lights"><i></i><i></i><i></i></span><div><strong>Instalador Seguro</strong><small>Setup MNO · sessão administrativa</small></div></div>
+      <button id="terminal-close" class="icon-button" aria-label="Fechar terminal">×</button>
+    </div>
+    <div class="terminal-warning"><span>◎</span> Você está abrindo o instalador original. Todas as confirmações, Whiptails e regras de plano permanecem ativas.</div>
+    <iframe id="terminal-frame" title="Terminal seguro do Setup MNO" sandbox="allow-scripts allow-forms allow-same-origin"></iframe>
+  </dialog>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script src="/app.js" defer></script>
+</body>
+</html>

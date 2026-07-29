@@ -118,6 +118,22 @@ O projeto utiliza Git para rastrear todas as alterações. Regras obrigatórias:
 - Antes de empacotar, o gate obrigatório é: `grep -n "4\\." 1_codigo_fonte/ferramentas.html` e `grep -rn "VERSIONSETUP" 1_codigo_fonte/`; a versão e os quantitativos devem estar sincronizados.
 - Não execute o empacotamento enquanto qualquer referência estiver divergente.
 
+### Setup MNO Control Center (sincronização obrigatória)
+- O código-fonte canônico do painel web está em `1_codigo_fonte/setupmno-control/`. Os scripts distribuídos `x86/SetupLowCodeMno/setupmno_control.sh` e `arm/SetupLowCodeMno/setupmno_control.sh` são gerados mecanicamente e devem permanecer idênticos.
+- Sempre que um setup for inserido, removido, renomeado ou tiver categoria, arquitetura, RAM ou descrição alterada, atualize **também** `1_codigo_fonte/setupmno-control/catalog.json`. O catálogo HTML e o catálogo interno do Control Center devem representar os mesmos setups.
+- Depois de qualquer alteração no painel ou em seu catálogo, execute obrigatoriamente `./1_codigo_fonte/setupmno-control/generate-installers.sh`. Nunca edite manualmente somente um dos dois `setupmno_control.sh`.
+- Antes do empacotamento, valide:
+  ```bash
+  jq -e 'length > 0' 1_codigo_fonte/setupmno-control/catalog.json
+  cmp -s 1_codigo_fonte/x86/SetupLowCodeMno/setupmno_control.sh 1_codigo_fonte/arm/SetupLowCodeMno/setupmno_control.sh
+  bash -n 1_codigo_fonte/x86/SetupLowCodeMno/setupmno_control.sh
+  ```
+- A quantidade de objetos do `catalog.json`, a quantidade exibida por `ferramentas.html` e os menus PRO devem estar sincronizadas. Não empacote se houver divergência.
+- Arquitetura de segurança obrigatória: painel web, agente de métricas e terminal são stacks separadas; somente o agente e o terminal recebem o socket Docker. O painel web **nunca** monta `/var/run/docker.sock`.
+- O agente interno permanece somente leitura e com endpoints permitidos explicitamente. É proibido adicionar ao agente uma API genérica de comandos Docker, shell remoto, criação, alteração ou exclusão de recursos.
+- O instalador original só pode ser exposto pelo terminal interno autenticado, sem porta publicada diretamente, sem labels do Traefik e sem rota própria no Cloudflare.
+- As imagens locais do Control Center devem ser construídas integralmente dentro do Whiptail. Na opção Portainer, valide que as imagens já são visíveis no endpoint e **nunca** use `docker save`, upload de tar ou envio pelo domínio Cloudflare, evitando falhas `413 Payload Too Large`.
+
 ### Releases
 - **Tag antes de cada release:** `git tag -a v4.21.0 -m "Descrição"`
 - **Commit de release:** Mensagem no formato `release: vX.Y.Z - Descrição`
