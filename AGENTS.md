@@ -314,7 +314,8 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
     ```bash
     # VERIFICAR VARIÁVEIS
     if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ZONE_ID" ]; then
-        echo "AVISO: CREDENCIAIS DO CLOUDFLARE NÃO ENCONTRADAS"
+        echo "Credenciais do Cloudflare não encontradas." > "$error_file"
+        exit 1
     fi
     
     # FALLBACK PARA nome_servidor
@@ -322,29 +323,57 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
         nome_servidor=$(hostname -I | awk '{print $1}')
     fi
     
-    # CRIAR CNAME (TRADICIONAL)
-    CNAME_RESPONSE=$(curl -s -X POST \
+    # GARANTIR CNAME DE FORMA IDEMPOTENTE (TRADICIONAL)
+    DNS_LOOKUP=$(mktemp)
+    CNAME_RESPONSE=$(mktemp)
+    if ! curl -sS --get \
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+        --data-urlencode "name=$url_app" > "$DNS_LOOKUP" 2>> "$install_log"; then
+        echo "Falha ao consultar o DNS no Cloudflare." > "$error_file"
+        rm -f "$DNS_LOOKUP" "$CNAME_RESPONSE"
+        exit 1
+    fi
+    DNS_RECORD_ID=$(jq -r '.result[0].id // empty' "$DNS_LOOKUP")
+    DNS_RECORD_TYPE=$(jq -r '.result[0].type // empty' "$DNS_LOOKUP")
+    if [ -n "$DNS_RECORD_ID" ] && [ "$DNS_RECORD_TYPE" != "CNAME" ]; then
+        echo "Já existe um registro $DNS_RECORD_TYPE para $url_app." > "$error_file"
+        rm -f "$DNS_LOOKUP" "$CNAME_RESPONSE"
+        exit 1
+    fi
+    if [ -n "$DNS_RECORD_ID" ]; then
+        DNS_METHOD="PUT"
+        DNS_URL="https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${DNS_RECORD_ID}"
+    else
+        DNS_METHOD="POST"
+        DNS_URL="https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records"
+    fi
+    if ! curl -sS -X "$DNS_METHOD" "$DNS_URL" \
+        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
         -H "Content-Type: application/json" \
-        --data '{"type":"CNAME","name":"'"$url_app"'","content":"'"$nome_servidor"'.'"$DOMINIO_PRINCIPAL"'","ttl":1,"proxied":false}')
+        --data '{"type":"CNAME","name":"'"$url_app"'","content":"'"$nome_servidor"'.'"$DOMINIO_PRINCIPAL"'","ttl":1,"proxied":false}' \
+        > "$CNAME_RESPONSE" 2>> "$install_log"; then
+        echo "Falha de comunicação ao configurar o DNS no Cloudflare." > "$error_file"
+        rm -f "$DNS_LOOKUP" "$CNAME_RESPONSE"
+        exit 1
+    fi
     
     # VERIFICAR SUCESSO
-    if echo "$CNAME_RESPONSE" | grep -q '"success":true'; then
-        echo "REGISTRO CNAME CRIADO COM SUCESSO!"
+    if [ "$(jq -r '.success // false' "$CNAME_RESPONSE")" = "true" ]; then
+        echo "CNAME confirmado: $url_app" >> "$install_log"
     else
-        echo "ERRO AO CRIAR REGISTRO CNAME"
-        echo "$CNAME_RESPONSE" | jq -r '.errors[].message' 2>/dev/null
+        jq -r '.errors[].message' "$CNAME_RESPONSE" 2>/dev/null > "$error_file"
+        rm -f "$DNS_LOOKUP" "$CNAME_RESPONSE"
+        exit 1
     fi
+    rm -f "$DNS_LOOKUP" "$CNAME_RESPONSE"
     ```
 13. **Cloudflare Tunnel via API (OBRIGATÓRIO):** Para instalações CLOUDFLARE_TUNNEL, NÃO edite arquivos nem reinicie serviços. Use a API do Cloudflare:
     ```bash
-    # CRIAR CNAME PARA TUNNEL
-    CNAME_RESPONSE=$(curl -s -X POST \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json" \
-        --data '{"type":"CNAME","name":"'"$url_app"'","content":"'"$TUNNEL_ID"'.cfargotunnel.com","ttl":1,"proxied":true}')
+    # GARANTIR CNAME PARA TUNNEL
+    # Use obrigatoriamente a consulta + PUT/POST idempotente da regra 12.
+    # Conteúdo do CNAME: ${TUNNEL_ID}.cfargotunnel.com
+    # Proxied: true
     
     # OBTER CONFIGURAÇÃO ATUAL DO TUNNEL
     TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
@@ -569,8 +598,7 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
         STACK_NAME=$nome_app
         STACK_FILE_PATH="/root/$nome_app.yaml"
     else
-        echo "ARQUIVO dados_portainer NÃO ENCONTRADO - Usando docker deploy..."
-        docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
+        echo "Arquivo de credenciais do Portainer não encontrado." > "$error_file"
         exit 1
     fi
 
@@ -581,8 +609,8 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
             -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
         TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
         if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-            docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
-            exit 1
+            echo "Falha ao autenticar no Portainer." > "$error_file"
+            return 1
         fi
     }
 
@@ -592,8 +620,8 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
             -H "Authorization: Bearer $TOKEN")
         ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
         if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
-            docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
-            exit 1
+            echo "EndpointID não encontrado no Portainer." > "$error_file"
+            return 1
         fi
     }
 
@@ -603,16 +631,16 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
             -H "Authorization: Bearer $TOKEN")
         SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
         if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
-            docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
-            exit 1
+            echo "SwarmID não encontrado no Portainer." > "$error_file"
+            return 1
         fi
     }
 
     # Função para criar a stack
     create_stack() {
         if [ ! -f "$STACK_FILE_PATH" ]; then
-            docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
-            exit 1
+            echo "Arquivo YAML da stack não encontrado." > "$error_file"
+            return 1
         fi
         response_output=$(mktemp)
         erro_output=$(mktemp)
@@ -623,12 +651,16 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
             -F "SwarmID=$SWARM_ID" \
             -F "endpointId=$ENDPOINT_ID" \
             "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
-        response=$(cat "$response_output")
-        rm -f "$response_output" "$erro_output"
-        if [ "$http_code" -ne 200 ]; then
-            docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
-            exit 1
+        if ! [[ "$http_code" =~ ^[0-9]{3}$ ]] ||
+           [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            {
+                echo "Portainer recusou a stack. HTTP ${http_code:-indisponível}."
+                head -c 2000 "$response_output"
+            } > "$error_file"
+            rm -f "$response_output" "$erro_output"
+            return 1
         fi
+        rm -f "$response_output" "$erro_output"
     }
 
     # Fluxo de execução principal
@@ -639,6 +671,60 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
     ```
 
     **ATENÇÃO:** O caminho do arquivo de credenciais é `$HOME/dados_portainer/dados_portainer` (NÃO `/root/dados_vps/dados_portainer`).
+
+    **SEM FALLBACK SILENCIOSO:** Se o usuário escolheu `0 = Portainer`, qualquer falha de credencial, autenticação, endpoint, Swarm ou criação da stack DEVE encerrar o fluxo do gauge e ser exibida no Whiptail. NUNCA substitua automaticamente por `docker stack deploy`. O deploy direto só é permitido quando o usuário escolheu explicitamente `1 = Docker`.
+
+15.5. **Imagens locais, APIs e logs compactos (⚠️ GATE DE RELEASE):** Aplicações cuja imagem é construída pelo próprio instalador exigem um fluxo específico para evitar limites de proxy, duplicação de dados e telas de erro inutilizáveis.
+
+    **IMAGEM CONSTRUÍDA LOCALMENTE + PORTAINER:**
+    - Se `docker build` criou a imagem no mesmo Docker/Swarm gerenciado pelo Portainer, a imagem **já está disponível no endpoint**. NUNCA execute `docker save` seguido de upload para `/api/endpoints/.../docker/images/load`.
+    - É proibido enviar arquivos `.tar`, imagens Docker ou outros payloads grandes pelo domínio público/proxy do Portainer. Cloudflare, Traefik ou Nginx podem rejeitar o corpo com `413 Payload Too Large`.
+    - Antes de criar a stack, confirme a imagem com `GET /api/endpoints/$ENDPOINT_ID/docker/images/$IMAGEM:$TAG/json`. A resposta deve ser HTTP 2xx e conter `.Id`.
+    - Se o endpoint do Portainer não enxergar a imagem local, interrompa a instalação dentro do Whiptail. Não tente contornar o problema com upload pelo domínio público.
+    - Em Swarm com múltiplos nós, imagem apenas local só pode ser usada quando o serviço está restrito ao nó que a contém. Para agendamento em outros nós, publique previamente em um registry autorizado e use a referência do registry.
+    - O YAML da stack pode continuar sendo enviado pela API do Portainer, pois é pequeno. Aceite qualquer resposta HTTP 2xx, não apenas `200`.
+
+    **PADRÃO DE VALIDAÇÃO DA IMAGEM LOCAL:**
+    ```bash
+    portainer_image_response=$(mktemp)
+    image_http_code=$(curl -sk -o "$portainer_image_response" -w "%{http_code}" \
+        -H "Authorization: Bearer $TOKEN" \
+        "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/images/${nome_app}:${image_tag}/json" \
+        2>>"$install_log")
+
+    if ! [[ "$image_http_code" =~ ^[0-9]{3}$ ]] ||
+       [ "$image_http_code" -lt 200 ] || [ "$image_http_code" -ge 300 ] ||
+       [ -z "$(jq -r '.Id // empty' "$portainer_image_response" 2>/dev/null)" ]; then
+        echo "A imagem local não está visível no endpoint do Portainer." > "$error_file"
+        rm -f "$portainer_image_response"
+        exit 1
+    fi
+
+    image_id=$(jq -r '.Id' "$portainer_image_response")
+    echo "Imagem confirmada no Portainer: $image_id" >> "$install_log"
+    rm -f "$portainer_image_response"
+    ```
+
+    **DNS IDEMPOTENTE:**
+    - NUNCA faça `POST` cego de CNAME. Consulte primeiro `dns_records?name=$url_app`.
+    - Se não existir registro, use `POST`. Se já existir um CNAME, use `PUT` no `record_id` e substitua destino/proxy. Isso permite reinstalação com o mesmo domínio.
+    - Se o hostname estiver ocupado por `A`, `AAAA` ou outro tipo incompatível, não delete automaticamente. Interrompa e explique o conflito no Whiptail.
+    - Verifique sempre `.success == true`. HTTP concluído não significa operação aceita pela API.
+    - A rota do Tunnel deve continuar substituindo o hostname existente e preservar exatamente um fallback `{service:"http_status:404"}` no final.
+
+    **LOGS E RESPOSTAS DE API:**
+    - NUNCA grave o JSON completo de `docker image inspect`, da configuração do Cloudflare Tunnel ou da lista de endpoints no log principal.
+    - Para Docker, use `docker image inspect --format` e registre apenas ID, arquitetura e tamanho.
+    - Respostas JSON potencialmente grandes devem ir para arquivos temporários de `mktemp`; valide com `jq`, registre somente um resumo e apague os temporários ao concluir.
+    - Em falhas, mostre a mensagem de `.errors[]?.message` ou limite o corpo bruto com `head -c 2000`. Nunca envie configurações inteiras para o `whiptail --msgbox`.
+    - Não escreva tokens, senhas, secrets, JWTs ou cabeçalhos `Authorization` nos logs.
+
+    **PROGRESSO DO WHIPTAIL:**
+    - Percentuais do protocolo `XXX` devem ser estritamente crescentes durante o caminho de sucesso. É proibido regredir, por exemplo, de 85% para 82%.
+    - A mensagem de 100% só pode ser emitida depois que imagem, DNS, rota, stack e validações finais tiverem sucesso.
+    - Mensagens de erro podem usar 100% apenas para encerrar o gauge antes de abrir o diálogo detalhado.
+
+    **Validação obrigatória:** antes de empacotar, execute `rg -n 'docker save|images/load|Payload Too Large'` no novo script. Para imagens construídas localmente, qualquer ocorrência operacional de `docker save` ou `images/load` bloqueia a release.
 16. **Checklist Final (antes de commitar):**
     - [ ] Script criado em x86 E ARM
     - [ ] Menu adicionado ao install.sh (x86 E ARM)
@@ -663,6 +749,13 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
     - [ ] **LOG DE ERROS:** `stdout`/`stderr` técnicos direcionados para log único em `/tmp`, sem secrets, com falhas exibidas em `whiptail --scrolltext --msgbox`
     - [ ] **STATUS REAL DO GAUGE:** `${PIPESTATUS[0]}` capturado imediatamente após o pipeline e validado antes da tela de sucesso
     - [ ] Nenhum comando verboso/demorado executado depois do fechamento do gauge
+    - [ ] **SEM UPLOAD DE IMAGEM LOCAL:** Imagem construída no Docker local validada pelo endpoint do Portainer; nenhum `docker save` ou `/images/load`
+    - [ ] **SEM 413:** Nenhum payload grande enviado por domínio público/proxy do Portainer
+    - [ ] **DNS IDEMPOTENTE:** Consulta por hostname antes de `POST`; CNAME existente atualizado com `PUT`; conflito de tipo tratado no Whiptail
+    - [ ] **LOGS COMPACTOS:** Nenhum JSON integral de `docker inspect`, Cloudflare Tunnel ou Portainer enviado ao log/Whiptail
+    - [ ] **SEM FALLBACK SILENCIOSO:** Escolha Portainer permanece Portainer; falha não muda automaticamente para Docker
+    - [ ] **GAUGE MONOTÔNICO:** Percentuais `XXX` crescentes e 100% de sucesso somente após todas as validações
+    - [ ] Arquivos temporários de respostas API removidos nos caminhos de sucesso e erro
     - [ ] Versão incrementada no install.sh (x86 E ARM)
     - [ ] Empacotamento executado com sucesso
 
