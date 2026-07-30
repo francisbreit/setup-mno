@@ -91,7 +91,7 @@ internos de um único Assistente, selecionados por roteamento controlado.
 
 ## Etapa 1 — Fábrica de Conhecimento Canônico
 
-**Status:** concluída tecnicamente em 2026-07-30; aguardando aprovação editorial
+**Status:** concluída e aprovada em 2026-07-30
 **Impacto:** alto
 **Tipo:** conhecimento, manutenção e confiabilidade
 **Esforço:** estrutural
@@ -191,6 +191,7 @@ válidos para cada setup, versão e arquitetura.
 - adulteração de conteúdo e padrão de chave bloqueados;
 - documentos `deprecated` e versões incompatíveis excluídos da recuperação;
 - 100% dos documentos aprovados pelo linter.
+- aprovação editorial do mantenedor registrada em 2026-07-30.
 
 ---
 
@@ -699,16 +700,18 @@ Proposta, sujeita à homologação:
 
 ## Próxima ação
 
-Revisar e aprovar editorialmente a **Etapa 1**, em especial:
+Iniciar, mediante solicitação explícita, a
+**Etapa 2 — Pacote de Conhecimento Versionado**, produzindo:
 
-- contrato de metadados e taxonomia;
-- seleção dos primeiros 20 setups;
-- profundidade e linguagem dos documentos;
-- distinção entre `reviewed` e `homologated`;
-- política de fontes, licenças e SHA-256.
+- gerador do pacote;
+- manifesto com versão, contagem e SHA-256;
+- índice textual pré-construído;
+- artefatos idênticos para x86 e ARM;
+- validação bloqueante no gerador de instaladores;
+- integração somente leitura e fallback seguro.
 
-A **Etapa 2 — Pacote de Conhecimento Versionado** permanece bloqueada até a
-aprovação explícita desta base pelo mantenedor.
+A aprovação da Etapa 1 removeu o bloqueio editorial. Esta atualização não
+inicia automaticamente a implementação da Etapa 2.
 
 ## Referências oficiais
 
