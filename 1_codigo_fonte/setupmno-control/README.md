@@ -15,6 +15,12 @@ comandos. O único componente com acesso ao
 instalador original é o terminal, protegido pela autenticação e pela sessão do
 painel.
 
+Web e Assistente executam como usuário não-root e sem capabilities Linux. O
+agente também remove todas as capabilities e monta somente o diretório runtime
+`.control` do Setup, além de `/proc` e do socket Docker necessários às métricas.
+Agente e terminal possuem healthchecks internos para permitir a recuperação
+automática de tarefas não saudáveis pelo Swarm.
+
 ## Assistente MNO
 
 O diagnóstico básico permanece disponível sem LLM e sem stack adicional. Em

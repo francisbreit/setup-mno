@@ -38,6 +38,31 @@ unhandled_collectors=$(grep -E '^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*=\$\(ask_' "$
     exit 1
 }
 
+grep -Fq -- '- /root/SetupLowCodeMno/.control:/runtime-control:ro' "$template" || {
+    printf 'ERRO: o agente precisa montar somente o estado runtime do Control Center.\n' >&2
+    exit 1
+}
+if grep -Fq -- '- /root:/hostfs' "$template"; then
+    printf 'ERRO: o agente não pode montar o diretório /root inteiro.\n' >&2
+    exit 1
+fi
+grep -Fq 'HEALTHCHECK_URL=http://127.0.0.1:9090/health' "$template" || {
+    printf 'ERRO: healthcheck interno do agente não configurado.\n' >&2
+    exit 1
+}
+grep -Fq 'http://127.0.0.1:7681/terminal/' "$template" || {
+    printf 'ERRO: healthcheck interno do terminal não configurado.\n' >&2
+    exit 1
+}
+[ "$(grep -Fc 'user: "65532:65532"' "$template")" -eq 2 ] || {
+    printf 'ERRO: web e Assistente precisam executar como usuário não-root.\n' >&2
+    exit 1
+}
+[ "$(grep -c '^[[:space:]]*cap_drop:' "$template")" -eq 3 ] || {
+    printf 'ERRO: hardening cap_drop divergente entre agente, Assistente e web.\n' >&2
+    exit 1
+}
+
 bundle="$temporary_dir/setupmno-control.tar.gz"
 (
     cd "$project_dir"

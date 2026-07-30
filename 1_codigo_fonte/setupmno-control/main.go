@@ -38,7 +38,8 @@ const (
 	maxBodyBytes         = 32 << 10
 	maxCatalogBytes      = 4 << 20
 	runtimeSchema        = 1
-	defaultSetupStateDir = "/hostfs/SetupLowCodeMno/.control"
+	defaultSetupStateDir = "/runtime-control"
+	defaultHostDiskPath  = "/runtime-control"
 )
 
 //go:embed web/* catalog.json
@@ -1839,18 +1840,9 @@ func collectHostMetrics() (hostMetrics, error) {
 		memPercent = float64(memUsed) / float64(memTotal) * 100
 	}
 
-	var stat syscall.Statfs_t
-	diskTotal := uint64(0)
-	diskUsed := uint64(0)
-	diskPercent := 0.0
-	if err := syscall.Statfs("/hostfs", &stat); err == nil {
-		diskTotal = stat.Blocks * uint64(stat.Bsize)
-		diskFree := stat.Bavail * uint64(stat.Bsize)
-		if diskTotal > diskFree {
-			diskUsed = diskTotal - diskFree
-			diskPercent = float64(diskUsed) / float64(diskTotal) * 100
-		}
-	}
+	diskTotal, diskUsed, diskPercent := readDiskUsage(
+		envDefault("HOST_DISK_PATH", defaultHostDiskPath),
+	)
 
 	load1, load5, load15 := readLoad()
 	uptime := readUptime()
@@ -1867,6 +1859,20 @@ func collectHostMetrics() (hostMetrics, error) {
 		Load15:        load15,
 		UptimeSeconds: uptime,
 	}, nil
+}
+
+func readDiskUsage(path string) (uint64, uint64, float64) {
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(path, &stat); err != nil {
+		return 0, 0, 0
+	}
+	total := stat.Blocks * uint64(stat.Bsize)
+	free := stat.Bavail * uint64(stat.Bsize)
+	if total <= free {
+		return total, 0, 0
+	}
+	used := total - free
+	return total, used, float64(used) / float64(total) * 100
 }
 
 func readCPU() (uint64, uint64, error) {

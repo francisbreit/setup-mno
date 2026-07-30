@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="1.1.3"
+CONTROL_VERSION="1.1.4"
 
 extract_control_bundle() {
     base64 -d <<'SETUPMNO_CONTROL_ARCHIVE'
@@ -442,6 +442,16 @@ services:
       - /usr/bin/bash:/usr/bin/bash:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -fsS
+        - http://127.0.0.1:7681/terminal/
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     deploy:
       mode: replicated
       replicas: 1
@@ -466,18 +476,31 @@ services:
     image: $control_image
     hostname: $agent_service
     read_only: true
+    cap_drop:
+      - ALL
     environment:
       - MODE=agent
+      - HEALTHCHECK_URL=http://127.0.0.1:9090/health
       - AGENT_TOKEN_FILE=/run/secrets/$agent_secret
-      - SETUP_STATE_DIR=/hostfs/SetupLowCodeMno/.control
+      - SETUP_STATE_DIR=/runtime-control
+      - HOST_DISK_PATH=/runtime-control
     networks:
       - interna
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc:/host/proc:ro
-      - /root:/hostfs:ro
+      - /root/SetupLowCodeMno/.control:/runtime-control:ro
     secrets:
       - $agent_secret
+    healthcheck:
+      test:
+        - CMD
+        - /setupmno-control
+        - healthcheck
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     deploy:
       mode: replicated
       replicas: 1
@@ -506,7 +529,10 @@ services:
   $assistant_service:
     image: $control_image
     hostname: $assistant_service
+    user: "65532:65532"
     read_only: true
+    cap_drop:
+      - ALL
     environment:
       - MODE=assistant
       - HEALTHCHECK_URL=http://127.0.0.1:7070/health
@@ -576,7 +602,10 @@ services:
   $web_service:
     image: $control_image
     hostname: $web_service
+    user: "65532:65532"
     read_only: true
+    cap_drop:
+      - ALL
     environment:
       - MODE=web
       - APP_VERSION=$CONTROL_VERSION

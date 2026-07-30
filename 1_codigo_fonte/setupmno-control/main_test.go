@@ -74,6 +74,19 @@ func TestReadRuntimeSnapshotRejectsCatalogMismatch(t *testing.T) {
 	}
 }
 
+func TestReadDiskUsageFromRestrictedRuntimeMount(t *testing.T) {
+	total, used, percent := readDiskUsage(t.TempDir())
+	if total == 0 {
+		t.Fatal("filesystem do diretório runtime não foi medido")
+	}
+	if used > total {
+		t.Fatalf("uso de disco inválido: usado=%d total=%d", used, total)
+	}
+	if percent < 0 || percent > 100 {
+		t.Fatalf("percentual de disco fora do intervalo: %.2f", percent)
+	}
+}
+
 func TestValidateAssistantRequestSanitizesHistory(t *testing.T) {
 	input := assistantRequest{
 		Question: "  Analise meu servidor  ",
