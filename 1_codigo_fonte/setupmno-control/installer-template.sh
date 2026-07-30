@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="1.0.4"
+CONTROL_VERSION="1.1.0"
 
 extract_control_bundle() {
     base64 -d <<'SETUPMNO_CONTROL_ARCHIVE'
@@ -41,11 +41,42 @@ ask_required() {
     done
 }
 
+ask_with_default() {
+    local prompt="$1" default_value="$2" value status
+    while true; do
+        value=$(whiptail --title "SETUP MNO CONTROL CENTER" --inputbox \
+            "$prompt" 13 82 "$default_value" 3>&1 1>&2 2>&3)
+        status=$?
+        [ "$status" -ne 0 ] && exit 0
+        [ -n "$value" ] && {
+            printf '%s' "$value"
+            return
+        }
+        msg "Este campo é obrigatório."
+    done
+}
+
+ask_openai_key() {
+    local value status
+    while true; do
+        value=$(whiptail --title "SETUP MNO CONTROL CENTER" --passwordbox \
+            "Informe a chave da API OpenAI.\n\nEla será armazenada exclusivamente como Docker Secret e nunca será exibida em logs." \
+            14 82 3>&1 1>&2 2>&3)
+        status=$?
+        [ "$status" -ne 0 ] && exit 0
+        if [ "${#value}" -ge 20 ] && [[ "$value" != *[[:space:]]* ]]; then
+            printf '%s' "$value"
+            return
+        fi
+        msg "A chave informada é inválida. Verifique e tente novamente."
+    done
+}
+
 ask_password() {
     local value confirmation status
     while true; do
         value=$(whiptail --title "SETUP MNO CONTROL CENTER" --passwordbox \
-            "3/4 — Crie a senha administrativa:\n\nMínimo de 12 caracteres, com maiúscula, minúscula, número e símbolo." \
+            "3/5 — Crie a senha administrativa:\n\nMínimo de 12 caracteres, com maiúscula, minúscula, número e símbolo." \
             14 78 3>&1 1>&2 2>&3)
         status=$?
         [ "$status" -ne 0 ] && exit 0
@@ -74,7 +105,7 @@ whiptail --title "SETUP MNO CONTROL CENTER" --yesno \
     16 82 || exit 0
 
 while true; do
-    url_control=$(ask_required "1/4 — Domínio do painel (ex.: setup.seudominio.com):")
+    url_control=$(ask_required "1/5 — Domínio do painel (ex.: setup.seudominio.com):")
     if [[ "$url_control" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] &&
        [[ "$url_control" == *.* ]]; then
         break
@@ -102,7 +133,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
 fi
 
 while true; do
-    usuario_control=$(ask_required "2/4 — Usuário administrador do painel:")
+    usuario_control=$(ask_required "2/5 — Usuário administrador do painel:")
     if [[ "$usuario_control" =~ ^[A-Za-z0-9_.-]{3,40}$ ]]; then
         break
     fi
@@ -111,8 +142,64 @@ done
 
 senha_control=$(ask_password)
 
+mem_total_mb=$(awk '/MemTotal:/ {print int($2/1024)}' /proc/meminfo)
+mem_available_mb=$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo)
+assistant_mode="basic"
+assistant_model=""
+assistant_base_url=""
+openai_api_key=""
+
+if [ "${mem_total_mb:-0}" -lt 4096 ] || [ "${mem_available_mb:-0}" -lt 1536 ]; then
+    msg "O Control Center será instalado com o diagnóstico básico.\n\nMemória total: ${mem_total_mb:-0} MB\nMemória disponível: ${mem_available_mb:-0} MB\n\nO Copiloto com LLM é opcional e foi desativado para proteger este servidor. Você poderá configurá-lo futuramente após ampliar os recursos."
+else
+    while true; do
+        assistant_choice=$(whiptail --title "4/5 — ASSISTENTE MNO" --menu \
+            "Escolha como o Copiloto de Infraestrutura funcionará.\n\nO modo básico não consome API nem memória adicional. OpenAI e Ollama criam uma stack isolada de 256 MB, sem acesso ao Docker ou terminal." \
+            20 88 5 \
+            "BASIC" "Diagnóstico local básico (recomendado para começar)" \
+            "OPENAI" "LLM externa pela API OpenAI" \
+            "OLLAMA" "Modelo existente em um endpoint Ollama" \
+            "LATER" "Configurar o conector de IA futuramente" \
+            3>&1 1>&2 2>&3)
+        assistant_status=$?
+        [ "$assistant_status" -ne 0 ] && exit 0
+        case "$assistant_choice" in
+            BASIC|LATER)
+                assistant_mode="basic"
+                break
+                ;;
+            OPENAI)
+                openai_api_key=$(ask_openai_key)
+                assistant_model=$(ask_with_default \
+                    "Modelo OpenAI para o Copiloto:\n\nO padrão equilibra qualidade, latência e custo. Você pode informar outro modelo compatível com a Responses API." \
+                    "gpt-5.6-terra")
+                assistant_mode="openai"
+                assistant_base_url="https://api.openai.com/v1"
+                break
+                ;;
+            OLLAMA)
+                if [ "${mem_total_mb:-0}" -lt 8192 ] || [ "${mem_available_mb:-0}" -lt 4096 ]; then
+                    msg "O modo Ollama local exige pelo menos 8 GB de RAM total e 4 GB disponíveis.\n\nUse OpenAI, mantenha o diagnóstico básico ou amplie o servidor. Esta proteção evita degradação dos setups já instalados."
+                    continue
+                fi
+                assistant_base_url=$(ask_required \
+                    "Endpoint do Ollama já instalado (ex.: https://apiollama.seudominio.com):")
+                assistant_base_url="${assistant_base_url%/}"
+                if [[ ! "$assistant_base_url" =~ ^https?://[^[:space:]]+$ ]]; then
+                    msg "Informe uma URL HTTP ou HTTPS válida para o endpoint Ollama."
+                    continue
+                fi
+                assistant_model=$(ask_required \
+                    "Nome exato do modelo já baixado no Ollama (ex.: qwen3:8b):")
+                assistant_mode="ollama"
+                break
+                ;;
+        esac
+    done
+fi
+
 while true; do
-    criar_portainer=$(ask_required "4/4 — Criar Stack no Portainer?\n\n0 = editável no Portainer\n1 = direto no Docker")
+    criar_portainer=$(ask_required "5/5 — Criar Stack no Portainer?\n\n0 = editável no Portainer\n1 = direto no Docker")
     [[ "$criar_portainer" =~ ^[01]$ ]] && break
     msg "Digite somente 0 ou 1."
 done
@@ -123,13 +210,29 @@ nome_app="${nome_principal}${sufixo_app}"
 web_stack="${nome_app}-web"
 agent_stack="${nome_app}-agent"
 terminal_stack="${nome_app}-terminal"
+assistant_stack="${nome_app}-assistant"
 web_service="${nome_app}-web"
 agent_service="${nome_app}-agent"
 terminal_service="${nome_app}-terminal"
+assistant_service="${nome_app}-assistant"
 control_image="${nome_app}-app:${CONTROL_VERSION}"
 terminal_image="${nome_app}-terminal:${CONTROL_VERSION}"
 admin_secret="${nome_app}-admin-password"
 agent_secret="${nome_app}-agent-token"
+openai_secret="${nome_app}-openai-api-key"
+
+assistant_label="Diagnóstico básico (sem LLM)"
+memory_limit="576 MB"
+assistant_internal_url=""
+if [ "$assistant_mode" = "openai" ]; then
+    assistant_label="OpenAI · $assistant_model"
+    memory_limit="832 MB"
+    assistant_internal_url="http://${assistant_stack}_${assistant_service}:7070"
+elif [ "$assistant_mode" = "ollama" ]; then
+    assistant_label="Ollama · $assistant_model"
+    memory_limit="832 MB + consumo do modelo Ollama"
+    assistant_internal_url="http://${assistant_stack}_${assistant_service}:7070"
+fi
 
 dns_mode="Cloudflare Tunnel"
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
@@ -141,8 +244,8 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
 fi
 
 whiptail --title "CONFIRMAR INSTALAÇÃO" --yesno \
-    "Setup MNO Control Center\n\nDomínio: $url_control\nAdministrador: $usuario_control\nInstalação: $dns_mode\nDeploy: $([ "$criar_portainer" = "0" ] && echo "Portainer editável" || echo "Docker direto")\nArquiteturas: X86 e ARM\nLimite total de memória: 576 MB\n\nO terminal executará o instalador original e será acessível somente após autenticação." \
-    21 84 || exit 0
+    "Setup MNO Control Center\n\nDomínio: $url_control\nAdministrador: $usuario_control\nAssistente: $assistant_label\nInstalação: $dns_mode\nDeploy: $([ "$criar_portainer" = "0" ] && echo "Portainer editável" || echo "Docker direto")\nArquiteturas: X86 e ARM\nLimite de memória do Control: $memory_limit\n\nO terminal executará o instalador original e será acessível somente após autenticação." \
+    23 88 || exit 0
 
 install_log="/tmp/${nome_app}-install.log"
 error_file="/tmp/${nome_app}-error.log"
@@ -268,6 +371,13 @@ error_file="/tmp/${nome_app}-error.log"
         docker secret create "$agent_secret" - >>"$install_log" 2>&1; then
         fail_install 41 "ERRO AO CRIAR TOKEN" "Não foi possível criar o token privado do agente."
     fi
+    if [ "$assistant_mode" = "openai" ]; then
+        if ! printf '%s' "$openai_api_key" |
+            docker secret create "$openai_secret" - >>"$install_log" 2>&1; then
+            fail_install 42 "ERRO AO PROTEGER CHAVE OPENAI" "Não foi possível armazenar a chave da OpenAI como Docker Secret."
+        fi
+    fi
+    unset openai_api_key
 
     echo -e "XXX\n58\nGERANDO STACKS ISOLADAS... \nXXX"
     cd
@@ -353,6 +463,77 @@ secrets:
     external: true
 EOL
 
+    if [ "$assistant_mode" != "basic" ]; then
+        cat >"${assistant_stack}.yaml" <<EOL
+
+version: "3.7"
+services:
+  $assistant_service:
+    image: $control_image
+    hostname: $assistant_service
+    read_only: true
+    environment:
+      - MODE=assistant
+      - HEALTHCHECK_URL=http://127.0.0.1:7070/health
+      - ASSISTANT_PROVIDER=$assistant_mode
+      - ASSISTANT_MODEL=$assistant_model
+      - ASSISTANT_BASE_URL=$assistant_base_url
+      - AGENT_TOKEN_FILE=/run/secrets/$agent_secret
+      - AGENT_URL=http://${agent_stack}_${agent_service}:9090
+EOL
+        if [ "$assistant_mode" = "openai" ]; then
+            cat >>"${assistant_stack}.yaml" <<EOL
+      - OPENAI_API_KEY_FILE=/run/secrets/$openai_secret
+EOL
+        fi
+        cat >>"${assistant_stack}.yaml" <<EOL
+    networks:
+      - interna
+    secrets:
+      - $agent_secret
+EOL
+        if [ "$assistant_mode" = "openai" ]; then
+            cat >>"${assistant_stack}.yaml" <<EOL
+      - $openai_secret
+EOL
+        fi
+        cat >>"${assistant_stack}.yaml" <<EOL
+    healthcheck:
+      test:
+        - CMD
+        - /setupmno-control
+        - healthcheck
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+        - node.role == manager
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+
+networks:
+  interna:
+    external: true
+
+secrets:
+  $agent_secret:
+    external: true
+EOL
+        if [ "$assistant_mode" = "openai" ]; then
+            cat >>"${assistant_stack}.yaml" <<EOL
+  $openai_secret:
+    external: true
+EOL
+        fi
+    fi
+
     cat >"${web_stack}.yaml" <<EOL
 
 version: "3.7"
@@ -369,6 +550,9 @@ services:
       - AGENT_TOKEN_FILE=/run/secrets/$agent_secret
       - AGENT_URL=http://${agent_stack}_${agent_service}:9090
       - TERMINAL_URL=http://${terminal_stack}_${terminal_service}:7681
+      - ASSISTANT_MODE=$assistant_mode
+      - ASSISTANT_MODEL=$assistant_model
+      - ASSISTANT_URL=$assistant_internal_url
       - COOKIE_SECURE=true
     networks:
       - externa
@@ -427,7 +611,12 @@ secrets:
     external: true
 EOL
 
-    for stack_file in "${terminal_stack}.yaml" "${agent_stack}.yaml" "${web_stack}.yaml"; do
+    stack_files=("${terminal_stack}.yaml" "${agent_stack}.yaml")
+    if [ "$assistant_mode" != "basic" ]; then
+        stack_files+=("${assistant_stack}.yaml")
+    fi
+    stack_files+=("${web_stack}.yaml")
+    for stack_file in "${stack_files[@]}"; do
         if ! docker stack config -c "/root/$stack_file" >"$work_dir/validated-$stack_file" 2>>"$install_log"; then
             {
                 echo "O YAML '$stack_file' é inválido."
@@ -520,7 +709,11 @@ EOL
         echo "Rota confirmada: $url_control -> http://${web_stack}_${web_service}:8080" >>"$install_log"
     fi
 
-    echo -e "XXX\n80\nPREPARANDO DEPLOY DAS TRÊS STACKS... \nXXX"
+    if [ "$assistant_mode" = "basic" ]; then
+        echo -e "XXX\n80\nPREPARANDO DEPLOY DAS TRÊS STACKS... \nXXX"
+    else
+        echo -e "XXX\n80\nPREPARANDO DEPLOY DAS QUATRO STACKS... \nXXX"
+    fi
     if [ "$criar_portainer" = "0" ]; then
         dados_file="$HOME/dados_portainer/dados_portainer"
         [ -f "$dados_file" ] ||
@@ -601,9 +794,14 @@ EOL
         echo -e "XXX\n90\nCRIANDO AGENTE NO PORTAINER... \nXXX"
         create_portainer_stack "$agent_stack" "${agent_stack}.yaml" ||
             fail_install 90 "ERRO NA STACK DO AGENTE" "$(cat "$error_file")"
+        if [ "$assistant_mode" != "basic" ]; then
+            echo -e "XXX\n92\nCRIANDO ASSISTENTE NO PORTAINER... \nXXX"
+            create_portainer_stack "$assistant_stack" "${assistant_stack}.yaml" ||
+                fail_install 91 "ERRO NA STACK DO ASSISTENTE" "$(cat "$error_file")"
+        fi
         echo -e "XXX\n93\nCRIANDO PAINEL NO PORTAINER... \nXXX"
         create_portainer_stack "$web_stack" "${web_stack}.yaml" ||
-            fail_install 91 "ERRO NA STACK DO PAINEL" "$(cat "$error_file")"
+            fail_install 92 "ERRO NA STACK DO PAINEL" "$(cat "$error_file")"
     else
         echo -e "XXX\n87\nCRIANDO TERMINAL NO DOCKER... \nXXX"
         docker stack deploy --prune --resolve-image never \
@@ -613,18 +811,27 @@ EOL
         docker stack deploy --prune --resolve-image never \
             -c "/root/${agent_stack}.yaml" "$agent_stack" >>"$install_log" 2>&1 ||
             fail_install 93 "ERRO NA STACK DO AGENTE" "Falha ao publicar a stack do agente no Docker."
+        if [ "$assistant_mode" != "basic" ]; then
+            echo -e "XXX\n92\nCRIANDO ASSISTENTE NO DOCKER... \nXXX"
+            docker stack deploy --prune --resolve-image never \
+                -c "/root/${assistant_stack}.yaml" "$assistant_stack" >>"$install_log" 2>&1 ||
+                fail_install 94 "ERRO NA STACK DO ASSISTENTE" "Falha ao publicar a stack do assistente no Docker."
+        fi
         echo -e "XXX\n93\nCRIANDO PAINEL NO DOCKER... \nXXX"
         docker stack deploy --prune --resolve-image never \
             -c "/root/${web_stack}.yaml" "$web_stack" >>"$install_log" 2>&1 ||
-            fail_install 94 "ERRO NA STACK DO PAINEL" "Falha ao publicar a stack do painel no Docker."
+            fail_install 95 "ERRO NA STACK DO PAINEL" "Falha ao publicar a stack do painel no Docker."
     fi
 
     echo -e "XXX\n96\nAGUARDANDO OS SERVIÇOS... \nXXX"
     expected_services=(
         "${terminal_stack}_${terminal_service}"
         "${agent_stack}_${agent_service}"
-        "${web_stack}_${web_service}"
     )
+    if [ "$assistant_mode" != "basic" ]; then
+        expected_services+=("${assistant_stack}_${assistant_service}")
+    fi
+    expected_services+=("${web_stack}_${web_service}")
     for service_name in "${expected_services[@]}"; do
         ready="false"
         for _ in $(seq 1 30); do
@@ -644,7 +851,7 @@ EOL
                     --format 'Estado: {{.CurrentState}} | Erro: {{.Error}}' 2>/dev/null | head -n 8
             } >"$error_file"
             echo -e "XXX\n100\nSERVIÇO NÃO FICOU PRONTO\nXXX"
-            exit 95
+            exit 96
         fi
         echo "Serviço confirmado: $service_name com 1/1 réplica." >>"$install_log"
     done
@@ -653,6 +860,7 @@ EOL
 } 2>>"$install_log" | whiptail --title "SETUP MNO CONTROL CENTER" --gauge \
     "Preparando o painel..." 8 78 0
 install_status=${PIPESTATUS[0]}
+unset openai_api_key
 
 if [ "$install_status" -ne 0 ]; then
     error_detail=$(cat "$error_file" 2>/dev/null)
@@ -669,7 +877,7 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "1" ]; then
 fi
 
 whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
-    "Control Center instalado com sucesso.\n\nAcesse: https://$url_control\nUsuário: $usuario_control\nSenha: definida durante a instalação\n\nStacks:\n- $web_stack\n- $agent_stack\n- $terminal_stack\n\nAs imagens foram construídas localmente e validadas sem upload pelo Cloudflare.$manual_dns_note" \
-    22 86
+    "Control Center instalado com sucesso.\n\nAcesse: https://$url_control\nUsuário: $usuario_control\nSenha: definida durante a instalação\nAssistente: $assistant_label\n\nStacks:\n- $web_stack\n- $agent_stack\n- $terminal_stack$([ "$assistant_mode" != "basic" ] && printf '\\n- %s' "$assistant_stack")\n\nAs imagens foram construídas localmente e validadas sem upload pelo Cloudflare.$manual_dns_note" \
+    24 90
 
 exit 0

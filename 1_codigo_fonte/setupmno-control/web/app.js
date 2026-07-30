@@ -7,6 +7,9 @@ const state = {
   overview: null,
   apps: [],
   catalog: [],
+  assistantMode: "basic",
+  assistantModel: "",
+  assistantHistory: [],
   view: "dashboard",
   timer: null,
   catalogTimer: null
@@ -123,11 +126,15 @@ function setAuthenticated(session) {
   state.setupVersion = "";
   state.setupState = null;
   state.catalog = [];
+  state.assistantMode = session.assistantMode || "basic";
+  state.assistantModel = session.assistantModel || "";
+  state.assistantHistory = [];
   $("current-user").textContent = state.user;
   $("hero-user").textContent = state.user;
   $("user-initial").textContent = state.user.slice(0, 1).toUpperCase();
   $("control-version").textContent = `v${state.controlVersion}`;
   $("setup-version").textContent = "verificando";
+  renderAssistantMode();
   $("login-view").classList.add("hidden");
   $("app-view").classList.remove("hidden");
   refreshAll();
@@ -340,17 +347,131 @@ async function askAssistant(event) {
   const input = $("assistant-input");
   const question = input.value.trim();
   if (!question) return;
+  const button = event.currentTarget.querySelector("button[type=submit]");
+  const history = state.assistantHistory.slice(-10);
   addMessage(question, "user");
   input.value = "";
+  input.disabled = true;
+  button.disabled = true;
   const pending = addMessage("Analisando métricas atuais...", "assistant", true);
   try {
-    const result = await api("/api/assistant", {
-      method: "POST",
-      body: JSON.stringify({ question })
-    });
-    pending.querySelector("p").textContent = result.answer;
+    let answer;
+    try {
+      answer = await streamAssistant(question, history, pending, false);
+    } catch {
+      pending.querySelector("p").textContent = "O conector de IA ficou indisponível. Ativando o diagnóstico básico...";
+      answer = await streamAssistant(question, history, pending, true);
+    }
+    state.assistantHistory.push(
+      { role: "user", content: question },
+      { role: "assistant", content: answer }
+    );
+    state.assistantHistory = state.assistantHistory.slice(-10);
   } catch (error) {
     pending.querySelector("p").textContent = `Não consegui concluir a análise: ${error.message}`;
+  } finally {
+    input.disabled = false;
+    button.disabled = false;
+    input.focus();
+  }
+}
+
+async function streamAssistant(question, history, target, basic) {
+  const response = await fetch("/api/assistant", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      Accept: "text/event-stream",
+      "Content-Type": "application/json",
+      "X-CSRF-Token": state.csrf
+    },
+    body: JSON.stringify({ question, history, basic })
+  });
+  if (response.status === 401) {
+    state.csrf = "";
+    showLogin();
+  }
+  if (!response.ok) {
+    const contentType = response.headers.get("content-type") || "";
+    const data = contentType.includes("application/json") ? await response.json() : {};
+    throw new Error(data.error || `Falha HTTP ${response.status}`);
+  }
+  if (!response.body) throw new Error("streaming não suportado pelo navegador");
+
+  const paragraph = target.querySelector("p");
+  paragraph.textContent = "";
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let answer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+    let separator;
+    while ((separator = buffer.indexOf("\n\n")) >= 0) {
+      const block = buffer.slice(0, separator);
+      buffer = buffer.slice(separator + 2);
+      const event = parseSSEBlock(block);
+      if (!event) continue;
+      if (event.type === "meta") {
+        updateAssistantRuntime(event.data);
+      } else if (event.type === "delta") {
+        answer += event.data.delta || "";
+        paragraph.textContent = answer;
+        $("assistant-conversation").scrollTop = $("assistant-conversation").scrollHeight;
+      } else if (event.type === "error") {
+        throw new Error(event.data.error || "provedor de IA indisponível");
+      }
+    }
+    if (done) break;
+  }
+  if (!answer.trim()) throw new Error("o assistente não retornou texto");
+  return answer.trim();
+}
+
+function parseSSEBlock(block) {
+  let type = "message";
+  const data = [];
+  for (const line of block.split("\n")) {
+    if (line.startsWith("event:")) type = line.slice(6).trim();
+    if (line.startsWith("data:")) data.push(line.slice(5).trimStart());
+  }
+  if (!data.length) return null;
+  try {
+    return { type, data: JSON.parse(data.join("\n")) };
+  } catch {
+    return null;
+  }
+}
+
+function renderAssistantMode() {
+  updateAssistantRuntime({
+    mode: state.assistantMode,
+    model: state.assistantModel,
+    configured: true
+  });
+}
+
+function updateAssistantRuntime(runtime = {}) {
+  const mode = runtime.mode || state.assistantMode || "basic";
+  const model = runtime.model || state.assistantModel || "";
+  const fallback = Boolean(runtime.fallback);
+  const badge = $("assistant-mode");
+  badge.textContent = mode === "openai" ? "OpenAI" : mode === "ollama" ? "Ollama" : fallback ? "Básico · contingência" : "Básico";
+  $("assistant-provider").textContent = mode === "openai" ? "OpenAI" : mode === "ollama" ? "Ollama" : "Diagnóstico básico";
+  $("assistant-model").textContent = model ? `Modelo: ${model}` : "Sem consumo de API ou modelo local.";
+  if (mode === "openai") {
+    $("assistant-welcome-title").textContent = "Olá! O Copiloto MNO está conectado à OpenAI.";
+    $("assistant-welcome-text").textContent = "Envio somente contexto operacional minimizado, sem hostname, credenciais, comandos ou acesso direto ao Docker.";
+    $("assistant-privacy").textContent = "A consulta usa uma LLM externa. O Setup envia apenas métricas e dados mínimos necessários para responder.";
+  } else if (mode === "ollama") {
+    $("assistant-welcome-title").textContent = "Olá! O Copiloto MNO está conectado ao Ollama.";
+    $("assistant-welcome-text").textContent = "Posso combinar o catálogo do Setup MNO com a leitura segura do ambiente para orientar seus próximos passos.";
+    $("assistant-privacy").textContent = "O processamento ocorre no endpoint Ollama configurado, sem acesso da IA ao Docker, shell ou terminal.";
+  } else {
+    $("assistant-welcome-title").textContent = "Olá! O diagnóstico básico está pronto.";
+    $("assistant-welcome-text").textContent = "Posso avaliar capacidade, serviços degradados e prontidão para novos deploys. Ações críticas continuam dependendo da sua confirmação.";
+    $("assistant-privacy").textContent = "O modo básico interpreta métricas localmente e não envia dados para terceiros.";
   }
 }
 

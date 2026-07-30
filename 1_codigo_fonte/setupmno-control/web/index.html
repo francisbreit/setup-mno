@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#070a0f">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=1.0.4">
+  <link rel="stylesheet" href="/styles.css?v=1.1.0">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -186,11 +186,11 @@
         <section id="view-assistant" class="view">
           <div class="assistant-layout">
             <article class="assistant-main panel">
-              <div class="assistant-identity"><span>✦</span><div><p class="eyebrow">MNO Insights</p><h2>Copiloto de infraestrutura</h2></div><em>Local</em></div>
+              <div class="assistant-identity"><span>✦</span><div><p class="eyebrow">MNO Insights</p><h2>Copiloto de infraestrutura</h2></div><em id="assistant-mode">Básico</em></div>
               <div id="assistant-conversation" class="conversation">
                 <div class="message assistant-message">
                   <span class="message-avatar">M</span>
-                  <div><strong>Olá! Eu analiso seu ambiente sem enviar dados para terceiros.</strong><p>Posso avaliar capacidade, serviços degradados e prontidão para novos deploys. Ações críticas continuam dependendo da sua confirmação.</p></div>
+                  <div><strong id="assistant-welcome-title">Olá! O diagnóstico básico está pronto.</strong><p id="assistant-welcome-text">Posso avaliar capacidade, serviços degradados e prontidão para novos deploys. Ações críticas continuam dependendo da sua confirmação.</p></div>
                 </div>
               </div>
               <div class="prompt-chips">
@@ -204,8 +204,8 @@
               </form>
             </article>
             <aside class="assistant-side">
-              <article class="panel guardrail-card"><span class="guard-icon">◎</span><h3>IA com limites claros</h3><p>O modo local apenas interpreta métricas. Ele não remove stacks, altera configurações ou executa comandos.</p><ul><li>Dados permanecem no servidor</li><li>Sem acesso direto ao Docker</li><li>Confirmação humana obrigatória</li></ul></article>
-              <article class="panel"><p class="eyebrow">Próxima evolução</p><h3>Conectores de IA opcionais</h3><p class="muted">OpenAI, modelos locais e provedores compatíveis poderão ser adicionados com secrets, auditoria e aprovação por ação.</p></article>
+              <article class="panel guardrail-card"><span class="guard-icon">◎</span><h3>IA com limites claros</h3><p id="assistant-privacy">O modo básico interpreta métricas localmente e não envia dados para terceiros.</p><ul><li>Contexto operacional minimizado</li><li>IA sem Docker, shell ou terminal</li><li>Confirmação humana obrigatória</li></ul></article>
+              <article class="panel"><p class="eyebrow">Provedor ativo</p><h3 id="assistant-provider">Diagnóstico básico</h3><p id="assistant-model" class="muted">Sem consumo de API ou modelo local.</p></article>
             </aside>
           </div>
         </section>
@@ -230,6 +230,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/app.js?v=1.0.4" defer></script>
+  <script src="/app.js?v=1.1.0" defer></script>
 </body>
 </html>
