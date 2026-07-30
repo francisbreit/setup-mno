@@ -40,6 +40,10 @@ automática pelo diagnóstico básico e registra o evento na auditoria.
 O Assistente é estritamente consultivo: não possui ferramentas de escrita e não
 executa deploys, comandos Docker ou ações destrutivas.
 
+O plano completo para transformar o Beta em um especialista de infraestrutura,
+setups e Blueprints está registrado em
+[`ASSISTENTE_MNO_ROADMAP.md`](ASSISTENTE_MNO_ROADMAP.md).
+
 ## Sincronização
 
 O Setup publica atomicamente em `/root/SetupLowCodeMno/.control/`:
