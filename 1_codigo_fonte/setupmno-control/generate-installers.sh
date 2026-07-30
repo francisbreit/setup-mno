@@ -62,32 +62,28 @@ grep -Fq 'http://127.0.0.1:7681/terminal/' "$template" || {
     printf 'ERRO: hardening cap_drop divergente entre agente, Assistente e web.\n' >&2
     exit 1
 }
-
-bundle="$temporary_dir/setupmno-control.tar.gz"
-(
-    cd "$project_dir"
-    tar -czf "$bundle" \
-        go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh main.go catalog.json web
-)
-base64 -w 76 "$bundle" >"$temporary_dir/bundle.b64"
-
-generate_target() {
-    local target="$1"
-    awk -v bundle_file="$temporary_dir/bundle.b64" '
-        /^__SETUPMNO_CONTROL_BUNDLE__$/ {
-            while ((getline line < bundle_file) > 0) print line
-            close(bundle_file)
-            next
-        }
-        { print }
-    ' "$template" >"$target"
-    chmod 0755 "$target"
+grep -Fq 'KNOWLEDGE_PACKAGE_DIR=/knowledge-package' "$template" || {
+    printf 'ERRO: Assistente sem caminho explícito para o conhecimento somente leitura.\n' >&2
+    exit 1
 }
-
-generate_target "$x86_target"
-generate_target "$arm_target"
-
-cmp -s "$x86_target" "$arm_target"
+assistant_stack_block=$(awk '
+    /cat >"\$\{assistant_stack\}\.yaml"/ { inside=1 }
+    inside { print }
+    inside && /cat >"\$\{web_stack\}\.yaml"/ { exit }
+' "$template")
+if grep -Eq '^[[:space:]]+volumes:' <<<"$assistant_stack_block"; then
+    printf 'ERRO: a stack do Assistente não pode montar volumes.\n' >&2
+    exit 1
+fi
+grep -Fq 'COPY --from=builder /src/knowledge-package /knowledge-package' \
+    "$project_dir/Dockerfile" || {
+    printf 'ERRO: a imagem final não contém o pacote de conhecimento somente leitura.\n' >&2
+    exit 1
+}
+grep -Fq '//go:embed knowledge-package/*' "$project_dir/knowledge.go" || {
+    printf 'ERRO: o fallback de conhecimento não está embutido no binário.\n' >&2
+    exit 1
+}
 
 x86_version=$(sed -n 's/^VERSIONSETUP="\([^"]*\)"/\1/p' "$source_root/x86/SetupLowCodeMno/install.sh" | head -n1)
 [ -n "$x86_version" ] || {
@@ -118,6 +114,69 @@ control_version=$(sed -n 's/^CONTROL_VERSION="\([^"]*\)"/\1/p' "$template" | hea
 grep -Fq "/styles.css?v=$control_version" "$project_dir/web/index.html"
 grep -Fq "/markdown.js?v=$control_version" "$project_dir/web/index.html"
 grep -Fq "/app.js?v=$control_version" "$project_dir/web/index.html"
+
+knowledge_package="$project_dir/knowledge-package"
+python3 -B "$source_root/setupmno-knowledge/tools/generate_package.py" \
+    --root "$source_root/setupmno-knowledge" \
+    --catalog "$project_dir/catalog.json" \
+    --output "$knowledge_package" \
+    --setup-version "$x86_version" \
+    --control-version "$control_version"
+
+[ -f "$knowledge_package/manifest.json" ] &&
+[ ! -L "$knowledge_package/manifest.json" ] &&
+[ -f "$knowledge_package/knowledge-package.tar.gz" ] &&
+[ ! -L "$knowledge_package/knowledge-package.tar.gz" ] || {
+    printf 'ERRO: pacote de conhecimento ausente ou não regular.\n' >&2
+    exit 1
+}
+knowledge_schema=$(jq -r '.schemaVersion // 0' "$knowledge_package/manifest.json")
+knowledge_version=$(jq -r '.knowledgeVersion // empty' "$knowledge_package/manifest.json")
+knowledge_setup_version=$(jq -r '.setupVersion // empty' "$knowledge_package/manifest.json")
+knowledge_control_version=$(jq -r '.controlVersion // empty' "$knowledge_package/manifest.json")
+knowledge_entries=$(jq -r '.documentEntries // 0' "$knowledge_package/manifest.json")
+knowledge_archive_sha=$(jq -r '.archiveSHA256 // empty' "$knowledge_package/manifest.json")
+knowledge_archive_bytes=$(jq -r '.archiveBytes // 0' "$knowledge_package/manifest.json")
+knowledge_actual_sha=$(sha256sum "$knowledge_package/knowledge-package.tar.gz" | awk '{print $1}')
+knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.gz")
+[ "$knowledge_schema" = "1" ] &&
+[ -n "$knowledge_version" ] &&
+[ "$knowledge_setup_version" = "$x86_version" ] &&
+[ "$knowledge_control_version" = "$control_version" ] &&
+[ "$knowledge_entries" -gt 0 ] &&
+[ "$knowledge_archive_sha" = "$knowledge_actual_sha" ] &&
+[ "$knowledge_archive_bytes" = "$knowledge_actual_bytes" ] &&
+[ "$knowledge_archive_bytes" -le $((8 * 1024 * 1024)) ] || {
+    printf 'ERRO: manifesto do conhecimento inválido ou incompatível.\n' >&2
+    exit 1
+}
+
+bundle="$temporary_dir/setupmno-control.tar.gz"
+(
+    cd "$project_dir"
+    tar -czf "$bundle" \
+        go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
+        main.go knowledge.go catalog.json knowledge-package web
+)
+base64 -w 76 "$bundle" >"$temporary_dir/bundle.b64"
+
+generate_target() {
+    local target="$1"
+    awk -v bundle_file="$temporary_dir/bundle.b64" '
+        /^__SETUPMNO_CONTROL_BUNDLE__$/ {
+            while ((getline line < bundle_file) > 0) print line
+            close(bundle_file)
+            next
+        }
+        { print }
+    ' "$template" >"$target"
+    chmod 0755 "$target"
+}
+
+generate_target "$x86_target"
+generate_target "$arm_target"
+
+cmp -s "$x86_target" "$arm_target"
 
 catalog_sha=$(sha256sum "$project_dir/catalog.json" | awk '{print $1}')
 catalog_entries=$(jq -e 'length' "$project_dir/catalog.json")
@@ -158,19 +217,30 @@ generate_runtime_package() {
     local target="$1" architecture="$2" temporary_manifest
     mkdir -p "$target"
     install -m 0644 "$project_dir/catalog.json" "$target/catalog.json"
+    mkdir -p "$target/knowledge-package"
+    install -m 0644 "$knowledge_package/manifest.json" \
+        "$target/knowledge-package/manifest.json"
+    install -m 0644 "$knowledge_package/knowledge-package.tar.gz" \
+        "$target/knowledge-package/knowledge-package.tar.gz"
     temporary_manifest="$target/release.json.tmp"
     jq -n \
         --arg setup_version "$x86_version" \
         --arg catalog_sha "$catalog_sha" \
         --arg architecture "$architecture" \
+        --arg knowledge_version "$knowledge_version" \
+        --arg knowledge_archive_sha "$knowledge_archive_sha" \
         --argjson catalog_entries "$catalog_entries" \
+        --argjson knowledge_entries "$knowledge_entries" \
         '{
             schemaVersion: 1,
             setupVersion: $setup_version,
             catalogVersion: $setup_version,
             catalogSHA256: $catalog_sha,
             catalogEntries: $catalog_entries,
-            architecture: $architecture
+            architecture: $architecture,
+            knowledgeVersion: $knowledge_version,
+            knowledgeArchiveSHA256: $knowledge_archive_sha,
+            knowledgeEntries: $knowledge_entries
         }' >"$temporary_manifest"
     chmod 0644 "$temporary_manifest"
     mv -f "$temporary_manifest" "$target/release.json"
@@ -179,5 +249,10 @@ generate_runtime_package() {
 generate_runtime_package "$x86_runtime_package" "amd64"
 generate_runtime_package "$arm_runtime_package" "arm64"
 
-printf 'Instaladores x86/ARM e manifestos runtime v%s gerados (%s setups).\n' \
-    "$x86_version" "$catalog_entries"
+cmp -s "$x86_runtime_package/knowledge-package/manifest.json" \
+    "$arm_runtime_package/knowledge-package/manifest.json"
+cmp -s "$x86_runtime_package/knowledge-package/knowledge-package.tar.gz" \
+    "$arm_runtime_package/knowledge-package/knowledge-package.tar.gz"
+
+printf 'Instaladores x86/ARM e manifestos runtime v%s gerados (%s setups, %s documentos).\n' \
+    "$x86_version" "$catalog_entries" "$knowledge_entries"

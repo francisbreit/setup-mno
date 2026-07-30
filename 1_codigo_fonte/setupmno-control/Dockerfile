@@ -3,14 +3,16 @@ FROM --platform=$BUILDPLATFORM golang:1.25-alpine@sha256:56961d79ea8129efddcc0b8
 ARG TARGETOS
 ARG TARGETARCH
 WORKDIR /src
-COPY go.mod main.go ./
+COPY go.mod main.go knowledge.go ./
 COPY web ./web
 COPY catalog.json ./
+COPY knowledge-package ./knowledge-package
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags="-s -w" -o /out/setupmno-control .
 
 FROM scratch
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder /out/setupmno-control /setupmno-control
+COPY --from=builder /src/knowledge-package /knowledge-package
 EXPOSE 8080 9090
 ENTRYPOINT ["/setupmno-control"]

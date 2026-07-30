@@ -6,6 +6,8 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import tarfile
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -22,6 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SOURCE_ROOT = ROOT.parent
 CATALOG = SOURCE_ROOT / "setupmno-control" / "catalog.json"
 LINTER = ROOT / "tools" / "lint_knowledge.py"
+GENERATOR = ROOT / "tools" / "generate_package.py"
 
 
 def run_linter(*arguments: str) -> subprocess.CompletedProcess[str]:
@@ -119,6 +122,51 @@ class KnowledgeFactoryTests(unittest.TestCase):
         taxonomy = load_json(ROOT / "schema" / "taxonomy.json")
         self.assertNotIn("deprecated", taxonomy["normalRetrievalStatuses"])
         self.assertNotIn("draft", taxonomy["normalRetrievalStatuses"])
+
+    def test_generated_package_is_reproducible_and_regular(self) -> None:
+        registry = load_json(ROOT / "registry" / "setups.json")
+        with tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:
+            archives: list[bytes] = []
+            manifests: list[dict[str, object]] = []
+            for output in (first, second):
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        "-B",
+                        str(GENERATOR),
+                        "--root",
+                        str(ROOT),
+                        "--catalog",
+                        str(CATALOG),
+                        "--output",
+                        output,
+                        "--setup-version",
+                        registry["setupVersion"],
+                        "--control-version",
+                        "1.2.0",
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                archives.append(
+                    (Path(output) / "knowledge-package.tar.gz").read_bytes()
+                )
+                manifests.append(
+                    load_json(Path(output) / "manifest.json")
+                )
+                with tarfile.open(
+                    Path(output) / "knowledge-package.tar.gz",
+                    mode="r:gz",
+                ) as package:
+                    self.assertTrue(package.getmembers())
+                    self.assertTrue(all(member.isfile() for member in package.getmembers()))
+            self.assertEqual(archives[0], archives[1])
+            self.assertEqual(manifests[0], manifests[1])
+            self.assertEqual(manifests[0]["documentEntries"], 29)
+            self.assertEqual(manifests[0]["setupEntries"], 20)
+            self.assertEqual(manifests[0]["infrastructureEntries"], 9)
 
 
 if __name__ == "__main__":

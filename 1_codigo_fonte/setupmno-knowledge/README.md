@@ -70,7 +70,7 @@ python3 tools/lint_knowledge.py \
   --catalog ../setupmno-control/catalog.json \
   resolve \
   --setup-id n8n-main \
-  --setup-version 4.93.4 \
+  --setup-version 4.94.0 \
   --architecture amd64
 ```
 
@@ -82,6 +82,19 @@ Testes de regressão:
 ```bash
 python3 -B tools/test_knowledge.py
 ```
+
+Geração reproduzível do pacote:
+
+```bash
+python3 -B tools/generate_package.py \
+  --setup-version 4.94.0 \
+  --control-version 1.2.0
+```
+
+O gerador executa o linter antes do build, inclui somente documentos
+`reviewed` ou `homologated`, cria um índice textual invertido e produz
+`knowledge-package.tar.gz` e `manifest.json`. O arquivo compactado usa ordem,
+permissões, proprietário e timestamps determinísticos.
 
 ## Estrutura
 

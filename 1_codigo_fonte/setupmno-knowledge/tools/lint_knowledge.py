@@ -458,6 +458,11 @@ def lint(args: argparse.Namespace) -> int:
     source_root = root.parent
     document_ids: dict[str, Path] = {}
     setup_documents: dict[str, int] = {}
+    knowledge_version = (root / "VERSION").read_text(encoding="utf-8").strip()
+    if not SEMVER_RE.fullmatch(knowledge_version):
+        errors.append("VERSION da base de conhecimento não segue SemVer")
+    if taxonomy.get("knowledgeVersion") != knowledge_version:
+        errors.append("VERSION diverge de schema/taxonomy.json")
 
     for document in documents:
         relative = document.path.relative_to(root)
@@ -505,7 +510,7 @@ def lint(args: argparse.Namespace) -> int:
         json.dumps(
             {
                 "result": "ok",
-                "knowledgeVersion": taxonomy["knowledgeVersion"],
+                "knowledgeVersion": knowledge_version,
                 "documents": len(documents),
                 "setups": len(setup_documents),
                 "statuses": statuses,

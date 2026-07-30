@@ -9,10 +9,11 @@ infraestrutura, catálogo de setups e Blueprints homologados pelo Setup MNO.
 O roadmap deve ser executado uma etapa por vez. Cada etapa precisa concluir
 seus entregáveis, testes e gates antes do início da etapa seguinte.
 
-## Baseline
+## Baseline da release da Etapa 2
 
-- Setup MNO: `4.93.4`
-- Control Center: `1.1.4`
+- Setup MNO: `4.94.0`
+- Control Center: `1.2.0`
+- Conhecimento canônico: `1.1.0`
 - Catálogo runtime: 151 setups
 - Modos atuais: diagnóstico básico, OpenAI e Ollama
 - API OpenAI: Responses API, streaming, `store: false`
@@ -197,7 +198,7 @@ válidos para cada setup, versão e arquitetura.
 
 ## Etapa 2 — Pacote de Conhecimento Versionado
 
-**Status:** pendente
+**Status:** concluída tecnicamente em 2026-07-30; aguardando aprovação do mantenedor
 **Impacto:** alto
 **Tipo:** segurança e manutenção
 **Esforço:** moderado
@@ -232,6 +233,18 @@ junto com o Control Center.
 
 Uma instalação limpa deve receber exatamente a mesma base homologada usada
 pelos testes da release.
+
+### Evidências da implementação
+
+- gerador determinístico sem dependências externas;
+- manifesto com versões, inventário, limites, contagens e hashes SHA-256;
+- índice textual pré-construído com 29 entradas homologadas;
+- pacote byte a byte idêntico para x86 e ARM;
+- validação bloqueante no gerador, nos gatilhos e ao iniciar o Assistente;
+- pacote primário somente leitura na imagem, sem mount do host;
+- fallback embutido no binário, explicitamente marcado como desatualizado;
+- testes de reprodutibilidade, adulteração, arquivos irregulares e fallback;
+- homologação das imagens `amd64` e `arm64`.
 
 ---
 
@@ -673,19 +686,21 @@ Antes de remover o rótulo Beta:
 - auditoria;
 - rollback de pacote, prompt e modelo.
 
-## Release alvo inicial
+## Release incremental da Etapa 2
 
-Proposta, sujeita à homologação:
+Escopo implementado e sujeito à aprovação final:
 
 - Setup MNO `4.94.0`
 - Control Center `1.2.0`
-- 20 setups documentados profundamente
-- 3 Blueprints homologados
-- RAG local estruturado e textual
-- roteador inicial de especialistas
-- citações na interface
-- dataset inicial de evals
+- conhecimento canônico `1.1.0`
+- 20 setups e nove áreas de infraestrutura no pacote homologado
+- índice textual pré-construído
+- pacote idêntico para x86 e ARM
+- fallback local seguro
 - nenhuma ferramenta de escrita
+
+RAG híbrido, roteador de especialistas, citações, Blueprints e dataset de
+avaliação permanecem deliberadamente nas Etapas 3 a 6.
 
 ## Ordem de execução
 
@@ -700,18 +715,9 @@ Proposta, sujeita à homologação:
 
 ## Próxima ação
 
-Iniciar, mediante solicitação explícita, a
-**Etapa 2 — Pacote de Conhecimento Versionado**, produzindo:
-
-- gerador do pacote;
-- manifesto com versão, contagem e SHA-256;
-- índice textual pré-construído;
-- artefatos idênticos para x86 e ARM;
-- validação bloqueante no gerador de instaladores;
-- integração somente leitura e fallback seguro.
-
-A aprovação da Etapa 1 removeu o bloqueio editorial. Esta atualização não
-inicia automaticamente a implementação da Etapa 2.
+Revisar e aprovar explicitamente a
+**Etapa 2 — Pacote de Conhecimento Versionado**. Somente depois dessa aprovação
+deve começar a **Etapa 3 — RAG Híbrido Local**.
 
 ## Referências oficiais
 

@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="4.93.4"
+VERSIONSETUP="4.94.0"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -226,8 +226,12 @@ rm -f SetupLowCodeMno.zip
 control_package="/root/SetupLowCodeMno/.control-package"
 control_target="/root/SetupLowCodeMno/.control"
 if [ ! -s "$control_package/release.json" ] ||
-   [ ! -s "$control_package/catalog.json" ]; then
-    printf 'O pacote não contém o manifesto e o catálogo runtime do Control Center.\n' >"$control_state_error"
+   [ ! -s "$control_package/catalog.json" ] ||
+   [ ! -f "$control_package/knowledge-package/manifest.json" ] ||
+   [ -L "$control_package/knowledge-package/manifest.json" ] ||
+   [ ! -f "$control_package/knowledge-package/knowledge-package.tar.gz" ] ||
+   [ -L "$control_package/knowledge-package/knowledge-package.tar.gz" ]; then
+    printf 'O pacote não contém o catálogo e o conhecimento runtime do Control Center.\n' >"$control_state_error"
     exit 40
 fi
 control_schema=$(jq -r '.schemaVersion // 0' "$control_package/release.json" 2>/dev/null)
@@ -235,19 +239,52 @@ control_version=$(jq -r '.setupVersion // empty' "$control_package/release.json"
 control_arch=$(jq -r '.architecture // empty' "$control_package/release.json" 2>/dev/null)
 control_expected_sha=$(jq -r '.catalogSHA256 // empty' "$control_package/release.json" 2>/dev/null)
 control_actual_sha=$(sha256sum "$control_package/catalog.json" | awk '{print $1}')
+knowledge_manifest="$control_package/knowledge-package/manifest.json"
+knowledge_archive="$control_package/knowledge-package/knowledge-package.tar.gz"
+knowledge_schema=$(jq -r '.schemaVersion // 0' "$knowledge_manifest" 2>/dev/null)
+knowledge_version=$(jq -r '.knowledgeVersion // empty' "$knowledge_manifest" 2>/dev/null)
+knowledge_setup_version=$(jq -r '.setupVersion // empty' "$knowledge_manifest" 2>/dev/null)
+knowledge_entries=$(jq -r '.documentEntries // 0' "$knowledge_manifest" 2>/dev/null)
+knowledge_expected_sha=$(jq -r '.archiveSHA256 // empty' "$knowledge_manifest" 2>/dev/null)
+knowledge_expected_bytes=$(jq -r '.archiveBytes // 0' "$knowledge_manifest" 2>/dev/null)
+knowledge_actual_sha=$(sha256sum "$knowledge_archive" | awk '{print $1}')
+knowledge_actual_bytes=$(stat -c '%s' "$knowledge_archive" 2>/dev/null)
+runtime_knowledge_sha=$(jq -r '.knowledgeArchiveSHA256 // empty' "$control_package/release.json" 2>/dev/null)
+runtime_knowledge_entries=$(jq -r '.knowledgeEntries // 0' "$control_package/release.json" 2>/dev/null)
 if [ "$control_schema" != "1" ] ||
    [ "$control_version" != "$VERSIONSETUP" ] ||
    [ "$control_arch" != "amd64" ] ||
    [ -z "$control_expected_sha" ] ||
-   [ "$control_expected_sha" != "$control_actual_sha" ]; then
+   [ "$control_expected_sha" != "$control_actual_sha" ] ||
+   [ "$knowledge_schema" != "1" ] ||
+   [ -z "$knowledge_version" ] ||
+   [ "$knowledge_setup_version" != "$VERSIONSETUP" ] ||
+   [ "$knowledge_entries" -le 0 ] ||
+   [ "$knowledge_entries" != "$runtime_knowledge_entries" ] ||
+   [ "$knowledge_expected_sha" != "$knowledge_actual_sha" ] ||
+   [ "$knowledge_expected_sha" != "$runtime_knowledge_sha" ] ||
+   [ "$knowledge_expected_bytes" != "$knowledge_actual_bytes" ] ||
+   [ "$knowledge_actual_bytes" -gt $((8 * 1024 * 1024)) ] ||
+   ! tar -tzf "$knowledge_archive" >/dev/null 2>&1 ||
+   ! tar -tvzf "$knowledge_archive" 2>/dev/null |
+       awk 'substr($1, 1, 1) != "-" { exit 1 }'; then
     printf 'O manifesto runtime do Control Center é inválido ou não corresponde ao Setup MNO v%s (amd64).\n' \
         "$VERSIONSETUP" >"$control_state_error"
     exit 41
 fi
 mkdir -p "$control_target"
+mkdir -p "$control_target/knowledge-package"
 install -m 0644 "$control_package/catalog.json" "$control_target/catalog.json.tmp"
 install -m 0644 "$control_package/release.json" "$control_target/release.json.tmp"
+install -m 0644 "$knowledge_archive" \
+    "$control_target/knowledge-package/knowledge-package.tar.gz.tmp"
+install -m 0644 "$knowledge_manifest" \
+    "$control_target/knowledge-package/manifest.json.tmp"
 mv -f "$control_target/catalog.json.tmp" "$control_target/catalog.json"
+mv -f "$control_target/knowledge-package/knowledge-package.tar.gz.tmp" \
+    "$control_target/knowledge-package/knowledge-package.tar.gz"
+mv -f "$control_target/knowledge-package/manifest.json.tmp" \
+    "$control_target/knowledge-package/manifest.json"
 mv -f "$control_target/release.json.tmp" "$control_target/release.json"
 rm -rf "$control_package"
 

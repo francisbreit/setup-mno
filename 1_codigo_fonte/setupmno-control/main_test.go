@@ -398,3 +398,54 @@ func TestValidateProviderFindsOllamaModel(t *testing.T) {
 		t.Fatalf("modelo Ollama válido foi recusado: %v", err)
 	}
 }
+
+func TestKnowledgePackageFromImageDirectory(t *testing.T) {
+	state, err := loadKnowledgePackageDirectory("knowledge-package")
+	if err != nil {
+		t.Fatalf("pacote válido foi recusado: %v", err)
+	}
+	if state.Source != "image-read-only" ||
+		state.Stale ||
+		state.Manifest.DocumentEntries != 29 ||
+		state.Manifest.SetupEntries != 20 ||
+		state.Manifest.InfrastructureEntries != 9 {
+		t.Fatalf("estado inesperado do conhecimento: %#v", state)
+	}
+	if len(state.Index.Entries) != state.Manifest.DocumentEntries {
+		t.Fatalf("índice incompleto: %d", len(state.Index.Entries))
+	}
+}
+
+func TestKnowledgePackageRejectsTamperedManifest(t *testing.T) {
+	archiveData, err := os.ReadFile("knowledge-package/knowledge-package.tar.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifestData, err := os.ReadFile("knowledge-package/manifest.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest map[string]any
+	if err := json.Unmarshal(manifestData, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	manifest["archiveSHA256"] = strings.Repeat("0", 64)
+	tampered, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := validateKnowledgePackage(archiveData, tampered); err == nil {
+		t.Fatal("manifesto adulterado foi aceito")
+	}
+}
+
+func TestKnowledgePackageUsesEmbeddedFallback(t *testing.T) {
+	t.Setenv("KNOWLEDGE_PACKAGE_DIR", filepath.Join(t.TempDir(), "ausente"))
+	state, err := loadRuntimeKnowledgePackage()
+	if err != nil {
+		t.Fatalf("fallback embutido falhou: %v", err)
+	}
+	if state.Source != "embedded-fallback" || !state.Stale {
+		t.Fatalf("fallback não foi sinalizado: %#v", state)
+	}
+}

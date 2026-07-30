@@ -46,12 +46,34 @@ setups e Blueprints está registrado em
 A fonte editorial criada na Etapa 1 está em
 [`../setupmno-knowledge/`](../setupmno-knowledge/).
 
+## Conhecimento versionado
+
+A Etapa 2 transforma a fonte editorial em um pacote determinístico, validado e
+independente do provedor de LLM. O gerador produz:
+
+- `knowledge-package.tar.gz`: documentos homologados e índice textual
+  pré-construído;
+- `manifest.json`: versões do Setup, Control Center e conhecimento, inventário,
+  contagens, limites de tamanho e hashes SHA-256.
+
+O mesmo pacote é distribuído para x86 e ARM. Na imagem do Assistente, a cópia
+primária fica em `/knowledge-package`, somente leitura pela própria camada da
+imagem. Uma segunda cópia é embutida no binário Go e entra em contingência se a
+cópia primária estiver ausente ou inválida. A contingência é identificada como
+desatualizada; conteúdo adulterado nunca é aceito silenciosamente.
+
+O modo básico continua sem LLM e sem stack adicional. O pacote não concede ao
+Assistente socket Docker, shell, terminal, mount do host ou capacidade de
+escrita.
+
 ## Sincronização
 
 O Setup publica atomicamente em `/root/SetupLowCodeMno/.control/`:
 
 - `release.json`: versão instalada, arquitetura, schema, quantidade e SHA-256;
 - `catalog.json`: catálogo correspondente à release.
+- `knowledge-package/manifest.json`: manifesto validado do conhecimento;
+- `knowledge-package/knowledge-package.tar.gz`: pacote canônico reproduzível.
 
 Ao carregar a página, retornar à aba, usar a atualização manual ou a cada cinco
 minutos, o painel consulta esses arquivos pelo agente. A versão do Setup MNO é
@@ -67,4 +89,5 @@ Depois de alterar o painel, o catálogo ou `VERSIONSETUP`:
 O comando recria mecanicamente os scripts `setupmno_control.sh` de x86 e ARM
 com o mesmo bundle de fontes e gera os pacotes `.control-package/` de cada
 arquitetura. Durante uma instalação ou atualização, os gatilhos validam esses
-pacotes e promovem os arquivos para `.control/`.
+pacotes e promovem os arquivos para `.control/` com arquivos temporários e
+renomeação atômica.

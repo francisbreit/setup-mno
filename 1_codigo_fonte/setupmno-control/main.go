@@ -273,9 +273,21 @@ type assistantService struct {
 	agentToken  string
 	httpClient  *http.Client
 	agentClient *http.Client
+	knowledge   knowledgePackageState
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "knowledgecheck" {
+		state, err := loadRuntimeKnowledgePackage()
+		if err != nil {
+			log.Printf("pacote de conhecimento inválido: %v", err)
+			os.Exit(1)
+		}
+		if err := json.NewEncoder(os.Stdout).Encode(knowledgeCheckPayload(state)); err != nil {
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
 		client := &http.Client{Timeout: 3 * time.Second}
 		response, err := client.Get(envDefault("HEALTHCHECK_URL", "http://127.0.0.1:8080/health"))
@@ -458,6 +470,13 @@ func runAgent() error {
 }
 
 func runAssistant() error {
+	knowledge, err := loadRuntimeKnowledgePackage()
+	if err != nil {
+		return fmt.Errorf("conhecimento do Assistente indisponível: %w", err)
+	}
+	if knowledge.Stale {
+		log.Printf("Assistente MNO: usando fallback de conhecimento embutido")
+	}
 	provider := strings.ToLower(strings.TrimSpace(os.Getenv("ASSISTANT_PROVIDER")))
 	if provider != "openai" && provider != "ollama" {
 		return errors.New("ASSISTANT_PROVIDER deve ser openai ou ollama")
@@ -504,6 +523,7 @@ func runAssistant() error {
 		agentToken:  string(agentToken),
 		httpClient:  &http.Client{Timeout: 2 * time.Minute},
 		agentClient: &http.Client{Timeout: 12 * time.Second},
+		knowledge:   knowledge,
 	}
 	zero(agentToken)
 	if err := service.validateProvider(); err != nil {
@@ -525,9 +545,13 @@ func runAssistant() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
-			"status":   "ok",
-			"provider": service.provider,
-			"model":    service.model,
+			"status":           "ok",
+			"provider":         service.provider,
+			"model":            service.model,
+			"knowledgeVersion": service.knowledge.Manifest.KnowledgeVersion,
+			"knowledgeSource":  service.knowledge.Source,
+			"knowledgeStale":   service.knowledge.Stale,
+			"knowledgeEntries": service.knowledge.Manifest.DocumentEntries,
 		})
 	})
 	mux.HandleFunc("POST /chat", authorize(service.handleChat))
@@ -612,8 +636,12 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 	sendSSE(w, "meta", map[string]any{
-		"mode":  s.provider,
-		"model": s.model,
+		"mode":             s.provider,
+		"model":            s.model,
+		"knowledgeVersion": s.knowledge.Manifest.KnowledgeVersion,
+		"knowledgeSource":  s.knowledge.Source,
+		"knowledgeStale":   s.knowledge.Stale,
+		"knowledgeEntries": s.knowledge.Manifest.DocumentEntries,
 	})
 
 	if err := s.streamProvider(r.Context(), w, input, contextData); err != nil {
