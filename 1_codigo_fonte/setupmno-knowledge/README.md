@@ -1,0 +1,101 @@
+# Fábrica de Conhecimento do Assistente MNO
+
+Esta pasta é a fonte canônica, editorial e versionada do conhecimento usado
+pelo Assistente MNO. Ela não é um prompt, não executa ações e ainda não faz
+parte do pacote distribuído ao usuário final. A distribuição será tratada
+somente na Etapa 2 do roadmap.
+
+## Contrato editorial
+
+- Os documentos são Markdown com um objeto JSON entre os dois delimitadores
+  `---` iniciais.
+- Metadados devem obedecer a `schema/document.schema.json`.
+- `contentSHA256` é o SHA-256 do corpo Markdown normalizado pelo linter e torna
+  adulterações detectáveis antes da recuperação.
+- IDs, tipos, categorias, status, riscos, arquiteturas e licenças permitidos
+  estão em `schema/taxonomy.json`.
+- Setups do lote piloto devem existir em `registry/setups.json` e no catálogo
+  canônico do Control Center.
+- `draft` identifica conteúdo em construção; `reviewed` identifica conteúdo
+  revisado contra as fontes declaradas; `homologated` exige teste no ambiente
+  de homologação; `deprecated` nunca participa da recuperação normal.
+- Imagens e portas só podem aparecer quando declaradas no bloco
+  `homologation` e verificadas na data informada.
+- Nunca registrar credenciais, tokens, chaves, hostnames ou endereços de
+  clientes.
+
+## Convenções
+
+O `documentId` usa segmentos minúsculos separados por hífen:
+
+```text
+<tipo>-<assunto>-<categoria>
+```
+
+Exemplos: `setup-n8n-main-overview`, `infra-docker-swarm-architecture`.
+
+`documentVersion` segue SemVer e muda quando o conteúdo do documento muda.
+`setupVersion` indica a versão do Setup MNO contra a qual o documento foi
+revisado. Compatibilidade é declarada em `architectures`.
+
+Para calcular o hash esperado após uma edição:
+
+```bash
+python3 tools/lint_knowledge.py --root . hashes
+```
+
+## Fluxo editorial
+
+1. Criar o documento a partir de um template.
+2. Manter o status como `draft` durante a escrita.
+3. Declarar fontes e licença de cada fonte.
+4. Executar o linter e revisar o diff.
+5. Mudar para `reviewed` somente após conferir as fontes.
+6. Mudar para `homologated` somente após teste controlado.
+7. Marcar como `deprecated` quando o conteúdo não representar mais o Setup.
+
+## Validação
+
+```bash
+python3 tools/lint_knowledge.py \
+  --root . \
+  --catalog ../setupmno-control/catalog.json
+```
+
+Consulta determinística sem LLM:
+
+```bash
+python3 tools/lint_knowledge.py \
+  --root . \
+  --catalog ../setupmno-control/catalog.json \
+  resolve \
+  --setup-id n8n-main \
+  --setup-version 4.93.4 \
+  --architecture amd64
+```
+
+O resolvedor normal retorna somente documentos `reviewed` ou `homologated`.
+Use `--include-drafts` apenas no fluxo editorial.
+
+Testes de regressão:
+
+```bash
+python3 -B tools/test_knowledge.py
+```
+
+## Estrutura
+
+```text
+setupmno-knowledge/
+├── infra/
+├── setups/
+├── troubleshooting/
+├── blueprints/
+├── policies/
+├── glossary/
+├── evals/
+├── registry/
+├── schema/
+├── templates/
+└── tools/
+```

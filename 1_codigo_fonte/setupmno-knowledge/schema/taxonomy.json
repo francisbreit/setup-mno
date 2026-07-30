@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "knowledgeVersion": "1.0.0",
+  "documentTypes": [
+    "infrastructure",
+    "setup",
+    "troubleshooting",
+    "blueprint",
+    "policy",
+    "glossary",
+    "evaluation"
+  ],
+  "categories": [
+    "architecture",
+    "overview",
+    "installation",
+    "operations",
+    "capacity",
+    "security",
+    "backup",
+    "networking",
+    "diagnosis",
+    "recovery",
+    "compatibility",
+    "governance",
+    "terminology",
+    "evaluation"
+  ],
+  "statuses": [
+    "draft",
+    "reviewed",
+    "homologated",
+    "deprecated"
+  ],
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "risks": [
+    "low",
+    "medium",
+    "high",
+    "critical"
+  ],
+  "sourceTypes": [
+    "setup-mno",
+    "official-documentation",
+    "homologation-test",
+    "maintainer-authored"
+  ],
+  "licenses": [
+    "project-internal",
+    "documentation-reference",
+    "maintainer-owned"
+  ],
+  "infrastructureTopics": [
+    "docker-swarm",
+    "traefik",
+    "cloudflare",
+    "postgres",
+    "redis",
+    "backup",
+    "security",
+    "vps",
+    "wsl2"
+  ],
+  "normalRetrievalStatuses": [
+    "reviewed",
+    "homologated"
+  ]
+}

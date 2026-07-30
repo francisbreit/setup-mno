@@ -43,6 +43,8 @@ executa deploys, comandos Docker ou ações destrutivas.
 O plano completo para transformar o Beta em um especialista de infraestrutura,
 setups e Blueprints está registrado em
 [`ASSISTENTE_MNO_ROADMAP.md`](ASSISTENTE_MNO_ROADMAP.md).
+A fonte editorial criada na Etapa 1 está em
+[`../setupmno-knowledge/`](../setupmno-knowledge/).
 
 ## Sincronização
 

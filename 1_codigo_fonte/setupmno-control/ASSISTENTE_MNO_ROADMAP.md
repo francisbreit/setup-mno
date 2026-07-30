@@ -91,7 +91,7 @@ internos de um único Assistente, selecionados por roteamento controlado.
 
 ## Etapa 1 — Fábrica de Conhecimento Canônico
 
-**Status:** pendente
+**Status:** concluída tecnicamente em 2026-07-30; aguardando aprovação editorial
 **Impacto:** alto
 **Tipo:** conhecimento, manutenção e confiabilidade
 **Esforço:** estrutural
@@ -141,15 +141,28 @@ setupmno-knowledge/
 ```yaml
 documentId: setup-n8n-overview
 documentVersion: 1.0.0
+contentSHA256: <64 caracteres hexadecimais>
+documentType: setup
 setupId: n8n
-setupVersion: 4.94.0
+setupVersion: 4.93.4
 architectures: [amd64, arm64]
 category: overview
-status: homologated
+status: reviewed
 updatedAt: 2026-07-30
 sourceType: setup-mno
 risk: low
-sources: []
+language: pt-BR
+tags: [n8n, automacao]
+sources:
+  - sourceId: n8n-installer
+    sourceType: setup-mno
+    location: x86/SetupLowCodeMno/n8nmain.sh
+    license: project-internal
+    verifiedAt: 2026-07-30
+homologation:
+  verifiedAt: null
+  verifiedPorts: []
+  verifiedImages: []
 ```
 
 ### Gates
@@ -165,6 +178,19 @@ sources: []
 
 A base inicial deve responder corretamente, sem LLM, quais documentos são
 válidos para cada setup, versão e arquitetura.
+
+### Evidências de conclusão técnica
+
+- fábrica criada em `1_codigo_fonte/setupmno-knowledge/`;
+- versão editorial `1.0.0`;
+- 20 setups registrados e documentados;
+- nove áreas de infraestrutura documentadas;
+- 29 documentos com status `reviewed`, fontes e SHA-256 do corpo;
+- schema, taxonomia, convenções, templates e linter sem dependências externas;
+- resolução determinística validada em `amd64` e `arm64`;
+- adulteração de conteúdo e padrão de chave bloqueados;
+- documentos `deprecated` e versões incompatíveis excluídos da recuperação;
+- 100% dos documentos aprovados pelo linter.
 
 ---
 
@@ -673,19 +699,16 @@ Proposta, sujeita à homologação:
 
 ## Próxima ação
 
-Iniciar somente a **Etapa 1**, definindo:
+Revisar e aprovar editorialmente a **Etapa 1**, em especial:
 
-- schema de conhecimento;
-- taxonomia;
-- convenção de IDs;
-- status de homologação;
-- linter;
-- estrutura de diretórios;
+- contrato de metadados e taxonomia;
 - seleção dos primeiros 20 setups;
-- templates editoriais para infraestrutura, setup e troubleshooting.
+- profundidade e linguagem dos documentos;
+- distinção entre `reviewed` e `homologated`;
+- política de fontes, licenças e SHA-256.
 
-Nenhuma implementação da Etapa 2 deve começar antes da aprovação dos schemas e
-dos primeiros documentos da Etapa 1.
+A **Etapa 2 — Pacote de Conhecimento Versionado** permanece bloqueada até a
+aprovação explícita desta base pelo mantenedor.
 
 ## Referências oficiais
 

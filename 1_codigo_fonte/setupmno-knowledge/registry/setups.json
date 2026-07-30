@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "selectionVersion": "1.0.0",
+  "setupVersion": "4.93.4",
+  "selectionPolicy": "Lote piloto de alto valor e diversidade arquitetural",
+  "setups": [
+    {
+      "setupId": "activepieces",
+      "catalogName": "ACTIVEPIECES",
+      "script": "activepieces.sh",
+      "architectures": ["amd64", "arm64"]
+    },
+    {
+      "setupId": "adguardhome",
+      "catalogName": "ADGUARDHOME",
+      "script": "adguardhome.sh",
+      "architectures": ["amd64", "arm64"]
+    },
+    {
+      "setupId": "appsmith",
+      "catalogName": "APPSMITH",
+      "script": "appsmith.sh",
+      "architectures": ["amd64", "arm64"]
+    },
+    {
+      "setupId": "baserow",
+      "catalogName": "BASEROW",
+      "script": "baserow.sh",
+      "architectures": ["amd64", "arm64"]
+    },
+    {
+      "setupId": "beszel",
+      "catalogName": "BESZEL",
+      "script": "beszel.sh",
+      "architectures": ["amd64", "arm64"]
+    },
+    {
+      "setupId": "bookstack",
+      "catalogName": "BOOKSTACK",
+      "script": "bookstack.sh",
+      "architectures": ["amd64", "arm64"]
+    },
+    {
+      "setupId": "budibase",
+      "catalogName": "BUDIBASE",
+      "script": "budibase.sh",
+      "architectures": ["amd64", "arm64"]
+    },
+    {
+      "setupId": "chromadb",
+      "catalogName": "CHROMADB",
+      "script": "chromadb.sh",
+      "architectures": ["amd64", "arm64"]
+    },
+    {
+      "setupId": "code-server",
+      "catalogName": "CODE SERVER",
+      "script": "codeserver.sh",
+      "architectures": ["amd64", "arm64"]
+    },
+    {
+      "setupId": "directus",
+      "catalogName": "DIRECTUS",
+      "script": "directus.sh",
+      "architectures": ["amd64", "arm64"]
+    },
+    {
+      "setupId": "duplicati",
+      "catalogName": "DUPLICATI",
+      "script": "duplicati.sh",
+      "architectures": ["amd64", "arm64"]
+    },
+    {
+      "setupId": "grafana-prometheus",
+      "catalogName": "GRAFANA/PROMETHEUS MONITOR",
+      "script": "grafana.sh",
+      "architectures": ["amd64", "arm64"]
+    },
+    {
+      "setupId": "n8n-main",
+      "catalogName": "N8N V1 - SEM FILA (MAIN)",
+      "script": "n8nmain.sh",
+      "architectures": ["amd64", "arm64"]
+    },
+    {
+      "setupId": "nextcloud",
+      "catalogName": "NEXTCLOUD",
+      "script": "nextcloud.sh",
+      "architectures": ["amd64", "arm64"]
+    },
+    {
+      "setupId": "nocodb",
+      "catalogName": "NOCODB",
+      "script": "nocodb.sh",
+      "architectures": ["amd64", "arm64"]
+    },
+    {
+      "setupId": "ollama-openwebui",
+      "catalogName": "OLLAMA + OPENWEBUI*",
+      "script": "ollama.sh",
+      "architectures": ["amd64", "arm64"]
+    },
+    {
+      "setupId": "qdrant",
+      "catalogName": "QDRANT",
+      "script": "qdrant.sh",
+      "architectures": ["amd64", "arm64"]
+    },
+    {
+      "setupId": "redis",
+      "catalogName": "REDIS",
+      "script": "redis.sh",
+      "architectures": ["amd64", "arm64"]
+    },
+    {
+      "setupId": "setupmno-control",
+      "catalogName": "SETUP MNO CONTROL CENTER",
+      "script": "setupmno_control.sh",
+      "architectures": ["amd64", "arm64"]
+    },
+    {
+      "setupId": "typebot-minio",
+      "catalogName": "TYPEBOT + MINIO*",
+      "script": "typebot_minio.sh",
+      "architectures": ["amd64", "arm64"]
+    }
+  ]
+}
