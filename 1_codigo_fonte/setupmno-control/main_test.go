@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -107,6 +108,114 @@ func TestRelevantCatalogItemsPrioritizesName(t *testing.T) {
 	}
 }
 
+func TestCollectContextIncludesExactCatalogTotalAndSystem(t *testing.T) {
+	const catalogSHA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	items := make([]json.RawMessage, 151)
+	for index := range items {
+		items[index] = json.RawMessage(fmt.Sprintf(
+			`{"name":"SETUP %03d","cats":"Automação","desc":"Automação de teste"}`,
+			index+1,
+		))
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-SetupMNO-Agent-Token") != "token-teste" {
+			t.Errorf("token do agente ausente")
+		}
+		switch r.URL.Path {
+		case "/overview":
+			_ = json.NewEncoder(w).Encode(overview{
+				Metrics: hostMetrics{
+					MemoryTotal: 8 << 30,
+					MemoryUsed:  3 << 30,
+				},
+				Services:        20,
+				SwarmNodes:      1,
+				EngineVersion:   "29.4.2",
+				Architecture:    "x86_64",
+				OperatingSystem: "Docker Desktop",
+				OSType:          "linux",
+				KernelVersion:   "6.6.87.2-microsoft-standard-WSL2",
+				Hostname:        "hostname-secreto",
+			})
+		case "/apps":
+			_, _ = w.Write([]byte(`{"apps":[]}`))
+		case "/setup-state":
+			_ = json.NewEncoder(w).Encode(setupStateResponse{
+				SchemaVersion:  1,
+				SetupVersion:   "4.93.2",
+				CatalogVersion: "4.93.2",
+				CatalogSHA256:  catalogSHA,
+				CatalogEntries: 151,
+				Architecture:   "amd64",
+				Source:         "runtime",
+			})
+		case "/catalog":
+			_ = json.NewEncoder(w).Encode(catalogResponse{
+				Items:          items,
+				SetupVersion:   "4.93.2",
+				CatalogVersion: "4.93.2",
+				CatalogSHA256:  catalogSHA,
+				CatalogEntries: 151,
+				Architecture:   "amd64",
+				Source:         "runtime",
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	service := assistantService{
+		agentURL:    server.URL,
+		agentToken:  "token-teste",
+		agentClient: server.Client(),
+	}
+	contextData, err := service.collectContext(context.Background(), "Quais setups de automação existem?")
+	if err != nil {
+		t.Fatalf("collectContext retornou erro: %v", err)
+	}
+	if contextData.CatalogEntries != 151 {
+		t.Fatalf("total exato do catálogo ausente: %#v", contextData)
+	}
+	if contextData.RelevantSetupCount != 12 || len(contextData.RelevantSetups) != 12 {
+		t.Fatalf("recorte relevante não respeitou o limite: %#v", contextData)
+	}
+	if contextData.OperatingSystem != "Docker Desktop" ||
+		contextData.OSType != "linux" ||
+		contextData.KernelVersion != "6.6.87.2-microsoft-standard-WSL2" ||
+		contextData.EngineVersion != "29.4.2" {
+		t.Fatalf("dados do sistema ausentes: %#v", contextData)
+	}
+	serialized, err := json.Marshal(contextData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(serialized), "hostname-secreto") {
+		t.Fatal("hostname não deve ser enviado ao provedor")
+	}
+}
+
+func TestValidateAssistantCatalogRejectsMismatch(t *testing.T) {
+	state := setupStateResponse{
+		SetupVersion:   "4.93.2",
+		CatalogVersion: "4.93.2",
+		CatalogSHA256:  strings.Repeat("a", 64),
+		CatalogEntries: 151,
+		Architecture:   "amd64",
+	}
+	catalog := catalogResponse{
+		Items:          make([]json.RawMessage, 12),
+		SetupVersion:   "4.93.2",
+		CatalogVersion: "4.93.2",
+		CatalogSHA256:  strings.Repeat("a", 64),
+		CatalogEntries: 151,
+		Architecture:   "amd64",
+	}
+	if err := validateAssistantCatalog(state, catalog); err == nil {
+		t.Fatal("catálogo com quantidade divergente foi aceito")
+	}
+}
+
 func TestStreamProviderUsesResponsesAPIAndForwardsDeltas(t *testing.T) {
 	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/responses" {
@@ -118,6 +227,11 @@ func TestStreamProviderUsesResponsesAPIAndForwardsDeltas(t *testing.T) {
 		}
 		if payload["store"] != false || payload["stream"] != true {
 			t.Errorf("controles de privacidade/stream ausentes: %#v", payload)
+		}
+		instructions, _ := payload["instructions"].(string)
+		if !strings.Contains(instructions, `"catalogEntries":151`) ||
+			!strings.Contains(instructions, "Nunca use o tamanho de relevantSetups como total") {
+			t.Errorf("instruções não distinguem total e recorte: %s", instructions)
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
 		_, _ = w.Write([]byte("event: response.output_text.delta\n"))
@@ -138,7 +252,7 @@ func TestStreamProviderUsesResponsesAPIAndForwardsDeltas(t *testing.T) {
 		context.Background(),
 		response,
 		assistantRequest{Question: "Analise o servidor"},
-		assistantContext{},
+		assistantContext{CatalogEntries: 151, RelevantSetupCount: 12},
 	)
 	if err != nil {
 		t.Fatalf("streamProvider retornou erro: %v", err)
