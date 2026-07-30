@@ -1,12 +1,15 @@
 const state = {
   csrf: "",
   user: "",
-  version: "",
+  controlVersion: "",
+  setupVersion: "",
+  setupState: null,
   overview: null,
   apps: [],
   catalog: [],
   view: "dashboard",
-  timer: null
+  timer: null,
+  catalogTimer: null
 };
 
 const $ = id => document.getElementById(id);
@@ -73,6 +76,9 @@ function bindEvents() {
   $("sidebar-open").addEventListener("click", openSidebar);
   $("sidebar-close").addEventListener("click", closeSidebar);
   $("sidebar-backdrop").addEventListener("click", closeSidebar);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && state.csrf) refreshReleaseData();
+  });
 }
 
 async function login(event) {
@@ -105,6 +111,7 @@ async function logout() {
   } catch {}
   state.csrf = "";
   clearInterval(state.timer);
+  clearInterval(state.catalogTimer);
   closeTerminal();
   showLogin();
 }
@@ -112,19 +119,27 @@ async function logout() {
 function setAuthenticated(session) {
   state.csrf = session.csrfToken;
   state.user = session.user;
-  state.version = session.version;
+  state.controlVersion = session.controlVersion || session.version;
+  state.setupVersion = "";
+  state.setupState = null;
+  state.catalog = [];
   $("current-user").textContent = state.user;
   $("hero-user").textContent = state.user;
   $("user-initial").textContent = state.user.slice(0, 1).toUpperCase();
-  $("app-version").textContent = `v${state.version}`;
+  $("control-version").textContent = `v${state.controlVersion}`;
+  $("setup-version").textContent = "verificando";
   $("login-view").classList.add("hidden");
   $("app-view").classList.remove("hidden");
   refreshAll();
   clearInterval(state.timer);
+  clearInterval(state.catalogTimer);
   state.timer = setInterval(refreshOverview, 30000);
+  state.catalogTimer = setInterval(refreshReleaseData, 300000);
 }
 
 function showLogin() {
+  clearInterval(state.timer);
+  clearInterval(state.catalogTimer);
   $("app-view").classList.add("hidden");
   $("login-view").classList.remove("hidden");
   setTimeout(() => $("login-user").focus(), 80);
@@ -132,8 +147,13 @@ function showLogin() {
 
 async function refreshAll() {
   $("refresh-button").classList.add("spinning");
-  await Promise.allSettled([refreshOverview(), refreshApps(), refreshCatalog()]);
+  await Promise.allSettled([refreshOverview(), refreshApps(), refreshReleaseData()]);
   $("refresh-button").classList.remove("spinning");
+}
+
+async function refreshReleaseData() {
+  await refreshSetupState();
+  await refreshCatalog();
 }
 
 async function refreshOverview() {
@@ -159,14 +179,48 @@ async function refreshApps() {
 }
 
 async function refreshCatalog() {
-  if (state.catalog.length) return;
   try {
-    state.catalog = await api("/api/catalog");
+    const data = await api("/api/catalog");
+    state.catalog = data.items || [];
+    applyReleaseMetadata(data);
     populateCategories();
     renderCatalog();
   } catch (error) {
-    showAlert(error.message);
+    setCatalogSyncStatus(true, error.message);
   }
+}
+
+async function refreshSetupState() {
+  try {
+    const data = await api("/api/setup-state");
+    state.setupState = data;
+    applyReleaseMetadata(data);
+  } catch (error) {
+    setCatalogSyncStatus(true, error.message);
+  }
+}
+
+function applyReleaseMetadata(data) {
+  if (data.setupVersion) {
+    state.setupVersion = data.setupVersion;
+    $("setup-version").textContent = data.setupVersion === "indisponível" ? "indisponível" : `v${data.setupVersion}`;
+  }
+  if (data.controlVersion) {
+    state.controlVersion = data.controlVersion;
+    $("control-version").textContent = `v${data.controlVersion}`;
+  }
+  setCatalogSyncStatus(Boolean(data.stale), data.warning, data);
+}
+
+function setCatalogSyncStatus(stale, warning = "", data = {}) {
+  const target = $("catalog-sync-status");
+  target.className = `sync-status ${stale ? "stale" : "current"}`;
+  if (stale) {
+    target.textContent = warning || "Não foi possível confirmar o catálogo instalado.";
+    return;
+  }
+  const architecture = data.architecture ? ` · ${data.architecture}` : "";
+  target.textContent = `Sincronizado com o Setup MNO ${data.setupVersion ? `v${data.setupVersion}` : ""}${architecture}`;
 }
 
 function renderOverview() {
@@ -253,8 +307,10 @@ function renderInstalled() {
 
 function populateCategories() {
   const select = $("catalog-category");
+  const selected = select.value;
   const categories = [...new Set(state.catalog.flatMap(item => String(item.cats || "").split(",").map(v => v.trim()).filter(Boolean)))].sort((a,b) => a.localeCompare(b, "pt-BR"));
   select.innerHTML = `<option value="">Todas as categorias</option>` + categories.map(category => `<option>${escapeHTML(category)}</option>`).join("");
+  if (categories.includes(selected)) select.value = selected;
 }
 
 function renderCatalog() {

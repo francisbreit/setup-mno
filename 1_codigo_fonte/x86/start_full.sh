@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="4.92.3"
+VERSIONSETUP="4.92.4"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -137,6 +137,9 @@ unset SENHA
 # Prossegue apenas se o cliente estiver regularizado
 clear
 
+control_state_error="/tmp/setupmno-control-state-error.log"
+: >"$control_state_error"
+
 {
 echo -e "XXX\n5\nINSTALANDO SETUPMNO 1/8 \nXXX"
 
@@ -219,6 +222,34 @@ if [ $? -ne 0 ] || [ ! -d SetupLowCodeMno ]; then
     exit 1
 fi
 rm -f SetupLowCodeMno.zip
+
+control_package="/root/SetupLowCodeMno/.control-package"
+control_target="/root/SetupLowCodeMno/.control"
+if [ ! -s "$control_package/release.json" ] ||
+   [ ! -s "$control_package/catalog.json" ]; then
+    printf 'O pacote não contém o manifesto e o catálogo runtime do Control Center.\n' >"$control_state_error"
+    exit 40
+fi
+control_schema=$(jq -r '.schemaVersion // 0' "$control_package/release.json" 2>/dev/null)
+control_version=$(jq -r '.setupVersion // empty' "$control_package/release.json" 2>/dev/null)
+control_arch=$(jq -r '.architecture // empty' "$control_package/release.json" 2>/dev/null)
+control_expected_sha=$(jq -r '.catalogSHA256 // empty' "$control_package/release.json" 2>/dev/null)
+control_actual_sha=$(sha256sum "$control_package/catalog.json" | awk '{print $1}')
+if [ "$control_schema" != "1" ] ||
+   [ "$control_version" != "$VERSIONSETUP" ] ||
+   [ "$control_arch" != "amd64" ] ||
+   [ -z "$control_expected_sha" ] ||
+   [ "$control_expected_sha" != "$control_actual_sha" ]; then
+    printf 'O manifesto runtime do Control Center é inválido ou não corresponde ao Setup MNO v%s (amd64).\n' \
+        "$VERSIONSETUP" >"$control_state_error"
+    exit 41
+fi
+mkdir -p "$control_target"
+install -m 0644 "$control_package/catalog.json" "$control_target/catalog.json.tmp"
+install -m 0644 "$control_package/release.json" "$control_target/release.json.tmp"
+mv -f "$control_target/catalog.json.tmp" "$control_target/catalog.json"
+mv -f "$control_target/release.json.tmp" "$control_target/release.json"
+rm -rf "$control_package"
 
 cd SetupLowCodeMno || exit 1
 
@@ -1454,6 +1485,14 @@ sleep 4
 echo -e "XXX\n100\nINSTALANDO SETUPMNO 8/8 - CONCLUIDO \nXXX"
 sleep 3
 }|whiptail --title "SETUPMNO v${VERSIONSETUP}" --gauge "Aguarde a instalação inicial" 6 60 0
+setup_status=${PIPESTATUS[0]}
+if [ "$setup_status" -ne 0 ]; then
+    setup_error=$(cat "$control_state_error" 2>/dev/null)
+    [ -n "$setup_error" ] || setup_error="A instalação foi interrompida. Atualize o instalador e tente novamente."
+    whiptail --title "ERRO NA INSTALAÇÃO DO SETUP MNO" --scrolltext --msgbox \
+        "$setup_error\n\nCódigo da falha: $setup_status" 18 82
+    exit "$setup_status"
+fi
 clear
 cd /
 cd

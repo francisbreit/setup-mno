@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="1.0.3"
+CONTROL_VERSION="1.0.4"
 
 extract_control_bundle() {
     base64 -d <<'SETUPMNO_CONTROL_ARCHIVE'
@@ -176,6 +176,13 @@ error_file="/tmp/${nome_app}-error.log"
         fail_install 13 "REDE EXTERNA INDISPONÍVEL" "A rede overlay 'externa' não foi encontrada."
     [ -x /root/SetupLowCodeMno/install ] ||
         fail_install 14 "INSTALADOR NÃO ENCONTRADO" "O executável /root/SetupLowCodeMno/install não foi encontrado."
+    [ -s /root/SetupLowCodeMno/.control/release.json ] &&
+    [ -s /root/SetupLowCodeMno/.control/catalog.json ] ||
+        fail_install 14 "ESTADO DO SETUP NÃO ENCONTRADO" "Atualize o Setup MNO antes de instalar o Control Center. O manifesto ou catálogo runtime não foi encontrado."
+    runtime_catalog_sha=$(sha256sum /root/SetupLowCodeMno/.control/catalog.json | awk '{print $1}')
+    expected_catalog_sha=$(jq -r '.catalogSHA256 // empty' /root/SetupLowCodeMno/.control/release.json 2>>"$install_log")
+    [ -n "$expected_catalog_sha" ] && [ "$runtime_catalog_sha" = "$expected_catalog_sha" ] ||
+        fail_install 14 "CATÁLOGO DO SETUP INVÁLIDO" "O catálogo runtime não corresponde ao manifesto da versão instalada."
     [ -f "$CREDENTIALS_FILE" ] ||
         fail_install 15 "CREDENCIAIS NÃO ENCONTRADAS" "Arquivo de credenciais não encontrado: $CREDENTIALS_FILE"
 
@@ -317,12 +324,13 @@ services:
     environment:
       - MODE=agent
       - AGENT_TOKEN_FILE=/run/secrets/$agent_secret
+      - SETUP_STATE_DIR=/hostfs/SetupLowCodeMno/.control
     networks:
       - interna
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc:/host/proc:ro
-      - /:/hostfs:ro
+      - /root:/hostfs:ro
     secrets:
       - $agent_secret
     deploy:

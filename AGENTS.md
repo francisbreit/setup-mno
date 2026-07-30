@@ -121,12 +121,20 @@ O projeto utiliza Git para rastrear todas as alterações. Regras obrigatórias:
 ### Setup MNO Control Center (sincronização obrigatória)
 - O código-fonte canônico do painel web está em `1_codigo_fonte/setupmno-control/`. Os scripts distribuídos `x86/SetupLowCodeMno/setupmno_control.sh` e `arm/SetupLowCodeMno/setupmno_control.sh` são gerados mecanicamente e devem permanecer idênticos.
 - Sempre que um setup for inserido, removido, renomeado ou tiver categoria, arquitetura, RAM ou descrição alterada, atualize **também** `1_codigo_fonte/setupmno-control/catalog.json`. O catálogo HTML e o catálogo interno do Control Center devem representar os mesmos setups.
-- Depois de qualquer alteração no painel ou em seu catálogo, execute obrigatoriamente `./1_codigo_fonte/setupmno-control/generate-installers.sh`. Nunca edite manualmente somente um dos dois `setupmno_control.sh`.
+- Depois de qualquer alteração no painel, no catálogo **ou em `VERSIONSETUP`**, execute obrigatoriamente `./1_codigo_fonte/setupmno-control/generate-installers.sh`. Nunca edite manualmente somente um dos dois `setupmno_control.sh` nem os arquivos de `.control-package/`.
+- O gerador deve manter os pacotes runtime `x86/SetupLowCodeMno/.control-package/` e `arm/SetupLowCodeMno/.control-package/`, contendo `catalog.json` e `release.json`. O manifesto deve usar `schemaVersion: 1`, a versão atual do Setup, arquitetura correta, quantidade de entradas e SHA-256 exato do catálogo.
+- Durante toda instalação ou atualização, `start_full.sh` e `start_arm_full.sh` devem validar versão, arquitetura, schema e SHA-256 e promover os arquivos para `/root/SetupLowCodeMno/.control/` com arquivos temporários e `mv` atômico. Manifesto divergente é falha bloqueante exibida no Whiptail.
+- O Control Center deve consultar o estado runtime em todo carregamento autenticado, ao retornar à página, por atualização manual e periodicamente. A interface deve mostrar separadamente a versão instalada do Setup MNO e a versão do Control Center e nunca apresentar a versão do painel como se fosse a versão do Setup.
+- O agente é o único componente autorizado a ler `/root/SetupLowCodeMno/.control/`, sempre pelo mount somente leitura do host. Exponha apenas endpoints fixos de leitura para `release.json` e `catalog.json`; valide arquivo regular sem symlink, limite de tamanho, JSON, schema, versão, arquitetura, contagem e SHA-256. O painel web continua sem mount do host.
+- Se o estado runtime estiver ausente, inconsistente ou temporariamente indisponível durante uma atualização, o painel deve usar o catálogo embutido somente como contingência, marcar os dados como desatualizados, não inventar a versão instalada e registrar o fallback na auditoria.
 - Antes do empacotamento, valide:
   ```bash
   jq -e 'length > 0' 1_codigo_fonte/setupmno-control/catalog.json
   cmp -s 1_codigo_fonte/x86/SetupLowCodeMno/setupmno_control.sh 1_codigo_fonte/arm/SetupLowCodeMno/setupmno_control.sh
   bash -n 1_codigo_fonte/x86/SetupLowCodeMno/setupmno_control.sh
+  jq -e '.schemaVersion == 1 and (.setupVersion | length > 0) and (.catalogSHA256 | length == 64)' 1_codigo_fonte/x86/SetupLowCodeMno/.control-package/release.json
+  test "$(sha256sum 1_codigo_fonte/x86/SetupLowCodeMno/.control-package/catalog.json | awk '{print $1}')" = "$(jq -r '.catalogSHA256' 1_codigo_fonte/x86/SetupLowCodeMno/.control-package/release.json)"
+  test "$(jq length 1_codigo_fonte/setupmno-control/catalog.json)" = "$(jq -r '.catalogEntries' 1_codigo_fonte/x86/SetupLowCodeMno/.control-package/release.json)"
   ```
 - A quantidade de objetos do `catalog.json`, a quantidade exibida por `ferramentas.html` e os menus PRO devem estar sincronizadas. Não empacote se houver divergência.
 - Arquitetura de segurança obrigatória: painel web, agente de métricas e terminal são stacks separadas; somente o agente e o terminal recebem o socket Docker. O painel web **nunca** monta `/var/run/docker.sock`.
@@ -148,11 +156,12 @@ O projeto utiliza Git para rastrear todas as alterações. Regras obrigatórias:
 
 ### Workflow de Release
 1. Editar arquivos em `/1_codigo_fonte/`
-2. Atualizar `VERSIONSETUP` no `install.sh` (x86 + ARM)
-3. Commit: `git commit -am "feat: [descrição]"`
-4. Empacotar: `./2_empacotador/gerar_distribuicao.sh`
-5. Commit do empacotamento: `git commit -am "release: vX.Y.Z - [descrição]"`
-6. Tag: `git tag -a vX.Y.Z -m "[descrição]"`
+2. Atualizar `VERSIONSETUP` em todos os pontos obrigatórios e sincronizar `ferramentas.html`
+3. Executar `./1_codigo_fonte/setupmno-control/generate-installers.sh` para atualizar instaladores e manifestos runtime
+4. Commit: `git commit -am "feat: [descrição]"`
+5. Empacotar: `./2_empacotador/gerar_distribuicao.sh`
+6. Commit do empacotamento: `git commit -am "release: vX.Y.Z - [descrição]"`
+7. Tag: `git tag -a vX.Y.Z -m "[descrição]"`
 
 ### Backup automático antes do empacotamento
 O script `gerar_distribuicao.sh` cria automaticamente um backup do conteúdo atual de `3_distribuicao/` na pasta `3_distribuicao/backup/` antes de iniciar o novo empacotamento. Se o empacotamento falhar, o backup anterior pode ser restaurado manualmente. **NÃO delete a pasta `backup/` — ela é sua segurança contra empacotamentos corruptos.**

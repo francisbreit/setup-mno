@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#070a0f">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=1.0.3">
+  <link rel="stylesheet" href="/styles.css?v=1.0.4">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -97,7 +97,10 @@
         <section id="view-dashboard" class="view active">
           <article class="hero-card">
             <div class="hero-content">
-              <p class="eyebrow light">Setup MNO <span id="app-version">—</span></p>
+              <div class="release-badges">
+                <span>Setup MNO <b id="setup-version">verificando</b></span>
+                <span>Control Center <b id="control-version">—</b></span>
+              </div>
               <h2>Bom trabalho, <span id="hero-user">admin</span>.</h2>
               <p id="hero-status">Estamos verificando a saúde do seu ambiente.</p>
               <div class="hero-actions">
@@ -170,6 +173,7 @@
             <div><p class="eyebrow">Deploys disponíveis</p><h2>Escolha. Configure. Publique.</h2><p>O catálogo completo do Setup MNO, agora com descoberta inteligente e acesso ao instalador seguro.</p></div>
             <div class="catalog-total"><strong id="catalog-total">—</strong><span>setups</span></div>
           </div>
+          <div id="catalog-sync-status" class="sync-status">Sincronizando catálogo instalado...</div>
           <div class="section-tools sticky-tools">
             <div class="search-box grow"><span>⌕</span><input id="catalog-search" placeholder="Buscar por nome, categoria ou finalidade..."></div>
             <select id="catalog-category"><option value="">Todas as categorias</option></select>
@@ -226,6 +230,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/app.js?v=1.0.3" defer></script>
+  <script src="/app.js?v=1.0.4" defer></script>
 </body>
 </html>

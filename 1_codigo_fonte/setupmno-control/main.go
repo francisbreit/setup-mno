@@ -9,6 +9,7 @@ import (
 	"embed"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -30,8 +32,11 @@ import (
 )
 
 const (
-	sessionCookie = "mno_control_session"
-	maxBodyBytes  = 32 << 10
+	sessionCookie        = "mno_control_session"
+	maxBodyBytes         = 32 << 10
+	maxCatalogBytes      = 4 << 20
+	runtimeSchema        = 1
+	defaultSetupStateDir = "/hostfs/SetupLowCodeMno/.control"
 )
 
 //go:embed web/* catalog.json
@@ -58,15 +63,15 @@ type loginWindow struct {
 }
 
 type webApp struct {
-	adminUser      string
-	passwordSalt   []byte
-	passwordHash   []byte
-	agentToken     string
-	agentURL       string
-	terminalURL    *url.URL
-	version        string
-	cookieSecure   bool
-	httpClient     *http.Client
+	adminUser    string
+	passwordSalt []byte
+	passwordHash []byte
+	agentToken   string
+	agentURL     string
+	terminalURL  *url.URL
+	version      string
+	cookieSecure bool
+	httpClient   *http.Client
 
 	sessionMu sync.Mutex
 	sessions  map[string]*session
@@ -109,6 +114,45 @@ type appSummary struct {
 	Services []serviceSummary `json:"services"`
 }
 
+type setupRelease struct {
+	SchemaVersion  int    `json:"schemaVersion"`
+	SetupVersion   string `json:"setupVersion"`
+	CatalogVersion string `json:"catalogVersion"`
+	CatalogSHA256  string `json:"catalogSHA256"`
+	CatalogEntries int    `json:"catalogEntries"`
+	Architecture   string `json:"architecture"`
+}
+
+type runtimeSnapshot struct {
+	Release setupRelease
+	Items   []json.RawMessage
+}
+
+type setupStateResponse struct {
+	SchemaVersion  int    `json:"schemaVersion"`
+	SetupVersion   string `json:"setupVersion"`
+	ControlVersion string `json:"controlVersion,omitempty"`
+	CatalogVersion string `json:"catalogVersion"`
+	CatalogSHA256  string `json:"catalogSHA256"`
+	CatalogEntries int    `json:"catalogEntries"`
+	Architecture   string `json:"architecture"`
+	Source         string `json:"source"`
+	Stale          bool   `json:"stale"`
+	Warning        string `json:"warning,omitempty"`
+}
+
+type catalogResponse struct {
+	Items          []json.RawMessage `json:"items"`
+	SetupVersion   string            `json:"setupVersion"`
+	CatalogVersion string            `json:"catalogVersion"`
+	CatalogSHA256  string            `json:"catalogSHA256"`
+	CatalogEntries int               `json:"catalogEntries"`
+	Architecture   string            `json:"architecture"`
+	Source         string            `json:"source"`
+	Stale          bool              `json:"stale"`
+	Warning        string            `json:"warning,omitempty"`
+}
+
 type overview struct {
 	Metrics           hostMetrics `json:"metrics"`
 	Apps              int         `json:"apps"`
@@ -140,8 +184,8 @@ type dockerInfo struct {
 type dockerService struct {
 	ID   string `json:"ID"`
 	Spec struct {
-		Name   string            `json:"Name"`
-		Labels map[string]string `json:"Labels"`
+		Name         string            `json:"Name"`
+		Labels       map[string]string `json:"Labels"`
 		TaskTemplate struct {
 			ContainerSpec struct {
 				Image string `json:"Image"`
@@ -206,17 +250,17 @@ func runWeb() error {
 	}
 
 	app := &webApp{
-		adminUser:      envDefault("ADMIN_USERNAME", "admin"),
-		passwordSalt:   randomBytes(16),
-		agentToken:     string(agentTokenBytes),
-		agentURL:       strings.TrimRight(envDefault("AGENT_URL", "http://agent:9090"), "/"),
-		terminalURL:    terminalURL,
-		version:        envDefault("APP_VERSION", "dev"),
-		cookieSecure:   envDefault("COOKIE_SECURE", "true") != "false",
-		httpClient:     &http.Client{Timeout: 8 * time.Second},
-		sessions:       make(map[string]*session),
-		logins:         make(map[string]*loginWindow),
-		audit:          make([]auditEvent, 0, 200),
+		adminUser:    envDefault("ADMIN_USERNAME", "admin"),
+		passwordSalt: randomBytes(16),
+		agentToken:   string(agentTokenBytes),
+		agentURL:     strings.TrimRight(envDefault("AGENT_URL", "http://agent:9090"), "/"),
+		terminalURL:  terminalURL,
+		version:      envDefault("APP_VERSION", "dev"),
+		cookieSecure: envDefault("COOKIE_SECURE", "true") != "false",
+		httpClient:   &http.Client{Timeout: 8 * time.Second},
+		sessions:     make(map[string]*session),
+		logins:       make(map[string]*loginWindow),
+		audit:        make([]auditEvent, 0, 200),
 	}
 	app.passwordHash = pbkdf2SHA256(passwordSecret, app.passwordSalt, 310000, 32)
 	zero(passwordSecret)
@@ -228,6 +272,7 @@ func runWeb() error {
 	mux.Handle("POST /api/logout", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleLogout))))
 	mux.Handle("GET /api/overview", app.requireAuth(http.HandlerFunc(app.handleOverview)))
 	mux.Handle("GET /api/apps", app.requireAuth(http.HandlerFunc(app.handleApps)))
+	mux.Handle("GET /api/setup-state", app.requireAuth(http.HandlerFunc(app.handleSetupState)))
 	mux.Handle("GET /api/catalog", app.requireAuth(http.HandlerFunc(app.handleCatalog)))
 	mux.Handle("GET /api/audit", app.requireAuth(http.HandlerFunc(app.handleAudit)))
 	mux.Handle("POST /api/assistant", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleAssistant))))
@@ -271,6 +316,7 @@ func runAgent() error {
 	}
 	dockerClient := &http.Client{Transport: transport, Timeout: 10 * time.Second}
 	token := string(agentToken)
+	setupStateDir := envDefault("SETUP_STATE_DIR", defaultSetupStateDir)
 
 	authorize := func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -306,6 +352,22 @@ func runAgent() error {
 			"apps":        apps,
 			"generatedAt": time.Now().UTC(),
 		})
+	}))
+	mux.HandleFunc("GET /setup-state", authorize(func(w http.ResponseWriter, _ *http.Request) {
+		snapshot, err := readRuntimeSnapshot(setupStateDir)
+		if err != nil {
+			writeError(w, http.StatusServiceUnavailable, "estado do Setup MNO indisponível")
+			return
+		}
+		writeJSON(w, http.StatusOK, stateFromSnapshot(snapshot, "runtime"))
+	}))
+	mux.HandleFunc("GET /catalog", authorize(func(w http.ResponseWriter, _ *http.Request) {
+		snapshot, err := readRuntimeSnapshot(setupStateDir)
+		if err != nil {
+			writeError(w, http.StatusServiceUnavailable, "catálogo runtime indisponível")
+			return
+		}
+		writeJSON(w, http.StatusOK, catalogFromSnapshot(snapshot, "runtime"))
 	}))
 
 	server := &http.Server{
@@ -383,21 +445,23 @@ func (a *webApp) handleLogin(w http.ResponseWriter, r *http.Request) {
 	})
 	a.addAudit("login_success", "Sessão administrativa iniciada", address)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"authenticated": true,
-		"user":          a.adminUser,
-		"csrfToken":     csrf,
-		"version":       a.version,
+		"authenticated":  true,
+		"user":           a.adminUser,
+		"csrfToken":      csrf,
+		"version":        a.version,
+		"controlVersion": a.version,
 	})
 }
 
 func (a *webApp) handleSession(w http.ResponseWriter, r *http.Request) {
 	s := sessionFromContext(r.Context())
 	writeJSON(w, http.StatusOK, map[string]any{
-		"authenticated": true,
-		"user":          s.User,
-		"csrfToken":     s.CSRF,
-		"expiresAt":     s.Expires.UTC(),
-		"version":       a.version,
+		"authenticated":  true,
+		"user":           s.User,
+		"csrfToken":      s.CSRF,
+		"expiresAt":      s.Expires.UTC(),
+		"version":        a.version,
+		"controlVersion": a.version,
 	})
 }
 
@@ -441,15 +505,47 @@ func (a *webApp) handleApps(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
-func (a *webApp) handleCatalog(w http.ResponseWriter, _ *http.Request) {
-	catalog, err := embeddedFiles.ReadFile("catalog.json")
+func (a *webApp) handleSetupState(w http.ResponseWriter, r *http.Request) {
+	var result setupStateResponse
+	if err := a.agentRequest(r.Context(), "/setup-state", &result); err == nil {
+		result.ControlVersion = a.version
+		writeJSON(w, http.StatusOK, result)
+		return
+	}
+
+	fallback, err := embeddedCatalogResponse()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "estado do Setup MNO indisponível")
+		return
+	}
+	a.addAudit("setup_state_fallback", "Manifesto runtime indisponível; versão não confirmada", clientAddress(r))
+	writeJSON(w, http.StatusOK, setupStateResponse{
+		SchemaVersion:  runtimeSchema,
+		SetupVersion:   "indisponível",
+		ControlVersion: a.version,
+		CatalogVersion: "embutido",
+		CatalogSHA256:  fallback.CatalogSHA256,
+		CatalogEntries: fallback.CatalogEntries,
+		Source:         "embedded",
+		Stale:          true,
+		Warning:        "Não foi possível validar a versão instalada. Exibindo o catálogo de contingência do Control Center.",
+	})
+}
+
+func (a *webApp) handleCatalog(w http.ResponseWriter, r *http.Request) {
+	var result catalogResponse
+	if err := a.agentRequest(r.Context(), "/catalog", &result); err == nil {
+		writeJSON(w, http.StatusOK, result)
+		return
+	}
+
+	fallback, err := embeddedCatalogResponse()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "catálogo indisponível")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Cache-Control", "private, max-age=300")
-	_, _ = w.Write(catalog)
+	a.addAudit("catalog_fallback", "Catálogo runtime inválido ou indisponível; contingência ativada", clientAddress(r))
+	writeJSON(w, http.StatusOK, fallback)
 }
 
 func (a *webApp) handleAudit(w http.ResponseWriter, _ *http.Request) {
@@ -608,6 +704,167 @@ func (a *webApp) agentRequest(ctx context.Context, endpoint string, target any) 
 		return fmt.Errorf("agente retornou HTTP %d", resp.StatusCode)
 	}
 	return json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(target)
+}
+
+func readRuntimeSnapshot(directory string) (runtimeSnapshot, error) {
+	info, err := os.Lstat(directory)
+	if err != nil {
+		return runtimeSnapshot{}, fmt.Errorf("diretório de estado: %w", err)
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return runtimeSnapshot{}, errors.New("diretório de estado inválido")
+	}
+
+	releaseData, err := readRegularFile(filepath.Join(directory, "release.json"), 32<<10)
+	if err != nil {
+		return runtimeSnapshot{}, fmt.Errorf("manifesto: %w", err)
+	}
+	var release setupRelease
+	decoder := json.NewDecoder(strings.NewReader(string(releaseData)))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&release); err != nil {
+		return runtimeSnapshot{}, fmt.Errorf("manifesto JSON: %w", err)
+	}
+	if release.SchemaVersion != runtimeSchema {
+		return runtimeSnapshot{}, fmt.Errorf("schema %d não suportado", release.SchemaVersion)
+	}
+	if !validSemanticVersion(release.SetupVersion) ||
+		release.CatalogVersion != release.SetupVersion ||
+		release.CatalogEntries < 1 ||
+		(release.Architecture != "amd64" && release.Architecture != "arm64") {
+		return runtimeSnapshot{}, errors.New("manifesto inconsistente")
+	}
+	expectedHash, err := hex.DecodeString(release.CatalogSHA256)
+	if err != nil || len(expectedHash) != sha256.Size {
+		return runtimeSnapshot{}, errors.New("SHA-256 do catálogo inválido")
+	}
+
+	catalogData, err := readRegularFile(filepath.Join(directory, "catalog.json"), maxCatalogBytes)
+	if err != nil {
+		return runtimeSnapshot{}, fmt.Errorf("catálogo: %w", err)
+	}
+	actualHash := sha256.Sum256(catalogData)
+	if subtle.ConstantTimeCompare(expectedHash, actualHash[:]) != 1 {
+		return runtimeSnapshot{}, errors.New("SHA-256 do catálogo divergente")
+	}
+	items, err := decodeCatalog(catalogData)
+	if err != nil {
+		return runtimeSnapshot{}, err
+	}
+	if len(items) != release.CatalogEntries {
+		return runtimeSnapshot{}, errors.New("quantidade do catálogo divergente")
+	}
+	return runtimeSnapshot{Release: release, Items: items}, nil
+}
+
+func readRegularFile(filename string, limit int64) ([]byte, error) {
+	info, err := os.Lstat(filename)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+		return nil, errors.New("arquivo não regular")
+	}
+	if info.Size() < 2 || info.Size() > limit {
+		return nil, errors.New("tamanho de arquivo inválido")
+	}
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > limit {
+		return nil, errors.New("arquivo excede o limite")
+	}
+	return data, nil
+}
+
+func decodeCatalog(data []byte) ([]json.RawMessage, error) {
+	var items []json.RawMessage
+	if err := json.Unmarshal(data, &items); err != nil {
+		return nil, fmt.Errorf("catálogo JSON: %w", err)
+	}
+	if len(items) == 0 {
+		return nil, errors.New("catálogo vazio")
+	}
+	for _, item := range items {
+		var identity struct {
+			Name string `json:"name"`
+		}
+		if err := json.Unmarshal(item, &identity); err != nil || strings.TrimSpace(identity.Name) == "" {
+			return nil, errors.New("item inválido no catálogo")
+		}
+	}
+	return items, nil
+}
+
+func validSemanticVersion(value string) bool {
+	parts := strings.Split(value, ".")
+	if len(parts) != 3 {
+		return false
+	}
+	for _, part := range parts {
+		if part == "" {
+			return false
+		}
+		if _, err := strconv.ParseUint(part, 10, 31); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
+func stateFromSnapshot(snapshot runtimeSnapshot, source string) setupStateResponse {
+	release := snapshot.Release
+	return setupStateResponse{
+		SchemaVersion:  release.SchemaVersion,
+		SetupVersion:   release.SetupVersion,
+		CatalogVersion: release.CatalogVersion,
+		CatalogSHA256:  release.CatalogSHA256,
+		CatalogEntries: release.CatalogEntries,
+		Architecture:   release.Architecture,
+		Source:         source,
+		Stale:          false,
+	}
+}
+
+func catalogFromSnapshot(snapshot runtimeSnapshot, source string) catalogResponse {
+	release := snapshot.Release
+	return catalogResponse{
+		Items:          snapshot.Items,
+		SetupVersion:   release.SetupVersion,
+		CatalogVersion: release.CatalogVersion,
+		CatalogSHA256:  release.CatalogSHA256,
+		CatalogEntries: release.CatalogEntries,
+		Architecture:   release.Architecture,
+		Source:         source,
+		Stale:          false,
+	}
+}
+
+func embeddedCatalogResponse() (catalogResponse, error) {
+	data, err := embeddedFiles.ReadFile("catalog.json")
+	if err != nil {
+		return catalogResponse{}, err
+	}
+	items, err := decodeCatalog(data)
+	if err != nil {
+		return catalogResponse{}, err
+	}
+	sum := sha256.Sum256(data)
+	return catalogResponse{
+		Items:          items,
+		CatalogVersion: "embutido",
+		CatalogSHA256:  hex.EncodeToString(sum[:]),
+		CatalogEntries: len(items),
+		Source:         "embedded",
+		Stale:          true,
+		Warning:        "Catálogo runtime indisponível. Exibindo a cópia de contingência incluída no Control Center.",
+	}, nil
 }
 
 func (a *webApp) loginBlocked(address string) time.Duration {
