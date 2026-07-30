@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="1.1.0"
+CONTROL_VERSION="1.1.1"
 
 extract_control_bundle() {
     base64 -d <<'SETUPMNO_CONTROL_ARCHIVE'
@@ -24,7 +24,9 @@ fi
 criar_dns="${criar_dns:-0}"
 
 msg() {
-    whiptail --title "SETUP MNO CONTROL CENTER" --msgbox "$1" 14 78
+    # As funções de coleta são chamadas por substituição de comando. Direcionar
+    # a interface para stderr mantém o Whiptail visível no terminal/ttyd.
+    whiptail --title "SETUP MNO CONTROL CENTER" --msgbox "$1" 14 78 1>&2
 }
 
 ask_required() {
@@ -32,7 +34,7 @@ ask_required() {
     while true; do
         value=$(whiptail --title "SETUP MNO CONTROL CENTER" --inputbox "$prompt" 12 78 3>&1 1>&2 2>&3)
         status=$?
-        [ "$status" -ne 0 ] && exit 0
+        [ "$status" -ne 0 ] && return 130
         [ -n "$value" ] && {
             printf '%s' "$value"
             return
@@ -47,7 +49,7 @@ ask_with_default() {
         value=$(whiptail --title "SETUP MNO CONTROL CENTER" --inputbox \
             "$prompt" 13 82 "$default_value" 3>&1 1>&2 2>&3)
         status=$?
-        [ "$status" -ne 0 ] && exit 0
+        [ "$status" -ne 0 ] && return 130
         [ -n "$value" ] && {
             printf '%s' "$value"
             return
@@ -63,7 +65,7 @@ ask_openai_key() {
             "Informe a chave da API OpenAI.\n\nEla será armazenada exclusivamente como Docker Secret e nunca será exibida em logs." \
             14 82 3>&1 1>&2 2>&3)
         status=$?
-        [ "$status" -ne 0 ] && exit 0
+        [ "$status" -ne 0 ] && return 130
         if [ "${#value}" -ge 20 ] && [[ "$value" != *[[:space:]]* ]]; then
             printf '%s' "$value"
             return
@@ -79,19 +81,35 @@ ask_password() {
             "3/5 — Crie a senha administrativa:\n\nMínimo de 12 caracteres, com maiúscula, minúscula, número e símbolo." \
             14 78 3>&1 1>&2 2>&3)
         status=$?
-        [ "$status" -ne 0 ] && exit 0
-        if [ "${#value}" -lt 12 ] ||
-           [[ ! "$value" =~ [[:upper:]] ]] ||
-           [[ ! "$value" =~ [[:lower:]] ]] ||
-           [[ ! "$value" =~ [[:digit:]] ]] ||
-           [[ "$value" =~ ^[[:alnum:]]+$ ]]; then
-            msg "A senha não atende aos requisitos mínimos."
+        [ "$status" -ne 0 ] && return 130
+        if [ "${#value}" -lt 12 ]; then
+            msg "Senha inválida: use pelo menos 12 caracteres."
+            continue
+        fi
+        if [[ ! "$value" =~ [[:upper:]] ]]; then
+            msg "Senha inválida: inclua pelo menos uma letra maiúscula."
+            continue
+        fi
+        if [[ ! "$value" =~ [[:lower:]] ]]; then
+            msg "Senha inválida: inclua pelo menos uma letra minúscula."
+            continue
+        fi
+        if [[ ! "$value" =~ [[:digit:]] ]]; then
+            msg "Senha inválida: inclua pelo menos um número."
+            continue
+        fi
+        if [[ "$value" =~ [[:space:]] ]]; then
+            msg "Senha inválida: não use espaços."
+            continue
+        fi
+        if [[ ! "$value" =~ [^[:alnum:][:space:]] ]]; then
+            msg "Senha inválida: inclua pelo menos um símbolo, como !, @, # ou %."
             continue
         fi
         confirmation=$(whiptail --title "SETUP MNO CONTROL CENTER" --passwordbox \
             "Confirme a senha administrativa:" 11 78 3>&1 1>&2 2>&3)
         status=$?
-        [ "$status" -ne 0 ] && exit 0
+        [ "$status" -ne 0 ] && return 130
         [ "$value" = "$confirmation" ] && {
             printf '%s' "$value"
             return
@@ -105,7 +123,9 @@ whiptail --title "SETUP MNO CONTROL CENTER" --yesno \
     16 82 || exit 0
 
 while true; do
-    url_control=$(ask_required "1/5 — Domínio do painel (ex.: setup.seudominio.com):")
+    if ! url_control=$(ask_required "1/5 — Domínio do painel (ex.: setup.seudominio.com):"); then
+        exit 0
+    fi
     if [[ "$url_control" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] &&
        [[ "$url_control" == *.* ]]; then
         break
@@ -133,14 +153,18 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
 fi
 
 while true; do
-    usuario_control=$(ask_required "2/5 — Usuário administrador do painel:")
+    if ! usuario_control=$(ask_required "2/5 — Usuário administrador do painel:"); then
+        exit 0
+    fi
     if [[ "$usuario_control" =~ ^[A-Za-z0-9_.-]{3,40}$ ]]; then
         break
     fi
     msg "Use de 3 a 40 caracteres: letras, números, ponto, hífen ou sublinhado."
 done
 
-senha_control=$(ask_password)
+if ! senha_control=$(ask_password); then
+    exit 0
+fi
 
 mem_total_mb=$(awk '/MemTotal:/ {print int($2/1024)}' /proc/meminfo)
 mem_available_mb=$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo)
@@ -169,10 +193,14 @@ else
                 break
                 ;;
             OPENAI)
-                openai_api_key=$(ask_openai_key)
-                assistant_model=$(ask_with_default \
+                if ! openai_api_key=$(ask_openai_key); then
+                    exit 0
+                fi
+                if ! assistant_model=$(ask_with_default \
                     "Modelo OpenAI para o Copiloto:\n\nO padrão equilibra qualidade, latência e custo. Você pode informar outro modelo compatível com a Responses API." \
-                    "gpt-5.6-terra")
+                    "gpt-5.6-terra"); then
+                    exit 0
+                fi
                 assistant_mode="openai"
                 assistant_base_url="https://api.openai.com/v1"
                 break
@@ -182,15 +210,19 @@ else
                     msg "O modo Ollama local exige pelo menos 8 GB de RAM total e 4 GB disponíveis.\n\nUse OpenAI, mantenha o diagnóstico básico ou amplie o servidor. Esta proteção evita degradação dos setups já instalados."
                     continue
                 fi
-                assistant_base_url=$(ask_required \
-                    "Endpoint do Ollama já instalado (ex.: https://apiollama.seudominio.com):")
+                if ! assistant_base_url=$(ask_required \
+                    "Endpoint do Ollama já instalado (ex.: https://apiollama.seudominio.com):"); then
+                    exit 0
+                fi
                 assistant_base_url="${assistant_base_url%/}"
                 if [[ ! "$assistant_base_url" =~ ^https?://[^[:space:]]+$ ]]; then
                     msg "Informe uma URL HTTP ou HTTPS válida para o endpoint Ollama."
                     continue
                 fi
-                assistant_model=$(ask_required \
-                    "Nome exato do modelo já baixado no Ollama (ex.: qwen3:8b):")
+                if ! assistant_model=$(ask_required \
+                    "Nome exato do modelo já baixado no Ollama (ex.: qwen3:8b):"); then
+                    exit 0
+                fi
                 assistant_mode="ollama"
                 break
                 ;;
@@ -199,7 +231,10 @@ else
 fi
 
 while true; do
-    criar_portainer=$(ask_required "5/5 — Criar Stack no Portainer?\n\n0 = editável no Portainer\n1 = direto no Docker")
+    if ! criar_portainer=$(ask_required \
+        "5/5 — Criar Stack no Portainer?\n\n0 = editável no Portainer\n1 = direto no Docker"); then
+        exit 0
+    fi
     [[ "$criar_portainer" =~ ^[01]$ ]] && break
     msg "Digite somente 0 ou 1."
 done

@@ -11,6 +11,33 @@ arm_runtime_package="$source_root/arm/SetupLowCodeMno/.control-package"
 temporary_dir=$(mktemp -d)
 trap 'rm -rf "$temporary_dir"' EXIT
 
+msg_function=$(awk '/^msg\(\)/,/^}/' "$template")
+grep -Fq '1>&2' <<<"$msg_function" || {
+    printf 'ERRO: msg() precisa direcionar a interface Whiptail para stderr.\n' >&2
+    exit 1
+}
+for collector in ask_required ask_with_default ask_openai_key ask_password; do
+    collector_function=$(awk -v name="$collector" '
+        $0 ~ "^" name "\\(\\)" { inside=1 }
+        inside { print }
+        inside && /^}/ { exit }
+    ' "$template")
+    grep -Fq 'return 130' <<<"$collector_function" || {
+        printf 'ERRO: %s não propaga o cancelamento ao chamador.\n' "$collector" >&2
+        exit 1
+    }
+    if grep -Fq 'exit 0' <<<"$collector_function"; then
+        printf 'ERRO: %s encerra apenas o subshell da coleta.\n' "$collector" >&2
+        exit 1
+    fi
+done
+unhandled_collectors=$(grep -E '^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*=\$\(ask_' "$template" || true)
+[ -z "$unhandled_collectors" ] || {
+    printf 'ERRO: coleta Whiptail sem tratamento explícito de cancelamento:\n%s\n' \
+        "$unhandled_collectors" >&2
+    exit 1
+}
+
 bundle="$temporary_dir/setupmno-control.tar.gz"
 (
     cd "$project_dir"

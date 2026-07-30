@@ -20,8 +20,8 @@ func TestReadRuntimeSnapshot(t *testing.T) {
 	sum := sha256.Sum256(catalog)
 	release := setupRelease{
 		SchemaVersion:  runtimeSchema,
-		SetupVersion:   "4.93.0",
-		CatalogVersion: "4.93.0",
+		SetupVersion:   "4.93.1",
+		CatalogVersion: "4.93.1",
 		CatalogSHA256:  hex.EncodeToString(sum[:]),
 		CatalogEntries: 1,
 		Architecture:   "amd64",
@@ -41,7 +41,7 @@ func TestReadRuntimeSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("snapshot válido foi recusado: %v", err)
 	}
-	if snapshot.Release.SetupVersion != "4.93.0" || len(snapshot.Items) != 1 {
+	if snapshot.Release.SetupVersion != "4.93.1" || len(snapshot.Items) != 1 {
 		t.Fatalf("snapshot inesperado: %#v", snapshot)
 	}
 }
@@ -51,8 +51,8 @@ func TestReadRuntimeSnapshotRejectsCatalogMismatch(t *testing.T) {
 	catalog := []byte(`[{"name":"TESTE"}]`)
 	release := setupRelease{
 		SchemaVersion:  runtimeSchema,
-		SetupVersion:   "4.93.0",
-		CatalogVersion: "4.93.0",
+		SetupVersion:   "4.93.1",
+		CatalogVersion: "4.93.1",
 		CatalogSHA256:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		CatalogEntries: 1,
 		Architecture:   "arm64",

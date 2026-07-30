@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="1.1.0"
+CONTROL_VERSION="1.1.1"
 
 extract_control_bundle() {
     base64 -d <<'SETUPMNO_CONTROL_ARCHIVE'
@@ -806,107 +806,107 @@ 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
-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
-AwA=
+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
+AHADAA==
 SETUPMNO_CONTROL_ARCHIVE
 }
 
@@ -923,7 +923,9 @@ fi
 criar_dns="${criar_dns:-0}"
 
 msg() {
-    whiptail --title "SETUP MNO CONTROL CENTER" --msgbox "$1" 14 78
+    # As funções de coleta são chamadas por substituição de comando. Direcionar
+    # a interface para stderr mantém o Whiptail visível no terminal/ttyd.
+    whiptail --title "SETUP MNO CONTROL CENTER" --msgbox "$1" 14 78 1>&2
 }
 
 ask_required() {
@@ -931,7 +933,7 @@ ask_required() {
     while true; do
         value=$(whiptail --title "SETUP MNO CONTROL CENTER" --inputbox "$prompt" 12 78 3>&1 1>&2 2>&3)
         status=$?
-        [ "$status" -ne 0 ] && exit 0
+        [ "$status" -ne 0 ] && return 130
         [ -n "$value" ] && {
             printf '%s' "$value"
             return
@@ -946,7 +948,7 @@ ask_with_default() {
         value=$(whiptail --title "SETUP MNO CONTROL CENTER" --inputbox \
             "$prompt" 13 82 "$default_value" 3>&1 1>&2 2>&3)
         status=$?
-        [ "$status" -ne 0 ] && exit 0
+        [ "$status" -ne 0 ] && return 130
         [ -n "$value" ] && {
             printf '%s' "$value"
             return
@@ -962,7 +964,7 @@ ask_openai_key() {
             "Informe a chave da API OpenAI.\n\nEla será armazenada exclusivamente como Docker Secret e nunca será exibida em logs." \
             14 82 3>&1 1>&2 2>&3)
         status=$?
-        [ "$status" -ne 0 ] && exit 0
+        [ "$status" -ne 0 ] && return 130
         if [ "${#value}" -ge 20 ] && [[ "$value" != *[[:space:]]* ]]; then
             printf '%s' "$value"
             return
@@ -978,19 +980,35 @@ ask_password() {
             "3/5 — Crie a senha administrativa:\n\nMínimo de 12 caracteres, com maiúscula, minúscula, número e símbolo." \
             14 78 3>&1 1>&2 2>&3)
         status=$?
-        [ "$status" -ne 0 ] && exit 0
-        if [ "${#value}" -lt 12 ] ||
-           [[ ! "$value" =~ [[:upper:]] ]] ||
-           [[ ! "$value" =~ [[:lower:]] ]] ||
-           [[ ! "$value" =~ [[:digit:]] ]] ||
-           [[ "$value" =~ ^[[:alnum:]]+$ ]]; then
-            msg "A senha não atende aos requisitos mínimos."
+        [ "$status" -ne 0 ] && return 130
+        if [ "${#value}" -lt 12 ]; then
+            msg "Senha inválida: use pelo menos 12 caracteres."
+            continue
+        fi
+        if [[ ! "$value" =~ [[:upper:]] ]]; then
+            msg "Senha inválida: inclua pelo menos uma letra maiúscula."
+            continue
+        fi
+        if [[ ! "$value" =~ [[:lower:]] ]]; then
+            msg "Senha inválida: inclua pelo menos uma letra minúscula."
+            continue
+        fi
+        if [[ ! "$value" =~ [[:digit:]] ]]; then
+            msg "Senha inválida: inclua pelo menos um número."
+            continue
+        fi
+        if [[ "$value" =~ [[:space:]] ]]; then
+            msg "Senha inválida: não use espaços."
+            continue
+        fi
+        if [[ ! "$value" =~ [^[:alnum:][:space:]] ]]; then
+            msg "Senha inválida: inclua pelo menos um símbolo, como !, @, # ou %."
             continue
         fi
         confirmation=$(whiptail --title "SETUP MNO CONTROL CENTER" --passwordbox \
             "Confirme a senha administrativa:" 11 78 3>&1 1>&2 2>&3)
         status=$?
-        [ "$status" -ne 0 ] && exit 0
+        [ "$status" -ne 0 ] && return 130
         [ "$value" = "$confirmation" ] && {
             printf '%s' "$value"
             return
@@ -1004,7 +1022,9 @@ whiptail --title "SETUP MNO CONTROL CENTER" --yesno \
     16 82 || exit 0
 
 while true; do
-    url_control=$(ask_required "1/5 — Domínio do painel (ex.: setup.seudominio.com):")
+    if ! url_control=$(ask_required "1/5 — Domínio do painel (ex.: setup.seudominio.com):"); then
+        exit 0
+    fi
     if [[ "$url_control" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] &&
        [[ "$url_control" == *.* ]]; then
         break
@@ -1032,14 +1052,18 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
 fi
 
 while true; do
-    usuario_control=$(ask_required "2/5 — Usuário administrador do painel:")
+    if ! usuario_control=$(ask_required "2/5 — Usuário administrador do painel:"); then
+        exit 0
+    fi
     if [[ "$usuario_control" =~ ^[A-Za-z0-9_.-]{3,40}$ ]]; then
         break
     fi
     msg "Use de 3 a 40 caracteres: letras, números, ponto, hífen ou sublinhado."
 done
 
-senha_control=$(ask_password)
+if ! senha_control=$(ask_password); then
+    exit 0
+fi
 
 mem_total_mb=$(awk '/MemTotal:/ {print int($2/1024)}' /proc/meminfo)
 mem_available_mb=$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo)
@@ -1068,10 +1092,14 @@ else
                 break
                 ;;
             OPENAI)
-                openai_api_key=$(ask_openai_key)
-                assistant_model=$(ask_with_default \
+                if ! openai_api_key=$(ask_openai_key); then
+                    exit 0
+                fi
+                if ! assistant_model=$(ask_with_default \
                     "Modelo OpenAI para o Copiloto:\n\nO padrão equilibra qualidade, latência e custo. Você pode informar outro modelo compatível com a Responses API." \
-                    "gpt-5.6-terra")
+                    "gpt-5.6-terra"); then
+                    exit 0
+                fi
                 assistant_mode="openai"
                 assistant_base_url="https://api.openai.com/v1"
                 break
@@ -1081,15 +1109,19 @@ else
                     msg "O modo Ollama local exige pelo menos 8 GB de RAM total e 4 GB disponíveis.\n\nUse OpenAI, mantenha o diagnóstico básico ou amplie o servidor. Esta proteção evita degradação dos setups já instalados."
                     continue
                 fi
-                assistant_base_url=$(ask_required \
-                    "Endpoint do Ollama já instalado (ex.: https://apiollama.seudominio.com):")
+                if ! assistant_base_url=$(ask_required \
+                    "Endpoint do Ollama já instalado (ex.: https://apiollama.seudominio.com):"); then
+                    exit 0
+                fi
                 assistant_base_url="${assistant_base_url%/}"
                 if [[ ! "$assistant_base_url" =~ ^https?://[^[:space:]]+$ ]]; then
                     msg "Informe uma URL HTTP ou HTTPS válida para o endpoint Ollama."
                     continue
                 fi
-                assistant_model=$(ask_required \
-                    "Nome exato do modelo já baixado no Ollama (ex.: qwen3:8b):")
+                if ! assistant_model=$(ask_required \
+                    "Nome exato do modelo já baixado no Ollama (ex.: qwen3:8b):"); then
+                    exit 0
+                fi
                 assistant_mode="ollama"
                 break
                 ;;
@@ -1098,7 +1130,10 @@ else
 fi
 
 while true; do
-    criar_portainer=$(ask_required "5/5 — Criar Stack no Portainer?\n\n0 = editável no Portainer\n1 = direto no Docker")
+    if ! criar_portainer=$(ask_required \
+        "5/5 — Criar Stack no Portainer?\n\n0 = editável no Portainer\n1 = direto no Docker"); then
+        exit 0
+    fi
     [[ "$criar_portainer" =~ ^[01]$ ]] && break
     msg "Digite somente 0 ou 1."
 done
