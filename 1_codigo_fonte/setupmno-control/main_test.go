@@ -94,6 +94,110 @@ func TestValidateAssistantRequestSanitizesHistory(t *testing.T) {
 	}
 }
 
+func TestFullCatalogRequestDetection(t *testing.T) {
+	accepted := []string{
+		"Liste todos os setups possíveis na atual versão do Setup MNO",
+		"Mostre o catálogo completo",
+		"Quais são os 151 setups?",
+	}
+	for _, question := range accepted {
+		if !isFullCatalogRequest(question) {
+			t.Errorf("pedido de catálogo completo não detectado: %q", question)
+		}
+	}
+	rejected := []string{
+		"Quais setups servem para automação?",
+		"Mostre todos os serviços com falha",
+		"Qual setup usa menos RAM?",
+	}
+	for _, question := range rejected {
+		if isFullCatalogRequest(question) {
+			t.Errorf("consulta semântica confundida com catálogo completo: %q", question)
+		}
+	}
+}
+
+func TestFullCatalogMarkdownListsEveryCanonicalSetup(t *testing.T) {
+	data, err := os.ReadFile("catalog.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var items []json.RawMessage
+	if err := json.Unmarshal(data, &items); err != nil {
+		t.Fatal(err)
+	}
+	catalog := catalogResponse{
+		Items:          items,
+		SetupVersion:   "4.93.3",
+		CatalogVersion: "4.93.3",
+		CatalogEntries: len(items),
+		Source:         "runtime",
+	}
+	answer, err := fullCatalogMarkdown(catalog)
+	if err != nil {
+		t.Fatalf("catálogo canônico foi recusado: %v", err)
+	}
+	if len(items) != 151 || !strings.Contains(answer, "**151 de 151 setups validados:**") {
+		t.Fatalf("resposta não confirmou os 151 setups: %s", answer)
+	}
+	numbered := 0
+	for _, line := range strings.Split(answer, "\n") {
+		if strings.Contains(line, ". ") {
+			var position int
+			if _, err := fmt.Sscanf(line, "%d. ", &position); err == nil && position > 0 {
+				numbered++
+			}
+		}
+	}
+	if numbered != len(items) {
+		t.Fatalf("lista incompleta: %d de %d itens", numbered, len(items))
+	}
+}
+
+func TestStreamFullCatalogUsesValidatedRuntimeCatalog(t *testing.T) {
+	catalog := catalogResponse{
+		Items: []json.RawMessage{
+			json.RawMessage(`{"name":"N8N"}`),
+			json.RawMessage(`{"name":"STRAPI"}`),
+		},
+		SetupVersion:   "4.93.3",
+		CatalogVersion: "4.93.3",
+		CatalogEntries: 2,
+		Architecture:   "amd64",
+		Source:         "runtime",
+	}
+	agent := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/catalog" {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Header.Get("X-SetupMNO-Agent-Token") != "token-teste" {
+			t.Errorf("token do agente ausente")
+		}
+		_ = json.NewEncoder(w).Encode(catalog)
+	}))
+	defer agent.Close()
+
+	app := webApp{
+		agentURL:   agent.URL,
+		agentToken: "token-teste",
+		httpClient: agent.Client(),
+		audit:      make([]auditEvent, 0, 2),
+	}
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/assistant", nil)
+	app.streamFullCatalog(response, request)
+
+	body := response.Body.String()
+	if response.Code != http.StatusOK ||
+		!strings.Contains(body, `"mode":"catalog"`) ||
+		!strings.Contains(body, "2 de 2 setups validados") ||
+		!strings.Contains(body, "1. N8N") ||
+		!strings.Contains(body, "2. STRAPI") {
+		t.Fatalf("stream local inesperado: HTTP %d: %s", response.Code, body)
+	}
+}
+
 func TestRelevantCatalogItemsPrioritizesName(t *testing.T) {
 	items := []json.RawMessage{
 		json.RawMessage(`{"name":"N8N","cats":"Automação","desc":"Workflows","search":"automação"}`),

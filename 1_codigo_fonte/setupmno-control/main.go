@@ -1176,6 +1176,10 @@ func (a *webApp) handleAssistant(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	if isFullCatalogRequest(input.Question) {
+		a.streamFullCatalog(w, r)
+		return
+	}
 	if input.Basic || a.assistantURL == "" || a.assistantMode == "basic" {
 		a.streamBasicAssistant(w, r, input.Question, input.Basic)
 		return
@@ -1226,6 +1230,89 @@ func (a *webApp) handleAssistant(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	a.addAudit("assistant_analysis", "Consulta assistida via "+a.assistantMode, clientAddress(r))
+}
+
+func isFullCatalogRequest(question string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(question))
+	mentionsCatalog := strings.Contains(normalized, "setup") ||
+		strings.Contains(normalized, "catálogo") ||
+		strings.Contains(normalized, "catalogo")
+	requestsAll := strings.Contains(normalized, "todos") ||
+		strings.Contains(normalized, "todas") ||
+		strings.Contains(normalized, "completo") ||
+		strings.Contains(normalized, "completa") ||
+		strings.Contains(normalized, "151")
+	listIntent := strings.Contains(normalized, "list") ||
+		strings.Contains(normalized, "mostr") ||
+		strings.Contains(normalized, "exib") ||
+		strings.Contains(normalized, "quais") ||
+		strings.Contains(normalized, "catálogo completo") ||
+		strings.Contains(normalized, "catalogo completo")
+	return mentionsCatalog && requestsAll && listIntent
+}
+
+func fullCatalogMarkdown(catalog catalogResponse) (string, error) {
+	if !validSemanticVersion(catalog.SetupVersion) ||
+		catalog.CatalogVersion != catalog.SetupVersion ||
+		catalog.CatalogEntries < 1 ||
+		catalog.CatalogEntries != len(catalog.Items) ||
+		catalog.Stale {
+		return "", errors.New("catálogo runtime inconsistente")
+	}
+
+	names := make([]string, 0, len(catalog.Items))
+	for _, raw := range catalog.Items {
+		var identity struct {
+			Name string `json:"name"`
+		}
+		if err := json.Unmarshal(raw, &identity); err != nil {
+			return "", errors.New("item inválido no catálogo runtime")
+		}
+		name := strings.Join(strings.Fields(identity.Name), " ")
+		if name == "" {
+			return "", errors.New("setup sem nome no catálogo runtime")
+		}
+		name = strings.ReplaceAll(name, "**", "* *")
+		name = strings.ReplaceAll(name, "`", "'")
+		names = append(names, name)
+	}
+	sortStrings(names)
+
+	var answer strings.Builder
+	fmt.Fprintf(&answer, "**Setup MNO v%s — catálogo completo**\n\n", catalog.SetupVersion)
+	fmt.Fprintf(&answer, "**%d de %d setups validados:**\n\n", len(names), catalog.CatalogEntries)
+	for index, name := range names {
+		fmt.Fprintf(&answer, "%d. %s\n", index+1, name)
+	}
+	answer.WriteString("\nPara descrições, requisitos de RAM, arquitetura e filtros, abra **Catálogo de setups** no menu lateral.")
+	return answer.String(), nil
+}
+
+func (a *webApp) streamFullCatalog(w http.ResponseWriter, r *http.Request) {
+	var catalog catalogResponse
+	if err := a.agentRequest(r.Context(), "/catalog", &catalog); err != nil {
+		writeError(w, http.StatusServiceUnavailable, "catálogo runtime indisponível")
+		return
+	}
+	answer, err := fullCatalogMarkdown(catalog)
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, "catálogo runtime inconsistente")
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.WriteHeader(http.StatusOK)
+	sendSSE(w, "meta", map[string]any{
+		"mode":           "catalog",
+		"model":          "",
+		"setupVersion":   catalog.SetupVersion,
+		"catalogEntries": catalog.CatalogEntries,
+	})
+	sendSSE(w, "delta", map[string]any{"delta": answer})
+	sendSSE(w, "done", map[string]any{"ok": true})
+	a.addAudit("assistant_catalog", "Catálogo runtime completo listado localmente", clientAddress(r))
 }
 
 func (a *webApp) streamBasicAssistant(w http.ResponseWriter, r *http.Request, question string, fallback bool) {

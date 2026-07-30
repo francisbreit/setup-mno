@@ -359,16 +359,19 @@ async function askAssistant(event) {
     try {
       answer = await streamAssistant(question, history, pending, false);
     } catch {
-      pending.querySelector("p").textContent = "O conector de IA ficou indisponível. Ativando o diagnóstico básico...";
+      pending.querySelector(".message-content").textContent = "O conector de IA ficou indisponível. Ativando o diagnóstico básico...";
       answer = await streamAssistant(question, history, pending, true);
     }
+    const historyAnswer = pending.dataset.responseMode === "catalog"
+      ? `O catálogo completo do Setup MNO v${pending.dataset.setupVersion || state.setupVersion || "atual"} foi listado localmente com ${pending.dataset.catalogEntries || state.catalog.length} setups.`
+      : answer;
     state.assistantHistory.push(
       { role: "user", content: question },
-      { role: "assistant", content: answer }
+      { role: "assistant", content: historyAnswer }
     );
     state.assistantHistory = state.assistantHistory.slice(-10);
   } catch (error) {
-    pending.querySelector("p").textContent = `Não consegui concluir a análise: ${error.message}`;
+    pending.querySelector(".message-content").textContent = `Não consegui concluir a análise: ${error.message}`;
   } finally {
     input.disabled = false;
     button.disabled = false;
@@ -398,8 +401,8 @@ async function streamAssistant(question, history, target, basic) {
   }
   if (!response.body) throw new Error("streaming não suportado pelo navegador");
 
-  const paragraph = target.querySelector("p");
-  paragraph.textContent = "";
+  const content = target.querySelector(".message-content");
+  content.textContent = "";
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -414,10 +417,13 @@ async function streamAssistant(question, history, target, basic) {
       const event = parseSSEBlock(block);
       if (!event) continue;
       if (event.type === "meta") {
+        target.dataset.responseMode = event.data.mode || "";
+        target.dataset.setupVersion = event.data.setupVersion || "";
+        target.dataset.catalogEntries = String(event.data.catalogEntries || "");
         updateAssistantRuntime(event.data);
       } else if (event.type === "delta") {
         answer += event.data.delta || "";
-        paragraph.textContent = answer;
+        renderAssistantContent(content, answer);
         $("assistant-conversation").scrollTop = $("assistant-conversation").scrollHeight;
       } else if (event.type === "error") {
         throw new Error(event.data.error || "provedor de IA indisponível");
@@ -457,10 +463,14 @@ function updateAssistantRuntime(runtime = {}) {
   const model = runtime.model || state.assistantModel || "";
   const fallback = Boolean(runtime.fallback);
   const badge = $("assistant-mode");
-  badge.textContent = mode === "openai" ? "OpenAI" : mode === "ollama" ? "Ollama" : fallback ? "Básico · contingência" : "Básico";
-  $("assistant-provider").textContent = mode === "openai" ? "OpenAI" : mode === "ollama" ? "Ollama" : "Diagnóstico básico";
-  $("assistant-model").textContent = model ? `Modelo: ${model}` : "Sem consumo de API ou modelo local.";
-  if (mode === "openai") {
+  badge.textContent = mode === "openai" ? "OpenAI" : mode === "ollama" ? "Ollama" : mode === "catalog" ? "Catálogo local" : fallback ? "Básico · contingência" : "Básico";
+  $("assistant-provider").textContent = mode === "openai" ? "OpenAI" : mode === "ollama" ? "Ollama" : mode === "catalog" ? "Catálogo validado" : "Diagnóstico básico";
+  $("assistant-model").textContent = mode === "catalog" ? "Resposta exata gerada localmente, sem consumo de tokens." : model ? `Modelo: ${model}` : "Sem consumo de API ou modelo local.";
+  if (mode === "catalog") {
+    $("assistant-welcome-title").textContent = "Catálogo runtime validado.";
+    $("assistant-welcome-text").textContent = "Listagens completas são geradas localmente para garantir todos os setups, sem omissões ou alucinações.";
+    $("assistant-privacy").textContent = "A listagem usa o catálogo validado instalado no servidor e não envia os 151 registros à LLM.";
+  } else if (mode === "openai") {
     $("assistant-welcome-title").textContent = "Olá! O Copiloto MNO está conectado à OpenAI.";
     $("assistant-welcome-text").textContent = "Envio somente contexto operacional minimizado, sem hostname, credenciais, comandos ou acesso direto ao Docker.";
     $("assistant-privacy").textContent = "A consulta usa uma LLM externa. O Setup envia apenas métricas e dados mínimos necessários para responder.";
@@ -478,10 +488,25 @@ function updateAssistantRuntime(runtime = {}) {
 function addMessage(text, type, pending = false) {
   const row = document.createElement("div");
   row.className = `message ${type === "user" ? "user-message" : "assistant-message"}`;
-  row.innerHTML = `<span class="message-avatar">${type === "user" ? escapeHTML(state.user.slice(0,1).toUpperCase()) : "M"}</span><div>${pending ? "" : `<strong>${type === "user" ? "Você" : "MNO Insights"}</strong>`}<p>${escapeHTML(text)}</p></div>`;
+  row.innerHTML = `<span class="message-avatar">${type === "user" ? escapeHTML(state.user.slice(0,1).toUpperCase()) : "M"}</span><div>${pending ? "" : `<strong>${type === "user" ? "Você" : "MNO Insights"}</strong>`}<p class="message-content"></p></div>`;
+  const content = row.querySelector(".message-content");
+  if (type === "assistant") {
+    renderAssistantContent(content, text);
+  } else {
+    content.textContent = text;
+  }
   $("assistant-conversation").append(row);
   $("assistant-conversation").scrollTop = $("assistant-conversation").scrollHeight;
   return row;
+}
+
+function renderAssistantContent(element, markdown) {
+  const renderer = window.SetupMNOMarkdown;
+  if (!renderer || typeof renderer.render !== "function") {
+    element.textContent = markdown;
+    return;
+  }
+  element.innerHTML = renderer.render(markdown);
 }
 
 async function loadAudit() {

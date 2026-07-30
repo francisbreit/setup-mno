@@ -91,6 +91,7 @@ grep -Fq "Setup MNO v$x86_version" "$source_root/ferramentas.html"
 control_version=$(sed -n 's/^CONTROL_VERSION="\([^"]*\)"/\1/p' "$template" | head -n1)
 [ -n "$control_version" ]
 grep -Fq "/styles.css?v=$control_version" "$project_dir/web/index.html"
+grep -Fq "/markdown.js?v=$control_version" "$project_dir/web/index.html"
 grep -Fq "/app.js?v=$control_version" "$project_dir/web/index.html"
 
 catalog_sha=$(sha256sum "$project_dir/catalog.json" | awk '{print $1}')
