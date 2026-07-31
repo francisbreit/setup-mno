@@ -101,6 +101,10 @@ grep -Fq -- '- RETRIEVAL_INSPECTION_ENABLED=true' "$template" || {
     printf 'ERRO: inspeção segura do retrieval não está habilitada na stack isolada do Assistente.\n' >&2
     exit 1
 }
+grep -Fq -- '- RETRIEVAL_PROMPT_ENABLED=true' "$template" || {
+    printf 'ERRO: ativação controlada do retrieval não está habilitada na stack isolada do Assistente.\n' >&2
+    exit 1
+}
 grep -Fq 'install -m 0644 "$runtime_catalog" "$work_dir/source/catalog.json"' \
     "$template" || {
     printf 'ERRO: o catálogo validado precisa permanecer fora do bundle SHC.\n' >&2

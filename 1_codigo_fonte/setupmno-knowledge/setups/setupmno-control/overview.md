@@ -2,12 +2,12 @@
 {
   "schemaVersion": 1,
   "documentId": "setup-setupmno-control-overview",
-  "documentVersion": "1.2.0",
-  "contentSHA256": "c1bbd7f7aa018af2c7817dcc76ff5115661c5342d3b805c3c2cc3b06d0472e2a",
+  "documentVersion": "1.3.0",
+  "contentSHA256": "6a64421e8e584ff4c80f2fa2efb69231c9cc2f93d153f2b0472b52a68799b21f",
   "documentType": "setup",
   "title": "Setup MNO Control Center",
   "setupId": "setupmno-control",
-  "setupVersion": "4.98.0",
+  "setupVersion": "4.99.0",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
@@ -86,27 +86,35 @@ precisa atingir estado saudável antes da remoção da referência anterior; se 
 validação falhar, o serviço executa rollback. O painel e o Assistente continuam
 sem socket Docker, mount do host, shell ou endpoint genérico de escrita.
 
-## Inspeção do RAG
+## RAG fundamentado
 
 Quando um provedor de LLM está ativo, o retrieval local seleciona candidatos
-do pacote canônico em shadow mode. Cada resposta pode exibir documento, seção,
-versão, arquitetura, estado, hash e um trecho limitado das fontes selecionadas,
-além da confiança, duração e quantidade de candidatos.
+do pacote canônico. Somente resultados de confiança alta ou média, sem fallback
+legado e provenientes de documentos `reviewed` ou `homologated`, podem
+fundamentar a resposta. Baixa confiança e evidências inválidas permanecem
+somente na inspeção.
 
-Essa inspeção é efêmera e permanece somente na sessão do navegador. Ela não
-inclui a pergunta, histórico, contexto operacional ou score bruto. Nesta etapa,
-os candidatos são apresentados exclusivamente para auditoria do ranking: não
-são enviados ao provedor nem usados para gerar a resposta. O modo básico e a
-contingência local não executam o RAG.
+O contexto enviado ao provedor aceita no máximo quatro trechos, 1.800
+caracteres por trecho e 6.000 no total. Documento, versão, seção, arquitetura e
+SHA-256 acompanham cada referência `[Fonte N]`. A evidência segue em uma
+mensagem de dados separada das instruções do sistema, que proíbem documentos de
+alterar identidade, autoridade ou políticas e tratam comandos apenas como
+conteúdo explicativo.
+
+A inspeção continua efêmera e permanece somente na sessão do navegador. Ela
+não inclui pergunta, histórico, contexto operacional ou score bruto. A
+interface distingue evidências usadas na resposta das mantidas apenas para
+auditoria. O modo básico e a contingência local não executam o RAG.
 
 ## Validação
 
 Confirme autenticação, versões separadas, catálogo runtime, métricas, terminal
 desktop e touch, troca de usuário e senha, cada provedor, Assistente básico e
-fallback. Em consultas com LLM, abra a inspeção e confirme fontes limitadas,
-metadados canônicos, indicação explícita de shadow mode e ausência das
-evidências no payload enviado ao provedor. Conectores opcionais exigem testes
-válidos e inválidos sem vazamento no payload, nos logs ou no navegador.
+fallback. Em consultas com LLM, abra a inspeção, confirme as fontes usadas e
+verifique citações `[Fonte N]`. Teste confiança insuficiente, fallback legado,
+limites do contexto e prompt injection em documentos. Conectores opcionais
+exigem testes válidos e inválidos sem vazamento de dados operacionais, pergunta
+ou histórico no bloco de evidências.
 
 ## Riscos e limites
 

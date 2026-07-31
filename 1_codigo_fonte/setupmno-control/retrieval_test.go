@@ -177,7 +177,7 @@ func TestRetrievalInspectionIsBoundedAndContainsOnlyCanonicalEvidence(t *testing
 			Score:              99.9,
 		})
 	}
-	inspection := buildRetrievalInspection(result, "4.98.0", "image-read-only", false)
+	inspection := buildRetrievalInspection(result, "4.99.0", "image-read-only", false)
 	if inspection.Mode != "shadow" || inspection.UsedInAnswer ||
 		len(inspection.Evidence) != retrievalMaxResults {
 		t.Fatalf("snapshot de inspeção inválido: %#v", inspection)
@@ -211,6 +211,77 @@ func TestRetrievalInspectionIsBoundedAndContainsOnlyCanonicalEvidence(t *testing
 				t.Fatalf("evidência contém campo proibido %q: %s", forbidden, serialized)
 			}
 		}
+	}
+}
+
+func TestRetrievalPromptUsesOnlyControlledCanonicalEvidence(t *testing.T) {
+	result := retrievalResult{Metrics: retrievalMetrics{
+		Version: "1.0.0", KnowledgeVersion: "1.3.2", Confidence: "high",
+	}}
+	for index := 0; index < 6; index++ {
+		result.Evidence = append(result.Evidence, retrievalEvidence{
+			DocumentID:         "documento-canônico",
+			DocumentVersion:    "1.0.0",
+			Status:             "reviewed",
+			TargetArchitecture: "amd64",
+			Heading:            "Seção validada",
+			ContentSHA256:      strings.Repeat("a", 64),
+			Content:            strings.Repeat("evidência ", 300),
+			Score:              99,
+		})
+	}
+	context, status := buildRetrievalPrompt(result)
+	if status != "active" || context == nil ||
+		len(context.Sources) != retrievalPromptResults {
+		t.Fatalf("ativação controlada inesperada: status=%s context=%#v", status, context)
+	}
+	totalRunes := 0
+	for index, source := range context.Sources {
+		if source.Reference != "Fonte "+string(rune('1'+index)) {
+			t.Fatalf("referência inesperada: %s", source.Reference)
+		}
+		if len([]rune(source.Content)) > retrievalPromptChunk {
+			t.Fatalf("chunk excedeu o orçamento: %d", len([]rune(source.Content)))
+		}
+		totalRunes += len([]rune(source.Content))
+	}
+	if totalRunes > retrievalPromptRunes {
+		t.Fatalf("contexto excedeu %d runas: %d", retrievalPromptRunes, totalRunes)
+	}
+	serialized, err := json.Marshal(context)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{`"score"`, `"question"`, `"history"`, `"hostname"`} {
+		if strings.Contains(string(serialized), forbidden) {
+			t.Fatalf("campo proibido %s no prompt: %s", forbidden, serialized)
+		}
+	}
+}
+
+func TestRetrievalPromptRejectsUnsafeOrInsufficientResults(t *testing.T) {
+	base := retrievalResult{
+		Metrics: retrievalMetrics{Version: "1.0.0", Confidence: "low"},
+		Evidence: []retrievalEvidence{{
+			Status: "reviewed", ContentSHA256: strings.Repeat("a", 64), Content: "conteúdo",
+		}},
+	}
+	if context, status := buildRetrievalPrompt(base); context != nil || status != "confidence-insufficient" {
+		t.Fatalf("baixa confiança foi ativada: status=%s context=%#v", status, context)
+	}
+	base.Metrics.Confidence = "medium"
+	if context, status := buildRetrievalPrompt(base); context == nil || status != "active" {
+		t.Fatalf("confiança média válida foi recusada: status=%s context=%#v", status, context)
+	}
+	base.Metrics.Confidence = "high"
+	base.Metrics.Fallback = true
+	if context, status := buildRetrievalPrompt(base); context != nil || status != "legacy-fallback" {
+		t.Fatalf("fallback legado foi ativado: status=%s context=%#v", status, context)
+	}
+	base.Metrics.Fallback = false
+	base.Evidence[0].Status = "draft"
+	if context, status := buildRetrievalPrompt(base); context != nil || status != "invalid-evidence" {
+		t.Fatalf("documento não aprovado foi ativado: status=%s context=%#v", status, context)
 	}
 }
 

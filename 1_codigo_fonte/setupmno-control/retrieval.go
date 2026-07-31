@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"math"
 	"sort"
@@ -16,6 +17,9 @@ const (
 	retrievalMaxPerDoc     = 2
 	retrievalMaxCharacters = 12000
 	retrievalExcerptRunes  = 360
+	retrievalPromptResults = 4
+	retrievalPromptRunes   = 6000
+	retrievalPromptChunk   = 1800
 )
 
 var retrievalFieldWeights = map[string]float64{
@@ -90,20 +94,41 @@ type retrievalCitation struct {
 }
 
 type retrievalInspection struct {
-	Mode             string              `json:"mode"`
-	UsedInAnswer     bool                `json:"usedInAnswer"`
-	Version          string              `json:"version"`
-	KnowledgeVersion string              `json:"knowledgeVersion"`
-	KnowledgeSource  string              `json:"knowledgeSource"`
-	KnowledgeStale   bool                `json:"knowledgeStale"`
-	SetupVersion     string              `json:"setupVersion"`
-	DurationMS       int64               `json:"durationMs"`
-	CandidateCount   int                 `json:"candidateCount"`
-	ReturnedCount    int                 `json:"returnedCount"`
-	Confidence       string              `json:"confidence"`
-	FilterType       string              `json:"filterType"`
-	Fallback         bool                `json:"fallback"`
-	Evidence         []retrievalCitation `json:"evidence"`
+	Mode              string              `json:"mode"`
+	UsedInAnswer      bool                `json:"usedInAnswer"`
+	Version           string              `json:"version"`
+	KnowledgeVersion  string              `json:"knowledgeVersion"`
+	KnowledgeSource   string              `json:"knowledgeSource"`
+	KnowledgeStale    bool                `json:"knowledgeStale"`
+	SetupVersion      string              `json:"setupVersion"`
+	DurationMS        int64               `json:"durationMs"`
+	CandidateCount    int                 `json:"candidateCount"`
+	ReturnedCount     int                 `json:"returnedCount"`
+	Confidence        string              `json:"confidence"`
+	FilterType        string              `json:"filterType"`
+	Fallback          bool                `json:"fallback"`
+	PromptStatus      string              `json:"promptStatus"`
+	PromptSourceCount int                 `json:"promptSourceCount"`
+	Evidence          []retrievalCitation `json:"evidence"`
+}
+
+type retrievalPromptSource struct {
+	Reference          string `json:"reference"`
+	DocumentID         string `json:"documentId"`
+	DocumentVersion    string `json:"documentVersion"`
+	Heading            string `json:"heading"`
+	TargetArchitecture string `json:"targetArchitecture"`
+	ContentSHA256      string `json:"contentSHA256"`
+	Content            string `json:"content"`
+	Truncated          bool   `json:"truncated"`
+}
+
+type retrievalPromptContext struct {
+	Mode             string                  `json:"mode"`
+	RetrievalVersion string                  `json:"retrievalVersion"`
+	KnowledgeVersion string                  `json:"knowledgeVersion"`
+	Confidence       string                  `json:"confidence"`
+	Sources          []retrievalPromptSource `json:"sources"`
 }
 
 type retrievalAggregate struct {
@@ -419,6 +444,76 @@ func buildRetrievalInspection(
 		Fallback:         result.Metrics.Fallback,
 		Evidence:         evidence,
 	}
+}
+
+func buildRetrievalPrompt(result retrievalResult) (*retrievalPromptContext, string) {
+	if result.Metrics.Fallback {
+		return nil, "legacy-fallback"
+	}
+	if result.Metrics.Confidence != "high" && result.Metrics.Confidence != "medium" {
+		return nil, "confidence-insufficient"
+	}
+	if len(result.Evidence) == 0 {
+		return nil, "no-evidence"
+	}
+	sources := make([]retrievalPromptSource, 0, retrievalPromptResults)
+	totalRunes := 0
+	for _, item := range result.Evidence {
+		if len(sources) == retrievalPromptResults {
+			break
+		}
+		if (item.Status != "reviewed" && item.Status != "homologated") ||
+			!validEvidenceSHA256(item.ContentSHA256) {
+			return nil, "invalid-evidence"
+		}
+		content := strings.Join(strings.Fields(item.Content), " ")
+		contentRunes := []rune(content)
+		if len(contentRunes) == 0 {
+			continue
+		}
+		limit := min(retrievalPromptChunk, retrievalPromptRunes-totalRunes)
+		if limit <= 0 {
+			break
+		}
+		truncated := len(contentRunes) > limit
+		if truncated {
+			contentRunes = contentRunes[:limit]
+		}
+		sources = append(sources, retrievalPromptSource{
+			Reference:          fmt.Sprintf("Fonte %d", len(sources)+1),
+			DocumentID:         item.DocumentID,
+			DocumentVersion:    item.DocumentVersion,
+			Heading:            item.Heading,
+			TargetArchitecture: item.TargetArchitecture,
+			ContentSHA256:      item.ContentSHA256,
+			Content:            string(contentRunes),
+			Truncated:          truncated,
+		})
+		totalRunes += len(contentRunes)
+	}
+	if len(sources) == 0 {
+		return nil, "no-evidence"
+	}
+	return &retrievalPromptContext{
+		Mode:             "controlled",
+		RetrievalVersion: result.Metrics.Version,
+		KnowledgeVersion: result.Metrics.KnowledgeVersion,
+		Confidence:       result.Metrics.Confidence,
+		Sources:          sources,
+	}, "active"
+}
+
+func validEvidenceSHA256(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	for _, character := range value {
+		if !((character >= '0' && character <= '9') ||
+			(character >= 'a' && character <= 'f')) {
+			return false
+		}
+	}
+	return true
 }
 
 func canonicalExcerpt(content string) string {

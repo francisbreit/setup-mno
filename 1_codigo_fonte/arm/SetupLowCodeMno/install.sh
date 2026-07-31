@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="4.98.0"
+VERSIONSETUP="4.99.0"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"

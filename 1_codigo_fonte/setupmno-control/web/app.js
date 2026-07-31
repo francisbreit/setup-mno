@@ -462,13 +462,13 @@ function updateRetrievalSummary(inspection, message = "") {
   if (!summary || !status) return;
   if (!inspection) {
     summary.textContent = message || "Aguardando uma consulta ao Copiloto.";
-    status.innerHTML = "<i></i> Shadow mode";
+    status.innerHTML = "<i></i> Em espera";
     return;
   }
   const sources = Array.isArray(inspection.evidence) ? inspection.evidence.length : 0;
   const confidence = confidenceLabel(inspection.confidence);
   summary.textContent = `${confidence} · ${sources} fonte${sources === 1 ? "" : "s"} · ${Number(inspection.durationMs) || 0} ms`;
-  status.innerHTML = `<i></i> ${inspection.knowledgeStale ? "Contingência" : "Canônico"}`;
+  status.innerHTML = `<i></i> ${inspection.usedInAnswer ? "RAG ativo" : inspection.knowledgeStale ? "Contingência" : "Inspeção"}`;
 }
 
 function confidenceLabel(value) {
@@ -476,19 +476,32 @@ function confidenceLabel(value) {
 }
 
 function renderRetrievalInspection(target, inspection) {
-  if (!inspection || inspection.mode !== "shadow" || inspection.usedInAnswer !== false) return;
+  if (!inspection || inspection.mode !== "shadow" || typeof inspection.usedInAnswer !== "boolean") return;
   clearRetrievalInspection(target);
   updateRetrievalSummary(inspection);
-  const evidence = Array.isArray(inspection.evidence) ? inspection.evidence.slice(0, 6) : [];
+  const evidenceLimit = inspection.usedInAnswer ? Number(inspection.promptSourceCount) || 0 : 6;
+  const evidence = Array.isArray(inspection.evidence) ? inspection.evidence.slice(0, evidenceLimit) : [];
   const details = document.createElement("details");
   details.className = "retrieval-inspection";
-  const sourceLabel = `${evidence.length} fonte${evidence.length === 1 ? "" : "s"}`;
+  const sourceLabel = `${evidence.length} evidência${evidence.length === 1 ? "" : "s"}`;
   const items = evidence.map(item => {
     const hash = String(item.contentSHA256 || "").slice(0, 12);
     return `<li><strong>${Number(item.rank) || "—"}. ${escapeHTML(item.title || item.documentId || "Documento canônico")}</strong><span>${escapeHTML(item.heading || "Seção geral")}</span><p>${escapeHTML(item.excerpt || "Trecho não disponível.")}</p><small>${escapeHTML(item.documentId || "documento")} · v${escapeHTML(item.documentVersion || "N/I")} · ${escapeHTML(item.targetArchitecture || "geral")} · ${escapeHTML(item.status || "N/I")}${hash ? ` · SHA ${escapeHTML(hash)}` : ""}</small></li>`;
   }).join("");
-  details.innerHTML = `<summary>Evidências RAG · ${escapeHTML(confidenceLabel(inspection.confidence))} · ${sourceLabel}</summary><div class="retrieval-notice"><strong>Shadow mode · não usado na resposta</strong><span>Ranking ${escapeHTML(inspection.version || "N/I")} · conhecimento ${escapeHTML(inspection.knowledgeVersion || "N/I")} · filtro ${escapeHTML(inspection.filterType || "N/I")} · ${Number(inspection.candidateCount) || 0} candidatos</span></div>${items ? `<ol>${items}</ol>` : `<p class="retrieval-empty">Nenhuma fonte canônica foi selecionada para esta consulta.</p>`}`;
+  const grounded = inspection.usedInAnswer === true;
+  const activationLabel = grounded ? "Ativação controlada · enviada para fundamentação" : `Inspeção apenas · ${promptStatusLabel(inspection.promptStatus)}`;
+  details.innerHTML = `<summary>Evidências RAG · ${escapeHTML(confidenceLabel(inspection.confidence))} · ${sourceLabel}</summary><div class="retrieval-notice${grounded ? " grounded" : ""}"><strong>${escapeHTML(activationLabel)}</strong><span>Ranking ${escapeHTML(inspection.version || "N/I")} · conhecimento ${escapeHTML(inspection.knowledgeVersion || "N/I")} · filtro ${escapeHTML(inspection.filterType || "N/I")} · ${Number(inspection.candidateCount) || 0} candidatos</span></div>${items ? `<ol>${items}</ol>` : `<p class="retrieval-empty">Nenhuma evidência canônica foi selecionada para esta consulta.</p>`}`;
   target.querySelector(".message-content")?.parentElement.append(details);
+}
+
+function promptStatusLabel(value) {
+  return {
+    "confidence-insufficient": "confiança insuficiente",
+    "legacy-fallback": "índice legado",
+    "invalid-evidence": "evidência recusada",
+    "no-evidence": "sem evidência",
+    "feature-disabled": "ativação desabilitada"
+  }[value] || "não usada na resposta";
 }
 
 function parseSSEBlock(block) {

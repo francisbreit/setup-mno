@@ -70,7 +70,7 @@ python3 tools/lint_knowledge.py \
   --catalog ../setupmno-control/catalog.json \
   resolve \
   --setup-id n8n-main \
-  --setup-version 4.98.0 \
+  --setup-version 4.99.0 \
   --architecture amd64
 ```
 
@@ -87,8 +87,8 @@ Geração reproduzível do pacote:
 
 ```bash
 python3 -B tools/generate_package.py \
-  --setup-version 4.98.0 \
-  --control-version 1.6.0
+  --setup-version 4.99.0 \
+  --control-version 1.7.0
 ```
 
 O gerador executa o linter antes do build, inclui somente documentos

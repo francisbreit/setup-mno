@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "setupVersion": "4.98.0",
-  "catalogVersion": "4.98.0",
+  "setupVersion": "4.99.0",
+  "catalogVersion": "4.99.0",
   "catalogSHA256": "d318413cf9e22af29877f2ad57e515474b5e574ebc6f9c928944b3b20296eb1c",
   "catalogEntries": 151,
   "architecture": "amd64",
-  "controlSourceSHA256": "81ae2c3daa06d6e4e29d1ec31ebe660be604a2b28eb851cf1513ed233a025b55",
-  "controlSourceBytes": 57207,
-  "knowledgeVersion": "1.3.1",
-  "knowledgeArchiveSHA256": "96d4be9935d1852e3c18d9fb3621fc80a9de661d91a0300e287475221b81d9c6",
+  "controlSourceSHA256": "01be7f79a4fab57206ccf6cde7ebdfaae24f08cd9a239e3ae258dfc6328d0027",
+  "controlSourceBytes": 58529,
+  "knowledgeVersion": "1.3.2",
+  "knowledgeArchiveSHA256": "47b5c09f9b196c3210ea694304655388fb05890ef250ea0a9aa00a039d735d56",
   "knowledgeEntries": 29
 }

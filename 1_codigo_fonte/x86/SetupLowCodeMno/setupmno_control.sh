@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="1.6.0"
+CONTROL_VERSION="1.7.0"
 
 if [ "${SETUPMNO_SHC_SMOKE_TEST:-0}" = "1" ]; then
     printf '%s\n' "setupmno-control-shc-ok"
@@ -686,6 +686,7 @@ services:
       - KNOWLEDGE_PACKAGE_DIR=/knowledge-package
       - RETRIEVAL_SHADOW_ENABLED=true
       - RETRIEVAL_INSPECTION_ENABLED=true
+      - RETRIEVAL_PROMPT_ENABLED=true
       - AGENT_TOKEN_FILE=/run/secrets/$agent_secret
       - AGENT_URL=http://${agent_stack}_${agent_service}:9090
 EOL

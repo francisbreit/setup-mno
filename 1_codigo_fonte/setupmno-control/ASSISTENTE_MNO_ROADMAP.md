@@ -253,7 +253,7 @@ pelos testes da release.
 
 ## Etapa 3 — RAG Híbrido Local
 
-**Status:** subetapas 3.1, 3.2 e 3.3 implementadas; subetapa 3.4 pendente
+**Status:** subetapas 3.1, 3.2, 3.3 e 3.4 implementadas
 **Impacto:** crítico para a qualidade
 **Tipo:** IA, desempenho e confiabilidade
 **Esforço:** estrutural
@@ -446,9 +446,10 @@ probabilidade. O contrato externo usará apenas bandas:
 - `low`: evidência parcial ou ambígua;
 - `none`: nenhum chunk ultrapassou o threshold.
 
-Os thresholds numéricos permanecem provisórios até a Etapa 6. Com confiança
-`low` ou `none`, o Assistente deve declarar a limitação e solicitar contexto,
-sem completar fatos com suposição.
+Os thresholds numéricos permanecem provisórios até a Etapa 6. A ativação
+inicial aceita somente as bandas `high` e `medium`; `low` e `none` ficam fora
+do prompt, com a limitação visível na inspeção e sem completar fatos com
+suposição.
 
 #### 7. Contrato interno
 
@@ -512,11 +513,13 @@ pacote inteiro.
 3. **3.3 — Citações e inspeção — concluída na v4.98.0:** exibir candidatos
    recuperados e criar relatório efêmero para homologação, sem conteúdo
    sensível e sem enviar as evidências à LLM.
-4. **3.4 — Ativação controlada:** habilitar evidências no prompt somente depois
-   dos thresholds da Etapa 6.
+4. **3.4 — Ativação controlada — concluída na v4.99.0:** habilitar evidências
+   aprovadas no prompt com gates conservadores. A Etapa 6 deverá medir e
+   formalizar thresholds antes de qualquer ampliação dos limites.
 
-O feature flag deve iniciar desativado para o contexto de produção. Falha no
-índice v2 retorna ao índice textual v1 e ao catálogo estruturado.
+O feature flag inicia desativado no binário e é habilitado explicitamente pela
+stack da release. Falha no índice v2 retorna ao índice textual v1 e ao catálogo
+estruturado, sem enviar evidências legadas ao prompt.
 
 ### Orçamento de recursos
 
@@ -629,10 +632,10 @@ estado de cliente a migrar.
 
 ### Critério de conclusão
 
-O gerador, o índice v2, o recuperador em shadow mode, as citações, os gates de
-segurança e o rollback precisam estar homologados em amd64 e arm64. O
-recuperador só poderá ser usado como contexto de produção após atingir os
-thresholds definidos na Etapa 6.
+O gerador, o índice v2, o recuperador, as citações, os gates de segurança e o
+rollback precisam estar homologados em amd64 e arm64. A ativação conservadora
+usa somente confiança alta ou média e os limites fixos da v4.99.0. A Etapa 6
+deverá medir e formalizar thresholds antes de ampliar bandas ou orçamento.
 
 ---
 
@@ -1121,6 +1124,24 @@ Escopo implementado na release v4.98.0:
   e promoção atômica, preservando ampla margem abaixo do limite do SHC
 - nenhuma nova stack, porta, secret, mount, socket ou ferramenta de escrita
 
+## Release incremental da subetapa 3.4
+
+Escopo implementado na release v4.99.0:
+
+- Setup MNO `4.99.0`
+- Control Center `1.7.0`
+- conhecimento canônico `1.3.2`
+- feature flag `RETRIEVAL_PROMPT_ENABLED`, dependente de shadow e inspeção
+- ativação somente para confiança alta ou média e sem fallback legado
+- documentos restritos aos estados `reviewed` e `homologated`
+- no máximo quatro trechos, 1.800 caracteres por trecho e 6.000 no total
+- mensagem de evidências separada das instruções do sistema
+- defesa explícita contra prompt injection e comandos presentes em documentos
+- citações vinculadas a `[Fonte N]`, documento, versão, seção, arquitetura e hash
+- baixa confiança e evidência inválida permanecem apenas na inspeção
+- pergunta, histórico, contexto operacional e score bruto ausentes do bloco RAG
+- nenhuma nova stack, porta, secret, mount, socket ou ferramenta de escrita
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico
@@ -1134,10 +1155,11 @@ Escopo implementado na release v4.98.0:
 
 ## Próxima ação
 
-Homologar a inspeção da subetapa **3.3 — Citações e inspeção** com consultas
-conhecidas, comparação de arquitetura, ausência de correspondência e fallback.
-Somente depois dos thresholds e evals da Etapa 6 avaliar a subetapa
-**3.4 — Ativação controlada** das evidências no prompt.
+Homologar a subetapa **3.4 — Ativação controlada** com perguntas conhecidas,
+ausência de correspondência, baixa confiança, comparação x86/ARM, fallback e
+prompt injection documental. Depois da aprovação funcional, iniciar a
+**Etapa 4 — Roteador de Especialistas e Prompts**; a Etapa 6 formalizará os
+thresholds antes de ampliar o orçamento atual.
 
 ## Referências oficiais
 

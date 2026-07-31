@@ -37,9 +37,10 @@ servidores com recursos suficientes, a instalação permite conectar:
 O navegador conserva somente as últimas mensagens da sessão. Antes de qualquer
 consulta, o serviço reúne contexto por endpoints fixos de leitura e remove
 hostname, IP, imagens, credenciais, secrets e comandos. A LLM recebe apenas
-métricas agregadas, versão, arquitetura, estado de réplicas e os setups
-relevantes para a pergunta. Se o provedor falhar, o painel oferece contingência
-automática pelo diagnóstico básico e registra o evento na auditoria.
+métricas agregadas, versão, arquitetura, estado de réplicas, os setups
+relevantes e, quando os gates permitirem, trechos canônicos limitados. Se o
+provedor falhar, o painel oferece contingência automática pelo diagnóstico
+básico e registra o evento na auditoria.
 
 O Assistente é estritamente consultivo: não possui ferramentas de escrita e não
 executa deploys, comandos Docker ou ações destrutivas.
@@ -50,18 +51,23 @@ backups, segurança, observabilidade, integrações e deploys. A interface comun
 esse foco antes da pergunta e os conectores redirecionam consultas alheias ao
 domínio, em vez de atuarem como assistentes generalistas.
 
-### Inspeção do retrieval
+### RAG fundamentado
 
-Com um provedor configurado, o ranking local continua em shadow mode e emite
-um relatório efêmero para a resposta atual. A interface mostra até seis
-candidatos canônicos com documento, seção, versão, arquitetura, estado, hash e
-trecho limitado, além de confiança, duração e contagens do retrieval.
+Com um provedor configurado, o ranking local emite um relatório efêmero para a
+resposta atual. Somente resultados de confiança alta ou média, sem fallback
+legado e com documentos aprovados, entram na ativação controlada. O prompt
+recebe no máximo quatro trechos, limitados individualmente a 1.800 caracteres e
+a 6.000 no total.
 
-O relatório não contém a pergunta, histórico, contexto operacional ou score
-bruto. Ele permanece somente na sessão do navegador. Nesta subetapa as
-evidências não são enviadas à LLM nem usadas para gerar a resposta; a interface
-declara essa limitação de forma explícita. Modo básico e contingência local não
-executam o RAG.
+As evidências são enviadas como uma mensagem de dados separada das instruções
+do sistema. Documentos não podem mudar políticas ou autoridade, e comandos
+presentes neles são apenas conteúdo explicativo. Afirmações factuais
+fundamentadas devem citar `[Fonte N]`. Resultados insuficientes permanecem
+somente na inspeção.
+
+O relatório não contém pergunta, histórico, contexto operacional ou score
+bruto e permanece somente na sessão do navegador. Modo básico e contingência
+local não executam o RAG.
 
 ## Central de Configurações
 
