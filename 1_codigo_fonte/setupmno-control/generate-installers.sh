@@ -139,6 +139,9 @@ knowledge_version=$(jq -r '.knowledgeVersion // empty' "$knowledge_package/manif
 knowledge_setup_version=$(jq -r '.setupVersion // empty' "$knowledge_package/manifest.json")
 knowledge_control_version=$(jq -r '.controlVersion // empty' "$knowledge_package/manifest.json")
 knowledge_entries=$(jq -r '.documentEntries // 0' "$knowledge_package/manifest.json")
+knowledge_chunks=$(jq -r '.chunkEntries // 0' "$knowledge_package/manifest.json")
+knowledge_index_schema=$(jq -r '.indexSchemaVersion // 0' "$knowledge_package/manifest.json")
+knowledge_retrieval_version=$(jq -r '.retrievalVersion // empty' "$knowledge_package/manifest.json")
 knowledge_archive_sha=$(jq -r '.archiveSHA256 // empty' "$knowledge_package/manifest.json")
 knowledge_archive_bytes=$(jq -r '.archiveBytes // 0' "$knowledge_package/manifest.json")
 knowledge_actual_sha=$(sha256sum "$knowledge_package/knowledge-package.tar.gz" | awk '{print $1}')
@@ -148,6 +151,9 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$knowledge_setup_version" = "$x86_version" ] &&
 [ "$knowledge_control_version" = "$control_version" ] &&
 [ "$knowledge_entries" -gt 0 ] &&
+[ "$knowledge_chunks" -gt "$knowledge_entries" ] &&
+[ "$knowledge_index_schema" = "2" ] &&
+[ "$knowledge_retrieval_version" = "1.0.0" ] &&
 [ "$knowledge_archive_sha" = "$knowledge_actual_sha" ] &&
 [ "$knowledge_archive_bytes" = "$knowledge_actual_bytes" ] &&
 [ "$knowledge_archive_bytes" -le $((8 * 1024 * 1024)) ] || {
@@ -158,9 +164,10 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 bundle="$temporary_dir/setupmno-control.tar.gz"
 (
     cd "$project_dir"
-    tar -czf "$bundle" \
+    tar -cf - \
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
-        main.go knowledge.go catalog.json web
+        main.go knowledge.go catalog.json web |
+        gzip -9n >"$bundle"
 )
 if tar -tzf "$bundle" | grep -q '^knowledge-package/'; then
     printf 'ERRO: arquivos compactados não podem ser incorporados ao Base64 protegido pelo SHC.\n' >&2

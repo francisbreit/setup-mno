@@ -1,128 +1,148 @@
 {
-  "schemaVersion": 1,
-  "selectionVersion": "1.0.0",
-  "setupVersion": "4.94.2",
+  "schemaVersion": 2,
+  "selectionVersion": "1.1.0",
+  "setupVersion": "4.95.0",
   "selectionPolicy": "Lote piloto de alto valor e diversidade arquitetural",
   "setups": [
     {
       "setupId": "activepieces",
       "catalogName": "ACTIVEPIECES",
       "script": "activepieces.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["active pieces", "automacao activepieces"]
     },
     {
       "setupId": "adguardhome",
       "catalogName": "ADGUARDHOME",
       "script": "adguardhome.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["adguard home", "dns adguard"]
     },
     {
       "setupId": "appsmith",
       "catalogName": "APPSMITH",
       "script": "appsmith.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["app smith", "low code appsmith"]
     },
     {
       "setupId": "baserow",
       "catalogName": "BASEROW",
       "script": "baserow.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["base row", "banco no code baserow"]
     },
     {
       "setupId": "beszel",
       "catalogName": "BESZEL",
       "script": "beszel.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["monitor beszel", "monitoramento beszel"]
     },
     {
       "setupId": "bookstack",
       "catalogName": "BOOKSTACK",
       "script": "bookstack.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["book stack", "wiki bookstack"]
     },
     {
       "setupId": "budibase",
       "catalogName": "BUDIBASE",
       "script": "budibase.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["budi base", "low code budibase"]
     },
     {
       "setupId": "chromadb",
       "catalogName": "CHROMADB",
       "script": "chromadb.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["chroma db", "banco vetorial chroma"]
     },
     {
       "setupId": "code-server",
       "catalogName": "CODE SERVER",
       "script": "codeserver.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["code server", "vscode web"]
     },
     {
       "setupId": "directus",
       "catalogName": "DIRECTUS",
       "script": "directus.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["cms directus", "backend directus"]
     },
     {
       "setupId": "duplicati",
       "catalogName": "DUPLICATI",
       "script": "duplicati.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["backup duplicati", "duplicati backup"]
     },
     {
       "setupId": "grafana-prometheus",
       "catalogName": "GRAFANA/PROMETHEUS MONITOR",
       "script": "grafana.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["grafana prometheus", "monitoramento grafana"]
     },
     {
       "setupId": "n8n-main",
       "catalogName": "N8N V1 - SEM FILA (MAIN)",
       "script": "n8nmain.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["n8n main", "n8n sem fila"]
     },
     {
       "setupId": "nextcloud",
       "catalogName": "NEXTCLOUD",
       "script": "nextcloud.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["next cloud", "nuvem nextcloud"]
     },
     {
       "setupId": "nocodb",
       "catalogName": "NOCODB",
       "script": "nocodb.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["noco db", "banco no code nocodb"]
     },
     {
       "setupId": "ollama-openwebui",
       "catalogName": "OLLAMA + OPENWEBUI*",
       "script": "ollama.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["ollama openwebui", "ollama open webui"]
     },
     {
       "setupId": "qdrant",
       "catalogName": "QDRANT",
       "script": "qdrant.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["banco vetorial qdrant", "vector qdrant"]
     },
     {
       "setupId": "redis",
       "catalogName": "REDIS",
       "script": "redis.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["cache redis", "banco redis"]
     },
     {
       "setupId": "setupmno-control",
       "catalogName": "SETUP MNO CONTROL CENTER",
       "script": "setupmno_control.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["control center", "painel setup mno"]
     },
     {
       "setupId": "typebot-minio",
       "catalogName": "TYPEBOT + MINIO*",
       "script": "typebot_minio.sh",
-      "architectures": ["amd64", "arm64"]
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["typebot minio", "typebot com minio"]
     }
   ]
 }

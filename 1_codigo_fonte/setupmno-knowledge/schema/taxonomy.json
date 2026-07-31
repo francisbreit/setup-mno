@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
-  "knowledgeVersion": "1.1.1",
+  "schemaVersion": 2,
+  "knowledgeVersion": "1.2.0",
   "documentTypes": [
     "infrastructure",
     "setup",
@@ -67,5 +67,18 @@
   "normalRetrievalStatuses": [
     "reviewed",
     "homologated"
-  ]
+  ],
+  "synonyms": {
+    "amd64": ["x86", "x86_64"],
+    "arm64": ["arm", "aarch64"],
+    "backup": ["copia de seguranca", "restauracao"],
+    "cloudflare": ["tunnel cloudflare", "dns cloudflare"],
+    "docker-swarm": ["swarm", "cluster docker"],
+    "postgres": ["postgresql", "banco postgres"],
+    "redis": ["cache redis", "banco redis"],
+    "security": ["seguranca", "hardening"],
+    "traefik": ["proxy traefik", "proxy reverso"],
+    "vps": ["servidor virtual", "servidor vps"],
+    "wsl2": ["wsl", "windows subsystem linux"]
+  }
 }

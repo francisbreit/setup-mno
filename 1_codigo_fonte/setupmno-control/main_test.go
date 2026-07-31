@@ -66,8 +66,8 @@ func TestReadRuntimeSnapshotAcceptsAdditiveMetadata(t *testing.T) {
 	sum := sha256.Sum256(catalog)
 	release := map[string]any{
 		"schemaVersion":          runtimeSchema,
-		"setupVersion":           "4.94.2",
-		"catalogVersion":         "4.94.2",
+		"setupVersion":           "4.95.0",
+		"catalogVersion":         "4.95.0",
 		"catalogSHA256":          hex.EncodeToString(sum[:]),
 		"catalogEntries":         1,
 		"architecture":           "amd64",
@@ -98,8 +98,8 @@ func TestReadRuntimeSnapshotRejectsPartialKnowledgeMetadata(t *testing.T) {
 	sum := sha256.Sum256(catalog)
 	release := setupRelease{
 		SchemaVersion:    runtimeSchema,
-		SetupVersion:     "4.94.2",
-		CatalogVersion:   "4.94.2",
+		SetupVersion:     "4.95.0",
+		CatalogVersion:   "4.95.0",
 		CatalogSHA256:    hex.EncodeToString(sum[:]),
 		CatalogEntries:   1,
 		Architecture:     "amd64",
@@ -487,11 +487,17 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 		state.Stale ||
 		state.Manifest.DocumentEntries != 29 ||
 		state.Manifest.SetupEntries != 20 ||
-		state.Manifest.InfrastructureEntries != 9 {
+		state.Manifest.InfrastructureEntries != 9 ||
+		state.Manifest.IndexSchemaVersion != 2 ||
+		state.Manifest.RetrievalVersion != "1.0.0" ||
+		state.Manifest.ChunkEntries <= state.Manifest.DocumentEntries {
 		t.Fatalf("estado inesperado do conhecimento: %#v", state)
 	}
 	if len(state.Index.Entries) != state.Manifest.DocumentEntries {
 		t.Fatalf("índice incompleto: %d", len(state.Index.Entries))
+	}
+	if len(state.IndexV2.Chunks) != state.Manifest.ChunkEntries {
+		t.Fatalf("índice v2 incompleto: %d", len(state.IndexV2.Chunks))
 	}
 }
 

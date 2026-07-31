@@ -12,18 +12,25 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strings"
+	"unicode/utf8"
 )
 
 const (
 	knowledgeSchema          = 1
+	knowledgeIndexSchema     = 2
+	knowledgeRetrieval       = "1.0.0"
 	maxKnowledgeArchiveBytes = 8 << 20
 	maxKnowledgeManifest     = 1 << 20
 	maxKnowledgeFileBytes    = 2 << 20
 	maxKnowledgeFiles        = 1024
+	maxKnowledgeChunks       = 4096
+	maxKnowledgeChunkRunes   = 2400
 )
 
 //go:embed knowledge-package/*
@@ -52,7 +59,11 @@ type knowledgeManifest struct {
 	ArchiveSHA256         string                `json:"archiveSHA256"`
 	ArchiveBytes          int64                 `json:"archiveBytes"`
 	IndexSHA256           string                `json:"indexSHA256"`
+	LegacyIndexSHA256     string                `json:"legacyIndexSHA256"`
+	IndexSchemaVersion    int                   `json:"indexSchemaVersion"`
+	RetrievalVersion      string                `json:"retrievalVersion"`
 	DocumentEntries       int                   `json:"documentEntries"`
+	ChunkEntries          int                   `json:"chunkEntries"`
 	DocumentTypeEntries   map[string]int        `json:"documentTypeEntries"`
 	SetupEntries          int                   `json:"setupEntries"`
 	InfrastructureEntries int                   `json:"infrastructureEntries"`
@@ -90,9 +101,43 @@ type knowledgeIndex struct {
 	InvertedIndex           map[string][]string   `json:"invertedIndex"`
 }
 
+type knowledgeChunk struct {
+	Aliases              []string                  `json:"aliases"`
+	Architectures        []string                  `json:"architectures"`
+	Category             string                    `json:"category"`
+	ChunkID              string                    `json:"chunkId"`
+	Content              string                    `json:"content"`
+	ContentSHA256        string                    `json:"contentSHA256"`
+	DocumentID           string                    `json:"documentId"`
+	DocumentType         string                    `json:"documentType"`
+	DocumentVersion      string                    `json:"documentVersion"`
+	FieldLengths         map[string]int            `json:"fieldLengths"`
+	FieldTermFrequencies map[string]map[string]int `json:"fieldTermFrequencies"`
+	Heading              string                    `json:"heading"`
+	SetupID              *string                   `json:"setupId"`
+	SetupVersion         string                    `json:"setupVersion"`
+	Status               string                    `json:"status"`
+	Tags                 []string                  `json:"tags"`
+	Title                string                    `json:"title"`
+	TopicID              *string                   `json:"topicId"`
+}
+
+type knowledgeIndexV2 struct {
+	SchemaVersion           int                `json:"schemaVersion"`
+	RetrievalVersion        string             `json:"retrievalVersion"`
+	KnowledgeVersion        string             `json:"knowledgeVersion"`
+	SetupVersion            string             `json:"setupVersion"`
+	NormalRetrievalStatuses []string           `json:"normalRetrievalStatuses"`
+	ChunkCount              int                `json:"chunkCount"`
+	AverageFieldLengths     map[string]float64 `json:"averageFieldLengths"`
+	DocumentFrequencies     map[string]int     `json:"documentFrequencies"`
+	Chunks                  []knowledgeChunk   `json:"chunks"`
+}
+
 type knowledgePackageState struct {
 	Manifest knowledgeManifest
 	Index    knowledgeIndex
+	IndexV2  knowledgeIndexV2
 	Files    map[string][]byte
 	Source   string
 	Stale    bool
@@ -217,6 +262,8 @@ func validateKnowledgePackage(
 		return knowledgePackageState{}, fmt.Errorf("manifesto inválido: %w", err)
 	}
 	if manifest.SchemaVersion != knowledgeSchema ||
+		manifest.IndexSchemaVersion != knowledgeIndexSchema ||
+		manifest.RetrievalVersion != knowledgeRetrieval ||
 		manifest.KnowledgeVersion == "" ||
 		manifest.SetupVersion == "" ||
 		manifest.ControlVersion == "" {
@@ -229,6 +276,8 @@ func validateKnowledgePackage(
 	}
 	if manifest.DocumentEntries <= 0 ||
 		manifest.DocumentEntries > maxKnowledgeFiles ||
+		manifest.ChunkEntries <= 0 ||
+		manifest.ChunkEntries > maxKnowledgeChunks ||
 		manifest.SetupEntries < 0 ||
 		manifest.InfrastructureEntries < 0 {
 		return knowledgePackageState{}, errors.New("contagens do manifesto inválidas")
@@ -289,9 +338,28 @@ func validateKnowledgePackage(
 	if !exists || manifest.IndexSHA256 != sha256String(indexData) {
 		return knowledgePackageState{}, errors.New("índice ausente ou com hash divergente")
 	}
+	var indexV2 knowledgeIndexV2
+	if err := decodeStrictJSON(indexData, &indexV2); err != nil {
+		return knowledgePackageState{}, fmt.Errorf("índice v2 inválido: %w", err)
+	}
+	if indexV2.SchemaVersion != knowledgeIndexSchema ||
+		indexV2.RetrievalVersion != manifest.RetrievalVersion ||
+		indexV2.KnowledgeVersion != manifest.KnowledgeVersion ||
+		indexV2.SetupVersion != manifest.SetupVersion ||
+		indexV2.ChunkCount != manifest.ChunkEntries ||
+		len(indexV2.Chunks) != manifest.ChunkEntries {
+		return knowledgePackageState{}, errors.New("índice v2 incompatível com o manifesto")
+	}
+
+	legacyIndexData, exists := files["index-v1.json"]
+	if !exists || manifest.LegacyIndexSHA256 != sha256String(legacyIndexData) {
+		return knowledgePackageState{}, errors.New(
+			"índice v1 de contingência ausente ou com hash divergente",
+		)
+	}
 	var index knowledgeIndex
-	if err := decodeStrictJSON(indexData, &index); err != nil {
-		return knowledgePackageState{}, fmt.Errorf("índice inválido: %w", err)
+	if err := decodeStrictJSON(legacyIndexData, &index); err != nil {
+		return knowledgePackageState{}, fmt.Errorf("índice v1 inválido: %w", err)
 	}
 	if index.SchemaVersion != knowledgeSchema ||
 		index.KnowledgeVersion != manifest.KnowledgeVersion ||
@@ -335,11 +403,142 @@ func validateKnowledgePackage(
 		typeEntries["infrastructure"] != manifest.InfrastructureEntries {
 		return knowledgePackageState{}, errors.New("contagens principais divergentes")
 	}
+	if err := validateKnowledgeIndexV2(indexV2, index); err != nil {
+		return knowledgePackageState{}, err
+	}
 	return knowledgePackageState{
 		Manifest: manifest,
 		Index:    index,
+		IndexV2:  indexV2,
 		Files:    files,
 	}, nil
+}
+
+func validateKnowledgeIndexV2(index knowledgeIndexV2, legacy knowledgeIndex) error {
+	requiredFields := map[string]struct{}{
+		"aliases": {},
+		"content": {},
+		"heading": {},
+		"tags":    {},
+		"title":   {},
+	}
+	legacyByID := make(map[string]knowledgeIndexEntry, len(legacy.Entries))
+	for _, entry := range legacy.Entries {
+		legacyByID[entry.DocumentID] = entry
+	}
+	seenChunks := make(map[string]struct{}, len(index.Chunks))
+	documentFrequencies := make(map[string]int)
+	fieldTotals := make(map[string]int)
+	for _, chunk := range index.Chunks {
+		entry, exists := legacyByID[chunk.DocumentID]
+		if !exists ||
+			chunk.ChunkID == "" ||
+			chunk.Content == "" ||
+			chunk.Heading == "" ||
+			chunk.Title == "" ||
+			chunk.DocumentVersion != entry.DocumentVersion ||
+			chunk.DocumentType != entry.DocumentType ||
+			chunk.SetupVersion != entry.SetupVersion ||
+			chunk.Status != entry.Status ||
+			chunk.Category != entry.Category ||
+			chunk.ContentSHA256 != sha256String([]byte(chunk.Content)) ||
+			utf8.RuneCountInString(chunk.Content) > maxKnowledgeChunkRunes {
+			return fmt.Errorf("chunk inválido no índice v2: %q", chunk.ChunkID)
+		}
+		if _, duplicate := seenChunks[chunk.ChunkID]; duplicate {
+			return fmt.Errorf("chunkId duplicado no índice v2: %s", chunk.ChunkID)
+		}
+		seenChunks[chunk.ChunkID] = struct{}{}
+		if !reflect.DeepEqual(chunk.Architectures, entry.Architectures) ||
+			!reflect.DeepEqual(chunk.Tags, entry.Tags) ||
+			!equalOptionalString(chunk.SetupID, entry.SetupID) ||
+			!equalOptionalString(chunk.TopicID, entry.TopicID) {
+			return fmt.Errorf("metadados divergentes no chunk: %s", chunk.ChunkID)
+		}
+		if len(chunk.Aliases) == 0 ||
+			!sameStringKeys(chunk.FieldLengths, requiredFields) ||
+			!sameFrequencyKeys(chunk.FieldTermFrequencies, requiredFields) {
+			return fmt.Errorf("campos BM25F inválidos no chunk: %s", chunk.ChunkID)
+		}
+		chunkTerms := make(map[string]struct{})
+		for field, frequencies := range chunk.FieldTermFrequencies {
+			total := 0
+			for term, count := range frequencies {
+				if term == "" || count <= 0 {
+					return fmt.Errorf(
+						"frequência inválida no chunk %s",
+						chunk.ChunkID,
+					)
+				}
+				total += count
+				chunkTerms[term] = struct{}{}
+			}
+			if chunk.FieldLengths[field] != total {
+				return fmt.Errorf("comprimento BM25F divergente: %s", chunk.ChunkID)
+			}
+			fieldTotals[field] += total
+		}
+		for term := range chunkTerms {
+			documentFrequencies[term]++
+		}
+	}
+	if !reflect.DeepEqual(documentFrequencies, index.DocumentFrequencies) ||
+		!sameFloatKeys(index.AverageFieldLengths, requiredFields) {
+		return errors.New("estatísticas globais divergentes no índice v2")
+	}
+	for field, total := range fieldTotals {
+		expected := float64(total) / float64(index.ChunkCount)
+		if math.Abs(index.AverageFieldLengths[field]-expected) > 0.000001 {
+			return fmt.Errorf("média de campo divergente no índice v2: %s", field)
+		}
+	}
+	return nil
+}
+
+func equalOptionalString(left, right *string) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return *left == *right
+}
+
+func sameStringKeys(values map[string]int, expected map[string]struct{}) bool {
+	if len(values) != len(expected) {
+		return false
+	}
+	for key := range expected {
+		if _, exists := values[key]; !exists {
+			return false
+		}
+	}
+	return true
+}
+
+func sameFrequencyKeys(
+	values map[string]map[string]int,
+	expected map[string]struct{},
+) bool {
+	if len(values) != len(expected) {
+		return false
+	}
+	for key := range expected {
+		if _, exists := values[key]; !exists {
+			return false
+		}
+	}
+	return true
+}
+
+func sameFloatKeys(values map[string]float64, expected map[string]struct{}) bool {
+	if len(values) != len(expected) {
+		return false
+	}
+	for key := range expected {
+		if _, exists := values[key]; !exists {
+			return false
+		}
+	}
+	return true
 }
 
 func readKnowledgeArchive(archiveData []byte) (map[string][]byte, error) {
@@ -392,9 +591,12 @@ func knowledgeCheckPayload(state knowledgePackageState) map[string]any {
 		"source":                state.Source,
 		"stale":                 state.Stale,
 		"knowledgeVersion":      state.Manifest.KnowledgeVersion,
+		"indexSchemaVersion":    state.Manifest.IndexSchemaVersion,
+		"retrievalVersion":      state.Manifest.RetrievalVersion,
 		"setupVersion":          state.Manifest.SetupVersion,
 		"controlVersion":        state.Manifest.ControlVersion,
 		"documentEntries":       state.Manifest.DocumentEntries,
+		"chunkEntries":          state.Manifest.ChunkEntries,
 		"setupEntries":          state.Manifest.SetupEntries,
 		"infrastructureEntries": state.Manifest.InfrastructureEntries,
 		"archiveSHA256":         state.Manifest.ArchiveSHA256,

@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import copy
+import hashlib
 import json
 import subprocess
 import sys
@@ -17,6 +19,12 @@ from lint_knowledge import (
     load_json,
     parse_document,
     validate_document,
+    validate_registry,
+)
+from generate_package import (
+    MAX_CHUNK_CHARACTERS,
+    RETRIEVAL_VERSION,
+    split_section,
 )
 
 
@@ -123,6 +131,29 @@ class KnowledgeFactoryTests(unittest.TestCase):
         self.assertNotIn("deprecated", taxonomy["normalRetrievalStatuses"])
         self.assertNotIn("draft", taxonomy["normalRetrievalStatuses"])
 
+    def test_ambiguous_setup_alias_is_blocked(self) -> None:
+        registry = copy.deepcopy(load_json(ROOT / "registry" / "setups.json"))
+        catalog = load_json(CATALOG)
+        registry["setups"][1]["aliases"][0] = registry["setups"][0]["aliases"][0]
+        errors = validate_registry(
+            registry,
+            {entry["name"] for entry in catalog},
+            SOURCE_ROOT,
+        )
+        self.assertTrue(
+            any("alias ambíguo" in error for error in errors),
+            errors,
+        )
+
+    def test_chunking_is_bounded_and_deterministic(self) -> None:
+        paragraph = "palavra " * 180
+        content = "\n\n".join([paragraph.strip(), paragraph.strip()])
+        first = split_section(content)
+        second = split_section(content)
+        self.assertEqual(first, second)
+        self.assertGreater(len(first), 1)
+        self.assertTrue(all(len(chunk) <= MAX_CHUNK_CHARACTERS for chunk in first))
+
     def test_generated_package_is_reproducible_and_regular(self) -> None:
         registry = load_json(ROOT / "registry" / "setups.json")
         with tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:
@@ -143,7 +174,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
                         "--setup-version",
                         registry["setupVersion"],
                         "--control-version",
-                        "1.2.2",
+                        "1.3.0",
                     ],
                     check=False,
                     capture_output=True,
@@ -162,11 +193,47 @@ class KnowledgeFactoryTests(unittest.TestCase):
                 ) as package:
                     self.assertTrue(package.getmembers())
                     self.assertTrue(all(member.isfile() for member in package.getmembers()))
+                    index = json.load(package.extractfile("index.json"))
+                    legacy_index = json.load(package.extractfile("index-v1.json"))
+                    self.assertEqual(index["schemaVersion"], 2)
+                    self.assertEqual(index["retrievalVersion"], RETRIEVAL_VERSION)
+                    self.assertEqual(index["chunkCount"], len(index["chunks"]))
+                    self.assertGreater(index["chunkCount"], 29)
+                    self.assertEqual(legacy_index["schemaVersion"], 1)
+                    self.assertEqual(len(legacy_index["entries"]), 29)
+                    chunk_ids: set[str] = set()
+                    for chunk in index["chunks"]:
+                        self.assertNotIn(chunk["chunkId"], chunk_ids)
+                        chunk_ids.add(chunk["chunkId"])
+                        self.assertLessEqual(
+                            len(chunk["content"]),
+                            MAX_CHUNK_CHARACTERS,
+                        )
+                        self.assertEqual(
+                            chunk["contentSHA256"],
+                            hashlib.sha256(
+                                chunk["content"].encode("utf-8")
+                            ).hexdigest(),
+                        )
+                        self.assertEqual(
+                            set(chunk["fieldLengths"]),
+                            {"aliases", "content", "heading", "tags", "title"},
+                        )
+                        self.assertEqual(
+                            set(chunk["fieldTermFrequencies"]),
+                            {"aliases", "content", "heading", "tags", "title"},
+                        )
             self.assertEqual(archives[0], archives[1])
             self.assertEqual(manifests[0], manifests[1])
             self.assertEqual(manifests[0]["documentEntries"], 29)
             self.assertEqual(manifests[0]["setupEntries"], 20)
             self.assertEqual(manifests[0]["infrastructureEntries"], 9)
+            self.assertEqual(manifests[0]["indexSchemaVersion"], 2)
+            self.assertEqual(
+                manifests[0]["retrievalVersion"],
+                RETRIEVAL_VERSION,
+            )
+            self.assertGreater(manifests[0]["chunkEntries"], 29)
 
 
 if __name__ == "__main__":

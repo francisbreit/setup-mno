@@ -253,7 +253,7 @@ pelos testes da release.
 
 ## Etapa 3 — RAG Híbrido Local
 
-**Status:** projeto arquitetural concluído; implementação pendente
+**Status:** subetapa 3.1 implementada; subetapas 3.2 a 3.4 pendentes
 **Impacto:** crítico para a qualidade
 **Tipo:** IA, desempenho e confiabilidade
 **Esforço:** estrutural
@@ -503,8 +503,9 @@ pacote inteiro.
 
 ### Estratégia de rollout
 
-1. **3.1 — Índice v2:** gerador, schema, aliases, chunks e testes
-   determinísticos.
+1. **3.1 — Índice v2 — concluída na v4.95.0:** gerador, schema, aliases,
+   chunks e testes determinísticos. O pacote mantém `index-v1.json` como
+   contingência e ainda não usa o índice v2 para compor respostas.
 2. **3.2 — Retrieval em shadow mode:** executar ranking local, mas manter o
    contexto atual da LLM; registrar somente métricas agregadas.
 3. **3.3 — Citações e inspeção:** exibir fontes utilizadas e criar relatório de
@@ -742,7 +743,7 @@ version: 1.0.0
 author: Francis MNO
 status: homologated
 objective: Central de atendimento omnichannel com WhatsApp
-setupVersion: 4.94.2
+setupVersion: 4.95.0
 architectures: [amd64, arm64]
 minimumRamGB: 6
 recommendedRamGB: 8
@@ -1039,6 +1040,22 @@ O projeto arquitetural do RAG híbrido local foi concluído na Etapa 3.
 Roteador de especialistas, Blueprints e dataset de avaliação permanecem
 deliberadamente nas Etapas 4 a 6.
 
+## Release incremental da subetapa 3.1
+
+Escopo implementado na release v4.95.0:
+
+- Setup MNO `4.95.0`
+- Control Center `1.3.0`
+- conhecimento canônico `1.2.0`
+- índice schema 2 com retrieval `1.0.0`
+- chunking determinístico por H2, preservando H3 na seção
+- frequências BM25F pré-calculadas por aliases, título, heading, tags e conteúdo
+- aliases oficiais de setups e sinônimos de infraestrutura/arquitetura
+- SHA-256 individual de cada chunk
+- índice v1 preservado no mesmo pacote para rollback
+- carregamento e validação rigorosa do índice v2, sem ativação no prompt
+- nenhuma nova stack, porta, dependência, mount ou ferramenta de escrita
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico
@@ -1052,9 +1069,10 @@ deliberadamente nas Etapas 4 a 6.
 
 ## Próxima ação
 
-Revisar e aprovar explicitamente o projeto ADR-003 da
-**Etapa 3 — RAG Híbrido Local**. Após a aprovação, implementar somente a
-subetapa **3.1 — Índice v2**, mantendo o runtime atual inalterado.
+Homologar os artefatos da subetapa **3.1 — Índice v2**. Após aprovação
+explícita, implementar somente a subetapa **3.2 — Retrieval em shadow mode**,
+mantendo o contexto atual enviado à LLM e registrando apenas métricas
+agregadas.
 
 ## Referências oficiais
 

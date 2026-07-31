@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import gzip
 import hashlib
 import io
@@ -22,12 +23,19 @@ from lint_knowledge import load_documents, load_json
 
 
 PACKAGE_SCHEMA = 1
+LEGACY_INDEX_SCHEMA = 1
+INDEX_SCHEMA = 2
+RETRIEVAL_VERSION = "1.0.0"
 MAX_DOCUMENTS = 512
 MAX_DOCUMENT_BYTES = 256 << 10
 MAX_INDEX_BYTES = 2 << 20
 MAX_ARCHIVE_BYTES = 8 << 20
+MAX_CHUNK_CHARACTERS = 2400
+MAX_CHUNK_OVERLAP = 200
+MIN_CHUNK_CHARACTERS = 120
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 TOKEN_RE = re.compile(r"[a-z0-9][a-z0-9-]{1,63}")
+HEADING_RE = re.compile(r"^(#{1,3})[ \t]+(.+?)[ \t]*$")
 STOP_WORDS = {
     "a",
     "ao",
@@ -76,15 +84,124 @@ def sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def normalize_terms(text: str) -> list[str]:
+def tokenize(text: str) -> list[str]:
     normalized = unicodedata.normalize("NFKD", text.casefold())
     ascii_text = "".join(character for character in normalized if not unicodedata.combining(character))
-    terms = {
+    return [
         match.group(0)
         for match in TOKEN_RE.finditer(ascii_text)
         if match.group(0) not in STOP_WORDS
-    }
-    return sorted(terms)
+    ]
+
+
+def normalize_terms(text: str) -> list[str]:
+    return sorted(set(tokenize(text)))
+
+
+def term_frequencies(text: str) -> dict[str, int]:
+    return dict(sorted(Counter(tokenize(text)).items()))
+
+
+def slugify(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value.casefold())
+    ascii_text = "".join(
+        character for character in normalized if not unicodedata.combining(character)
+    )
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_text).strip("-")
+    if not slug:
+        raise ValueError(f"heading não produz slug estável: {value!r}")
+    return slug[:80].rstrip("-")
+
+
+def markdown_sections(body: str, fallback_title: str) -> list[tuple[str, str]]:
+    """Separa o Markdown por H2; H3 permanece no conteúdo da seção H2."""
+    sections: list[tuple[str, str]] = []
+    current_heading = fallback_title
+    current_lines: list[str] = []
+    saw_h2 = False
+    for line in body.splitlines():
+        match = HEADING_RE.match(line)
+        if match and len(match.group(1)) == 1:
+            continue
+        if match and len(match.group(1)) == 2:
+            content = "\n".join(current_lines).strip()
+            if content:
+                sections.append((current_heading, content))
+            current_heading = match.group(2).strip()
+            current_lines = []
+            saw_h2 = True
+            continue
+        current_lines.append(line)
+    content = "\n".join(current_lines).strip()
+    if content:
+        sections.append((current_heading, content))
+    if not sections:
+        raise ValueError("documento sem conteúdo recuperável")
+    if not saw_h2:
+        return [(fallback_title, sections[0][1])]
+    return sections
+
+
+def overlap_suffix(content: str) -> str:
+    if len(content) <= MAX_CHUNK_OVERLAP:
+        return content
+    suffix = content[-MAX_CHUNK_OVERLAP:]
+    first_space = suffix.find(" ")
+    if first_space >= 0:
+        suffix = suffix[first_space + 1 :]
+    return suffix.strip()
+
+
+def split_section(content: str) -> list[str]:
+    paragraphs = [
+        paragraph.strip()
+        for paragraph in re.split(r"\n[ \t]*\n", content)
+        if paragraph.strip()
+    ]
+    if any(len(paragraph) > MAX_CHUNK_CHARACTERS for paragraph in paragraphs):
+        raise ValueError(
+            "parágrafo excede o limite de chunk; divida-o editorialmente "
+            f"em blocos de até {MAX_CHUNK_CHARACTERS} caracteres"
+        )
+    chunks: list[str] = []
+    current = ""
+    for paragraph in paragraphs:
+        candidate = paragraph if not current else current + "\n\n" + paragraph
+        if len(candidate) <= MAX_CHUNK_CHARACTERS:
+            current = candidate
+            continue
+        chunks.append(current)
+        overlap = overlap_suffix(current)
+        candidate = overlap + "\n\n" + paragraph if overlap else paragraph
+        current = candidate if len(candidate) <= MAX_CHUNK_CHARACTERS else paragraph
+    if current:
+        chunks.append(current)
+
+    merged: list[str] = []
+    for chunk in chunks:
+        if len(chunk) < MIN_CHUNK_CHARACTERS and merged:
+            candidate = merged[-1] + "\n\n" + chunk
+            if len(candidate) <= MAX_CHUNK_CHARACTERS:
+                merged[-1] = candidate
+                continue
+        merged.append(chunk)
+    if len(merged) > 1 and len(merged[0]) < MIN_CHUNK_CHARACTERS:
+        candidate = merged[0] + "\n\n" + merged[1]
+        if len(candidate) <= MAX_CHUNK_CHARACTERS:
+            merged[:2] = [candidate]
+    return merged
+
+
+def aliases_for_document(
+    metadata: dict[str, Any],
+    registry_by_id: dict[str, dict[str, Any]],
+    taxonomy: dict[str, Any],
+) -> list[str]:
+    if metadata["documentType"] == "setup":
+        return list(registry_by_id[metadata["setupId"]]["aliases"])
+    if metadata["documentType"] == "infrastructure":
+        return list(taxonomy.get("synonyms", {}).get(metadata["topicId"], []))
+    return []
 
 
 def ensure_regular_source(path: Path, root: Path) -> bytes:
@@ -112,6 +229,9 @@ def build_package_files(
 ) -> tuple[dict[str, bytes], dict[str, Any]]:
     taxonomy = load_json(root / "schema" / "taxonomy.json")
     registry = load_json(root / "registry" / "setups.json")
+    registry_by_id = {
+        entry["setupId"]: entry for entry in registry.get("setups", [])
+    }
     knowledge_version = (root / "VERSION").read_text(encoding="utf-8").strip()
     if not SEMVER_RE.fullmatch(knowledge_version):
         raise ValueError("VERSION da base de conhecimento não segue SemVer")
@@ -138,6 +258,10 @@ def build_package_files(
     files: dict[str, bytes] = {}
     index_entries: list[dict[str, Any]] = []
     inverted_index: dict[str, list[str]] = {}
+    chunks: list[dict[str, Any]] = []
+    chunk_ids: set[str] = set()
+    document_frequencies: Counter[str] = Counter()
+    field_length_totals: Counter[str] = Counter()
     latest_date = ""
 
     for document in sorted(selected, key=lambda item: item.metadata["documentId"]):
@@ -152,10 +276,12 @@ def build_package_files(
             f"documents/{metadata['documentType']}/{metadata['documentId']}.md"
         )
         add_package_file(files, packaged_path, raw_document)
+        aliases = aliases_for_document(metadata, registry_by_id, taxonomy)
         search_material = " ".join(
             [
                 metadata["title"],
                 " ".join(metadata["tags"]),
+                " ".join(aliases),
                 document.body,
             ]
         )
@@ -182,15 +308,92 @@ def build_package_files(
         index_entries.append(entry)
         for term in terms:
             inverted_index.setdefault(term, []).append(metadata["documentId"])
+
+        for heading, section_content in markdown_sections(
+            document.body,
+            metadata["title"],
+        ):
+            section_chunks = split_section(section_content)
+            heading_slug = slugify(heading)
+            for position, content in enumerate(section_chunks, start=1):
+                chunk_id = (
+                    f"{metadata['documentId']}#{heading_slug}-{position:02d}"
+                )
+                if chunk_id in chunk_ids:
+                    raise ValueError(f"chunkId duplicado: {chunk_id}")
+                chunk_ids.add(chunk_id)
+                fields = {
+                    "aliases": " ".join(aliases),
+                    "content": content,
+                    "heading": heading,
+                    "tags": " ".join(metadata["tags"]),
+                    "title": metadata["title"],
+                }
+                field_frequencies = {
+                    field: term_frequencies(value)
+                    for field, value in sorted(fields.items())
+                }
+                field_lengths = {
+                    field: sum(frequencies.values())
+                    for field, frequencies in field_frequencies.items()
+                }
+                for field, length in field_lengths.items():
+                    field_length_totals[field] += length
+                chunk_terms = {
+                    term
+                    for frequencies in field_frequencies.values()
+                    for term in frequencies
+                }
+                document_frequencies.update(chunk_terms)
+                chunks.append(
+                    {
+                        "aliases": aliases,
+                        "architectures": metadata["architectures"],
+                        "category": metadata["category"],
+                        "chunkId": chunk_id,
+                        "content": content,
+                        "contentSHA256": sha256_hex(content.encode("utf-8")),
+                        "documentId": metadata["documentId"],
+                        "documentType": metadata["documentType"],
+                        "documentVersion": metadata["documentVersion"],
+                        "fieldLengths": field_lengths,
+                        "fieldTermFrequencies": field_frequencies,
+                        "heading": heading,
+                        "setupId": metadata.get("setupId"),
+                        "setupVersion": metadata["setupVersion"],
+                        "status": metadata["status"],
+                        "tags": metadata["tags"],
+                        "title": metadata["title"],
+                        "topicId": metadata.get("topicId"),
+                    }
+                )
         latest_date = max(latest_date, metadata["updatedAt"])
 
-    index = {
-        "schemaVersion": PACKAGE_SCHEMA,
+    legacy_index = {
+        "schemaVersion": LEGACY_INDEX_SCHEMA,
         "knowledgeVersion": knowledge_version,
         "setupVersion": setup_version,
         "normalRetrievalStatuses": taxonomy["normalRetrievalStatuses"],
         "entries": index_entries,
         "invertedIndex": dict(sorted(inverted_index.items())),
+    }
+    legacy_index_data = canonical_json(legacy_index)
+    add_package_file(files, "index-v1.json", legacy_index_data)
+
+    chunk_count = len(chunks)
+    index = {
+        "schemaVersion": INDEX_SCHEMA,
+        "retrievalVersion": RETRIEVAL_VERSION,
+        "knowledgeVersion": knowledge_version,
+        "setupVersion": setup_version,
+        "normalRetrievalStatuses": taxonomy["normalRetrievalStatuses"],
+        "chunkCount": chunk_count,
+        "averageFieldLengths": {
+            field: round(total / chunk_count, 6)
+            for field, total in sorted(field_length_totals.items())
+        },
+        "documentFrequencies": dict(sorted(document_frequencies.items())),
+        "chunks": chunks,
     }
     index_data = canonical_json(index)
     if len(index_data) > MAX_INDEX_BYTES:
@@ -200,6 +403,7 @@ def build_package_files(
     for source, target in (
         (root / "VERSION", "VERSION"),
         (root / "schema" / "document.schema.json", "schema/document.schema.json"),
+        (root / "schema" / "index-v2.schema.json", "schema/index-v2.schema.json"),
         (root / "schema" / "taxonomy.json", "schema/taxonomy.json"),
         (root / "registry" / "setups.json", "registry/setups.json"),
     ):
@@ -218,8 +422,12 @@ def build_package_files(
         "infrastructureEntries": sum(
             entry["documentType"] == "infrastructure" for entry in index_entries
         ),
+        "chunkEntries": chunk_count,
+        "indexSchemaVersion": INDEX_SCHEMA,
         "knowledgeVersion": knowledge_version,
+        "legacyIndexSHA256": sha256_hex(legacy_index_data),
         "latestDocumentDate": latest_date,
+        "retrievalVersion": RETRIEVAL_VERSION,
         "setupEntries": sum(entry["documentType"] == "setup" for entry in index_entries),
         "indexSHA256": sha256_hex(index_data),
     }
@@ -279,7 +487,11 @@ def build_manifest(
         "archiveSHA256": sha256_hex(archive_data),
         "archiveBytes": len(archive_data),
         "indexSHA256": summary["indexSHA256"],
+        "legacyIndexSHA256": summary["legacyIndexSHA256"],
+        "indexSchemaVersion": summary["indexSchemaVersion"],
+        "retrievalVersion": summary["retrievalVersion"],
         "documentEntries": summary["documentEntries"],
+        "chunkEntries": summary["chunkEntries"],
         "documentTypeEntries": summary["documentTypeEntries"],
         "setupEntries": summary["setupEntries"],
         "infrastructureEntries": summary["infrastructureEntries"],
@@ -404,6 +616,9 @@ def main() -> int:
                 "setupVersion": manifest["setupVersion"],
                 "controlVersion": manifest["controlVersion"],
                 "documentEntries": manifest["documentEntries"],
+                "chunkEntries": manifest["chunkEntries"],
+                "indexSchemaVersion": manifest["indexSchemaVersion"],
+                "retrievalVersion": manifest["retrievalVersion"],
                 "archiveBytes": manifest["archiveBytes"],
                 "archiveSHA256": manifest["archiveSHA256"],
             },

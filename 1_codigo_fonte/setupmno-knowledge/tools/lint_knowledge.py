@@ -10,6 +10,7 @@ import ipaddress
 import json
 import re
 import sys
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -142,6 +143,64 @@ def find_private_ips(text: str) -> list[str]:
         if address.is_private or address.is_loopback or address.is_link_local:
             private_ips.append(candidate)
     return sorted(set(private_ips))
+
+
+def normalize_alias(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value.casefold())
+    ascii_text = "".join(
+        character for character in normalized if not unicodedata.combining(character)
+    )
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", ascii_text).split())
+
+
+def validate_retrieval_taxonomy(taxonomy: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    if taxonomy.get("schemaVersion") != 2:
+        errors.append("schema/taxonomy.json: schemaVersion deve ser 2")
+    synonyms = taxonomy.get("synonyms")
+    if not isinstance(synonyms, dict):
+        return errors + ["schema/taxonomy.json: synonyms deve ser um objeto"]
+    expected_targets = set(taxonomy.get("infrastructureTopics", [])) | set(
+        taxonomy.get("architectures", [])
+    )
+    if set(synonyms) != expected_targets:
+        missing = expected_targets - set(synonyms)
+        unknown = set(synonyms) - expected_targets
+        if missing:
+            errors.append(
+                "schema/taxonomy.json: synonyms sem alvos: "
+                + ", ".join(sorted(missing))
+            )
+        if unknown:
+            errors.append(
+                "schema/taxonomy.json: synonyms com alvos desconhecidos: "
+                + ", ".join(sorted(unknown))
+            )
+    owners: dict[str, str] = {}
+    for target, aliases in synonyms.items():
+        prefix = f"schema/taxonomy.json: synonyms.{target}"
+        if not isinstance(aliases, list) or not aliases:
+            errors.append(f"{prefix} deve ser uma lista não vazia")
+            continue
+        local: set[str] = set()
+        for alias in aliases:
+            if not isinstance(alias, str) or not alias.strip():
+                errors.append(f"{prefix} contém alias vazio ou inválido")
+                continue
+            normalized = normalize_alias(alias)
+            if not normalized:
+                errors.append(f"{prefix} contém alias sem termos recuperáveis")
+                continue
+            if normalized in local:
+                errors.append(f"{prefix} contém alias normalizado duplicado: {alias}")
+            local.add(normalized)
+            owner = owners.get(normalized)
+            if owner is not None and owner != target:
+                errors.append(
+                    f"{prefix} contém alias ambíguo com {owner}: {alias}"
+                )
+            owners[normalized] = target
+    return errors
 
 
 def validate_source(
@@ -371,17 +430,27 @@ def validate_registry(
     source_root: Path,
 ) -> list[str]:
     errors: list[str] = []
+    if registry.get("schemaVersion") != 2:
+        errors.append("registry/setups.json: schemaVersion deve ser 2")
     entries = registry.get("setups")
     if not isinstance(entries, list) or len(entries) != 20:
-        return ["registry/setups.json deve conter exatamente 20 setups no lote piloto"]
+        errors.append("registry/setups.json deve conter exatamente 20 setups no lote piloto")
+        return errors
     seen_ids: set[str] = set()
     seen_names: set[str] = set()
+    alias_owners: dict[str, str] = {}
     for index, entry in enumerate(entries):
         prefix = f"registry.setups[{index}]"
         if not isinstance(entry, dict):
             errors.append(f"{prefix} deve ser um objeto")
             continue
-        expected = {"setupId", "catalogName", "script", "architectures"}
+        expected = {
+            "setupId",
+            "catalogName",
+            "script",
+            "architectures",
+            "aliases",
+        }
         if set(entry) != expected:
             errors.append(f"{prefix} deve conter exatamente {', '.join(sorted(expected))}")
             continue
@@ -395,6 +464,32 @@ def validate_registry(
             errors.append(f"{prefix}.catalogName duplicado")
         seen_ids.add(setup_id)
         seen_names.add(catalog_name)
+        aliases = entry["aliases"]
+        if not isinstance(aliases, list) or not aliases:
+            errors.append(f"{prefix}.aliases deve ser uma lista não vazia")
+        else:
+            local_aliases: set[str] = set()
+            owned_values = [str(setup_id), str(catalog_name), *aliases]
+            for alias in owned_values:
+                if not isinstance(alias, str) or not alias.strip():
+                    errors.append(f"{prefix}.aliases contém valor vazio ou inválido")
+                    continue
+                normalized = normalize_alias(alias)
+                if not normalized:
+                    errors.append(f"{prefix}.aliases contém valor sem termos recuperáveis")
+                    continue
+                if alias in aliases and normalized in local_aliases:
+                    errors.append(
+                        f"{prefix}.aliases contém alias normalizado duplicado: {alias}"
+                    )
+                if alias in aliases:
+                    local_aliases.add(normalized)
+                owner = alias_owners.get(normalized)
+                if owner is not None and owner != setup_id:
+                    errors.append(
+                        f"{prefix}.aliases contém alias ambíguo com {owner}: {alias}"
+                    )
+                alias_owners[normalized] = setup_id
         if catalog_name not in catalog_names:
             errors.append(f"{prefix}.catalogName ausente no catálogo canônico")
         for architecture, directory in (("amd64", "x86"), ("arm64", "arm")):
@@ -433,6 +528,7 @@ def build_context(args: argparse.Namespace) -> tuple[
         if isinstance(entry, dict) and isinstance(entry.get("setupId"), str)
     }
     documents, errors = load_documents(root)
+    errors.extend(validate_retrieval_taxonomy(taxonomy))
     errors.extend(validate_registry(registry, catalog_names, source_root))
     return (
         root,

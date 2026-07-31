@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="1.2.2"
+CONTROL_VERSION="1.3.0"
 
 if [ "${SETUPMNO_SHC_SMOKE_TEST:-0}" = "1" ]; then
     printf '%s\n' "setupmno-control-shc-ok"
@@ -366,6 +366,9 @@ error_file="/tmp/${nome_app}-error.log"
     knowledge_setup_version=$(jq -r '.setupVersion // empty' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
     knowledge_control_version=$(jq -r '.controlVersion // empty' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
     knowledge_entries=$(jq -r '.documentEntries // 0' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
+    knowledge_chunks=$(jq -r '.chunkEntries // 0' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
+    knowledge_index_schema=$(jq -r '.indexSchemaVersion // 0' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
+    knowledge_retrieval_version=$(jq -r '.retrievalVersion // empty' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
     release_knowledge_entries=$(jq -r '.knowledgeEntries // 0' /root/SetupLowCodeMno/.control/release.json 2>>"$install_log")
     knowledge_archive_bytes=$(jq -r '.archiveBytes // 0' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
     actual_knowledge_bytes=$(stat -c '%s' "$runtime_knowledge_dir/knowledge-package.tar.gz")
@@ -375,6 +378,9 @@ error_file="/tmp/${nome_app}-error.log"
     [ "$knowledge_setup_version" = "$(jq -r '.setupVersion' /root/SetupLowCodeMno/.control/release.json)" ] &&
     [ "$knowledge_control_version" = "$CONTROL_VERSION" ] &&
     [ "$knowledge_entries" -gt 0 ] &&
+    [ "$knowledge_chunks" -gt "$knowledge_entries" ] &&
+    [ "$knowledge_index_schema" = "2" ] &&
+    [ "$knowledge_retrieval_version" = "1.0.0" ] &&
     [ "$knowledge_entries" = "$release_knowledge_entries" ] &&
     [ "$knowledge_archive_bytes" = "$actual_knowledge_bytes" ] &&
     [ "$knowledge_archive_bytes" -le $((8 * 1024 * 1024)) ] &&

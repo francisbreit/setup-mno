@@ -1,0 +1,262 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://setupmno.local/schema/knowledge-index-v2.json",
+  "title": "Setup MNO Knowledge Index v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "retrievalVersion",
+    "knowledgeVersion",
+    "setupVersion",
+    "normalRetrievalStatuses",
+    "chunkCount",
+    "averageFieldLengths",
+    "documentFrequencies",
+    "chunks"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "retrievalVersion": {
+      "const": "1.0.0"
+    },
+    "knowledgeVersion": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "setupVersion": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "normalRetrievalStatuses": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "reviewed",
+          "homologated"
+        ]
+      }
+    },
+    "chunkCount": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4096
+    },
+    "averageFieldLengths": {
+      "$ref": "#/$defs/numericFields"
+    },
+    "documentFrequencies": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 1
+      }
+    },
+    "chunks": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4096,
+      "items": {
+        "$ref": "#/$defs/chunk"
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "stringList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "numericFields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "aliases",
+        "content",
+        "heading",
+        "tags",
+        "title"
+      ],
+      "properties": {
+        "aliases": {
+          "type": "number",
+          "minimum": 0
+        },
+        "content": {
+          "type": "number",
+          "minimum": 0
+        },
+        "heading": {
+          "type": "number",
+          "minimum": 0
+        },
+        "tags": {
+          "type": "number",
+          "minimum": 0
+        },
+        "title": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "termFrequencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "aliases",
+        "content",
+        "heading",
+        "tags",
+        "title"
+      ],
+      "properties": {
+        "aliases": {
+          "$ref": "#/$defs/termFrequency"
+        },
+        "content": {
+          "$ref": "#/$defs/termFrequency"
+        },
+        "heading": {
+          "$ref": "#/$defs/termFrequency"
+        },
+        "tags": {
+          "$ref": "#/$defs/termFrequency"
+        },
+        "title": {
+          "$ref": "#/$defs/termFrequency"
+        }
+      }
+    },
+    "termFrequency": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 1
+      }
+    },
+    "chunk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chunkId",
+        "documentId",
+        "documentVersion",
+        "setupVersion",
+        "documentType",
+        "setupId",
+        "topicId",
+        "architectures",
+        "status",
+        "category",
+        "title",
+        "heading",
+        "tags",
+        "aliases",
+        "fieldTermFrequencies",
+        "fieldLengths",
+        "content",
+        "contentSHA256"
+      ],
+      "properties": {
+        "chunkId": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*#[a-z0-9]+(?:-[a-z0-9]+)*-[0-9]{2,}$"
+        },
+        "documentId": {
+          "$ref": "#/$defs/identifier"
+        },
+        "documentVersion": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+        },
+        "setupVersion": {
+          "type": "string"
+        },
+        "documentType": {
+          "type": "string"
+        },
+        "setupId": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/identifier"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "topicId": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/identifier"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "architectures": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "amd64",
+              "arm64"
+            ]
+          }
+        },
+        "status": {
+          "enum": [
+            "reviewed",
+            "homologated"
+          ]
+        },
+        "category": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "heading": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tags": {
+          "$ref": "#/$defs/stringList"
+        },
+        "aliases": {
+          "$ref": "#/$defs/stringList"
+        },
+        "fieldTermFrequencies": {
+          "$ref": "#/$defs/termFrequencies"
+        },
+        "fieldLengths": {
+          "$ref": "#/$defs/numericFields"
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2400
+        },
+        "contentSHA256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    }
+  }
+}

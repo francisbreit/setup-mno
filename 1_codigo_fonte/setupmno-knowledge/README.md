@@ -2,8 +2,8 @@
 
 Esta pasta é a fonte canônica, editorial e versionada do conhecimento usado
 pelo Assistente MNO. Ela não é um prompt, não executa ações e ainda não faz
-parte do pacote distribuído ao usuário final. A distribuição será tratada
-somente na Etapa 2 do roadmap.
+parte diretamente do binário protegido por SHC. O gerador produz um pacote
+regular, versionado e validado por SHA-256, distribuído em `.control-package/`.
 
 ## Contrato editorial
 
@@ -70,7 +70,7 @@ python3 tools/lint_knowledge.py \
   --catalog ../setupmno-control/catalog.json \
   resolve \
   --setup-id n8n-main \
-  --setup-version 4.94.2 \
+  --setup-version 4.95.0 \
   --architecture amd64
 ```
 
@@ -87,14 +87,19 @@ Geração reproduzível do pacote:
 
 ```bash
 python3 -B tools/generate_package.py \
-  --setup-version 4.94.2 \
-  --control-version 1.2.2
+  --setup-version 4.95.0 \
+  --control-version 1.3.0
 ```
 
 O gerador executa o linter antes do build, inclui somente documentos
-`reviewed` ou `homologated`, cria um índice textual invertido e produz
+`reviewed` ou `homologated`, cria `index.json` schema 2 com chunks e campos
+BM25F pré-calculados, preserva `index-v1.json` como contingência e produz
 `knowledge-package.tar.gz` e `manifest.json`. O arquivo compactado usa ordem,
 permissões, proprietário e timestamps determinísticos.
+
+Aliases de setups pertencem a `registry/setups.json`. Sinônimos de
+infraestrutura e arquitetura pertencem a `schema/taxonomy.json`; o linter
+bloqueia valores vazios, duplicados, ambíguos ou com alvo desconhecido.
 
 ## Estrutura
 
