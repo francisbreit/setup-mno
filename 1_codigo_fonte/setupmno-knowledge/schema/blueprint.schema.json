@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://setupmno.local/schema/blueprint-v1.json",
+  "title": "Setup MNO Blueprint",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "blueprintId",
+    "blueprintVersion",
+    "title",
+    "summary",
+    "author",
+    "status",
+    "fictitious",
+    "deployable",
+    "setupVersion",
+    "updatedAt",
+    "architectures",
+    "risk",
+    "audiences",
+    "tags",
+    "aliases",
+    "objective",
+    "components",
+    "resourceProfile",
+    "installation",
+    "validation",
+    "rollback",
+    "media",
+    "documentation"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "blueprintId": { "$ref": "#/$defs/identifier" },
+    "blueprintVersion": { "$ref": "#/$defs/semver" },
+    "title": { "type": "string", "minLength": 8, "maxLength": 120 },
+    "summary": { "type": "string", "minLength": 20, "maxLength": 360 },
+    "author": { "type": "string", "minLength": 3, "maxLength": 120 },
+    "status": {
+      "enum": ["example", "draft", "reviewed", "homologated", "deprecated"]
+    },
+    "fictitious": { "type": "boolean" },
+    "deployable": { "type": "boolean" },
+    "setupVersion": { "$ref": "#/$defs/semver" },
+    "updatedAt": { "type": "string", "format": "date" },
+    "architectures": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["amd64", "arm64"] }
+    },
+    "risk": { "enum": ["low", "medium", "high", "critical"] },
+    "audiences": { "$ref": "#/$defs/identifierList" },
+    "tags": { "$ref": "#/$defs/identifierList" },
+    "aliases": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 2 }
+    },
+    "objective": { "type": "string", "minLength": 20, "maxLength": 600 },
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/component" }
+    },
+    "resourceProfile": { "$ref": "#/$defs/resourceProfile" },
+    "installation": { "$ref": "#/$defs/installation" },
+    "validation": { "$ref": "#/$defs/validation" },
+    "rollback": { "$ref": "#/$defs/rollback" },
+    "media": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/media" }
+    },
+    "documentation": { "$ref": "#/$defs/documentation" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "example" } } },
+      "then": {
+        "properties": {
+          "fictitious": { "const": true },
+          "deployable": { "const": false }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "homologated" } } },
+      "then": {
+        "properties": {
+          "fictitious": { "const": false },
+          "deployable": { "const": true }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "identifierList": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/identifier" }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["catalogName", "role", "required", "installOrder"],
+      "properties": {
+        "catalogName": { "type": "string", "minLength": 2 },
+        "role": { "type": "string", "minLength": 5, "maxLength": 240 },
+        "required": { "type": "boolean" },
+        "installOrder": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "resourceProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimumRamGB", "recommendedRamGB", "basis"],
+      "properties": {
+        "minimumRamGB": { "type": "integer", "minimum": 1 },
+        "recommendedRamGB": { "type": "integer", "minimum": 1 },
+        "basis": { "type": "string", "minLength": 10 }
+      }
+    },
+    "installation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "humanConfirmationRequired", "steps"],
+      "properties": {
+        "mode": { "const": "assisted-manual" },
+        "humanConfirmationRequired": { "const": true },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/installationStep" }
+        }
+      }
+    },
+    "installationStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step", "component", "title", "description", "humanConfirmation"],
+      "properties": {
+        "step": { "type": "integer", "minimum": 1 },
+        "component": { "type": "string", "minLength": 2 },
+        "title": { "type": "string", "minLength": 5 },
+        "description": { "type": "string", "minLength": 5 },
+        "humanConfirmation": { "type": "boolean" }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["homologatedAt", "checks"],
+      "properties": {
+        "homologatedAt": {
+          "oneOf": [
+            { "type": "string", "format": "date" },
+            { "type": "null" }
+          ]
+        },
+        "checks": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/validationCheck" }
+        }
+      }
+    },
+    "validationCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checkId", "description", "expected", "required"],
+      "properties": {
+        "checkId": { "$ref": "#/$defs/identifier" },
+        "description": { "type": "string", "minLength": 5 },
+        "expected": { "type": "string", "minLength": 5 },
+        "required": { "const": true }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "steps"],
+      "properties": {
+        "strategy": { "type": "string", "minLength": 10 },
+        "steps": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "type": "string", "minLength": 3 }
+        }
+      }
+    },
+    "media": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mediaId", "type", "title", "url", "status", "transcript"],
+      "properties": {
+        "mediaId": { "$ref": "#/$defs/identifier" },
+        "type": { "enum": ["video", "link"] },
+        "title": { "type": "string", "minLength": 5 },
+        "url": { "type": "string", "format": "uri", "pattern": "^https://" },
+        "status": { "enum": ["example", "reviewed"] },
+        "transcript": {
+          "oneOf": [
+            { "type": "string", "minLength": 3 },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "documentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entrypoint", "artifacts"],
+      "properties": {
+        "entrypoint": { "const": "README.md" },
+        "artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 3 }
+        }
+      }
+    }
+  }
+}

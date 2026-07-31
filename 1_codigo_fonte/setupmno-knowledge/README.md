@@ -70,7 +70,7 @@ python3 tools/lint_knowledge.py \
   --catalog ../setupmno-control/catalog.json \
   resolve \
   --setup-id n8n-main \
-  --setup-version 5.2.0 \
+  --setup-version 6.0.0 \
   --architecture amd64
 ```
 
@@ -81,21 +81,41 @@ Testes de regressão:
 
 ```bash
 python3 -B tools/test_knowledge.py
+python3 -B tools/test_blueprints.py
 ```
+
+Validação isolada da fábrica de Blueprints:
+
+```bash
+python3 -B tools/blueprint_factory.py \
+  --setup-version 6.0.0
+```
+
+Cada Blueprint reside em `blueprints/<blueprintId>/`, com `blueprint.json`
+validado por `schema/blueprint.schema.json` e `README.md` humano. A fábrica gera
+um ZIP determinístico por pasta, um índice e um manifesto com SHA-256. O status
+`example` exige `fictitious: true`, `deployable: false` e links no domínio
+reservado `.invalid`.
+
+Os `README.md` dos bundles nunca entram diretamente no RAG. Somente um futuro
+`knowledge.md`, criado após revisão editorial e homologação, pode participar da
+base recuperável. Workflows, PDFs, imagens e vídeos permanecem como artefatos e
+não são tratados como instruções para o modelo.
 
 Geração reproduzível do pacote:
 
 ```bash
 python3 -B tools/generate_package.py \
-  --setup-version 5.2.0 \
-  --control-version 2.2.0
+  --setup-version 6.0.0 \
+  --control-version 3.0.0
 ```
 
 O gerador executa o linter antes do build, inclui somente documentos
 `reviewed` ou `homologated`, cria `index.json` schema 2 com chunks e campos
 BM25F pré-calculados, preserva `index-v1.json` como contingência e produz
-`knowledge-package.tar.gz` e `manifest.json`. O arquivo compactado usa ordem,
-permissões, proprietário e timestamps determinísticos.
+`knowledge-package.tar.gz` e `manifest.json`. O mesmo pacote contém o índice,
+o manifesto, o schema e os bundles determinísticos dos Blueprints. O arquivo
+compactado usa ordem, permissões, proprietário e timestamps determinísticos.
 
 Aliases de setups pertencem a `registry/setups.json`. Sinônimos de
 infraestrutura e arquitetura pertencem a `schema/taxonomy.json`; o linter

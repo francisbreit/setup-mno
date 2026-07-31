@@ -55,7 +55,10 @@ func TestReadRuntimeSnapshotAcceptsGeneratedKnowledgeManifest(t *testing.T) {
 	}
 	if snapshot.Release.KnowledgeVersion == "" ||
 		snapshot.Release.KnowledgeEntries < 1 ||
-		len(snapshot.Release.KnowledgeArchiveSHA256) != 64 {
+		len(snapshot.Release.KnowledgeArchiveSHA256) != 64 ||
+		snapshot.Release.BlueprintFactoryVersion != "1.0.0" ||
+		snapshot.Release.BlueprintEntries != 5 ||
+		len(snapshot.Release.BlueprintIndexSHA256) != 64 {
 		t.Fatalf("metadados do conhecimento ausentes: %#v", snapshot.Release)
 	}
 }
@@ -118,6 +121,37 @@ func TestReadRuntimeSnapshotRejectsPartialKnowledgeMetadata(t *testing.T) {
 
 	if _, err := readRuntimeSnapshot(directory); err == nil {
 		t.Fatal("metadados parciais do conhecimento foram aceitos")
+	}
+}
+
+func TestReadRuntimeSnapshotRejectsPartialBlueprintMetadata(t *testing.T) {
+	directory := t.TempDir()
+	catalog := []byte(`[{"name":"TESTE","cats":"Utilitários","arch":"x86-arm"}]`)
+	sum := sha256.Sum256(catalog)
+	release := setupRelease{
+		SchemaVersion:           runtimeSchema,
+		SetupVersion:            "6.0.0",
+		CatalogVersion:          "6.0.0",
+		CatalogSHA256:           hex.EncodeToString(sum[:]),
+		CatalogEntries:          1,
+		Architecture:            "amd64",
+		KnowledgeVersion:        "2.0.0",
+		KnowledgeArchiveSHA256:  strings.Repeat("a", 64),
+		KnowledgeEntries:        29,
+		BlueprintFactoryVersion: "1.0.0",
+	}
+	releaseData, err := json.Marshal(release)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(directory, "catalog.json"), catalog, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(directory, "release.json"), releaseData, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readRuntimeSnapshot(directory); err == nil {
+		t.Fatal("metadados parciais dos Blueprints foram aceitos")
 	}
 }
 
@@ -646,6 +680,10 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 		state.Manifest.DocumentEntries != 29 ||
 		state.Manifest.SetupEntries != 20 ||
 		state.Manifest.InfrastructureEntries != 9 ||
+		state.Manifest.BlueprintSchemaVersion != 1 ||
+		state.Manifest.BlueprintFactoryVersion != "1.0.0" ||
+		state.Manifest.BlueprintEntries != 5 ||
+		state.Manifest.BlueprintBundleEntries != 5 ||
 		state.Manifest.IndexSchemaVersion != 2 ||
 		state.Manifest.RetrievalVersion != "1.1.0" ||
 		state.Manifest.ChunkEntries <= state.Manifest.DocumentEntries {

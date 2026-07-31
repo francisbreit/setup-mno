@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "blueprintId": "blueprint-003-base-conhecimento-rag",
+  "blueprintVersion": "0.1.0",
+  "title": "Base de Conhecimento com IA e RAG — Exemplo fictício",
+  "summary": "Exemplo editorial de uma base de conhecimento com aplicação de IA, banco vetorial e modelo local opcional.",
+  "author": "Setup MNO — exemplo editorial",
+  "status": "example",
+  "fictitious": true,
+  "deployable": false,
+  "setupVersion": "6.0.0",
+  "updatedAt": "2026-07-31",
+  "architectures": ["amd64", "arm64"],
+  "risk": "high",
+  "audiences": ["ia", "conhecimento", "infraestrutura"],
+  "tags": ["rag", "dify", "qdrant", "ollama"],
+  "aliases": ["base de conhecimento com ia", "rag local", "assistente documental"],
+  "objective": "Demonstrar como documentar ingestão, recuperação e geração de respostas com fontes rastreáveis, isolamento de dados e modelo local opcional.",
+  "components": [
+    {
+      "catalogName": "QDRANT",
+      "role": "Armazenar vetores e metadados de documentos aprovados para recuperação.",
+      "required": true,
+      "installOrder": 1
+    },
+    {
+      "catalogName": "DIFY",
+      "role": "Fornecer a aplicação de IA, os fluxos e a política de recuperação documental.",
+      "required": true,
+      "installOrder": 2
+    },
+    {
+      "catalogName": "OLLAMA + OPENWEBUI*",
+      "role": "Representar a opção de inferência local e interface de laboratório.",
+      "required": true,
+      "installOrder": 3
+    }
+  ],
+  "resourceProfile": {
+    "minimumRamGB": 16,
+    "recommendedRamGB": 32,
+    "basis": "Estimativa fictícia; o modelo, contexto, simultaneidade e aceleração alteram radicalmente o consumo."
+  },
+  "installation": {
+    "mode": "assisted-manual",
+    "humanConfirmationRequired": true,
+    "steps": [
+      {
+        "step": 1,
+        "component": "QDRANT",
+        "title": "Preparar armazenamento vetorial",
+        "description": "Instalar o banco vetorial e definir coleções somente depois da política documental.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 2,
+        "component": "DIFY",
+        "title": "Preparar aplicação RAG",
+        "description": "Configurar fontes fictícias, limites de contexto e citações verificáveis.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 3,
+        "component": "OLLAMA + OPENWEBUI*",
+        "title": "Preparar inferência local",
+        "description": "Selecionar um modelo compatível somente após validar capacidade e licença.",
+        "humanConfirmation": true
+      }
+    ]
+  },
+  "validation": {
+    "homologatedAt": null,
+    "checks": [
+      {
+        "checkId": "citacao-rastreavel",
+        "description": "Responder uma pergunta com documento fictício conhecido.",
+        "expected": "A resposta aponta para a fonte correta e não inventa documento ausente.",
+        "required": true
+      },
+      {
+        "checkId": "isolamento-documental",
+        "description": "Consultar conteúdo fora do conjunto autorizado.",
+        "expected": "O fluxo recusa ou informa ausência de evidência.",
+        "required": true
+      },
+      {
+        "checkId": "fallback-modelo",
+        "description": "Interromper o provedor de laboratório.",
+        "expected": "A indisponibilidade é explícita e nenhuma resposta é inventada.",
+        "required": true
+      }
+    ]
+  },
+  "rollback": {
+    "strategy": "Desabilitar ingestão e aplicações antes de restaurar índices e configurações versionadas.",
+    "steps": [
+      "Interromper novas ingestões e preservar o inventário documental.",
+      "Restaurar coleção e configuração compatíveis com a versão anterior."
+    ]
+  },
+  "media": [
+    {
+      "mediaId": "video-rag-seguro",
+      "type": "video",
+      "title": "RAG seguro e rastreável — vídeo fictício",
+      "url": "https://videos.setupmno.invalid/blueprints/003/rag-seguro",
+      "status": "example",
+      "transcript": null
+    },
+    {
+      "mediaId": "matriz-evidencias",
+      "type": "link",
+      "title": "Matriz fictícia de evidências",
+      "url": "https://docs.setupmno.invalid/blueprints/003/evidencias",
+      "status": "example",
+      "transcript": null
+    }
+  ],
+  "documentation": {
+    "entrypoint": "README.md",
+    "artifacts": ["README.md", "blueprint.json"]
+  }
+}

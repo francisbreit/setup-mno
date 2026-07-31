@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Setup MNO Control Center",
   "setupId": "setupmno-control",
-  "setupVersion": "5.2.0",
+  "setupVersion": "6.0.0",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

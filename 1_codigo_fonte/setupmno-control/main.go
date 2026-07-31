@@ -122,15 +122,18 @@ type appSummary struct {
 }
 
 type setupRelease struct {
-	SchemaVersion          int    `json:"schemaVersion"`
-	SetupVersion           string `json:"setupVersion"`
-	CatalogVersion         string `json:"catalogVersion"`
-	CatalogSHA256          string `json:"catalogSHA256"`
-	CatalogEntries         int    `json:"catalogEntries"`
-	Architecture           string `json:"architecture"`
-	KnowledgeVersion       string `json:"knowledgeVersion,omitempty"`
-	KnowledgeArchiveSHA256 string `json:"knowledgeArchiveSHA256,omitempty"`
-	KnowledgeEntries       int    `json:"knowledgeEntries,omitempty"`
+	SchemaVersion           int    `json:"schemaVersion"`
+	SetupVersion            string `json:"setupVersion"`
+	CatalogVersion          string `json:"catalogVersion"`
+	CatalogSHA256           string `json:"catalogSHA256"`
+	CatalogEntries          int    `json:"catalogEntries"`
+	Architecture            string `json:"architecture"`
+	KnowledgeVersion        string `json:"knowledgeVersion,omitempty"`
+	KnowledgeArchiveSHA256  string `json:"knowledgeArchiveSHA256,omitempty"`
+	KnowledgeEntries        int    `json:"knowledgeEntries,omitempty"`
+	BlueprintFactoryVersion string `json:"blueprintFactoryVersion,omitempty"`
+	BlueprintIndexSHA256    string `json:"blueprintIndexSHA256,omitempty"`
+	BlueprintEntries        int    `json:"blueprintEntries,omitempty"`
 }
 
 type runtimeSnapshot struct {
@@ -589,13 +592,15 @@ func runAssistant() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
-			"status":           "ok",
-			"provider":         service.provider,
-			"model":            service.model,
-			"knowledgeVersion": service.knowledge.Manifest.KnowledgeVersion,
-			"knowledgeSource":  service.knowledge.Source,
-			"knowledgeStale":   service.knowledge.Stale,
-			"knowledgeEntries": service.knowledge.Manifest.DocumentEntries,
+			"status":                  "ok",
+			"provider":                service.provider,
+			"model":                   service.model,
+			"knowledgeVersion":        service.knowledge.Manifest.KnowledgeVersion,
+			"knowledgeSource":         service.knowledge.Source,
+			"knowledgeStale":          service.knowledge.Stale,
+			"knowledgeEntries":        service.knowledge.Manifest.DocumentEntries,
+			"blueprintFactoryVersion": service.knowledge.Manifest.BlueprintFactoryVersion,
+			"blueprintEntries":        service.knowledge.Manifest.BlueprintEntries,
 			"promptRegistry": map[string]any{
 				"version":                 assistantPromptRegistryVersion,
 				"promptVersion":           assistantPromptVersion,
@@ -755,12 +760,14 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 	sendSSE(w, "meta", map[string]any{
-		"mode":             s.provider,
-		"model":            s.model,
-		"knowledgeVersion": s.knowledge.Manifest.KnowledgeVersion,
-		"knowledgeSource":  s.knowledge.Source,
-		"knowledgeStale":   s.knowledge.Stale,
-		"knowledgeEntries": s.knowledge.Manifest.DocumentEntries,
+		"mode":                    s.provider,
+		"model":                   s.model,
+		"knowledgeVersion":        s.knowledge.Manifest.KnowledgeVersion,
+		"knowledgeSource":         s.knowledge.Source,
+		"knowledgeStale":          s.knowledge.Stale,
+		"knowledgeEntries":        s.knowledge.Manifest.DocumentEntries,
+		"blueprintFactoryVersion": s.knowledge.Manifest.BlueprintFactoryVersion,
+		"blueprintEntries":        s.knowledge.Manifest.BlueprintEntries,
 	})
 	sendSSE(w, "route", route)
 	if inspection != nil {
@@ -1846,6 +1853,20 @@ func validateReleaseKnowledge(release setupRelease) error {
 	knowledgeHash, err := hex.DecodeString(release.KnowledgeArchiveSHA256)
 	if err != nil || len(knowledgeHash) != sha256.Size {
 		return errors.New("SHA-256 do conhecimento inválido")
+	}
+	hasBlueprintMetadata := release.BlueprintFactoryVersion != "" ||
+		release.BlueprintIndexSHA256 != "" ||
+		release.BlueprintEntries != 0
+	if !hasBlueprintMetadata {
+		return nil
+	}
+	if !validSemanticVersion(release.BlueprintFactoryVersion) ||
+		release.BlueprintEntries < 1 {
+		return errors.New("metadados dos Blueprints inconsistentes")
+	}
+	blueprintHash, err := hex.DecodeString(release.BlueprintIndexSHA256)
+	if err != nil || len(blueprintHash) != sha256.Size {
+		return errors.New("SHA-256 dos Blueprints inválido")
 	}
 	return nil
 }

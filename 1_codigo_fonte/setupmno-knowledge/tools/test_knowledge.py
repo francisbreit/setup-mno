@@ -174,7 +174,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
                         "--setup-version",
                         registry["setupVersion"],
                         "--control-version",
-                        "2.2.0",
+                        "3.0.0",
                     ],
                     check=False,
                     capture_output=True,
@@ -203,6 +203,24 @@ class KnowledgeFactoryTests(unittest.TestCase):
                     self.assertGreater(index["chunkCount"], 29)
                     self.assertEqual(legacy_index["schemaVersion"], 1)
                     self.assertEqual(len(legacy_index["entries"]), 29)
+                    blueprint_index = json.load(
+                        package.extractfile("blueprints/index.json")
+                    )
+                    self.assertEqual(blueprint_index["schemaVersion"], 1)
+                    self.assertEqual(blueprint_index["blueprintCount"], 5)
+                    self.assertEqual(blueprint_index["statuses"], {"example": 5})
+                    self.assertTrue(
+                        all(
+                            entry["fictitious"] and not entry["deployable"]
+                            for entry in blueprint_index["entries"]
+                        )
+                    )
+                    self.assertFalse(
+                        any(
+                            entry["documentType"] == "blueprint"
+                            for entry in legacy_index["entries"]
+                        )
+                    )
                     chunk_ids: set[str] = set()
                     for chunk in index["chunks"]:
                         self.assertNotIn(chunk["chunkId"], chunk_ids)
@@ -230,6 +248,10 @@ class KnowledgeFactoryTests(unittest.TestCase):
             self.assertEqual(manifests[0]["documentEntries"], 29)
             self.assertEqual(manifests[0]["setupEntries"], 20)
             self.assertEqual(manifests[0]["infrastructureEntries"], 9)
+            self.assertEqual(manifests[0]["blueprintSchemaVersion"], 1)
+            self.assertEqual(manifests[0]["blueprintFactoryVersion"], "1.0.0")
+            self.assertEqual(manifests[0]["blueprintEntries"], 5)
+            self.assertEqual(manifests[0]["blueprintBundleEntries"], 5)
             self.assertEqual(manifests[0]["indexSchemaVersion"], 2)
             self.assertEqual(
                 manifests[0]["retrievalVersion"],

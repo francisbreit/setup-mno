@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "blueprintId": "blueprint-004-observabilidade-monitoramento",
+  "blueprintVersion": "0.1.0",
+  "title": "Observabilidade e Monitoramento — Exemplo fictício",
+  "summary": "Exemplo editorial de métricas, monitoramento leve e verificação externa com responsabilidades separadas.",
+  "author": "Setup MNO — exemplo editorial",
+  "status": "example",
+  "fictitious": true,
+  "deployable": false,
+  "setupVersion": "6.0.0",
+  "updatedAt": "2026-07-31",
+  "architectures": ["amd64", "arm64"],
+  "risk": "medium",
+  "audiences": ["operacoes", "sre", "infraestrutura"],
+  "tags": ["observabilidade", "monitoramento", "metricas", "alertas"],
+  "aliases": ["monitoramento de servidor", "observabilidade completa", "saúde dos serviços"],
+  "objective": "Demonstrar uma arquitetura em camadas para métricas, saúde do host e disponibilidade externa sem apresentar exemplos como configuração homologada.",
+  "components": [
+    {
+      "catalogName": "BESZEL",
+      "role": "Fornecer uma visão leve de recursos e saúde dos hosts monitorados.",
+      "required": true,
+      "installOrder": 1
+    },
+    {
+      "catalogName": "GRAFANA/PROMETHEUS MONITOR",
+      "role": "Fornecer séries temporais, dashboards e consultas operacionais detalhadas.",
+      "required": true,
+      "installOrder": 2
+    },
+    {
+      "catalogName": "UPTIMEKUMA",
+      "role": "Fornecer verificação externa de disponibilidade e alertas de laboratório.",
+      "required": true,
+      "installOrder": 3
+    }
+  ],
+  "resourceProfile": {
+    "minimumRamGB": 4,
+    "recommendedRamGB": 8,
+    "basis": "Estimativa fictícia sem retenção, cardinalidade, quantidade de hosts ou frequência de coleta reais."
+  },
+  "installation": {
+    "mode": "assisted-manual",
+    "humanConfirmationRequired": true,
+    "steps": [
+      {
+        "step": 1,
+        "component": "BESZEL",
+        "title": "Preparar visão leve",
+        "description": "Instalar o monitor leve e validar somente hosts fictícios autorizados.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 2,
+        "component": "GRAFANA/PROMETHEUS MONITOR",
+        "title": "Preparar métricas detalhadas",
+        "description": "Definir retenção, fontes e dashboards antes de ampliar a coleta.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 3,
+        "component": "UPTIMEKUMA",
+        "title": "Preparar disponibilidade externa",
+        "description": "Adicionar somente alvos de laboratório e validar os canais de alerta.",
+        "humanConfirmation": true
+      }
+    ]
+  },
+  "validation": {
+    "homologatedAt": null,
+    "checks": [
+      {
+        "checkId": "metrica-recente",
+        "description": "Confirmar atualização de uma métrica de laboratório.",
+        "expected": "A série recebe amostras no intervalo fictício documentado.",
+        "required": true
+      },
+      {
+        "checkId": "alerta-controlado",
+        "description": "Simular indisponibilidade de um alvo descartável.",
+        "expected": "O alerta é emitido uma vez e encerrado após a recuperação.",
+        "required": true
+      },
+      {
+        "checkId": "retencao-limitada",
+        "description": "Revisar a política de retenção do exemplo.",
+        "expected": "A retenção possui responsável, limite e estimativa de armazenamento.",
+        "required": true
+      }
+    ]
+  },
+  "rollback": {
+    "strategy": "Remover primeiro alvos e alertas de laboratório antes de restaurar dashboards e retenção.",
+    "steps": [
+      "Suspender alertas e remover somente alvos criados pelo teste.",
+      "Restaurar dashboards e configuração da versão anterior."
+    ]
+  },
+  "media": [
+    {
+      "mediaId": "video-camadas-monitoramento",
+      "type": "video",
+      "title": "Camadas de monitoramento — vídeo fictício",
+      "url": "https://videos.setupmno.invalid/blueprints/004/camadas",
+      "status": "example",
+      "transcript": null
+    }
+  ],
+  "documentation": {
+    "entrypoint": "README.md",
+    "artifacts": ["README.md", "blueprint.json"]
+  }
+}

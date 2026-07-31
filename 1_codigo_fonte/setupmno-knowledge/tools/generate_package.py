@@ -19,6 +19,7 @@ import unicodedata
 from pathlib import Path
 from typing import Any
 
+from blueprint_factory import build_blueprint_package
 from lint_knowledge import load_documents, load_json
 
 
@@ -225,6 +226,7 @@ def add_package_file(files: dict[str, bytes], path: str, data: bytes) -> None:
 
 def build_package_files(
     root: Path,
+    catalog_path: Path,
     setup_version: str,
 ) -> tuple[dict[str, bytes], dict[str, Any]]:
     taxonomy = load_json(root / "schema" / "taxonomy.json")
@@ -413,6 +415,14 @@ def build_package_files(
     ):
         add_package_file(files, target, ensure_regular_source(source, root))
 
+    blueprint_files, blueprint_summary = build_blueprint_package(
+        root,
+        catalog_path,
+        setup_version,
+    )
+    for path, data in sorted(blueprint_files.items()):
+        add_package_file(files, path, data)
+
     summary = {
         "documentEntries": len(index_entries),
         "documentTypeEntries": {
@@ -430,10 +440,14 @@ def build_package_files(
         "indexSchemaVersion": INDEX_SCHEMA,
         "knowledgeVersion": knowledge_version,
         "legacyIndexSHA256": sha256_hex(legacy_index_data),
-        "latestDocumentDate": latest_date,
+        "latestDocumentDate": max(
+            latest_date,
+            blueprint_summary["latestBlueprintDate"],
+        ),
         "retrievalVersion": RETRIEVAL_VERSION,
         "setupEntries": sum(entry["documentType"] == "setup" for entry in index_entries),
         "indexSHA256": sha256_hex(index_data),
+        **blueprint_summary,
     }
     return files, summary
 
@@ -499,6 +513,11 @@ def build_manifest(
         "documentTypeEntries": summary["documentTypeEntries"],
         "setupEntries": summary["setupEntries"],
         "infrastructureEntries": summary["infrastructureEntries"],
+        "blueprintSchemaVersion": 1,
+        "blueprintFactoryVersion": summary["blueprintFactoryVersion"],
+        "blueprintEntries": summary["blueprintEntries"],
+        "blueprintBundleEntries": summary["blueprintBundleEntries"],
+        "blueprintIndexSHA256": summary["blueprintIndexSHA256"],
         "fileEntries": len(files),
         "limits": {
             "maxArchiveBytes": MAX_ARCHIVE_BYTES,
@@ -563,7 +582,7 @@ def generate(args: argparse.Namespace) -> dict[str, Any]:
     if root == output or root in output.parents:
         raise ValueError("o destino não pode conter ou substituir a fonte canônica")
     lint_source(root, catalog)
-    files, summary = build_package_files(root, args.setup_version)
+    files, summary = build_package_files(root, catalog, args.setup_version)
     archive_data = deterministic_archive(files)
     repeated_archive = deterministic_archive(files)
     if archive_data != repeated_archive:
@@ -620,6 +639,9 @@ def main() -> int:
                 "setupVersion": manifest["setupVersion"],
                 "controlVersion": manifest["controlVersion"],
                 "documentEntries": manifest["documentEntries"],
+                "blueprintEntries": manifest["blueprintEntries"],
+                "blueprintBundleEntries": manifest["blueprintBundleEntries"],
+                "blueprintFactoryVersion": manifest["blueprintFactoryVersion"],
                 "chunkEntries": manifest["chunkEntries"],
                 "indexSchemaVersion": manifest["indexSchemaVersion"],
                 "retrievalVersion": manifest["retrievalVersion"],

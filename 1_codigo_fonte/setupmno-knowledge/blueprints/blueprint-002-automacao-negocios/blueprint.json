@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "blueprintId": "blueprint-002-automacao-negocios",
+  "blueprintVersion": "0.1.0",
+  "title": "Automação de Negócios — Exemplo fictício",
+  "summary": "Exemplo editorial de automações com dois motores de workflow e uma base de procedimentos para equipes de negócio.",
+  "author": "Setup MNO — exemplo editorial",
+  "status": "example",
+  "fictitious": true,
+  "deployable": false,
+  "setupVersion": "6.0.0",
+  "updatedAt": "2026-07-31",
+  "architectures": ["amd64", "arm64"],
+  "risk": "medium",
+  "audiences": ["operacoes", "automacao", "infraestrutura"],
+  "tags": ["n8n", "activepieces", "workflows", "processos"],
+  "aliases": ["automação de negócios", "workflows empresariais", "integração de processos"],
+  "objective": "Demonstrar uma arquitetura de automação em que processos simples e fluxos avançados são documentados, separados e validados com confirmação humana.",
+  "components": [
+    {
+      "catalogName": "BOOKSTACK",
+      "role": "Manter procedimentos operacionais, responsáveis e critérios de aceite dos processos.",
+      "required": true,
+      "installOrder": 1
+    },
+    {
+      "catalogName": "ACTIVEPIECES",
+      "role": "Atender automações leves e integrações de negócio com manutenção simplificada.",
+      "required": true,
+      "installOrder": 2
+    },
+    {
+      "catalogName": "N8N V2 - FILA (QUEUE)",
+      "role": "Atender workflows avançados, filas e cargas que exigem execução distribuída.",
+      "required": true,
+      "installOrder": 3
+    }
+  ],
+  "resourceProfile": {
+    "minimumRamGB": 12,
+    "recommendedRamGB": 16,
+    "basis": "Estimativa fictícia baseada no catálogo e sem medição de concorrência ou volume real."
+  },
+  "installation": {
+    "mode": "assisted-manual",
+    "humanConfirmationRequired": true,
+    "steps": [
+      {
+        "step": 1,
+        "component": "BOOKSTACK",
+        "title": "Registrar processos",
+        "description": "Preparar a base de procedimentos antes de automatizar decisões operacionais.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 2,
+        "component": "ACTIVEPIECES",
+        "title": "Preparar automações leves",
+        "description": "Criar integrações de baixo risco com dados e endpoints fictícios.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 3,
+        "component": "N8N V2 - FILA (QUEUE)",
+        "title": "Preparar workflows avançados",
+        "description": "Separar fluxos críticos e validar filas, retries e idempotência.",
+        "humanConfirmation": true
+      }
+    ]
+  },
+  "validation": {
+    "homologatedAt": null,
+    "checks": [
+      {
+        "checkId": "processo-documentado",
+        "description": "Confirmar que cada automação possui procedimento e responsável.",
+        "expected": "Toda automação aponta para uma especificação revisável.",
+        "required": true
+      },
+      {
+        "checkId": "retry-controlado",
+        "description": "Simular uma falha transitória em dados de laboratório.",
+        "expected": "O retry não duplica efeitos nem ultrapassa o limite documentado.",
+        "required": true
+      },
+      {
+        "checkId": "separacao-motores",
+        "description": "Revisar a responsabilidade de cada motor de workflow.",
+        "expected": "Um processo possui somente um motor responsável pela execução principal.",
+        "required": true
+      }
+    ]
+  },
+  "rollback": {
+    "strategy": "Desativar gatilhos externos antes de restaurar as versões exportadas dos workflows.",
+    "steps": [
+      "Suspender gatilhos e filas dos processos afetados.",
+      "Restaurar exports sanitizados e confirmar manualmente a retomada."
+    ]
+  },
+  "media": [
+    {
+      "mediaId": "video-separacao-workflows",
+      "type": "video",
+      "title": "Separação fictícia entre Activepieces e n8n",
+      "url": "https://videos.setupmno.invalid/blueprints/002/separacao-workflows",
+      "status": "example",
+      "transcript": null
+    }
+  ],
+  "documentation": {
+    "entrypoint": "README.md",
+    "artifacts": ["README.md", "blueprint.json"]
+  }
+}

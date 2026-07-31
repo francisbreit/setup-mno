@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="5.2.0"
+VERSIONSETUP="6.0.0"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -265,12 +265,18 @@ knowledge_schema=$(jq -r '.schemaVersion // 0' "$knowledge_manifest" 2>/dev/null
 knowledge_version=$(jq -r '.knowledgeVersion // empty' "$knowledge_manifest" 2>/dev/null)
 knowledge_setup_version=$(jq -r '.setupVersion // empty' "$knowledge_manifest" 2>/dev/null)
 knowledge_entries=$(jq -r '.documentEntries // 0' "$knowledge_manifest" 2>/dev/null)
+blueprint_factory_version=$(jq -r '.blueprintFactoryVersion // empty' "$knowledge_manifest" 2>/dev/null)
+blueprint_entries=$(jq -r '.blueprintEntries // 0' "$knowledge_manifest" 2>/dev/null)
+blueprint_index_sha=$(jq -r '.blueprintIndexSHA256 // empty' "$knowledge_manifest" 2>/dev/null)
 knowledge_expected_sha=$(jq -r '.archiveSHA256 // empty' "$knowledge_manifest" 2>/dev/null)
 knowledge_expected_bytes=$(jq -r '.archiveBytes // 0' "$knowledge_manifest" 2>/dev/null)
 knowledge_actual_sha=$(sha256sum "$knowledge_archive" | awk '{print $1}')
 knowledge_actual_bytes=$(stat -c '%s' "$knowledge_archive" 2>/dev/null)
 runtime_knowledge_sha=$(jq -r '.knowledgeArchiveSHA256 // empty' "$control_package/release.json" 2>/dev/null)
 runtime_knowledge_entries=$(jq -r '.knowledgeEntries // 0' "$control_package/release.json" 2>/dev/null)
+runtime_blueprint_factory_version=$(jq -r '.blueprintFactoryVersion // empty' "$control_package/release.json" 2>/dev/null)
+runtime_blueprint_entries=$(jq -r '.blueprintEntries // 0' "$control_package/release.json" 2>/dev/null)
+runtime_blueprint_index_sha=$(jq -r '.blueprintIndexSHA256 // empty' "$control_package/release.json" 2>/dev/null)
 if [ "$control_schema" != "1" ] ||
    [ "$control_version" != "$VERSIONSETUP" ] ||
    [ "$control_arch" != "arm64" ] ||
@@ -291,6 +297,12 @@ if [ "$control_schema" != "1" ] ||
    [ "$knowledge_setup_version" != "$VERSIONSETUP" ] ||
    [ "$knowledge_entries" -le 0 ] ||
    [ "$knowledge_entries" != "$runtime_knowledge_entries" ] ||
+   [ "$blueprint_factory_version" != "1.0.0" ] ||
+   [ "$blueprint_factory_version" != "$runtime_blueprint_factory_version" ] ||
+   [ "$blueprint_entries" -le 0 ] ||
+   [ "$blueprint_entries" != "$runtime_blueprint_entries" ] ||
+   [ "${#blueprint_index_sha}" -ne 64 ] ||
+   [ "$blueprint_index_sha" != "$runtime_blueprint_index_sha" ] ||
    [ "$knowledge_expected_sha" != "$knowledge_actual_sha" ] ||
    [ "$knowledge_expected_sha" != "$runtime_knowledge_sha" ] ||
    [ "$knowledge_expected_bytes" != "$knowledge_actual_bytes" ] ||

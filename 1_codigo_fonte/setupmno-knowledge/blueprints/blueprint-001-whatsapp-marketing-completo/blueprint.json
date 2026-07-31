@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "blueprintId": "blueprint-001-whatsapp-marketing-completo",
+  "blueprintVersion": "0.1.0",
+  "title": "WhatsApp Marketing Completo — Exemplo fictício",
+  "summary": "Exemplo editorial de uma arquitetura para campanhas, filas, fluxos conversacionais e atendimento humano pelo WhatsApp.",
+  "author": "Setup MNO — exemplo editorial",
+  "status": "example",
+  "fictitious": true,
+  "deployable": false,
+  "setupVersion": "6.0.0",
+  "updatedAt": "2026-07-31",
+  "architectures": ["amd64", "arm64"],
+  "risk": "high",
+  "audiences": ["marketing", "atendimento", "infraestrutura"],
+  "tags": ["whatsapp", "marketing", "automacao", "atendimento"],
+  "aliases": ["marketing por whatsapp", "campanhas whatsapp", "automação whatsapp completa"],
+  "objective": "Demonstrar como documentar uma solução integrada de campanhas, enfileiramento controlado, fluxos conversacionais e atendimento humano sem autorizar execução automática.",
+  "components": [
+    {
+      "catalogName": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+      "role": "Fornecer atendimento, conexão não oficial com WhatsApp, mensageria e armazenamento compartilhado.",
+      "required": true,
+      "installOrder": 1
+    },
+    {
+      "catalogName": "MAUTIC 7 WHATSAPP MKT",
+      "role": "Organizar contatos, segmentos, campanhas e mensagens do canal WhatsApp/SMS customizado.",
+      "required": true,
+      "installOrder": 2
+    },
+    {
+      "catalogName": "N8N V2 - FILA (QUEUE)",
+      "role": "Receber eventos, controlar o processamento e orquestrar filas e atrasos de envio.",
+      "required": true,
+      "installOrder": 3
+    },
+    {
+      "catalogName": "TYPEBOT + MINIO*",
+      "role": "Construir fluxos conversacionais reutilizando o armazenamento MinIO compartilhado.",
+      "required": true,
+      "installOrder": 4
+    }
+  ],
+  "resourceProfile": {
+    "minimumRamGB": 20,
+    "recommendedRamGB": 24,
+    "basis": "Estimativa fictícia baseada apenas nos valores do catálogo; exige medição real antes da homologação."
+  },
+  "installation": {
+    "mode": "assisted-manual",
+    "humanConfirmationRequired": true,
+    "steps": [
+      {
+        "step": 1,
+        "component": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+        "title": "Preparar comunicação e atendimento",
+        "description": "Instalar o combo principal e validar cada serviço antes de avançar.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 2,
+        "component": "MAUTIC 7 WHATSAPP MKT",
+        "title": "Preparar campanhas",
+        "description": "Instalar o Mautic customizado e confirmar o canal WhatsApp/SMS.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 3,
+        "component": "N8N V2 - FILA (QUEUE)",
+        "title": "Preparar automações",
+        "description": "Instalar o n8n em modo fila e revisar credenciais e workflows antes da ativação.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 4,
+        "component": "TYPEBOT + MINIO*",
+        "title": "Preparar fluxos conversacionais",
+        "description": "Instalar o Typebot reutilizando MinIO com bucket e service account exclusivos.",
+        "humanConfirmation": true
+      }
+    ]
+  },
+  "validation": {
+    "homologatedAt": null,
+    "checks": [
+      {
+        "checkId": "texto-simples",
+        "description": "Enviar uma mensagem de texto de laboratório.",
+        "expected": "A mensagem percorre o fluxo uma única vez e chega ao destinatário de teste.",
+        "required": true
+      },
+      {
+        "checkId": "fluxo-typebot",
+        "description": "Iniciar um fluxo conversacional fictício.",
+        "expected": "O fluxo publicado é localizado pelo identificador documentado.",
+        "required": true
+      },
+      {
+        "checkId": "atendimento-humano",
+        "description": "Transferir uma conversa de teste para atendimento.",
+        "expected": "A conversa aparece apenas na caixa de entrada prevista do Chatwoot.",
+        "required": true
+      }
+    ]
+  },
+  "rollback": {
+    "strategy": "Interromper campanhas e workflows antes de desfazer integrações na ordem inversa.",
+    "steps": [
+      "Desativar campanhas, fluxos e workflows de laboratório.",
+      "Exportar configurações necessárias e restaurar a baseline anterior pelo Instalador Seguro."
+    ]
+  },
+  "media": [
+    {
+      "mediaId": "video-visao-geral",
+      "type": "video",
+      "title": "Visão geral fictícia do WhatsApp Marketing",
+      "url": "https://videos.setupmno.invalid/blueprints/001/visao-geral",
+      "status": "example",
+      "transcript": null
+    },
+    {
+      "mediaId": "guia-integracoes",
+      "type": "link",
+      "title": "Guia fictício de integrações",
+      "url": "https://docs.setupmno.invalid/blueprints/001/integracoes",
+      "status": "example",
+      "transcript": null
+    }
+  ],
+  "documentation": {
+    "entrypoint": "README.md",
+    "artifacts": ["README.md", "blueprint.json"]
+  }
+}

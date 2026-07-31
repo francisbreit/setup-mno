@@ -241,6 +241,11 @@ knowledge_entries=$(jq -r '.documentEntries // 0' "$knowledge_package/manifest.j
 knowledge_chunks=$(jq -r '.chunkEntries // 0' "$knowledge_package/manifest.json")
 knowledge_index_schema=$(jq -r '.indexSchemaVersion // 0' "$knowledge_package/manifest.json")
 knowledge_retrieval_version=$(jq -r '.retrievalVersion // empty' "$knowledge_package/manifest.json")
+blueprint_schema=$(jq -r '.blueprintSchemaVersion // 0' "$knowledge_package/manifest.json")
+blueprint_factory_version=$(jq -r '.blueprintFactoryVersion // empty' "$knowledge_package/manifest.json")
+blueprint_entries=$(jq -r '.blueprintEntries // 0' "$knowledge_package/manifest.json")
+blueprint_bundle_entries=$(jq -r '.blueprintBundleEntries // 0' "$knowledge_package/manifest.json")
+blueprint_index_sha=$(jq -r '.blueprintIndexSHA256 // empty' "$knowledge_package/manifest.json")
 knowledge_archive_sha=$(jq -r '.archiveSHA256 // empty' "$knowledge_package/manifest.json")
 knowledge_archive_bytes=$(jq -r '.archiveBytes // 0' "$knowledge_package/manifest.json")
 knowledge_actual_sha=$(sha256sum "$knowledge_package/knowledge-package.tar.gz" | awk '{print $1}')
@@ -253,6 +258,11 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$knowledge_chunks" -gt "$knowledge_entries" ] &&
 [ "$knowledge_index_schema" = "2" ] &&
 [ "$knowledge_retrieval_version" = "1.1.0" ] &&
+[ "$blueprint_schema" = "1" ] &&
+[ "$blueprint_factory_version" = "1.0.0" ] &&
+[ "$blueprint_entries" -gt 0 ] &&
+[ "$blueprint_bundle_entries" = "$blueprint_entries" ] &&
+[ "${#blueprint_index_sha}" -eq 64 ] &&
 [ "$knowledge_archive_sha" = "$knowledge_actual_sha" ] &&
 [ "$knowledge_archive_bytes" = "$knowledge_actual_bytes" ] &&
 [ "$knowledge_archive_bytes" -le $((8 * 1024 * 1024)) ] || {
@@ -381,9 +391,12 @@ generate_runtime_package() {
         --arg architecture "$architecture" \
         --arg knowledge_version "$knowledge_version" \
         --arg knowledge_archive_sha "$knowledge_archive_sha" \
+        --arg blueprint_factory_version "$blueprint_factory_version" \
+        --arg blueprint_index_sha "$blueprint_index_sha" \
         --arg control_source_sha "$bundle_sha" \
         --argjson catalog_entries "$catalog_entries" \
         --argjson knowledge_entries "$knowledge_entries" \
+        --argjson blueprint_entries "$blueprint_entries" \
         --argjson control_source_bytes "$bundle_bytes" \
         '{
             schemaVersion: 1,
@@ -396,7 +409,10 @@ generate_runtime_package() {
             controlSourceBytes: $control_source_bytes,
             knowledgeVersion: $knowledge_version,
             knowledgeArchiveSHA256: $knowledge_archive_sha,
-            knowledgeEntries: $knowledge_entries
+            knowledgeEntries: $knowledge_entries,
+            blueprintFactoryVersion: $blueprint_factory_version,
+            blueprintIndexSHA256: $blueprint_index_sha,
+            blueprintEntries: $blueprint_entries
         }' >"$temporary_manifest"
     chmod 0644 "$temporary_manifest"
     mv -f "$temporary_manifest" "$target/release.json"
@@ -424,5 +440,5 @@ for runtime_package in "$x86_runtime_package" "$arm_runtime_package"; do
     }
 done
 
-printf 'Instaladores x86/ARM e manifestos runtime v%s gerados (%s setups, %s documentos).\n' \
-    "$x86_version" "$catalog_entries" "$knowledge_entries"
+printf 'Instaladores x86/ARM e manifestos runtime v%s gerados (%s setups, %s documentos, %s Blueprints).\n' \
+    "$x86_version" "$catalog_entries" "$knowledge_entries" "$blueprint_entries"

@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "blueprintId": "blueprint-005-servidor-pequeno",
+  "blueprintVersion": "0.1.0",
+  "title": "Servidor Pequeno com Ferramentas Leves — Exemplo fictício",
+  "summary": "Exemplo editorial de serviços leves para visibilidade, disponibilidade e DNS em um servidor de baixa capacidade.",
+  "author": "Setup MNO — exemplo editorial",
+  "status": "example",
+  "fictitious": true,
+  "deployable": false,
+  "setupVersion": "6.0.0",
+  "updatedAt": "2026-07-31",
+  "architectures": ["amd64", "arm64"],
+  "risk": "medium",
+  "audiences": ["iniciante", "laboratorio", "infraestrutura"],
+  "tags": ["servidor-pequeno", "monitoramento", "dns", "capacidade"],
+  "aliases": ["stack leve", "vps pequena", "servidor com pouca memória"],
+  "objective": "Demonstrar como documentar uma composição conservadora para servidor pequeno, deixando margem operacional e impedindo que estimativas substituam medições reais.",
+  "components": [
+    {
+      "catalogName": "BESZEL",
+      "role": "Fornecer visibilidade leve de CPU, memória, disco e estado do host.",
+      "required": true,
+      "installOrder": 1
+    },
+    {
+      "catalogName": "UPTIMEKUMA",
+      "role": "Fornecer verificações simples de disponibilidade para serviços autorizados.",
+      "required": true,
+      "installOrder": 2
+    },
+    {
+      "catalogName": "ADGUARDHOME",
+      "role": "Representar filtragem DNS opcional, condicionada à revisão de portas e rede.",
+      "required": true,
+      "installOrder": 3
+    }
+  ],
+  "resourceProfile": {
+    "minimumRamGB": 2,
+    "recommendedRamGB": 4,
+    "basis": "Estimativa fictícia para laboratório; serviços-base, sistema e crescimento precisam de margem adicional."
+  },
+  "installation": {
+    "mode": "assisted-manual",
+    "humanConfirmationRequired": true,
+    "steps": [
+      {
+        "step": 1,
+        "component": "BESZEL",
+        "title": "Medir antes de expandir",
+        "description": "Instalar a visão leve e registrar a baseline do servidor.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 2,
+        "component": "UPTIMEKUMA",
+        "title": "Adicionar disponibilidade",
+        "description": "Configurar apenas poucos alvos de laboratório e revisar o consumo.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 3,
+        "component": "ADGUARDHOME",
+        "title": "Avaliar DNS opcional",
+        "description": "Instalar somente após verificar conflitos e impacto de rede.",
+        "humanConfirmation": true
+      }
+    ]
+  },
+  "validation": {
+    "homologatedAt": null,
+    "checks": [
+      {
+        "checkId": "margem-memoria",
+        "description": "Medir memória após estabilização dos serviços.",
+        "expected": "Existe margem operacional documentada para picos e atualizações.",
+        "required": true
+      },
+      {
+        "checkId": "disco-crescimento",
+        "description": "Revisar crescimento de dados e logs.",
+        "expected": "Retenção e alerta de disco possuem limites explícitos.",
+        "required": true
+      },
+      {
+        "checkId": "dns-reversivel",
+        "description": "Testar DNS com cliente de laboratório.",
+        "expected": "O cliente retorna ao resolvedor anterior sem interromper outros serviços.",
+        "required": true
+      }
+    ]
+  },
+  "rollback": {
+    "strategy": "Restaurar primeiro a resolução DNS anterior e depois remover apenas os monitores do exemplo.",
+    "steps": [
+      "Retornar os clientes de laboratório ao resolvedor anterior.",
+      "Remover alvos temporários e restaurar a baseline documentada."
+    ]
+  },
+  "media": [
+    {
+      "mediaId": "guia-capacidade-leve",
+      "type": "link",
+      "title": "Guia fictício de capacidade leve",
+      "url": "https://docs.setupmno.invalid/blueprints/005/capacidade",
+      "status": "example",
+      "transcript": null
+    }
+  ],
+  "documentation": {
+    "entrypoint": "README.md",
+    "artifacts": ["README.md", "blueprint.json"]
+  }
+}

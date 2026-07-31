@@ -417,6 +417,11 @@ def load_documents(root: Path) -> tuple[list[KnowledgeDocument], list[str]]:
             errors.append(f"{directory}: diretório obrigatório ausente")
             continue
         for path in sorted(base.rglob("*.md")):
+            # README.md pertence ao bundle humano do Blueprint. Somente o
+            # arquivo knowledge.md, criado após revisão/homologação, pode
+            # participar da base recuperável pelo Assistente.
+            if directory == "blueprints" and path.name != "knowledge.md":
+                continue
             try:
                 documents.append(parse_document(path))
             except (OSError, ValueError) as exc:

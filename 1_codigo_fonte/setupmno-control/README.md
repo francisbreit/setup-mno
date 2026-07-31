@@ -149,6 +149,18 @@ independente do provedor de LLM. O gerador produz:
 - `manifest.json`: versões do Setup, Control Center e conhecimento, inventário,
   contagens, limites de tamanho e hashes SHA-256.
 
+Na subetapa 5.1, o pacote também transporta a fábrica canônica de Blueprints:
+
+- `blueprints/schema/blueprint.schema.json`: contrato JSON v1;
+- `blueprints/index.json`: inventário seguro para futuras interfaces;
+- `blueprints/manifest.json`: versão da fábrica, contagens e hashes;
+- `blueprints/bundles/*.zip`: um bundle determinístico por Blueprint.
+
+Blueprints com status `example` são obrigatoriamente fictícios, não
+implantáveis e limitados a links `.invalid`. Seus `README.md` permanecem fora
+do RAG normal. Somente um futuro `knowledge.md` revisado e homologado poderá
+fundamentar respostas do Assistente.
+
 O mesmo pacote é distribuído para x86 e ARM. Na imagem do Assistente, a cópia
 primária fica em `/knowledge-package`, somente leitura pela própria camada da
 imagem. Uma segunda cópia é embutida no binário Go e entra em contingência se a

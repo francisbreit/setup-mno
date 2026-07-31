@@ -25,6 +25,8 @@ const (
 	knowledgeSchema          = 1
 	knowledgeIndexSchema     = 2
 	knowledgeRetrieval       = "1.1.0"
+	blueprintSchema          = 1
+	maxBlueprintEntries      = 64
 	maxKnowledgeArchiveBytes = 8 << 20
 	maxKnowledgeManifest     = 1 << 20
 	maxKnowledgeFileBytes    = 2 << 20
@@ -50,26 +52,31 @@ type knowledgeLimits struct {
 }
 
 type knowledgeManifest struct {
-	SchemaVersion         int                   `json:"schemaVersion"`
-	KnowledgeVersion      string                `json:"knowledgeVersion"`
-	SetupVersion          string                `json:"setupVersion"`
-	ControlVersion        string                `json:"controlVersion"`
-	GeneratedAt           string                `json:"generatedAt"`
-	ArchiveFile           string                `json:"archiveFile"`
-	ArchiveSHA256         string                `json:"archiveSHA256"`
-	ArchiveBytes          int64                 `json:"archiveBytes"`
-	IndexSHA256           string                `json:"indexSHA256"`
-	LegacyIndexSHA256     string                `json:"legacyIndexSHA256"`
-	IndexSchemaVersion    int                   `json:"indexSchemaVersion"`
-	RetrievalVersion      string                `json:"retrievalVersion"`
-	DocumentEntries       int                   `json:"documentEntries"`
-	ChunkEntries          int                   `json:"chunkEntries"`
-	DocumentTypeEntries   map[string]int        `json:"documentTypeEntries"`
-	SetupEntries          int                   `json:"setupEntries"`
-	InfrastructureEntries int                   `json:"infrastructureEntries"`
-	FileEntries           int                   `json:"fileEntries"`
-	Limits                knowledgeLimits       `json:"limits"`
-	Files                 []knowledgeFileRecord `json:"files"`
+	SchemaVersion           int                   `json:"schemaVersion"`
+	KnowledgeVersion        string                `json:"knowledgeVersion"`
+	SetupVersion            string                `json:"setupVersion"`
+	ControlVersion          string                `json:"controlVersion"`
+	GeneratedAt             string                `json:"generatedAt"`
+	ArchiveFile             string                `json:"archiveFile"`
+	ArchiveSHA256           string                `json:"archiveSHA256"`
+	ArchiveBytes            int64                 `json:"archiveBytes"`
+	IndexSHA256             string                `json:"indexSHA256"`
+	LegacyIndexSHA256       string                `json:"legacyIndexSHA256"`
+	IndexSchemaVersion      int                   `json:"indexSchemaVersion"`
+	RetrievalVersion        string                `json:"retrievalVersion"`
+	DocumentEntries         int                   `json:"documentEntries"`
+	ChunkEntries            int                   `json:"chunkEntries"`
+	DocumentTypeEntries     map[string]int        `json:"documentTypeEntries"`
+	SetupEntries            int                   `json:"setupEntries"`
+	InfrastructureEntries   int                   `json:"infrastructureEntries"`
+	BlueprintSchemaVersion  int                   `json:"blueprintSchemaVersion"`
+	BlueprintFactoryVersion string                `json:"blueprintFactoryVersion"`
+	BlueprintEntries        int                   `json:"blueprintEntries"`
+	BlueprintBundleEntries  int                   `json:"blueprintBundleEntries"`
+	BlueprintIndexSHA256    string                `json:"blueprintIndexSHA256"`
+	FileEntries             int                   `json:"fileEntries"`
+	Limits                  knowledgeLimits       `json:"limits"`
+	Files                   []knowledgeFileRecord `json:"files"`
 }
 
 type knowledgeIndexEntry struct {
@@ -142,6 +149,46 @@ type knowledgePackageState struct {
 	Files    map[string][]byte
 	Source   string
 	Stale    bool
+}
+
+type blueprintMediaEntry struct {
+	MediaID    string  `json:"mediaId"`
+	Type       string  `json:"type"`
+	Title      string  `json:"title"`
+	URL        string  `json:"url"`
+	Status     string  `json:"status"`
+	Transcript *string `json:"transcript"`
+}
+
+type blueprintIndexEntry struct {
+	Aliases          []string              `json:"aliases"`
+	Architectures    []string              `json:"architectures"`
+	Author           string                `json:"author"`
+	BlueprintID      string                `json:"blueprintId"`
+	BlueprintVersion string                `json:"blueprintVersion"`
+	BundleBytes      int64                 `json:"bundleBytes"`
+	BundlePath       string                `json:"bundlePath"`
+	BundleSHA256     string                `json:"bundleSHA256"`
+	Components       []string              `json:"components"`
+	Deployable       bool                  `json:"deployable"`
+	Fictitious       bool                  `json:"fictitious"`
+	Media            []blueprintMediaEntry `json:"media"`
+	Objective        string                `json:"objective"`
+	Risk             string                `json:"risk"`
+	Status           string                `json:"status"`
+	Summary          string                `json:"summary"`
+	Tags             []string              `json:"tags"`
+	Title            string                `json:"title"`
+	UpdatedAt        string                `json:"updatedAt"`
+}
+
+type blueprintIndex struct {
+	SchemaVersion  int                   `json:"schemaVersion"`
+	FactoryVersion string                `json:"factoryVersion"`
+	SetupVersion   string                `json:"setupVersion"`
+	BlueprintCount int                   `json:"blueprintCount"`
+	Statuses       map[string]int        `json:"statuses"`
+	Entries        []blueprintIndexEntry `json:"entries"`
 }
 
 func sha256String(data []byte) string {
@@ -265,6 +312,8 @@ func validateKnowledgePackage(
 	if manifest.SchemaVersion != knowledgeSchema ||
 		manifest.IndexSchemaVersion != knowledgeIndexSchema ||
 		manifest.RetrievalVersion != knowledgeRetrieval ||
+		manifest.BlueprintSchemaVersion != blueprintSchema ||
+		manifest.BlueprintFactoryVersion == "" ||
 		manifest.KnowledgeVersion == "" ||
 		manifest.SetupVersion == "" ||
 		manifest.ControlVersion == "" {
@@ -280,7 +329,11 @@ func validateKnowledgePackage(
 		manifest.ChunkEntries <= 0 ||
 		manifest.ChunkEntries > maxKnowledgeChunks ||
 		manifest.SetupEntries < 0 ||
-		manifest.InfrastructureEntries < 0 {
+		manifest.InfrastructureEntries < 0 ||
+		manifest.BlueprintEntries <= 0 ||
+		manifest.BlueprintEntries > maxBlueprintEntries ||
+		manifest.BlueprintBundleEntries != manifest.BlueprintEntries ||
+		len(manifest.BlueprintIndexSHA256) != 64 {
 		return knowledgePackageState{}, errors.New("contagens do manifesto inválidas")
 	}
 	typeTotal := 0
@@ -333,6 +386,9 @@ func validateKnowledgePackage(
 			record.SHA256 != sha256String(data) {
 			return knowledgePackageState{}, fmt.Errorf("arquivo diverge do inventário: %s", filename)
 		}
+	}
+	if err := validateBlueprintPackage(files, manifest); err != nil {
+		return knowledgePackageState{}, err
 	}
 
 	indexData, exists := files["index.json"]
@@ -414,6 +470,102 @@ func validateKnowledgePackage(
 		IndexV2:  indexV2,
 		Files:    files,
 	}, nil
+}
+
+func validateBlueprintPackage(files map[string][]byte, manifest knowledgeManifest) error {
+	indexData, exists := files["blueprints/index.json"]
+	if !exists || manifest.BlueprintIndexSHA256 != sha256String(indexData) {
+		return errors.New("índice de Blueprints ausente ou com hash divergente")
+	}
+	if _, exists := files["blueprints/manifest.json"]; !exists {
+		return errors.New("manifesto interno de Blueprints ausente")
+	}
+	if _, exists := files["blueprints/schema/blueprint.schema.json"]; !exists {
+		return errors.New("schema canônico de Blueprints ausente")
+	}
+	var index blueprintIndex
+	if err := decodeStrictJSON(indexData, &index); err != nil {
+		return fmt.Errorf("índice de Blueprints inválido: %w", err)
+	}
+	if index.SchemaVersion != manifest.BlueprintSchemaVersion ||
+		index.FactoryVersion != manifest.BlueprintFactoryVersion ||
+		index.SetupVersion != manifest.SetupVersion ||
+		index.BlueprintCount != manifest.BlueprintEntries ||
+		len(index.Entries) != manifest.BlueprintEntries {
+		return errors.New("índice de Blueprints incompatível com o manifesto")
+	}
+	statusTotal := 0
+	for status, count := range index.Statuses {
+		if status == "" || count < 0 {
+			return errors.New("contagem de status de Blueprint inválida")
+		}
+		statusTotal += count
+	}
+	if statusTotal != index.BlueprintCount {
+		return errors.New("contagens de status de Blueprint divergentes")
+	}
+	seenIDs := make(map[string]struct{}, len(index.Entries))
+	seenBundles := make(map[string]struct{}, len(index.Entries))
+	statusCounts := make(map[string]int)
+	for _, entry := range index.Entries {
+		switch entry.Status {
+		case "example", "draft", "reviewed", "homologated", "deprecated":
+		default:
+			return fmt.Errorf("status de Blueprint inválido: %q", entry.Status)
+		}
+		if entry.BlueprintID == "" ||
+			entry.BlueprintVersion == "" ||
+			entry.Title == "" ||
+			entry.Objective == "" ||
+			entry.Summary == "" ||
+			entry.Author == "" ||
+			entry.Risk == "" ||
+			len(entry.Architectures) == 0 ||
+			len(entry.Components) == 0 ||
+			len(entry.Tags) < 2 ||
+			len(entry.Aliases) < 2 ||
+			!safeKnowledgePath(entry.BundlePath) ||
+			!strings.HasPrefix(entry.BundlePath, "blueprints/bundles/") ||
+			!strings.HasSuffix(entry.BundlePath, ".zip") ||
+			entry.BundleBytes <= 0 ||
+			len(entry.BundleSHA256) != 64 {
+			return fmt.Errorf("entrada de Blueprint inválida: %q", entry.BlueprintID)
+		}
+		if entry.Status == "example" && (!entry.Fictitious || entry.Deployable) {
+			return fmt.Errorf("Blueprint de exemplo com flags inseguras: %s", entry.BlueprintID)
+		}
+		if entry.Status == "homologated" && (entry.Fictitious || !entry.Deployable) {
+			return fmt.Errorf("Blueprint homologado com flags inválidas: %s", entry.BlueprintID)
+		}
+		if _, duplicate := seenIDs[entry.BlueprintID]; duplicate {
+			return fmt.Errorf("blueprintId duplicado: %s", entry.BlueprintID)
+		}
+		seenIDs[entry.BlueprintID] = struct{}{}
+		if _, duplicate := seenBundles[entry.BundlePath]; duplicate {
+			return fmt.Errorf("bundle de Blueprint duplicado: %s", entry.BundlePath)
+		}
+		seenBundles[entry.BundlePath] = struct{}{}
+		bundle, exists := files[entry.BundlePath]
+		if !exists || int64(len(bundle)) != entry.BundleBytes ||
+			sha256String(bundle) != entry.BundleSHA256 {
+			return fmt.Errorf("bundle de Blueprint divergente: %s", entry.BundlePath)
+		}
+		for _, media := range entry.Media {
+			if media.MediaID == "" || media.Title == "" ||
+				(media.Type != "video" && media.Type != "link") ||
+				!strings.HasPrefix(media.URL, "https://") {
+				return fmt.Errorf("mídia inválida no Blueprint: %s", entry.BlueprintID)
+			}
+			if entry.Fictitious && !strings.Contains(media.URL, ".invalid/") {
+				return fmt.Errorf("mídia fictícia fora de domínio reservado: %s", entry.BlueprintID)
+			}
+		}
+		statusCounts[entry.Status]++
+	}
+	if !reflect.DeepEqual(statusCounts, index.Statuses) {
+		return errors.New("status do índice de Blueprints divergentes")
+	}
+	return nil
 }
 
 func validateKnowledgeIndexV2(index knowledgeIndexV2, legacy knowledgeIndex) error {
@@ -589,18 +741,22 @@ func readKnowledgeArchive(archiveData []byte) (map[string][]byte, error) {
 
 func knowledgeCheckPayload(state knowledgePackageState) map[string]any {
 	return map[string]any{
-		"status":                "ok",
-		"source":                state.Source,
-		"stale":                 state.Stale,
-		"knowledgeVersion":      state.Manifest.KnowledgeVersion,
-		"indexSchemaVersion":    state.Manifest.IndexSchemaVersion,
-		"retrievalVersion":      state.Manifest.RetrievalVersion,
-		"setupVersion":          state.Manifest.SetupVersion,
-		"controlVersion":        state.Manifest.ControlVersion,
-		"documentEntries":       state.Manifest.DocumentEntries,
-		"chunkEntries":          state.Manifest.ChunkEntries,
-		"setupEntries":          state.Manifest.SetupEntries,
-		"infrastructureEntries": state.Manifest.InfrastructureEntries,
-		"archiveSHA256":         state.Manifest.ArchiveSHA256,
+		"status":                  "ok",
+		"source":                  state.Source,
+		"stale":                   state.Stale,
+		"knowledgeVersion":        state.Manifest.KnowledgeVersion,
+		"indexSchemaVersion":      state.Manifest.IndexSchemaVersion,
+		"retrievalVersion":        state.Manifest.RetrievalVersion,
+		"setupVersion":            state.Manifest.SetupVersion,
+		"controlVersion":          state.Manifest.ControlVersion,
+		"documentEntries":         state.Manifest.DocumentEntries,
+		"chunkEntries":            state.Manifest.ChunkEntries,
+		"setupEntries":            state.Manifest.SetupEntries,
+		"infrastructureEntries":   state.Manifest.InfrastructureEntries,
+		"blueprintSchemaVersion":  state.Manifest.BlueprintSchemaVersion,
+		"blueprintFactoryVersion": state.Manifest.BlueprintFactoryVersion,
+		"blueprintEntries":        state.Manifest.BlueprintEntries,
+		"blueprintBundleEntries":  state.Manifest.BlueprintBundleEntries,
+		"archiveSHA256":           state.Manifest.ArchiveSHA256,
 	}
 }

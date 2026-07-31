@@ -732,7 +732,7 @@ entre execuções e versões de modelo homologadas.
 
 ## Etapa 5 — Blueprints MNO
 
-**Status:** pendente
+**Status:** em andamento — subetapa 5.1 implementada na v6.0.0
 **Impacto:** alto
 **Tipo:** produto, UX e arquitetura
 **Esforço:** estrutural
@@ -742,29 +742,32 @@ entre execuções e versões de modelo homologadas.
 Registrar o método de Francis MNO em arquiteturas pré-construídas, versionadas,
 homologadas e explicáveis pelo Assistente.
 
-### Schema mínimo
+### Schema canônico da subetapa 5.1
 
-```yaml
-id: atendimento-whatsapp-profissional
-version: 1.0.0
-author: Francis MNO
-status: homologated
-objective: Central de atendimento omnichannel com WhatsApp
-setupVersion: 4.95.0
-architectures: [amd64, arm64]
-minimumRamGB: 6
-recommendedRamGB: 8
-setups: []
-prechecks: []
-topology: []
-requiredDomains: []
-requiredSecrets: []
-installationOrder: []
-validation: []
-failureModes: []
-rollback: []
-sources: []
+```json
+{
+  "schemaVersion": 1,
+  "blueprintId": "atendimento-whatsapp-profissional",
+  "blueprintVersion": "1.0.0",
+  "author": "Francis MNO",
+  "status": "homologated",
+  "fictitious": false,
+  "deployable": true,
+  "setupVersion": "6.0.0",
+  "architectures": ["amd64", "arm64"],
+  "components": [],
+  "resourceProfile": {},
+  "installation": {},
+  "validation": {},
+  "rollback": {},
+  "media": [],
+  "documentation": {}
+}
 ```
+
+O contrato completo está em `schema/blueprint.schema.json`. JSON foi escolhido
+para manter validação determinística sem dependência de parser YAML no
+instalador ou na fábrica.
 
 ### Primeiros Blueprints
 
@@ -801,10 +804,38 @@ sources: []
 - validação e rollback obrigatórios;
 - nenhuma execução automática durante o Beta.
 
+### Subetapas
+
+1. **5.1 — Schema canônico e fábrica — implementada na v6.0.0:** validar,
+   indexar e empacotar um ZIP determinístico por Blueprint.
+2. **5.2 — Catálogo e inspeção:** apresentar os Blueprints no Control Center,
+   deixando exemplos claramente separados de conteúdo homologado.
+3. **5.3 — Recomendação contextual:** selecionar Blueprints compatíveis com o
+   objetivo, arquitetura e capacidade, sem executar deploy.
+4. **5.4 — Fluxo editorial e homologação:** promover rascunhos somente após
+   revisão, testes isolados, evidências e assinatura de versão.
+
 ### Critério de conclusão
 
 O Assistente deve selecionar, explicar e adaptar um Blueprint sem alterar o
 servidor e sem inventar componentes.
+
+### Evidências da subetapa 5.1
+
+- schema JSON v1 e fábrica `1.0.0`, sem dependências externas;
+- cinco exemplos editoriais completos, marcados como fictícios e não
+  implantáveis;
+- links de exemplo restritos ao domínio reservado `.invalid`;
+- componentes validados contra os 151 setups do catálogo;
+- arquitetura dos componentes obrigatórios compatível com amd64 e arm64;
+- ordem de instalação, recursos, confirmação humana, validação e rollback
+  obrigatórios;
+- bloqueio de secrets, IPs privados, symlinks, caminhos inseguros, arquivos
+  vazios e extensões não permitidas;
+- ZIP individual reproduzível por Blueprint, com timestamp e permissões fixos;
+- índice e manifesto com SHA-256 incluídos fora do bundle protegido por SHC;
+- exemplos excluídos do RAG normal; somente futuro `knowledge.md` revisado
+  poderá fundamentar respostas.
 
 ---
 
@@ -1259,6 +1290,22 @@ estruturado e adaptativo de resposta foram implementados, testados e aprovados.
 O Assistente permanece estritamente consultivo, preserva o fallback local e não
 recebeu socket, shell, mount do host nem ferramentas de escrita.
 
+## Release arquitetural da subetapa 5.1
+
+Escopo implementado na release v6.0.0:
+
+- Setup MNO `6.0.0`;
+- Control Center `3.0.0`;
+- conhecimento canônico `2.0.0`;
+- schema de Blueprint `1` e fábrica `1.0.0`;
+- cinco Blueprints fictícios com estrutura completa de produção;
+- cinco bundles ZIP determinísticos, índice e manifesto com SHA-256;
+- validação contra catálogo, arquitetura, recursos, ordem, mídia e rollback;
+- links fictícios restritos a `.invalid` e exemplos não implantáveis;
+- conteúdo de exemplo fora da recuperação normal do Assistente;
+- pacote idêntico para amd64 e arm64 e externo ao SHC;
+- nenhuma nova stack, porta, secret, mount, socket ou ferramenta de escrita.
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico
@@ -1272,11 +1319,12 @@ recebeu socket, shell, mount do host nem ferramentas de escrita.
 
 ## Próxima ação
 
-Projetar a primeira subetapa da **Etapa 5 — Blueprints MNO**, começando pelo
-schema canônico, pela fábrica de Blueprints e pelos gates de validação. Antes de
-implementar essa mudança arquitetural, apresentar objetivo, ganho esperado,
-riscos, compatibilidade e estratégia de rollback. A Etapa 6 formalizará os
-thresholds antes de ampliar o orçamento atual do RAG.
+Homologar a subetapa **5.1 — Schema Canônico e Fábrica de Blueprints** pela
+inspeção dos cinco bundles de exemplo, confirmando que estão identificados como
+fictícios, não implantáveis e separados do RAG normal. Em seguida, projetar a
+**subetapa 5.2 — Catálogo e inspeção de Blueprints** no Control Center, ainda
+sem deploy automático. A Etapa 6 formalizará os thresholds antes de ampliar o
+orçamento atual do RAG.
 
 ## Referências oficiais
 
