@@ -641,7 +641,7 @@ deverá medir e formalizar thresholds antes de ampliar bandas ou orçamento.
 
 ## Etapa 4 — Roteador de Especialistas e Prompts
 
-**Status:** em andamento — subetapas 4.1 e 4.2 homologadas; subetapa 4.3 implementada
+**Status:** concluída e homologada — subetapas 4.1, 4.2 e 4.3 aprovadas em 2026-07-31
 **Impacto:** alto
 **Tipo:** IA e UX
 **Esforço:** moderado
@@ -1243,6 +1243,22 @@ Escopo implementado na release v5.2.0:
 - versão do contrato exposta na rota, no cartão lateral e no healthcheck
 - nenhuma nova stack, porta, secret, mount, socket ou ferramenta de escrita
 
+### Homologação funcional da subetapa 4.3
+
+Aprovada pelo mantenedor em 2026-07-31 após validação funcional no Control
+Center. Foram aceitos o cabeçalho persistente de autoria por mensagem, a
+identificação do especialista, do risco e da versão do prompt, o contrato
+adaptativo de resposta e a preservação das evidências RAG. A tag `v5.2.0`
+permanece como baseline homologada e ponto de rollback integral da Etapa 4.
+
+### Conclusão formal da Etapa 4
+
+A **Etapa 4 — Roteador de Especialistas e Prompts** está formalmente concluída.
+O roteamento determinístico, o registro versionado dos prompts e o contrato
+estruturado e adaptativo de resposta foram implementados, testados e aprovados.
+O Assistente permanece estritamente consultivo, preserva o fallback local e não
+recebeu socket, shell, mount do host nem ferramentas de escrita.
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico
@@ -1256,13 +1272,11 @@ Escopo implementado na release v5.2.0:
 
 ## Próxima ação
 
-Homologar a subetapa **4.3 — Contrato estruturado e adaptativo de resposta** em
-desktop, Android retrato e zoom elevado, cobrindo os oito especialistas, modo
-básico, catálogo local e contingência. Confirmar que cada mensagem preserva sua
-própria autoria durante perguntas consecutivas e que risco alto apresenta
-riscos, validação e rollback. Após a aprovação funcional, concluir formalmente
-a Etapa 4 e iniciar a **Etapa 5 — Blueprints MNO**. A Etapa 6 formalizará os
-thresholds antes de ampliar o orçamento atual.
+Projetar a primeira subetapa da **Etapa 5 — Blueprints MNO**, começando pelo
+schema canônico, pela fábrica de Blueprints e pelos gates de validação. Antes de
+implementar essa mudança arquitetural, apresentar objetivo, ganho esperado,
+riscos, compatibilidade e estratégia de rollback. A Etapa 6 formalizará os
+thresholds antes de ampliar o orçamento atual do RAG.
 
 ## Referências oficiais
 
