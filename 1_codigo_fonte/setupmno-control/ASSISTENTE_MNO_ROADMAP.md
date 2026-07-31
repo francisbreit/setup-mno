@@ -1142,6 +1142,24 @@ Escopo implementado na release v4.99.0:
 - pergunta, histórico, contexto operacional e score bruto ausentes do bloco RAG
 - nenhuma nova stack, porta, secret, mount, socket ou ferramenta de escrita
 
+## Release incremental da subetapa 3.5
+
+Escopo implementado na release v4.99.2:
+
+- Setup MNO `4.99.2`
+- Control Center `1.7.2`
+- conhecimento canônico `1.3.3`
+- retrieval local `1.1.0`
+- resolução contextual restrita a referências explícitas como “este setup”
+- contexto herdado somente da última mensagem do usuário com um setup inequívoco
+- filtro rígido pelo `setupId` resolvido, impedindo evidências de outras aplicações
+- ficha estruturada exata do catálogo validado como gate obrigatório para setups
+- deduplicação do mesmo chunk nas trilhas x86/ARM, preservando ambas as arquiteturas
+- validação pós-resposta das citações `[Fonte N]` contra as fontes realmente enviadas
+- interface distingue evidência selecionada, validação pendente e resposta fundamentada
+- ausência ou número inválido de citação rebaixa a resposta para “não validada”
+- nenhuma nova stack, porta, secret, mount, socket ou ferramenta de escrita
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico
@@ -1155,11 +1173,12 @@ Escopo implementado na release v4.99.0:
 
 ## Próxima ação
 
-Homologar a subetapa **3.4 — Ativação controlada** com perguntas conhecidas,
-ausência de correspondência, baixa confiança, comparação x86/ARM, fallback e
-prompt injection documental. Depois da aprovação funcional, iniciar a
-**Etapa 4 — Roteador de Especialistas e Prompts**; a Etapa 6 formalizará os
-thresholds antes de ampliar o orçamento atual.
+Homologar a subetapa **3.5 — Contextualização e gate de relevância** com as
+perguntas sequenciais registradas nos testes, troca explícita de setup,
+referência contextual sem antecedente, citações ausentes e citações fora do
+intervalo. Depois da aprovação funcional, iniciar a **Etapa 4 — Roteador de
+Especialistas e Prompts**; a Etapa 6 formalizará os thresholds antes de ampliar
+o orçamento atual.
 
 ## Referências oficiais
 

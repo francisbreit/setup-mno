@@ -42,7 +42,7 @@ required_environment=(
 )
 for variable_name in "${required_environment[@]}"; do
     [ -n "${!variable_name:-}" ] || {
-        msg "Esta instalação não possui os metadados seguros necessários para reconfiguração.\n\nReinstale ou atualize o Control Center pela versão 4.99.1."
+        msg "Esta instalação não possui os metadados seguros necessários para reconfiguração.\n\nReinstale ou atualize o Control Center pela versão 4.99.2."
         exit 1
     }
 done

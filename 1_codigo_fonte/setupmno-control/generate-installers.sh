@@ -244,7 +244,7 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$knowledge_entries" -gt 0 ] &&
 [ "$knowledge_chunks" -gt "$knowledge_entries" ] &&
 [ "$knowledge_index_schema" = "2" ] &&
-[ "$knowledge_retrieval_version" = "1.0.0" ] &&
+[ "$knowledge_retrieval_version" = "1.1.0" ] &&
 [ "$knowledge_archive_sha" = "$knowledge_actual_sha" ] &&
 [ "$knowledge_archive_bytes" = "$knowledge_actual_bytes" ] &&
 [ "$knowledge_archive_bytes" -le $((8 * 1024 * 1024)) ] || {

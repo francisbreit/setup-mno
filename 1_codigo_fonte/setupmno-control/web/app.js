@@ -437,6 +437,8 @@ async function streamAssistant(question, history, target, basic, fallbackReason 
         updateAssistantRuntime(event.data);
       } else if (event.type === "retrieval") {
         renderRetrievalInspection(target, event.data);
+      } else if (event.type === "grounding") {
+        applyGroundingAudit(target, event.data);
       } else if (event.type === "delta") {
         answer += event.data.delta || "";
         renderAssistantContent(content, answer);
@@ -459,16 +461,33 @@ function clearRetrievalInspection(target) {
 function updateRetrievalSummary(inspection, message = "") {
   const summary = $("rag-inspection-summary");
   const status = $("rag-inspection-status");
-  if (!summary || !status) return;
+  const title = $("rag-inspection-title");
+  if (!summary || !status || !title) return;
   if (!inspection) {
+    title.textContent = "Validação de fundamentação";
     summary.textContent = message || "Aguardando uma consulta ao Copiloto.";
     status.innerHTML = "<i></i> Em espera";
     return;
   }
-  const sources = Array.isArray(inspection.evidence) ? inspection.evidence.length : 0;
+  const promptSent = Number(inspection.promptSourceCount) > 0;
+  const sources = promptSent
+    ? Number(inspection.promptSourceCount)
+    : Array.isArray(inspection.evidence) ? inspection.evidence.length : 0;
   const confidence = confidenceLabel(inspection.confidence);
   summary.textContent = `${confidence} · ${sources} fonte${sources === 1 ? "" : "s"} · ${Number(inspection.durationMs) || 0} ms`;
-  status.innerHTML = `<i></i> ${inspection.usedInAnswer ? "RAG ativo" : inspection.knowledgeStale ? "Contingência" : "Inspeção"}`;
+  if (inspection.usedInAnswer) {
+    title.textContent = "Resposta fundamentada";
+    status.innerHTML = "<i></i> RAG validado";
+  } else if (inspection.promptStatus === "citation-pending") {
+    title.textContent = "Validando fundamentação";
+    status.innerHTML = "<i></i> RAG analisando";
+  } else if (["citation-missing", "citation-invalid"].includes(inspection.promptStatus)) {
+    title.textContent = "Resposta não validada";
+    status.innerHTML = "<i></i> RAG não validado";
+  } else {
+    title.textContent = "Evidências em inspeção";
+    status.innerHTML = `<i></i> ${inspection.knowledgeStale ? "Contingência" : "Inspeção"}`;
+  }
 }
 
 function confidenceLabel(value) {
@@ -477,9 +496,11 @@ function confidenceLabel(value) {
 
 function renderRetrievalInspection(target, inspection) {
   if (!inspection || inspection.mode !== "shadow" || typeof inspection.usedInAnswer !== "boolean") return;
+  target._retrievalInspection = { ...inspection };
   clearRetrievalInspection(target);
   updateRetrievalSummary(inspection);
-  const evidenceLimit = inspection.usedInAnswer ? Number(inspection.promptSourceCount) || 0 : 6;
+  const promptSent = Number(inspection.promptSourceCount) > 0;
+  const evidenceLimit = promptSent ? Number(inspection.promptSourceCount) : 6;
   const evidence = Array.isArray(inspection.evidence) ? inspection.evidence.slice(0, evidenceLimit) : [];
   const details = document.createElement("details");
   details.className = "retrieval-inspection";
@@ -489,9 +510,24 @@ function renderRetrievalInspection(target, inspection) {
     return `<li><strong>${Number(item.rank) || "—"}. ${escapeHTML(item.title || item.documentId || "Documento canônico")}</strong><span>${escapeHTML(item.heading || "Seção geral")}</span><p>${escapeHTML(item.excerpt || "Trecho não disponível.")}</p><small>${escapeHTML(item.documentId || "documento")} · v${escapeHTML(item.documentVersion || "N/I")} · ${escapeHTML(item.targetArchitecture || "geral")} · ${escapeHTML(item.status || "N/I")}${hash ? ` · SHA ${escapeHTML(hash)}` : ""}</small></li>`;
   }).join("");
   const grounded = inspection.usedInAnswer === true;
-  const activationLabel = grounded ? "Ativação controlada · enviada para fundamentação" : `Inspeção apenas · ${promptStatusLabel(inspection.promptStatus)}`;
+  const activationLabel = grounded
+    ? "Citações validadas · resposta fundamentada"
+    : inspection.promptStatus === "citation-pending"
+      ? "Evidências relevantes enviadas · validação pendente"
+      : ["citation-missing", "citation-invalid"].includes(inspection.promptStatus)
+        ? `Resposta não fundamentada · ${promptStatusLabel(inspection.promptStatus)}`
+        : `Inspeção apenas · ${promptStatusLabel(inspection.promptStatus)}`;
   details.innerHTML = `<summary>Evidências RAG · ${escapeHTML(confidenceLabel(inspection.confidence))} · ${sourceLabel}</summary><div class="retrieval-notice${grounded ? " grounded" : ""}"><strong>${escapeHTML(activationLabel)}</strong><span>Ranking ${escapeHTML(inspection.version || "N/I")} · conhecimento ${escapeHTML(inspection.knowledgeVersion || "N/I")} · filtro ${escapeHTML(inspection.filterType || "N/I")} · ${Number(inspection.candidateCount) || 0} candidatos</span></div>${items ? `<ol>${items}</ol>` : `<p class="retrieval-empty">Nenhuma evidência canônica foi selecionada para esta consulta.</p>`}`;
   target.querySelector(".message-content")?.parentElement.append(details);
+}
+
+function applyGroundingAudit(target, audit) {
+  const inspection = target?._retrievalInspection;
+  if (!inspection || !audit) return;
+  inspection.usedInAnswer = audit.grounded === true;
+  inspection.promptStatus = audit.status || "citation-missing";
+  inspection.citedSourceCount = Number(audit.citedSources) || 0;
+  renderRetrievalInspection(target, inspection);
 }
 
 function promptStatusLabel(value) {
@@ -499,6 +535,11 @@ function promptStatusLabel(value) {
     "confidence-insufficient": "confiança insuficiente",
     "legacy-fallback": "índice legado",
     "invalid-evidence": "evidência recusada",
+    "setup-mismatch": "fonte de outro setup recusada",
+    "catalog-evidence-missing": "catálogo exato ausente",
+    "citation-pending": "citações em validação",
+    "citation-missing": "nenhuma citação válida",
+    "citation-invalid": "citação inexistente",
     "no-evidence": "sem evidência",
     "feature-disabled": "ativação desabilitada"
   }[value] || "não usada na resposta";

@@ -1,11 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"math"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -29,6 +32,8 @@ var retrievalFieldWeights = map[string]float64{
 	"tags":    2,
 	"content": 1,
 }
+
+var groundingCitationPattern = regexp.MustCompile(`\[Fonte ([1-9][0-9]*)\]`)
 
 var retrievalStopWords = map[string]struct{}{
 	"a": {}, "ao": {}, "aos": {}, "as": {}, "com": {}, "como": {},
@@ -68,14 +73,17 @@ type retrievalEvidence struct {
 	TargetArchitecture string
 	Title              string
 	Heading            string
+	SetupID            string
 	ContentSHA256      string
 	Content            string
 	Score              float64
 }
 
 type retrievalResult struct {
-	Metrics  retrievalMetrics
-	Evidence []retrievalEvidence
+	Metrics        retrievalMetrics
+	Evidence       []retrievalEvidence
+	ResolvedSetup  string
+	Contextualized bool
 }
 
 type retrievalCitation struct {
@@ -89,6 +97,7 @@ type retrievalCitation struct {
 	Title              string `json:"title"`
 	Heading            string `json:"heading"`
 	TargetArchitecture string `json:"targetArchitecture"`
+	SetupID            string `json:"setupId,omitempty"`
 	ContentSHA256      string `json:"contentSHA256"`
 	Excerpt            string `json:"excerpt"`
 }
@@ -109,6 +118,8 @@ type retrievalInspection struct {
 	Fallback          bool                `json:"fallback"`
 	PromptStatus      string              `json:"promptStatus"`
 	PromptSourceCount int                 `json:"promptSourceCount"`
+	ResolvedSetupID   string              `json:"resolvedSetupId,omitempty"`
+	Contextualized    bool                `json:"contextualized"`
 	Evidence          []retrievalCitation `json:"evidence"`
 }
 
@@ -116,8 +127,10 @@ type retrievalPromptSource struct {
 	Reference          string `json:"reference"`
 	DocumentID         string `json:"documentId"`
 	DocumentVersion    string `json:"documentVersion"`
+	DocumentType       string `json:"documentType"`
 	Heading            string `json:"heading"`
 	TargetArchitecture string `json:"targetArchitecture"`
+	SetupID            string `json:"setupId,omitempty"`
 	ContentSHA256      string `json:"contentSHA256"`
 	Content            string `json:"content"`
 	Truncated          bool   `json:"truncated"`
@@ -129,6 +142,20 @@ type retrievalPromptContext struct {
 	KnowledgeVersion string                  `json:"knowledgeVersion"`
 	Confidence       string                  `json:"confidence"`
 	Sources          []retrievalPromptSource `json:"sources"`
+}
+
+type retrievalQueryResolution struct {
+	Query          string
+	SetupID        string
+	CatalogName    string
+	Contextualized bool
+}
+
+type groundingAudit struct {
+	Grounded         bool   `json:"grounded"`
+	Status           string `json:"status"`
+	CitedSources     int    `json:"citedSources"`
+	AvailableSources int    `json:"availableSources"`
 }
 
 type retrievalAggregate struct {
@@ -145,9 +172,10 @@ type retrievalAggregate struct {
 }
 
 type knowledgeRetriever struct {
-	index  knowledgeIndexV2
-	legacy knowledgeIndex
-	config retrievalConfig
+	index             knowledgeIndexV2
+	legacy            knowledgeIndex
+	config            retrievalConfig
+	setupCatalogNames map[string]string
 }
 
 type scoredChunk struct {
@@ -162,9 +190,27 @@ func newKnowledgeRetriever(state knowledgePackageState) (*knowledgeRetriever, er
 		len(state.IndexV2.Chunks) == 0 {
 		return nil, errors.New("índice v2 indisponível")
 	}
+	var registry struct {
+		Setups []struct {
+			SetupID     string `json:"setupId"`
+			CatalogName string `json:"catalogName"`
+		} `json:"setups"`
+	}
+	registryData, exists := state.Files["registry/setups.json"]
+	if !exists || json.Unmarshal(registryData, &registry) != nil || len(registry.Setups) == 0 {
+		return nil, errors.New("registro canônico de setups indisponível")
+	}
+	setupCatalogNames := make(map[string]string, len(registry.Setups))
+	for _, entry := range registry.Setups {
+		if entry.SetupID == "" || entry.CatalogName == "" {
+			return nil, errors.New("registro canônico de setups inválido")
+		}
+		setupCatalogNames[entry.SetupID] = entry.CatalogName
+	}
 	return &knowledgeRetriever{
-		index:  state.IndexV2,
-		legacy: state.Index,
+		index:             state.IndexV2,
+		legacy:            state.Index,
+		setupCatalogNames: setupCatalogNames,
 		config: retrievalConfig{
 			K1:            1.2,
 			B:             0.75,
@@ -181,6 +227,85 @@ func (r *knowledgeRetriever) retrieve(
 	setupVersion string,
 	runtimeArchitecture string,
 ) retrievalResult {
+	return r.retrieveResolved(
+		r.resolveQuery(question, nil),
+		setupVersion,
+		runtimeArchitecture,
+	)
+}
+
+func (r *knowledgeRetriever) resolveQuery(
+	question string,
+	history []assistantMessage,
+) retrievalQueryResolution {
+	resolution := retrievalQueryResolution{Query: strings.TrimSpace(question)}
+	if setupID, exact := r.exactSetup(question); exact {
+		resolution.SetupID = setupID
+		resolution.CatalogName = r.setupCatalogNames[setupID]
+		return resolution
+	}
+	if !hasContextualSetupReference(question) {
+		return resolution
+	}
+	for index := len(history) - 1; index >= 0; index-- {
+		message := history[index]
+		if message.Role != "user" {
+			continue
+		}
+		setupID, exact := r.exactSetup(message.Content)
+		if !exact {
+			continue
+		}
+		alias := r.matchedSetupAlias(message.Content, setupID)
+		if alias == "" {
+			alias = r.setupCatalogNames[setupID]
+		}
+		resolution.Query = strings.TrimSpace(question + " " + alias)
+		resolution.SetupID = setupID
+		resolution.CatalogName = r.setupCatalogNames[setupID]
+		resolution.Contextualized = true
+		return resolution
+	}
+	return resolution
+}
+
+func hasContextualSetupReference(question string) bool {
+	normalized := normalizeRetrievalPhrase(question)
+	for _, reference := range []string{
+		"este setup", "esse setup", "aquele setup",
+		"esta ferramenta", "essa ferramenta", "este aplicativo",
+		"esse aplicativo", "esta aplicacao", "essa aplicacao",
+	} {
+		if strings.Contains(normalized, reference) {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *knowledgeRetriever) matchedSetupAlias(question string, setupID string) string {
+	best := ""
+	if catalogName := r.setupCatalogNames[setupID]; anyPhraseContained(question, []string{catalogName}) {
+		best = catalogName
+	}
+	for _, chunk := range r.index.Chunks {
+		if chunk.SetupID == nil || *chunk.SetupID != setupID {
+			continue
+		}
+		for _, alias := range chunk.Aliases {
+			if anyPhraseContained(question, []string{alias}) && len([]rune(alias)) > len([]rune(best)) {
+				best = alias
+			}
+		}
+	}
+	return best
+}
+
+func (r *knowledgeRetriever) retrieveResolved(
+	resolution retrievalQueryResolution,
+	setupVersion string,
+	runtimeArchitecture string,
+) retrievalResult {
 	started := time.Now()
 	metrics := retrievalMetrics{
 		Version:          knowledgeRetrieval,
@@ -189,20 +314,32 @@ func (r *knowledgeRetriever) retrieve(
 		KnowledgeVersion: r.index.KnowledgeVersion,
 	}
 	if len(r.index.Chunks) == 0 || r.index.RetrievalVersion != knowledgeRetrieval {
-		result := r.retrieveLegacy(question, setupVersion, runtimeArchitecture)
+		result := r.retrieveLegacy(resolution.Query, setupVersion, runtimeArchitecture)
 		result.Metrics.DurationMS = elapsedMilliseconds(started)
+		result.ResolvedSetup = resolution.SetupID
+		result.Contextualized = resolution.Contextualized
 		return result
 	}
 
-	terms := retrievalQueryTerms(question)
-	architectures := r.targetArchitectures(question, runtimeArchitecture)
-	setupID, exactSetup := r.exactSetup(question)
+	terms := retrievalQueryTerms(resolution.Query)
+	architectures := r.targetArchitectures(resolution.Query, runtimeArchitecture)
+	setupID := resolution.SetupID
+	exactSetup := setupID != ""
+	if !exactSetup {
+		setupID, exactSetup = r.exactSetup(resolution.Query)
+	}
 	if exactSetup {
 		metrics.FilterType = "setup+architecture"
+		if resolution.Contextualized {
+			metrics.FilterType += "+context"
+		}
 	}
 	if len(terms) == 0 || len(architectures) == 0 {
 		metrics.DurationMS = elapsedMilliseconds(started)
-		return retrievalResult{Metrics: metrics}
+		return retrievalResult{
+			Metrics: metrics, ResolvedSetup: setupID,
+			Contextualized: resolution.Contextualized,
+		}
 	}
 
 	maxPerLane := r.config.MaxResults
@@ -215,9 +352,12 @@ func (r *knowledgeRetriever) retrieve(
 	highestScore := 0.0
 	anyExactAlias := false
 	perDocument := make(map[string]int)
+	evidenceByChunk := make(map[string]int)
 	characters := 0
 	for _, architecture := range architectures {
-		candidates := r.rankLane(terms, question, setupVersion, architecture, setupID, exactSetup)
+		candidates := r.rankLane(
+			terms, resolution.Query, setupVersion, architecture, setupID, exactSetup,
+		)
 		candidateCount += min(len(candidates), r.config.MaxCandidates)
 		added := 0
 		perDocumentLane := make(map[string]int)
@@ -236,6 +376,16 @@ func (r *knowledgeRetriever) retrieve(
 			if characters+len(candidate.chunk.Content) > r.config.MaxCharacters {
 				continue
 			}
+			if existingIndex, exists := evidenceByChunk[candidate.chunk.ChunkID]; exists {
+				evidence[existingIndex].TargetArchitecture = mergeArchitectures(
+					evidence[existingIndex].TargetArchitecture,
+					architecture,
+				)
+				highestScore = max(highestScore, candidate.score)
+				anyExactAlias = anyExactAlias || candidate.exactAlias
+				added++
+				continue
+			}
 			evidence = append(evidence, retrievalEvidence{
 				ChunkID:            candidate.chunk.ChunkID,
 				DocumentID:         candidate.chunk.DocumentID,
@@ -246,10 +396,12 @@ func (r *knowledgeRetriever) retrieve(
 				TargetArchitecture: architecture,
 				Title:              candidate.chunk.Title,
 				Heading:            candidate.chunk.Heading,
+				SetupID:            setupID,
 				ContentSHA256:      candidate.chunk.ContentSHA256,
 				Content:            candidate.chunk.Content,
 				Score:              candidate.score,
 			})
+			evidenceByChunk[candidate.chunk.ChunkID] = len(evidence) - 1
 			perDocument[candidate.chunk.DocumentID]++
 			perDocumentLane[candidate.chunk.DocumentID]++
 			characters += len(candidate.chunk.Content)
@@ -262,7 +414,93 @@ func (r *knowledgeRetriever) retrieve(
 	metrics.ReturnedCount = len(evidence)
 	metrics.Confidence = retrievalConfidence(highestScore, anyExactAlias, len(evidence))
 	metrics.DurationMS = elapsedMilliseconds(started)
-	return retrievalResult{Metrics: metrics, Evidence: evidence}
+	return retrievalResult{
+		Metrics: metrics, Evidence: evidence, ResolvedSetup: setupID,
+		Contextualized: resolution.Contextualized,
+	}
+}
+
+func mergeArchitectures(current string, architecture string) string {
+	if current == architecture || strings.Contains(current, architecture) {
+		return current
+	}
+	if current == "" {
+		return architecture
+	}
+	return current + "," + architecture
+}
+
+func (r *knowledgeRetriever) attachCatalogEvidence(
+	result retrievalResult,
+	contextData assistantContext,
+) retrievalResult {
+	if result.ResolvedSetup == "" || !validEvidenceSHA256(contextData.CatalogSHA256) {
+		return result
+	}
+	catalogName := r.setupCatalogNames[result.ResolvedSetup]
+	var catalogItem map[string]any
+	for _, item := range contextData.RelevantSetups {
+		if strings.EqualFold(strings.TrimSpace(fmt.Sprint(item["name"])), catalogName) {
+			catalogItem = item
+			break
+		}
+	}
+	if catalogItem == nil {
+		return result
+	}
+	architectureLabel, targetArchitectures := catalogArchitectureEvidence(
+		strings.TrimSpace(fmt.Sprint(catalogItem["arch"])),
+	)
+	content := fmt.Sprintf(
+		"Entrada estruturada do catálogo validado do Setup MNO. Setup: %s. Arquiteturas declaradas: %s. Memória estimada: %s. Tipo: %s. Descrição: %s.",
+		catalogName,
+		architectureLabel,
+		strings.TrimSpace(fmt.Sprint(catalogItem["ramLabel"])),
+		strings.TrimSpace(fmt.Sprint(catalogItem["type"])),
+		strings.TrimSpace(fmt.Sprint(catalogItem["desc"])),
+	)
+	catalogEvidence := retrievalEvidence{
+		ChunkID:            "catalog:" + result.ResolvedSetup,
+		DocumentID:         "catalog:" + result.ResolvedSetup,
+		DocumentVersion:    contextData.CatalogVersion,
+		DocumentType:       "catalog",
+		Status:             "validated",
+		Category:           "catalog",
+		TargetArchitecture: targetArchitectures,
+		Title:              "Catálogo validado — " + catalogName,
+		Heading:            "Compatibilidade e requisitos estruturados",
+		SetupID:            result.ResolvedSetup,
+		ContentSHA256:      contextData.CatalogSHA256,
+		Content:            strings.Join(strings.Fields(content), " "),
+		Score:              math.MaxFloat64,
+	}
+	result.Evidence = append([]retrievalEvidence{catalogEvidence}, result.Evidence...)
+	if len(result.Evidence) > retrievalMaxResults {
+		result.Evidence = result.Evidence[:retrievalMaxResults]
+	}
+	result.Metrics.ReturnedCount = len(result.Evidence)
+	if result.Metrics.Confidence == "none" || result.Metrics.Confidence == "low" {
+		if result.Contextualized {
+			result.Metrics.Confidence = "medium"
+		} else {
+			result.Metrics.Confidence = "high"
+		}
+	}
+	result.Metrics.FilterType += "+catalog"
+	return result
+}
+
+func catalogArchitectureEvidence(value string) (string, string) {
+	switch normalizeRetrievalPhrase(value) {
+	case "x86-arm", "x86 arm", "amd64 arm64":
+		return "amd64/x86-64 e arm64/aarch64", "amd64,arm64"
+	case "x86", "amd64", "x86 64":
+		return "amd64/x86-64", "amd64"
+	case "arm", "arm64", "aarch64":
+		return "arm64/aarch64", "arm64"
+	default:
+		return "não informadas pelo catálogo", "geral"
+	}
 }
 
 func (r *knowledgeRetriever) rankLane(
@@ -335,6 +573,11 @@ func (r *knowledgeRetriever) rankLane(
 
 func (r *knowledgeRetriever) exactSetup(question string) (string, bool) {
 	matches := make(map[string]struct{})
+	for setupID, catalogName := range r.setupCatalogNames {
+		if anyPhraseContained(question, []string{catalogName}) {
+			matches[setupID] = struct{}{}
+		}
+	}
 	for _, chunk := range r.index.Chunks {
 		if chunk.SetupID == nil || !anyPhraseContained(question, chunk.Aliases) {
 			continue
@@ -424,6 +667,7 @@ func buildRetrievalInspection(
 			Title:              item.Title,
 			Heading:            item.Heading,
 			TargetArchitecture: item.TargetArchitecture,
+			SetupID:            item.SetupID,
 			ContentSHA256:      item.ContentSHA256,
 			Excerpt:            canonicalExcerpt(item.Content),
 		})
@@ -442,6 +686,8 @@ func buildRetrievalInspection(
 		Confidence:       result.Metrics.Confidence,
 		FilterType:       result.Metrics.FilterType,
 		Fallback:         result.Metrics.Fallback,
+		ResolvedSetupID:  result.ResolvedSetup,
+		Contextualized:   result.Contextualized,
 		Evidence:         evidence,
 	}
 }
@@ -456,13 +702,29 @@ func buildRetrievalPrompt(result retrievalResult) (*retrievalPromptContext, stri
 	if len(result.Evidence) == 0 {
 		return nil, "no-evidence"
 	}
+	if result.ResolvedSetup != "" {
+		hasCatalogEvidence := false
+		for _, item := range result.Evidence {
+			if item.SetupID != result.ResolvedSetup {
+				return nil, "setup-mismatch"
+			}
+			if item.DocumentType == "catalog" && item.Status == "validated" {
+				hasCatalogEvidence = true
+			}
+		}
+		if !hasCatalogEvidence {
+			return nil, "catalog-evidence-missing"
+		}
+	}
 	sources := make([]retrievalPromptSource, 0, retrievalPromptResults)
 	totalRunes := 0
 	for _, item := range result.Evidence {
 		if len(sources) == retrievalPromptResults {
 			break
 		}
-		if (item.Status != "reviewed" && item.Status != "homologated") ||
+		approvedDocument := item.Status == "reviewed" || item.Status == "homologated" ||
+			(item.DocumentType == "catalog" && item.Status == "validated")
+		if !approvedDocument ||
 			!validEvidenceSHA256(item.ContentSHA256) {
 			return nil, "invalid-evidence"
 		}
@@ -483,8 +745,10 @@ func buildRetrievalPrompt(result retrievalResult) (*retrievalPromptContext, stri
 			Reference:          fmt.Sprintf("Fonte %d", len(sources)+1),
 			DocumentID:         item.DocumentID,
 			DocumentVersion:    item.DocumentVersion,
+			DocumentType:       item.DocumentType,
 			Heading:            item.Heading,
 			TargetArchitecture: item.TargetArchitecture,
+			SetupID:            item.SetupID,
 			ContentSHA256:      item.ContentSHA256,
 			Content:            string(contentRunes),
 			Truncated:          truncated,
@@ -501,6 +765,33 @@ func buildRetrievalPrompt(result retrievalResult) (*retrievalPromptContext, stri
 		Confidence:       result.Metrics.Confidence,
 		Sources:          sources,
 	}, "active"
+}
+
+func validateGroundingCitations(answer string, availableSources int) groundingAudit {
+	audit := groundingAudit{
+		Status: "citation-missing", AvailableSources: availableSources,
+	}
+	if availableSources <= 0 {
+		audit.Status = "no-sources"
+		return audit
+	}
+	matches := groundingCitationPattern.FindAllStringSubmatch(answer, -1)
+	if len(matches) == 0 {
+		return audit
+	}
+	unique := make(map[int]struct{}, len(matches))
+	for _, match := range matches {
+		reference, err := strconv.Atoi(match[1])
+		if err != nil || reference < 1 || reference > availableSources {
+			audit.Status = "citation-invalid"
+			return audit
+		}
+		unique[reference] = struct{}{}
+	}
+	audit.Grounded = true
+	audit.Status = "citation-validated"
+	audit.CitedSources = len(unique)
+	return audit
 }
 
 func validEvidenceSHA256(value string) bool {

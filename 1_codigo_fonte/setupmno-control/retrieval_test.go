@@ -82,14 +82,102 @@ func TestShadowRetrievalKeepsArchitectureLanesSeparated(t *testing.T) {
 		"amd64",
 	)
 	architectures := make(map[string]bool)
+	chunks := make(map[string]bool)
 	for _, evidence := range result.Evidence {
-		architectures[evidence.TargetArchitecture] = true
+		for _, architecture := range strings.Split(evidence.TargetArchitecture, ",") {
+			architectures[architecture] = true
+		}
+		if chunks[evidence.ChunkID] {
+			t.Fatalf("chunk duplicado entre arquiteturas: %s", evidence.ChunkID)
+		}
+		chunks[evidence.ChunkID] = true
 	}
 	if !architectures["amd64"] || !architectures["arm64"] {
 		t.Fatalf("trilhas arquiteturais ausentes: %#v", architectures)
 	}
 	if !strings.Contains(result.Metrics.FilterType, "comparison") {
 		t.Fatalf("comparação não sinalizada: %#v", result.Metrics)
+	}
+}
+
+func TestContextualSetupReferenceUsesPreviousUserTurn(t *testing.T) {
+	retriever, state := testKnowledgeRetriever(t)
+	history := []assistantMessage{
+		{Role: "user", Content: "O n8n sem fila funciona em ARM e x86?"},
+		{Role: "assistant", Content: "Resposta anterior sobre o n8n."},
+	}
+	resolution := retriever.resolveQuery(
+		"Este setup é compatível com meu servidor amd64?", history,
+	)
+	if resolution.SetupID != "n8n-main" || !resolution.Contextualized ||
+		resolution.CatalogName != "N8N V1 - SEM FILA (MAIN)" {
+		t.Fatalf("referência contextual não resolvida: %#v", resolution)
+	}
+	result := retriever.retrieveResolved(
+		resolution, state.Manifest.SetupVersion, "amd64",
+	)
+	contextData := assistantContext{
+		CatalogVersion: "4.99.2",
+		CatalogSHA256:  strings.Repeat("c", 64),
+		RelevantSetups: []map[string]any{{
+			"name": "N8N V1 - SEM FILA (MAIN)", "arch": "x86-arm",
+			"ramLabel": "~8GB", "type": "Individual", "desc": "Automação visual.",
+		}},
+	}
+	result = retriever.attachCatalogEvidence(result, contextData)
+	if len(result.Evidence) == 0 || result.Evidence[0].DocumentType != "catalog" {
+		t.Fatalf("catálogo exato não foi priorizado: %#v", result.Evidence)
+	}
+	for _, evidence := range result.Evidence {
+		if evidence.SetupID != "n8n-main" {
+			t.Fatalf("evidência de outro setup atravessou o gate: %#v", evidence)
+		}
+	}
+	prompt, status := buildRetrievalPrompt(result)
+	if prompt == nil || status != "active" {
+		t.Fatalf("contexto relevante foi recusado: %s %#v", status, prompt)
+	}
+}
+
+func TestContextualArchitectureQuestionDoesNotRetrieveOtherSetups(t *testing.T) {
+	retriever, state := testKnowledgeRetriever(t)
+	resolution := retriever.resolveQuery(
+		"Quais diferenças de arquitetura existem para instalar este setup?",
+		[]assistantMessage{{Role: "user", Content: "Quais são os requisitos do n8n sem fila?"}},
+	)
+	result := retriever.retrieveResolved(
+		resolution, state.Manifest.SetupVersion, "amd64",
+	)
+	for _, evidence := range result.Evidence {
+		if evidence.SetupID != "n8n-main" ||
+			strings.Contains(evidence.DocumentID, "appsmith") ||
+			strings.Contains(evidence.DocumentID, "grafana") ||
+			strings.Contains(evidence.DocumentID, "qdrant") {
+			t.Fatalf("setup alheio recuperado: %#v", evidence)
+		}
+	}
+}
+
+func TestExplicitSetupOverridesConversationContext(t *testing.T) {
+	retriever, _ := testKnowledgeRetriever(t)
+	resolution := retriever.resolveQuery(
+		"O Appsmith é compatível com este servidor?",
+		[]assistantMessage{{Role: "user", Content: "Quais são os requisitos do n8n sem fila?"}},
+	)
+	if resolution.SetupID != "appsmith" || resolution.Contextualized {
+		t.Fatalf("setup explícito não prevaleceu: %#v", resolution)
+	}
+}
+
+func TestContextualReferenceWithoutUserAntecedentStaysUnresolved(t *testing.T) {
+	retriever, _ := testKnowledgeRetriever(t)
+	resolution := retriever.resolveQuery(
+		"Este setup funciona em ARM?",
+		[]assistantMessage{{Role: "assistant", Content: "O Appsmith funciona em ARM."}},
+	)
+	if resolution.SetupID != "" || resolution.Contextualized ||
+		resolution.Query != "Este setup funciona em ARM?" {
+		t.Fatalf("conteúdo do assistente foi aceito como antecedente: %#v", resolution)
 	}
 }
 
@@ -282,6 +370,43 @@ func TestRetrievalPromptRejectsUnsafeOrInsufficientResults(t *testing.T) {
 	base.Evidence[0].Status = "draft"
 	if context, status := buildRetrievalPrompt(base); context != nil || status != "invalid-evidence" {
 		t.Fatalf("documento não aprovado foi ativado: status=%s context=%#v", status, context)
+	}
+}
+
+func TestRetrievalPromptRejectsSetupMismatch(t *testing.T) {
+	result := retrievalResult{
+		Metrics:       retrievalMetrics{Version: knowledgeRetrieval, Confidence: "high"},
+		ResolvedSetup: "n8n-main",
+		Evidence: []retrievalEvidence{
+			{
+				DocumentID: "catalog:n8n-main", DocumentType: "catalog",
+				Status: "validated", SetupID: "n8n-main",
+				ContentSHA256: strings.Repeat("a", 64), Content: "Catálogo do n8n.",
+			},
+			{
+				DocumentID: "setup-appsmith-overview", DocumentType: "setup",
+				Status: "reviewed", SetupID: "appsmith",
+				ContentSHA256: strings.Repeat("b", 64), Content: "Documento alheio.",
+			},
+		},
+	}
+	if prompt, status := buildRetrievalPrompt(result); prompt != nil || status != "setup-mismatch" {
+		t.Fatalf("mismatch de setup foi aceito: %s %#v", status, prompt)
+	}
+}
+
+func TestGroundingCitationAuditRequiresExistingSources(t *testing.T) {
+	valid := validateGroundingCitations("Compatível [Fonte 1] e seguro [Fonte 2].", 2)
+	if !valid.Grounded || valid.Status != "citation-validated" || valid.CitedSources != 2 {
+		t.Fatalf("citações válidas recusadas: %#v", valid)
+	}
+	missing := validateGroundingCitations("Resposta sem referência.", 2)
+	if missing.Grounded || missing.Status != "citation-missing" {
+		t.Fatalf("ausência de citação aceita: %#v", missing)
+	}
+	invalid := validateGroundingCitations("Referência inexistente [Fonte 3].", 2)
+	if invalid.Grounded || invalid.Status != "citation-invalid" {
+		t.Fatalf("citação inexistente aceita: %#v", invalid)
 	}
 }
 

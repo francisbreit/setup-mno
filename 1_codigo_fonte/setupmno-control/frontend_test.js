@@ -35,11 +35,17 @@ for (const provider of ["OpenAI", "OpenRouter", "DeepSeek", "Ollama"]) {
   assert.match(html + app, new RegExp(provider));
 }
 assert.match(app, /openTerminal\("settings"\)/);
-assert.match(html, /Resposta fundamentada/);
-assert.match(html, /confiança alta ou média podem fundamentar a resposta/);
+assert.match(html, /id="rag-inspection-title"/);
+assert.match(html, /Validação de fundamentação/);
+assert.match(html, /somente depois que as citações da resposta correspondem às evidências/);
 assert.match(app, /event\.type === "retrieval"/);
+assert.match(app, /event\.type === "grounding"/);
+assert.match(app, /applyGroundingAudit/);
+assert.match(app, /RAG validado/);
+assert.match(app, /citation-missing/);
 assert.match(app, /typeof inspection\.usedInAnswer !== "boolean"/);
-assert.match(app, /Ativação controlada · enviada para fundamentação/);
+assert.match(app, /Evidências relevantes enviadas · validação pendente/);
+assert.match(app, /Citações validadas · resposta fundamentada/);
 assert.match(app, /inspection\.promptSourceCount/);
 
-console.log("Markdown seguro, Central de Configurações e RAG fundamentado validados.");
+console.log("Markdown seguro, Central de Configurações e validação RAG conferidos.");

@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="1.7.1"
+CONTROL_VERSION="1.7.2"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -498,7 +498,7 @@ error_file="/tmp/${nome_app}-error.log"
     [ "$knowledge_entries" -gt 0 ] &&
     [ "$knowledge_chunks" -gt "$knowledge_entries" ] &&
     [ "$knowledge_index_schema" = "2" ] &&
-    [ "$knowledge_retrieval_version" = "1.0.0" ] &&
+    [ "$knowledge_retrieval_version" = "1.1.0" ] &&
     [ "$knowledge_entries" = "$release_knowledge_entries" ] &&
     [ "$knowledge_archive_bytes" = "$actual_knowledge_bytes" ] &&
     [ "$knowledge_archive_bytes" -le $((8 * 1024 * 1024)) ] &&

@@ -24,7 +24,7 @@ import (
 const (
 	knowledgeSchema          = 1
 	knowledgeIndexSchema     = 2
-	knowledgeRetrieval       = "1.0.0"
+	knowledgeRetrieval       = "1.1.0"
 	maxKnowledgeArchiveBytes = 8 << 20
 	maxKnowledgeManifest     = 1 << 20
 	maxKnowledgeFileBytes    = 2 << 20
