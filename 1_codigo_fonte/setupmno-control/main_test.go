@@ -66,8 +66,8 @@ func TestReadRuntimeSnapshotAcceptsAdditiveMetadata(t *testing.T) {
 	sum := sha256.Sum256(catalog)
 	release := map[string]any{
 		"schemaVersion":          runtimeSchema,
-		"setupVersion":           "4.95.0",
-		"catalogVersion":         "4.95.0",
+		"setupVersion":           "4.96.0",
+		"catalogVersion":         "4.96.0",
 		"catalogSHA256":          hex.EncodeToString(sum[:]),
 		"catalogEntries":         1,
 		"architecture":           "amd64",
@@ -98,8 +98,8 @@ func TestReadRuntimeSnapshotRejectsPartialKnowledgeMetadata(t *testing.T) {
 	sum := sha256.Sum256(catalog)
 	release := setupRelease{
 		SchemaVersion:    runtimeSchema,
-		SetupVersion:     "4.95.0",
-		CatalogVersion:   "4.95.0",
+		SetupVersion:     "4.96.0",
+		CatalogVersion:   "4.96.0",
 		CatalogSHA256:    hex.EncodeToString(sum[:]),
 		CatalogEntries:   1,
 		Architecture:     "amd64",
@@ -428,6 +428,12 @@ func TestStreamProviderUsesResponsesAPIAndForwardsDeltas(t *testing.T) {
 		if !strings.Contains(instructions, `"catalogEntries":151`) ||
 			!strings.Contains(instructions, "Nunca use o tamanho de relevantSetups como total") {
 			t.Errorf("instruções não distinguem total e recorte: %s", instructions)
+		}
+		serialized, _ := json.Marshal(payload)
+		if strings.Contains(string(serialized), `"evidence"`) ||
+			strings.Contains(string(serialized), `"chunkId"`) ||
+			strings.Contains(string(serialized), `"retrieval"`) {
+			t.Errorf("shadow retrieval vazou para o payload do provedor: %s", serialized)
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
 		_, _ = w.Write([]byte("event: response.output_text.delta\n"))

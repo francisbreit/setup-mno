@@ -10,6 +10,7 @@
     "knowledgeVersion",
     "setupVersion",
     "normalRetrievalStatuses",
+    "synonyms",
     "chunkCount",
     "averageFieldLengths",
     "documentFrequencies",
@@ -39,6 +40,13 @@
           "reviewed",
           "homologated"
         ]
+      }
+    },
+    "synonyms": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/stringList"
       }
     },
     "chunkCount": {

@@ -123,15 +123,16 @@ type knowledgeChunk struct {
 }
 
 type knowledgeIndexV2 struct {
-	SchemaVersion           int                `json:"schemaVersion"`
-	RetrievalVersion        string             `json:"retrievalVersion"`
-	KnowledgeVersion        string             `json:"knowledgeVersion"`
-	SetupVersion            string             `json:"setupVersion"`
-	NormalRetrievalStatuses []string           `json:"normalRetrievalStatuses"`
-	ChunkCount              int                `json:"chunkCount"`
-	AverageFieldLengths     map[string]float64 `json:"averageFieldLengths"`
-	DocumentFrequencies     map[string]int     `json:"documentFrequencies"`
-	Chunks                  []knowledgeChunk   `json:"chunks"`
+	SchemaVersion           int                 `json:"schemaVersion"`
+	RetrievalVersion        string              `json:"retrievalVersion"`
+	KnowledgeVersion        string              `json:"knowledgeVersion"`
+	SetupVersion            string              `json:"setupVersion"`
+	NormalRetrievalStatuses []string            `json:"normalRetrievalStatuses"`
+	Synonyms                map[string][]string `json:"synonyms"`
+	ChunkCount              int                 `json:"chunkCount"`
+	AverageFieldLengths     map[string]float64  `json:"averageFieldLengths"`
+	DocumentFrequencies     map[string]int      `json:"documentFrequencies"`
+	Chunks                  []knowledgeChunk    `json:"chunks"`
 }
 
 type knowledgePackageState struct {
@@ -346,6 +347,7 @@ func validateKnowledgePackage(
 		indexV2.RetrievalVersion != manifest.RetrievalVersion ||
 		indexV2.KnowledgeVersion != manifest.KnowledgeVersion ||
 		indexV2.SetupVersion != manifest.SetupVersion ||
+		len(indexV2.Synonyms) == 0 ||
 		indexV2.ChunkCount != manifest.ChunkEntries ||
 		len(indexV2.Chunks) != manifest.ChunkEntries {
 		return knowledgePackageState{}, errors.New("índice v2 incompatível com o manifesto")

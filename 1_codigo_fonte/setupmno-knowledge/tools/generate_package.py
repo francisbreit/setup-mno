@@ -387,6 +387,10 @@ def build_package_files(
         "knowledgeVersion": knowledge_version,
         "setupVersion": setup_version,
         "normalRetrievalStatuses": taxonomy["normalRetrievalStatuses"],
+        "synonyms": {
+            target: list(aliases)
+            for target, aliases in sorted(taxonomy["synonyms"].items())
+        },
         "chunkCount": chunk_count,
         "averageFieldLengths": {
             field: round(total / chunk_count, 6)

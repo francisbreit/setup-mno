@@ -278,6 +278,11 @@ type assistantService struct {
 	httpClient  *http.Client
 	agentClient *http.Client
 	knowledge   knowledgePackageState
+	retriever   *knowledgeRetriever
+	shadowMode  bool
+
+	retrievalMu    sync.Mutex
+	retrievalStats retrievalAggregate
 }
 
 func main() {
@@ -518,6 +523,17 @@ func runAssistant() error {
 		return fmt.Errorf("token do agente indisponível: %w", err)
 	}
 
+	shadowMode := strings.EqualFold(
+		envDefault("RETRIEVAL_SHADOW_ENABLED", "false"),
+		"true",
+	)
+	var retriever *knowledgeRetriever
+	if shadowMode {
+		retriever, err = newKnowledgeRetriever(knowledge)
+		if err != nil {
+			return fmt.Errorf("retrieval shadow indisponível: %w", err)
+		}
+	}
 	service := &assistantService{
 		provider:    provider,
 		model:       model,
@@ -528,6 +544,8 @@ func runAssistant() error {
 		httpClient:  &http.Client{Timeout: 2 * time.Minute},
 		agentClient: &http.Client{Timeout: 12 * time.Second},
 		knowledge:   knowledge,
+		retriever:   retriever,
+		shadowMode:  shadowMode,
 	}
 	zero(agentToken)
 	if err := service.validateProvider(); err != nil {
@@ -556,6 +574,11 @@ func runAssistant() error {
 			"knowledgeSource":  service.knowledge.Source,
 			"knowledgeStale":   service.knowledge.Stale,
 			"knowledgeEntries": service.knowledge.Manifest.DocumentEntries,
+			"retrievalShadow": map[string]any{
+				"enabled": service.shadowMode,
+				"version": service.knowledge.Manifest.RetrievalVersion,
+				"metrics": service.retrievalSnapshot(),
+			},
 		})
 	})
 	mux.HandleFunc("POST /chat", authorize(service.handleChat))
@@ -569,7 +592,11 @@ func runAssistant() error {
 		IdleTimeout:       60 * time.Second,
 		MaxHeaderBytes:    32 << 10,
 	}
-	log.Printf("Assistente MNO iniciado na porta 7070 com provedor %s", provider)
+	log.Printf(
+		"Assistente MNO iniciado na porta 7070 com provedor %s e retrieval shadow=%t",
+		provider,
+		shadowMode,
+	)
 	return server.ListenAndServe()
 }
 
@@ -634,6 +661,14 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Assistente MNO: contexto operacional indisponível: %v", err)
 		writeError(w, http.StatusBadGateway, "contexto operacional indisponível")
 		return
+	}
+	if s.shadowMode && s.retriever != nil {
+		shadow := s.retriever.retrieve(
+			input.Question,
+			contextData.SetupVersion,
+			contextData.Architecture,
+		)
+		s.recordRetrieval(shadow.Metrics)
 	}
 
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")

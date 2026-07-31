@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="1.3.0"
+CONTROL_VERSION="1.4.0"
 
 if [ "${SETUPMNO_SHC_SMOKE_TEST:-0}" = "1" ]; then
     printf '%s\n' "setupmno-control-shc-ok"
@@ -346,8 +346,21 @@ error_file="/tmp/${nome_app}-error.log"
         tar -xzf - -C "$work_dir/source" >>"$install_log" 2>&1; then
         fail_install 20 "BUNDLE DO PAINEL INVÁLIDO" "Não foi possível validar e extrair os fontes internos do Control Center."
     fi
+    runtime_catalog="/root/SetupLowCodeMno/.control/catalog.json"
+    runtime_release="/root/SetupLowCodeMno/.control/release.json"
+    [ -f "$runtime_catalog" ] &&
+    [ ! -L "$runtime_catalog" ] &&
+    [ -f "$runtime_release" ] &&
+    [ ! -L "$runtime_release" ] ||
+        fail_install 21 "CATÁLOGO RUNTIME AUSENTE" "Atualize o Setup MNO para receber o catálogo validado."
+    runtime_catalog_sha=$(sha256sum "$runtime_catalog" | awk '{print $1}')
+    expected_catalog_sha=$(jq -r '.catalogSHA256 // empty' "$runtime_release" 2>>"$install_log")
+    [ -n "$expected_catalog_sha" ] &&
+    [ "$runtime_catalog_sha" = "$expected_catalog_sha" ] ||
+        fail_install 21 "CATÁLOGO RUNTIME INVÁLIDO" "O catálogo não corresponde ao manifesto desta release."
+    install -m 0644 "$runtime_catalog" "$work_dir/source/catalog.json"
     for source_file in go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
-        main.go knowledge.go catalog.json web/index.html web/terminal-bridge.js; do
+        main.go knowledge.go retrieval.go catalog.json web/index.html web/terminal-bridge.js; do
         [ -s "$work_dir/source/$source_file" ] ||
             fail_install 21 "FONTE INCOMPLETO" "O arquivo interno '$source_file' não foi encontrado no bundle."
         [ ! -L "$work_dir/source/$source_file" ] ||
@@ -602,6 +615,7 @@ services:
       - ASSISTANT_MODEL=$assistant_model
       - ASSISTANT_BASE_URL=$assistant_base_url
       - KNOWLEDGE_PACKAGE_DIR=/knowledge-package
+      - RETRIEVAL_SHADOW_ENABLED=true
       - AGENT_TOKEN_FILE=/run/secrets/$agent_secret
       - AGENT_URL=http://${agent_stack}_${agent_service}:9090
 EOL

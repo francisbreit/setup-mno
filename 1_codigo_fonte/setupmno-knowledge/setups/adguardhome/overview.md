@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "AdGuard Home no Setup MNO",
   "setupId": "adguardhome",
-  "setupVersion": "4.95.0",
+  "setupVersion": "4.96.0",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

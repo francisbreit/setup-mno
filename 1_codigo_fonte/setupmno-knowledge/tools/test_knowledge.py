@@ -174,7 +174,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
                         "--setup-version",
                         registry["setupVersion"],
                         "--control-version",
-                        "1.3.0",
+                        "1.4.0",
                     ],
                     check=False,
                     capture_output=True,
@@ -197,6 +197,8 @@ class KnowledgeFactoryTests(unittest.TestCase):
                     legacy_index = json.load(package.extractfile("index-v1.json"))
                     self.assertEqual(index["schemaVersion"], 2)
                     self.assertEqual(index["retrievalVersion"], RETRIEVAL_VERSION)
+                    self.assertEqual(index["synonyms"]["amd64"], ["x86", "x86_64"])
+                    self.assertEqual(index["synonyms"]["arm64"], ["arm", "aarch64"])
                     self.assertEqual(index["chunkCount"], len(index["chunks"]))
                     self.assertGreater(index["chunkCount"], 29)
                     self.assertEqual(legacy_index["schemaVersion"], 1)

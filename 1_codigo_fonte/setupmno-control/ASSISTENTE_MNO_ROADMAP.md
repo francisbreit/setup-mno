@@ -253,7 +253,7 @@ pelos testes da release.
 
 ## Etapa 3 — RAG Híbrido Local
 
-**Status:** subetapa 3.1 implementada; subetapas 3.2 a 3.4 pendentes
+**Status:** subetapas 3.1 e 3.2 implementadas; subetapas 3.3 e 3.4 pendentes
 **Impacto:** crítico para a qualidade
 **Tipo:** IA, desempenho e confiabilidade
 **Esforço:** estrutural
@@ -506,8 +506,9 @@ pacote inteiro.
 1. **3.1 — Índice v2 — concluída na v4.95.0:** gerador, schema, aliases,
    chunks e testes determinísticos. O pacote mantém `index-v1.json` como
    contingência e ainda não usa o índice v2 para compor respostas.
-2. **3.2 — Retrieval em shadow mode:** executar ranking local, mas manter o
-   contexto atual da LLM; registrar somente métricas agregadas.
+2. **3.2 — Retrieval em shadow mode — concluída na v4.96.0:** executar ranking
+   local, mas manter o contexto atual da LLM; registrar somente métricas
+   agregadas.
 3. **3.3 — Citações e inspeção:** exibir fontes utilizadas e criar relatório de
    retrieval para homologação, sem conteúdo sensível.
 4. **3.4 — Ativação controlada:** habilitar evidências no prompt somente depois
@@ -1056,6 +1057,23 @@ Escopo implementado na release v4.95.0:
 - carregamento e validação rigorosa do índice v2, sem ativação no prompt
 - nenhuma nova stack, porta, dependência, mount ou ferramenta de escrita
 
+## Release incremental da subetapa 3.2
+
+Escopo implementado na release v4.96.0:
+
+- Setup MNO `4.96.0`
+- Control Center `1.4.0`
+- conhecimento canônico `1.2.1`
+- ranking BM25F local com configuração centralizada
+- filtros rígidos por versão, status, arquitetura e setup identificado
+- comparação x86/ARM em trilhas separadas e rotuladas
+- limites de 24 candidatos, seis chunks, dois por documento e 12 mil caracteres
+- fallback automático para `index-v1.json`
+- feature flag `RETRIEVAL_SHADOW_ENABLED`, ativa somente na stack isolada
+- métricas agregadas de latência, candidatos, resultados, confiança e fallback
+- nenhuma pergunta, resposta, alias identificado ou conteúdo registrado
+- contexto e payload enviados à LLM permanecem inalterados
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico
@@ -1069,10 +1087,9 @@ Escopo implementado na release v4.95.0:
 
 ## Próxima ação
 
-Homologar os artefatos da subetapa **3.1 — Índice v2**. Após aprovação
-explícita, implementar somente a subetapa **3.2 — Retrieval em shadow mode**,
-mantendo o contexto atual enviado à LLM e registrando apenas métricas
-agregadas.
+Homologar as métricas da subetapa **3.2 — Retrieval em shadow mode**. Após
+aprovação explícita, implementar somente a subetapa
+**3.3 — Citações e inspeção**, sem ativar ainda as evidências no prompt.
 
 ## Referências oficiais
 

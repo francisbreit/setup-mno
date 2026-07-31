@@ -80,12 +80,26 @@ grep -Fq 'COPY --from=builder /src/knowledge-package /knowledge-package' \
     printf 'ERRO: a imagem final não contém o pacote de conhecimento somente leitura.\n' >&2
     exit 1
 }
+grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go ./' \
+    "$project_dir/Dockerfile" || {
+    printf 'ERRO: o build não inclui o recuperador local versionado.\n' >&2
+    exit 1
+}
 grep -Fq '//go:embed knowledge-package/*' "$project_dir/knowledge.go" || {
     printf 'ERRO: o fallback de conhecimento não está embutido no binário.\n' >&2
     exit 1
 }
 grep -Fq 'install -m 0644 "$runtime_knowledge_dir/manifest.json"' "$template" || {
     printf 'ERRO: o instalador não copia o conhecimento runtime validado para o build.\n' >&2
+    exit 1
+}
+grep -Fq -- '- RETRIEVAL_SHADOW_ENABLED=true' "$template" || {
+    printf 'ERRO: retrieval shadow não está habilitado na stack isolada do Assistente.\n' >&2
+    exit 1
+}
+grep -Fq 'install -m 0644 "$runtime_catalog" "$work_dir/source/catalog.json"' \
+    "$template" || {
+    printf 'ERRO: o catálogo validado precisa permanecer fora do bundle SHC.\n' >&2
     exit 1
 }
 
@@ -166,11 +180,15 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
     cd "$project_dir"
     tar -cf - \
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
-        main.go knowledge.go catalog.json web |
+        main.go knowledge.go retrieval.go web |
         gzip -9n >"$bundle"
 )
 if tar -tzf "$bundle" | grep -q '^knowledge-package/'; then
     printf 'ERRO: arquivos compactados não podem ser incorporados ao Base64 protegido pelo SHC.\n' >&2
+    exit 1
+fi
+if tar -tzf "$bundle" | grep -qx 'catalog.json'; then
+    printf 'ERRO: o catálogo deve ser fornecido pelo pacote runtime, não pelo Base64 protegido pelo SHC.\n' >&2
     exit 1
 fi
 base64 -w 76 "$bundle" >"$temporary_dir/bundle.b64"
