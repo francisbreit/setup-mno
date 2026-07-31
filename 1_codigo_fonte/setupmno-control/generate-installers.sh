@@ -111,7 +111,7 @@ grep -Fq 'COPY --from=builder /src/knowledge-package /knowledge-package' \
 }
 grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go ./' \
     "$project_dir/Dockerfile" || {
-    printf 'ERRO: o build não inclui retrieval, roteador e registro de prompts.\n' >&2
+    printf 'ERRO: o build não inclui retrieval, roteador, prompts e recomendação de Blueprints.\n' >&2
     exit 1
 }
 grep -Eq 'assistantPromptRegistryVersion[[:space:]]*=[[:space:]]*"1.0.0"' "$project_dir/prompts.go" &&
@@ -283,9 +283,14 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
     tar -cf - \
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
         terminal-menu.sh configure-control.sh \
-        main.go knowledge.go retrieval.go routing.go prompts.go web |
+        main.go knowledge.go retrieval.go routing.go prompts.go \
+        blueprint_recommendation.go web |
         gzip -9n >"$bundle"
 )
+if ! tar -tzf "$bundle" | grep -Fx 'blueprint_recommendation.go' >/dev/null; then
+    printf 'ERRO: bundle de fontes sem o recomendador contextual de Blueprints.\n' >&2
+    exit 1
+fi
 if tar -tzf "$bundle" | grep -q '^knowledge-package/'; then
     printf 'ERRO: arquivos compactados não podem ser incorporados ao Base64 protegido pelo SHC.\n' >&2
     exit 1
