@@ -42,7 +42,7 @@ required_environment=(
 )
 for variable_name in "${required_environment[@]}"; do
     [ -n "${!variable_name:-}" ] || {
-        msg "Esta instalação não possui os metadados seguros necessários para reconfiguração.\n\nReinstale ou atualize o Control Center pela versão 4.97.0."
+        msg "Esta instalação não possui os metadados seguros necessários para reconfiguração.\n\nReinstale ou atualize o Control Center pela versão 4.98.0."
         exit 1
     }
 done
@@ -316,6 +316,7 @@ services:
       - ASSISTANT_BASE_URL=$base_url
       - KNOWLEDGE_PACKAGE_DIR=/knowledge-package
       - RETRIEVAL_SHADOW_ENABLED=true
+      - RETRIEVAL_INSPECTION_ENABLED=true
       - AGENT_TOKEN_FILE=/run/secrets/$agent_secret
       - AGENT_URL=http://${SETUPMNO_CONTROL_AGENT_SERVICE}:9090
 EOF

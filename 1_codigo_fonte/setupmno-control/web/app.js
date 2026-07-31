@@ -389,6 +389,10 @@ async function askAssistant(event) {
 }
 
 async function streamAssistant(question, history, target, basic, fallbackReason = "") {
+  clearRetrievalInspection(target);
+  updateRetrievalSummary(null, basic
+    ? "Resposta local: o RAG não foi executado."
+    : "Recuperando candidatos canônicos...");
   const response = await fetch("/api/assistant", {
     method: "POST",
     credentials: "same-origin",
@@ -431,6 +435,8 @@ async function streamAssistant(question, history, target, basic, fallbackReason 
         target.dataset.catalogEntries = String(event.data.catalogEntries || "");
         target.dataset.fallbackReason = event.data.fallbackReason || "";
         updateAssistantRuntime(event.data);
+      } else if (event.type === "retrieval") {
+        renderRetrievalInspection(target, event.data);
       } else if (event.type === "delta") {
         answer += event.data.delta || "";
         renderAssistantContent(content, answer);
@@ -444,6 +450,45 @@ async function streamAssistant(question, history, target, basic, fallbackReason 
   }
   if (!answer.trim()) throw new Error("o assistente não retornou texto");
   return answer.trim();
+}
+
+function clearRetrievalInspection(target) {
+  target.querySelector(".retrieval-inspection")?.remove();
+}
+
+function updateRetrievalSummary(inspection, message = "") {
+  const summary = $("rag-inspection-summary");
+  const status = $("rag-inspection-status");
+  if (!summary || !status) return;
+  if (!inspection) {
+    summary.textContent = message || "Aguardando uma consulta ao Copiloto.";
+    status.innerHTML = "<i></i> Shadow mode";
+    return;
+  }
+  const sources = Array.isArray(inspection.evidence) ? inspection.evidence.length : 0;
+  const confidence = confidenceLabel(inspection.confidence);
+  summary.textContent = `${confidence} · ${sources} fonte${sources === 1 ? "" : "s"} · ${Number(inspection.durationMs) || 0} ms`;
+  status.innerHTML = `<i></i> ${inspection.knowledgeStale ? "Contingência" : "Canônico"}`;
+}
+
+function confidenceLabel(value) {
+  return { high: "Confiança alta", medium: "Confiança média", low: "Confiança baixa", none: "Sem correspondência" }[value] || "Confiança não informada";
+}
+
+function renderRetrievalInspection(target, inspection) {
+  if (!inspection || inspection.mode !== "shadow" || inspection.usedInAnswer !== false) return;
+  clearRetrievalInspection(target);
+  updateRetrievalSummary(inspection);
+  const evidence = Array.isArray(inspection.evidence) ? inspection.evidence.slice(0, 6) : [];
+  const details = document.createElement("details");
+  details.className = "retrieval-inspection";
+  const sourceLabel = `${evidence.length} fonte${evidence.length === 1 ? "" : "s"}`;
+  const items = evidence.map(item => {
+    const hash = String(item.contentSHA256 || "").slice(0, 12);
+    return `<li><strong>${Number(item.rank) || "—"}. ${escapeHTML(item.title || item.documentId || "Documento canônico")}</strong><span>${escapeHTML(item.heading || "Seção geral")}</span><p>${escapeHTML(item.excerpt || "Trecho não disponível.")}</p><small>${escapeHTML(item.documentId || "documento")} · v${escapeHTML(item.documentVersion || "N/I")} · ${escapeHTML(item.targetArchitecture || "geral")} · ${escapeHTML(item.status || "N/I")}${hash ? ` · SHA ${escapeHTML(hash)}` : ""}</small></li>`;
+  }).join("");
+  details.innerHTML = `<summary>Evidências RAG · ${escapeHTML(confidenceLabel(inspection.confidence))} · ${sourceLabel}</summary><div class="retrieval-notice"><strong>Shadow mode · não usado na resposta</strong><span>Ranking ${escapeHTML(inspection.version || "N/I")} · conhecimento ${escapeHTML(inspection.knowledgeVersion || "N/I")} · filtro ${escapeHTML(inspection.filterType || "N/I")} · ${Number(inspection.candidateCount) || 0} candidatos</span></div>${items ? `<ol>${items}</ol>` : `<p class="retrieval-empty">Nenhuma fonte canônica foi selecionada para esta consulta.</p>`}`;
+  target.querySelector(".message-content")?.parentElement.append(details);
 }
 
 function parseSSEBlock(block) {

@@ -50,6 +50,19 @@ backups, segurança, observabilidade, integrações e deploys. A interface comun
 esse foco antes da pergunta e os conectores redirecionam consultas alheias ao
 domínio, em vez de atuarem como assistentes generalistas.
 
+### Inspeção do retrieval
+
+Com um provedor configurado, o ranking local continua em shadow mode e emite
+um relatório efêmero para a resposta atual. A interface mostra até seis
+candidatos canônicos com documento, seção, versão, arquitetura, estado, hash e
+trecho limitado, além de confiança, duração e contagens do retrieval.
+
+O relatório não contém a pergunta, histórico, contexto operacional ou score
+bruto. Ele permanece somente na sessão do navegador. Nesta subetapa as
+evidências não são enviadas à LLM nem usadas para gerar a resposta; a interface
+declara essa limitação de forma explícita. Modo básico e contingência local não
+executam o RAG.
+
 ## Central de Configurações
 
 A área Configurações aparece abaixo de Auditoria e exibe somente dados não
@@ -94,6 +107,10 @@ Para preservar a compatibilidade com SHC, arquivos compactados não são
 incorporados ao Base64 do script `setupmno_control.sh`. O pacote promovido e
 validado em `.control/knowledge-package/` é copiado para o contexto temporário
 do build, mantendo o mesmo SHA-256 no runtime, na imagem e no fallback Go.
+O bundle compilável do painel segue a mesma regra: `control-source.tar.gz`
+permanece em `.control-package/`, possui hash e tamanho no manifesto, é
+promovido atomicamente para `.control/` e validado novamente pelo instalador.
+Assim, o script protegido pelo SHC não carrega arquivos compactados ou Base64.
 
 O modo básico continua sem LLM e sem stack adicional. O pacote não concede ao
 Assistente socket Docker, shell, terminal, mount do host ou capacidade de
@@ -105,6 +122,7 @@ O Setup publica atomicamente em `/root/SetupLowCodeMno/.control/`:
 
 - `release.json`: versão instalada, arquitetura, schema, quantidade e SHA-256;
 - `catalog.json`: catálogo correspondente à release.
+- `control-source.tar.gz`: fontes compiláveis do painel, externos ao SHC;
 - `knowledge-package/manifest.json`: manifesto validado do conhecimento;
 - `knowledge-package/knowledge-package.tar.gz`: pacote canônico reproduzível.
 

@@ -269,17 +269,18 @@ type assistantContext struct {
 }
 
 type assistantService struct {
-	provider    string
-	model       string
-	baseURL     string
-	apiKey      string
-	agentURL    string
-	agentToken  string
-	httpClient  *http.Client
-	agentClient *http.Client
-	knowledge   knowledgePackageState
-	retriever   *knowledgeRetriever
-	shadowMode  bool
+	provider       string
+	model          string
+	baseURL        string
+	apiKey         string
+	agentURL       string
+	agentToken     string
+	httpClient     *http.Client
+	agentClient    *http.Client
+	knowledge      knowledgePackageState
+	retriever      *knowledgeRetriever
+	shadowMode     bool
+	inspectionMode bool
 
 	retrievalMu    sync.Mutex
 	retrievalStats retrievalAggregate
@@ -533,6 +534,10 @@ func runAssistant() error {
 		envDefault("RETRIEVAL_SHADOW_ENABLED", "false"),
 		"true",
 	)
+	inspectionMode := shadowMode && strings.EqualFold(
+		envDefault("RETRIEVAL_INSPECTION_ENABLED", "false"),
+		"true",
+	)
 	var retriever *knowledgeRetriever
 	if shadowMode {
 		retriever, err = newKnowledgeRetriever(knowledge)
@@ -541,17 +546,18 @@ func runAssistant() error {
 		}
 	}
 	service := &assistantService{
-		provider:    provider,
-		model:       model,
-		baseURL:     baseURL,
-		apiKey:      apiKey,
-		agentURL:    strings.TrimRight(envDefault("AGENT_URL", "http://agent:9090"), "/"),
-		agentToken:  string(agentToken),
-		httpClient:  &http.Client{Timeout: 2 * time.Minute},
-		agentClient: &http.Client{Timeout: 12 * time.Second},
-		knowledge:   knowledge,
-		retriever:   retriever,
-		shadowMode:  shadowMode,
+		provider:       provider,
+		model:          model,
+		baseURL:        baseURL,
+		apiKey:         apiKey,
+		agentURL:       strings.TrimRight(envDefault("AGENT_URL", "http://agent:9090"), "/"),
+		agentToken:     string(agentToken),
+		httpClient:     &http.Client{Timeout: 2 * time.Minute},
+		agentClient:    &http.Client{Timeout: 12 * time.Second},
+		knowledge:      knowledge,
+		retriever:      retriever,
+		shadowMode:     shadowMode,
+		inspectionMode: inspectionMode,
 	}
 	zero(agentToken)
 	if err := service.validateProvider(); err != nil {
@@ -581,9 +587,10 @@ func runAssistant() error {
 			"knowledgeStale":   service.knowledge.Stale,
 			"knowledgeEntries": service.knowledge.Manifest.DocumentEntries,
 			"retrievalShadow": map[string]any{
-				"enabled": service.shadowMode,
-				"version": service.knowledge.Manifest.RetrievalVersion,
-				"metrics": service.retrievalSnapshot(),
+				"enabled":    service.shadowMode,
+				"inspection": service.inspectionMode,
+				"version":    service.knowledge.Manifest.RetrievalVersion,
+				"metrics":    service.retrievalSnapshot(),
 			},
 		})
 	})
@@ -599,9 +606,10 @@ func runAssistant() error {
 		MaxHeaderBytes:    32 << 10,
 	}
 	log.Printf(
-		"Assistente MNO iniciado na porta 7070 com provedor %s e retrieval shadow=%t",
+		"Assistente MNO iniciado na porta 7070 com provedor %s, retrieval shadow=%t e inspeção=%t",
 		provider,
 		shadowMode,
+		inspectionMode,
 	)
 	return server.ListenAndServe()
 }
@@ -687,6 +695,7 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, "contexto operacional indisponível")
 		return
 	}
+	var inspection *retrievalInspection
 	if s.shadowMode && s.retriever != nil {
 		shadow := s.retriever.retrieve(
 			input.Question,
@@ -694,6 +703,15 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 			contextData.Architecture,
 		)
 		s.recordRetrieval(shadow.Metrics)
+		if s.inspectionMode {
+			snapshot := buildRetrievalInspection(
+				shadow,
+				contextData.SetupVersion,
+				s.knowledge.Source,
+				s.knowledge.Stale,
+			)
+			inspection = &snapshot
+		}
 	}
 
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
@@ -708,6 +726,9 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 		"knowledgeStale":   s.knowledge.Stale,
 		"knowledgeEntries": s.knowledge.Manifest.DocumentEntries,
 	})
+	if inspection != nil {
+		sendSSE(w, "retrieval", inspection)
+	}
 
 	if err := s.streamProvider(r.Context(), w, input, contextData); err != nil {
 		sendSSE(w, "error", map[string]any{

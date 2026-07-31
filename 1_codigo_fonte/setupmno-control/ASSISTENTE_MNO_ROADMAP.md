@@ -253,7 +253,7 @@ pelos testes da release.
 
 ## Etapa 3 — RAG Híbrido Local
 
-**Status:** subetapas 3.1 e 3.2 implementadas; subetapas 3.3 e 3.4 pendentes
+**Status:** subetapas 3.1, 3.2 e 3.3 implementadas; subetapa 3.4 pendente
 **Impacto:** crítico para a qualidade
 **Tipo:** IA, desempenho e confiabilidade
 **Esforço:** estrutural
@@ -509,8 +509,9 @@ pacote inteiro.
 2. **3.2 — Retrieval em shadow mode — concluída na v4.96.0:** executar ranking
    local, mas manter o contexto atual da LLM; registrar somente métricas
    agregadas.
-3. **3.3 — Citações e inspeção:** exibir fontes utilizadas e criar relatório de
-   retrieval para homologação, sem conteúdo sensível.
+3. **3.3 — Citações e inspeção — concluída na v4.98.0:** exibir candidatos
+   recuperados e criar relatório efêmero para homologação, sem conteúdo
+   sensível e sem enviar as evidências à LLM.
 4. **3.4 — Ativação controlada:** habilitar evidências no prompt somente depois
    dos thresholds da Etapa 6.
 
@@ -1101,6 +1102,25 @@ Escopo implementado na release v4.97.0:
 - rotação versionada de secrets, healthcheck e rollback em falhas
 - painel web e Assistente permanecem sem Docker socket, shell ou API de escrita
 
+## Release incremental da subetapa 3.3
+
+Escopo implementado na release v4.98.0:
+
+- Setup MNO `4.98.0`
+- Control Center `1.6.0`
+- conhecimento canônico `1.3.1`
+- evento SSE efêmero de inspeção, protegido pelo mesmo proxy autenticado
+- feature flag `RETRIEVAL_INSPECTION_ENABLED` na stack isolada do Assistente
+- documento, seção, versão, arquitetura, estado, hash e trecho canônico limitado
+- confiança, duração, candidatos e resultados visíveis para homologação
+- no máximo seis fontes e 360 caracteres por trecho
+- nenhuma pergunta, histórico, contexto operacional ou score bruto no relatório
+- indicação explícita de que o ranking permanece em shadow mode
+- evidências continuam fora do prompt e não influenciam a resposta da LLM
+- bundle compilável externalizado em `control-source.tar.gz`, com hash, tamanho
+  e promoção atômica, preservando ampla margem abaixo do limite do SHC
+- nenhuma nova stack, porta, secret, mount, socket ou ferramenta de escrita
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico
@@ -1114,9 +1134,10 @@ Escopo implementado na release v4.97.0:
 
 ## Próxima ação
 
-Homologar as métricas da subetapa **3.2 — Retrieval em shadow mode**. Após
-aprovação explícita, implementar somente a subetapa
-**3.3 — Citações e inspeção**, sem ativar ainda as evidências no prompt.
+Homologar a inspeção da subetapa **3.3 — Citações e inspeção** com consultas
+conhecidas, comparação de arquitetura, ausência de correspondência e fallback.
+Somente depois dos thresholds e evals da Etapa 6 avaliar a subetapa
+**3.4 — Ativação controlada** das evidências no prompt.
 
 ## Referências oficiais
 

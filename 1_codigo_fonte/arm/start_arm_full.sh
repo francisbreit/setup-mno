@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="4.97.0"
+VERSIONSETUP="4.98.0"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -240,11 +240,13 @@ control_package="/root/SetupLowCodeMno/.control-package"
 control_target="/root/SetupLowCodeMno/.control"
 if [ ! -s "$control_package/release.json" ] ||
    [ ! -s "$control_package/catalog.json" ] ||
+   [ ! -f "$control_package/control-source.tar.gz" ] ||
+   [ -L "$control_package/control-source.tar.gz" ] ||
    [ ! -f "$control_package/knowledge-package/manifest.json" ] ||
    [ -L "$control_package/knowledge-package/manifest.json" ] ||
    [ ! -f "$control_package/knowledge-package/knowledge-package.tar.gz" ] ||
    [ -L "$control_package/knowledge-package/knowledge-package.tar.gz" ]; then
-    printf 'O pacote não contém o catálogo e o conhecimento runtime do Control Center.\n' >"$control_state_error"
+    printf 'O pacote não contém o catálogo, os fontes e o conhecimento runtime do Control Center.\n' >"$control_state_error"
     exit 40
 fi
 control_schema=$(jq -r '.schemaVersion // 0' "$control_package/release.json" 2>/dev/null)
@@ -252,6 +254,11 @@ control_version=$(jq -r '.setupVersion // empty' "$control_package/release.json"
 control_arch=$(jq -r '.architecture // empty' "$control_package/release.json" 2>/dev/null)
 control_expected_sha=$(jq -r '.catalogSHA256 // empty' "$control_package/release.json" 2>/dev/null)
 control_actual_sha=$(sha256sum "$control_package/catalog.json" | awk '{print $1}')
+control_source_archive="$control_package/control-source.tar.gz"
+control_source_expected_sha=$(jq -r '.controlSourceSHA256 // empty' "$control_package/release.json" 2>/dev/null)
+control_source_expected_bytes=$(jq -r '.controlSourceBytes // 0' "$control_package/release.json" 2>/dev/null)
+control_source_actual_sha=$(sha256sum "$control_source_archive" | awk '{print $1}')
+control_source_actual_bytes=$(stat -c '%s' "$control_source_archive" 2>/dev/null)
 knowledge_manifest="$control_package/knowledge-package/manifest.json"
 knowledge_archive="$control_package/knowledge-package/knowledge-package.tar.gz"
 knowledge_schema=$(jq -r '.schemaVersion // 0' "$knowledge_manifest" 2>/dev/null)
@@ -269,6 +276,16 @@ if [ "$control_schema" != "1" ] ||
    [ "$control_arch" != "arm64" ] ||
    [ -z "$control_expected_sha" ] ||
    [ "$control_expected_sha" != "$control_actual_sha" ] ||
+   [ -z "$control_source_expected_sha" ] ||
+   [ "$control_source_expected_sha" != "$control_source_actual_sha" ] ||
+   [ "$control_source_expected_bytes" != "$control_source_actual_bytes" ] ||
+   [ "$control_source_actual_bytes" -le 0 ] ||
+   [ "$control_source_actual_bytes" -gt $((2 * 1024 * 1024)) ] ||
+   ! tar -tzf "$control_source_archive" >/dev/null 2>&1 ||
+   ! tar -tvzf "$control_source_archive" 2>/dev/null |
+       awk 'substr($1, 1, 1) != "-" && substr($1, 1, 1) != "d" { exit 1 }' ||
+   ! tar -tzf "$control_source_archive" 2>/dev/null |
+       awk '/^\// || /(^|\/)\.\.(\/|$)/ { exit 1 }' ||
    [ "$knowledge_schema" != "1" ] ||
    [ -z "$knowledge_version" ] ||
    [ "$knowledge_setup_version" != "$VERSIONSETUP" ] ||
@@ -289,11 +306,13 @@ mkdir -p "$control_target"
 mkdir -p "$control_target/knowledge-package"
 install -m 0644 "$control_package/catalog.json" "$control_target/catalog.json.tmp"
 install -m 0644 "$control_package/release.json" "$control_target/release.json.tmp"
+install -m 0644 "$control_source_archive" "$control_target/control-source.tar.gz.tmp"
 install -m 0644 "$knowledge_archive" \
     "$control_target/knowledge-package/knowledge-package.tar.gz.tmp"
 install -m 0644 "$knowledge_manifest" \
     "$control_target/knowledge-package/manifest.json.tmp"
 mv -f "$control_target/catalog.json.tmp" "$control_target/catalog.json"
+mv -f "$control_target/control-source.tar.gz.tmp" "$control_target/control-source.tar.gz"
 mv -f "$control_target/knowledge-package/knowledge-package.tar.gz.tmp" \
     "$control_target/knowledge-package/knowledge-package.tar.gz"
 mv -f "$control_target/knowledge-package/manifest.json.tmp" \

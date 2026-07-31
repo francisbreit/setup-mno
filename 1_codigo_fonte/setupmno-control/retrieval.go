@@ -15,6 +15,7 @@ const (
 	retrievalMaxResults    = 6
 	retrievalMaxPerDoc     = 2
 	retrievalMaxCharacters = 12000
+	retrievalExcerptRunes  = 360
 )
 
 var retrievalFieldWeights = map[string]float64{
@@ -57,9 +58,13 @@ type retrievalEvidence struct {
 	ChunkID            string
 	DocumentID         string
 	DocumentVersion    string
+	DocumentType       string
+	Status             string
+	Category           string
 	TargetArchitecture string
 	Title              string
 	Heading            string
+	ContentSHA256      string
 	Content            string
 	Score              float64
 }
@@ -67,6 +72,38 @@ type retrievalEvidence struct {
 type retrievalResult struct {
 	Metrics  retrievalMetrics
 	Evidence []retrievalEvidence
+}
+
+type retrievalCitation struct {
+	Rank               int    `json:"rank"`
+	ChunkID            string `json:"chunkId"`
+	DocumentID         string `json:"documentId"`
+	DocumentVersion    string `json:"documentVersion"`
+	DocumentType       string `json:"documentType"`
+	Status             string `json:"status"`
+	Category           string `json:"category"`
+	Title              string `json:"title"`
+	Heading            string `json:"heading"`
+	TargetArchitecture string `json:"targetArchitecture"`
+	ContentSHA256      string `json:"contentSHA256"`
+	Excerpt            string `json:"excerpt"`
+}
+
+type retrievalInspection struct {
+	Mode             string              `json:"mode"`
+	UsedInAnswer     bool                `json:"usedInAnswer"`
+	Version          string              `json:"version"`
+	KnowledgeVersion string              `json:"knowledgeVersion"`
+	KnowledgeSource  string              `json:"knowledgeSource"`
+	KnowledgeStale   bool                `json:"knowledgeStale"`
+	SetupVersion     string              `json:"setupVersion"`
+	DurationMS       int64               `json:"durationMs"`
+	CandidateCount   int                 `json:"candidateCount"`
+	ReturnedCount    int                 `json:"returnedCount"`
+	Confidence       string              `json:"confidence"`
+	FilterType       string              `json:"filterType"`
+	Fallback         bool                `json:"fallback"`
+	Evidence         []retrievalCitation `json:"evidence"`
 }
 
 type retrievalAggregate struct {
@@ -178,9 +215,13 @@ func (r *knowledgeRetriever) retrieve(
 				ChunkID:            candidate.chunk.ChunkID,
 				DocumentID:         candidate.chunk.DocumentID,
 				DocumentVersion:    candidate.chunk.DocumentVersion,
+				DocumentType:       candidate.chunk.DocumentType,
+				Status:             candidate.chunk.Status,
+				Category:           candidate.chunk.Category,
 				TargetArchitecture: architecture,
 				Title:              candidate.chunk.Title,
 				Heading:            candidate.chunk.Heading,
+				ContentSHA256:      candidate.chunk.ContentSHA256,
 				Content:            candidate.chunk.Content,
 				Score:              candidate.score,
 			})
@@ -334,6 +375,59 @@ func (r *knowledgeRetriever) retrieveLegacy(
 		Fallback:         true,
 		KnowledgeVersion: r.index.KnowledgeVersion,
 	}}
+}
+
+func buildRetrievalInspection(
+	result retrievalResult,
+	setupVersion string,
+	knowledgeSource string,
+	knowledgeStale bool,
+) retrievalInspection {
+	evidence := make([]retrievalCitation, 0, min(len(result.Evidence), retrievalMaxResults))
+	for index, item := range result.Evidence {
+		if index == retrievalMaxResults {
+			break
+		}
+		evidence = append(evidence, retrievalCitation{
+			Rank:               index + 1,
+			ChunkID:            item.ChunkID,
+			DocumentID:         item.DocumentID,
+			DocumentVersion:    item.DocumentVersion,
+			DocumentType:       item.DocumentType,
+			Status:             item.Status,
+			Category:           item.Category,
+			Title:              item.Title,
+			Heading:            item.Heading,
+			TargetArchitecture: item.TargetArchitecture,
+			ContentSHA256:      item.ContentSHA256,
+			Excerpt:            canonicalExcerpt(item.Content),
+		})
+	}
+	return retrievalInspection{
+		Mode:             "shadow",
+		UsedInAnswer:     false,
+		Version:          result.Metrics.Version,
+		KnowledgeVersion: result.Metrics.KnowledgeVersion,
+		KnowledgeSource:  knowledgeSource,
+		KnowledgeStale:   knowledgeStale,
+		SetupVersion:     setupVersion,
+		DurationMS:       result.Metrics.DurationMS,
+		CandidateCount:   result.Metrics.CandidateCount,
+		ReturnedCount:    result.Metrics.ReturnedCount,
+		Confidence:       result.Metrics.Confidence,
+		FilterType:       result.Metrics.FilterType,
+		Fallback:         result.Metrics.Fallback,
+		Evidence:         evidence,
+	}
+}
+
+func canonicalExcerpt(content string) string {
+	content = strings.Join(strings.Fields(content), " ")
+	runes := []rune(content)
+	if len(runes) <= retrievalExcerptRunes {
+		return content
+	}
+	return string(runes[:retrievalExcerptRunes]) + "…"
 }
 
 func (s *assistantService) recordRetrieval(metrics retrievalMetrics) {

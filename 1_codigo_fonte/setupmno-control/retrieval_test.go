@@ -149,6 +149,71 @@ func TestShadowMetricsContainNoQueryOrEvidence(t *testing.T) {
 	}
 }
 
+func TestRetrievalInspectionIsBoundedAndContainsOnlyCanonicalEvidence(t *testing.T) {
+	result := retrievalResult{
+		Metrics: retrievalMetrics{
+			Version:          "1.0.0",
+			DurationMS:       9,
+			CandidateCount:   12,
+			ReturnedCount:    8,
+			Confidence:       "high",
+			FilterType:       "setup+architecture",
+			KnowledgeVersion: "1.3.1",
+		},
+	}
+	for index := 0; index < 8; index++ {
+		result.Evidence = append(result.Evidence, retrievalEvidence{
+			ChunkID:            "documento#secao",
+			DocumentID:         "documento",
+			DocumentVersion:    "1.0.0",
+			DocumentType:       "setup",
+			Status:             "homologated",
+			Category:           "automacao",
+			TargetArchitecture: "amd64",
+			Title:              "Documento canônico",
+			Heading:            "Pré-requisitos",
+			ContentSHA256:      strings.Repeat("a", 64),
+			Content:            strings.Repeat("área segura ", 50),
+			Score:              99.9,
+		})
+	}
+	inspection := buildRetrievalInspection(result, "4.98.0", "image-read-only", false)
+	if inspection.Mode != "shadow" || inspection.UsedInAnswer ||
+		len(inspection.Evidence) != retrievalMaxResults {
+		t.Fatalf("snapshot de inspeção inválido: %#v", inspection)
+	}
+	for _, evidence := range inspection.Evidence {
+		if len([]rune(strings.TrimSuffix(evidence.Excerpt, "…"))) > retrievalExcerptRunes {
+			t.Fatalf("trecho excedeu %d runas", retrievalExcerptRunes)
+		}
+	}
+	serialized, err := json.Marshal(inspection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(serialized, &payload); err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"question", "query", "context", "history", "score"} {
+		if _, exists := payload[forbidden]; exists {
+			t.Fatalf("inspeção contém campo proibido %q", forbidden)
+		}
+	}
+	evidence, ok := payload["evidence"].([]any)
+	if !ok || len(evidence) == 0 {
+		t.Fatalf("evidências serializadas ausentes: %s", serialized)
+	}
+	for _, raw := range evidence {
+		item := raw.(map[string]any)
+		for _, forbidden := range []string{"content", "score", "question", "query"} {
+			if _, exists := item[forbidden]; exists {
+				t.Fatalf("evidência contém campo proibido %q: %s", forbidden, serialized)
+			}
+		}
+	}
+}
+
 func TestRetrievalTokenizerNormalizesPortugueseWithoutExpandingByLLM(t *testing.T) {
 	terms := retrievalQueryTerms("Pré-requisitos do N8N, memória e automação.")
 	joined := strings.Join(terms, ",")

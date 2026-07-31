@@ -97,6 +97,10 @@ grep -Fq -- '- RETRIEVAL_SHADOW_ENABLED=true' "$template" || {
     printf 'ERRO: retrieval shadow não está habilitado na stack isolada do Assistente.\n' >&2
     exit 1
 }
+grep -Fq -- '- RETRIEVAL_INSPECTION_ENABLED=true' "$template" || {
+    printf 'ERRO: inspeção segura do retrieval não está habilitada na stack isolada do Assistente.\n' >&2
+    exit 1
+}
 grep -Fq 'install -m 0644 "$runtime_catalog" "$work_dir/source/catalog.json"' \
     "$template" || {
     printf 'ERRO: o catálogo validado precisa permanecer fora do bundle SHC.\n' >&2
@@ -232,19 +236,16 @@ if tar -tzf "$bundle" | grep -qx 'catalog.json'; then
     printf 'ERRO: o catálogo deve ser fornecido pelo pacote runtime, não pelo Base64 protegido pelo SHC.\n' >&2
     exit 1
 fi
-base64 -w 76 "$bundle" >"$temporary_dir/bundle.b64"
+bundle_sha=$(sha256sum "$bundle" | awk '{print $1}')
+bundle_bytes=$(stat -c '%s' "$bundle")
+[ "$bundle_bytes" -gt 0 ] && [ "$bundle_bytes" -le $((2 * 1024 * 1024)) ] || {
+    printf 'ERRO: bundle de fontes do Control Center fora do limite seguro.\n' >&2
+    exit 1
+}
 
 generate_target() {
     local target="$1"
-    awk -v bundle_file="$temporary_dir/bundle.b64" '
-        /^__SETUPMNO_CONTROL_BUNDLE__$/ {
-            while ((getline line < bundle_file) > 0) print line
-            close(bundle_file)
-            next
-        }
-        { print }
-    ' "$template" >"$target"
-    chmod 0755 "$target"
+    install -m 0755 "$template" "$target"
 }
 
 generate_target "$x86_target"
@@ -326,6 +327,7 @@ generate_runtime_package() {
     local target="$1" architecture="$2" temporary_manifest
     mkdir -p "$target"
     install -m 0644 "$project_dir/catalog.json" "$target/catalog.json"
+    install -m 0644 "$bundle" "$target/control-source.tar.gz"
     mkdir -p "$target/knowledge-package"
     install -m 0644 "$knowledge_package/manifest.json" \
         "$target/knowledge-package/manifest.json"
@@ -338,8 +340,10 @@ generate_runtime_package() {
         --arg architecture "$architecture" \
         --arg knowledge_version "$knowledge_version" \
         --arg knowledge_archive_sha "$knowledge_archive_sha" \
+        --arg control_source_sha "$bundle_sha" \
         --argjson catalog_entries "$catalog_entries" \
         --argjson knowledge_entries "$knowledge_entries" \
+        --argjson control_source_bytes "$bundle_bytes" \
         '{
             schemaVersion: 1,
             setupVersion: $setup_version,
@@ -347,6 +351,8 @@ generate_runtime_package() {
             catalogSHA256: $catalog_sha,
             catalogEntries: $catalog_entries,
             architecture: $architecture,
+            controlSourceSHA256: $control_source_sha,
+            controlSourceBytes: $control_source_bytes,
             knowledgeVersion: $knowledge_version,
             knowledgeArchiveSHA256: $knowledge_archive_sha,
             knowledgeEntries: $knowledge_entries
@@ -362,6 +368,20 @@ cmp -s "$x86_runtime_package/knowledge-package/manifest.json" \
     "$arm_runtime_package/knowledge-package/manifest.json"
 cmp -s "$x86_runtime_package/knowledge-package/knowledge-package.tar.gz" \
     "$arm_runtime_package/knowledge-package/knowledge-package.tar.gz"
+cmp -s "$x86_runtime_package/control-source.tar.gz" \
+    "$arm_runtime_package/control-source.tar.gz"
+for runtime_package in "$x86_runtime_package" "$arm_runtime_package"; do
+    packaged_source_sha=$(sha256sum "$runtime_package/control-source.tar.gz" | awk '{print $1}')
+    packaged_source_bytes=$(stat -c '%s' "$runtime_package/control-source.tar.gz")
+    manifest_source_sha=$(jq -r '.controlSourceSHA256 // empty' "$runtime_package/release.json")
+    manifest_source_bytes=$(jq -r '.controlSourceBytes // 0' "$runtime_package/release.json")
+    [ "$packaged_source_sha" = "$manifest_source_sha" ] &&
+    [ "$packaged_source_bytes" = "$manifest_source_bytes" ] || {
+        printf 'ERRO: bundle de fontes diverge do manifesto runtime em %s.\n' \
+            "$runtime_package" >&2
+        exit 1
+    }
+done
 
 printf 'Instaladores x86/ARM e manifestos runtime v%s gerados (%s setups, %s documentos).\n' \
     "$x86_version" "$catalog_entries" "$knowledge_entries"

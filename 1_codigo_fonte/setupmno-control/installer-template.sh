@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="1.5.0"
+CONTROL_VERSION="1.6.0"
 
 if [ "${SETUPMNO_SHC_SMOKE_TEST:-0}" = "1" ]; then
     printf '%s\n' "setupmno-control-shc-ok"
@@ -11,9 +11,19 @@ if [ "${SETUPMNO_SHC_SMOKE_TEST:-0}" = "1" ]; then
 fi
 
 extract_control_bundle() {
-    base64 -d <<'SETUPMNO_CONTROL_ARCHIVE'
-__SETUPMNO_CONTROL_BUNDLE__
-SETUPMNO_CONTROL_ARCHIVE
+    local archive="/root/SetupLowCodeMno/.control/control-source.tar.gz"
+    local release="/root/SetupLowCodeMno/.control/release.json"
+    local expected_sha expected_bytes actual_sha actual_bytes
+    [ -f "$archive" ] && [ ! -L "$archive" ] && [ -f "$release" ] &&
+    [ ! -L "$release" ] || return 1
+    expected_sha=$(jq -r '.controlSourceSHA256 // empty' "$release")
+    expected_bytes=$(jq -r '.controlSourceBytes // 0' "$release")
+    actual_sha=$(sha256sum "$archive" | awk '{print $1}')
+    actual_bytes=$(stat -c '%s' "$archive")
+    [ -n "$expected_sha" ] && [ "$expected_sha" = "$actual_sha" ] &&
+    [ "$expected_bytes" = "$actual_bytes" ] &&
+    [ "$actual_bytes" -le $((2 * 1024 * 1024)) ] || return 1
+    cat "$archive"
 }
 
 INSTALL_TYPE_FILE="/root/.cloudflared_config/installation_type"
@@ -341,7 +351,7 @@ error_file="/tmp/${nome_app}-error.log"
     }
 
     echo -e "XXX\n4\nVALIDANDO AMBIENTE... \nXXX"
-    for required_command in docker curl jq base64 tar openssl; do
+    for required_command in docker curl jq tar openssl; do
         command -v "$required_command" >/dev/null 2>&1 ||
             fail_install 10 "DEPENDÊNCIA NÃO ENCONTRADA" "O comando obrigatório '$required_command' não está instalado."
     done
@@ -675,6 +685,7 @@ services:
       - ASSISTANT_BASE_URL=$assistant_base_url
       - KNOWLEDGE_PACKAGE_DIR=/knowledge-package
       - RETRIEVAL_SHADOW_ENABLED=true
+      - RETRIEVAL_INSPECTION_ENABLED=true
       - AGENT_TOKEN_FILE=/run/secrets/$agent_secret
       - AGENT_URL=http://${agent_stack}_${agent_service}:9090
 EOL
