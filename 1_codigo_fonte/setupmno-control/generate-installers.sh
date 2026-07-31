@@ -38,6 +38,35 @@ unhandled_collectors=$(grep -E '^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*=\$\(ask_' "$
     exit 1
 }
 
+route_check_function=$(awk '/^check_cloudflare_route\(\)/,/^}/' "$template")
+grep -Fq -- '--connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT"' <<<"$route_check_function" || {
+    printf 'ERRO: verificação inicial do Cloudflare sem timeout de conexão.\n' >&2
+    exit 1
+}
+grep -Fq -- '--max-time "$CLOUDFLARE_MAX_TIME"' <<<"$route_check_function" || {
+    printf 'ERRO: verificação inicial do Cloudflare sem limite total.\n' >&2
+    exit 1
+}
+grep -Fq -- '--gauge' <<<"$route_check_function" || {
+    printf 'ERRO: verificação inicial do Cloudflare sem progresso Whiptail visível.\n' >&2
+    exit 1
+}
+grep -Fq '.success == true and (.result.config.ingress | type == "array")' \
+    <<<"$route_check_function" || {
+    printf 'ERRO: resposta inicial do Cloudflare não é validada.\n' >&2
+    exit 1
+}
+grep -Fq 'if ! check_cloudflare_route "$route_check"; then' "$template" || {
+    printf 'ERRO: fluxo pós-URL não usa a verificação protegida do Cloudflare.\n' >&2
+    exit 1
+}
+[ "$(grep -Fc -- '--connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT"' "$template")" -eq 5 ] &&
+[ "$(grep -Fc -- '--max-time "$CLOUDFLARE_MAX_TIME"' "$template")" -eq 5 ] || {
+    printf 'ERRO: chamadas Cloudflare sem limites de rede uniformes.\n' >&2
+    exit 1
+}
+bash "$project_dir/installer-template_test.sh"
+
 grep -Fq -- '- /root/SetupLowCodeMno/.control:/runtime-control:ro' "$template" || {
     printf 'ERRO: o agente precisa montar somente o estado runtime do Control Center.\n' >&2
     exit 1

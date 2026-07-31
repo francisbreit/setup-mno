@@ -3,7 +3,9 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="1.7.0"
+CONTROL_VERSION="1.7.1"
+CLOUDFLARE_CONNECT_TIMEOUT=10
+CLOUDFLARE_MAX_TIME=30
 
 if [ "${SETUPMNO_SHC_SMOKE_TEST:-0}" = "1" ]; then
     printf '%s\n' "setupmno-control-shc-ok"
@@ -133,6 +135,63 @@ ask_password() {
     done
 }
 
+check_cloudflare_route() {
+    local output_file="$1" status_file error_file curl_status
+    status_file=$(mktemp) || {
+        msg "Não foi possível preparar a verificação segura do Cloudflare Tunnel."
+        return 1
+    }
+    error_file=$(mktemp) || {
+        rm -f "$status_file"
+        msg "Não foi possível preparar a verificação segura do Cloudflare Tunnel."
+        return 1
+    }
+
+    {
+        echo -e "XXX\n10\nCONECTANDO À API DO CLOUDFLARE...\nXXX"
+        if curl -sS \
+            --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
+            --max-time "$CLOUDFLARE_MAX_TIME" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+            >"$output_file" 2>"$error_file"; then
+            printf '0\n' >"$status_file"
+        else
+            printf '%s\n' "$?" >"$status_file"
+        fi
+        echo -e "XXX\n100\nVERIFICAÇÃO DO CLOUDFLARE CONCLUÍDA\nXXX"
+    } | whiptail --title "SETUP MNO CONTROL CENTER" --gauge \
+        "Verificando o domínio informado..." 8 78 0
+
+    curl_status=$(cat "$status_file" 2>/dev/null)
+    rm -f "$status_file" "$error_file"
+    case "$curl_status" in
+        0) ;;
+        6)
+            msg "Não foi possível resolver api.cloudflare.com. Verifique o DNS e a conexão do servidor."
+            return 1
+            ;;
+        7)
+            msg "Não foi possível conectar à API do Cloudflare. Verifique a conexão do servidor."
+            return 1
+            ;;
+        28)
+            msg "A API do Cloudflare não respondeu em até ${CLOUDFLARE_MAX_TIME} segundos. Nenhum recurso foi alterado. Tente novamente quando a conexão estiver estável."
+            return 1
+            ;;
+        *)
+            msg "Não foi possível consultar o Cloudflare Tunnel. Nenhum recurso foi alterado. Verifique a conexão e tente novamente."
+            return 1
+            ;;
+    esac
+
+    if ! jq -e '.success == true and (.result.config.ingress | type == "array")' \
+        "$output_file" >/dev/null 2>&1; then
+        msg "A Cloudflare recusou a consulta ou retornou uma resposta inválida. Verifique as credenciais do Tunnel. Nenhum recurso foi alterado."
+        return 1
+    fi
+}
+
 whiptail --title "SETUP MNO CONTROL CENTER" --yesno \
     "Instalar o painel web oficial do Setup MNO?\n\nO Control Center mostra aplicações instaladas, saúde do Docker Swarm, CPU, RAM, disco, catálogo de setups, auditoria, diagnóstico local e acesso autenticado ao instalador original." \
     16 82 || exit 0
@@ -149,14 +208,12 @@ while true; do
 done
 
 if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-    route_check=$(mktemp)
-    whiptail --title "SETUP MNO CONTROL CENTER" --infobox \
-        "Verificando se o domínio já possui uma rota no Cloudflare Tunnel..." 8 78
-    if ! curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-        "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
-        >"$route_check" 2>/dev/null; then
+    route_check=$(mktemp) || {
+        msg "Não foi possível preparar a verificação segura do Cloudflare Tunnel."
+        exit 1
+    }
+    if ! check_cloudflare_route "$route_check"; then
         rm -f "$route_check"
-        msg "Não foi possível consultar o Cloudflare Tunnel. Verifique as credenciais e tente novamente."
         exit 1
     fi
     existing_service=$(jq -r --arg host "$url_control" \
@@ -861,7 +918,10 @@ EOL
             --arg content "$dns_content" \
             --argjson proxied "$dns_proxied" \
             '{type:"CNAME",name:$name,content:$content,ttl:1,proxied:$proxied}')
-        if ! curl -sS --get \
+        if ! curl -sS \
+            --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
+            --max-time "$CLOUDFLARE_MAX_TIME" \
+            --get \
             "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             --data-urlencode "name=$url_control" >"$dns_lookup" 2>>"$install_log"; then
@@ -879,7 +939,10 @@ EOL
             dns_method="POST"
             dns_url="https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records"
         fi
-        if ! curl -sS -X "$dns_method" "$dns_url" \
+        if ! curl -sS \
+            --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
+            --max-time "$CLOUDFLARE_MAX_TIME" \
+            -X "$dns_method" "$dns_url" \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             -H "Content-Type: application/json" \
             --data "$dns_payload" >"$dns_response" 2>>"$install_log" ||
@@ -895,7 +958,10 @@ EOL
         tunnel_raw="$work_dir/tunnel-raw.json"
         tunnel_payload="$work_dir/tunnel-payload.json"
         tunnel_response="$work_dir/tunnel-response.json"
-        if ! curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+        if ! curl -sS \
+            --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
+            --max-time "$CLOUDFLARE_MAX_TIME" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
             >"$tunnel_raw" 2>>"$install_log" ||
            [ "$(jq -r '.success // false' "$tunnel_raw")" != "true" ]; then
@@ -911,7 +977,10 @@ EOL
         ' "$tunnel_raw" >"$tunnel_payload" 2>>"$install_log"; then
             fail_install 71 "ERRO AO PREPARAR ROTA" "Falha ao preparar a nova rota do Cloudflare Tunnel."
         fi
-        if ! curl -sS -X PUT \
+        if ! curl -sS \
+            --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
+            --max-time "$CLOUDFLARE_MAX_TIME" \
+            -X PUT \
             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
             -H "Content-Type: application/json" \
