@@ -109,7 +109,7 @@ grep -Fq 'COPY --from=builder /src/knowledge-package /knowledge-package' \
     printf 'ERRO: a imagem final não contém o pacote de conhecimento somente leitura.\n' >&2
     exit 1
 }
-grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go ./' \
+grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go routing.go ./' \
     "$project_dir/Dockerfile" || {
     printf 'ERRO: o build não inclui o recuperador local versionado.\n' >&2
     exit 1
@@ -258,7 +258,7 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
     tar -cf - \
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
         terminal-menu.sh configure-control.sh \
-        main.go knowledge.go retrieval.go web |
+        main.go knowledge.go retrieval.go routing.go web |
         gzip -9n >"$bundle"
 )
 if tar -tzf "$bundle" | grep -q '^knowledge-package/'; then

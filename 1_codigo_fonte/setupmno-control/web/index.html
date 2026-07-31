@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#070a0f">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=1.7.2">
+  <link rel="stylesheet" href="/styles.css?v=2.0.0">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -208,6 +208,7 @@
             <aside class="assistant-side">
               <article class="panel guardrail-card"><span class="guard-icon">◎</span><h3>IA com limites claros</h3><p id="assistant-privacy">O modo básico interpreta métricas localmente e não envia dados para terceiros.</p><ul><li>Foco em Setup MNO e infraestrutura</li><li>Contexto operacional minimizado</li><li>IA sem Docker, shell ou terminal</li><li>Confirmação humana obrigatória</li></ul></article>
               <article class="panel"><p class="eyebrow">Provedor ativo</p><h3 id="assistant-provider">Diagnóstico básico</h3><p id="assistant-model" class="muted">Sem consumo de API ou modelo local.</p></article>
+              <article class="panel"><div class="panel-head"><p class="eyebrow">Roteador local</p><span id="assistant-route-status" class="secure-pill">Em espera</span></div><h3 id="assistant-route-specialist">Aguardando consulta</h3><p id="assistant-route-summary">A intenção será classificada sem usar uma segunda LLM.</p><small id="assistant-route-metadata">Roteamento local e determinístico.</small></article>
               <article class="panel rag-inspection-card"><div class="panel-head"><p class="eyebrow">RAG local</p><span id="rag-inspection-status" class="secure-pill"><i></i> Em espera</span></div><h3 id="rag-inspection-title">Validação de fundamentação</h3><p id="rag-inspection-summary">Aguardando uma consulta ao Copiloto.</p><small>O status “fundamentada” aparece somente depois que as citações da resposta correspondem às evidências relevantes fornecidas.</small></article>
             </aside>
           </div>
@@ -263,7 +264,7 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=1.7.2" defer></script>
-  <script src="/app.js?v=1.7.2" defer></script>
+  <script src="/markdown.js?v=2.0.0" defer></script>
+  <script src="/app.js?v=2.0.0" defer></script>
 </body>
 </html>

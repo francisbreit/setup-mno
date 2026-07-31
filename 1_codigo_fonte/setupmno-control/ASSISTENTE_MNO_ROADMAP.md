@@ -253,7 +253,7 @@ pelos testes da release.
 
 ## Etapa 3 — RAG Híbrido Local
 
-**Status:** subetapas 3.1, 3.2, 3.3 e 3.4 implementadas
+**Status:** concluída — subetapas 3.1 a 3.5 implementadas
 **Impacto:** crítico para a qualidade
 **Tipo:** IA, desempenho e confiabilidade
 **Esforço:** estrutural
@@ -641,7 +641,7 @@ deverá medir e formalizar thresholds antes de ampliar bandas ou orçamento.
 
 ## Etapa 4 — Roteador de Especialistas e Prompts
 
-**Status:** pendente
+**Status:** em andamento — subetapa 4.1 implementada
 **Impacto:** alto
 **Tipo:** IA e UX
 **Esforço:** moderado
@@ -1160,6 +1160,27 @@ Escopo implementado na release v4.99.2:
 - ausência ou número inválido de citação rebaixa a resposta para “não validada”
 - nenhuma nova stack, porta, secret, mount, socket ou ferramenta de escrita
 
+## Release arquitetural da subetapa 4.1
+
+Escopo implementado na release v5.0.0:
+
+- Setup MNO `5.0.0`
+- Control Center `2.0.0`
+- conhecimento canônico `1.4.0`
+- roteador local `1.0.0` e contrato inicial de prompt `1.0.0`
+- classificação determinística sem chamada adicional a LLM
+- especialistas internos para infraestrutura, setups, integrações,
+  troubleshooting, capacidade, Blueprints e segurança
+- guardião de escopo para consultas não relacionadas ao Setup MNO
+- contrato com intenção, setups canônicos, domínios, arquitetura, risco,
+  confiança, sinais e evidências obrigatórias
+- allowlists fechadas impedem texto do usuário no contrato de roteamento
+- linguagem destrutiva eleva o risco e exige evidência de rollback
+- processo do especialista inserido no prefixo confiável do prompt
+- evento SSE efêmero e painel de inspeção do especialista selecionado
+- fallback básico preserva o roteamento e recusa assuntos fora do escopo
+- nenhuma nova stack, porta, secret, mount, socket ou ferramenta de escrita
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico
@@ -1173,12 +1194,11 @@ Escopo implementado na release v4.99.2:
 
 ## Próxima ação
 
-Homologar a subetapa **3.5 — Contextualização e gate de relevância** com as
-perguntas sequenciais registradas nos testes, troca explícita de setup,
-referência contextual sem antecedente, citações ausentes e citações fora do
-intervalo. Depois da aprovação funcional, iniciar a **Etapa 4 — Roteador de
-Especialistas e Prompts**; a Etapa 6 formalizará os thresholds antes de ampliar
-o orçamento atual.
+Homologar a subetapa **4.1 — Contrato de roteamento determinístico** com
+perguntas representativas dos oito caminhos, ambiguidades, troca de setup,
+arquitetura x86/ARM, linguagem destrutiva e assuntos fora do escopo. Depois da
+aprovação funcional, iniciar a **subetapa 4.2 — Registro versionado de prompts**;
+a Etapa 6 formalizará os thresholds antes de ampliar o orçamento atual.
 
 ## Referências oficiais
 

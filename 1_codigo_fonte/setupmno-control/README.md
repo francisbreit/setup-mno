@@ -51,6 +51,21 @@ backups, segurança, observabilidade, integrações e deploys. A interface comun
 esse foco antes da pergunta e os conectores redirecionam consultas alheias ao
 domínio, em vez de atuarem como assistentes generalistas.
 
+### Roteador local de especialistas
+
+Antes do retrieval e da chamada ao provedor, um roteador determinístico
+classifica a consulta em um dos modos internos: diagnóstico de infraestrutura,
+setups, integrações, troubleshooting, capacidade, Blueprints, segurança ou
+redirecionamento de escopo. O roteamento não consome LLM e não registra nem
+inclui o texto da pergunta em seu contrato.
+
+O contrato versionado expõe somente valores permitidos: intenção, especialista,
+setups canônicos identificados, domínios, arquitetura, risco, confiança e
+evidências obrigatórias. Linguagem destrutiva eleva o risco para alto e torna
+rollback uma evidência obrigatória. A interface mostra o especialista escolhido
+e os gates aplicados, enquanto o prompt recebe um processo estável que não pode
+ser reclassificado pelo modelo.
+
 ### RAG fundamentado
 
 Com um provedor configurado, o ranking local emite um relatório efêmero para a

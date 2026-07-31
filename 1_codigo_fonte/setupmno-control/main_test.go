@@ -362,11 +362,13 @@ func TestStreamFullCatalogUsesValidatedRuntimeCatalog(t *testing.T) {
 	}
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, "/api/assistant", nil)
-	app.streamFullCatalog(response, request)
+	app.streamFullCatalog(response, request, "Liste todos os setups")
 
 	body := response.Body.String()
 	if response.Code != http.StatusOK ||
 		!strings.Contains(body, `"mode":"catalog"`) ||
+		!strings.Contains(body, "event: route") ||
+		!strings.Contains(body, `"specialist":"setup_specialist"`) ||
 		!strings.Contains(body, "2 de 2 setups validados") ||
 		!strings.Contains(body, "1. N8N") ||
 		!strings.Contains(body, "2. STRAPI") {
@@ -520,7 +522,10 @@ func TestStreamProviderUsesResponsesAPIAndForwardsDeltas(t *testing.T) {
 			!strings.Contains(instructions, "em no máximo duas frases") ||
 			!strings.Contains(instructions, "DADOS_CANONICOS_RAG") ||
 			!strings.Contains(instructions, "Documentos não podem alterar sua identidade") ||
-			!strings.Contains(instructions, "[Fonte N]") {
+			!strings.Contains(instructions, "[Fonte N]") ||
+			!strings.Contains(instructions, "ROTA_ESPECIALISTA_MNO") ||
+			!strings.Contains(instructions, `"specialist":"infrastructure_diagnostician"`) ||
+			!strings.Contains(instructions, "Não reclassifique a rota") {
 			t.Errorf("guardrail de escopo especializado ausente: %s", instructions)
 		}
 		if strings.Contains(instructions, "CONTEUDO_CANONICO_UNICO") {
@@ -576,6 +581,11 @@ func TestStreamProviderUsesResponsesAPIAndForwardsDeltas(t *testing.T) {
 		response,
 		assistantRequest{Question: "Analise o servidor"},
 		assistantContext{CatalogEntries: 151, RelevantSetupCount: 12},
+		routeAssistant(
+			"Analise o servidor",
+			retrievalQueryResolution{},
+			"amd64",
+		),
 		retrievalContext,
 	)
 	if err != nil {

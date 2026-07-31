@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "knowledgeVersion": "1.3.3",
+  "knowledgeVersion": "1.4.0",
   "documentTypes": [
     "infrastructure",
     "setup",

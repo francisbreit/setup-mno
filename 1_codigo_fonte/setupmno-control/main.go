@@ -710,6 +710,7 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, "contexto operacional indisponível")
 		return
 	}
+	route := routeAssistant(input.Question, resolution, contextData.Architecture)
 	var inspection *retrievalInspection
 	var promptContext *retrievalPromptContext
 	if s.shadowMode && s.retriever != nil {
@@ -752,11 +753,12 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 		"knowledgeStale":   s.knowledge.Stale,
 		"knowledgeEntries": s.knowledge.Manifest.DocumentEntries,
 	})
+	sendSSE(w, "route", route)
 	if inspection != nil {
 		sendSSE(w, "retrieval", inspection)
 	}
 
-	answer, err := s.streamProvider(r.Context(), w, input, contextData, promptContext)
+	answer, err := s.streamProvider(r.Context(), w, input, contextData, route, promptContext)
 	if err != nil {
 		sendSSE(w, "error", map[string]any{
 			"error":  "O provedor de IA não concluiu a resposta.",
@@ -1008,6 +1010,7 @@ func (s *assistantService) streamProvider(
 	w http.ResponseWriter,
 	input assistantRequest,
 	contextData assistantContext,
+	route assistantRoute,
 	retrievalContext *retrievalPromptContext,
 ) (string, error) {
 	contextJSON, err := json.Marshal(contextData)
@@ -1029,6 +1032,7 @@ Nunca afirme que executou ações. Você não possui Docker, shell, terminal nem
 Não forneça comandos destrutivos nem solicite senhas, tokens ou chaves. Ações críticas exigem confirmação humana no Instalador Seguro.
 Se faltarem dados, diga claramente o que não foi possível confirmar. Diferencie evidência observada de recomendação.
 Para escala horizontal, oriente de forma gradual e preserve quorum, backups e rollback.
+` + assistantRoutePrompt(route) + `
 Contexto operacional minimizado em JSON:
 ` + string(contextJSON)
 
@@ -1466,7 +1470,7 @@ func (a *webApp) handleAssistant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if isFullCatalogRequest(input.Question) {
-		a.streamFullCatalog(w, r)
+		a.streamFullCatalog(w, r, input.Question)
 		return
 	}
 	if input.Basic || a.assistantURL == "" || a.assistantMode == "basic" {
@@ -1587,7 +1591,7 @@ func fullCatalogMarkdown(catalog catalogResponse) (string, error) {
 	return answer.String(), nil
 }
 
-func (a *webApp) streamFullCatalog(w http.ResponseWriter, r *http.Request) {
+func (a *webApp) streamFullCatalog(w http.ResponseWriter, r *http.Request, question string) {
 	var catalog catalogResponse
 	if err := a.agentRequest(r.Context(), "/catalog", &catalog); err != nil {
 		writeError(w, http.StatusServiceUnavailable, "catálogo runtime indisponível")
@@ -1609,6 +1613,11 @@ func (a *webApp) streamFullCatalog(w http.ResponseWriter, r *http.Request) {
 		"setupVersion":   catalog.SetupVersion,
 		"catalogEntries": catalog.CatalogEntries,
 	})
+	sendSSE(w, "route", routeAssistant(
+		question,
+		retrievalQueryResolution{Query: question},
+		catalog.Architecture,
+	))
 	sendSSE(w, "delta", map[string]any{"delta": answer})
 	sendSSE(w, "done", map[string]any{"ok": true})
 	a.addAudit("assistant_catalog", "Catálogo runtime completo listado localmente", clientAddress(r))
@@ -1626,7 +1635,12 @@ func (a *webApp) streamBasicAssistant(
 		writeError(w, http.StatusBadGateway, "não foi possível consultar o servidor")
 		return
 	}
-	suggestions := localInsights(current, question)
+	route := routeAssistant(
+		question,
+		retrievalQueryResolution{Query: question},
+		current.Architecture,
+	)
+	suggestions := localInsightsForRoute(current, question, route)
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Accel-Buffering", "no")
@@ -1637,6 +1651,7 @@ func (a *webApp) streamBasicAssistant(
 		"fallback":       fallback,
 		"fallbackReason": fallbackReason,
 	})
+	sendSSE(w, "route", route)
 	sendSSE(w, "delta", map[string]any{"delta": strings.Join(suggestions, "\n\n")})
 	sendSSE(w, "done", map[string]any{"ok": true})
 	action := "assistant_basic"
@@ -2297,6 +2312,21 @@ func dockerJSON(client *http.Client, endpoint string, target any) error {
 }
 
 func localInsights(current overview, question string) []string {
+	route := routeAssistant(
+		question,
+		retrievalQueryResolution{Query: question},
+		current.Architecture,
+	)
+	return localInsightsForRoute(current, question, route)
+}
+
+func localInsightsForRoute(current overview, question string, route assistantRoute) []string {
+	if route.Intent == "scope_redirect" {
+		return []string{
+			"Sou especializado em Setup MNO e infraestrutura; não respondo a assuntos gerais fora desse escopo.",
+			"Pergunte sobre setups, servidor, Docker, Swarm, capacidade, segurança, integrações ou Blueprints MNO.",
+		}
+	}
 	result := []string{
 		"Diagnóstico local concluído para: “" + strings.TrimSpace(question) + "”.",
 	}

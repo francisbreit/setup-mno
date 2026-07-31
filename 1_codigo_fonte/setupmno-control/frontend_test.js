@@ -35,6 +35,14 @@ for (const provider of ["OpenAI", "OpenRouter", "DeepSeek", "Ollama"]) {
   assert.match(html + app, new RegExp(provider));
 }
 assert.match(app, /openTerminal\("settings"\)/);
+assert.match(html, /id="assistant-route-specialist"/);
+assert.match(html, /Roteador local/);
+assert.match(html, /sem usar uma segunda LLM/);
+assert.match(app, /event\.type === "route"/);
+assert.match(app, /updateAssistantRoute/);
+assert.match(app, /Revisor de segurança/);
+assert.match(app, /Arquiteto de Blueprints/);
+assert.match(app, /Guardião de escopo/);
 assert.match(html, /id="rag-inspection-title"/);
 assert.match(html, /Validação de fundamentação/);
 assert.match(html, /somente depois que as citações da resposta correspondem às evidências/);

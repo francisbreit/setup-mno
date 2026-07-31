@@ -117,7 +117,7 @@ func TestContextualSetupReferenceUsesPreviousUserTurn(t *testing.T) {
 		resolution, state.Manifest.SetupVersion, "amd64",
 	)
 	contextData := assistantContext{
-		CatalogVersion: "4.99.2",
+		CatalogVersion: "5.0.0",
 		CatalogSHA256:  strings.Repeat("c", 64),
 		RelevantSetups: []map[string]any{{
 			"name": "N8N V1 - SEM FILA (MAIN)", "arch": "x86-arm",

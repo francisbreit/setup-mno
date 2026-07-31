@@ -147,6 +147,7 @@ type retrievalPromptContext struct {
 type retrievalQueryResolution struct {
 	Query          string
 	SetupID        string
+	SetupIDs       []string
 	CatalogName    string
 	Contextualized bool
 }
@@ -239,7 +240,9 @@ func (r *knowledgeRetriever) resolveQuery(
 	history []assistantMessage,
 ) retrievalQueryResolution {
 	resolution := retrievalQueryResolution{Query: strings.TrimSpace(question)}
-	if setupID, exact := r.exactSetup(question); exact {
+	resolution.SetupIDs = r.matchedSetupIDs(question)
+	if len(resolution.SetupIDs) == 1 {
+		setupID := resolution.SetupIDs[0]
 		resolution.SetupID = setupID
 		resolution.CatalogName = r.setupCatalogNames[setupID]
 		return resolution
@@ -262,6 +265,7 @@ func (r *knowledgeRetriever) resolveQuery(
 		}
 		resolution.Query = strings.TrimSpace(question + " " + alias)
 		resolution.SetupID = setupID
+		resolution.SetupIDs = []string{setupID}
 		resolution.CatalogName = r.setupCatalogNames[setupID]
 		resolution.Contextualized = true
 		return resolution
@@ -572,6 +576,14 @@ func (r *knowledgeRetriever) rankLane(
 }
 
 func (r *knowledgeRetriever) exactSetup(question string) (string, bool) {
+	matches := r.matchedSetupIDs(question)
+	if len(matches) == 1 {
+		return matches[0], true
+	}
+	return "", false
+}
+
+func (r *knowledgeRetriever) matchedSetupIDs(question string) []string {
 	matches := make(map[string]struct{})
 	for setupID, catalogName := range r.setupCatalogNames {
 		if anyPhraseContained(question, []string{catalogName}) {
@@ -584,13 +596,12 @@ func (r *knowledgeRetriever) exactSetup(question string) (string, bool) {
 		}
 		matches[*chunk.SetupID] = struct{}{}
 	}
-	if len(matches) != 1 {
-		return "", false
-	}
+	result := make([]string, 0, len(matches))
 	for setupID := range matches {
-		return setupID, true
+		result = append(result, setupID)
 	}
-	return "", false
+	sort.Strings(result)
+	return result
 }
 
 func (r *knowledgeRetriever) targetArchitectures(

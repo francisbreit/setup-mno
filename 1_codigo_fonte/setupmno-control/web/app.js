@@ -10,6 +10,7 @@ const state = {
   assistantMode: "basic",
   assistantModel: "",
   assistantHistory: [],
+  assistantRoute: null,
   view: "dashboard",
   timer: null,
   catalogTimer: null
@@ -390,6 +391,7 @@ async function askAssistant(event) {
 
 async function streamAssistant(question, history, target, basic, fallbackReason = "") {
   clearRetrievalInspection(target);
+  updateAssistantRoute(null, "Classificando a intenção localmente...");
   updateRetrievalSummary(null, basic
     ? "Resposta local: o RAG não foi executado."
     : "Recuperando candidatos canônicos...");
@@ -435,6 +437,8 @@ async function streamAssistant(question, history, target, basic, fallbackReason 
         target.dataset.catalogEntries = String(event.data.catalogEntries || "");
         target.dataset.fallbackReason = event.data.fallbackReason || "";
         updateAssistantRuntime(event.data);
+      } else if (event.type === "route") {
+        updateAssistantRoute(event.data);
       } else if (event.type === "retrieval") {
         renderRetrievalInspection(target, event.data);
       } else if (event.type === "grounding") {
@@ -456,6 +460,81 @@ async function streamAssistant(question, history, target, basic, fallbackReason 
 
 function clearRetrievalInspection(target) {
   target.querySelector(".retrieval-inspection")?.remove();
+}
+
+function updateAssistantRoute(route, message = "") {
+  const specialist = $("assistant-route-specialist");
+  const summary = $("assistant-route-summary");
+  const status = $("assistant-route-status");
+  const metadata = $("assistant-route-metadata");
+  if (!specialist || !summary || !status || !metadata) return;
+  state.assistantRoute = route || null;
+  if (!route) {
+    specialist.textContent = "Aguardando consulta";
+    summary.textContent = message || "A intenção será classificada sem usar uma segunda LLM.";
+    status.textContent = "Em espera";
+    metadata.textContent = "Roteamento local e determinístico.";
+    return;
+  }
+  specialist.textContent = specialistLabel(route.specialist);
+  status.textContent = `Risco ${riskLabel(route.riskLevel)}`;
+  const setups = Array.isArray(route.setups) && route.setups.length
+    ? ` · ${route.setups.join(", ")}`
+    : "";
+  summary.textContent = `${intentLabel(route.intent)} · confiança ${route.confidence === "high" ? "alta" : "média"}${setups}`;
+  const evidence = Array.isArray(route.requiredEvidence) && route.requiredEvidence.length
+    ? route.requiredEvidence.map(evidenceLabel).join(", ")
+    : "redirecionamento de escopo";
+  metadata.textContent = `Roteador ${route.routerVersion || "N/I"} · prompt ${route.promptVersion || "N/I"} · exige: ${evidence}.`;
+}
+
+function specialistLabel(value) {
+  return {
+    security_reviewer: "Revisor de segurança",
+    troubleshooting_specialist: "Especialista em troubleshooting",
+    capacity_planner: "Planejador de capacidade",
+    blueprint_architect: "Arquiteto de Blueprints",
+    integration_architect: "Arquiteto de integrações",
+    setup_specialist: "Especialista em setups",
+    infrastructure_diagnostician: "Diagnóstico de infraestrutura",
+    scope_guard: "Guardião de escopo"
+  }[value] || "Especialista não identificado";
+}
+
+function intentLabel(value) {
+  return {
+    security_review: "revisão de segurança",
+    troubleshooting: "diagnóstico de falha",
+    capacity_planning: "planejamento de capacidade",
+    blueprint_recommendation: "recomendação de Blueprint",
+    integration_design: "projeto de integração",
+    setup_guidance: "orientação de setup",
+    infrastructure_diagnosis: "diagnóstico de infraestrutura",
+    scope_redirect: "consulta fora do escopo"
+  }[value] || "intenção não identificada";
+}
+
+function riskLabel(value) {
+  return { low: "baixo", medium: "médio", high: "alto" }[value] || "não informado";
+}
+
+function evidenceLabel(value) {
+  return {
+    runtime_state: "estado runtime",
+    security_controls: "controles de segurança",
+    risks: "riscos",
+    rollback: "rollback",
+    diagnostics: "diagnóstico",
+    setup_documentation: "documentação do setup",
+    resources: "recursos",
+    setup_requirements: "requisitos do setup",
+    architecture: "arquitetura",
+    blueprint: "Blueprint homologado",
+    dependencies: "dependências",
+    network: "rede",
+    catalog_entry: "catálogo",
+    infrastructure_documentation: "documentação de infraestrutura"
+  }[value] || value;
 }
 
 function updateRetrievalSummary(inspection, message = "") {
