@@ -641,7 +641,7 @@ deverá medir e formalizar thresholds antes de ampliar bandas ou orçamento.
 
 ## Etapa 4 — Roteador de Especialistas e Prompts
 
-**Status:** em andamento — subetapa 4.1 implementada
+**Status:** em andamento — subetapa 4.1 homologada e subetapa 4.2 implementada
 **Impacto:** alto
 **Tipo:** IA e UX
 **Esforço:** moderado
@@ -1181,6 +1181,36 @@ Escopo implementado na release v5.0.0:
 - fallback básico preserva o roteamento e recusa assuntos fora do escopo
 - nenhuma nova stack, porta, secret, mount, socket ou ferramenta de escrita
 
+### Homologação funcional da subetapa 4.1
+
+Aprovada pelo mantenedor em 2026-07-31 após testes no Control Center. O contrato
+de roteamento determinístico passa a ser o baseline oficial para os oito
+caminhos internos. A tag `v5.0.0` permanece como rollback integral anterior ao
+registro versionado de prompts.
+
+## Release incremental da subetapa 4.2
+
+Escopo implementado na release v5.1.0:
+
+- Setup MNO `5.1.0`
+- Control Center `2.1.0`
+- conhecimento canônico `1.4.1`
+- registro de prompts `1.0.0` com prompt especialista `1.1.0`
+- oito definições locais cobrindo todos os especialistas e o guardião de escopo
+- ID, versão, missão, processo, política de evidências e contrato de resposta
+- exemplos positivos, negativos e de recusa para cada especialista
+- SHA-256 determinístico por prompt, independente de pergunta, histórico,
+  métricas, arquitetura e evidências recuperadas
+- versão do registro, versão do prompt e hash fixados no contrato de rota
+- prefixo confiável separado do contexto runtime sanitizado por delimitador
+- política adaptativa: conclusão simples para iniciantes e detalhes
+  verificáveis para profissionais
+- risco alto exige riscos, validação e rollback na resposta
+- validação bloqueante do registro ao iniciar a stack do Assistente
+- metadados efêmeros do prompt visíveis no painel de roteamento e no healthcheck
+- mesmo contrato para OpenAI, OpenRouter, DeepSeek e Ollama
+- nenhuma nova stack, porta, secret, mount, socket ou ferramenta de escrita
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico
@@ -1194,11 +1224,12 @@ Escopo implementado na release v5.0.0:
 
 ## Próxima ação
 
-Homologar a subetapa **4.1 — Contrato de roteamento determinístico** com
-perguntas representativas dos oito caminhos, ambiguidades, troca de setup,
-arquitetura x86/ARM, linguagem destrutiva e assuntos fora do escopo. Depois da
-aprovação funcional, iniciar a **subetapa 4.2 — Registro versionado de prompts**;
-a Etapa 6 formalizará os thresholds antes de ampliar o orçamento atual.
+Homologar a subetapa **4.2 — Registro versionado de prompts** com perguntas
+representativas dos oito especialistas, comparando clareza para iniciantes,
+precisão para profissionais, recusa, incerteza, citações e rollback. Depois da
+aprovação funcional, iniciar a **subetapa 4.3 — Contrato estruturado e adaptativo
+de resposta**; a Etapa 6 formalizará os thresholds antes de ampliar o orçamento
+atual.
 
 ## Referências oficiais
 

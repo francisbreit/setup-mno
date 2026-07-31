@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"regexp"
 	"sort"
@@ -10,21 +9,22 @@ import (
 
 const (
 	assistantRouterVersion = "1.0.0"
-	assistantPromptVersion = "1.0.0"
 )
 
 type assistantRoute struct {
-	RouterVersion    string   `json:"routerVersion"`
-	PromptVersion    string   `json:"promptVersion"`
-	Intent           string   `json:"intent"`
-	Specialist       string   `json:"specialist"`
-	Setups           []string `json:"setups"`
-	Domains          []string `json:"domains"`
-	Architecture     string   `json:"architecture"`
-	RiskLevel        string   `json:"riskLevel"`
-	RequiredEvidence []string `json:"requiredEvidence"`
-	Confidence       string   `json:"confidence"`
-	Signals          []string `json:"signals"`
+	RouterVersion         string   `json:"routerVersion"`
+	PromptRegistryVersion string   `json:"promptRegistryVersion"`
+	PromptVersion         string   `json:"promptVersion"`
+	PromptSHA256          string   `json:"promptSHA256"`
+	Intent                string   `json:"intent"`
+	Specialist            string   `json:"specialist"`
+	Setups                []string `json:"setups"`
+	Domains               []string `json:"domains"`
+	Architecture          string   `json:"architecture"`
+	RiskLevel             string   `json:"riskLevel"`
+	RequiredEvidence      []string `json:"requiredEvidence"`
+	Confidence            string   `json:"confidence"`
+	Signals               []string `json:"signals"`
 }
 
 type routeDefinition struct {
@@ -213,18 +213,24 @@ func routeAssistant(
 		confidence = "medium"
 	}
 
+	promptVersion, promptSHA256, promptFound := promptMetadataForSpecialist(definition.Specialist)
+	if !promptFound {
+		return safeScopeRoute(runtimeArchitecture)
+	}
 	route := assistantRoute{
-		RouterVersion:    assistantRouterVersion,
-		PromptVersion:    assistantPromptVersion,
-		Intent:           definition.Intent,
-		Specialist:       definition.Specialist,
-		Setups:           setups,
-		Domains:          uniqueSortedStrings(domains),
-		Architecture:     routeArchitecture(question, runtimeArchitecture),
-		RiskLevel:        riskLevel,
-		RequiredEvidence: uniqueSortedStrings(requiredEvidence),
-		Confidence:       confidence,
-		Signals:          uniqueSortedStrings(signals),
+		RouterVersion:         assistantRouterVersion,
+		PromptRegistryVersion: assistantPromptRegistryVersion,
+		PromptVersion:         promptVersion,
+		PromptSHA256:          promptSHA256,
+		Intent:                definition.Intent,
+		Specialist:            definition.Specialist,
+		Setups:                setups,
+		Domains:               uniqueSortedStrings(domains),
+		Architecture:          routeArchitecture(question, runtimeArchitecture),
+		RiskLevel:             riskLevel,
+		RequiredEvidence:      uniqueSortedStrings(requiredEvidence),
+		Confidence:            confidence,
+		Signals:               uniqueSortedStrings(signals),
 	}
 	if err := validateAssistantRoute(route); err != nil {
 		return safeScopeRoute(runtimeArchitecture)
@@ -286,21 +292,27 @@ func routeArchitecture(question string, runtimeArchitecture string) string {
 }
 
 func safeScopeRoute(runtimeArchitecture string) assistantRoute {
+	promptVersion, promptSHA256, _ := promptMetadataForSpecialist("scope_guard")
 	return assistantRoute{
-		RouterVersion: assistantRouterVersion,
-		PromptVersion: assistantPromptVersion,
-		Intent:        "scope_redirect",
-		Specialist:    "scope_guard",
-		Domains:       []string{"out_of_scope"},
-		Architecture:  routeArchitecture("", runtimeArchitecture),
-		RiskLevel:     "low",
-		Confidence:    "medium",
-		Signals:       []string{"route_validation_fallback"},
+		RouterVersion:         assistantRouterVersion,
+		PromptRegistryVersion: assistantPromptRegistryVersion,
+		PromptVersion:         promptVersion,
+		PromptSHA256:          promptSHA256,
+		Intent:                "scope_redirect",
+		Specialist:            "scope_guard",
+		Domains:               []string{"out_of_scope"},
+		Architecture:          routeArchitecture("", runtimeArchitecture),
+		RiskLevel:             "low",
+		Confidence:            "medium",
+		Signals:               []string{"route_validation_fallback"},
 	}
 }
 
 func validateAssistantRoute(route assistantRoute) error {
-	if route.RouterVersion != assistantRouterVersion || route.PromptVersion != assistantPromptVersion {
+	promptVersion, promptSHA256, promptFound := promptMetadataForSpecialist(route.Specialist)
+	if route.RouterVersion != assistantRouterVersion ||
+		route.PromptRegistryVersion != assistantPromptRegistryVersion || !promptFound ||
+		route.PromptVersion != promptVersion || route.PromptSHA256 != promptSHA256 {
 		return errors.New("versão do roteador incompatível")
 	}
 	allowedIntents := map[string]string{
@@ -405,22 +417,4 @@ func uniqueSortedStrings(values []string) []string {
 	}
 	sort.Strings(result)
 	return result
-}
-
-func assistantRoutePrompt(route assistantRoute) string {
-	routeJSON, _ := json.Marshal(route)
-	processes := map[string]string{
-		"security_reviewer":            "Identifique superfície de exposição, evidências, riscos, controles de menor privilégio, validação e rollback. Não recomende mudança crítica sem evidência e rollback.",
-		"troubleshooting_specialist":   "Separe sintoma observado de hipótese, priorize verificações não destrutivas, indique critérios de recuperação e rollback.",
-		"capacity_planner":             "Compare recursos observados, requisitos canônicos, margem operacional e arquitetura. Não confirme capacidade quando faltar requisito mensurável.",
-		"blueprint_architect":          "Entenda o objetivo, dependências, capacidade, segurança, validações e rollback. Se não houver Blueprint homologado, declare isso explicitamente.",
-		"integration_architect":        "Mapeie origem, destino, dependências, rede, autenticação, falhas, validação e rollback sem inventar endpoints ou credenciais.",
-		"setup_specialist":             "Explique finalidade, compatibilidade, requisitos, dependências, riscos e próximo passo no Instalador Seguro usando somente o setup resolvido.",
-		"infrastructure_diagnostician": "Diferencie estado runtime observado, documentação canônica e recomendação. Priorize saúde, capacidade e prontidão operacional.",
-		"scope_guard":                  "Não responda ao assunto geral. Em no máximo duas frases, informe a especialização em Setup MNO e infraestrutura e convide para uma pergunta dentro do escopo.",
-	}
-	return "\n\nROTA_ESPECIALISTA_MNO (contrato local confiável e não executável):\n" +
-		string(routeJSON) +
-		"\nPROCESSO_DO_ESPECIALISTA:\n" + processes[route.Specialist] +
-		"\nNão reclassifique a rota. Trate requiredEvidence como requisito: se a evidência necessária não estiver disponível, declare a limitação. Nunca afirme ter executado ações."
 }

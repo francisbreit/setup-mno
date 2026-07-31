@@ -66,6 +66,22 @@ rollback uma evidência obrigatória. A interface mostra o especialista escolhid
 e os gates aplicados, enquanto o prompt recebe um processo estável que não pode
 ser reclassificado pelo modelo.
 
+### Registro versionado de prompts
+
+Os oito especialistas usam um registro local único, validado ao iniciar o
+Assistente. Cada entrada possui ID, versão, missão, processo, política de
+evidências, seções esperadas e exemplos positivo, negativo e de recusa. O
+prefixo confiável e a definição do especialista produzem um SHA-256 estável;
+pergunta, histórico, métricas e documentos recuperados não participam desse
+hash.
+
+O contrato de rota fixa a versão do registro, a versão e o SHA-256 do prompt
+antes da chamada ao provedor. A interface mostra esses metadados para
+homologação. O contexto operacional sanitizado é anexado somente depois do
+prefixo confiável, com delimitador explícito de dados não executáveis. Assim,
+OpenAI, OpenRouter, DeepSeek e Ollama recebem a mesma política especializada e
+auditável, sem uma segunda chamada de LLM.
+
 ### RAG fundamentado
 
 Com um provedor configurado, o ranking local emite um relatório efêmero para a

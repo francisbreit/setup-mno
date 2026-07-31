@@ -485,7 +485,10 @@ function updateAssistantRoute(route, message = "") {
   const evidence = Array.isArray(route.requiredEvidence) && route.requiredEvidence.length
     ? route.requiredEvidence.map(evidenceLabel).join(", ")
     : "redirecionamento de escopo";
-  metadata.textContent = `Roteador ${route.routerVersion || "N/I"} · prompt ${route.promptVersion || "N/I"} · exige: ${evidence}.`;
+  const promptHash = typeof route.promptSHA256 === "string" && route.promptSHA256.length >= 12
+    ? route.promptSHA256.slice(0, 12)
+    : "N/I";
+  metadata.textContent = `Roteador ${route.routerVersion || "N/I"} · registro ${route.promptRegistryVersion || "N/I"} · prompt ${route.promptVersion || "N/I"} · SHA ${promptHash} · exige: ${evidence}.`;
 }
 
 function specialistLabel(value) {

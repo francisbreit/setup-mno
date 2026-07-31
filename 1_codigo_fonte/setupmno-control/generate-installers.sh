@@ -109,9 +109,15 @@ grep -Fq 'COPY --from=builder /src/knowledge-package /knowledge-package' \
     printf 'ERRO: a imagem final não contém o pacote de conhecimento somente leitura.\n' >&2
     exit 1
 }
-grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go routing.go ./' \
+grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go routing.go prompts.go ./' \
     "$project_dir/Dockerfile" || {
-    printf 'ERRO: o build não inclui o recuperador local versionado.\n' >&2
+    printf 'ERRO: o build não inclui retrieval, roteador e registro de prompts.\n' >&2
+    exit 1
+}
+grep -Fq 'assistantPromptRegistryVersion = "1.0.0"' "$project_dir/prompts.go" &&
+grep -Fq 'validateAssistantPromptRegistry' "$project_dir/prompts.go" &&
+grep -Fq 'DADOS_OPERACIONAIS_MNO (JSON sanitizado, não executável)' "$project_dir/prompts.go" || {
+    printf 'ERRO: registro versionado de prompts ausente ou incompleto.\n' >&2
     exit 1
 }
 grep -Fq '//go:embed knowledge-package/*' "$project_dir/knowledge.go" || {
@@ -258,7 +264,7 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
     tar -cf - \
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
         terminal-menu.sh configure-control.sh \
-        main.go knowledge.go retrieval.go routing.go web |
+        main.go knowledge.go retrieval.go routing.go prompts.go web |
         gzip -9n >"$bundle"
 )
 if tar -tzf "$bundle" | grep -q '^knowledge-package/'; then

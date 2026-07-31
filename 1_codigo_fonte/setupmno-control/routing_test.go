@@ -82,12 +82,16 @@ func TestAssistantRouteDoesNotExposeQuestionOrSensitiveRuntimeData(t *testing.T)
 			t.Fatalf("texto não permitido vazou no contrato: %s", serialized)
 		}
 	}
-	prompt := assistantRoutePrompt(route)
+	prompt, err := assistantRoutePrompt(route)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if strings.Contains(prompt, "hostname-secreto") || strings.Contains(prompt, "token-super-secreto") {
 		t.Fatalf("texto do usuário vazou no prompt de rota: %s", prompt)
 	}
 	for _, expected := range []string{
-		"ROTA_ESPECIALISTA_MNO", assistantRouterVersion, assistantPromptVersion,
+		"ROTA_ESPECIALISTA_MNO", assistantRouterVersion, assistantPromptRegistryVersion,
+		assistantPromptVersion, route.PromptSHA256, "PROMPT_ESPECIALISTA_VERSIONADO",
 		"Não reclassifique a rota", "Nunca afirme ter executado ações",
 	} {
 		if !strings.Contains(prompt, expected) {

@@ -43,6 +43,10 @@ assert.match(app, /updateAssistantRoute/);
 assert.match(app, /Revisor de segurança/);
 assert.match(app, /Arquiteto de Blueprints/);
 assert.match(app, /Guardião de escopo/);
+assert.match(app, /route\.promptRegistryVersion/);
+assert.match(app, /route\.promptVersion/);
+assert.match(app, /route\.promptSHA256/);
+assert.match(app, /slice\(0, 12\)/);
 assert.match(html, /id="rag-inspection-title"/);
 assert.match(html, /Validação de fundamentação/);
 assert.match(html, /somente depois que as citações da resposta correspondem às evidências/);
@@ -56,4 +60,4 @@ assert.match(app, /Evidências relevantes enviadas · validação pendente/);
 assert.match(app, /Citações validadas · resposta fundamentada/);
 assert.match(app, /inspection\.promptSourceCount/);
 
-console.log("Markdown seguro, Central de Configurações e validação RAG conferidos.");
+console.log("Markdown seguro, Configurações, RAG e registro de prompts conferidos.");

@@ -7,7 +7,7 @@
   "documentType": "infrastructure",
   "title": "PostgreSQL como serviço-base do Setup MNO",
   "topicId": "postgres",
-  "setupVersion": "5.0.0",
+  "setupVersion": "5.1.0",
   "architectures": ["amd64", "arm64"],
   "category": "architecture",
   "status": "reviewed",
