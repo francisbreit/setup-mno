@@ -62,6 +62,11 @@ imagem. Uma segunda cópia é embutida no binário Go e entra em contingência s
 cópia primária estiver ausente ou inválida. A contingência é identificada como
 desatualizada; conteúdo adulterado nunca é aceito silenciosamente.
 
+Para preservar a compatibilidade com SHC, arquivos compactados não são
+incorporados ao Base64 do script `setupmno_control.sh`. O pacote promovido e
+validado em `.control/knowledge-package/` é copiado para o contexto temporário
+do build, mantendo o mesmo SHA-256 no runtime, na imagem e no fallback Go.
+
 O modo básico continua sem LLM e sem stack adicional. O pacote não concede ao
 Assistente socket Docker, shell, terminal, mount do host ou capacidade de
 escrita.

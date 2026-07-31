@@ -3,7 +3,12 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="1.2.0"
+CONTROL_VERSION="1.2.1"
+
+if [ "${SETUPMNO_SHC_SMOKE_TEST:-0}" = "1" ]; then
+    printf '%s\n' "setupmno-control-shc-ok"
+    exit 0
+fi
 
 extract_control_bundle() {
     base64 -d <<'SETUPMNO_CONTROL_ARCHIVE'
@@ -342,8 +347,7 @@ error_file="/tmp/${nome_app}-error.log"
         fail_install 20 "BUNDLE DO PAINEL INVÁLIDO" "Não foi possível validar e extrair os fontes internos do Control Center."
     fi
     for source_file in go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
-        main.go knowledge.go catalog.json web/index.html web/terminal-bridge.js \
-        knowledge-package/manifest.json knowledge-package/knowledge-package.tar.gz; do
+        main.go knowledge.go catalog.json web/index.html web/terminal-bridge.js; do
         [ -s "$work_dir/source/$source_file" ] ||
             fail_install 21 "FONTE INCOMPLETO" "O arquivo interno '$source_file' não foi encontrado no bundle."
         [ ! -L "$work_dir/source/$source_file" ] ||
@@ -356,25 +360,35 @@ error_file="/tmp/${nome_app}-error.log"
     [ -f "$runtime_knowledge_dir/knowledge-package.tar.gz" ] &&
     [ ! -L "$runtime_knowledge_dir/knowledge-package.tar.gz" ] ||
         fail_install 22 "CONHECIMENTO RUNTIME AUSENTE" "Atualize o Setup MNO para receber o pacote de conhecimento validado."
-    embedded_knowledge_dir="$work_dir/source/knowledge-package"
-    embedded_knowledge_sha=$(sha256sum "$embedded_knowledge_dir/knowledge-package.tar.gz" | awk '{print $1}')
     runtime_knowledge_sha=$(sha256sum "$runtime_knowledge_dir/knowledge-package.tar.gz" | awk '{print $1}')
-    expected_knowledge_sha=$(jq -r '.archiveSHA256 // empty' "$embedded_knowledge_dir/manifest.json" 2>>"$install_log")
-    knowledge_setup_version=$(jq -r '.setupVersion // empty' "$embedded_knowledge_dir/manifest.json" 2>>"$install_log")
-    knowledge_control_version=$(jq -r '.controlVersion // empty' "$embedded_knowledge_dir/manifest.json" 2>>"$install_log")
-    knowledge_entries=$(jq -r '.documentEntries // 0' "$embedded_knowledge_dir/manifest.json" 2>>"$install_log")
-    knowledge_archive_bytes=$(jq -r '.archiveBytes // 0' "$embedded_knowledge_dir/manifest.json" 2>>"$install_log")
-    actual_knowledge_bytes=$(stat -c '%s' "$embedded_knowledge_dir/knowledge-package.tar.gz")
+    expected_knowledge_sha=$(jq -r '.archiveSHA256 // empty' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
+    release_knowledge_sha=$(jq -r '.knowledgeArchiveSHA256 // empty' /root/SetupLowCodeMno/.control/release.json 2>>"$install_log")
+    knowledge_setup_version=$(jq -r '.setupVersion // empty' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
+    knowledge_control_version=$(jq -r '.controlVersion // empty' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
+    knowledge_entries=$(jq -r '.documentEntries // 0' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
+    release_knowledge_entries=$(jq -r '.knowledgeEntries // 0' /root/SetupLowCodeMno/.control/release.json 2>>"$install_log")
+    knowledge_archive_bytes=$(jq -r '.archiveBytes // 0' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
+    actual_knowledge_bytes=$(stat -c '%s' "$runtime_knowledge_dir/knowledge-package.tar.gz")
     [ -n "$expected_knowledge_sha" ] &&
-    [ "$embedded_knowledge_sha" = "$expected_knowledge_sha" ] &&
     [ "$runtime_knowledge_sha" = "$expected_knowledge_sha" ] &&
+    [ "$release_knowledge_sha" = "$expected_knowledge_sha" ] &&
     [ "$knowledge_setup_version" = "$(jq -r '.setupVersion' /root/SetupLowCodeMno/.control/release.json)" ] &&
     [ "$knowledge_control_version" = "$CONTROL_VERSION" ] &&
     [ "$knowledge_entries" -gt 0 ] &&
+    [ "$knowledge_entries" = "$release_knowledge_entries" ] &&
     [ "$knowledge_archive_bytes" = "$actual_knowledge_bytes" ] &&
     [ "$knowledge_archive_bytes" -le $((8 * 1024 * 1024)) ] &&
-    cmp -s "$embedded_knowledge_dir/manifest.json" "$runtime_knowledge_dir/manifest.json" ||
-        fail_install 22 "PACOTE DE CONHECIMENTO INVÁLIDO" "O conhecimento do Assistente diverge entre o runtime e a imagem desta release."
+    tar -tzf "$runtime_knowledge_dir/knowledge-package.tar.gz" >>"$install_log" 2>&1 &&
+    tar -tvzf "$runtime_knowledge_dir/knowledge-package.tar.gz" 2>>"$install_log" |
+        awk 'substr($1, 1, 1) != "-" { exit 1 }' ||
+        fail_install 22 "PACOTE DE CONHECIMENTO INVÁLIDO" "O conhecimento runtime diverge do manifesto desta release."
+
+    build_knowledge_dir="$work_dir/source/knowledge-package"
+    mkdir -p "$build_knowledge_dir"
+    install -m 0644 "$runtime_knowledge_dir/manifest.json" \
+        "$build_knowledge_dir/manifest.json"
+    install -m 0644 "$runtime_knowledge_dir/knowledge-package.tar.gz" \
+        "$build_knowledge_dir/knowledge-package.tar.gz"
 
     echo -e "XXX\n20\nCONSTRUINDO O PAINEL WEB... \nXXX"
     if ! docker build --pull -t "$control_image" "$work_dir/source" >>"$install_log" 2>&1; then

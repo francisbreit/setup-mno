@@ -84,6 +84,10 @@ grep -Fq '//go:embed knowledge-package/*' "$project_dir/knowledge.go" || {
     printf 'ERRO: o fallback de conhecimento não está embutido no binário.\n' >&2
     exit 1
 }
+grep -Fq 'install -m 0644 "$runtime_knowledge_dir/manifest.json"' "$template" || {
+    printf 'ERRO: o instalador não copia o conhecimento runtime validado para o build.\n' >&2
+    exit 1
+}
 
 x86_version=$(sed -n 's/^VERSIONSETUP="\([^"]*\)"/\1/p' "$source_root/x86/SetupLowCodeMno/install.sh" | head -n1)
 [ -n "$x86_version" ] || {
@@ -156,8 +160,12 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
     cd "$project_dir"
     tar -czf "$bundle" \
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
-        main.go knowledge.go catalog.json knowledge-package web
+        main.go knowledge.go catalog.json web
 )
+if tar -tzf "$bundle" | grep -q '^knowledge-package/'; then
+    printf 'ERRO: arquivos compactados não podem ser incorporados ao Base64 protegido pelo SHC.\n' >&2
+    exit 1
+fi
 base64 -w 76 "$bundle" >"$temporary_dir/bundle.b64"
 
 generate_target() {
@@ -177,6 +185,41 @@ generate_target "$x86_target"
 generate_target "$arm_target"
 
 cmp -s "$x86_target" "$arm_target"
+
+max_shc_script_bytes=$((120 * 1024))
+for target in "$x86_target" "$arm_target"; do
+    target_bytes=$(stat -c '%s' "$target")
+    [ "$target_bytes" -le "$max_shc_script_bytes" ] || {
+        printf 'ERRO: %s possui %s bytes; o limite seguro para SHC é %s bytes. Externalize artefatos binários/Base64 para .control-package.\n' \
+            "$target" "$target_bytes" "$max_shc_script_bytes" >&2
+        exit 1
+    }
+done
+
+smoke_source="$temporary_dir/setupmno_control.sh"
+smoke_binary="$temporary_dir/setupmno_control-smoke"
+smoke_log="$temporary_dir/setupmno_control-smoke.log"
+smoke_expiration=$(date +'%d/%m/%Y' -d '+7 days')
+install -m 0755 "$x86_target" "$smoke_source"
+if ! (
+    cd "$temporary_dir"
+    shc -e "$smoke_expiration" \
+        -m "Smoke test Setup MNO Control Center" \
+        -o "$smoke_binary" -f "$smoke_source"
+) >"$smoke_log" 2>&1; then
+    printf 'ERRO: falha ao compilar o smoke test SHC do Control Center.\n' >&2
+    tail -n 20 "$smoke_log" >&2
+    exit 1
+fi
+smoke_result=$(SETUPMNO_SHC_SMOKE_TEST=1 "$smoke_binary" 2>>"$smoke_log") || {
+    printf 'ERRO: o binário SHC do Control Center não iniciou.\n' >&2
+    tail -n 20 "$smoke_log" >&2
+    exit 1
+}
+[ "$smoke_result" = "setupmno-control-shc-ok" ] || {
+    printf 'ERRO: resposta inesperada no smoke test SHC do Control Center.\n' >&2
+    exit 1
+}
 
 catalog_sha=$(sha256sum "$project_dir/catalog.json" | awk '{print $1}')
 catalog_entries=$(jq -e 'length' "$project_dir/catalog.json")
