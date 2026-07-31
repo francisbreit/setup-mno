@@ -812,8 +812,9 @@ instalador ou na fábrica.
    documentos fictícios revisados no mesmo pipeline de ingestão, ranking,
    Arquiteto de Blueprints, prompt, citações e inspeção usado em produção,
    mantendo bloqueio de deploy e sinalização explícita de simulação.
-3. **5.3 — Catálogo e inspeção:** apresentar os Blueprints no Control Center,
-   deixando exemplos claramente separados de conteúdo homologado.
+3. **5.3 — Catálogo e inspeção — implementada na v6.2.0:** apresentar os
+   Blueprints no Control Center, deixando exemplos claramente separados de
+   conteúdo homologado.
 4. **5.4 — Recomendação contextual:** selecionar Blueprints compatíveis com o
    objetivo, arquitetura e capacidade, sem executar deploy.
 5. **5.5 — Fluxo editorial e homologação:** promover rascunhos somente após
@@ -858,6 +859,24 @@ servidor e sem inventar componentes.
   implantáveis;
 - nenhuma nova ferramenta de escrita, socket, shell, mount do host ou deploy
   automático.
+
+### Evidências da subetapa 5.3
+
+- endpoint autenticado e somente leitura no painel, derivado da cópia embutida
+  e integralmente validada do pacote de conhecimento;
+- projeção tipada sem conteúdo RAG, URL editorial, caminho interno ou rota de
+  download dos bundles;
+- catálogo disponível também no diagnóstico básico, sem depender de provedor,
+  stack do Assistente, socket Docker ou mount adicional;
+- áreas distintas para Blueprints homologados, exemplos fictícios e conteúdo
+  em revisão ou descontinuado;
+- resumo explícito com cinco exemplos e zero homologados nesta versão;
+- filtros por texto, status, arquitetura e risco, com cards e inspeção detalhada
+  de objetivo, componentes, compatibilidade, mídia declarada e procedência;
+- aviso persistente de simulação e ausência de qualquer botão de instalação ou
+  deploy nos exemplos;
+- renderização protegida contra HTML editorial e layout responsivo para desktop
+  e telas móveis.
 
 ---
 
@@ -1344,6 +1363,18 @@ Escopo implementado na release v6.1.0:
 - sinalização visual e textual de simulação de homologação;
 - modo de homologação reversível por configuração e sem alterar o servidor.
 
+## Release arquitetural da subetapa 5.3
+
+Escopo implementado na release v6.2.0:
+
+- Setup MNO `6.2.0` e Control Center `3.2.0`;
+- conhecimento canônico `2.1.0`, schema de Blueprint `1` e fábrica `1.0.0`;
+- catálogo autenticado disponível sem LLM e sem nova stack;
+- separação visual inequívoca entre homologados, exemplos e itens editoriais;
+- filtros locais e inspeção detalhada somente leitura;
+- metadados internos, URLs fictícias e bundles não expostos pela API;
+- nenhuma nova porta, secret, mount, socket, comando ou ferramenta de escrita.
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico
@@ -1357,12 +1388,12 @@ Escopo implementado na release v6.1.0:
 
 ## Próxima ação
 
-Homologar a subetapa **5.2 — RAG de homologação equivalente** perguntando ao
-Arquiteto sobre cada um dos cinco exemplos e confirmando: Blueprint correto,
-banner de simulação, fontes do mesmo `blueprintId`, ausência de recomendação de
-deploy e bloqueio fora do especialista. Em seguida, projetar a **subetapa 5.3 —
-Catálogo e inspeção de Blueprints** no Control Center. A Etapa 6 formalizará os
-thresholds antes de ampliar o orçamento atual do RAG.
+Homologar a subetapa **5.3 — Catálogo e inspeção** em navegador desktop e
+Android retrato, confirmando: cinco exemplos, zero homologados, filtros,
+separação visual, inspeção completa, ausência de links ou deploy e fechamento
+do modal em tela estreita. Em seguida, projetar a **subetapa 5.4 — Recomendação
+contextual**, ainda consultiva. A Etapa 6 formalizará os thresholds antes de
+ampliar o orçamento atual do RAG.
 
 ## Referências oficiais
 

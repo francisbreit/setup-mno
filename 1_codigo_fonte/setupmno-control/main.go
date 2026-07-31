@@ -79,6 +79,7 @@ type webApp struct {
 	cookieSecure    bool
 	httpClient      *http.Client
 	assistantClient *http.Client
+	blueprints      blueprintCatalogResponse
 
 	sessionMu sync.Mutex
 	sessions  map[string]*session
@@ -86,6 +87,49 @@ type webApp struct {
 	logins    map[string]*loginWindow
 	auditMu   sync.Mutex
 	audit     []auditEvent
+}
+
+type blueprintMediaSummary struct {
+	MediaID       string `json:"mediaId"`
+	Type          string `json:"type"`
+	Title         string `json:"title"`
+	Status        string `json:"status"`
+	HasTranscript bool   `json:"hasTranscript"`
+}
+
+type blueprintCatalogItem struct {
+	Aliases          []string                `json:"aliases"`
+	Architectures    []string                `json:"architectures"`
+	Author           string                  `json:"author"`
+	BlueprintID      string                  `json:"blueprintId"`
+	BlueprintVersion string                  `json:"blueprintVersion"`
+	BundleBytes      int64                   `json:"bundleBytes"`
+	BundleSHA256     string                  `json:"bundleSHA256"`
+	Components       []string                `json:"components"`
+	Deployable       bool                    `json:"deployable"`
+	Fictitious       bool                    `json:"fictitious"`
+	Media            []blueprintMediaSummary `json:"media"`
+	Objective        string                  `json:"objective"`
+	Risk             string                  `json:"risk"`
+	Status           string                  `json:"status"`
+	Summary          string                  `json:"summary"`
+	Tags             []string                `json:"tags"`
+	Title            string                  `json:"title"`
+	UpdatedAt        string                  `json:"updatedAt"`
+}
+
+type blueprintCatalogResponse struct {
+	SchemaVersion    int                    `json:"schemaVersion"`
+	FactoryVersion   string                 `json:"factoryVersion"`
+	SetupVersion     string                 `json:"setupVersion"`
+	KnowledgeVersion string                 `json:"knowledgeVersion"`
+	IndexSHA256      string                 `json:"indexSHA256"`
+	Source           string                 `json:"source"`
+	BlueprintCount   int                    `json:"blueprintCount"`
+	ExampleCount     int                    `json:"exampleCount"`
+	HomologatedCount int                    `json:"homologatedCount"`
+	ReviewCount      int                    `json:"reviewCount"`
+	Items            []blueprintCatalogItem `json:"items"`
 }
 
 type hostMetrics struct {
@@ -349,6 +393,23 @@ func runWeb() error {
 		return fmt.Errorf("URL do terminal inválida: %w", err)
 	}
 
+	controlVersion := envDefault("APP_VERSION", "dev")
+	blueprintKnowledge, err := loadEmbeddedKnowledgePackage()
+	if err != nil {
+		return fmt.Errorf("catálogo de Blueprints indisponível: %w", err)
+	}
+	if controlVersion != "dev" && blueprintKnowledge.Manifest.ControlVersion != controlVersion {
+		return fmt.Errorf(
+			"catálogo de Blueprints pertence ao Control Center %s, esperado %s",
+			blueprintKnowledge.Manifest.ControlVersion,
+			controlVersion,
+		)
+	}
+	blueprints, err := blueprintCatalogFromKnowledge(blueprintKnowledge)
+	if err != nil {
+		return fmt.Errorf("catálogo de Blueprints inválido: %w", err)
+	}
+
 	app := &webApp{
 		adminUser:       envDefault("ADMIN_USERNAME", "admin"),
 		passwordSalt:    randomBytes(16),
@@ -358,13 +419,14 @@ func runWeb() error {
 		assistantURL:    strings.TrimRight(os.Getenv("ASSISTANT_URL"), "/"),
 		assistantMode:   strings.ToLower(envDefault("ASSISTANT_MODE", "basic")),
 		assistantModel:  os.Getenv("ASSISTANT_MODEL"),
-		version:         envDefault("APP_VERSION", "dev"),
+		version:         controlVersion,
 		cookieSecure:    envDefault("COOKIE_SECURE", "true") != "false",
 		httpClient:      &http.Client{Timeout: 8 * time.Second},
 		assistantClient: &http.Client{Timeout: 2 * time.Minute},
 		sessions:        make(map[string]*session),
 		logins:          make(map[string]*loginWindow),
 		audit:           make([]auditEvent, 0, 200),
+		blueprints:      blueprints,
 	}
 	app.passwordHash = pbkdf2SHA256(passwordSecret, app.passwordSalt, 310000, 32)
 	zero(passwordSecret)
@@ -378,6 +440,7 @@ func runWeb() error {
 	mux.Handle("GET /api/apps", app.requireAuth(http.HandlerFunc(app.handleApps)))
 	mux.Handle("GET /api/setup-state", app.requireAuth(http.HandlerFunc(app.handleSetupState)))
 	mux.Handle("GET /api/catalog", app.requireAuth(http.HandlerFunc(app.handleCatalog)))
+	mux.Handle("GET /api/blueprints", app.requireAuth(http.HandlerFunc(app.handleBlueprints)))
 	mux.Handle("GET /api/audit", app.requireAuth(http.HandlerFunc(app.handleAudit)))
 	mux.Handle("POST /api/assistant", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleAssistant))))
 	mux.Handle("/terminal/", app.requireAuth(app.terminalProxy()))
@@ -1480,6 +1543,69 @@ func (a *webApp) handleCatalog(w http.ResponseWriter, r *http.Request) {
 	}
 	a.addAudit("catalog_fallback", "Catálogo runtime inválido ou indisponível; contingência ativada", clientAddress(r))
 	writeJSON(w, http.StatusOK, fallback)
+}
+
+func (a *webApp) handleBlueprints(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, a.blueprints)
+}
+
+func blueprintCatalogFromKnowledge(state knowledgePackageState) (blueprintCatalogResponse, error) {
+	index := state.Blueprints
+	if index.SchemaVersion != blueprintSchema ||
+		index.FactoryVersion != state.Manifest.BlueprintFactoryVersion ||
+		index.SetupVersion != state.Manifest.SetupVersion ||
+		index.BlueprintCount != state.Manifest.BlueprintEntries ||
+		len(index.Entries) != state.Manifest.BlueprintEntries {
+		return blueprintCatalogResponse{}, errors.New("índice incompatível com o pacote validado")
+	}
+
+	response := blueprintCatalogResponse{
+		SchemaVersion:    index.SchemaVersion,
+		FactoryVersion:   index.FactoryVersion,
+		SetupVersion:     index.SetupVersion,
+		KnowledgeVersion: state.Manifest.KnowledgeVersion,
+		IndexSHA256:      state.Manifest.BlueprintIndexSHA256,
+		Source:           "control-image-read-only",
+		BlueprintCount:   index.BlueprintCount,
+		ExampleCount:     index.Statuses["example"],
+		HomologatedCount: index.Statuses["homologated"],
+		ReviewCount: index.Statuses["draft"] + index.Statuses["reviewed"] +
+			index.Statuses["deprecated"],
+		Items: make([]blueprintCatalogItem, 0, len(index.Entries)),
+	}
+	for _, entry := range index.Entries {
+		media := make([]blueprintMediaSummary, 0, len(entry.Media))
+		for _, item := range entry.Media {
+			media = append(media, blueprintMediaSummary{
+				MediaID:       item.MediaID,
+				Type:          item.Type,
+				Title:         item.Title,
+				Status:        item.Status,
+				HasTranscript: item.Transcript != nil,
+			})
+		}
+		response.Items = append(response.Items, blueprintCatalogItem{
+			Aliases:          append([]string(nil), entry.Aliases...),
+			Architectures:    append([]string(nil), entry.Architectures...),
+			Author:           entry.Author,
+			BlueprintID:      entry.BlueprintID,
+			BlueprintVersion: entry.BlueprintVersion,
+			BundleBytes:      entry.BundleBytes,
+			BundleSHA256:     entry.BundleSHA256,
+			Components:       append([]string(nil), entry.Components...),
+			Deployable:       entry.Deployable,
+			Fictitious:       entry.Fictitious,
+			Media:            media,
+			Objective:        entry.Objective,
+			Risk:             entry.Risk,
+			Status:           entry.Status,
+			Summary:          entry.Summary,
+			Tags:             append([]string(nil), entry.Tags...),
+			Title:            entry.Title,
+			UpdatedAt:        entry.UpdatedAt,
+		})
+	}
+	return response, nil
 }
 
 func (a *webApp) handleAudit(w http.ResponseWriter, _ *http.Request) {

@@ -96,5 +96,22 @@ assert.match(app, /typeof inspection\.usedInAnswer !== "boolean"/);
 assert.match(app, /Evidências relevantes enviadas · validação pendente/);
 assert.match(app, /Citações validadas · resposta fundamentada/);
 assert.match(app, /inspection\.promptSourceCount/);
+assert.match(html, /data-view="blueprints"/);
+assert.match(html, /id="view-blueprints"/);
+assert.match(html, /Blueprints homologados/);
+assert.match(html, /Exemplos fictícios/);
+assert.match(html, /Simulação — não implantável/);
+assert.match(html, /não executa instalações/);
+assert.match(html, /id="blueprint-dialog"/);
+assert.match(app, /api\("\/api\/blueprints"\)/);
+assert.match(app, /function renderBlueprints/);
+assert.match(app, /function openBlueprint/);
+assert.match(app, /Blueprint fictício|Exemplo fictício/);
+assert.match(app, /não autoriza deploy/);
+assert.match(app, /Downloads e caminhos internos não são expostos/);
+assert.doesNotMatch(html + app, /downloadBlueprint|\/api\/blueprints\/download/);
+for (const field of ["item.title", "item.summary", "item.objective", "item.blueprintId", "item.bundleSHA256"]) {
+  assert.match(app, new RegExp(`escapeHTML\\(${field.replace(".", "\\.")}\\)`));
+}
 
-console.log("Markdown, RAG e autoria local por mensagem conferidos.");
+console.log("Markdown, RAG, autoria e catálogo visual de Blueprints conferidos.");

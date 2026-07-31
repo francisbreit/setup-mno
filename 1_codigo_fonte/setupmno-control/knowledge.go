@@ -151,12 +151,13 @@ type knowledgeIndexV2 struct {
 }
 
 type knowledgePackageState struct {
-	Manifest knowledgeManifest
-	Index    knowledgeIndex
-	IndexV2  knowledgeIndexV2
-	Files    map[string][]byte
-	Source   string
-	Stale    bool
+	Manifest   knowledgeManifest
+	Index      knowledgeIndex
+	IndexV2    knowledgeIndexV2
+	Blueprints blueprintIndex
+	Files      map[string][]byte
+	Source     string
+	Stale      bool
 }
 
 type blueprintMediaEntry struct {
@@ -518,10 +519,11 @@ func validateKnowledgePackage(
 		return knowledgePackageState{}, err
 	}
 	return knowledgePackageState{
-		Manifest: manifest,
-		Index:    index,
-		IndexV2:  indexV2,
-		Files:    files,
+		Manifest:   manifest,
+		Index:      index,
+		IndexV2:    indexV2,
+		Blueprints: blueprintCatalog,
+		Files:      files,
 	}, nil
 }
 

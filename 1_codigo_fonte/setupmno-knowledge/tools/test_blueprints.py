@@ -23,7 +23,7 @@ from blueprint_factory import (
 
 ROOT = Path(__file__).resolve().parent.parent
 CATALOG = ROOT.parent / "setupmno-control" / "catalog.json"
-SETUP_VERSION = "6.1.0"
+SETUP_VERSION = "6.2.0"
 
 
 class BlueprintFactoryTests(unittest.TestCase):

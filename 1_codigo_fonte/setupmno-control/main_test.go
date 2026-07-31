@@ -132,8 +132,8 @@ func TestReadRuntimeSnapshotRejectsPartialBlueprintMetadata(t *testing.T) {
 	sum := sha256.Sum256(catalog)
 	release := setupRelease{
 		SchemaVersion:           runtimeSchema,
-		SetupVersion:            "6.1.0",
-		CatalogVersion:          "6.1.0",
+		SetupVersion:            "6.2.0",
+		CatalogVersion:          "6.2.0",
 		CatalogSHA256:           hex.EncodeToString(sum[:]),
 		CatalogEntries:          1,
 		Architecture:            "amd64",
@@ -698,6 +698,55 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 	}
 	if len(state.IndexV2.Chunks) != state.Manifest.ChunkEntries {
 		t.Fatalf("índice v2 incompleto: %d", len(state.IndexV2.Chunks))
+	}
+	if len(state.Blueprints.Entries) != state.Manifest.BlueprintEntries {
+		t.Fatalf("catálogo de Blueprints incompleto: %d", len(state.Blueprints.Entries))
+	}
+}
+
+func TestBlueprintCatalogExposesOnlySafeReadOnlyProjection(t *testing.T) {
+	state, err := loadKnowledgePackageDirectory("knowledge-package")
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := blueprintCatalogFromKnowledge(state)
+	if err != nil {
+		t.Fatalf("catálogo válido foi recusado: %v", err)
+	}
+	if catalog.Source != "control-image-read-only" ||
+		catalog.BlueprintCount != 5 || catalog.ExampleCount != 5 ||
+		catalog.HomologatedCount != 0 || catalog.ReviewCount != 0 ||
+		len(catalog.Items) != 5 || len(catalog.IndexSHA256) != 64 {
+		t.Fatalf("resumo inesperado: %#v", catalog)
+	}
+	for _, item := range catalog.Items {
+		if item.Status != "example" || !item.Fictitious || item.Deployable ||
+			item.BlueprintID == "" || item.Objective == "" ||
+			len(item.Components) == 0 || len(item.Media) == 0 {
+			t.Fatalf("exemplo inseguro ou incompleto: %#v", item)
+		}
+	}
+	encoded, err := json.Marshal(catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{
+		`"bundlePath"`, `"url"`, "knowledge.md", "blueprints/bundles/",
+	} {
+		if strings.Contains(string(encoded), forbidden) {
+			t.Fatalf("campo interno exposto na API: %s", forbidden)
+		}
+	}
+}
+
+func TestBlueprintCatalogRejectsPackageMismatch(t *testing.T) {
+	state, err := loadKnowledgePackageDirectory("knowledge-package")
+	if err != nil {
+		t.Fatal(err)
+	}
+	state.Blueprints.SetupVersion = "0.0.0"
+	if _, err := blueprintCatalogFromKnowledge(state); err == nil {
+		t.Fatal("índice incompatível foi aceito")
 	}
 }
 

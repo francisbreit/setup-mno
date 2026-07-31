@@ -7,7 +7,7 @@
   "documentType": "infrastructure",
   "title": "Exemplo de infraestrutura",
   "topicId": "docker-swarm",
-  "setupVersion": "6.1.0",
+  "setupVersion": "6.2.0",
   "architectures": ["amd64", "arm64"],
   "category": "architecture",
   "status": "draft",

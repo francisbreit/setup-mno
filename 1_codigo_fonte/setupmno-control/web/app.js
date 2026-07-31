@@ -7,6 +7,8 @@ const state = {
   overview: null,
   apps: [],
   catalog: [],
+  blueprints: [],
+  blueprintCatalog: null,
   assistantMode: "basic",
   assistantModel: "",
   assistantHistory: [],
@@ -22,6 +24,7 @@ const titles = {
   dashboard: ["Infraestrutura em tempo real", "Visão geral"],
   installed: ["Inventário do Docker Swarm", "Aplicações instaladas"],
   catalog: ["Deploys e instalações", "Catálogo de setups"],
+  blueprints: ["Arquiteturas compostas", "Blueprints MNO"],
   assistant: ["Diagnóstico assistido", "Assistente MNO"],
   audit: ["Rastreabilidade da sessão", "Auditoria"],
   settings: ["Administração protegida", "Configurações"]
@@ -61,6 +64,7 @@ function bindEvents() {
     if (action.dataset.action === "terminal") openTerminal();
     if (action.dataset.action === "assistant") navigate("assistant");
     if (action.dataset.action === "settings") openTerminal("settings");
+    if (action.dataset.action === "blueprint") openBlueprint(action.dataset.blueprintId);
   });
   $("open-terminal-top").addEventListener("click", openTerminal);
   $("terminal-close").addEventListener("click", closeTerminal);
@@ -73,6 +77,15 @@ function bindEvents() {
   $("catalog-search").addEventListener("input", renderCatalog);
   $("catalog-category").addEventListener("change", renderCatalog);
   $("catalog-arch").addEventListener("change", renderCatalog);
+  $("blueprint-search").addEventListener("input", renderBlueprints);
+  $("blueprint-status").addEventListener("change", renderBlueprints);
+  $("blueprint-arch").addEventListener("change", renderBlueprints);
+  $("blueprint-risk").addEventListener("change", renderBlueprints);
+  $("blueprint-dialog-close").addEventListener("click", closeBlueprint);
+  $("blueprint-dialog").addEventListener("cancel", event => {
+    event.preventDefault();
+    closeBlueprint();
+  });
   $("assistant-form").addEventListener("submit", askAssistant);
   document.querySelector(".prompt-chips").addEventListener("click", event => {
     if (event.target.tagName !== "BUTTON") return;
@@ -129,6 +142,8 @@ function setAuthenticated(session) {
   state.setupVersion = "";
   state.setupState = null;
   state.catalog = [];
+  state.blueprints = [];
+  state.blueprintCatalog = null;
   state.assistantMode = session.assistantMode || "basic";
   state.assistantModel = session.assistantModel || "";
   state.assistantHistory = [];
@@ -164,7 +179,7 @@ async function refreshAll() {
 
 async function refreshReleaseData() {
   await refreshSetupState();
-  await refreshCatalog();
+  await Promise.allSettled([refreshCatalog(), refreshBlueprints()]);
 }
 
 async function refreshOverview() {
@@ -198,6 +213,20 @@ async function refreshCatalog() {
     renderCatalog();
   } catch (error) {
     setCatalogSyncStatus(true, error.message);
+  }
+}
+
+async function refreshBlueprints() {
+  try {
+    const data = await api("/api/blueprints");
+    state.blueprints = Array.isArray(data.items) ? data.items : [];
+    state.blueprintCatalog = data;
+    renderBlueprintSyncStatus();
+    renderBlueprints();
+  } catch (error) {
+    const target = $("blueprint-sync-status");
+    target.className = "sync-status stale";
+    target.textContent = error.message;
   }
 }
 
@@ -344,6 +373,137 @@ function renderCatalog() {
       <div class="catalog-facts"><span><b>RAM</b> ${escapeHTML(item.ramLabel || "N/I")}</span><span><b>Arquitetura</b> ${item.arch === "x86-arm" ? "X86 + ARM" : "X86"}</span></div>
       <button class="light-button" data-action="terminal">Abrir no instalador <b>→</b></button>
     </article>`).join("") : `<div class="empty-state">Nenhum setup corresponde aos filtros selecionados.</div>`;
+}
+
+function renderBlueprintSyncStatus() {
+  const data = state.blueprintCatalog;
+  const target = $("blueprint-sync-status");
+  if (!data) return;
+  const versionMismatch = state.setupVersion && state.setupVersion !== "indisponível"
+    && data.setupVersion !== state.setupVersion;
+  target.className = `sync-status ${versionMismatch ? "stale" : "current"}`;
+  target.textContent = versionMismatch
+    ? `O índice pertence ao Setup MNO v${data.setupVersion}, mas o runtime confirmou v${state.setupVersion}. Atualize o Control Center antes de usar o catálogo.`
+    : `Índice canônico validado · fábrica v${data.factoryVersion} · conhecimento v${data.knowledgeVersion} · somente leitura`;
+}
+
+function blueprintGroup(status) {
+  if (status === "homologated") return "homologated";
+  if (status === "example") return "example";
+  return "review";
+}
+
+function blueprintStatusLabel(item) {
+  return ({
+    homologated: "Homologado",
+    example: "Exemplo fictício",
+    draft: "Rascunho",
+    reviewed: "Revisado",
+    deprecated: "Descontinuado"
+  })[item.status] || "Não homologado";
+}
+
+function blueprintRiskLabel(risk) {
+  return ({ low: "Baixo", medium: "Médio", high: "Alto" })[risk] || "Não informado";
+}
+
+function renderBlueprints() {
+  const query = ($("blueprint-search")?.value || "").trim().toLowerCase();
+  const status = $("blueprint-status")?.value || "";
+  const architecture = $("blueprint-arch")?.value || "";
+  const risk = $("blueprint-risk")?.value || "";
+  const items = state.blueprints.filter(item => {
+    const searchable = [
+      item.blueprintId, item.title, item.summary, item.objective,
+      ...(Array.isArray(item.aliases) ? item.aliases : []),
+      ...(Array.isArray(item.components) ? item.components : []),
+      ...(Array.isArray(item.tags) ? item.tags : [])
+    ].join(" ").toLowerCase();
+    return (!query || searchable.includes(query))
+      && (!status || blueprintGroup(item.status) === status)
+      && (!architecture || (Array.isArray(item.architectures) && item.architectures.includes(architecture)))
+      && (!risk || item.risk === risk);
+  });
+
+  const catalog = state.blueprintCatalog || {};
+  $("blueprint-total").textContent = catalog.blueprintCount ?? state.blueprints.length;
+  $("blueprint-homologated-total").textContent = catalog.homologatedCount ?? 0;
+  $("blueprint-example-total").textContent = catalog.exampleCount ?? 0;
+  $("nav-blueprint-count").textContent = catalog.blueprintCount ?? state.blueprints.length;
+  $("blueprint-result").textContent = `${items.length} de ${state.blueprints.length} Blueprints encontrados`;
+
+  const groups = {
+    homologated: items.filter(item => blueprintGroup(item.status) === "homologated"),
+    example: items.filter(item => blueprintGroup(item.status) === "example"),
+    review: items.filter(item => blueprintGroup(item.status) === "review")
+  };
+  renderBlueprintGroup("blueprint-homologated-grid", groups.homologated, "Nenhum Blueprint homologado disponível nesta versão.");
+  renderBlueprintGroup("blueprint-example-grid", groups.example, "Nenhum exemplo editorial corresponde aos filtros.");
+  renderBlueprintGroup("blueprint-review-grid", groups.review, "Nenhum Blueprint em revisão ou descontinuado corresponde aos filtros.");
+}
+
+function renderBlueprintGroup(targetId, items, emptyMessage) {
+  $(targetId).innerHTML = items.length ? items.map(item => {
+    const group = blueprintGroup(item.status);
+    const architectures = (Array.isArray(item.architectures) ? item.architectures : [])
+      .map(value => value === "amd64" ? "X86" : value === "arm64" ? "ARM" : value)
+      .join(" + ");
+    const tags = (Array.isArray(item.tags) ? item.tags : []).slice(0, 4);
+    return `<article class="blueprint-card ${group}">
+      <div class="blueprint-card-top"><span class="blueprint-status-badge ${group}">${escapeHTML(blueprintStatusLabel(item))}</span><span class="blueprint-risk risk-${escapeHTML(item.risk)}">Risco ${escapeHTML(blueprintRiskLabel(item.risk))}</span></div>
+      <p class="blueprint-id">${escapeHTML(item.blueprintId)}</p>
+      <h3>${escapeHTML(item.title)}</h3>
+      <p class="blueprint-summary">${escapeHTML(item.summary)}</p>
+      <div class="catalog-tags">${tags.map(tag => `<span>${escapeHTML(tag)}</span>`).join("")}</div>
+      <div class="blueprint-card-facts"><span><b>${Array.isArray(item.components) ? item.components.length : 0}</b> componentes</span><span><b>${escapeHTML(architectures || "N/I")}</b> arquitetura</span></div>
+      <button class="light-button" data-action="blueprint" data-blueprint-id="${escapeHTML(item.blueprintId)}">Inspecionar Blueprint <b>→</b></button>
+    </article>`;
+  }).join("") : `<div class="empty-state compact">${escapeHTML(emptyMessage)}</div>`;
+}
+
+function openBlueprint(blueprintId) {
+  const item = state.blueprints.find(candidate => candidate.blueprintId === blueprintId);
+  if (!item) return;
+  const group = blueprintGroup(item.status);
+  const dialog = $("blueprint-dialog");
+  $("blueprint-detail-title").textContent = item.title || "Blueprint";
+  const alert = $("blueprint-detail-alert");
+  alert.className = `blueprint-detail-alert ${group}`;
+  alert.innerHTML = group === "homologated"
+    ? `<strong>Conteúdo homologado</strong><span>O registro concluiu o fluxo editorial. Esta tela permanece consultiva e não executa deploy.</span>`
+    : group === "example"
+      ? `<strong>Exemplo fictício — não implantável</strong><span>Material de simulação para validar schema, RAG e interface. Não representa configuração homologada e não autoriza deploy.</span>`
+      : `<strong>Conteúdo não homologado</strong><span>Este registro permanece separado do catálogo homologado e não deve orientar uma implantação.</span>`;
+
+  const architectures = (Array.isArray(item.architectures) ? item.architectures : [])
+    .map(value => value === "amd64" ? "X86 / amd64" : value === "arm64" ? "ARM / arm64" : value);
+  const components = Array.isArray(item.components) ? item.components : [];
+  const aliases = Array.isArray(item.aliases) ? item.aliases : [];
+  const tags = Array.isArray(item.tags) ? item.tags : [];
+  const media = Array.isArray(item.media) ? item.media : [];
+  $("blueprint-detail-content").innerHTML = `
+    <section class="blueprint-detail-lead"><p>${escapeHTML(item.summary)}</p><div class="catalog-tags">${tags.map(tag => `<span>${escapeHTML(tag)}</span>`).join("")}</div></section>
+    <div class="blueprint-detail-facts">
+      <span><small>Status</small><strong>${escapeHTML(blueprintStatusLabel(item))}</strong></span>
+      <span><small>Versão</small><strong>v${escapeHTML(item.blueprintVersion)}</strong></span>
+      <span><small>Risco</small><strong>${escapeHTML(blueprintRiskLabel(item.risk))}</strong></span>
+      <span><small>Atualizado</small><strong>${escapeHTML(item.updatedAt || "N/I")}</strong></span>
+    </div>
+    <section><p class="eyebrow">Objetivo</p><p>${escapeHTML(item.objective)}</p></section>
+    <section><p class="eyebrow">Componentes canônicos</p><ol class="blueprint-component-list">${components.map(component => `<li>${escapeHTML(component)}</li>`).join("")}</ol></section>
+    <div class="blueprint-detail-columns">
+      <section><p class="eyebrow">Compatibilidade</p><ul>${architectures.map(value => `<li>${escapeHTML(value)}</li>`).join("")}</ul></section>
+      <section><p class="eyebrow">Aliases editoriais</p><ul>${aliases.map(value => `<li>${escapeHTML(value)}</li>`).join("")}</ul></section>
+    </div>
+    <section><p class="eyebrow">Mídia declarada</p>${media.length ? `<ul class="blueprint-media-list">${media.map(entry => `<li><strong>${escapeHTML(entry.title)}</strong><span>${escapeHTML(entry.type)} · ${escapeHTML(entry.status)}${entry.hasTranscript ? " · transcrição disponível" : ""}</span></li>`).join("")}</ul>` : `<p class="muted">Nenhuma mídia declarada.</p>`}</section>
+    <section class="blueprint-provenance"><p class="eyebrow">Procedência verificável</p><dl><div><dt>Blueprint ID</dt><dd>${escapeHTML(item.blueprintId)}</dd></div><div><dt>Autor</dt><dd>${escapeHTML(item.author)}</dd></div><div><dt>Bundle</dt><dd>${escapeHTML(bytes(item.bundleBytes))}</dd></div><div><dt>SHA-256</dt><dd>${escapeHTML(item.bundleSHA256)}</dd></div></dl><p>O bundle foi validado durante a geração do pacote. Downloads e caminhos internos não são expostos pelo painel.</p></section>`;
+  dialog.showModal();
+}
+
+function closeBlueprint() {
+  const dialog = $("blueprint-dialog");
+  if (dialog.open) dialog.close();
+  $("blueprint-detail-content").replaceChildren();
 }
 
 async function askAssistant(event) {

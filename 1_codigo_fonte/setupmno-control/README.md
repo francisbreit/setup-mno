@@ -171,6 +171,14 @@ homologação ou com a combinação insegura `fictitious: true` e
 Blueprint real, enquanto a procedência e a capacidade operacional continuam
 inequivocamente separadas.
 
+Na subetapa 5.3, a área **Blueprints** apresenta esse inventário diretamente no
+Control Center, inclusive no modo básico. Homologados, exemplos fictícios e
+itens em revisão ocupam grupos visuais distintos. Filtros locais e uma inspeção
+detalhada mostram objetivo, componentes, arquitetura, risco, mídia declarada e
+procedência, sempre sem botão de deploy. A API autenticada entrega somente uma
+projeção tipada do índice validado: conteúdo RAG, URLs editoriais, caminhos
+internos e downloads de bundles não são expostos.
+
 O mesmo pacote é distribuído para x86 e ARM. Na imagem do Assistente, a cópia
 primária fica em `/knowledge-package`, somente leitura pela própria camada da
 imagem. Uma segunda cópia é embutida no binário Go e entra em contingência se a
