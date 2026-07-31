@@ -122,18 +122,20 @@ type appSummary struct {
 }
 
 type setupRelease struct {
-	SchemaVersion           int    `json:"schemaVersion"`
-	SetupVersion            string `json:"setupVersion"`
-	CatalogVersion          string `json:"catalogVersion"`
-	CatalogSHA256           string `json:"catalogSHA256"`
-	CatalogEntries          int    `json:"catalogEntries"`
-	Architecture            string `json:"architecture"`
-	KnowledgeVersion        string `json:"knowledgeVersion,omitempty"`
-	KnowledgeArchiveSHA256  string `json:"knowledgeArchiveSHA256,omitempty"`
-	KnowledgeEntries        int    `json:"knowledgeEntries,omitempty"`
-	BlueprintFactoryVersion string `json:"blueprintFactoryVersion,omitempty"`
-	BlueprintIndexSHA256    string `json:"blueprintIndexSHA256,omitempty"`
-	BlueprintEntries        int    `json:"blueprintEntries,omitempty"`
+	SchemaVersion             int    `json:"schemaVersion"`
+	SetupVersion              string `json:"setupVersion"`
+	CatalogVersion            string `json:"catalogVersion"`
+	CatalogSHA256             string `json:"catalogSHA256"`
+	CatalogEntries            int    `json:"catalogEntries"`
+	Architecture              string `json:"architecture"`
+	KnowledgeVersion          string `json:"knowledgeVersion,omitempty"`
+	KnowledgeArchiveSHA256    string `json:"knowledgeArchiveSHA256,omitempty"`
+	KnowledgeEntries          int    `json:"knowledgeEntries,omitempty"`
+	BlueprintFactoryVersion   string `json:"blueprintFactoryVersion,omitempty"`
+	BlueprintIndexSHA256      string `json:"blueprintIndexSHA256,omitempty"`
+	BlueprintEntries          int    `json:"blueprintEntries,omitempty"`
+	BlueprintKnowledgeEntries int    `json:"blueprintKnowledgeEntries,omitempty"`
+	BlueprintFixtureEntries   int    `json:"blueprintFixtureEntries,omitempty"`
 }
 
 type runtimeSnapshot struct {
@@ -273,19 +275,20 @@ type assistantContext struct {
 }
 
 type assistantService struct {
-	provider       string
-	model          string
-	baseURL        string
-	apiKey         string
-	agentURL       string
-	agentToken     string
-	httpClient     *http.Client
-	agentClient    *http.Client
-	knowledge      knowledgePackageState
-	retriever      *knowledgeRetriever
-	shadowMode     bool
-	inspectionMode bool
-	promptMode     bool
+	provider              string
+	model                 string
+	baseURL               string
+	apiKey                string
+	agentURL              string
+	agentToken            string
+	httpClient            *http.Client
+	agentClient           *http.Client
+	knowledge             knowledgePackageState
+	retriever             *knowledgeRetriever
+	shadowMode            bool
+	inspectionMode        bool
+	promptMode            bool
+	blueprintHomologation bool
 
 	retrievalMu    sync.Mutex
 	retrievalStats retrievalAggregate
@@ -550,27 +553,35 @@ func runAssistant() error {
 		envDefault("RETRIEVAL_PROMPT_ENABLED", "false"),
 		"true",
 	)
+	blueprintHomologation := promptMode && strings.EqualFold(
+		envDefault("BLUEPRINT_HOMOLOGATION_ENABLED", "false"),
+		"true",
+	)
+	if blueprintHomologation && knowledge.Manifest.BlueprintFixtureEntries <= 0 {
+		return errors.New("homologação de Blueprints habilitada sem fixtures validadas")
+	}
 	var retriever *knowledgeRetriever
 	if shadowMode {
-		retriever, err = newKnowledgeRetriever(knowledge)
+		retriever, err = newKnowledgeRetriever(knowledge, blueprintHomologation)
 		if err != nil {
 			return fmt.Errorf("retrieval shadow indisponível: %w", err)
 		}
 	}
 	service := &assistantService{
-		provider:       provider,
-		model:          model,
-		baseURL:        baseURL,
-		apiKey:         apiKey,
-		agentURL:       strings.TrimRight(envDefault("AGENT_URL", "http://agent:9090"), "/"),
-		agentToken:     string(agentToken),
-		httpClient:     &http.Client{Timeout: 2 * time.Minute},
-		agentClient:    &http.Client{Timeout: 12 * time.Second},
-		knowledge:      knowledge,
-		retriever:      retriever,
-		shadowMode:     shadowMode,
-		inspectionMode: inspectionMode,
-		promptMode:     promptMode,
+		provider:              provider,
+		model:                 model,
+		baseURL:               baseURL,
+		apiKey:                apiKey,
+		agentURL:              strings.TrimRight(envDefault("AGENT_URL", "http://agent:9090"), "/"),
+		agentToken:            string(agentToken),
+		httpClient:            &http.Client{Timeout: 2 * time.Minute},
+		agentClient:           &http.Client{Timeout: 12 * time.Second},
+		knowledge:             knowledge,
+		retriever:             retriever,
+		shadowMode:            shadowMode,
+		inspectionMode:        inspectionMode,
+		promptMode:            promptMode,
+		blueprintHomologation: blueprintHomologation,
 	}
 	zero(agentToken)
 	if err := service.validateProvider(); err != nil {
@@ -592,15 +603,18 @@ func runAssistant() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
-			"status":                  "ok",
-			"provider":                service.provider,
-			"model":                   service.model,
-			"knowledgeVersion":        service.knowledge.Manifest.KnowledgeVersion,
-			"knowledgeSource":         service.knowledge.Source,
-			"knowledgeStale":          service.knowledge.Stale,
-			"knowledgeEntries":        service.knowledge.Manifest.DocumentEntries,
-			"blueprintFactoryVersion": service.knowledge.Manifest.BlueprintFactoryVersion,
-			"blueprintEntries":        service.knowledge.Manifest.BlueprintEntries,
+			"status":                    "ok",
+			"provider":                  service.provider,
+			"model":                     service.model,
+			"knowledgeVersion":          service.knowledge.Manifest.KnowledgeVersion,
+			"knowledgeSource":           service.knowledge.Source,
+			"knowledgeStale":            service.knowledge.Stale,
+			"knowledgeEntries":          service.knowledge.Manifest.DocumentEntries,
+			"blueprintFactoryVersion":   service.knowledge.Manifest.BlueprintFactoryVersion,
+			"blueprintEntries":          service.knowledge.Manifest.BlueprintEntries,
+			"blueprintKnowledgeEntries": service.knowledge.Manifest.BlueprintKnowledgeEntries,
+			"blueprintFixtureEntries":   service.knowledge.Manifest.BlueprintFixtureEntries,
+			"blueprintHomologation":     service.blueprintHomologation,
 			"promptRegistry": map[string]any{
 				"version":                 assistantPromptRegistryVersion,
 				"promptVersion":           assistantPromptVersion,
@@ -725,6 +739,7 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	route := routeAssistant(input.Question, resolution, contextData.Architecture)
+	resolution.BlueprintRoute = route.Specialist == "blueprint_architect"
 	var inspection *retrievalInspection
 	var promptContext *retrievalPromptContext
 	if s.shadowMode && s.retriever != nil {
@@ -738,6 +753,11 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 		promptStatus := "feature-disabled"
 		if s.promptMode {
 			promptContext, promptStatus = buildRetrievalPrompt(shadow)
+			if promptContext != nil && promptContext.Simulation &&
+				(!s.blueprintHomologation || route.Specialist != "blueprint_architect") {
+				promptContext = nil
+				promptStatus = "blueprint-homologation-blocked"
+			}
 		}
 		if s.inspectionMode {
 			snapshot := buildRetrievalInspection(
@@ -760,20 +780,33 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 	sendSSE(w, "meta", map[string]any{
-		"mode":                    s.provider,
-		"model":                   s.model,
-		"knowledgeVersion":        s.knowledge.Manifest.KnowledgeVersion,
-		"knowledgeSource":         s.knowledge.Source,
-		"knowledgeStale":          s.knowledge.Stale,
-		"knowledgeEntries":        s.knowledge.Manifest.DocumentEntries,
-		"blueprintFactoryVersion": s.knowledge.Manifest.BlueprintFactoryVersion,
-		"blueprintEntries":        s.knowledge.Manifest.BlueprintEntries,
+		"mode":                      s.provider,
+		"model":                     s.model,
+		"knowledgeVersion":          s.knowledge.Manifest.KnowledgeVersion,
+		"knowledgeSource":           s.knowledge.Source,
+		"knowledgeStale":            s.knowledge.Stale,
+		"knowledgeEntries":          s.knowledge.Manifest.DocumentEntries,
+		"blueprintFactoryVersion":   s.knowledge.Manifest.BlueprintFactoryVersion,
+		"blueprintEntries":          s.knowledge.Manifest.BlueprintEntries,
+		"blueprintKnowledgeEntries": s.knowledge.Manifest.BlueprintKnowledgeEntries,
+		"blueprintFixtureEntries":   s.knowledge.Manifest.BlueprintFixtureEntries,
+		"blueprintHomologation":     s.blueprintHomologation,
 	})
 	sendSSE(w, "route", route)
 	if inspection != nil {
 		sendSSE(w, "retrieval", inspection)
 	}
 
+	if promptContext != nil && promptContext.Simulation {
+		sendSSE(w, "blueprint_simulation", map[string]any{
+			"active":       true,
+			"blueprintIds": promptContext.BlueprintIDs,
+			"deployable":   false,
+		})
+		sendSSE(w, "delta", map[string]any{
+			"delta": blueprintSimulationNotice + "\n\n",
+		})
+	}
 	answer, err := s.streamProvider(r.Context(), w, input, contextData, route, promptContext)
 	if err != nil {
 		sendSSE(w, "error", map[string]any{
@@ -790,6 +823,8 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 	}
 	sendSSE(w, "done", map[string]any{"ok": true})
 }
+
+const blueprintSimulationNotice = "⚠️ **Simulação de homologação:** esta análise usa um Blueprint fictício e não implantável para testar o mesmo fluxo RAG da produção. Ela não autoriza deploy."
 
 func validateAssistantRequest(input *assistantRequest) error {
 	input.Question = strings.TrimSpace(input.Question)
@@ -1856,12 +1891,18 @@ func validateReleaseKnowledge(release setupRelease) error {
 	}
 	hasBlueprintMetadata := release.BlueprintFactoryVersion != "" ||
 		release.BlueprintIndexSHA256 != "" ||
-		release.BlueprintEntries != 0
+		release.BlueprintEntries != 0 ||
+		release.BlueprintKnowledgeEntries != 0 ||
+		release.BlueprintFixtureEntries != 0
 	if !hasBlueprintMetadata {
 		return nil
 	}
 	if !validSemanticVersion(release.BlueprintFactoryVersion) ||
-		release.BlueprintEntries < 1 {
+		release.BlueprintEntries < 1 ||
+		release.BlueprintKnowledgeEntries < 1 ||
+		release.BlueprintKnowledgeEntries > release.BlueprintEntries ||
+		release.BlueprintFixtureEntries < 0 ||
+		release.BlueprintFixtureEntries > release.BlueprintKnowledgeEntries {
 		return errors.New("metadados dos Blueprints inconsistentes")
 	}
 	blueprintHash, err := hex.DecodeString(release.BlueprintIndexSHA256)

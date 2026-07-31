@@ -54,9 +54,32 @@ func TestAssistantTrustedPrefixIsDeterministicAndExcludesDynamicContext(t *testi
 		"CONTRATO_DE_RESPOSTA_VERSIONADO", assistantResponseContractVersion,
 		"CONTRATO_ADAPTATIVO_DA_RESPOSTA", "resposta em camadas",
 		"exemplo positivo", "exemplo negativo proibido", "exemplo de recusa segura",
+		"fixture fictícia de Blueprint", "simulation=true",
 	} {
 		if !strings.Contains(first, expected) {
 			t.Fatalf("bloco obrigatório ausente do prefixo: %s", expected)
+		}
+	}
+}
+
+func TestBlueprintArchitectKeepsHomologationFixtureNonDeployable(t *testing.T) {
+	route := routeAssistant(
+		"Explique o Blueprint 001",
+		retrievalQueryResolution{BlueprintRoute: true},
+		"amd64",
+	)
+	prefix, err := assistantTrustedPrefix(route)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		"modo explícito de homologação",
+		"não implantável",
+		"não autoriza deploy",
+		"nunca as chame de oficiais",
+	} {
+		if !strings.Contains(prefix, expected) {
+			t.Fatalf("gate de fixture ausente do prompt: %q", expected)
 		}
 	}
 }

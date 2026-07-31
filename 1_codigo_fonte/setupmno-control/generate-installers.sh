@@ -115,7 +115,8 @@ grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go routing.go prompts.go ./
     exit 1
 }
 grep -Eq 'assistantPromptRegistryVersion[[:space:]]*=[[:space:]]*"1.0.0"' "$project_dir/prompts.go" &&
-grep -Eq 'assistantResponseContractVersion[[:space:]]*=[[:space:]]*"1.0.0"' "$project_dir/prompts.go" &&
+grep -Eq 'assistantPromptVersion[[:space:]]*=[[:space:]]*"1.3.0"' "$project_dir/prompts.go" &&
+grep -Eq 'assistantResponseContractVersion[[:space:]]*=[[:space:]]*"1.1.0"' "$project_dir/prompts.go" &&
 grep -Fq 'validateAssistantPromptRegistry' "$project_dir/prompts.go" &&
 grep -Fq 'DADOS_OPERACIONAIS_MNO (JSON sanitizado, não executável)' "$project_dir/prompts.go" || {
     printf 'ERRO: registro versionado de prompts ausente ou incompleto.\n' >&2
@@ -246,6 +247,8 @@ blueprint_factory_version=$(jq -r '.blueprintFactoryVersion // empty' "$knowledg
 blueprint_entries=$(jq -r '.blueprintEntries // 0' "$knowledge_package/manifest.json")
 blueprint_bundle_entries=$(jq -r '.blueprintBundleEntries // 0' "$knowledge_package/manifest.json")
 blueprint_index_sha=$(jq -r '.blueprintIndexSHA256 // empty' "$knowledge_package/manifest.json")
+blueprint_knowledge_entries=$(jq -r '.blueprintKnowledgeEntries // 0' "$knowledge_package/manifest.json")
+blueprint_fixture_entries=$(jq -r '.blueprintFixtureEntries // 0' "$knowledge_package/manifest.json")
 knowledge_archive_sha=$(jq -r '.archiveSHA256 // empty' "$knowledge_package/manifest.json")
 knowledge_archive_bytes=$(jq -r '.archiveBytes // 0' "$knowledge_package/manifest.json")
 knowledge_actual_sha=$(sha256sum "$knowledge_package/knowledge-package.tar.gz" | awk '{print $1}')
@@ -257,11 +260,15 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$knowledge_entries" -gt 0 ] &&
 [ "$knowledge_chunks" -gt "$knowledge_entries" ] &&
 [ "$knowledge_index_schema" = "2" ] &&
-[ "$knowledge_retrieval_version" = "1.1.0" ] &&
+[ "$knowledge_retrieval_version" = "1.2.0" ] &&
 [ "$blueprint_schema" = "1" ] &&
 [ "$blueprint_factory_version" = "1.0.0" ] &&
 [ "$blueprint_entries" -gt 0 ] &&
 [ "$blueprint_bundle_entries" = "$blueprint_entries" ] &&
+[ "$blueprint_knowledge_entries" -gt 0 ] &&
+[ "$blueprint_knowledge_entries" -le "$blueprint_entries" ] &&
+[ "$blueprint_fixture_entries" -ge 0 ] &&
+[ "$blueprint_fixture_entries" -le "$blueprint_knowledge_entries" ] &&
 [ "${#blueprint_index_sha}" -eq 64 ] &&
 [ "$knowledge_archive_sha" = "$knowledge_actual_sha" ] &&
 [ "$knowledge_archive_bytes" = "$knowledge_actual_bytes" ] &&
@@ -397,6 +404,8 @@ generate_runtime_package() {
         --argjson catalog_entries "$catalog_entries" \
         --argjson knowledge_entries "$knowledge_entries" \
         --argjson blueprint_entries "$blueprint_entries" \
+        --argjson blueprint_knowledge_entries "$blueprint_knowledge_entries" \
+        --argjson blueprint_fixture_entries "$blueprint_fixture_entries" \
         --argjson control_source_bytes "$bundle_bytes" \
         '{
             schemaVersion: 1,
@@ -412,7 +421,9 @@ generate_runtime_package() {
             knowledgeEntries: $knowledge_entries,
             blueprintFactoryVersion: $blueprint_factory_version,
             blueprintIndexSHA256: $blueprint_index_sha,
-            blueprintEntries: $blueprint_entries
+            blueprintEntries: $blueprint_entries,
+            blueprintKnowledgeEntries: $blueprint_knowledge_entries,
+            blueprintFixtureEntries: $blueprint_fixture_entries
         }' >"$temporary_manifest"
     chmod 0644 "$temporary_manifest"
     mv -f "$temporary_manifest" "$target/release.json"
@@ -440,5 +451,5 @@ for runtime_package in "$x86_runtime_package" "$arm_runtime_package"; do
     }
 done
 
-printf 'Instaladores x86/ARM e manifestos runtime v%s gerados (%s setups, %s documentos, %s Blueprints).\n' \
-    "$x86_version" "$catalog_entries" "$knowledge_entries" "$blueprint_entries"
+printf 'Instaladores x86/ARM e manifestos runtime v%s gerados (%s setups, %s documentos, %s Blueprints, %s fixtures RAG).\n' \
+    "$x86_version" "$catalog_entries" "$knowledge_entries" "$blueprint_entries" "$blueprint_fixture_entries"

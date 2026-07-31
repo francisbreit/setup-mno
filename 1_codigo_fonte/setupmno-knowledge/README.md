@@ -70,7 +70,7 @@ python3 tools/lint_knowledge.py \
   --catalog ../setupmno-control/catalog.json \
   resolve \
   --setup-id n8n-main \
-  --setup-version 6.0.0 \
+  --setup-version 6.1.0 \
   --architecture amd64
 ```
 
@@ -88,7 +88,7 @@ Validação isolada da fábrica de Blueprints:
 
 ```bash
 python3 -B tools/blueprint_factory.py \
-  --setup-version 6.0.0
+  --setup-version 6.1.0
 ```
 
 Cada Blueprint reside em `blueprints/<blueprintId>/`, com `blueprint.json`
@@ -97,17 +97,19 @@ um ZIP determinístico por pasta, um índice e um manifesto com SHA-256. O statu
 `example` exige `fictitious: true`, `deployable: false` e links no domínio
 reservado `.invalid`.
 
-Os `README.md` dos bundles nunca entram diretamente no RAG. Somente um futuro
-`knowledge.md`, criado após revisão editorial e homologação, pode participar da
-base recuperável. Workflows, PDFs, imagens e vídeos permanecem como artefatos e
-não são tratados como instruções para o modelo.
+Os `README.md` dos bundles nunca entram diretamente no RAG. Na subetapa 5.2,
+cada exemplo possui um `knowledge.md` revisado que percorre o mesmo pipeline de
+produção. Como esses documentos declaram `fictitious: true` e
+`deployable: false`, somente o Arquiteto de Blueprints pode recuperá-los quando
+o modo explícito de homologação está ativo. Workflows, PDFs, imagens e vídeos
+permanecem como artefatos e não são tratados como instruções para o modelo.
 
 Geração reproduzível do pacote:
 
 ```bash
 python3 -B tools/generate_package.py \
-  --setup-version 6.0.0 \
-  --control-version 3.0.0
+  --setup-version 6.1.0 \
+  --control-version 3.1.0
 ```
 
 O gerador executa o linter antes do build, inclui somente documentos

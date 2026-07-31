@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Exemplo de setup",
   "setupId": "exemplo",
-  "setupVersion": "6.0.0",
+  "setupVersion": "6.1.0",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "draft",

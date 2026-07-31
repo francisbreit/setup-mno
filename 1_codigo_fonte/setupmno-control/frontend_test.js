@@ -12,8 +12,8 @@ const routeMetadata = globalThis.SetupMNOAssistantRoute;
 const routeSnapshot = routeMetadata.snapshot({
   specialist: "infrastructure_diagnostician",
   riskLevel: "low",
-  promptVersion: "1.2.0",
-  responseContractVersion: "1.0.0",
+  promptVersion: "1.3.0",
+  responseContractVersion: "1.1.0",
   promptSHA256: "a".repeat(64),
   question: "hostname-secreto"
 });
@@ -23,11 +23,11 @@ assert.deepEqual(routeSnapshot, {
   specialistName: "Diagnóstico de infraestrutura",
   risk: "low",
   riskName: "baixo",
-  promptVersion: "1.2.0",
-  responseContractVersion: "1.0.0"
+  promptVersion: "1.3.0",
+  responseContractVersion: "1.1.0"
 });
-assert.equal(routeMetadata.snapshot({ specialist: "execute_shell", riskLevel: "high", promptVersion: "1.2.0", responseContractVersion: "1.0.0" }), null);
-assert.equal(routeMetadata.snapshot({ specialist: "scope_guard", riskLevel: "low", promptVersion: "<script>", responseContractVersion: "1.0.0" }), null);
+assert.equal(routeMetadata.snapshot({ specialist: "execute_shell", riskLevel: "high", promptVersion: "1.3.0", responseContractVersion: "1.1.0" }), null);
+assert.equal(routeMetadata.snapshot({ specialist: "scope_guard", riskLevel: "low", promptVersion: "<script>", responseContractVersion: "1.1.0" }), null);
 
 assert.equal(
   render("A versão é **4.93.3**."),
@@ -85,6 +85,10 @@ assert.match(html, /Validação de fundamentação/);
 assert.match(html, /somente depois que as citações da resposta correspondem às evidências/);
 assert.match(app, /event\.type === "retrieval"/);
 assert.match(app, /event\.type === "grounding"/);
+assert.match(app, /event\.type === "blueprint_simulation"/);
+assert.match(app, /renderBlueprintSimulation/);
+assert.match(app, /Blueprint fictício e não implantável/);
+assert.match(styles, /\.blueprint-simulation-banner/);
 assert.match(app, /applyGroundingAudit/);
 assert.match(app, /RAG validado/);
 assert.match(app, /citation-missing/);

@@ -14,11 +14,136 @@ func testKnowledgeRetriever(t *testing.T) (*knowledgeRetriever, knowledgePackage
 	if err != nil {
 		t.Fatalf("pacote válido foi recusado: %v", err)
 	}
-	retriever, err := newKnowledgeRetriever(state)
+	retriever, err := newKnowledgeRetriever(state, true)
 	if err != nil {
 		t.Fatalf("retriever recusou índice válido: %v", err)
 	}
 	return retriever, state
+}
+
+func TestBlueprintFixtureUsesSameControlledRetrievalPath(t *testing.T) {
+	retriever, state := testKnowledgeRetriever(t)
+	resolution := retriever.resolveQuery(
+		"Explique o blueprint-001-whatsapp-marketing-completo e a ordem segura",
+		nil,
+	)
+	resolution.BlueprintRoute = true
+	if resolution.BlueprintID != "blueprint-001-whatsapp-marketing-completo" {
+		t.Fatalf("Blueprint exato não foi resolvido: %#v", resolution)
+	}
+	result := retriever.retrieveResolved(
+		resolution, state.Manifest.SetupVersion, "amd64",
+	)
+	if result.Metrics.Confidence != "high" || len(result.Evidence) == 0 ||
+		!strings.Contains(result.Metrics.FilterType, "blueprint+exact+homologation") {
+		t.Fatalf("fixture não percorreu o retrieval controlado: %#v", result)
+	}
+	found := false
+	for _, evidence := range result.Evidence {
+		if evidence.DocumentType != "blueprint" {
+			t.Fatalf("fonte externa contaminou Blueprint exato: %#v", evidence)
+		}
+		if evidence.BlueprintID != "blueprint-001-whatsapp-marketing-completo" ||
+			!evidence.Fictitious || evidence.Deployable || evidence.Status != "reviewed" {
+			t.Fatalf("metadados inseguros na fixture recuperada: %#v", evidence)
+		}
+		found = true
+	}
+	if !found {
+		t.Fatalf("documento esperado não foi recuperado: %#v", result.Evidence)
+	}
+	prompt, status := buildRetrievalPrompt(result)
+	if status != "active" || prompt == nil || !prompt.Simulation ||
+		prompt.Mode != "blueprint-homologation" ||
+		!containsString(prompt.BlueprintIDs, "blueprint-001-whatsapp-marketing-completo") {
+		t.Fatalf("fixture não chegou ao prompt equivalente: status=%s prompt=%#v", status, prompt)
+	}
+	inspection := buildRetrievalInspection(result, state.Manifest.SetupVersion, "image-read-only", false)
+	if !inspection.Simulation ||
+		!containsString(inspection.BlueprintIDs, "blueprint-001-whatsapp-marketing-completo") {
+		t.Fatalf("inspeção não sinalizou simulação: %#v", inspection)
+	}
+}
+
+func TestBlueprintFixturesResolveAndRetrieveWithoutCrossContamination(t *testing.T) {
+	retriever, state := testKnowledgeRetriever(t)
+	cases := []struct {
+		question    string
+		blueprintID string
+	}{
+		{"Explique o blueprint-001-whatsapp-marketing-completo", "blueprint-001-whatsapp-marketing-completo"},
+		{"Quais são os componentes do Blueprint de automação de negócios?", "blueprint-002-automacao-negocios"},
+		{"Mostre a topologia do Blueprint de base de conhecimento com IA e RAG", "blueprint-003-base-conhecimento-rag"},
+		{"Como validar o Blueprint de observabilidade completa?", "blueprint-004-observabilidade-monitoramento"},
+		{"Quais são os riscos do Blueprint para servidor com pouca memória?", "blueprint-005-servidor-pequeno"},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.blueprintID, func(t *testing.T) {
+			resolution := retriever.resolveQuery(testCase.question, nil)
+			resolution.BlueprintRoute = true
+			if resolution.BlueprintID != testCase.blueprintID || len(resolution.BlueprintIDs) != 1 {
+				t.Fatalf("resolução inexata: %#v", resolution)
+			}
+			result := retriever.retrieveResolved(
+				resolution, state.Manifest.SetupVersion, "amd64",
+			)
+			if len(result.Evidence) == 0 || !strings.Contains(result.Metrics.FilterType, "blueprint+exact+homologation") {
+				t.Fatalf("retrieval exato ausente: %#v", result)
+			}
+			for _, evidence := range result.Evidence {
+				if evidence.DocumentType != "blueprint" || evidence.BlueprintID != testCase.blueprintID {
+					t.Fatalf("contaminação cruzada: esperado=%s evidência=%#v", testCase.blueprintID, evidence)
+				}
+			}
+		})
+	}
+}
+
+func TestBlueprintFixturesAreBlockedOutsideHomologationAndSpecialist(t *testing.T) {
+	state, err := loadKnowledgePackageDirectory("knowledge-package")
+	if err != nil {
+		t.Fatal(err)
+	}
+	disabled, err := newKnowledgeRetriever(state, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, retrieverAndRoute := range map[string]struct {
+		retriever *knowledgeRetriever
+		route     bool
+	}{
+		"homologation-disabled": {retriever: disabled, route: true},
+		"wrong-specialist":      {retriever: testRetrieverFromState(t, state, true), route: false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			result := retrieverAndRoute.retriever.retrieveResolved(
+				retrievalQueryResolution{
+					Query:          "blueprint-001-whatsapp-marketing-completo",
+					BlueprintRoute: retrieverAndRoute.route,
+				},
+				state.Manifest.SetupVersion,
+				"amd64",
+			)
+			for _, evidence := range result.Evidence {
+				if evidence.DocumentType == "blueprint" || evidence.Fictitious {
+					t.Fatalf("fixture atravessou o gate: %#v", evidence)
+				}
+			}
+		})
+	}
+}
+
+func testRetrieverFromState(
+	t *testing.T,
+	state knowledgePackageState,
+	homologation bool,
+) *knowledgeRetriever {
+	t.Helper()
+	retriever, err := newKnowledgeRetriever(state, homologation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return retriever
 }
 
 func TestShadowRetrievalFindsExactSetupAlias(t *testing.T) {
@@ -370,6 +495,22 @@ func TestRetrievalPromptRejectsUnsafeOrInsufficientResults(t *testing.T) {
 	base.Evidence[0].Status = "draft"
 	if context, status := buildRetrievalPrompt(base); context != nil || status != "invalid-evidence" {
 		t.Fatalf("documento não aprovado foi ativado: status=%s context=%#v", status, context)
+	}
+}
+
+func TestRetrievalPromptRejectsUnsafeBlueprintFixtureFlags(t *testing.T) {
+	result := retrievalResult{
+		Metrics: retrievalMetrics{Version: knowledgeRetrieval, Confidence: "high"},
+		Evidence: []retrievalEvidence{{
+			DocumentID: "blueprint-fixture", DocumentType: "blueprint",
+			BlueprintID: "blueprint-fixture", Fictitious: true, Deployable: true,
+			Status: "reviewed", ContentSHA256: strings.Repeat("a", 64),
+			Content: "Fixture com flags incompatíveis.",
+		}},
+	}
+	if prompt, status := buildRetrievalPrompt(result); prompt != nil ||
+		status != "invalid-blueprint-evidence" {
+		t.Fatalf("fixture insegura foi aceita: status=%s prompt=%#v", status, prompt)
 	}
 }
 

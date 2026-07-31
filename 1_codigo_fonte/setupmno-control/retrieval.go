@@ -70,6 +70,9 @@ type retrievalEvidence struct {
 	DocumentType       string
 	Status             string
 	Category           string
+	BlueprintID        string
+	Fictitious         bool
+	Deployable         bool
 	TargetArchitecture string
 	Title              string
 	Heading            string
@@ -94,6 +97,9 @@ type retrievalCitation struct {
 	DocumentType       string `json:"documentType"`
 	Status             string `json:"status"`
 	Category           string `json:"category"`
+	BlueprintID        string `json:"blueprintId,omitempty"`
+	Fictitious         bool   `json:"fictitious"`
+	Deployable         bool   `json:"deployable"`
 	Title              string `json:"title"`
 	Heading            string `json:"heading"`
 	TargetArchitecture string `json:"targetArchitecture"`
@@ -120,6 +126,8 @@ type retrievalInspection struct {
 	PromptSourceCount int                 `json:"promptSourceCount"`
 	ResolvedSetupID   string              `json:"resolvedSetupId,omitempty"`
 	Contextualized    bool                `json:"contextualized"`
+	Simulation        bool                `json:"simulation"`
+	BlueprintIDs      []string            `json:"blueprintIds,omitempty"`
 	Evidence          []retrievalCitation `json:"evidence"`
 }
 
@@ -128,6 +136,9 @@ type retrievalPromptSource struct {
 	DocumentID         string `json:"documentId"`
 	DocumentVersion    string `json:"documentVersion"`
 	DocumentType       string `json:"documentType"`
+	BlueprintID        string `json:"blueprintId,omitempty"`
+	Fictitious         bool   `json:"fictitious"`
+	Deployable         bool   `json:"deployable"`
 	Heading            string `json:"heading"`
 	TargetArchitecture string `json:"targetArchitecture"`
 	SetupID            string `json:"setupId,omitempty"`
@@ -141,6 +152,8 @@ type retrievalPromptContext struct {
 	RetrievalVersion string                  `json:"retrievalVersion"`
 	KnowledgeVersion string                  `json:"knowledgeVersion"`
 	Confidence       string                  `json:"confidence"`
+	Simulation       bool                    `json:"simulation"`
+	BlueprintIDs     []string                `json:"blueprintIds,omitempty"`
 	Sources          []retrievalPromptSource `json:"sources"`
 }
 
@@ -149,7 +162,10 @@ type retrievalQueryResolution struct {
 	SetupID        string
 	SetupIDs       []string
 	CatalogName    string
+	BlueprintID    string
+	BlueprintIDs   []string
 	Contextualized bool
+	BlueprintRoute bool
 }
 
 type groundingAudit struct {
@@ -173,10 +189,12 @@ type retrievalAggregate struct {
 }
 
 type knowledgeRetriever struct {
-	index             knowledgeIndexV2
-	legacy            knowledgeIndex
-	config            retrievalConfig
-	setupCatalogNames map[string]string
+	index                 knowledgeIndexV2
+	legacy                knowledgeIndex
+	config                retrievalConfig
+	setupCatalogNames     map[string]string
+	blueprintAliases      map[string][]string
+	blueprintHomologation bool
 }
 
 type scoredChunk struct {
@@ -185,7 +203,10 @@ type scoredChunk struct {
 	exactAlias bool
 }
 
-func newKnowledgeRetriever(state knowledgePackageState) (*knowledgeRetriever, error) {
+func newKnowledgeRetriever(
+	state knowledgePackageState,
+	blueprintHomologation ...bool,
+) (*knowledgeRetriever, error) {
 	if state.IndexV2.SchemaVersion != knowledgeIndexSchema ||
 		state.IndexV2.RetrievalVersion != knowledgeRetrieval ||
 		len(state.IndexV2.Chunks) == 0 {
@@ -208,10 +229,35 @@ func newKnowledgeRetriever(state knowledgePackageState) (*knowledgeRetriever, er
 		}
 		setupCatalogNames[entry.SetupID] = entry.CatalogName
 	}
+	var blueprintCatalog blueprintIndex
+	blueprintData, exists := state.Files["blueprints/index.json"]
+	if !exists || decodeStrictJSON(blueprintData, &blueprintCatalog) != nil ||
+		len(blueprintCatalog.Entries) == 0 {
+		return nil, errors.New("índice canônico de Blueprints indisponível")
+	}
+	blueprintAliases := make(map[string][]string, len(blueprintCatalog.Entries))
+	for _, entry := range blueprintCatalog.Entries {
+		if entry.BlueprintID == "" || entry.Title == "" {
+			return nil, errors.New("índice canônico de Blueprints inválido")
+		}
+		blueprintAliases[entry.BlueprintID] = append(
+			[]string{entry.BlueprintID, entry.Title},
+			entry.Aliases...,
+		)
+	}
+	homologationEnabled := false
+	if len(blueprintHomologation) > 1 {
+		return nil, errors.New("configuração duplicada de homologação de Blueprints")
+	}
+	if len(blueprintHomologation) == 1 {
+		homologationEnabled = blueprintHomologation[0]
+	}
 	return &knowledgeRetriever{
-		index:             state.IndexV2,
-		legacy:            state.Index,
-		setupCatalogNames: setupCatalogNames,
+		index:                 state.IndexV2,
+		legacy:                state.Index,
+		setupCatalogNames:     setupCatalogNames,
+		blueprintAliases:      blueprintAliases,
+		blueprintHomologation: homologationEnabled,
 		config: retrievalConfig{
 			K1:            1.2,
 			B:             0.75,
@@ -240,6 +286,10 @@ func (r *knowledgeRetriever) resolveQuery(
 	history []assistantMessage,
 ) retrievalQueryResolution {
 	resolution := retrievalQueryResolution{Query: strings.TrimSpace(question)}
+	resolution.BlueprintIDs = r.matchedBlueprintIDs(question)
+	if len(resolution.BlueprintIDs) == 1 {
+		resolution.BlueprintID = resolution.BlueprintIDs[0]
+	}
 	resolution.SetupIDs = r.matchedSetupIDs(question)
 	if len(resolution.SetupIDs) == 1 {
 		setupID := resolution.SetupIDs[0]
@@ -338,6 +388,15 @@ func (r *knowledgeRetriever) retrieveResolved(
 			metrics.FilterType += "+context"
 		}
 	}
+	if resolution.BlueprintRoute {
+		metrics.FilterType += "+blueprint"
+		if resolution.BlueprintID != "" {
+			metrics.FilterType += "+exact"
+		}
+		if r.blueprintHomologation {
+			metrics.FilterType += "+homologation"
+		}
+	}
 	if len(terms) == 0 || len(architectures) == 0 {
 		metrics.DurationMS = elapsedMilliseconds(started)
 		return retrievalResult{
@@ -361,6 +420,7 @@ func (r *knowledgeRetriever) retrieveResolved(
 	for _, architecture := range architectures {
 		candidates := r.rankLane(
 			terms, resolution.Query, setupVersion, architecture, setupID, exactSetup,
+			resolution.BlueprintRoute, resolution.BlueprintID,
 		)
 		candidateCount += min(len(candidates), r.config.MaxCandidates)
 		added := 0
@@ -397,6 +457,9 @@ func (r *knowledgeRetriever) retrieveResolved(
 				DocumentType:       candidate.chunk.DocumentType,
 				Status:             candidate.chunk.Status,
 				Category:           candidate.chunk.Category,
+				BlueprintID:        optionalString(candidate.chunk.BlueprintID),
+				Fictitious:         candidate.chunk.Fictitious,
+				Deployable:         candidate.chunk.Deployable,
 				TargetArchitecture: architecture,
 				Title:              candidate.chunk.Title,
 				Heading:            candidate.chunk.Heading,
@@ -514,6 +577,8 @@ func (r *knowledgeRetriever) rankLane(
 	architecture string,
 	setupID string,
 	filterSetup bool,
+	blueprintRoute bool,
+	blueprintID string,
 ) []scoredChunk {
 	allowedStatuses := make(map[string]struct{}, len(r.index.NormalRetrievalStatuses))
 	for _, status := range r.index.NormalRetrievalStatuses {
@@ -526,6 +591,19 @@ func (r *knowledgeRetriever) rankLane(
 			continue
 		}
 		if _, allowed := allowedStatuses[chunk.Status]; !allowed {
+			continue
+		}
+		if chunk.DocumentType == "blueprint" {
+			if !blueprintRoute || (chunk.Fictitious && !r.blueprintHomologation) {
+				continue
+			}
+			if blueprintID != "" &&
+				(chunk.BlueprintID == nil || *chunk.BlueprintID != blueprintID) {
+				continue
+			}
+		} else if chunk.BlueprintID != nil || chunk.Fictitious || chunk.Deployable {
+			continue
+		} else if blueprintID != "" {
 			continue
 		}
 		if filterSetup && (chunk.SetupID == nil || *chunk.SetupID != setupID) {
@@ -604,6 +682,17 @@ func (r *knowledgeRetriever) matchedSetupIDs(question string) []string {
 	return result
 }
 
+func (r *knowledgeRetriever) matchedBlueprintIDs(question string) []string {
+	matches := make([]string, 0, len(r.blueprintAliases))
+	for blueprintID, aliases := range r.blueprintAliases {
+		if anyPhraseContained(question, aliases) {
+			matches = append(matches, blueprintID)
+		}
+	}
+	sort.Strings(matches)
+	return matches
+}
+
 func (r *knowledgeRetriever) targetArchitectures(
 	question string,
 	runtimeArchitecture string,
@@ -663,6 +752,8 @@ func buildRetrievalInspection(
 	knowledgeStale bool,
 ) retrievalInspection {
 	evidence := make([]retrievalCitation, 0, min(len(result.Evidence), retrievalMaxResults))
+	blueprintIDs := make(map[string]struct{})
+	simulation := false
 	for index, item := range result.Evidence {
 		if index == retrievalMaxResults {
 			break
@@ -675,6 +766,9 @@ func buildRetrievalInspection(
 			DocumentType:       item.DocumentType,
 			Status:             item.Status,
 			Category:           item.Category,
+			BlueprintID:        item.BlueprintID,
+			Fictitious:         item.Fictitious,
+			Deployable:         item.Deployable,
 			Title:              item.Title,
 			Heading:            item.Heading,
 			TargetArchitecture: item.TargetArchitecture,
@@ -682,6 +776,10 @@ func buildRetrievalInspection(
 			ContentSHA256:      item.ContentSHA256,
 			Excerpt:            canonicalExcerpt(item.Content),
 		})
+		if item.BlueprintID != "" {
+			blueprintIDs[item.BlueprintID] = struct{}{}
+		}
+		simulation = simulation || item.Fictitious
 	}
 	return retrievalInspection{
 		Mode:             "shadow",
@@ -699,6 +797,8 @@ func buildRetrievalInspection(
 		Fallback:         result.Metrics.Fallback,
 		ResolvedSetupID:  result.ResolvedSetup,
 		Contextualized:   result.Contextualized,
+		Simulation:       simulation,
+		BlueprintIDs:     sortedStringKeys(blueprintIDs),
 		Evidence:         evidence,
 	}
 }
@@ -728,6 +828,8 @@ func buildRetrievalPrompt(result retrievalResult) (*retrievalPromptContext, stri
 		}
 	}
 	sources := make([]retrievalPromptSource, 0, retrievalPromptResults)
+	blueprintIDs := make(map[string]struct{})
+	simulation := false
 	totalRunes := 0
 	for _, item := range result.Evidence {
 		if len(sources) == retrievalPromptResults {
@@ -738,6 +840,22 @@ func buildRetrievalPrompt(result retrievalResult) (*retrievalPromptContext, stri
 		if !approvedDocument ||
 			!validEvidenceSHA256(item.ContentSHA256) {
 			return nil, "invalid-evidence"
+		}
+		if item.DocumentType == "blueprint" {
+			if item.BlueprintID == "" {
+				return nil, "invalid-blueprint-evidence"
+			}
+			if item.Fictitious {
+				if item.Deployable || item.Status != "reviewed" {
+					return nil, "invalid-blueprint-evidence"
+				}
+				simulation = true
+			} else if !item.Deployable || item.Status != "homologated" {
+				return nil, "invalid-blueprint-evidence"
+			}
+			blueprintIDs[item.BlueprintID] = struct{}{}
+		} else if item.BlueprintID != "" || item.Fictitious || item.Deployable {
+			return nil, "invalid-blueprint-evidence"
 		}
 		content := strings.Join(strings.Fields(item.Content), " ")
 		contentRunes := []rune(content)
@@ -757,6 +875,9 @@ func buildRetrievalPrompt(result retrievalResult) (*retrievalPromptContext, stri
 			DocumentID:         item.DocumentID,
 			DocumentVersion:    item.DocumentVersion,
 			DocumentType:       item.DocumentType,
+			BlueprintID:        item.BlueprintID,
+			Fictitious:         item.Fictitious,
+			Deployable:         item.Deployable,
 			Heading:            item.Heading,
 			TargetArchitecture: item.TargetArchitecture,
 			SetupID:            item.SetupID,
@@ -769,13 +890,35 @@ func buildRetrievalPrompt(result retrievalResult) (*retrievalPromptContext, stri
 	if len(sources) == 0 {
 		return nil, "no-evidence"
 	}
+	mode := "controlled"
+	if simulation {
+		mode = "blueprint-homologation"
+	}
 	return &retrievalPromptContext{
-		Mode:             "controlled",
+		Mode:             mode,
 		RetrievalVersion: result.Metrics.Version,
 		KnowledgeVersion: result.Metrics.KnowledgeVersion,
 		Confidence:       result.Metrics.Confidence,
+		Simulation:       simulation,
+		BlueprintIDs:     sortedStringKeys(blueprintIDs),
 		Sources:          sources,
 	}, "active"
+}
+
+func optionalString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+func sortedStringKeys(values map[string]struct{}) []string {
+	result := make([]string, 0, len(values))
+	for value := range values {
+		result = append(result, value)
+	}
+	sort.Strings(result)
+	return result
 }
 
 func validateGroundingCitations(answer string, availableSources int) groundingAudit {

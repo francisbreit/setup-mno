@@ -58,8 +58,9 @@ class KnowledgeFactoryTests(unittest.TestCase):
         result = run_linter()
         self.assertEqual(result.returncode, 0, result.stderr)
         report = json.loads(result.stdout)
-        self.assertEqual(report["documents"], 29)
+        self.assertEqual(report["documents"], 34)
         self.assertEqual(report["setups"], 20)
+        self.assertEqual(report["types"]["blueprint"], 5)
 
     def test_all_pilot_setups_resolve_on_both_architectures(self) -> None:
         registry = load_json(ROOT / "registry" / "setups.json")
@@ -174,7 +175,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
                         "--setup-version",
                         registry["setupVersion"],
                         "--control-version",
-                        "3.0.0",
+                        "3.1.0",
                     ],
                     check=False,
                     capture_output=True,
@@ -202,7 +203,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
                     self.assertEqual(index["chunkCount"], len(index["chunks"]))
                     self.assertGreater(index["chunkCount"], 29)
                     self.assertEqual(legacy_index["schemaVersion"], 1)
-                    self.assertEqual(len(legacy_index["entries"]), 29)
+                    self.assertEqual(len(legacy_index["entries"]), 34)
                     blueprint_index = json.load(
                         package.extractfile("blueprints/index.json")
                     )
@@ -215,10 +216,19 @@ class KnowledgeFactoryTests(unittest.TestCase):
                             for entry in blueprint_index["entries"]
                         )
                     )
-                    self.assertFalse(
-                        any(
-                            entry["documentType"] == "blueprint"
-                            for entry in legacy_index["entries"]
+                    blueprint_documents = [
+                        entry
+                        for entry in legacy_index["entries"]
+                        if entry["documentType"] == "blueprint"
+                    ]
+                    self.assertEqual(len(blueprint_documents), 5)
+                    self.assertTrue(
+                        all(
+                            entry["fictitious"]
+                            and not entry["deployable"]
+                            and entry["status"] == "reviewed"
+                            and entry["blueprintId"]
+                            for entry in blueprint_documents
                         )
                     )
                     chunk_ids: set[str] = set()
@@ -245,13 +255,15 @@ class KnowledgeFactoryTests(unittest.TestCase):
                         )
             self.assertEqual(archives[0], archives[1])
             self.assertEqual(manifests[0], manifests[1])
-            self.assertEqual(manifests[0]["documentEntries"], 29)
+            self.assertEqual(manifests[0]["documentEntries"], 34)
             self.assertEqual(manifests[0]["setupEntries"], 20)
             self.assertEqual(manifests[0]["infrastructureEntries"], 9)
             self.assertEqual(manifests[0]["blueprintSchemaVersion"], 1)
             self.assertEqual(manifests[0]["blueprintFactoryVersion"], "1.0.0")
             self.assertEqual(manifests[0]["blueprintEntries"], 5)
             self.assertEqual(manifests[0]["blueprintBundleEntries"], 5)
+            self.assertEqual(manifests[0]["blueprintKnowledgeEntries"], 5)
+            self.assertEqual(manifests[0]["blueprintFixtureEntries"], 5)
             self.assertEqual(manifests[0]["indexSchemaVersion"], 2)
             self.assertEqual(
                 manifests[0]["retrievalVersion"],

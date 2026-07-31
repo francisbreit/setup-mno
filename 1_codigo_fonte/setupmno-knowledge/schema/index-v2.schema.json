@@ -21,7 +21,7 @@
       "const": 2
     },
     "retrievalVersion": {
-      "const": "1.1.0"
+      "const": "1.2.0"
     },
     "knowledgeVersion": {
       "type": "string",
@@ -163,6 +163,9 @@
         "documentVersion",
         "setupVersion",
         "documentType",
+        "blueprintId",
+        "fictitious",
+        "deployable",
         "setupId",
         "topicId",
         "architectures",
@@ -194,6 +197,22 @@
         },
         "documentType": {
           "type": "string"
+        },
+        "blueprintId": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/identifier"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fictitious": {
+          "type": "boolean"
+        },
+        "deployable": {
+          "type": "boolean"
         },
         "setupId": {
           "oneOf": [

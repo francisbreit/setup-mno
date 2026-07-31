@@ -23,7 +23,7 @@ from blueprint_factory import (
 
 ROOT = Path(__file__).resolve().parent.parent
 CATALOG = ROOT.parent / "setupmno-control" / "catalog.json"
-SETUP_VERSION = "6.0.0"
+SETUP_VERSION = "6.1.0"
 
 
 class BlueprintFactoryTests(unittest.TestCase):
@@ -55,7 +55,10 @@ class BlueprintFactoryTests(unittest.TestCase):
         self.assertEqual(len(bundles), 5)
         for path, data in bundles.items():
             with self.subTest(path=path), zipfile.ZipFile(io.BytesIO(data)) as archive:
-                self.assertGreaterEqual(len(archive.infolist()), 2)
+                self.assertGreaterEqual(len(archive.infolist()), 3)
+                self.assertTrue(
+                    any(info.filename.endswith("/knowledge.md") for info in archive.infolist())
+                )
                 for info in archive.infolist():
                     self.assertEqual(info.date_time, (1980, 1, 1, 0, 0, 0))
                     self.assertFalse(info.is_dir())

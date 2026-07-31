@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="3.0.0"
+CONTROL_VERSION="3.1.0"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -499,7 +499,7 @@ error_file="/tmp/${nome_app}-error.log"
     [ "$knowledge_entries" -gt 0 ] &&
     [ "$knowledge_chunks" -gt "$knowledge_entries" ] &&
     [ "$knowledge_index_schema" = "2" ] &&
-    [ "$knowledge_retrieval_version" = "1.1.0" ] &&
+    [ "$knowledge_retrieval_version" = "1.2.0" ] &&
     [ "$knowledge_entries" = "$release_knowledge_entries" ] &&
     [ "$knowledge_archive_bytes" = "$actual_knowledge_bytes" ] &&
     [ "$knowledge_archive_bytes" -le $((8 * 1024 * 1024)) ] &&
@@ -745,6 +745,7 @@ services:
       - RETRIEVAL_SHADOW_ENABLED=true
       - RETRIEVAL_INSPECTION_ENABLED=true
       - RETRIEVAL_PROMPT_ENABLED=true
+      - BLUEPRINT_HOMOLOGATION_ENABLED=true
       - AGENT_TOKEN_FILE=/run/secrets/$agent_secret
       - AGENT_URL=http://${agent_stack}_${agent_service}:9090
 EOL

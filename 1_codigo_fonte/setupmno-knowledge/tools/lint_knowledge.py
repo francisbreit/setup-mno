@@ -46,7 +46,13 @@ REQUIRED_FIELDS = {
     "homologation",
 }
 
-OPTIONAL_FIELDS = {"setupId", "topicId"}
+OPTIONAL_FIELDS = {
+    "setupId",
+    "topicId",
+    "blueprintId",
+    "fictitious",
+    "deployable",
+}
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 SHA256_RE = re.compile(r"^[a-f0-9]{64}$")
 ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -85,6 +91,17 @@ REQUIRED_SECTIONS = {
         "## Princípios",
         "## Validação",
         "## Riscos e limites",
+    ),
+    "blueprint": (
+        "## Estado de homologação",
+        "## Objetivo",
+        "## Topologia",
+        "## Componentes",
+        "## Pré-requisitos",
+        "## Ordem segura",
+        "## Validação",
+        "## Riscos e limites",
+        "## Rollback",
     ),
 }
 
@@ -337,6 +354,47 @@ def validate_document(
             errors.append("topicId fora da taxonomia de infraestrutura")
     elif "topicId" in metadata:
         errors.append("topicId só é permitido em documentos de infraestrutura")
+
+    blueprint_fields = {"blueprintId", "fictitious", "deployable"}
+    if document_type == "blueprint":
+        blueprint_id = metadata.get("blueprintId")
+        fictitious = metadata.get("fictitious")
+        deployable = metadata.get("deployable")
+        if not isinstance(blueprint_id, str) or not ID_RE.fullmatch(blueprint_id):
+            errors.append("blueprintId inválido")
+        if not isinstance(fictitious, bool) or not isinstance(deployable, bool):
+            errors.append("fictitious e deployable devem ser booleanos")
+        if isinstance(blueprint_id, str) and document.path.parent.name != blueprint_id:
+            errors.append("blueprintId diverge da pasta canônica")
+        manifest_path = document.path.parent / "blueprint.json"
+        try:
+            blueprint_manifest = load_json(manifest_path)
+        except (OSError, json.JSONDecodeError):
+            blueprint_manifest = None
+            errors.append("blueprint.json correspondente está ausente ou inválido")
+        if isinstance(blueprint_manifest, dict):
+            for field in blueprint_fields:
+                if metadata.get(field) != blueprint_manifest.get(field):
+                    errors.append(f"{field} diverge do manifesto canônico do Blueprint")
+            if metadata.get("architectures") != blueprint_manifest.get("architectures"):
+                errors.append("architectures diverge do manifesto canônico do Blueprint")
+            if metadata.get("risk") != blueprint_manifest.get("risk"):
+                errors.append("risk diverge do manifesto canônico do Blueprint")
+        if fictitious is True:
+            if deployable is not False or metadata.get("status") != "reviewed":
+                errors.append(
+                    "fixture fictícia exige deployable=false e status=reviewed"
+                )
+            if metadata.get("sourceType") != "homologation-test":
+                errors.append("fixture fictícia exige sourceType=homologation-test")
+        elif deployable is True and metadata.get("status") != "homologated":
+            errors.append("Blueprint implantável exige status=homologated")
+        elif fictitious is False and deployable is False:
+            errors.append("Blueprint real recuperável deve estar homologado e implantável")
+    elif any(field in metadata for field in blueprint_fields):
+        errors.append(
+            "blueprintId, fictitious e deployable só são permitidos em documentos blueprint"
+        )
 
     homologation = metadata.get("homologation")
     verified_ports: set[int] = set()

@@ -26,7 +26,7 @@ from lint_knowledge import load_documents, load_json
 PACKAGE_SCHEMA = 1
 LEGACY_INDEX_SCHEMA = 1
 INDEX_SCHEMA = 2
-RETRIEVAL_VERSION = "1.1.0"
+RETRIEVAL_VERSION = "1.2.0"
 MAX_DOCUMENTS = 512
 MAX_DOCUMENT_BYTES = 256 << 10
 MAX_INDEX_BYTES = 2 << 20
@@ -197,11 +197,20 @@ def aliases_for_document(
     metadata: dict[str, Any],
     registry_by_id: dict[str, dict[str, Any]],
     taxonomy: dict[str, Any],
+    document_path: Path,
 ) -> list[str]:
     if metadata["documentType"] == "setup":
         return list(registry_by_id[metadata["setupId"]]["aliases"])
     if metadata["documentType"] == "infrastructure":
         return list(taxonomy.get("synonyms", {}).get(metadata["topicId"], []))
+    if metadata["documentType"] == "blueprint":
+        manifest = load_json(document_path.parent / "blueprint.json")
+        aliases = [
+            metadata["blueprintId"],
+            manifest["title"],
+            *manifest.get("aliases", []),
+        ]
+        return list(dict.fromkeys(str(alias) for alias in aliases if str(alias).strip()))
     return []
 
 
@@ -278,7 +287,12 @@ def build_package_files(
             f"documents/{metadata['documentType']}/{metadata['documentId']}.md"
         )
         add_package_file(files, packaged_path, raw_document)
-        aliases = aliases_for_document(metadata, registry_by_id, taxonomy)
+        aliases = aliases_for_document(
+            metadata,
+            registry_by_id,
+            taxonomy,
+            document.path,
+        )
         search_material = " ".join(
             [
                 metadata["title"],
@@ -291,6 +305,9 @@ def build_package_files(
         entry = {
             "architectures": metadata["architectures"],
             "category": metadata["category"],
+            "blueprintId": metadata.get("blueprintId"),
+            "fictitious": metadata.get("fictitious", False),
+            "deployable": metadata.get("deployable", False),
             "contentSHA256": metadata["contentSHA256"],
             "documentId": metadata["documentId"],
             "documentType": metadata["documentType"],
@@ -352,6 +369,9 @@ def build_package_files(
                         "aliases": aliases,
                         "architectures": metadata["architectures"],
                         "category": metadata["category"],
+                        "blueprintId": metadata.get("blueprintId"),
+                        "fictitious": metadata.get("fictitious", False),
+                        "deployable": metadata.get("deployable", False),
                         "chunkId": chunk_id,
                         "content": content,
                         "contentSHA256": sha256_hex(content.encode("utf-8")),
@@ -436,6 +456,13 @@ def build_package_files(
         "infrastructureEntries": sum(
             entry["documentType"] == "infrastructure" for entry in index_entries
         ),
+        "blueprintKnowledgeEntries": sum(
+            entry["documentType"] == "blueprint" for entry in index_entries
+        ),
+        "blueprintFixtureEntries": sum(
+            entry["documentType"] == "blueprint" and entry["fictitious"]
+            for entry in index_entries
+        ),
         "chunkEntries": chunk_count,
         "indexSchemaVersion": INDEX_SCHEMA,
         "knowledgeVersion": knowledge_version,
@@ -518,6 +545,8 @@ def build_manifest(
         "blueprintEntries": summary["blueprintEntries"],
         "blueprintBundleEntries": summary["blueprintBundleEntries"],
         "blueprintIndexSHA256": summary["blueprintIndexSHA256"],
+        "blueprintKnowledgeEntries": summary["blueprintKnowledgeEntries"],
+        "blueprintFixtureEntries": summary["blueprintFixtureEntries"],
         "fileEntries": len(files),
         "limits": {
             "maxArchiveBytes": MAX_ARCHIVE_BYTES,
@@ -642,6 +671,8 @@ def main() -> int:
                 "blueprintEntries": manifest["blueprintEntries"],
                 "blueprintBundleEntries": manifest["blueprintBundleEntries"],
                 "blueprintFactoryVersion": manifest["blueprintFactoryVersion"],
+                "blueprintKnowledgeEntries": manifest["blueprintKnowledgeEntries"],
+                "blueprintFixtureEntries": manifest["blueprintFixtureEntries"],
                 "chunkEntries": manifest["chunkEntries"],
                 "indexSchemaVersion": manifest["indexSchemaVersion"],
                 "retrievalVersion": manifest["retrievalVersion"],

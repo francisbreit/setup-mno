@@ -1,16 +1,18 @@
 {
   "schemaVersion": 1,
-  "setupVersion": "6.0.0",
-  "catalogVersion": "6.0.0",
+  "setupVersion": "6.1.0",
+  "catalogVersion": "6.1.0",
   "catalogSHA256": "d318413cf9e22af29877f2ad57e515474b5e574ebc6f9c928944b3b20296eb1c",
   "catalogEntries": 151,
   "architecture": "amd64",
-  "controlSourceSHA256": "e92231aab4ee6ab6ba44b7d238e968a0bbf2ae0587d8c0bbeee770eb177dfea2",
-  "controlSourceBytes": 72985,
-  "knowledgeVersion": "2.0.0",
-  "knowledgeArchiveSHA256": "aa7a933a5f952ee2ed0cfad958abf73a339d392ca1df6e661ed6b50f032bc98a",
-  "knowledgeEntries": 29,
+  "controlSourceSHA256": "9a74e5ce6b242f7aba3b94a8cdf322d25fff5646873268f4bbddd74b97f7c79e",
+  "controlSourceBytes": 75486,
+  "knowledgeVersion": "2.1.0",
+  "knowledgeArchiveSHA256": "ca7534ba43f0df9e2470abf3da688a9ce0dc47c085cc65ca5cf6256af8912c78",
+  "knowledgeEntries": 34,
   "blueprintFactoryVersion": "1.0.0",
-  "blueprintIndexSHA256": "a7ae8c2c25408722382cf16a002b9ffe4c24937819a4b340d3eef2191aec3169",
-  "blueprintEntries": 5
+  "blueprintIndexSHA256": "61de0da724f9ccf8919e386ace44e8e2f296f866db8949c0fe8c05abe9aa47e5",
+  "blueprintEntries": 5,
+  "blueprintKnowledgeEntries": 5,
+  "blueprintFixtureEntries": 5
 }

@@ -392,6 +392,7 @@ async function askAssistant(event) {
 
 async function streamAssistant(question, history, target, basic, fallbackReason = "") {
   clearRetrievalInspection(target);
+  clearBlueprintSimulation(target);
   setAssistantMessageRoutePending(target, basic ? "Classificando contingência local..." : "Classificando especialista...");
   updateAssistantRoute(null, "Classificando a intenção localmente...");
   updateRetrievalSummary(null, basic
@@ -444,6 +445,8 @@ async function streamAssistant(question, history, target, basic, fallbackReason 
         attachAssistantMessageRoute(target, event.data);
       } else if (event.type === "retrieval") {
         renderRetrievalInspection(target, event.data);
+      } else if (event.type === "blueprint_simulation") {
+        renderBlueprintSimulation(target, event.data);
       } else if (event.type === "grounding") {
         applyGroundingAudit(target, event.data);
       } else if (event.type === "delta") {
@@ -463,6 +466,32 @@ async function streamAssistant(question, history, target, basic, fallbackReason 
 
 function clearRetrievalInspection(target) {
   target.querySelector(".retrieval-inspection")?.remove();
+}
+
+function clearBlueprintSimulation(target) {
+  target.querySelector(".blueprint-simulation-banner")?.remove();
+}
+
+function renderBlueprintSimulation(target, simulation) {
+  if (!target || simulation?.active !== true || simulation?.deployable !== false) return;
+  clearBlueprintSimulation(target);
+  const ids = Array.isArray(simulation.blueprintIds)
+    ? simulation.blueprintIds.filter(value => typeof value === "string" && value).slice(0, 5)
+    : [];
+  const banner = document.createElement("div");
+  banner.className = "blueprint-simulation-banner";
+  banner.setAttribute("role", "status");
+  const title = document.createElement("strong");
+  title.textContent = "Simulação de homologação";
+  const description = document.createElement("span");
+  description.textContent = "Blueprint fictício e não implantável. O fluxo RAG é equivalente ao de produção, mas esta resposta não autoriza deploy.";
+  banner.append(title, description);
+  if (ids.length) {
+    const metadata = document.createElement("small");
+    metadata.textContent = ids.join(" · ");
+    banner.append(metadata);
+  }
+  target.querySelector(".message-content")?.parentElement.prepend(banner);
 }
 
 function updateAssistantRoute(route, message = "") {
@@ -627,10 +656,12 @@ function renderRetrievalInspection(target, inspection) {
   const evidence = Array.isArray(inspection.evidence) ? inspection.evidence.slice(0, evidenceLimit) : [];
   const details = document.createElement("details");
   details.className = "retrieval-inspection";
-  const sourceLabel = `${evidence.length} evidência${evidence.length === 1 ? "" : "s"}`;
+  const simulation = inspection.simulation === true;
+  const sourceLabel = `${evidence.length} evidência${evidence.length === 1 ? "" : "s"}${simulation ? " · simulação" : ""}`;
   const items = evidence.map(item => {
     const hash = String(item.contentSHA256 || "").slice(0, 12);
-    return `<li><strong>${Number(item.rank) || "—"}. ${escapeHTML(item.title || item.documentId || "Documento canônico")}</strong><span>${escapeHTML(item.heading || "Seção geral")}</span><p>${escapeHTML(item.excerpt || "Trecho não disponível.")}</p><small>${escapeHTML(item.documentId || "documento")} · v${escapeHTML(item.documentVersion || "N/I")} · ${escapeHTML(item.targetArchitecture || "geral")} · ${escapeHTML(item.status || "N/I")}${hash ? ` · SHA ${escapeHTML(hash)}` : ""}</small></li>`;
+    const fixture = item.fictitious === true && item.deployable === false ? " · FIXTURE NÃO IMPLANTÁVEL" : "";
+    return `<li><strong>${Number(item.rank) || "—"}. ${escapeHTML(item.title || item.documentId || "Documento canônico")}</strong><span>${escapeHTML(item.heading || "Seção geral")}</span><p>${escapeHTML(item.excerpt || "Trecho não disponível.")}</p><small>${escapeHTML(item.documentId || "documento")} · v${escapeHTML(item.documentVersion || "N/I")} · ${escapeHTML(item.targetArchitecture || "geral")} · ${escapeHTML(item.status || "N/I")}${escapeHTML(fixture)}${hash ? ` · SHA ${escapeHTML(hash)}` : ""}</small></li>`;
   }).join("");
   const grounded = inspection.usedInAnswer === true;
   const activationLabel = grounded
@@ -658,6 +689,8 @@ function promptStatusLabel(value) {
     "confidence-insufficient": "confiança insuficiente",
     "legacy-fallback": "índice legado",
     "invalid-evidence": "evidência recusada",
+    "invalid-blueprint-evidence": "evidência de Blueprint recusada",
+    "blueprint-homologation-blocked": "fixture bloqueada fora do Arquiteto de Blueprints",
     "setup-mismatch": "fonte de outro setup recusada",
     "catalog-evidence-missing": "catálogo exato ausente",
     "citation-pending": "citações em validação",

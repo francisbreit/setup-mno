@@ -732,7 +732,7 @@ entre execuções e versões de modelo homologadas.
 
 ## Etapa 5 — Blueprints MNO
 
-**Status:** em andamento — subetapa 5.1 implementada na v6.0.0
+**Status:** em andamento — subetapas 5.1 e 5.2 implementadas
 **Impacto:** alto
 **Tipo:** produto, UX e arquitetura
 **Esforço:** estrutural
@@ -808,11 +808,15 @@ instalador ou na fábrica.
 
 1. **5.1 — Schema canônico e fábrica — implementada na v6.0.0:** validar,
    indexar e empacotar um ZIP determinístico por Blueprint.
-2. **5.2 — Catálogo e inspeção:** apresentar os Blueprints no Control Center,
+2. **5.2 — RAG de homologação equivalente — implementada na v6.1.0:** inserir
+   documentos fictícios revisados no mesmo pipeline de ingestão, ranking,
+   Arquiteto de Blueprints, prompt, citações e inspeção usado em produção,
+   mantendo bloqueio de deploy e sinalização explícita de simulação.
+3. **5.3 — Catálogo e inspeção:** apresentar os Blueprints no Control Center,
    deixando exemplos claramente separados de conteúdo homologado.
-3. **5.3 — Recomendação contextual:** selecionar Blueprints compatíveis com o
+4. **5.4 — Recomendação contextual:** selecionar Blueprints compatíveis com o
    objetivo, arquitetura e capacidade, sem executar deploy.
-4. **5.4 — Fluxo editorial e homologação:** promover rascunhos somente após
+5. **5.5 — Fluxo editorial e homologação:** promover rascunhos somente após
    revisão, testes isolados, evidências e assinatura de versão.
 
 ### Critério de conclusão
@@ -836,6 +840,24 @@ servidor e sem inventar componentes.
 - índice e manifesto com SHA-256 incluídos fora do bundle protegido por SHC;
 - exemplos excluídos do RAG normal; somente futuro `knowledge.md` revisado
   poderá fundamentar respostas.
+
+### Evidências da subetapa 5.2
+
+- cinco `knowledge.md` revisados, um por Blueprint fictício, com contrato
+  editorial idêntico ao exigido de um Blueprint real;
+- pacote com 34 documentos, 223 chunks e cinco documentos do tipo `blueprint`;
+- metadados `blueprintId`, `fictitious` e `deployable` preservados no índice
+  legado, no índice v2, nas evidências, no prompt e na inspeção;
+- recuperação liberada somente para o Arquiteto de Blueprints quando
+  `BLUEPRINT_HOMOLOGATION_ENABLED=true`;
+- resolução exata por ID, título ou alias e isolamento contra contaminação
+  cruzada entre os cinco Blueprints;
+- aviso determinístico de simulação antes da resposta do provedor e banner
+  persistente na interface;
+- fixtures proibidas no roteamento geral e bloqueadas se forem marcadas como
+  implantáveis;
+- nenhuma nova ferramenta de escrita, socket, shell, mount do host ou deploy
+  automático.
 
 ---
 
@@ -1306,6 +1328,22 @@ Escopo implementado na release v6.0.0:
 - pacote idêntico para amd64 e arm64 e externo ao SHC;
 - nenhuma nova stack, porta, secret, mount, socket ou ferramenta de escrita.
 
+## Release arquitetural da subetapa 5.2
+
+Escopo implementado na release v6.1.0:
+
+- Setup MNO `6.1.0` e Control Center `3.1.0`;
+- conhecimento canônico `2.1.0` e retrieval `1.2.0`;
+- prompt do Arquiteto de Blueprints `1.3.0`, prompt base `1.2.0` e contrato de
+  resposta `1.1.0`;
+- cinco fixtures editoriais no RAG controlado, sempre fictícias e não
+  implantáveis;
+- mesma ingestão, ranking, fundamentação e citações reservadas aos futuros
+  Blueprints reais;
+- resolução determinística e isolamento por `blueprintId`;
+- sinalização visual e textual de simulação de homologação;
+- modo de homologação reversível por configuração e sem alterar o servidor.
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico
@@ -1319,12 +1357,12 @@ Escopo implementado na release v6.0.0:
 
 ## Próxima ação
 
-Homologar a subetapa **5.1 — Schema Canônico e Fábrica de Blueprints** pela
-inspeção dos cinco bundles de exemplo, confirmando que estão identificados como
-fictícios, não implantáveis e separados do RAG normal. Em seguida, projetar a
-**subetapa 5.2 — Catálogo e inspeção de Blueprints** no Control Center, ainda
-sem deploy automático. A Etapa 6 formalizará os thresholds antes de ampliar o
-orçamento atual do RAG.
+Homologar a subetapa **5.2 — RAG de homologação equivalente** perguntando ao
+Arquiteto sobre cada um dos cinco exemplos e confirmando: Blueprint correto,
+banner de simulação, fontes do mesmo `blueprintId`, ausência de recomendação de
+deploy e bloqueio fora do especialista. Em seguida, projetar a **subetapa 5.3 —
+Catálogo e inspeção de Blueprints** no Control Center. A Etapa 6 formalizará os
+thresholds antes de ampliar o orçamento atual do RAG.
 
 ## Referências oficiais
 

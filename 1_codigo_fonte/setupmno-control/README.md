@@ -158,8 +158,18 @@ Na subetapa 5.1, o pacote também transporta a fábrica canônica de Blueprints:
 
 Blueprints com status `example` são obrigatoriamente fictícios, não
 implantáveis e limitados a links `.invalid`. Seus `README.md` permanecem fora
-do RAG normal. Somente um futuro `knowledge.md` revisado e homologado poderá
-fundamentar respostas do Assistente.
+do RAG. Na subetapa 5.2, cada exemplo possui um `knowledge.md` revisado que
+percorre o mesmo índice, ranking, prompt especializado, citações e inspeção de
+um Blueprint real. A recuperação exige simultaneamente o Arquiteto de
+Blueprints e o modo explícito de homologação; a interface identifica a resposta
+como simulação e nunca a apresenta como autorização de deploy.
+
+Quando a pergunta resolve um `blueprintId` exato, o ranking fica restrito a
+esse documento. O gate rejeita exemplos fora do especialista, fora do modo de
+homologação ou com a combinação insegura `fictitious: true` e
+`deployable: true`. Assim, o comportamento funcional é equivalente ao de um
+Blueprint real, enquanto a procedência e a capacidade operacional continuam
+inequivocamente separadas.
 
 O mesmo pacote é distribuído para x86 e ARM. Na imagem do Assistente, a cópia
 primária fica em `/knowledge-package`, somente leitura pela própria camada da
