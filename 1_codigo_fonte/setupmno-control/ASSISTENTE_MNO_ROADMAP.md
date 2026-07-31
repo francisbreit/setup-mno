@@ -701,6 +701,8 @@ adequadas para cada intenção.
 ### Contrato da resposta
 
 - diagnóstico ou entendimento do objetivo;
+- cabeçalho visível na própria resposta com especialista, nível de risco e
+  versão do prompt, sem depender do cartão lateral;
 - evidências;
 - recomendação;
 - requisitos;
@@ -1228,8 +1230,13 @@ Homologar a subetapa **4.2 — Registro versionado de prompts** com perguntas
 representativas dos oito especialistas, comparando clareza para iniciantes,
 precisão para profissionais, recusa, incerteza, citações e rollback. Depois da
 aprovação funcional, iniciar a **subetapa 4.3 — Contrato estruturado e adaptativo
-de resposta**; a Etapa 6 formalizará os thresholds antes de ampliar o orçamento
-atual.
+de resposta**. A 4.3 deve incluir um identificador persistente em cada mensagem
+do Assistente, no formato equivalente a `Especialista · Risco · Prompt`, para
+que a autoria especializada continue evidente em telas estreitas, zoom elevado
+e quando o cartão lateral estiver fora da área visível. O identificador deve ser
+renderizado a partir do evento local de rota, sem confiar em texto produzido
+pela LLM e sem expor pergunta, contexto runtime ou hash completo. A Etapa 6
+formalizará os thresholds antes de ampliar o orçamento atual.
 
 ## Referências oficiais
 
