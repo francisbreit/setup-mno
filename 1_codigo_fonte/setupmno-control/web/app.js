@@ -492,11 +492,11 @@ function updateAssistantRuntime(runtime = {}) {
     $("assistant-privacy").textContent = "A listagem usa o catálogo validado instalado no servidor e não envia os 151 registros à LLM.";
   } else if (mode === "openai") {
     $("assistant-welcome-title").textContent = "Olá! O Copiloto MNO está conectado à OpenAI.";
-    $("assistant-welcome-text").textContent = "Envio somente contexto operacional minimizado, sem hostname, credenciais, comandos ou acesso direto ao Docker.";
+    $("assistant-welcome-text").textContent = "Sou especializado em Setup MNO e infraestrutura. Envio somente contexto operacional minimizado, sem hostname, credenciais, comandos ou acesso direto ao Docker.";
     $("assistant-privacy").textContent = "A consulta usa uma LLM externa. O Setup envia apenas métricas e dados mínimos necessários para responder.";
   } else if (mode === "ollama") {
     $("assistant-welcome-title").textContent = "Olá! O Copiloto MNO está conectado ao Ollama.";
-    $("assistant-welcome-text").textContent = "Posso combinar o catálogo do Setup MNO com a leitura segura do ambiente para orientar seus próximos passos.";
+    $("assistant-welcome-text").textContent = "Sou especializado em Setup MNO e infraestrutura. Posso combinar o catálogo com a leitura segura do ambiente para orientar seus próximos passos.";
     $("assistant-privacy").textContent = "O processamento ocorre no endpoint Ollama configurado, sem acesso da IA ao Docker, shell ou terminal.";
   } else if (fallback) {
     $("assistant-welcome-title").textContent = `${fallbackLabel}.`;
@@ -504,7 +504,7 @@ function updateAssistantRuntime(runtime = {}) {
     $("assistant-privacy").textContent = "A contingência interpreta métricas localmente e não envia dados para terceiros.";
   } else {
     $("assistant-welcome-title").textContent = "Olá! O diagnóstico básico está pronto.";
-    $("assistant-welcome-text").textContent = "Posso avaliar capacidade, serviços degradados e prontidão para novos deploys. Ações críticas continuam dependendo da sua confirmação.";
+    $("assistant-welcome-text").textContent = "Sou especializado em Setup MNO e infraestrutura. Posso avaliar capacidade, serviços degradados e prontidão para novos deploys.";
     $("assistant-privacy").textContent = "O modo básico interpreta métricas localmente e não envia dados para terceiros.";
   }
 }

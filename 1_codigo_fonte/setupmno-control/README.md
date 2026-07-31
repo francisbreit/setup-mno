@@ -40,6 +40,12 @@ automática pelo diagnóstico básico e registra o evento na auditoria.
 O Assistente é estritamente consultivo: não possui ferramentas de escrita e não
 executa deploys, comandos Docker ou ações destrutivas.
 
+O domínio principal do Copiloto é o Setup MNO e sua infraestrutura: setups,
+Blueprints, capacidade, Docker Swarm, Linux/WSL2, redes, bancos, armazenamento,
+backups, segurança, observabilidade, integrações e deploys. A interface comunica
+esse foco antes da pergunta e os conectores redirecionam consultas alheias ao
+domínio, em vez de atuarem como assistentes generalistas.
+
 O plano completo para transformar o Beta em um especialista de infraestrutura,
 setups e Blueprints está registrado em
 [`ASSISTENTE_MNO_ROADMAP.md`](ASSISTENTE_MNO_ROADMAP.md).

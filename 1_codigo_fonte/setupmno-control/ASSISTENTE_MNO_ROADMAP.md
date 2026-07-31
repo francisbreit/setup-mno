@@ -1074,6 +1074,18 @@ Escopo implementado na release v4.96.0:
 - nenhuma pergunta, resposta, alias identificado ou conteúdo registrado
 - contexto e payload enviados à LLM permanecem inalterados
 
+## Ajuste de homologação da subetapa 3.2
+
+Escopo implementado na release v4.96.1:
+
+- Setup MNO `4.96.1`
+- Control Center `1.4.1`
+- aviso permanente de especialização antes do campo de pergunta
+- escopo explícito em Setup MNO, infraestrutura, aplicações e Blueprints
+- redirecionamento curto para consultas fora do domínio especializado
+- mesmo contrato de privacidade, isolamento e retrieval shadow da v4.96.0
+- nenhuma classificação heurística local, ferramenta de escrita ou ampliação de acesso
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico

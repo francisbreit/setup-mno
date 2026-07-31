@@ -66,8 +66,8 @@ func TestReadRuntimeSnapshotAcceptsAdditiveMetadata(t *testing.T) {
 	sum := sha256.Sum256(catalog)
 	release := map[string]any{
 		"schemaVersion":          runtimeSchema,
-		"setupVersion":           "4.96.0",
-		"catalogVersion":         "4.96.0",
+		"setupVersion":           "4.96.1",
+		"catalogVersion":         "4.96.1",
 		"catalogSHA256":          hex.EncodeToString(sum[:]),
 		"catalogEntries":         1,
 		"architecture":           "amd64",
@@ -98,8 +98,8 @@ func TestReadRuntimeSnapshotRejectsPartialKnowledgeMetadata(t *testing.T) {
 	sum := sha256.Sum256(catalog)
 	release := setupRelease{
 		SchemaVersion:    runtimeSchema,
-		SetupVersion:     "4.96.0",
-		CatalogVersion:   "4.96.0",
+		SetupVersion:     "4.96.1",
+		CatalogVersion:   "4.96.1",
 		CatalogSHA256:    hex.EncodeToString(sum[:]),
 		CatalogEntries:   1,
 		Architecture:     "amd64",
@@ -429,6 +429,11 @@ func TestStreamProviderUsesResponsesAPIAndForwardsDeltas(t *testing.T) {
 			!strings.Contains(instructions, "Nunca use o tamanho de relevantSetups como total") {
 			t.Errorf("instruções não distinguem total e recorte: %s", instructions)
 		}
+		if !strings.Contains(instructions, "Seu escopo principal e exclusivo é o ecossistema Setup MNO") ||
+			!strings.Contains(instructions, "não responda ao assunto geral") ||
+			!strings.Contains(instructions, "em no máximo duas frases") {
+			t.Errorf("guardrail de escopo especializado ausente: %s", instructions)
+		}
 		serialized, _ := json.Marshal(payload)
 		if strings.Contains(string(serialized), `"evidence"`) ||
 			strings.Contains(string(serialized), `"chunkId"`) ||
@@ -461,6 +466,23 @@ func TestStreamProviderUsesResponsesAPIAndForwardsDeltas(t *testing.T) {
 	}
 	if !strings.Contains(response.Body.String(), "Tudo saudável.") {
 		t.Fatalf("delta não foi encaminhado: %s", response.Body.String())
+	}
+}
+
+func TestAssistantUIAdvertisesSpecialistScope(t *testing.T) {
+	content, err := os.ReadFile(filepath.Join("web", "index.html"))
+	if err != nil {
+		t.Fatalf("não foi possível ler a interface do Assistente: %v", err)
+	}
+	page := string(content)
+	for _, expected := range []string{
+		`id="assistant-scope"`,
+		"Especialista em Setup MNO, infraestrutura, aplicações e Blueprints.",
+		"Foco em Setup MNO e infraestrutura",
+	} {
+		if !strings.Contains(page, expected) {
+			t.Errorf("aviso de escopo ausente na interface: %q", expected)
+		}
 	}
 }
 
