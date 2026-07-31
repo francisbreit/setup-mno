@@ -175,7 +175,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
                         "--setup-version",
                         registry["setupVersion"],
                         "--control-version",
-                        "3.3.0",
+                        "3.3.1",
                     ],
                     check=False,
                     capture_output=True,

@@ -45,12 +45,12 @@ func recommendationTestCatalog() blueprintCatalogResponse {
 			Summary: "Composição conservadora para pouca memória.", ResourceProfile: blueprintResourceProfile{MinimumRAMGB: 2, RecommendedRAMGB: 4, Basis: "Estimativa fictícia para teste."},
 		},
 	}
-	return blueprintCatalogResponse{SetupVersion: "6.3.0", BlueprintCount: len(items), Items: items}
+	return blueprintCatalogResponse{SetupVersion: "6.3.1", BlueprintCount: len(items), Items: items}
 }
 
 func recommendationTestContext(available float64) blueprintRecommendationContext {
 	return blueprintRecommendationContext{
-		SetupVersion: "6.3.0", Architecture: "amd64", MemoryTotalGB: 64,
+		SetupVersion: "6.3.1", Architecture: "amd64", MemoryTotalGB: 64,
 		MemoryAvailableGB: available, Source: "runtime-read-only",
 	}
 }
@@ -161,6 +161,69 @@ func TestBlueprintRecommendationDoesNotInventMatch(t *testing.T) {
 	}
 	if len(result.Recommendations) != 0 || len(result.Rejected) != 0 || result.NoMatchReason == "" {
 		t.Fatalf("objetivo sem evidência recebeu recomendação: %#v", result)
+	}
+}
+
+func TestBlueprintRecommendationAcceptsSafeCanonicalTypo(t *testing.T) {
+	result, err := recommendBlueprints(
+		recommendationTestCatalog(), "preciso enviar mensagens pelo whastapp", recommendationTestContext(64),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Recommendations) == 0 ||
+		result.Recommendations[0].BlueprintID != "blueprint-001-whatsapp-marketing-completo" ||
+		result.Recommendations[0].Confidence != "medium" ||
+		!containsString(result.Recommendations[0].Reasons, "Uma variação ortográfica segura corresponde a uma tag canônica.") {
+		t.Fatalf("erro ortográfico canônico não foi recuperado com segurança: %#v", result)
+	}
+}
+
+func TestBlueprintRecommendationAppliesCapacityGateAfterSafeTypo(t *testing.T) {
+	result, err := recommendBlueprints(
+		recommendationTestCatalog(), "preciso enviar mensagens pelo whastapp", recommendationTestContext(5.1),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Recommendations) != 0 ||
+		!rejectedBlueprint(result, "blueprint-001-whatsapp-marketing-completo") ||
+		result.NoMatchReason != "Há aderência ao objetivo, mas nenhum Blueprint passou pelos gates de arquitetura e capacidade atuais." {
+		t.Fatalf("gate de RAM não foi aplicado após a aproximação: %#v", result)
+	}
+}
+
+func TestBlueprintRecommendationDoesNotApproximateComponents(t *testing.T) {
+	result, err := recommendBlueprints(
+		recommendationTestCatalog(), "preciso utilizar prometheis", recommendationTestContext(64),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Recommendations) != 0 || len(result.Rejected) != 0 {
+		t.Fatalf("componente não canônico recebeu aproximação: %#v", result)
+	}
+}
+
+func TestSafeBlueprintTypoMatchBoundaries(t *testing.T) {
+	cases := []struct {
+		term      string
+		canonical string
+		expected  bool
+	}{
+		{"whastapp", "whatsapp", true},
+		{"whatsap", "whatsapp", true},
+		{"whatsxpp", "whatsapp", true},
+		{"whatsapp", "whatsapp", false},
+		{"xhatsapp", "whatsapp", false},
+		{"whizzapp", "whatsapp", false},
+		{"danos", "dados", false},
+		{"rga", "rag", false},
+	}
+	for _, testCase := range cases {
+		if actual := safeBlueprintTypoMatch(testCase.term, testCase.canonical); actual != testCase.expected {
+			t.Fatalf("safeBlueprintTypoMatch(%q, %q)=%t; esperado %t", testCase.term, testCase.canonical, actual, testCase.expected)
+		}
 	}
 }
 

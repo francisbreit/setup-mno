@@ -189,6 +189,13 @@ mínima e lista candidatos recusados. Ausência de evidência produz zero
 recomendações; exemplos continuam fictícios, não implantáveis e abrem apenas a
 inspeção segura.
 
+A correção 6.3.1 tolera somente um erro ortográfico em tokens com pelo menos
+sete caracteres, comparados exclusivamente com tags e aliases canônicos. A
+aproximação aceita substituição, inserção, remoção ou transposição adjacente e
+exige a mesma letra inicial. Títulos, componentes, objetivos e resumos não
+participam da aproximação; os gates de arquitetura, status e RAM continuam
+obrigatórios depois da identificação do candidato.
+
 O mesmo pacote é distribuído para x86 e ARM. Na imagem do Assistente, a cópia
 primária fica em `/knowledge-package`, somente leitura pela própria camada da
 imagem. Uma segunda cópia é embutida no binário Go e entra em contingência se a

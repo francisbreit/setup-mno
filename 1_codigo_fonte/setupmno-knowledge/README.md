@@ -70,7 +70,7 @@ python3 tools/lint_knowledge.py \
   --catalog ../setupmno-control/catalog.json \
   resolve \
   --setup-id n8n-main \
-  --setup-version 6.3.0 \
+  --setup-version 6.3.1 \
   --architecture amd64
 ```
 
@@ -88,7 +88,7 @@ Validação isolada da fábrica de Blueprints:
 
 ```bash
 python3 -B tools/blueprint_factory.py \
-  --setup-version 6.3.0
+  --setup-version 6.3.1
 ```
 
 Cada Blueprint reside em `blueprints/<blueprintId>/`, com `blueprint.json`
@@ -108,8 +108,8 @@ Geração reproduzível do pacote:
 
 ```bash
 python3 -B tools/generate_package.py \
-  --setup-version 6.3.0 \
-  --control-version 3.3.0
+  --setup-version 6.3.1 \
+  --control-version 3.3.1
 ```
 
 O gerador executa o linter antes do build, inclui somente documentos

@@ -1416,6 +1416,28 @@ Escopo implementado na release v6.3.0:
 - exemplos fictícios preservados como simulação não implantável;
 - nenhuma LLM adicional, porta, secret, mount, socket ou ferramenta de escrita.
 
+### Correção de homologação v6.3.1
+
+Durante a homologação no navegador desktop, o objetivo `enviar mensagens de
+WhastApp` revelou que a correspondência exata não reconhecia a transposição em
+`WhatsApp` e, por isso, nem sequer apresentava o candidato como recusado pela
+RAM disponível. A correção mantém o ranking local e adiciona aproximação com os
+seguintes limites bloqueantes:
+
+- somente tokens de tags e aliases canônicos podem receber aproximação;
+- mínimo de sete caracteres, mesma inicial e exatamente uma substituição,
+  inserção, remoção ou transposição adjacente;
+- componentes, títulos, objetivos, resumos e texto livre permanecem fora da
+  aproximação;
+- arquitetura, status editorial e RAM continuam sendo gates posteriores e não
+  podem ser contornados por uma correspondência aproximada;
+- testes negativos comprovam que componentes digitados incorretamente, termos
+  curtos, distantes ou com inicial diferente não geram recomendações.
+
+A release corretiva usa Setup MNO `6.3.1` e Control Center `3.3.1`, preservando
+conhecimento canônico `2.2.0` e fábrica de Blueprints `1.1.0`. A tag `v6.3.0`
+permanece como rollback da implementação original da subetapa 5.4.
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico
@@ -1431,7 +1453,8 @@ Escopo implementado na release v6.3.0:
 
 Homologar a subetapa **5.4 — Recomendação contextual** em amd64 e arm64,
 confirmando os cinco objetivos conhecidos, RAM recomendada, RAM mínima, recusa
-por capacidade, ausência de evidência e aviso persistente de simulação. Em
+por capacidade, ausência de evidência, erro ortográfico canônico seguro e aviso
+persistente de simulação. Em
 seguida, projetar a **subetapa 5.5 — Fluxo editorial e homologação**. A Etapa 6
 formalizará os thresholds antes de ampliar o orçamento atual do RAG.
 

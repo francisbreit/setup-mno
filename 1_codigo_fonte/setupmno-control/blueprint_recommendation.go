@@ -277,6 +277,19 @@ func scoreBlueprintObjective(
 			reasons = appendUniqueLimited(reasons, field.reason, 4)
 		}
 	}
+	for _, term := range terms {
+		if normalizedFieldContains(blueprint.Tags, term) || normalizedFieldContains(blueprint.Aliases, term) {
+			continue
+		}
+		if approximateCanonicalFieldContains(blueprint.Tags, term) {
+			score += 16
+			reasons = appendUniqueLimited(reasons, "Uma variação ortográfica segura corresponde a uma tag canônica.", 4)
+		}
+		if approximateCanonicalFieldContains(blueprint.Aliases, term) {
+			score += 10
+			reasons = appendUniqueLimited(reasons, "Uma variação ortográfica segura corresponde a um alias canônico.", 4)
+		}
+	}
 	return score, reasons
 }
 
@@ -289,6 +302,59 @@ func normalizedFieldContains(values []string, term string) bool {
 		}
 	}
 	return false
+}
+
+func approximateCanonicalFieldContains(values []string, term string) bool {
+	for _, value := range values {
+		for _, canonicalTerm := range retrievalQueryTerms(value) {
+			if safeBlueprintTypoMatch(term, canonicalTerm) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func safeBlueprintTypoMatch(term, canonical string) bool {
+	if term == canonical || len(term) < 7 || len(canonical) < 7 ||
+		len(term) > 64 || len(canonical) > 64 || term[0] != canonical[0] ||
+		absInt(len(term)-len(canonical)) > 1 {
+		return false
+	}
+	if len(term) != len(canonical) {
+		shorter, longer := term, canonical
+		if len(shorter) > len(longer) {
+			shorter, longer = longer, shorter
+		}
+		for index := 0; index < len(shorter); index++ {
+			if shorter[index] != longer[index] {
+				return shorter[index:] == longer[index+1:]
+			}
+		}
+		return true
+	}
+	mismatches := make([]int, 0, 2)
+	for index := 0; index < len(term); index++ {
+		if term[index] != canonical[index] {
+			mismatches = append(mismatches, index)
+			if len(mismatches) > 2 {
+				return false
+			}
+		}
+	}
+	if len(mismatches) == 1 {
+		return true
+	}
+	return len(mismatches) == 2 && mismatches[1] == mismatches[0]+1 &&
+		term[mismatches[0]] == canonical[mismatches[1]] &&
+		term[mismatches[1]] == canonical[mismatches[0]]
+}
+
+func absInt(value int) int {
+	if value < 0 {
+		return -value
+	}
+	return value
 }
 
 func blueprintEligibilityReasons(

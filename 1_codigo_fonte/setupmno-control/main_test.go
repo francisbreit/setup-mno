@@ -132,8 +132,8 @@ func TestReadRuntimeSnapshotRejectsPartialBlueprintMetadata(t *testing.T) {
 	sum := sha256.Sum256(catalog)
 	release := setupRelease{
 		SchemaVersion:           runtimeSchema,
-		SetupVersion:            "6.3.0",
-		CatalogVersion:          "6.3.0",
+		SetupVersion:            "6.3.1",
+		CatalogVersion:          "6.3.1",
 		CatalogSHA256:           hex.EncodeToString(sum[:]),
 		CatalogEntries:          1,
 		Architecture:            "amd64",
