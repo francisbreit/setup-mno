@@ -179,6 +179,16 @@ procedência, sempre sem botão de deploy. A API autenticada entrega somente uma
 projeção tipada do índice validado: conteúdo RAG, URLs editoriais, caminhos
 internos e downloads de bundles não são expostos.
 
+Na subetapa 5.4, o mesmo painel oferece recomendação contextual local. O
+usuário descreve o resultado desejado e o Control Center consulta arquitetura e
+RAM pelo agente somente leitura. Versão, origem runtime, arquitetura, status
+editorial e RAM mínima são gates bloqueantes executados antes do ranking.
+Somente então aliases, tags, título, componentes, objetivo e resumo determinam
+a aderência. O resultado explica os motivos, diferencia RAM recomendada de RAM
+mínima e lista candidatos recusados. Ausência de evidência produz zero
+recomendações; exemplos continuam fictícios, não implantáveis e abrem apenas a
+inspeção segura.
+
 O mesmo pacote é distribuído para x86 e ARM. Na imagem do Assistente, a cópia
 primária fica em `/knowledge-package`, somente leitura pela própria camada da
 imagem. Uma segunda cópia é embutida no binário Go e entra em contingência se a

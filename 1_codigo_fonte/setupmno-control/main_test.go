@@ -56,7 +56,7 @@ func TestReadRuntimeSnapshotAcceptsGeneratedKnowledgeManifest(t *testing.T) {
 	if snapshot.Release.KnowledgeVersion == "" ||
 		snapshot.Release.KnowledgeEntries < 1 ||
 		len(snapshot.Release.KnowledgeArchiveSHA256) != 64 ||
-		snapshot.Release.BlueprintFactoryVersion != "1.0.0" ||
+		snapshot.Release.BlueprintFactoryVersion != "1.1.0" ||
 		snapshot.Release.BlueprintEntries != 5 ||
 		snapshot.Release.BlueprintKnowledgeEntries != 5 ||
 		snapshot.Release.BlueprintFixtureEntries != 5 ||
@@ -132,15 +132,15 @@ func TestReadRuntimeSnapshotRejectsPartialBlueprintMetadata(t *testing.T) {
 	sum := sha256.Sum256(catalog)
 	release := setupRelease{
 		SchemaVersion:           runtimeSchema,
-		SetupVersion:            "6.2.0",
-		CatalogVersion:          "6.2.0",
+		SetupVersion:            "6.3.0",
+		CatalogVersion:          "6.3.0",
 		CatalogSHA256:           hex.EncodeToString(sum[:]),
 		CatalogEntries:          1,
 		Architecture:            "amd64",
-		KnowledgeVersion:        "2.1.0",
+		KnowledgeVersion:        "2.2.0",
 		KnowledgeArchiveSHA256:  strings.Repeat("a", 64),
 		KnowledgeEntries:        34,
-		BlueprintFactoryVersion: "1.0.0",
+		BlueprintFactoryVersion: "1.1.0",
 	}
 	releaseData, err := json.Marshal(release)
 	if err != nil {
@@ -683,7 +683,7 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 		state.Manifest.SetupEntries != 20 ||
 		state.Manifest.InfrastructureEntries != 9 ||
 		state.Manifest.BlueprintSchemaVersion != 1 ||
-		state.Manifest.BlueprintFactoryVersion != "1.0.0" ||
+		state.Manifest.BlueprintFactoryVersion != "1.1.0" ||
 		state.Manifest.BlueprintEntries != 5 ||
 		state.Manifest.BlueprintBundleEntries != 5 ||
 		state.Manifest.BlueprintKnowledgeEntries != 5 ||

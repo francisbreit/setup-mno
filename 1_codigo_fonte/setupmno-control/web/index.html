@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#070a0f">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=3.2.0">
+  <link rel="stylesheet" href="/styles.css?v=3.3.0">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -195,6 +195,19 @@
             </div>
           </div>
           <div id="blueprint-sync-status" class="sync-status">Validando o índice canônico de Blueprints...</div>
+          <article class="panel blueprint-recommender">
+            <div class="blueprint-recommender-copy">
+              <p class="eyebrow">Recomendação contextual local</p>
+              <h3>Qual resultado você quer alcançar?</h3>
+              <p>O Control Center compara seu objetivo com o índice canônico e aplica gates da arquitetura e da RAM disponível neste servidor. Nenhuma LLM ou deploy é executado.</p>
+            </div>
+            <form id="blueprint-recommendation-form" class="blueprint-recommendation-form">
+              <label for="blueprint-objective">Objetivo da solução</label>
+              <div><textarea id="blueprint-objective" rows="3" minlength="8" maxlength="600" required placeholder="Ex.: preciso monitorar serviços, receber alertas e preservar memória no servidor"></textarea><button type="submit" class="primary-button"><span>Recomendar</span><b>→</b></button></div>
+              <small>Resultado consultivo, determinístico e baseado no estado atual. Estimativas exigem validação humana.</small>
+            </form>
+            <div id="blueprint-recommendation-result" class="blueprint-recommendation-result" hidden></div>
+          </article>
           <div class="section-tools sticky-tools blueprint-tools">
             <div class="search-box grow"><span>⌕</span><input id="blueprint-search" placeholder="Buscar por objetivo, componente ou tag..."></div>
             <select id="blueprint-status"><option value="">Todos os estados</option><option value="homologated">Homologados</option><option value="example">Exemplos editoriais</option><option value="review">Em revisão</option></select>
@@ -311,8 +324,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=3.2.0" defer></script>
-  <script src="/assistant-route.js?v=3.2.0" defer></script>
-  <script src="/app.js?v=3.2.0" defer></script>
+  <script src="/markdown.js?v=3.3.0" defer></script>
+  <script src="/assistant-route.js?v=3.3.0" defer></script>
+  <script src="/app.js?v=3.3.0" defer></script>
 </body>
 </html>

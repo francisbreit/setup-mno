@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="6.2.0"
+VERSIONSETUP="6.3.0"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -288,7 +288,7 @@ if [ "$control_schema" != "1" ] ||
    [ "$knowledge_setup_version" != "$VERSIONSETUP" ] ||
    [ "$knowledge_entries" -le 0 ] ||
    [ "$knowledge_entries" != "$runtime_knowledge_entries" ] ||
-   [ "$blueprint_factory_version" != "1.0.0" ] ||
+   [ "$blueprint_factory_version" != "1.1.0" ] ||
    [ "$blueprint_factory_version" != "$runtime_blueprint_factory_version" ] ||
    [ "$blueprint_entries" -le 0 ] ||
    [ "$blueprint_entries" != "$runtime_blueprint_entries" ] ||

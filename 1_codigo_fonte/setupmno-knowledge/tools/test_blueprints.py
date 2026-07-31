@@ -23,7 +23,7 @@ from blueprint_factory import (
 
 ROOT = Path(__file__).resolve().parent.parent
 CATALOG = ROOT.parent / "setupmno-control" / "catalog.json"
-SETUP_VERSION = "6.2.0"
+SETUP_VERSION = "6.3.0"
 
 
 class BlueprintFactoryTests(unittest.TestCase):
@@ -47,6 +47,14 @@ class BlueprintFactoryTests(unittest.TestCase):
         self.assertEqual(first_summary["blueprintEntries"], 5)
         self.assertEqual(first_summary["blueprintBundleEntries"], 5)
         self.assertEqual(first_summary["blueprintFactoryVersion"], BLUEPRINT_FACTORY_VERSION)
+        index = json.loads(first_files["blueprints/index.json"])
+        self.assertTrue(
+            all(
+                entry["resourceProfile"]["recommendedRamGB"]
+                >= entry["resourceProfile"]["minimumRamGB"]
+                for entry in index["entries"]
+            )
+        )
         bundles = {
             path: data
             for path, data in first_files.items()

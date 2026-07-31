@@ -109,7 +109,7 @@ grep -Fq 'COPY --from=builder /src/knowledge-package /knowledge-package' \
     printf 'ERRO: a imagem final não contém o pacote de conhecimento somente leitura.\n' >&2
     exit 1
 }
-grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go routing.go prompts.go ./' \
+grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go ./' \
     "$project_dir/Dockerfile" || {
     printf 'ERRO: o build não inclui retrieval, roteador e registro de prompts.\n' >&2
     exit 1
@@ -262,7 +262,7 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$knowledge_index_schema" = "2" ] &&
 [ "$knowledge_retrieval_version" = "1.2.0" ] &&
 [ "$blueprint_schema" = "1" ] &&
-[ "$blueprint_factory_version" = "1.0.0" ] &&
+[ "$blueprint_factory_version" = "1.1.0" ] &&
 [ "$blueprint_entries" -gt 0 ] &&
 [ "$blueprint_bundle_entries" = "$blueprint_entries" ] &&
 [ "$blueprint_knowledge_entries" -gt 0 ] &&

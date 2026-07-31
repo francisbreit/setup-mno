@@ -22,7 +22,7 @@ from typing import Any
 
 
 BLUEPRINT_SCHEMA_VERSION = 1
-BLUEPRINT_FACTORY_VERSION = "1.0.0"
+BLUEPRINT_FACTORY_VERSION = "1.1.0"
 MAX_BLUEPRINTS = 64
 MAX_FILES_PER_BLUEPRINT = 128
 MAX_FILE_BYTES = 2 << 20
@@ -628,6 +628,7 @@ def build_blueprint_package(
                 "fictitious": manifest["fictitious"],
                 "media": manifest["media"],
                 "objective": manifest["objective"],
+                "resourceProfile": manifest["resourceProfile"],
                 "risk": manifest["risk"],
                 "status": manifest["status"],
                 "summary": manifest["summary"],

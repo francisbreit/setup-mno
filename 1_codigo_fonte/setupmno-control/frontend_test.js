@@ -113,5 +113,14 @@ assert.doesNotMatch(html + app, /downloadBlueprint|\/api\/blueprints\/download/)
 for (const field of ["item.title", "item.summary", "item.objective", "item.blueprintId", "item.bundleSHA256"]) {
   assert.match(app, new RegExp(`escapeHTML\\(${field.replace(".", "\\.")}\\)`));
 }
+assert.match(html, /id="blueprint-recommendation-form"/);
+assert.match(html, /Recomendação contextual local/);
+assert.match(html, /Nenhuma LLM ou deploy é executado/);
+assert.match(app, /\/api\/blueprints\/recommend/);
+assert.match(app, /function renderBlueprintRecommendation/);
+assert.match(app, /Simulação com exemplos fictícios/);
+assert.match(app, /recusado\(s\) pelos gates/);
+assert.match(app, /memoryAvailableGB/);
+assert.doesNotMatch(app, /data-action="terminal"[^\n]*blueprint-match/);
 
 console.log("Markdown, RAG, autoria e catálogo visual de Blueprints conferidos.");

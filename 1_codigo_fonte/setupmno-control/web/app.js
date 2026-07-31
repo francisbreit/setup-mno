@@ -9,6 +9,7 @@ const state = {
   catalog: [],
   blueprints: [],
   blueprintCatalog: null,
+  blueprintRecommendation: null,
   assistantMode: "basic",
   assistantModel: "",
   assistantHistory: [],
@@ -81,6 +82,7 @@ function bindEvents() {
   $("blueprint-status").addEventListener("change", renderBlueprints);
   $("blueprint-arch").addEventListener("change", renderBlueprints);
   $("blueprint-risk").addEventListener("change", renderBlueprints);
+  $("blueprint-recommendation-form").addEventListener("submit", requestBlueprintRecommendation);
   $("blueprint-dialog-close").addEventListener("click", closeBlueprint);
   $("blueprint-dialog").addEventListener("cancel", event => {
     event.preventDefault();
@@ -144,6 +146,8 @@ function setAuthenticated(session) {
   state.catalog = [];
   state.blueprints = [];
   state.blueprintCatalog = null;
+  state.blueprintRecommendation = null;
+  $("blueprint-recommendation-result").hidden = true;
   state.assistantMode = session.assistantMode || "basic";
   state.assistantModel = session.assistantModel || "";
   state.assistantHistory = [];
@@ -504,6 +508,63 @@ function closeBlueprint() {
   const dialog = $("blueprint-dialog");
   if (dialog.open) dialog.close();
   $("blueprint-detail-content").replaceChildren();
+}
+
+async function requestBlueprintRecommendation(event) {
+  event.preventDefault();
+  const objective = $("blueprint-objective").value.trim();
+  if (!objective) return;
+  const button = event.currentTarget.querySelector("button[type=submit]");
+  const result = $("blueprint-recommendation-result");
+  button.disabled = true;
+  button.querySelector("span").textContent = "Analisando...";
+  result.hidden = false;
+  result.className = "blueprint-recommendation-result loading";
+  result.textContent = "Validando arquitetura, capacidade e evidências canônicas...";
+  try {
+    const data = await api("/api/blueprints/recommend", {
+      method: "POST",
+      body: JSON.stringify({ objective })
+    });
+    state.blueprintRecommendation = data;
+    renderBlueprintRecommendation(data);
+  } catch (error) {
+    result.className = "blueprint-recommendation-result error";
+    result.textContent = error.message;
+  } finally {
+    button.disabled = false;
+    button.querySelector("span").textContent = "Recomendar";
+  }
+}
+
+function renderBlueprintRecommendation(data) {
+  const target = $("blueprint-recommendation-result");
+  const context = data.context || {};
+  const recommendations = Array.isArray(data.recommendations) ? data.recommendations : [];
+  const rejected = Array.isArray(data.rejected) ? data.rejected : [];
+  target.className = "blueprint-recommendation-result";
+  target.hidden = false;
+  const architecture = context.architecture === "amd64" ? "X86 / amd64"
+    : context.architecture === "arm64" ? "ARM / arm64" : context.architecture || "N/I";
+  const simulation = data.simulation
+    ? `<div class="blueprint-recommendation-warning"><strong>Simulação com exemplos fictícios</strong><span>Os resultados atuais validam o mecanismo de seleção, mas não são implantáveis e não autorizam deploy.</span></div>`
+    : "";
+  const recommendationCards = recommendations.length ? recommendations.map(item => `
+    <article class="blueprint-match-card ${item.capacityFit === "minimum" ? "limited" : "ready"}">
+      <div class="blueprint-match-rank"><span>#${escapeHTML(item.rank)}</span><div><small>${escapeHTML(item.confidence === "high" ? "Alta aderência" : item.confidence === "medium" ? "Aderência média" : "Aderência baixa")}</small><strong>${escapeHTML(item.title)}</strong></div></div>
+      <div class="blueprint-match-badges"><span>${escapeHTML(item.status === "example" ? "Exemplo fictício" : "Homologado")}</span><span>${escapeHTML(item.capacityFit === "recommended" ? "RAM recomendada atendida" : "Somente RAM mínima")}</span></div>
+      <ul>${(Array.isArray(item.reasons) ? item.reasons : []).map(reason => `<li>${escapeHTML(reason)}</li>`).join("")}</ul>
+      <div class="blueprint-match-resources"><span><small>Mínima</small><strong>${escapeHTML(item.minimumRamGB)} GB</strong></span><span><small>Recomendada</small><strong>${escapeHTML(item.recommendedRamGB)} GB</strong></span><span><small>Risco</small><strong>${escapeHTML(blueprintRiskLabel(item.risk))}</strong></span></div>
+      <p>${escapeHTML(item.resourceBasis)}</p>
+      <button class="light-button" data-action="blueprint" data-blueprint-id="${escapeHTML(item.blueprintId)}">Inspecionar evidências <b>→</b></button>
+    </article>`).join("") : `<div class="blueprint-no-match"><strong>Nenhum Blueprint compatível</strong><span>${escapeHTML(data.noMatchReason || "Não há evidência suficiente para recomendar com segurança.")}</span></div>`;
+  const rejectedBlock = rejected.length ? `<details class="blueprint-rejected"><summary>${rejected.length} candidato(s) recusado(s) pelos gates</summary><ul>${rejected.map(item => `<li><strong>${escapeHTML(item.title)}</strong><span>${(Array.isArray(item.reasons) ? item.reasons : []).map(escapeHTML).join(" · ")}</span></li>`).join("")}</ul></details>` : "";
+  target.innerHTML = `
+    <div class="blueprint-recommendation-head"><div><p class="eyebrow">Contexto verificado</p><h3>${recommendations.length} recomendação(ões) compatível(is)</h3></div><div class="blueprint-runtime-facts"><span>${escapeHTML(architecture)}</span><span>${escapeHTML(context.memoryAvailableGB ?? "N/I")} GB livres</span><span>Setup v${escapeHTML(context.setupVersion || "N/I")}</span></div></div>
+    ${simulation}
+    <div class="blueprint-match-grid">${recommendationCards}</div>
+    ${rejectedBlock}
+    <div class="blueprint-recommendation-guardrails">${(Array.isArray(data.guardrails) ? data.guardrails : []).map(value => `<span>◎ ${escapeHTML(value)}</span>`).join("")}</div>`;
 }
 
 async function askAssistant(event) {

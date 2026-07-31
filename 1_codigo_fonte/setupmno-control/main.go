@@ -98,24 +98,25 @@ type blueprintMediaSummary struct {
 }
 
 type blueprintCatalogItem struct {
-	Aliases          []string                `json:"aliases"`
-	Architectures    []string                `json:"architectures"`
-	Author           string                  `json:"author"`
-	BlueprintID      string                  `json:"blueprintId"`
-	BlueprintVersion string                  `json:"blueprintVersion"`
-	BundleBytes      int64                   `json:"bundleBytes"`
-	BundleSHA256     string                  `json:"bundleSHA256"`
-	Components       []string                `json:"components"`
-	Deployable       bool                    `json:"deployable"`
-	Fictitious       bool                    `json:"fictitious"`
-	Media            []blueprintMediaSummary `json:"media"`
-	Objective        string                  `json:"objective"`
-	Risk             string                  `json:"risk"`
-	Status           string                  `json:"status"`
-	Summary          string                  `json:"summary"`
-	Tags             []string                `json:"tags"`
-	Title            string                  `json:"title"`
-	UpdatedAt        string                  `json:"updatedAt"`
+	Aliases          []string                 `json:"aliases"`
+	Architectures    []string                 `json:"architectures"`
+	Author           string                   `json:"author"`
+	BlueprintID      string                   `json:"blueprintId"`
+	BlueprintVersion string                   `json:"blueprintVersion"`
+	BundleBytes      int64                    `json:"bundleBytes"`
+	BundleSHA256     string                   `json:"bundleSHA256"`
+	Components       []string                 `json:"components"`
+	Deployable       bool                     `json:"deployable"`
+	Fictitious       bool                     `json:"fictitious"`
+	Media            []blueprintMediaSummary  `json:"media"`
+	Objective        string                   `json:"objective"`
+	ResourceProfile  blueprintResourceProfile `json:"resourceProfile"`
+	Risk             string                   `json:"risk"`
+	Status           string                   `json:"status"`
+	Summary          string                   `json:"summary"`
+	Tags             []string                 `json:"tags"`
+	Title            string                   `json:"title"`
+	UpdatedAt        string                   `json:"updatedAt"`
 }
 
 type blueprintCatalogResponse struct {
@@ -441,6 +442,7 @@ func runWeb() error {
 	mux.Handle("GET /api/setup-state", app.requireAuth(http.HandlerFunc(app.handleSetupState)))
 	mux.Handle("GET /api/catalog", app.requireAuth(http.HandlerFunc(app.handleCatalog)))
 	mux.Handle("GET /api/blueprints", app.requireAuth(http.HandlerFunc(app.handleBlueprints)))
+	mux.Handle("POST /api/blueprints/recommend", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleBlueprintRecommendation))))
 	mux.Handle("GET /api/audit", app.requireAuth(http.HandlerFunc(app.handleAudit)))
 	mux.Handle("POST /api/assistant", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleAssistant))))
 	mux.Handle("/terminal/", app.requireAuth(app.terminalProxy()))
@@ -1597,6 +1599,7 @@ func blueprintCatalogFromKnowledge(state knowledgePackageState) (blueprintCatalo
 			Fictitious:       entry.Fictitious,
 			Media:            media,
 			Objective:        entry.Objective,
+			ResourceProfile:  entry.ResourceProfile,
 			Risk:             entry.Risk,
 			Status:           entry.Status,
 			Summary:          entry.Summary,

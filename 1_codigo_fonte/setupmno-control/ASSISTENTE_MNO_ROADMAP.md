@@ -815,8 +815,9 @@ instalador ou na fábrica.
 3. **5.3 — Catálogo e inspeção — implementada na v6.2.0:** apresentar os
    Blueprints no Control Center, deixando exemplos claramente separados de
    conteúdo homologado.
-4. **5.4 — Recomendação contextual:** selecionar Blueprints compatíveis com o
-   objetivo, arquitetura e capacidade, sem executar deploy.
+4. **5.4 — Recomendação contextual — implementada na v6.3.0:** selecionar
+   Blueprints compatíveis com o objetivo, arquitetura e capacidade, sem
+   executar deploy.
 5. **5.5 — Fluxo editorial e homologação:** promover rascunhos somente após
    revisão, testes isolados, evidências e assinatura de versão.
 
@@ -877,6 +878,26 @@ servidor e sem inventar componentes.
   deploy nos exemplos;
 - renderização protegida contra HTML editorial e layout responsivo para desktop
   e telas móveis.
+
+### Evidências da subetapa 5.4
+
+- `resourceProfile` incluído no índice canônico pela fábrica `1.1.0`, mantendo
+  RAM mínima, recomendada e base editorial sob hash;
+- endpoint autenticado e protegido por CSRF, disponível sem LLM e sem nova
+  stack;
+- arquitetura e RAM total/disponível coletadas exclusivamente pelos endpoints
+  fixos e somente leitura do agente;
+- hard gates de versão, origem runtime, arquitetura, status editorial e RAM
+  mínima executados antes do ranking;
+- ranking local determinístico por aliases, tags, título, componentes, objetivo
+  e resumo, com termos genéricos removidos;
+- candidatos recusados exibidos separadamente com motivos verificáveis;
+- recomendação sem correspondência retorna ausência de evidência, sem inventar
+  Blueprint substituto;
+- resultados fictícios mantêm aviso de simulação, `deployable=false` e acesso
+  apenas à inspeção somente leitura;
+- testes cobrem os cinco objetivos, RAM insuficiente, arquitetura incompatível,
+  status inseguro, ausência de match e estabilidade do ranking.
 
 ---
 
@@ -1375,6 +1396,26 @@ Escopo implementado na release v6.2.0:
 - metadados internos, URLs fictícias e bundles não expostos pela API;
 - nenhuma nova porta, secret, mount, socket, comando ou ferramenta de escrita.
 
+### Homologação da subetapa 5.3
+
+Aprovada pelo mantenedor em 2026-07-31 após validação no navegador desktop e
+Android. Foram confirmados os cinco exemplos, zero homologados, filtros,
+separação visual, inspeção completa, ausência de links ou deploy e fechamento
+correto do modal em tela estreita. A tag `v6.2.0` permanece como baseline e
+ponto de rollback integral da subetapa 5.3.
+
+## Release arquitetural da subetapa 5.4
+
+Escopo implementado na release v6.3.0:
+
+- Setup MNO `6.3.0` e Control Center `3.3.0`;
+- conhecimento canônico `2.2.0` e fábrica de Blueprints `1.1.0`;
+- perfil de recursos assinado no índice canônico;
+- recomendação determinística por objetivo, arquitetura e RAM disponível;
+- explicação da aderência, capacidade e candidatos recusados;
+- exemplos fictícios preservados como simulação não implantável;
+- nenhuma LLM adicional, porta, secret, mount, socket ou ferramenta de escrita.
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico
@@ -1388,12 +1429,11 @@ Escopo implementado na release v6.2.0:
 
 ## Próxima ação
 
-Homologar a subetapa **5.3 — Catálogo e inspeção** em navegador desktop e
-Android retrato, confirmando: cinco exemplos, zero homologados, filtros,
-separação visual, inspeção completa, ausência de links ou deploy e fechamento
-do modal em tela estreita. Em seguida, projetar a **subetapa 5.4 — Recomendação
-contextual**, ainda consultiva. A Etapa 6 formalizará os thresholds antes de
-ampliar o orçamento atual do RAG.
+Homologar a subetapa **5.4 — Recomendação contextual** em amd64 e arm64,
+confirmando os cinco objetivos conhecidos, RAM recomendada, RAM mínima, recusa
+por capacidade, ausência de evidência e aviso persistente de simulação. Em
+seguida, projetar a **subetapa 5.5 — Fluxo editorial e homologação**. A Etapa 6
+formalizará os thresholds antes de ampliar o orçamento atual do RAG.
 
 ## Referências oficiais
 

@@ -169,26 +169,33 @@ type blueprintMediaEntry struct {
 	Transcript *string `json:"transcript"`
 }
 
+type blueprintResourceProfile struct {
+	MinimumRAMGB     int    `json:"minimumRamGB"`
+	RecommendedRAMGB int    `json:"recommendedRamGB"`
+	Basis            string `json:"basis"`
+}
+
 type blueprintIndexEntry struct {
-	Aliases          []string              `json:"aliases"`
-	Architectures    []string              `json:"architectures"`
-	Author           string                `json:"author"`
-	BlueprintID      string                `json:"blueprintId"`
-	BlueprintVersion string                `json:"blueprintVersion"`
-	BundleBytes      int64                 `json:"bundleBytes"`
-	BundlePath       string                `json:"bundlePath"`
-	BundleSHA256     string                `json:"bundleSHA256"`
-	Components       []string              `json:"components"`
-	Deployable       bool                  `json:"deployable"`
-	Fictitious       bool                  `json:"fictitious"`
-	Media            []blueprintMediaEntry `json:"media"`
-	Objective        string                `json:"objective"`
-	Risk             string                `json:"risk"`
-	Status           string                `json:"status"`
-	Summary          string                `json:"summary"`
-	Tags             []string              `json:"tags"`
-	Title            string                `json:"title"`
-	UpdatedAt        string                `json:"updatedAt"`
+	Aliases          []string                 `json:"aliases"`
+	Architectures    []string                 `json:"architectures"`
+	Author           string                   `json:"author"`
+	BlueprintID      string                   `json:"blueprintId"`
+	BlueprintVersion string                   `json:"blueprintVersion"`
+	BundleBytes      int64                    `json:"bundleBytes"`
+	BundlePath       string                   `json:"bundlePath"`
+	BundleSHA256     string                   `json:"bundleSHA256"`
+	Components       []string                 `json:"components"`
+	Deployable       bool                     `json:"deployable"`
+	Fictitious       bool                     `json:"fictitious"`
+	Media            []blueprintMediaEntry    `json:"media"`
+	Objective        string                   `json:"objective"`
+	ResourceProfile  blueprintResourceProfile `json:"resourceProfile"`
+	Risk             string                   `json:"risk"`
+	Status           string                   `json:"status"`
+	Summary          string                   `json:"summary"`
+	Tags             []string                 `json:"tags"`
+	Title            string                   `json:"title"`
+	UpdatedAt        string                   `json:"updatedAt"`
 }
 
 type blueprintIndex struct {
@@ -583,6 +590,9 @@ func validateBlueprintPackage(files map[string][]byte, manifest knowledgeManifes
 			!strings.HasPrefix(entry.BundlePath, "blueprints/bundles/") ||
 			!strings.HasSuffix(entry.BundlePath, ".zip") ||
 			entry.BundleBytes <= 0 ||
+			entry.ResourceProfile.MinimumRAMGB < 1 ||
+			entry.ResourceProfile.RecommendedRAMGB < entry.ResourceProfile.MinimumRAMGB ||
+			len(entry.ResourceProfile.Basis) < 10 ||
 			len(entry.BundleSHA256) != 64 {
 			return fmt.Errorf("entrada de Blueprint inválida: %q", entry.BlueprintID)
 		}

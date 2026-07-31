@@ -175,7 +175,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
                         "--setup-version",
                         registry["setupVersion"],
                         "--control-version",
-                        "3.2.0",
+                        "3.3.0",
                     ],
                     check=False,
                     capture_output=True,
@@ -259,7 +259,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
             self.assertEqual(manifests[0]["setupEntries"], 20)
             self.assertEqual(manifests[0]["infrastructureEntries"], 9)
             self.assertEqual(manifests[0]["blueprintSchemaVersion"], 1)
-            self.assertEqual(manifests[0]["blueprintFactoryVersion"], "1.0.0")
+            self.assertEqual(manifests[0]["blueprintFactoryVersion"], "1.1.0")
             self.assertEqual(manifests[0]["blueprintEntries"], 5)
             self.assertEqual(manifests[0]["blueprintBundleEntries"], 5)
             self.assertEqual(manifests[0]["blueprintKnowledgeEntries"], 5)
