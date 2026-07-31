@@ -122,12 +122,15 @@ type appSummary struct {
 }
 
 type setupRelease struct {
-	SchemaVersion  int    `json:"schemaVersion"`
-	SetupVersion   string `json:"setupVersion"`
-	CatalogVersion string `json:"catalogVersion"`
-	CatalogSHA256  string `json:"catalogSHA256"`
-	CatalogEntries int    `json:"catalogEntries"`
-	Architecture   string `json:"architecture"`
+	SchemaVersion          int    `json:"schemaVersion"`
+	SetupVersion           string `json:"setupVersion"`
+	CatalogVersion         string `json:"catalogVersion"`
+	CatalogSHA256          string `json:"catalogSHA256"`
+	CatalogEntries         int    `json:"catalogEntries"`
+	Architecture           string `json:"architecture"`
+	KnowledgeVersion       string `json:"knowledgeVersion,omitempty"`
+	KnowledgeArchiveSHA256 string `json:"knowledgeArchiveSHA256,omitempty"`
+	KnowledgeEntries       int    `json:"knowledgeEntries,omitempty"`
 }
 
 type runtimeSnapshot struct {
@@ -228,9 +231,10 @@ type assistantMessage struct {
 }
 
 type assistantRequest struct {
-	Question string             `json:"question"`
-	History  []assistantMessage `json:"history,omitempty"`
-	Basic    bool               `json:"basic,omitempty"`
+	Question       string             `json:"question"`
+	History        []assistantMessage `json:"history,omitempty"`
+	Basic          bool               `json:"basic,omitempty"`
+	FallbackReason string             `json:"fallbackReason,omitempty"`
 }
 
 type assistantApp struct {
@@ -627,6 +631,7 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 	}
 	contextData, err := s.collectContext(r.Context(), input.Question)
 	if err != nil {
+		log.Printf("Assistente MNO: contexto operacional indisponível: %v", err)
 		writeError(w, http.StatusBadGateway, "contexto operacional indisponível")
 		return
 	}
@@ -646,7 +651,8 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.streamProvider(r.Context(), w, input, contextData); err != nil {
 		sendSSE(w, "error", map[string]any{
-			"error": "O provedor de IA não concluiu a resposta.",
+			"error":  "O provedor de IA não concluiu a resposta.",
+			"reason": "provider",
 		})
 		log.Printf("Assistente MNO: falha controlada no provedor %s: %v", s.provider, err)
 		return
@@ -676,6 +682,15 @@ func validateAssistantRequest(input *assistantRequest) error {
 		validHistory = append(validHistory, message)
 	}
 	input.History = validHistory
+	if !input.Basic {
+		input.FallbackReason = ""
+	} else {
+		switch input.FallbackReason {
+		case "provider", "context", "connector":
+		default:
+			input.FallbackReason = "connector"
+		}
+	}
 	return nil
 }
 
@@ -1210,7 +1225,7 @@ func (a *webApp) handleAssistant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if input.Basic || a.assistantURL == "" || a.assistantMode == "basic" {
-		a.streamBasicAssistant(w, r, input.Question, input.Basic)
+		a.streamBasicAssistant(w, r, input.Question, input.Basic, input.FallbackReason)
 		return
 	}
 
@@ -1231,10 +1246,20 @@ func (a *webApp) handleAssistant(w http.ResponseWriter, r *http.Request) {
 	request.Header.Set("X-SetupMNO-Agent-Token", a.agentToken)
 	response, err := a.assistantClient.Do(request)
 	if err != nil || response.StatusCode != http.StatusOK {
+		fallbackReason := "connector"
 		if response != nil {
+			if response.StatusCode == http.StatusBadGateway {
+				fallbackReason = "context"
+			}
+			log.Printf(
+				"Control Center: Assistente interno retornou HTTP %d; contingência %s ativada",
+				response.StatusCode, fallbackReason,
+			)
 			_ = response.Body.Close()
+		} else {
+			log.Printf("Control Center: Assistente interno indisponível; contingência connector ativada: %v", err)
 		}
-		a.streamBasicAssistant(w, r, input.Question, true)
+		a.streamBasicAssistant(w, r, input.Question, true, fallbackReason)
 		return
 	}
 	defer response.Body.Close()
@@ -1344,7 +1369,13 @@ func (a *webApp) streamFullCatalog(w http.ResponseWriter, r *http.Request) {
 	a.addAudit("assistant_catalog", "Catálogo runtime completo listado localmente", clientAddress(r))
 }
 
-func (a *webApp) streamBasicAssistant(w http.ResponseWriter, r *http.Request, question string, fallback bool) {
+func (a *webApp) streamBasicAssistant(
+	w http.ResponseWriter,
+	r *http.Request,
+	question string,
+	fallback bool,
+	fallbackReason string,
+) {
 	var current overview
 	if err := a.agentRequest(r.Context(), "/overview", &current); err != nil {
 		writeError(w, http.StatusBadGateway, "não foi possível consultar o servidor")
@@ -1356,9 +1387,10 @@ func (a *webApp) streamBasicAssistant(w http.ResponseWriter, r *http.Request, qu
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 	sendSSE(w, "meta", map[string]any{
-		"mode":     "basic",
-		"model":    "",
-		"fallback": fallback,
+		"mode":           "basic",
+		"model":          "",
+		"fallback":       fallback,
+		"fallbackReason": fallbackReason,
 	})
 	sendSSE(w, "delta", map[string]any{"delta": strings.Join(suggestions, "\n\n")})
 	sendSSE(w, "done", map[string]any{"ok": true})
@@ -1366,7 +1398,7 @@ func (a *webApp) streamBasicAssistant(w http.ResponseWriter, r *http.Request, qu
 	detail := "Diagnóstico básico solicitado"
 	if fallback {
 		action = "assistant_fallback"
-		detail = "Diagnóstico básico usado como contingência"
+		detail = "Diagnóstico básico usado como contingência: " + fallbackReason
 	}
 	a.addAudit(action, detail, clientAddress(r))
 }
@@ -1508,9 +1540,11 @@ func readRuntimeSnapshot(directory string) (runtimeSnapshot, error) {
 	}
 	var release setupRelease
 	decoder := json.NewDecoder(strings.NewReader(string(releaseData)))
-	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&release); err != nil {
 		return runtimeSnapshot{}, fmt.Errorf("manifesto JSON: %w", err)
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return runtimeSnapshot{}, errors.New("manifesto JSON contém dados adicionais")
 	}
 	if release.SchemaVersion != runtimeSchema {
 		return runtimeSnapshot{}, fmt.Errorf("schema %d não suportado", release.SchemaVersion)
@@ -1520,6 +1554,9 @@ func readRuntimeSnapshot(directory string) (runtimeSnapshot, error) {
 		release.CatalogEntries < 1 ||
 		(release.Architecture != "amd64" && release.Architecture != "arm64") {
 		return runtimeSnapshot{}, errors.New("manifesto inconsistente")
+	}
+	if err := validateReleaseKnowledge(release); err != nil {
+		return runtimeSnapshot{}, err
 	}
 	expectedHash, err := hex.DecodeString(release.CatalogSHA256)
 	if err != nil || len(expectedHash) != sha256.Size {
@@ -1542,6 +1579,24 @@ func readRuntimeSnapshot(directory string) (runtimeSnapshot, error) {
 		return runtimeSnapshot{}, errors.New("quantidade do catálogo divergente")
 	}
 	return runtimeSnapshot{Release: release, Items: items}, nil
+}
+
+func validateReleaseKnowledge(release setupRelease) error {
+	hasKnowledgeMetadata := release.KnowledgeVersion != "" ||
+		release.KnowledgeArchiveSHA256 != "" ||
+		release.KnowledgeEntries != 0
+	if !hasKnowledgeMetadata {
+		return nil
+	}
+	if !validSemanticVersion(release.KnowledgeVersion) ||
+		release.KnowledgeEntries < 1 {
+		return errors.New("metadados do conhecimento inconsistentes")
+	}
+	knowledgeHash, err := hex.DecodeString(release.KnowledgeArchiveSHA256)
+	if err != nil || len(knowledgeHash) != sha256.Size {
+		return errors.New("SHA-256 do conhecimento inválido")
+	}
+	return nil
 }
 
 func readRegularFile(filename string, limit int64) ([]byte, error) {

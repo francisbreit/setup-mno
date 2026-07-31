@@ -11,8 +11,8 @@ seus entregáveis, testes e gates antes do início da etapa seguinte.
 
 ## Baseline da release da Etapa 2
 
-- Setup MNO: `4.94.1`
-- Control Center: `1.2.1`
+- Setup MNO: `4.94.2`
+- Control Center: `1.2.2`
 - Conhecimento canônico: `1.1.1`
 - Catálogo runtime: 151 setups
 - Modos atuais: diagnóstico básico, OpenAI e Ollama
@@ -409,7 +409,7 @@ version: 1.0.0
 author: Francis MNO
 status: homologated
 objective: Central de atendimento omnichannel com WhatsApp
-setupVersion: 4.94.1
+setupVersion: 4.94.2
 architectures: [amd64, arm64]
 minimumRamGB: 6
 recommendedRamGB: 8
@@ -693,8 +693,8 @@ Antes de remover o rótulo Beta:
 
 Escopo implementado e sujeito à aprovação final:
 
-- Setup MNO `4.94.1`
-- Control Center `1.2.1`
+- Setup MNO `4.94.2`
+- Control Center `1.2.2`
 - conhecimento canônico `1.1.1`
 - 20 setups e nove áreas de infraestrutura no pacote homologado
 - índice textual pré-construído

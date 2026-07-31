@@ -359,8 +359,14 @@ async function askAssistant(event) {
     try {
       answer = await streamAssistant(question, history, pending, false);
     } catch {
-      pending.querySelector(".message-content").textContent = "O conector de IA ficou indisponível. Ativando o diagnóstico básico...";
-      answer = await streamAssistant(question, history, pending, true);
+      const fallbackReason = pending.dataset.fallbackReason || "connector";
+      const fallbackMessage = fallbackReason === "provider"
+        ? "O provedor de IA não concluiu a resposta. Ativando o diagnóstico básico..."
+        : fallbackReason === "context"
+          ? "O contexto operacional ficou indisponível. Ativando o diagnóstico básico..."
+          : "O conector de IA ficou indisponível. Ativando o diagnóstico básico...";
+      pending.querySelector(".message-content").textContent = fallbackMessage;
+      answer = await streamAssistant(question, history, pending, true, fallbackReason);
     }
     const historyAnswer = pending.dataset.responseMode === "catalog"
       ? `O catálogo completo do Setup MNO v${pending.dataset.setupVersion || state.setupVersion || "atual"} foi listado localmente com ${pending.dataset.catalogEntries || state.catalog.length} setups.`
@@ -379,7 +385,7 @@ async function askAssistant(event) {
   }
 }
 
-async function streamAssistant(question, history, target, basic) {
+async function streamAssistant(question, history, target, basic, fallbackReason = "") {
   const response = await fetch("/api/assistant", {
     method: "POST",
     credentials: "same-origin",
@@ -388,7 +394,7 @@ async function streamAssistant(question, history, target, basic) {
       "Content-Type": "application/json",
       "X-CSRF-Token": state.csrf
     },
-    body: JSON.stringify({ question, history, basic })
+    body: JSON.stringify({ question, history, basic, fallbackReason })
   });
   if (response.status === 401) {
     state.csrf = "";
@@ -420,12 +426,14 @@ async function streamAssistant(question, history, target, basic) {
         target.dataset.responseMode = event.data.mode || "";
         target.dataset.setupVersion = event.data.setupVersion || "";
         target.dataset.catalogEntries = String(event.data.catalogEntries || "");
+        target.dataset.fallbackReason = event.data.fallbackReason || "";
         updateAssistantRuntime(event.data);
       } else if (event.type === "delta") {
         answer += event.data.delta || "";
         renderAssistantContent(content, answer);
         $("assistant-conversation").scrollTop = $("assistant-conversation").scrollHeight;
       } else if (event.type === "error") {
+        target.dataset.fallbackReason = event.data.reason || "provider";
         throw new Error(event.data.error || "provedor de IA indisponível");
       }
     }
@@ -462,10 +470,22 @@ function updateAssistantRuntime(runtime = {}) {
   const mode = runtime.mode || state.assistantMode || "basic";
   const model = runtime.model || state.assistantModel || "";
   const fallback = Boolean(runtime.fallback);
+  const fallbackReason = runtime.fallbackReason || "";
+  const fallbackLabel = fallbackReason === "provider"
+    ? "Provedor de IA indisponível"
+    : fallbackReason === "context"
+      ? "Contexto local indisponível"
+      : "Conector interno indisponível";
   const badge = $("assistant-mode");
   badge.textContent = mode === "openai" ? "OpenAI" : mode === "ollama" ? "Ollama" : mode === "catalog" ? "Catálogo local" : fallback ? "Básico · contingência" : "Básico";
-  $("assistant-provider").textContent = mode === "openai" ? "OpenAI" : mode === "ollama" ? "Ollama" : mode === "catalog" ? "Catálogo validado" : "Diagnóstico básico";
-  $("assistant-model").textContent = mode === "catalog" ? "Resposta exata gerada localmente, sem consumo de tokens." : model ? `Modelo: ${model}` : "Sem consumo de API ou modelo local.";
+  $("assistant-provider").textContent = mode === "openai" ? "OpenAI" : mode === "ollama" ? "Ollama" : mode === "catalog" ? "Catálogo validado" : fallback ? fallbackLabel : "Diagnóstico básico";
+  $("assistant-model").textContent = mode === "catalog"
+    ? "Resposta exata gerada localmente, sem consumo de tokens."
+    : model
+      ? `Modelo: ${model}`
+      : fallback
+        ? "Contingência local ativa. O conector será testado novamente na próxima pergunta."
+        : "Sem consumo de API ou modelo local.";
   if (mode === "catalog") {
     $("assistant-welcome-title").textContent = "Catálogo runtime validado.";
     $("assistant-welcome-text").textContent = "Listagens completas são geradas localmente para garantir todos os setups, sem omissões ou alucinações.";
@@ -478,6 +498,10 @@ function updateAssistantRuntime(runtime = {}) {
     $("assistant-welcome-title").textContent = "Olá! O Copiloto MNO está conectado ao Ollama.";
     $("assistant-welcome-text").textContent = "Posso combinar o catálogo do Setup MNO com a leitura segura do ambiente para orientar seus próximos passos.";
     $("assistant-privacy").textContent = "O processamento ocorre no endpoint Ollama configurado, sem acesso da IA ao Docker, shell ou terminal.";
+  } else if (fallback) {
+    $("assistant-welcome-title").textContent = `${fallbackLabel}.`;
+    $("assistant-welcome-text").textContent = "O diagnóstico básico assumiu esta resposta. O Copiloto tentará restabelecer o modo configurado automaticamente na próxima pergunta.";
+    $("assistant-privacy").textContent = "A contingência interpreta métricas localmente e não envia dados para terceiros.";
   } else {
     $("assistant-welcome-title").textContent = "Olá! O diagnóstico básico está pronto.";
     $("assistant-welcome-text").textContent = "Posso avaliar capacidade, serviços degradados e prontidão para novos deploys. Ações críticas continuam dependendo da sua confirmação.";

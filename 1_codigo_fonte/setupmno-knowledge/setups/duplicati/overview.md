@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Duplicati no Setup MNO",
   "setupId": "duplicati",
-  "setupVersion": "4.94.1",
+  "setupVersion": "4.94.2",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
