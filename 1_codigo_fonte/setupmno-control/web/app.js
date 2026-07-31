@@ -22,7 +22,8 @@ const titles = {
   installed: ["Inventário do Docker Swarm", "Aplicações instaladas"],
   catalog: ["Deploys e instalações", "Catálogo de setups"],
   assistant: ["Diagnóstico assistido", "Assistente MNO"],
-  audit: ["Rastreabilidade da sessão", "Auditoria"]
+  audit: ["Rastreabilidade da sessão", "Auditoria"],
+  settings: ["Administração protegida", "Configurações"]
 };
 
 document.addEventListener("DOMContentLoaded", init);
@@ -58,6 +59,7 @@ function bindEvents() {
     if (!action) return;
     if (action.dataset.action === "terminal") openTerminal();
     if (action.dataset.action === "assistant") navigate("assistant");
+    if (action.dataset.action === "settings") openTerminal("settings");
   });
   $("open-terminal-top").addEventListener("click", openTerminal);
   $("terminal-close").addEventListener("click", closeTerminal);
@@ -132,6 +134,7 @@ function setAuthenticated(session) {
   $("current-user").textContent = state.user;
   $("hero-user").textContent = state.user;
   $("user-initial").textContent = state.user.slice(0, 1).toUpperCase();
+  $("settings-username").textContent = state.user;
   $("control-version").textContent = `v${state.controlVersion}`;
   $("setup-version").textContent = "verificando";
   renderAssistantMode();
@@ -477,8 +480,11 @@ function updateAssistantRuntime(runtime = {}) {
       ? "Contexto local indisponível"
       : "Conector interno indisponível";
   const badge = $("assistant-mode");
-  badge.textContent = mode === "openai" ? "OpenAI" : mode === "ollama" ? "Ollama" : mode === "catalog" ? "Catálogo local" : fallback ? "Básico · contingência" : "Básico";
-  $("assistant-provider").textContent = mode === "openai" ? "OpenAI" : mode === "ollama" ? "Ollama" : mode === "catalog" ? "Catálogo validado" : fallback ? fallbackLabel : "Diagnóstico básico";
+  const provider = providerLabel(mode);
+  badge.textContent = mode === "catalog" ? "Catálogo local" : fallback ? "Básico · contingência" : provider;
+  $("assistant-provider").textContent = mode === "catalog" ? "Catálogo validado" : fallback ? fallbackLabel : provider;
+  $("settings-provider").textContent = mode === "catalog" ? providerLabel(state.assistantMode) : provider;
+  $("settings-model").textContent = model ? `Modelo: ${model}` : "Sem consumo de API ou modelo local.";
   $("assistant-model").textContent = mode === "catalog"
     ? "Resposta exata gerada localmente, sem consumo de tokens."
     : model
@@ -490,8 +496,8 @@ function updateAssistantRuntime(runtime = {}) {
     $("assistant-welcome-title").textContent = "Catálogo runtime validado.";
     $("assistant-welcome-text").textContent = "Listagens completas são geradas localmente para garantir todos os setups, sem omissões ou alucinações.";
     $("assistant-privacy").textContent = "A listagem usa o catálogo validado instalado no servidor e não envia os 151 registros à LLM.";
-  } else if (mode === "openai") {
-    $("assistant-welcome-title").textContent = "Olá! O Copiloto MNO está conectado à OpenAI.";
+  } else if (mode === "openai" || mode === "openrouter" || mode === "deepseek") {
+    $("assistant-welcome-title").textContent = `Olá! O Copiloto MNO está conectado à ${provider}.`;
     $("assistant-welcome-text").textContent = "Sou especializado em Setup MNO e infraestrutura. Envio somente contexto operacional minimizado, sem hostname, credenciais, comandos ou acesso direto ao Docker.";
     $("assistant-privacy").textContent = "A consulta usa uma LLM externa. O Setup envia apenas métricas e dados mínimos necessários para responder.";
   } else if (mode === "ollama") {
@@ -507,6 +513,16 @@ function updateAssistantRuntime(runtime = {}) {
     $("assistant-welcome-text").textContent = "Sou especializado em Setup MNO e infraestrutura. Posso avaliar capacidade, serviços degradados e prontidão para novos deploys.";
     $("assistant-privacy").textContent = "O modo básico interpreta métricas localmente e não envia dados para terceiros.";
   }
+}
+
+function providerLabel(mode) {
+  return {
+    openai: "OpenAI",
+    openrouter: "OpenRouter",
+    deepseek: "DeepSeek",
+    ollama: "Ollama",
+    basic: "Diagnóstico básico"
+  }[mode] || "Diagnóstico básico";
 }
 
 function addMessage(text, type, pending = false) {
@@ -559,9 +575,17 @@ function navigate(view) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-function openTerminal() {
+function openTerminal(intent = "installer") {
+  intent = typeof intent === "string" ? intent : "installer";
   const dialog = $("terminal-dialog");
   const mobile = window.matchMedia("(max-width: 650px), (pointer: coarse)").matches;
+  $("terminal-title").textContent = intent === "settings" ? "Configurações Seguras" : "Terminal Seguro";
+  $("terminal-subtitle").textContent = intent === "settings"
+    ? "Conta e provedores · confirmação obrigatória"
+    : "Setup MNO · sessão administrativa";
+  $("terminal-warning").innerHTML = intent === "settings"
+    ? "<span>◎</span> No Terminal Seguro, selecione CONFIGURAÇÕES. Senhas e chaves não passam pelo navegador."
+    : "<span>◎</span> Selecione INSTALADOR para abrir o Setup MNO original. Whiptails e regras de plano permanecem ativos.";
   $("terminal-frame").src = mobile
     ? "/terminal/?rendererType=dom&fontSize=10&lineHeight=1&disableResizeOverlay=true&disableLeaveAlert=true&setupmnoTouch=5"
     : "/terminal/";

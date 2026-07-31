@@ -161,6 +161,87 @@ func TestReadDiskUsageFromRestrictedRuntimeMount(t *testing.T) {
 	}
 }
 
+func TestValidateChatCompletionProviders(t *testing.T) {
+	for _, provider := range []string{"openrouter", "deepseek"} {
+		t.Run(provider, func(t *testing.T) {
+			model := provider + "/modelo"
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/models" {
+					t.Fatalf("endpoint inesperado: %s", r.URL.Path)
+				}
+				if r.Header.Get("Authorization") != "Bearer segredo-teste" {
+					t.Fatal("autorização do provedor ausente")
+				}
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprintf(w, `{"data":[{"id":%q}]}`, model)
+			}))
+			defer server.Close()
+			service := &assistantService{
+				provider:   provider,
+				model:      model,
+				baseURL:    server.URL,
+				apiKey:     "segredo-teste",
+				httpClient: server.Client(),
+			}
+			if err := service.validateProvider(); err != nil {
+				t.Fatalf("provedor compatível foi recusado: %v", err)
+			}
+		})
+	}
+}
+
+func TestStreamChatCompletionsUsesSafeProviderContract(t *testing.T) {
+	var received map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/chat/completions" {
+			t.Fatalf("endpoint inesperado: %s", r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer segredo-teste" {
+			t.Fatal("autorização do provedor ausente")
+		}
+		if err := json.NewDecoder(r.Body).Decode(&received); err != nil {
+			t.Fatal(err)
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"Resposta \"}}]}\n\n")
+		fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"segura\"}}]}\n\n")
+		fmt.Fprint(w, "data: [DONE]\n\n")
+	}))
+	defer server.Close()
+	service := &assistantService{
+		provider:   "openrouter",
+		model:      "provedor/modelo",
+		baseURL:    server.URL,
+		apiKey:     "segredo-teste",
+		httpClient: server.Client(),
+	}
+	recorder := httptest.NewRecorder()
+	err := service.streamChatCompletions(
+		context.Background(),
+		recorder,
+		"instruções seguras",
+		[]assistantMessage{{Role: "user", Content: "pergunta"}},
+	)
+	if err != nil {
+		t.Fatalf("streaming compatível falhou: %v", err)
+	}
+	if received["stream"] != true || received["model"] != "provedor/modelo" {
+		t.Fatalf("payload inesperado: %#v", received)
+	}
+	messages, ok := received["messages"].([]any)
+	if !ok || len(messages) != 2 {
+		t.Fatalf("mensagens inesperadas: %#v", received["messages"])
+	}
+	system, ok := messages[0].(map[string]any)
+	if !ok || system["role"] != "system" || system["content"] != "instruções seguras" {
+		t.Fatalf("instruções não foram isoladas como system: %#v", messages[0])
+	}
+	if !strings.Contains(recorder.Body.String(), "Resposta ") ||
+		!strings.Contains(recorder.Body.String(), "segura") {
+		t.Fatalf("deltas SSE ausentes: %s", recorder.Body.String())
+	}
+}
+
 func TestValidateAssistantRequestSanitizesHistory(t *testing.T) {
 	input := assistantRequest{
 		Question:       "  Analise meu servidor  ",

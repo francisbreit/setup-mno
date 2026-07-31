@@ -233,6 +233,18 @@ nav { display: grid; gap: 5px; }
 .message-content code { padding: 2px 5px; border: 1px solid var(--line); border-radius: 4px; color: #ffd0ad; background: rgba(255,122,26,.08); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .92em; }
 .assistant-side { display: grid; align-content: start; gap: 14px; }.guard-icon { width: 42px; height: 42px; display: grid; place-items: center; margin-bottom: 17px; border-radius: 13px; color: var(--green); background: var(--green-soft); }.guardrail-card p { color: var(--muted); font-size: 10px; line-height: 1.6; }.guardrail-card ul { display: grid; gap: 8px; margin: 16px 0 0; padding: 0; list-style: none; color: #abb2bd; font-size: 9px; }.guardrail-card li::before { content: "✓"; margin-right: 8px; color: var(--green); }
 .audit-list { display: grid; }.audit-row { display: grid; grid-template-columns: 130px 145px 1fr 120px; gap: 14px; padding: 13px 3px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 9px; }.audit-row strong { color: #d8dce2; }
+.settings-intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 9px 2px 27px; }
+.settings-intro h2 { margin: 0; font-size: clamp(28px,4vw,46px); letter-spacing: -.05em; }
+.settings-intro p:not(.eyebrow) { max-width: 720px; margin: 12px 0 0; color: var(--muted); line-height: 1.65; }
+.settings-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; }
+.settings-card { min-height: 285px; display: flex; flex-direction: column; align-items: flex-start; gap: 18px; }
+.settings-card > div { flex: 1; }.settings-card h3 { margin: 0 0 10px; font-size: 18px; }.settings-card p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.65; }
+.settings-card .light-button { width: 100%; justify-content: space-between; }
+.settings-icon { width: 45px; height: 45px; display: grid; place-items: center; border-radius: 14px; font-weight: 900; }
+.settings-icon.orange { color: var(--orange); background: var(--orange-soft); }.settings-icon.violet { color: #a38cff; background: rgba(124,92,255,.13); }.settings-icon.cyan { color: #63d5e8; background: rgba(62,201,224,.11); }
+.settings-security { margin-top: 14px; }.settings-security > div { display: flex; align-items: center; gap: 14px; }.settings-security .guard-icon { flex: 0 0 auto; margin: 0; }
+.settings-security h3 { margin: 0; }.settings-security > p { max-width: 920px; color: var(--muted); line-height: 1.7; }
+.settings-security ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 22px; padding: 0; list-style: none; }.settings-security li { padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; color: #aeb5c0; font-size: 8px; }
 
 .terminal-dialog { width: min(1180px, calc(100% - 40px)); height: min(780px, calc(100vh - 40px)); padding: 0; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 19px; color: var(--text); background: #080b0f; box-shadow: 0 35px 120px rgba(0,0,0,.7); }
 .terminal-dialog::backdrop { background: rgba(0,0,0,.78); backdrop-filter: blur(8px); }
@@ -246,6 +258,7 @@ nav { display: grid; gap: 5px; }
 @media (max-width: 1180px) {
   .stats-grid, .catalog-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .installed-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .settings-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .hero-orbit { margin-right: 0; transform: scale(.85); }
 }
 @media (max-width: 900px) {
@@ -258,6 +271,7 @@ nav { display: grid; gap: 5px; }
   .sidebar-brand .icon-button { margin-left: auto; }
   .workspace { margin-left: 0; }
   .dashboard-grid, .assistant-layout { grid-template-columns: 1fr; }
+  .settings-grid { grid-template-columns: 1fr; }
   .assistant-main { min-height: 650px; }
   .login-shell { grid-template-columns: 1fr; }
   .login-brand { min-height: 44vh; padding: 55px 8vw 34px; }
@@ -280,6 +294,7 @@ nav { display: grid; gap: 5px; }
   .section-tools select, .search-box { width: 100%; }
   .sticky-tools { position: static; }
   .catalog-intro { align-items: flex-start; flex-direction: column; }
+  .settings-intro { align-items: flex-start; flex-direction: column; }
   .catalog-total { align-self: flex-end; }
   .health-summary { grid-template-columns: 1fr; }
   .recent-row { grid-template-columns: 1fr 70px; }.recent-row > span:last-child { display: none; }

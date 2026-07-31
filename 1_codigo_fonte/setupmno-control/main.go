@@ -487,8 +487,9 @@ func runAssistant() error {
 		log.Printf("Assistente MNO: usando fallback de conhecimento embutido")
 	}
 	provider := strings.ToLower(strings.TrimSpace(os.Getenv("ASSISTANT_PROVIDER")))
-	if provider != "openai" && provider != "ollama" {
-		return errors.New("ASSISTANT_PROVIDER deve ser openai ou ollama")
+	if provider != "openai" && provider != "openrouter" &&
+		provider != "deepseek" && provider != "ollama" {
+		return errors.New("ASSISTANT_PROVIDER deve ser openai, openrouter, deepseek ou ollama")
 	}
 	model := strings.TrimSpace(os.Getenv("ASSISTANT_MODEL"))
 	if model == "" {
@@ -496,9 +497,14 @@ func runAssistant() error {
 	}
 	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("ASSISTANT_BASE_URL")), "/")
 	if baseURL == "" {
-		if provider == "openai" {
+		switch provider {
+		case "openai":
 			baseURL = "https://api.openai.com/v1"
-		} else {
+		case "openrouter":
+			baseURL = "https://openrouter.ai/api/v1"
+		case "deepseek":
+			baseURL = "https://api.deepseek.com"
+		default:
 			return errors.New("ASSISTANT_BASE_URL não configurada para o Ollama")
 		}
 	}
@@ -510,10 +516,10 @@ func runAssistant() error {
 	}
 
 	apiKey := ""
-	if provider == "openai" {
-		key, keyErr := readSecret(envDefault("OPENAI_API_KEY_FILE", "/run/secrets/openai_api_key"), true)
+	if provider == "openai" || provider == "openrouter" || provider == "deepseek" {
+		key, keyErr := readSecret(envDefault("LLM_API_KEY_FILE", "/run/secrets/llm_api_key"), true)
 		if keyErr != nil {
-			return fmt.Errorf("chave da OpenAI indisponível: %w", keyErr)
+			return fmt.Errorf("chave do provedor indisponível: %w", keyErr)
 		}
 		apiKey = string(key)
 		zero(key)
@@ -602,12 +608,15 @@ func runAssistant() error {
 
 func (s *assistantService) validateProvider() error {
 	endpoint := strings.TrimRight(s.baseURL, "/")
-	if s.provider == "openai" {
+	switch s.provider {
+	case "openai":
 		if !strings.HasSuffix(endpoint, "/v1") {
 			endpoint += "/v1"
 		}
 		endpoint += "/models/" + url.PathEscape(s.model)
-	} else {
+	case "openrouter", "deepseek":
+		endpoint += "/models"
+	default:
 		endpoint = strings.TrimSuffix(endpoint, "/v1") + "/api/tags"
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -643,6 +652,22 @@ func (s *assistantService) validateProvider() error {
 			}
 		}
 		return fmt.Errorf("modelo %q não está baixado no Ollama", s.model)
+	}
+	if s.provider == "openrouter" || s.provider == "deepseek" {
+		var models struct {
+			Data []struct {
+				ID string `json:"id"`
+			} `json:"data"`
+		}
+		if err := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&models); err != nil {
+			return errors.New("resposta inválida ao consultar os modelos do provedor")
+		}
+		for _, candidate := range models.Data {
+			if candidate.ID == s.model {
+				return nil
+			}
+		}
+		return fmt.Errorf("modelo %q não foi encontrado no provedor", s.model)
 	}
 	return nil
 }
@@ -940,6 +965,9 @@ Contexto operacional minimizado em JSON:
 	messages := make([]assistantMessage, 0, len(input.History)+1)
 	messages = append(messages, input.History...)
 	messages = append(messages, assistantMessage{Role: "user", Content: input.Question})
+	if s.provider == "openrouter" || s.provider == "deepseek" {
+		return s.streamChatCompletions(ctx, w, instructions, messages)
+	}
 	payload, err := json.Marshal(map[string]any{
 		"model":             s.model,
 		"instructions":      instructions,
@@ -1033,6 +1061,101 @@ Contexto operacional minimizado em JSON:
 						}
 					}
 				}
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+	if deltas == 0 {
+		return errors.New("provedor não retornou texto")
+	}
+	return nil
+}
+
+func (s *assistantService) streamChatCompletions(
+	ctx context.Context,
+	w http.ResponseWriter,
+	instructions string,
+	messages []assistantMessage,
+) error {
+	providerMessages := make([]assistantMessage, 0, len(messages)+1)
+	providerMessages = append(providerMessages, assistantMessage{
+		Role:    "system",
+		Content: instructions,
+	})
+	providerMessages = append(providerMessages, messages...)
+	payload, err := json.Marshal(map[string]any{
+		"model":      s.model,
+		"messages":   providerMessages,
+		"max_tokens": 1400,
+		"stream":     true,
+	})
+	if err != nil {
+		return err
+	}
+	endpoint := strings.TrimRight(s.baseURL, "/") + "/chat/completions"
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		endpoint,
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "text/event-stream")
+	req.Header.Set("Authorization", "Bearer "+s.apiKey)
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return fmt.Errorf(
+			"provedor retornou HTTP %d: %s",
+			resp.StatusCode,
+			providerErrorMessage(body),
+		)
+	}
+
+	scanner := bufio.NewScanner(io.LimitReader(resp.Body, 16<<20))
+	scanner.Buffer(make([]byte, 64<<10), 2<<20)
+	deltas := 0
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "" || data == "[DONE]" {
+			continue
+		}
+		var event struct {
+			Choices []struct {
+				Delta struct {
+					Content string `json:"content"`
+				} `json:"delta"`
+			} `json:"choices"`
+			Error *struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if json.Unmarshal([]byte(data), &event) != nil {
+			continue
+		}
+		if event.Error != nil {
+			if event.Error.Message != "" {
+				return errors.New(event.Error.Message)
+			}
+			return errors.New("falha informada pelo provedor")
+		}
+		for _, choice := range event.Choices {
+			if choice.Delta.Content != "" {
+				sendSSE(w, "delta", map[string]any{"delta": choice.Delta.Content})
+				deltas++
 			}
 		}
 	}

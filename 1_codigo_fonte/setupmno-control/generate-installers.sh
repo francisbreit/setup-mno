@@ -16,7 +16,7 @@ grep -Fq '1>&2' <<<"$msg_function" || {
     printf 'ERRO: msg() precisa direcionar a interface Whiptail para stderr.\n' >&2
     exit 1
 }
-for collector in ask_required ask_with_default ask_openai_key ask_password; do
+for collector in ask_required ask_with_default ask_llm_key ask_password; do
     collector_function=$(awk -v name="$collector" '
         $0 ~ "^" name "\\(\\)" { inside=1 }
         inside { print }
@@ -102,6 +102,46 @@ grep -Fq 'install -m 0644 "$runtime_catalog" "$work_dir/source/catalog.json"' \
     printf 'ERRO: o catálogo validado precisa permanecer fora do bundle SHC.\n' >&2
     exit 1
 }
+for terminal_script in terminal-menu.sh configure-control.sh; do
+    bash -n "$project_dir/$terminal_script"
+    [ "$(head -n1 "$project_dir/$terminal_script")" = "#!/usr/bin/bash" ] || {
+        printf 'ERRO: %s precisa usar o shebang compatível com SHC.\n' "$terminal_script" >&2
+        exit 1
+    }
+done
+config_msg_function=$(awk '/^msg\(\)/,/^}/' "$project_dir/configure-control.sh")
+grep -Fq '1>&2' <<<"$config_msg_function" || {
+    printf 'ERRO: msg() da Central de Configurações precisa usar stderr.\n' >&2
+    exit 1
+}
+for collector in ask_required ask_secret; do
+    collector_function=$(awk -v name="$collector" '
+        $0 ~ "^" name "\\(\\)" { inside=1 }
+        inside { print }
+        inside && /^}/ { exit }
+    ' "$project_dir/configure-control.sh")
+    grep -Fq 'return 130' <<<"$collector_function" || {
+        printf 'ERRO: %s da Central não propaga cancelamento.\n' "$collector" >&2
+        exit 1
+    }
+done
+grep -Fq 'SETUPMNO_CONFIG_SMOKE_TEST' "$project_dir/configure-control.sh" || {
+    printf 'ERRO: a Central de Configurações não possui smoke test isolado.\n' >&2
+    exit 1
+}
+grep -Fq 'COPY configure-control.sh /usr/local/bin/setupmno-control-configure' \
+    "$project_dir/terminal.Dockerfile" || {
+    printf 'ERRO: a imagem do terminal não inclui a Central de Configurações.\n' >&2
+    exit 1
+}
+grep -Fq -- '- /usr/local/bin/setupmno-terminal-menu' "$template" || {
+    printf 'ERRO: o terminal não inicia pelo menu seguro permitido.\n' >&2
+    exit 1
+}
+grep -Fq 'target: admin_password' "$template" || {
+    printf 'ERRO: a credencial administrativa precisa usar target estável para rotação.\n' >&2
+    exit 1
+}
 
 x86_version=$(sed -n 's/^VERSIONSETUP="\([^"]*\)"/\1/p' "$source_root/x86/SetupLowCodeMno/install.sh" | head -n1)
 [ -n "$x86_version" ] || {
@@ -180,6 +220,7 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
     cd "$project_dir"
     tar -cf - \
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
+        terminal-menu.sh configure-control.sh \
         main.go knowledge.go retrieval.go web |
         gzip -9n >"$bundle"
 )

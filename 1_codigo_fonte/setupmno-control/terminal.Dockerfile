@@ -18,7 +18,11 @@ RUN apt-get update \
 
 COPY web/terminal-bridge.js /usr/local/share/ttyd/terminal-bridge.js
 COPY prepare-ttyd-index.sh /usr/local/bin/prepare-ttyd-index
+COPY terminal-menu.sh /usr/local/bin/setupmno-terminal-menu
+COPY configure-control.sh /usr/local/bin/setupmno-control-configure
 RUN chmod 0755 /usr/local/bin/prepare-ttyd-index \
+       /usr/local/bin/setupmno-terminal-menu \
+       /usr/local/bin/setupmno-control-configure \
     && /usr/local/bin/prepare-ttyd-index \
        /usr/local/share/ttyd/terminal-bridge.js \
        /usr/local/share/ttyd/index.html \

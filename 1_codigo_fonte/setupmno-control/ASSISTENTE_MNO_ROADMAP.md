@@ -1086,6 +1086,21 @@ Escopo implementado na release v4.96.1:
 - mesmo contrato de privacidade, isolamento e retrieval shadow da v4.96.0
 - nenhuma classificação heurística local, ferramenta de escrita ou ampliação de acesso
 
+## Central de Configurações
+
+Escopo implementado na release v4.97.0:
+
+- Setup MNO `4.97.0`
+- Control Center `1.5.0`
+- conhecimento canônico `1.3.0`
+- nova opção Configurações abaixo de Auditoria
+- alteração segura do usuário e da senha administrativa
+- OpenAI como seleção inicial quando o servidor atende aos requisitos
+- conectores OpenAI, OpenRouter, DeepSeek e Ollama, além do modo básico
+- credenciais coletadas somente no Whiptail e armazenadas como Docker Secrets
+- rotação versionada de secrets, healthcheck e rollback em falhas
+- painel web e Assistente permanecem sem Docker socket, shell ou API de escrita
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico

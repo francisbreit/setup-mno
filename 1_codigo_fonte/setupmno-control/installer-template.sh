@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="1.4.1"
+CONTROL_VERSION="1.5.0"
 
 if [ "${SETUPMNO_SHC_SMOKE_TEST:-0}" = "1" ]; then
     printf '%s\n' "setupmno-control-shc-ok"
@@ -63,11 +63,11 @@ ask_with_default() {
     done
 }
 
-ask_openai_key() {
-    local value status
+ask_llm_key() {
+    local provider_name="$1" value status
     while true; do
         value=$(whiptail --title "SETUP MNO CONTROL CENTER" --passwordbox \
-            "Informe a chave da API OpenAI.\n\nEla será armazenada exclusivamente como Docker Secret e nunca será exibida em logs." \
+            "Informe a chave da API $provider_name.\n\nEla será armazenada exclusivamente como Docker Secret e nunca será exibida em logs." \
             14 82 3>&1 1>&2 2>&3)
         status=$?
         [ "$status" -ne 0 ] && return 130
@@ -176,18 +176,20 @@ mem_available_mb=$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo)
 assistant_mode="basic"
 assistant_model=""
 assistant_base_url=""
-openai_api_key=""
+llm_api_key=""
 
 if [ "${mem_total_mb:-0}" -lt 4096 ] || [ "${mem_available_mb:-0}" -lt 1536 ]; then
     msg "O Control Center será instalado com o diagnóstico básico.\n\nMemória total: ${mem_total_mb:-0} MB\nMemória disponível: ${mem_available_mb:-0} MB\n\nO Copiloto com LLM é opcional e foi desativado para proteger este servidor. Você poderá configurá-lo futuramente após ampliar os recursos."
 else
     while true; do
-        assistant_choice=$(whiptail --title "4/5 — ASSISTENTE MNO" --menu \
-            "Escolha como o Copiloto de Infraestrutura funcionará.\n\nO modo básico não consome API nem memória adicional. OpenAI e Ollama criam uma stack isolada de 256 MB, sem acesso ao Docker ou terminal." \
-            20 88 5 \
-            "BASIC" "Diagnóstico local básico (recomendado para começar)" \
-            "OPENAI" "LLM externa pela API OpenAI" \
+        assistant_choice=$(whiptail --title "4/5 — ASSISTENTE MNO" --default-item "OPENAI" --menu \
+            "Escolha como o Copiloto de Infraestrutura funcionará.\n\nOpenAI é a seleção inicial. Todo conector usa uma stack isolada de 256 MB, sem acesso ao Docker ou terminal." \
+            23 92 7 \
+            "OPENAI" "LLM externa pela Responses API (padrão inicial)" \
+            "OPENROUTER" "Catálogo multi-modelo pela API compatível" \
+            "DEEPSEEK" "Modelos oficiais DeepSeek" \
             "OLLAMA" "Modelo existente em um endpoint Ollama" \
+            "BASIC" "Diagnóstico local sem LLM" \
             "LATER" "Configurar o conector de IA futuramente" \
             3>&1 1>&2 2>&3)
         assistant_status=$?
@@ -198,7 +200,7 @@ else
                 break
                 ;;
             OPENAI)
-                if ! openai_api_key=$(ask_openai_key); then
+                if ! llm_api_key=$(ask_llm_key "OpenAI"); then
                     exit 0
                 fi
                 if ! assistant_model=$(ask_with_default \
@@ -208,6 +210,32 @@ else
                 fi
                 assistant_mode="openai"
                 assistant_base_url="https://api.openai.com/v1"
+                break
+                ;;
+            OPENROUTER)
+                if ! llm_api_key=$(ask_llm_key "OpenRouter"); then
+                    exit 0
+                fi
+                if ! assistant_model=$(ask_with_default \
+                    "Modelo OpenRouter para o Copiloto:\n\nInforme o identificador exato no formato provedor/modelo." \
+                    "openai/gpt-5.4"); then
+                    exit 0
+                fi
+                assistant_mode="openrouter"
+                assistant_base_url="https://openrouter.ai/api/v1"
+                break
+                ;;
+            DEEPSEEK)
+                if ! llm_api_key=$(ask_llm_key "DeepSeek"); then
+                    exit 0
+                fi
+                if ! assistant_model=$(ask_with_default \
+                    "Modelo DeepSeek para o Copiloto:\n\nVocê pode informar outro identificador aceito atualmente pelo provedor." \
+                    "deepseek-v4-flash"); then
+                    exit 0
+                fi
+                assistant_mode="deepseek"
+                assistant_base_url="https://api.deepseek.com"
                 break
                 ;;
             OLLAMA)
@@ -259,15 +287,24 @@ control_image="${nome_app}-app:${CONTROL_VERSION}"
 terminal_image="${nome_app}-terminal:${CONTROL_VERSION}"
 admin_secret="${nome_app}-admin-password"
 agent_secret="${nome_app}-agent-token"
-openai_secret="${nome_app}-openai-api-key"
+llm_secret="${nome_app}-llm-api-key"
 
 assistant_label="Diagnóstico básico (sem LLM)"
 memory_limit="576 MB"
 assistant_internal_url=""
-if [ "$assistant_mode" = "openai" ]; then
-    assistant_label="OpenAI · $assistant_model"
+assistant_external="false"
+if [ "$assistant_mode" = "openai" ] ||
+   [ "$assistant_mode" = "openrouter" ] ||
+   [ "$assistant_mode" = "deepseek" ]; then
+    case "$assistant_mode" in
+        openai) assistant_provider_label="OpenAI" ;;
+        openrouter) assistant_provider_label="OpenRouter" ;;
+        deepseek) assistant_provider_label="DeepSeek" ;;
+    esac
+    assistant_label="$assistant_provider_label · $assistant_model"
     memory_limit="832 MB"
     assistant_internal_url="http://${assistant_stack}_${assistant_service}:7070"
+    assistant_external="true"
 elif [ "$assistant_mode" = "ollama" ]; then
     assistant_label="Ollama · $assistant_model"
     memory_limit="832 MB + consumo do modelo Ollama"
@@ -360,6 +397,7 @@ error_file="/tmp/${nome_app}-error.log"
         fail_install 21 "CATÁLOGO RUNTIME INVÁLIDO" "O catálogo não corresponde ao manifesto desta release."
     install -m 0644 "$runtime_catalog" "$work_dir/source/catalog.json"
     for source_file in go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
+        terminal-menu.sh configure-control.sh \
         main.go knowledge.go retrieval.go catalog.json web/index.html web/terminal-bridge.js; do
         [ -s "$work_dir/source/$source_file" ] ||
             fail_install 21 "FONTE INCOMPLETO" "O arquivo interno '$source_file' não foi encontrado no bundle."
@@ -481,13 +519,15 @@ error_file="/tmp/${nome_app}-error.log"
         docker secret create "$agent_secret" - >>"$install_log" 2>&1; then
         fail_install 41 "ERRO AO CRIAR TOKEN" "Não foi possível criar o token privado do agente."
     fi
-    if [ "$assistant_mode" = "openai" ]; then
-        if ! printf '%s' "$openai_api_key" |
-            docker secret create "$openai_secret" - >>"$install_log" 2>&1; then
-            fail_install 42 "ERRO AO PROTEGER CHAVE OPENAI" "Não foi possível armazenar a chave da OpenAI como Docker Secret."
+    if [ "$assistant_mode" = "openai" ] ||
+       [ "$assistant_mode" = "openrouter" ] ||
+       [ "$assistant_mode" = "deepseek" ]; then
+        if ! printf '%s' "$llm_api_key" |
+            docker secret create "$llm_secret" - >>"$install_log" 2>&1; then
+            fail_install 42 "ERRO AO PROTEGER CHAVE LLM" "Não foi possível armazenar a chave do provedor como Docker Secret."
         fi
     fi
-    unset openai_api_key
+    unset llm_api_key
 
     echo -e "XXX\n58\nGERANDO STACKS ISOLADAS... \nXXX"
     cd
@@ -508,7 +548,19 @@ services:
       - -O
       - -m
       - "1"
-      - /root/SetupLowCodeMno/install
+      - /usr/local/bin/setupmno-terminal-menu
+    environment:
+      - ADMIN_PASSWORD_FILE=/run/secrets/admin_password
+      - SETUPMNO_CONTROL_PREFIX=$nome_app
+      - SETUPMNO_CONTROL_IMAGE=$control_image
+      - SETUPMNO_CONTROL_WEB_SERVICE=${web_stack}_${web_service}
+      - SETUPMNO_CONTROL_TERMINAL_SERVICE=${terminal_stack}_${terminal_service}
+      - SETUPMNO_CONTROL_AGENT_SERVICE=${agent_stack}_${agent_service}
+      - SETUPMNO_CONTROL_ASSISTANT_STACK=$assistant_stack
+      - SETUPMNO_CONTROL_ASSISTANT_COMPONENT=$assistant_service
+      - SETUPMNO_CONTROL_AGENT_SECRET=$agent_secret
+      - SETUPMNO_CONTROL_ADMIN_SECRET=$admin_secret
+      - SETUPMNO_CONTROL_ADMIN_USERNAME=$usuario_control
     networks:
       - interna
     volumes:
@@ -517,6 +569,9 @@ services:
       - /usr/bin/bash:/usr/bin/bash:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - /etc/localtime:/etc/localtime:ro
+    secrets:
+      - source: $admin_secret
+        target: admin_password
     healthcheck:
       test:
         - CMD
@@ -540,6 +595,10 @@ services:
 
 networks:
   interna:
+    external: true
+
+secrets:
+  $admin_secret:
     external: true
 EOL
 
@@ -619,9 +678,9 @@ services:
       - AGENT_TOKEN_FILE=/run/secrets/$agent_secret
       - AGENT_URL=http://${agent_stack}_${agent_service}:9090
 EOL
-        if [ "$assistant_mode" = "openai" ]; then
+        if [ "$assistant_external" = "true" ]; then
             cat >>"${assistant_stack}.yaml" <<EOL
-      - OPENAI_API_KEY_FILE=/run/secrets/$openai_secret
+      - LLM_API_KEY_FILE=/run/secrets/llm_api_key
 EOL
         fi
         cat >>"${assistant_stack}.yaml" <<EOL
@@ -630,9 +689,10 @@ EOL
     secrets:
       - $agent_secret
 EOL
-        if [ "$assistant_mode" = "openai" ]; then
+        if [ "$assistant_external" = "true" ]; then
             cat >>"${assistant_stack}.yaml" <<EOL
-      - $openai_secret
+      - source: $llm_secret
+        target: llm_api_key
 EOL
         fi
         cat >>"${assistant_stack}.yaml" <<EOL
@@ -664,9 +724,9 @@ secrets:
   $agent_secret:
     external: true
 EOL
-        if [ "$assistant_mode" = "openai" ]; then
+        if [ "$assistant_external" = "true" ]; then
             cat >>"${assistant_stack}.yaml" <<EOL
-  $openai_secret:
+  $llm_secret:
     external: true
 EOL
         fi
@@ -687,7 +747,7 @@ services:
       - MODE=web
       - APP_VERSION=$CONTROL_VERSION
       - ADMIN_USERNAME=$usuario_control
-      - ADMIN_PASSWORD_FILE=/run/secrets/$admin_secret
+      - ADMIN_PASSWORD_FILE=/run/secrets/admin_password
       - AGENT_TOKEN_FILE=/run/secrets/$agent_secret
       - AGENT_URL=http://${agent_stack}_${agent_service}:9090
       - TERMINAL_URL=http://${terminal_stack}_${terminal_service}:7681
@@ -699,7 +759,8 @@ services:
       - externa
       - interna
     secrets:
-      - $admin_secret
+      - source: $admin_secret
+        target: admin_password
       - $agent_secret
     healthcheck:
       test:
@@ -1001,7 +1062,7 @@ EOL
 } 2>>"$install_log" | whiptail --title "SETUP MNO CONTROL CENTER" --gauge \
     "Preparando o painel..." 8 78 0
 install_status=${PIPESTATUS[0]}
-unset openai_api_key
+unset llm_api_key
 
 if [ "$install_status" -ne 0 ]; then
     error_detail=$(cat "$error_file" 2>/dev/null)

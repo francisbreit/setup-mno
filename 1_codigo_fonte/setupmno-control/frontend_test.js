@@ -1,6 +1,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
 
 require("./web/markdown.js");
 
@@ -24,4 +25,15 @@ assert.match(malicious, /<strong>seguro<\/strong>/);
 assert.doesNotMatch(malicious, /<img|<script|onerror="/);
 assert.match(malicious, /&lt;img/);
 
-console.log("Markdown seguro validado.");
+const html = fs.readFileSync("./web/index.html", "utf8");
+const app = fs.readFileSync("./web/app.js", "utf8");
+assert.match(html, /data-view="audit"[\s\S]*data-view="settings"/);
+assert.match(html, /Central de Configurações/);
+assert.match(html, /data-action="settings"/);
+assert.doesNotMatch(html, /type="password"[^>]*settings/i);
+for (const provider of ["OpenAI", "OpenRouter", "DeepSeek", "Ollama"]) {
+  assert.match(html + app, new RegExp(provider));
+}
+assert.match(app, /openTerminal\("settings"\)/);
+
+console.log("Markdown seguro e Central de Configurações validados.");

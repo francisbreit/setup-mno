@@ -6,9 +6,11 @@ instalação e executado em três stacks obrigatórias e uma quarta opcional:
 - `web`: autenticação, interface responsiva, catálogo, auditoria e proxy do terminal;
 - `agent`: inventário somente leitura do Docker Swarm, métricas do host e leitura
   validada do manifesto e catálogo runtime;
-- `terminal`: sessão isolada do instalador original, acessível apenas pelo painel.
-- `assistant` (opcional): conector consultivo para OpenAI ou Ollama, sem socket
-  Docker, shell, terminal, mounts do host ou rota pública própria.
+- `terminal`: menu seguro para o instalador original e a Central de
+  Configurações, acessível apenas pelo painel;
+- `assistant` (opcional): conector consultivo para OpenAI, OpenRouter, DeepSeek
+  ou Ollama, sem socket Docker, shell, terminal, mounts do host ou rota pública
+  própria.
 
 O agente não oferece endpoints de escrita nem uma API genérica de arquivos ou
 comandos. O único componente com acesso ao
@@ -28,6 +30,8 @@ servidores com recursos suficientes, a instalação permite conectar:
 
 - OpenAI pela Responses API, com streaming, `store: false` e chave protegida
   exclusivamente por Docker Secret;
+- OpenRouter e DeepSeek pelas APIs compatíveis de Chat Completions com
+  streaming;
 - um endpoint Ollama já existente, usando um modelo previamente baixado.
 
 O navegador conserva somente as últimas mensagens da sessão. Antes de qualquer
@@ -45,6 +49,24 @@ Blueprints, capacidade, Docker Swarm, Linux/WSL2, redes, bancos, armazenamento,
 backups, segurança, observabilidade, integrações e deploys. A interface comunica
 esse foco antes da pergunta e os conectores redirecionam consultas alheias ao
 domínio, em vez de atuarem como assistentes generalistas.
+
+## Central de Configurações
+
+A área Configurações aparece abaixo de Auditoria e exibe somente dados não
+sensíveis: usuário, provedor e modelo ativos. Qualquer alteração abre o
+Terminal Seguro, onde o Whiptail exige a senha administrativa atual e oferece
+uma lista fixa de operações:
+
+- alterar o usuário administrador;
+- rotacionar a senha administrativa;
+- alternar entre OpenAI, OpenRouter, DeepSeek, Ollama e diagnóstico básico;
+- alterar o modelo e, quando aplicável, a chave da API.
+
+Senha e chaves nunca passam pelo navegador. O terminal cria Docker Secrets
+versionados, atualiza o serviço, aguarda o healthcheck e executa rollback em
+caso de falha. A reinicialização do painel invalida as sessões abertas. Essa
+capacidade não adiciona socket Docker, shell ou endpoint de escrita ao painel
+web nem ao Assistente.
 
 O plano completo para transformar o Beta em um especialista de infraestrutura,
 setups e Blueprints está registrado em

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#070a0f">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=1.4.1">
+  <link rel="stylesheet" href="/styles.css?v=1.5.0">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -62,6 +62,7 @@
         <button class="nav-item" data-view="catalog"><span class="nav-icon">◇</span><span>Catálogo de setups</span></button>
         <button class="nav-item" data-view="assistant"><span class="nav-icon">✦</span><span>Assistente MNO</span><em>Beta</em></button>
         <button class="nav-item" data-view="audit"><span class="nav-icon">≡</span><span>Auditoria</span></button>
+        <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span><span>Configurações</span></button>
       </nav>
       <div class="sidebar-bottom">
         <div class="server-mini">
@@ -217,21 +218,51 @@
             <div id="audit-list" class="audit-list"></div>
           </article>
         </section>
+
+        <section id="view-settings" class="view">
+          <div class="settings-intro">
+            <div><p class="eyebrow">Administração protegida</p><h2>Central de Configurações</h2><p>Gerencie sua conta e o provedor do Assistente MNO sem entregar credenciais ou acesso ao Docker para o painel web.</p></div>
+            <span class="secure-pill"><i></i> Terminal autenticado</span>
+          </div>
+          <div class="settings-grid">
+            <article class="panel settings-card">
+              <span class="settings-icon orange">A</span>
+              <div><p class="eyebrow">Conta administrativa</p><h3 id="settings-username">Administrador</h3><p>Altere o nome de usuário. A senha atual será solicitada novamente e as sessões abertas serão encerradas.</p></div>
+              <button class="light-button" data-action="settings">Alterar usuário <b>→</b></button>
+            </article>
+            <article class="panel settings-card">
+              <span class="settings-icon violet">◎</span>
+              <div><p class="eyebrow">Credencial de acesso</p><h3>••••••••••••</h3><p>Gere uma nova senha forte usando rotação versionada de Docker Secret e rollback automático em caso de falha.</p></div>
+              <button class="light-button" data-action="settings">Alterar senha <b>→</b></button>
+            </article>
+            <article class="panel settings-card">
+              <span class="settings-icon cyan">✦</span>
+              <div><p class="eyebrow">Assistente MNO</p><h3 id="settings-provider">Diagnóstico básico</h3><p id="settings-model">Sem consumo de API ou modelo local.</p></div>
+              <button class="light-button" data-action="settings">Alterar provedor <b>→</b></button>
+            </article>
+          </div>
+          <article class="panel settings-security">
+            <div><span class="guard-icon">◎</span><div><p class="eyebrow">Fluxo seguro</p><h3>As alterações não são executadas pelo navegador</h3></div></div>
+            <p>A Central abre o Terminal Seguro com uma lista fixa de operações. Senhas e chaves são coletadas pelo Whiptail, enviadas diretamente ao Docker Secret e nunca retornam ao painel, ao histórico do navegador ou aos logs.</p>
+            <ul><li>OpenAI como seleção inicial</li><li>OpenRouter e DeepSeek disponíveis</li><li>Ollama já existente</li><li>Diagnóstico básico sem LLM</li></ul>
+            <button class="primary-button" data-action="settings">Abrir configurações seguras <b>→</b></button>
+          </article>
+        </section>
       </div>
     </section>
   </div>
 
   <dialog id="terminal-dialog" class="terminal-dialog">
     <div class="terminal-head">
-      <div><span class="terminal-lights"><i></i><i></i><i></i></span><div><strong>Instalador Seguro</strong><small>Setup MNO · sessão administrativa</small></div></div>
+      <div><span class="terminal-lights"><i></i><i></i><i></i></span><div><strong id="terminal-title">Terminal Seguro</strong><small id="terminal-subtitle">Setup MNO · sessão administrativa</small></div></div>
       <button id="terminal-close" class="icon-button" aria-label="Fechar terminal">×</button>
     </div>
-    <div class="terminal-warning"><span>◎</span> Você está abrindo o instalador original. Todas as confirmações, Whiptails e regras de plano permanecem ativas.</div>
+    <div id="terminal-warning" class="terminal-warning"><span>◎</span> Selecione a operação desejada no menu protegido. Todas as confirmações e regras do Setup MNO permanecem ativas.</div>
     <iframe id="terminal-frame" title="Terminal seguro do Setup MNO" sandbox="allow-scripts allow-forms allow-same-origin"></iframe>
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=1.4.1" defer></script>
-  <script src="/app.js?v=1.4.1" defer></script>
+  <script src="/markdown.js?v=1.5.0" defer></script>
+  <script src="/app.js?v=1.5.0" defer></script>
 </body>
 </html>

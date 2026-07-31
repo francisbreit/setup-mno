@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "setupVersion": "4.96.1",
-  "catalogVersion": "4.96.1",
+  "setupVersion": "4.97.0",
+  "catalogVersion": "4.97.0",
   "catalogSHA256": "d318413cf9e22af29877f2ad57e515474b5e574ebc6f9c928944b3b20296eb1c",
   "catalogEntries": 151,
   "architecture": "amd64",
-  "knowledgeVersion": "1.2.1",
-  "knowledgeArchiveSHA256": "6833e65d7f9fec32b53c836e8b4483f0d816d8fe7ca9087f6c3e980bcf03df54",
+  "knowledgeVersion": "1.3.0",
+  "knowledgeArchiveSHA256": "b9766142287a29b0497e014cb34c73dc203e5865aa02acb57cd609cefd4dbd49",
   "knowledgeEntries": 29
 }
