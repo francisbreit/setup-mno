@@ -641,7 +641,7 @@ deverá medir e formalizar thresholds antes de ampliar bandas ou orçamento.
 
 ## Etapa 4 — Roteador de Especialistas e Prompts
 
-**Status:** em andamento — subetapa 4.1 homologada e subetapa 4.2 implementada
+**Status:** em andamento — subetapas 4.1 e 4.2 homologadas; subetapa 4.3 implementada
 **Impacto:** alto
 **Tipo:** IA e UX
 **Esforço:** moderado
@@ -1213,6 +1213,36 @@ Escopo implementado na release v5.1.0:
 - mesmo contrato para OpenAI, OpenRouter, DeepSeek e Ollama
 - nenhuma nova stack, porta, secret, mount, socket ou ferramenta de escrita
 
+### Homologação funcional da subetapa 4.2
+
+Aprovada pelo mantenedor em 2026-07-31 após validação do registro de prompts e
+das respostas especializadas no Control Center. A tag `v5.1.0` permanece como
+rollback integral anterior ao contrato visual e adaptativo por mensagem.
+
+## Release incremental da subetapa 4.3
+
+Escopo implementado na release v5.2.0:
+
+- Setup MNO `5.2.0`
+- Control Center `2.2.0`
+- conhecimento canônico `1.4.2`
+- registro de prompts `1.0.0`, prompt especialista `1.2.0` e contrato de
+  resposta `1.0.0`
+- cabeçalho persistente `Especialista · Risco · Prompt` em cada resposta
+- snapshot imutável criado somente a partir do evento SSE local de rota
+- allowlist fechada de oito especialistas, três riscos e versões SemVer
+- pergunta, histórico, métricas e SHA completo ausentes do snapshot visual
+- atualização segura por `textContent`, sem confiar em Markdown da LLM
+- autoria preservada em OpenAI, OpenRouter, DeepSeek, Ollama, catálogo local,
+  modo básico e contingência
+- estado neutro quando nenhuma rota válida acompanha uma resposta incompleta
+- contrato em camadas com conclusão prática e detalhes técnicos auditáveis
+- explicação breve de termos essenciais sem remover nomenclatura profissional
+- riscos, validação e rollback obrigatórios para rotas de risco alto
+- layout responsivo com quebra dos badges em telas estreitas e zoom elevado
+- versão do contrato exposta na rota, no cartão lateral e no healthcheck
+- nenhuma nova stack, porta, secret, mount, socket ou ferramenta de escrita
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico
@@ -1226,17 +1256,13 @@ Escopo implementado na release v5.1.0:
 
 ## Próxima ação
 
-Homologar a subetapa **4.2 — Registro versionado de prompts** com perguntas
-representativas dos oito especialistas, comparando clareza para iniciantes,
-precisão para profissionais, recusa, incerteza, citações e rollback. Depois da
-aprovação funcional, iniciar a **subetapa 4.3 — Contrato estruturado e adaptativo
-de resposta**. A 4.3 deve incluir um identificador persistente em cada mensagem
-do Assistente, no formato equivalente a `Especialista · Risco · Prompt`, para
-que a autoria especializada continue evidente em telas estreitas, zoom elevado
-e quando o cartão lateral estiver fora da área visível. O identificador deve ser
-renderizado a partir do evento local de rota, sem confiar em texto produzido
-pela LLM e sem expor pergunta, contexto runtime ou hash completo. A Etapa 6
-formalizará os thresholds antes de ampliar o orçamento atual.
+Homologar a subetapa **4.3 — Contrato estruturado e adaptativo de resposta** em
+desktop, Android retrato e zoom elevado, cobrindo os oito especialistas, modo
+básico, catálogo local e contingência. Confirmar que cada mensagem preserva sua
+própria autoria durante perguntas consecutivas e que risco alto apresenta
+riscos, validação e rollback. Após a aprovação funcional, concluir formalmente
+a Etapa 4 e iniciar a **Etapa 5 — Blueprints MNO**. A Etapa 6 formalizará os
+thresholds antes de ampliar o orçamento atual.
 
 ## Referências oficiais
 

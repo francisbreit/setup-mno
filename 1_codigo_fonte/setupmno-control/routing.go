@@ -12,19 +12,20 @@ const (
 )
 
 type assistantRoute struct {
-	RouterVersion         string   `json:"routerVersion"`
-	PromptRegistryVersion string   `json:"promptRegistryVersion"`
-	PromptVersion         string   `json:"promptVersion"`
-	PromptSHA256          string   `json:"promptSHA256"`
-	Intent                string   `json:"intent"`
-	Specialist            string   `json:"specialist"`
-	Setups                []string `json:"setups"`
-	Domains               []string `json:"domains"`
-	Architecture          string   `json:"architecture"`
-	RiskLevel             string   `json:"riskLevel"`
-	RequiredEvidence      []string `json:"requiredEvidence"`
-	Confidence            string   `json:"confidence"`
-	Signals               []string `json:"signals"`
+	RouterVersion           string   `json:"routerVersion"`
+	PromptRegistryVersion   string   `json:"promptRegistryVersion"`
+	PromptVersion           string   `json:"promptVersion"`
+	PromptSHA256            string   `json:"promptSHA256"`
+	ResponseContractVersion string   `json:"responseContractVersion"`
+	Intent                  string   `json:"intent"`
+	Specialist              string   `json:"specialist"`
+	Setups                  []string `json:"setups"`
+	Domains                 []string `json:"domains"`
+	Architecture            string   `json:"architecture"`
+	RiskLevel               string   `json:"riskLevel"`
+	RequiredEvidence        []string `json:"requiredEvidence"`
+	Confidence              string   `json:"confidence"`
+	Signals                 []string `json:"signals"`
 }
 
 type routeDefinition struct {
@@ -218,19 +219,20 @@ func routeAssistant(
 		return safeScopeRoute(runtimeArchitecture)
 	}
 	route := assistantRoute{
-		RouterVersion:         assistantRouterVersion,
-		PromptRegistryVersion: assistantPromptRegistryVersion,
-		PromptVersion:         promptVersion,
-		PromptSHA256:          promptSHA256,
-		Intent:                definition.Intent,
-		Specialist:            definition.Specialist,
-		Setups:                setups,
-		Domains:               uniqueSortedStrings(domains),
-		Architecture:          routeArchitecture(question, runtimeArchitecture),
-		RiskLevel:             riskLevel,
-		RequiredEvidence:      uniqueSortedStrings(requiredEvidence),
-		Confidence:            confidence,
-		Signals:               uniqueSortedStrings(signals),
+		RouterVersion:           assistantRouterVersion,
+		PromptRegistryVersion:   assistantPromptRegistryVersion,
+		PromptVersion:           promptVersion,
+		PromptSHA256:            promptSHA256,
+		ResponseContractVersion: assistantResponseContractVersion,
+		Intent:                  definition.Intent,
+		Specialist:              definition.Specialist,
+		Setups:                  setups,
+		Domains:                 uniqueSortedStrings(domains),
+		Architecture:            routeArchitecture(question, runtimeArchitecture),
+		RiskLevel:               riskLevel,
+		RequiredEvidence:        uniqueSortedStrings(requiredEvidence),
+		Confidence:              confidence,
+		Signals:                 uniqueSortedStrings(signals),
 	}
 	if err := validateAssistantRoute(route); err != nil {
 		return safeScopeRoute(runtimeArchitecture)
@@ -294,17 +296,18 @@ func routeArchitecture(question string, runtimeArchitecture string) string {
 func safeScopeRoute(runtimeArchitecture string) assistantRoute {
 	promptVersion, promptSHA256, _ := promptMetadataForSpecialist("scope_guard")
 	return assistantRoute{
-		RouterVersion:         assistantRouterVersion,
-		PromptRegistryVersion: assistantPromptRegistryVersion,
-		PromptVersion:         promptVersion,
-		PromptSHA256:          promptSHA256,
-		Intent:                "scope_redirect",
-		Specialist:            "scope_guard",
-		Domains:               []string{"out_of_scope"},
-		Architecture:          routeArchitecture("", runtimeArchitecture),
-		RiskLevel:             "low",
-		Confidence:            "medium",
-		Signals:               []string{"route_validation_fallback"},
+		RouterVersion:           assistantRouterVersion,
+		PromptRegistryVersion:   assistantPromptRegistryVersion,
+		PromptVersion:           promptVersion,
+		PromptSHA256:            promptSHA256,
+		ResponseContractVersion: assistantResponseContractVersion,
+		Intent:                  "scope_redirect",
+		Specialist:              "scope_guard",
+		Domains:                 []string{"out_of_scope"},
+		Architecture:            routeArchitecture("", runtimeArchitecture),
+		RiskLevel:               "low",
+		Confidence:              "medium",
+		Signals:                 []string{"route_validation_fallback"},
 	}
 }
 
@@ -312,7 +315,8 @@ func validateAssistantRoute(route assistantRoute) error {
 	promptVersion, promptSHA256, promptFound := promptMetadataForSpecialist(route.Specialist)
 	if route.RouterVersion != assistantRouterVersion ||
 		route.PromptRegistryVersion != assistantPromptRegistryVersion || !promptFound ||
-		route.PromptVersion != promptVersion || route.PromptSHA256 != promptSHA256 {
+		route.PromptVersion != promptVersion || route.PromptSHA256 != promptSHA256 ||
+		route.ResponseContractVersion != assistantResponseContractVersion {
 		return errors.New("versão do roteador incompatível")
 	}
 	allowedIntents := map[string]string{

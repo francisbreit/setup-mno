@@ -381,6 +381,7 @@ async function askAssistant(event) {
     );
     state.assistantHistory = state.assistantHistory.slice(-10);
   } catch (error) {
+    setAssistantMessageRouteUnavailable(pending);
     pending.querySelector(".message-content").textContent = `Não consegui concluir a análise: ${error.message}`;
   } finally {
     input.disabled = false;
@@ -391,6 +392,7 @@ async function askAssistant(event) {
 
 async function streamAssistant(question, history, target, basic, fallbackReason = "") {
   clearRetrievalInspection(target);
+  setAssistantMessageRoutePending(target, basic ? "Classificando contingência local..." : "Classificando especialista...");
   updateAssistantRoute(null, "Classificando a intenção localmente...");
   updateRetrievalSummary(null, basic
     ? "Resposta local: o RAG não foi executado."
@@ -439,6 +441,7 @@ async function streamAssistant(question, history, target, basic, fallbackReason 
         updateAssistantRuntime(event.data);
       } else if (event.type === "route") {
         updateAssistantRoute(event.data);
+        attachAssistantMessageRoute(target, event.data);
       } else if (event.type === "retrieval") {
         renderRetrievalInspection(target, event.data);
       } else if (event.type === "grounding") {
@@ -488,20 +491,58 @@ function updateAssistantRoute(route, message = "") {
   const promptHash = typeof route.promptSHA256 === "string" && route.promptSHA256.length >= 12
     ? route.promptSHA256.slice(0, 12)
     : "N/I";
-  metadata.textContent = `Roteador ${route.routerVersion || "N/I"} · registro ${route.promptRegistryVersion || "N/I"} · prompt ${route.promptVersion || "N/I"} · SHA ${promptHash} · exige: ${evidence}.`;
+  metadata.textContent = `Roteador ${route.routerVersion || "N/I"} · registro ${route.promptRegistryVersion || "N/I"} · prompt ${route.promptVersion || "N/I"} · contrato ${route.responseContractVersion || "N/I"} · SHA ${promptHash} · exige: ${evidence}.`;
+}
+
+function assistantMessageRouteSnapshot(route) {
+  const contract = globalThis.SetupMNOAssistantRoute;
+  return contract && typeof contract.snapshot === "function" ? contract.snapshot(route) : null;
+}
+
+function setAssistantMessageRoutePending(target, label = "Classificando especialista...") {
+  if (!target) return;
+  target._assistantMessageRoute = null;
+  const header = target.querySelector(".message-route");
+  const specialist = target.querySelector(".message-route-specialist");
+  const risk = target.querySelector(".message-route-risk");
+  const prompt = target.querySelector(".message-route-prompt");
+  if (!header || !specialist || !risk || !prompt) return;
+  specialist.textContent = label;
+  risk.hidden = true;
+  prompt.hidden = true;
+  header.setAttribute("aria-label", label);
+}
+
+function setAssistantMessageRouteUnavailable(target) {
+  setAssistantMessageRoutePending(target, "Assistente MNO · resposta não concluída");
+}
+
+function attachAssistantMessageRoute(target, route) {
+  const snapshot = assistantMessageRouteSnapshot(route);
+  if (!target || !snapshot) {
+    setAssistantMessageRouteUnavailable(target);
+    return;
+  }
+  target._assistantMessageRoute = snapshot;
+  const header = target.querySelector(".message-route");
+  const specialist = target.querySelector(".message-route-specialist");
+  const risk = target.querySelector(".message-route-risk");
+  const prompt = target.querySelector(".message-route-prompt");
+  if (!header || !specialist || !risk || !prompt) return;
+  specialist.textContent = snapshot.specialistName;
+  risk.textContent = `Risco ${snapshot.riskName}`;
+  risk.className = `message-route-chip message-route-risk risk-${snapshot.risk}`;
+  risk.hidden = false;
+  prompt.textContent = `Prompt ${snapshot.promptVersion}`;
+  prompt.hidden = false;
+  header.setAttribute(
+    "aria-label",
+    `${snapshot.specialistName}, risco ${snapshot.riskName}, prompt ${snapshot.promptVersion}, contrato ${snapshot.responseContractVersion}`
+  );
 }
 
 function specialistLabel(value) {
-  return {
-    security_reviewer: "Revisor de segurança",
-    troubleshooting_specialist: "Especialista em troubleshooting",
-    capacity_planner: "Planejador de capacidade",
-    blueprint_architect: "Arquiteto de Blueprints",
-    integration_architect: "Arquiteto de integrações",
-    setup_specialist: "Especialista em setups",
-    infrastructure_diagnostician: "Diagnóstico de infraestrutura",
-    scope_guard: "Guardião de escopo"
-  }[value] || "Especialista não identificado";
+  return globalThis.SetupMNOAssistantRoute?.specialistLabel(value) || "Especialista não identificado";
 }
 
 function intentLabel(value) {
@@ -518,7 +559,7 @@ function intentLabel(value) {
 }
 
 function riskLabel(value) {
-  return { low: "baixo", medium: "médio", high: "alto" }[value] || "não informado";
+  return globalThis.SetupMNOAssistantRoute?.riskLabel(value) || "não informado";
 }
 
 function evidenceLabel(value) {
@@ -709,7 +750,8 @@ function providerLabel(mode) {
 function addMessage(text, type, pending = false) {
   const row = document.createElement("div");
   row.className = `message ${type === "user" ? "user-message" : "assistant-message"}`;
-  row.innerHTML = `<span class="message-avatar">${type === "user" ? escapeHTML(state.user.slice(0,1).toUpperCase()) : "M"}</span><div>${pending ? "" : `<strong>${type === "user" ? "Você" : "MNO Insights"}</strong>`}<p class="message-content"></p></div>`;
+  const assistantHeader = `<div class="message-route" aria-live="polite" aria-label="Classificando especialista"><strong class="message-route-specialist">${pending ? "Classificando especialista..." : "MNO Insights"}</strong><span class="message-route-chip message-route-risk" hidden></span><span class="message-route-chip message-route-prompt" hidden></span></div>`;
+  row.innerHTML = `<span class="message-avatar">${type === "user" ? escapeHTML(state.user.slice(0,1).toUpperCase()) : "M"}</span><div>${type === "assistant" ? assistantHeader : `<strong>Você</strong>`}<p class="message-content"></p></div>`;
   const content = row.querySelector(".message-content");
   if (type === "assistant") {
     renderAssistantContent(content, text);

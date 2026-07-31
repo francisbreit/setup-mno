@@ -597,9 +597,10 @@ func runAssistant() error {
 			"knowledgeStale":   service.knowledge.Stale,
 			"knowledgeEntries": service.knowledge.Manifest.DocumentEntries,
 			"promptRegistry": map[string]any{
-				"version":       assistantPromptRegistryVersion,
-				"promptVersion": assistantPromptVersion,
-				"specialists":   len(assistantPromptDefinitions),
+				"version":                 assistantPromptRegistryVersion,
+				"promptVersion":           assistantPromptVersion,
+				"responseContractVersion": assistantResponseContractVersion,
+				"specialists":             len(assistantPromptDefinitions),
 			},
 			"retrievalShadow": map[string]any{
 				"enabled":    service.shadowMode,

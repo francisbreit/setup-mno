@@ -4,8 +4,30 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 
 require("./web/markdown.js");
+require("./web/assistant-route.js");
 
 const { render } = globalThis.SetupMNOMarkdown;
+const routeMetadata = globalThis.SetupMNOAssistantRoute;
+
+const routeSnapshot = routeMetadata.snapshot({
+  specialist: "infrastructure_diagnostician",
+  riskLevel: "low",
+  promptVersion: "1.2.0",
+  responseContractVersion: "1.0.0",
+  promptSHA256: "a".repeat(64),
+  question: "hostname-secreto"
+});
+assert.ok(Object.isFrozen(routeSnapshot));
+assert.deepEqual(routeSnapshot, {
+  specialist: "infrastructure_diagnostician",
+  specialistName: "Diagnóstico de infraestrutura",
+  risk: "low",
+  riskName: "baixo",
+  promptVersion: "1.2.0",
+  responseContractVersion: "1.0.0"
+});
+assert.equal(routeMetadata.snapshot({ specialist: "execute_shell", riskLevel: "high", promptVersion: "1.2.0", responseContractVersion: "1.0.0" }), null);
+assert.equal(routeMetadata.snapshot({ specialist: "scope_guard", riskLevel: "low", promptVersion: "<script>", responseContractVersion: "1.0.0" }), null);
 
 assert.equal(
   render("A versão é **4.93.3**."),
@@ -27,6 +49,8 @@ assert.match(malicious, /&lt;img/);
 
 const html = fs.readFileSync("./web/index.html", "utf8");
 const app = fs.readFileSync("./web/app.js", "utf8");
+const routeSource = fs.readFileSync("./web/assistant-route.js", "utf8");
+const styles = fs.readFileSync("./web/styles.css", "utf8");
 assert.match(html, /data-view="audit"[\s\S]*data-view="settings"/);
 assert.match(html, /Central de Configurações/);
 assert.match(html, /data-action="settings"/);
@@ -40,13 +64,22 @@ assert.match(html, /Roteador local/);
 assert.match(html, /sem usar uma segunda LLM/);
 assert.match(app, /event\.type === "route"/);
 assert.match(app, /updateAssistantRoute/);
-assert.match(app, /Revisor de segurança/);
-assert.match(app, /Arquiteto de Blueprints/);
-assert.match(app, /Guardião de escopo/);
+assert.match(routeSource, /Revisor de segurança/);
+assert.match(routeSource, /Arquiteto de Blueprints/);
+assert.match(routeSource, /Guardião de escopo/);
 assert.match(app, /route\.promptRegistryVersion/);
 assert.match(app, /route\.promptVersion/);
 assert.match(app, /route\.promptSHA256/);
 assert.match(app, /slice\(0, 12\)/);
+assert.match(html, /assistant-route\.js\?v=/);
+assert.match(app, /attachAssistantMessageRoute/);
+assert.match(app, /message-route-specialist/);
+assert.match(app, /textContent = snapshot\.specialistName/);
+assert.match(app, /setAssistantMessageRouteUnavailable/);
+assert.doesNotMatch(app, /target\._assistantMessageRoute\s*=\s*route/);
+assert.match(styles, /\.message-route\s*\{[^}]*flex-wrap:\s*wrap/);
+assert.match(styles, /\.message-route-risk\.risk-high/);
+assert.match(styles, /@media \(max-width: 650px\)[\s\S]*\.message-route-specialist/);
 assert.match(html, /id="rag-inspection-title"/);
 assert.match(html, /Validação de fundamentação/);
 assert.match(html, /somente depois que as citações da resposta correspondem às evidências/);
@@ -60,4 +93,4 @@ assert.match(app, /Evidências relevantes enviadas · validação pendente/);
 assert.match(app, /Citações validadas · resposta fundamentada/);
 assert.match(app, /inspection\.promptSourceCount/);
 
-console.log("Markdown seguro, Configurações, RAG e registro de prompts conferidos.");
+console.log("Markdown, RAG e autoria local por mensagem conferidos.");

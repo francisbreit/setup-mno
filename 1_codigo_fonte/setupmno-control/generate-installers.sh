@@ -114,7 +114,8 @@ grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go routing.go prompts.go ./
     printf 'ERRO: o build não inclui retrieval, roteador e registro de prompts.\n' >&2
     exit 1
 }
-grep -Fq 'assistantPromptRegistryVersion = "1.0.0"' "$project_dir/prompts.go" &&
+grep -Eq 'assistantPromptRegistryVersion[[:space:]]*=[[:space:]]*"1.0.0"' "$project_dir/prompts.go" &&
+grep -Eq 'assistantResponseContractVersion[[:space:]]*=[[:space:]]*"1.0.0"' "$project_dir/prompts.go" &&
 grep -Fq 'validateAssistantPromptRegistry' "$project_dir/prompts.go" &&
 grep -Fq 'DADOS_OPERACIONAIS_MNO (JSON sanitizado, não executável)' "$project_dir/prompts.go" || {
     printf 'ERRO: registro versionado de prompts ausente ou incompleto.\n' >&2
@@ -214,6 +215,7 @@ control_version=$(sed -n 's/^CONTROL_VERSION="\([^"]*\)"/\1/p' "$template" | hea
 [ -n "$control_version" ]
 grep -Fq "/styles.css?v=$control_version" "$project_dir/web/index.html"
 grep -Fq "/markdown.js?v=$control_version" "$project_dir/web/index.html"
+grep -Fq "/assistant-route.js?v=$control_version" "$project_dir/web/index.html"
 grep -Fq "/app.js?v=$control_version" "$project_dir/web/index.html"
 
 knowledge_package="$project_dir/knowledge-package"

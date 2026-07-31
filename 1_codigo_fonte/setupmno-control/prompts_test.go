@@ -51,6 +51,8 @@ func TestAssistantTrustedPrefixIsDeterministicAndExcludesDynamicContext(t *testi
 	for _, expected := range []string{
 		"HIERARQUIA_DE_EVIDENCIAS", "LIMITES_DE_AUTORIDADE_E_SEGURANCA",
 		"CONTRATO_GERAL_DA_RESPOSTA", "PROMPT_ESPECIALISTA_VERSIONADO",
+		"CONTRATO_DE_RESPOSTA_VERSIONADO", assistantResponseContractVersion,
+		"CONTRATO_ADAPTATIVO_DA_RESPOSTA", "resposta em camadas",
 		"exemplo positivo", "exemplo negativo proibido", "exemplo de recusa segura",
 	} {
 		if !strings.Contains(first, expected) {
@@ -87,12 +89,37 @@ func TestAssistantRoutePinsPromptRegistryAndDigest(t *testing.T) {
 	} {
 		route := routeAssistant(question, retrievalQueryResolution{}, "amd64")
 		if route.PromptRegistryVersion != assistantPromptRegistryVersion ||
-			route.PromptVersion != assistantPromptVersion || len(route.PromptSHA256) != 64 {
+			route.PromptVersion != assistantPromptVersion || len(route.PromptSHA256) != 64 ||
+			route.ResponseContractVersion != assistantResponseContractVersion {
 			t.Fatalf("rota sem prompt fixado para %q: %#v", question, route)
 		}
 		if err := validateAssistantRoute(route); err != nil {
 			t.Fatalf("rota inválida para %q: %v", question, err)
 		}
+	}
+}
+
+func TestAssistantResponseContractSupportsBothAudiences(t *testing.T) {
+	for _, expected := range []string{
+		"impacto prático", "sem presumir conhecimento técnico", "termo técnico essencial",
+		"profissional possa auditar", "Não classifique o usuário", "evidência observada",
+	} {
+		if !strings.Contains(assistantResponseContract, expected) {
+			t.Fatalf("regra adaptativa ausente: %q", expected)
+		}
+	}
+}
+
+func TestAssistantResponseContractIsPartOfPromptDigest(t *testing.T) {
+	definition := assistantPromptDefinitions[0]
+	original := assistantPromptDigest(definition)
+	changed := definition
+	changed.Mission += " alteração controlada"
+	if original == assistantPromptDigest(changed) {
+		t.Fatal("hash não mudou com alteração do contrato especialista")
+	}
+	if !promptVersionPattern.MatchString(assistantResponseContractVersion) {
+		t.Fatal("versão do contrato de resposta não segue SemVer")
 	}
 }
 

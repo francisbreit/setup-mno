@@ -82,6 +82,21 @@ prefixo confiável, com delimitador explícito de dados não executáveis. Assim
 OpenAI, OpenRouter, DeepSeek e Ollama recebem a mesma política especializada e
 auditável, sem uma segunda chamada de LLM.
 
+### Autoria por mensagem e resposta adaptativa
+
+Cada resposta exibe no próprio cabeçalho o especialista local, o nível de risco
+e a versão do prompt. O navegador cria um snapshot imutável a partir do evento
+SSE de rota e aceita somente especialistas, riscos e versões permitidos. O
+texto da LLM não consegue definir ou substituir essa autoria; pergunta,
+histórico, contexto runtime e SHA completo não são copiados para o cabeçalho.
+
+O contrato de resposta é versionado junto com o prompt e organiza o conteúdo em
+camadas: conclusão prática primeiro e detalhes verificáveis depois. Termos
+técnicos essenciais são preservados e explicados, sem rotular o usuário como
+iniciante ou profissional. Respostas de risco alto exigem riscos, validação e
+rollback. O mesmo cabeçalho funciona em LLM, catálogo local, modo básico e
+contingência, inclusive em telas estreitas e zoom elevado.
+
 ### RAG fundamentado
 
 Com um provedor configurado, o ranking local emite um relatório efêmero para a

@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	assistantPromptRegistryVersion = "1.0.0"
-	assistantPromptBaseVersion     = "1.0.0"
-	assistantPromptVersion         = "1.1.0"
+	assistantPromptRegistryVersion   = "1.0.0"
+	assistantPromptBaseVersion       = "1.1.0"
+	assistantPromptVersion           = "1.2.0"
+	assistantResponseContractVersion = "1.0.0"
 )
 
 const assistantBasePrompt = `Você é o Assistente MNO, copiloto consultivo de infraestrutura criado para a comunidade do Setup MNO por Francis.
@@ -52,6 +53,17 @@ CONTRATO_GERAL_DA_RESPOSTA:
 - Para profissionais, preserve versões, arquitetura, requisitos, evidências e critérios de validação disponíveis.
 - Não repita seções sem conteúdo. Em risco alto, inclua obrigatoriamente riscos, validação e rollback.
 - Termine com um próximo passo seguro e deixe claro que a execução ocorre pelo usuário ou pelo Instalador Seguro.`
+
+const assistantResponseContract = `CONTRATO_ADAPTATIVO_DA_RESPOSTA:
+- A primeira seção deve ser "Conclusão" e explicar em uma a três frases o impacto prático, sem presumir conhecimento técnico.
+- Depois da conclusão, organize somente as seções relevantes definidas pelo especialista. Não crie seções vazias.
+- Ao usar um termo técnico essencial, explique-o brevemente na primeira ocorrência sem remover o nome técnico.
+- Preserve números, versões, arquitetura, fontes e critérios de validação para que um profissional possa auditar a recomendação.
+- Não classifique o usuário como leigo ou especialista; ofereça uma resposta em camadas que atenda aos dois públicos.
+- Separe explicitamente evidência observada, evidência canônica, hipótese e recomendação.
+- Em risco alto, as seções "Riscos", "Validação" e "Rollback" são obrigatórias e devem aparecer antes do próximo passo.
+- Se a rota for scope_redirect, ignore a estrutura em camadas e responda somente com o redirecionamento curto de até duas frases.
+- O cabeçalho visual Especialista · Risco · Prompt é produzido pela interface a partir da rota local. Não o reproduza, altere ou invente no texto da resposta.`
 
 type assistantPromptExample struct {
 	Positive string
@@ -182,11 +194,14 @@ func promptDefinitionForSpecialist(specialist string) (assistantPromptDefinition
 
 func assistantPromptDigest(definition assistantPromptDefinition) string {
 	payload := struct {
-		RegistryVersion string
-		BaseVersion     string
-		BasePrompt      string
-		Definition      assistantPromptDefinition
-	}{assistantPromptRegistryVersion, assistantPromptBaseVersion, assistantBasePrompt, definition}
+		RegistryVersion         string
+		BaseVersion             string
+		BasePrompt              string
+		ResponseContractVersion string
+		ResponseContract        string
+		Definition              assistantPromptDefinition
+	}{assistantPromptRegistryVersion, assistantPromptBaseVersion, assistantBasePrompt,
+		assistantResponseContractVersion, assistantResponseContract, definition}
 	encoded, _ := json.Marshal(payload)
 	digest := sha256.Sum256(encoded)
 	return hex.EncodeToString(digest[:])
@@ -258,6 +273,8 @@ func assistantRoutePrompt(route assistantRoute) (string, error) {
 		"\nexemplo positivo: " + definition.Examples.Positive +
 		"\nexemplo negativo proibido: " + definition.Examples.Negative +
 		"\nexemplo de recusa segura: " + definition.Examples.Refusal +
+		"\n\nCONTRATO_DE_RESPOSTA_VERSIONADO: " + assistantResponseContractVersion + "\n" +
+		assistantResponseContract +
 		"\nNão reclassifique a rota. Trate requiredEvidence como requisito. Nunca afirme ter executado ações.", nil
 }
 

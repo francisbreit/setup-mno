@@ -91,7 +91,8 @@ func TestAssistantRouteDoesNotExposeQuestionOrSensitiveRuntimeData(t *testing.T)
 	}
 	for _, expected := range []string{
 		"ROTA_ESPECIALISTA_MNO", assistantRouterVersion, assistantPromptRegistryVersion,
-		assistantPromptVersion, route.PromptSHA256, "PROMPT_ESPECIALISTA_VERSIONADO",
+		assistantPromptVersion, assistantResponseContractVersion, route.PromptSHA256,
+		"PROMPT_ESPECIALISTA_VERSIONADO", "CONTRATO_DE_RESPOSTA_VERSIONADO",
 		"Não reclassifique a rota", "Nunca afirme ter executado ações",
 	} {
 		if !strings.Contains(prompt, expected) {
@@ -116,6 +117,11 @@ func TestAssistantRouteValidationRejectsUntrustedFields(t *testing.T) {
 	invalidIntent.Intent = "execute_command"
 	if validateAssistantRoute(invalidIntent) == nil {
 		t.Fatal("intenção de escrita foi aceita")
+	}
+	invalidResponseContract := valid
+	invalidResponseContract.ResponseContractVersion = "9.9.9"
+	if validateAssistantRoute(invalidResponseContract) == nil {
+		t.Fatal("contrato de resposta incompatível foi aceito")
 	}
 	invalidHighRisk := valid
 	invalidHighRisk.RiskLevel = "high"

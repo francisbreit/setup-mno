@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="2.1.0"
+CONTROL_VERSION="2.2.0"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -465,7 +465,8 @@ error_file="/tmp/${nome_app}-error.log"
     install -m 0644 "$runtime_catalog" "$work_dir/source/catalog.json"
     for source_file in go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
         terminal-menu.sh configure-control.sh \
-        main.go knowledge.go retrieval.go routing.go prompts.go catalog.json web/index.html web/terminal-bridge.js; do
+        main.go knowledge.go retrieval.go routing.go prompts.go catalog.json \
+        web/index.html web/app.js web/assistant-route.js web/styles.css web/terminal-bridge.js; do
         [ -s "$work_dir/source/$source_file" ] ||
             fail_install 21 "FONTE INCOMPLETO" "O arquivo interno '$source_file' não foi encontrado no bundle."
         [ ! -L "$work_dir/source/$source_file" ] ||
