@@ -14,11 +14,11 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.2.1` no canal Beta
-- Control Center: `4.3.0`
-- Conhecimento canônico: `3.3.0`
+- Setup MNO: `7.2.2` no canal Beta
+- Control Center: `4.4.0`
+- Conhecimento canônico: `3.4.0`
 - Catálogo runtime: 151 entradas
-- Cobertura canônica dedicada: 30 de 151 entradas (`19,87%`)
+- Cobertura canônica dedicada: 40 de 151 entradas (`26,49%`)
 - Blueprints: cinco modelos hipotéticos, todos fictícios e não implantáveis
 - Estado: Beta consultivo; deploy real continua no Instalador Seguro
 
@@ -47,7 +47,7 @@ determinísticos, auditáveis e homologados.
 ### Pilar 1 — Conhecimento Completo
 
 **Prioridade:** crítica
-**Estado atual:** 30 de 151 entradas cobertas
+**Estado atual:** 40 de 151 entradas cobertas
 
 Objetivo: possuir um documento canônico revisado para cada entrada do catálogo,
 com fontes verificáveis e profundidade suficiente para orientar escolha,
@@ -107,6 +107,19 @@ dívidas e bloqueios de segurança sem ocultá-los e ampliou o dataset para 210
 casos. Linter, cobertura, retrieval, roteamento, factualidade, groundedness,
 segurança, pacote reproduzível e smoke test SHC passaram. O lote 2 deve partir
 das 121 entradas ainda sem cobertura dedicada, mantendo a baseline monotônica.
+
+#### Lote 2 — concluído na v7.2.2 Beta
+
+O segundo lote elevou a cobertura de 30 para 40 entradas e incorporou Dify,
+Flowise, Langflow, LiteLLM, Firecrawl, SearXNG, RabbitMQ, MongoDB, MySQL baseado
+em Percona Server e pgAdmin 4. A seleção cobre a cadeia de IA, busca,
+mensageria e bancos usados nas integrações.
+
+A revisão registrou bloqueios críticos nos instaladores atuais sem convertê-los
+em recomendações: divergência arquitetural do Dify, imagens não oficiais e
+dependência compartilhada no Firecrawl, ausência de salt persistente no
+LiteLLM e exposição insegura no RabbitMQ. O dataset passou a 260 casos e a
+baseline deixou 111 entradas pendentes para os lotes seguintes.
 
 ### Pilar 2 — Soluções Instaláveis
 

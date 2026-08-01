@@ -14,9 +14,9 @@ from typing import Any
 
 
 EVAL_SCHEMA_VERSION = 1
-EVAL_DATASET_VERSION = "1.1.0"
-EVAL_GRADER_VERSION = "1.1.0"
-EXPECTED_CASES = 210
+EVAL_DATASET_VERSION = "1.2.0"
+EVAL_GRADER_VERSION = "1.2.0"
+EXPECTED_CASES = 260
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 ARCHITECTURES = {"amd64", "arm64"}
@@ -134,6 +134,7 @@ def setup_cases(root: Path) -> list[dict[str, Any]]:
             if setup_id in {
                 "chatwoot-evolution-rabbitmq-minio",
                 "evolution-api-v2",
+                "rabbitmq",
             } and name in {"finalidade", "arquitetura"}:
                 expected_intent = "integration_design"
                 expected_specialist = "integration_architect"

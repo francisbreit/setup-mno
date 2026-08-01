@@ -205,7 +205,7 @@ publica histórico, gates, metadados das evidências e um selo determinístico d
 versão, removendo seus caminhos internos. O Control Center apenas inspeciona
 esses dados; edição, aprovação, upload e deploy continuam fora da API web.
 
-Na subetapa 6.1, o pacote inclui `evals/dataset.json`, com 210 casos revisados,
+Na subetapa 6.1, o pacote inclui `evals/dataset.json`, com 260 casos revisados,
 schema estrito, versão e SHA-256 próprios. O comando local `evalcheck` executa o
 retrieval e o roteador reais, calcula métricas agregadas e falha se Recall@5,
 factualidade, groundedness, roteamento, Blueprints, rollback ou honestidade sem
