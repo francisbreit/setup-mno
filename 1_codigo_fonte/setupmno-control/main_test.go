@@ -138,8 +138,8 @@ func TestReadRuntimeSnapshotRejectsPartialBlueprintMetadata(t *testing.T) {
 	sum := sha256.Sum256(catalog)
 	release := setupRelease{
 		SchemaVersion:           runtimeSchema,
-		SetupVersion:            "7.2.7",
-		CatalogVersion:          "7.2.7",
+		SetupVersion:            "7.2.8",
+		CatalogVersion:          "7.2.8",
 		CatalogSHA256:           hex.EncodeToString(sum[:]),
 		CatalogEntries:          1,
 		Architecture:            "amd64",
@@ -170,8 +170,8 @@ func TestReadRuntimeSnapshotRejectsPartialEvalMetadata(t *testing.T) {
 	sum := sha256.Sum256(catalog)
 	release := setupRelease{
 		SchemaVersion:             runtimeSchema,
-		SetupVersion:              "7.2.7",
-		CatalogVersion:            "7.2.7",
+		SetupVersion:              "7.2.8",
+		CatalogVersion:            "7.2.8",
 		CatalogSHA256:             hex.EncodeToString(sum[:]),
 		CatalogEntries:            1,
 		Architecture:              "amd64",
@@ -477,11 +477,11 @@ func TestKnowledgeStatusMarkdownUsesManifestInsteadOfRetrievalSlice(t *testing.T
 		items[index] = json.RawMessage(fmt.Sprintf(`{"name":"SETUP %03d"}`, index+1))
 	}
 	catalog := catalogResponse{
-		Items: items, SetupVersion: "7.2.7", CatalogVersion: "7.2.7",
+		Items: items, SetupVersion: "7.2.8", CatalogVersion: "7.2.8",
 		CatalogEntries: 151, Architecture: "amd64", Source: "runtime",
 	}
 	state := knowledgePackageState{Manifest: knowledgeManifest{
-		SetupVersion: "7.2.7", KnowledgeVersion: "3.9.0",
+		SetupVersion: "7.2.8", KnowledgeVersion: "3.9.0",
 		EvalDatasetVersion: "1.7.0", EvalCaseEntries: 815,
 		DocumentEntries: 165, SetupEntries: 151, InfrastructureEntries: 9,
 		BlueprintKnowledgeEntries: 5,

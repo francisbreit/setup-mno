@@ -21,6 +21,9 @@ func TestAssistantRouterSelectsSpecialistsDeterministically(t *testing.T) {
 		{"blueprint", "Crie uma recomendação de Blueprint para atendimento", retrievalQueryResolution{}, "blueprint_recommendation", "blueprint_architect"},
 		{"integration", "Como integrar n8n com PostgreSQL por webhook?", retrievalQueryResolution{SetupIDs: []string{"n8n-main"}}, "integration_design", "integration_architect"},
 		{"setup", "Este setup funciona em ARM?", retrievalQueryResolution{SetupID: "n8n-main", SetupIDs: []string{"n8n-main"}, Contextualized: true}, "setup_guidance", "setup_specialist"},
+		{"canonical api name", "O que é WAHA API no Setup MNO?", retrievalQueryResolution{SetupID: "waha-api", SetupIDs: []string{"waha-api"}, Contextualized: true}, "setup_guidance", "setup_specialist"},
+		{"integration first setup", "O que é Evolution API v2 no Setup MNO?", retrievalQueryResolution{SetupID: "evolution-api-v2", SetupIDs: []string{"evolution-api-v2"}, Contextualized: true}, "integration_design", "integration_architect"},
+		{"explicit api integration", "Como conectar o WAHA ao n8n via API?", retrievalQueryResolution{SetupIDs: []string{"waha-api", "n8n-main"}, Contextualized: true}, "integration_design", "integration_architect"},
 		{"infrastructure", "Analise a saúde do meu servidor Docker", retrievalQueryResolution{}, "infrastructure_diagnosis", "infrastructure_diagnostician"},
 		{"knowledge", "Quantas aplicações você possui documentadas em sua base de conhecimento?", retrievalQueryResolution{}, "knowledge_status", "setup_specialist"},
 		{"scope", "Qual é a capital do Brasil?", retrievalQueryResolution{}, "scope_redirect", "scope_guard"},
@@ -56,6 +59,28 @@ func TestAssistantRouterPreservesCanonicalSetupsAndArchitecture(t *testing.T) {
 	if !containsString(route.Signals, "conversation_context_resolved") ||
 		!containsString(route.Signals, "canonical_setup_detected") {
 		t.Fatalf("sinais seguros ausentes: %#v", route.Signals)
+	}
+}
+
+func TestCanonicalAPISetupNamesDoNotImplyTheSameIntent(t *testing.T) {
+	retriever, _ := testKnowledgeRetriever(t)
+	tests := []struct {
+		question string
+		intent   string
+	}{
+		{"O que é WAHA API no Setup MNO e quando devo usar esse setup?", "setup_guidance"},
+		{"O que é Evolution API v1 no Setup MNO e quando devo usar esse setup?", "integration_design"},
+		{"Quais arquiteturas são compatíveis com Evolution API v2 no Setup MNO?", "integration_design"},
+	}
+	for _, test := range tests {
+		resolution := retriever.resolveQuery(test.question, nil)
+		route := routeAssistant(test.question, resolution, "amd64")
+		if route.Intent != test.intent {
+			t.Fatalf(
+				"rota inesperada para %q: intent=%s setups=%v query=%q",
+				test.question, route.Intent, resolution.SetupIDs, resolution.Query,
+			)
+		}
 	}
 }
 

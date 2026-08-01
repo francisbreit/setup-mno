@@ -14,8 +14,8 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.2.7` no canal Beta
-- Control Center: `4.9.0`
+- Setup MNO: `7.2.8` no canal Beta
+- Control Center: `4.9.1`
 - Conhecimento canônico: `3.9.0`
 - Catálogo runtime: 151 entradas
 - Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
@@ -25,6 +25,16 @@ de produto, com trabalho incremental e gates próprios.
 A tag `v7.2.0` é imutável e permanece como baseline beta. Correções e
 implementações futuras devem receber nova versão; é proibido reescrever a tag
 ou apresentar a cobertura parcial como conhecimento completo.
+
+### Hotfix v7.2.8 Beta
+
+Corrige a validação do pacote runtime nos gatilhos x86 e ARM. A v7.2.7
+distribuiu Evals `1.7.0` com 815 casos, mas os gatilhos ainda exigiam Evals
+`1.5.0` com 510 casos e encerravam a instalação com o código `41`. Os valores
+esperados agora são declarados explicitamente nos dois gatilhos e o gerador
+bloqueia qualquer nova divergência antes de criar instaladores ou manifestos.
+Também evita que `API`, quando faz parte do nome canônico de uma aplicação,
+seja interpretado isoladamente como pedido de integração.
 
 ## Norte do produto
 

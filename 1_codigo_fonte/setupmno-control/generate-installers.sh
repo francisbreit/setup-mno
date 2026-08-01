@@ -314,6 +314,27 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
     exit 1
 }
 
+runtime_gate_files=(
+    "$source_root/x86/start_full.sh"
+    "$source_root/arm/start_arm_full.sh"
+)
+for runtime_gate_file in "${runtime_gate_files[@]}"; do
+    gate_eval_dataset_version=$(sed -n 's/^EXPECTED_EVAL_DATASET_VERSION="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
+    gate_eval_grader_version=$(sed -n 's/^EXPECTED_EVAL_GRADER_VERSION="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
+    gate_eval_case_entries=$(sed -n 's/^EXPECTED_EVAL_CASE_ENTRIES="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
+    [ "$gate_eval_dataset_version" = "$eval_dataset_version" ] &&
+    [ "$gate_eval_grader_version" = "$eval_grader_version" ] &&
+    [ "$gate_eval_case_entries" = "$eval_case_entries" ] || {
+        printf 'ERRO: gate de Evals divergente em %s (esperado dataset=%s, grader=%s, casos=%s; encontrado dataset=%s, grader=%s, casos=%s).\n' \
+            "$runtime_gate_file" \
+            "$eval_dataset_version" "$eval_grader_version" "$eval_case_entries" \
+            "${gate_eval_dataset_version:-ausente}" \
+            "${gate_eval_grader_version:-ausente}" \
+            "${gate_eval_case_entries:-ausente}" >&2
+        exit 1
+    }
+done
+
 bundle="$temporary_dir/setupmno-control.tar.gz"
 (
     cd "$project_dir"

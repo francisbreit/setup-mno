@@ -96,7 +96,7 @@ var routeDefinitions = []routeDefinition{
 		RequiredEvidence: []string{"setup_documentation", "dependencies", "network", "security_controls", "rollback"},
 		Signal:           "keyword_integration",
 		Terms: []string{
-			"integrar", "integracao", "conectar", "webhook", "api", "rabbitmq",
+			"integrar", "integracao", "conectar", "webhook", "via api", "pela api", "por api", "evolution api", "rabbitmq",
 			"mensageria", "fluxo entre", "comunicar", "sincronizar", "sso", "oauth",
 		},
 	},
@@ -134,13 +134,23 @@ var routeDomains = []routeDomainDefinition{
 	{Name: "automation", Terms: []string{"automacao", "workflow", "n8n", "activepieces"}},
 	{Name: "observability", Terms: []string{"observabilidade", "monitoramento", "metrica", "grafana", "prometheus", "beszel", "log"}},
 	{Name: "security", Terms: []string{"seguranca", "hardening", "firewall", "secret", "credencial", "permissao", "backup"}},
-	{Name: "integration", Terms: []string{"integracao", "integrar", "api", "webhook", "fila", "rabbitmq", "oauth"}},
+	{Name: "integration", Terms: []string{"integracao", "integrar", "via api", "pela api", "por api", "evolution api", "webhook", "fila", "rabbitmq", "oauth"}},
 	{Name: "blueprints", Terms: []string{"blueprint", "solucao completa", "arquitetura completa"}},
 }
 
 var routeDestructiveTerms = []string{
 	"apagar", "deletar", "excluir", "remover", "destruir", "resetar", "formatar",
 	"derrubar", "limpar volume", "remover volume", "sem backup", "forcar atualizacao",
+}
+
+var integrationFirstSetupIDs = map[string]bool{
+	"chatwoot-evolution-rabbitmq":                         true,
+	"chatwoot-evolution-rabbitmq-minio":                   true,
+	"chatwoot-original-evolution-rabbitmq-minio":          true,
+	"chatwoot-original-unlocked-evolution-rabbitmq-minio": true,
+	"evolution-api-v1":                                    true,
+	"evolution-api-v2":                                    true,
+	"rabbitmq":                                            true,
 }
 
 var routeSetupIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,63}$`)
@@ -185,7 +195,7 @@ func routeAssistant(
 	setups = uniqueSortedStrings(setups)
 
 	domains := detectRouteDomains(question)
-	definition, matched := selectRouteDefinition(question, len(setups) > 0)
+	definition, matched := selectRouteDefinition(question, setups)
 	if !matched && len(domains) > 0 {
 		definition = routeDefinitionByIntent("infrastructure_diagnosis")
 		definition.Signal = "domain_infrastructure"
@@ -252,7 +262,7 @@ func routeAssistant(
 	return route
 }
 
-func selectRouteDefinition(question string, hasSetup bool) (routeDefinition, bool) {
+func selectRouteDefinition(question string, setups []string) (routeDefinition, bool) {
 	if isKnowledgeStatusQuestion(question) {
 		return routeDefinitionByIntent("knowledge_status"), true
 	}
@@ -261,7 +271,7 @@ func selectRouteDefinition(question string, hasSetup bool) (routeDefinition, boo
 		"security_review", "integration_design", "infrastructure_diagnosis",
 		"setup_guidance",
 	}
-	if hasSetup {
+	if len(setups) > 0 {
 		for _, intent := range priority {
 			if intent == "setup_guidance" || intent == "infrastructure_diagnosis" ||
 				intent == "blueprint_recommendation" {
@@ -270,6 +280,11 @@ func selectRouteDefinition(question string, hasSetup bool) (routeDefinition, boo
 			definition := routeDefinitionByIntent(intent)
 			if anyPhraseContained(question, definition.Terms) {
 				return definition, true
+			}
+		}
+		for _, setupID := range setups {
+			if integrationFirstSetupIDs[setupID] {
+				return routeDefinitionByIntent("integration_design"), true
 			}
 		}
 		return routeDefinitionByIntent("setup_guidance"), true
