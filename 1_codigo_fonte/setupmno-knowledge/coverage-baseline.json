@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "baselineRelease": "v7.2.6 (canal beta — lote 6)",
-  "minimumCoveredEntries": 120,
-  "maximumMissingEntries": 31,
-  "minimumCoveragePercent": 79.47,
-  "policy": "A dívida conhecida pode diminuir, mas nenhuma nova entrada sem conhecimento pode ampliar a lacuna."
+  "baselineRelease": "v7.2.7 (canal beta — lote final)",
+  "minimumCoveredEntries": 151,
+  "maximumMissingEntries": 0,
+  "minimumCoveragePercent": 100.0,
+  "policy": "A cobertura canônica deve permanecer completa: toda nova entrada de catálogo exige documento revisado, registro e evals no mesmo commit."
 }

@@ -14,9 +14,9 @@ from typing import Any
 
 
 EVAL_SCHEMA_VERSION = 1
-EVAL_DATASET_VERSION = "1.6.0"
-EVAL_GRADER_VERSION = "1.6.0"
-EXPECTED_CASES = 660
+EVAL_DATASET_VERSION = "1.7.0"
+EVAL_GRADER_VERSION = "1.7.0"
+EXPECTED_CASES = 815
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 ARCHITECTURES = {"amd64", "arm64"}

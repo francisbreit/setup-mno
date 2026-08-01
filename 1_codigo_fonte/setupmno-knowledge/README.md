@@ -56,37 +56,35 @@ python3 tools/lint_knowledge.py --root . hashes
 
 ## Cobertura do catálogo
 
-A base atual cobre 120 das 151 entradas do catálogo. Os seis primeiros lotes
-elevaram a cobertura para 79,47%, mas ainda não representam uma base completa. O relatório
-reproduzível é:
+A base atual cobre as 151 entradas do catálogo. Os sete lotes editoriais
+fecharam a cobertura dedicada em 100%; o relatório reproduzível é:
 
 ```bash
 python3 -B tools/knowledge_coverage.py
 ```
 
-Para usar a cobertura total como gate bloqueante de uma futura versão estável:
+O gate de cobertura total é bloqueante mesmo no canal Beta:
 
 ```bash
 python3 -B tools/knowledge_coverage.py --require-complete
 ```
 
-Enquanto a base beta é expandida, o gate monotônico obrigatório impede que uma
-nova ferramenta aumente a lacuna conhecida:
+O gate monotônico obrigatório impede que uma nova ferramenta reabra a lacuna:
 
 ```bash
 python3 -B tools/knowledge_coverage.py --enforce-baseline
 ```
 
-A baseline `coverage-baseline.json` permite reduzir as 31 pendências atuais,
-mas bloqueia cobertura inferior, remoção de conteúdo coberto ou nova entrada
-sem registro e documento. Quando um lote revisado for promovido, seus mínimos
-devem avançar no mesmo commit; nunca devem ser reduzidos para liberar a build.
+A baseline `coverage-baseline.json` exige 151 entradas cobertas e nenhuma
+pendência. Toda nova aplicação deve acrescentar registro, documento, fontes e
+evals no mesmo commit em que entra no catálogo; os mínimos nunca devem ser
+reduzidos para liberar a build.
 
 O comando cruza nome do catálogo, registro canônico e documento
 `setups/<setupId>/overview.md`. Uma entrada só conta como coberta se os três
 existirem e forem coerentes. O modo normal informa a lacuna sem bloquear as
-releases beta; `--require-complete` retorna código 3 enquanto faltar qualquer
-entrada.
+releases; `--require-complete` retorna código 3 se qualquer entrada ficar sem
+cobertura.
 
 ### Definição de conhecimento completo
 
@@ -124,7 +122,7 @@ python3 tools/lint_knowledge.py \
   --catalog ../setupmno-control/catalog.json \
   resolve \
   --setup-id n8n-main \
-  --setup-version 7.2.6 \
+  --setup-version 7.2.7 \
   --architecture amd64
 ```
 
@@ -141,7 +139,7 @@ python3 -B tools/knowledge_coverage.py
 
 ## Dataset e evals
 
-`evals/dataset.json` é um artefato canônico revisado, com 660 casos e schema
+`evals/dataset.json` é um artefato canônico revisado, com 815 casos e schema
 estrito em `schema/eval-dataset.schema.json`. Ele contém perguntas e respostas
 de referência, portanto entra somente no pacote interno de conhecimento e
 nunca é devolvido pela API do painel. A interface recebe apenas métricas
@@ -152,7 +150,7 @@ Para gerar e validar o dataset de forma reproduzível:
 ```bash
 python3 -B tools/eval_factory.py \
   --root . \
-  --setup-version 7.2.6
+  --setup-version 7.2.7
 python3 -B tools/test_knowledge.py
 ```
 
@@ -165,7 +163,7 @@ Validação isolada da fábrica de Blueprints:
 
 ```bash
 python3 -B tools/blueprint_factory.py \
-  --setup-version 7.2.6
+  --setup-version 7.2.7
 ```
 
 Cada Blueprint reside em `blueprints/<blueprintId>/`, com `blueprint.json`
@@ -185,8 +183,8 @@ Geração reproduzível do pacote:
 
 ```bash
 python3 -B tools/generate_package.py \
-  --setup-version 7.2.0 \
-  --control-version 4.2.0
+  --setup-version 7.2.7 \
+  --control-version 4.9.0
 ```
 
 O gerador executa o linter antes do build, inclui somente documentos

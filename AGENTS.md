@@ -290,7 +290,7 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
    - criar casos de eval para fatos, arquitetura, capacidade, segurança e rollback;
    - executar `python3 -B tools/knowledge_coverage.py --enforce-baseline`, `python3 -B tools/test_knowledge.py` e o gerador oficial a partir de `1_codigo_fonte/setupmno-knowledge/`;
    - elevar `coverage-baseline.json` no mesmo commit quando a cobertura aumentar. É proibido reduzir mínimos ou ampliar `maximumMissingEntries` para liberar a build;
-   - não empacotar se uma nova entrada aumentar a lacuna de conhecimento. A meta para remover o rótulo Beta é 151 de 151 entradas cobertas.
+   - não empacotar se uma nova entrada quebrar a cobertura completa. A baseline canônica é **151 de 151 entradas cobertas**; todo crescimento do catálogo deve elevar registro, documentos, evals e baseline no mesmo commit.
 
 6. **Versionamento:** Incremente o MINOR da versão (ex: 4.20.2 → 4.21.0).
 7. **Empacotamento:** Finalize com o comando de build após validar a sintaxe.

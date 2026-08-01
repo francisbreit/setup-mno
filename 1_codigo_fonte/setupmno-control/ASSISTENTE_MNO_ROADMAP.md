@@ -14,11 +14,11 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.2.6` no canal Beta
-- Control Center: `4.8.0`
-- Conhecimento canônico: `3.8.0`
+- Setup MNO: `7.2.7` no canal Beta
+- Control Center: `4.9.0`
+- Conhecimento canônico: `3.9.0`
 - Catálogo runtime: 151 entradas
-- Cobertura canônica dedicada: 120 de 151 entradas (`79,47%`)
+- Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
 - Blueprints: cinco modelos hipotéticos, todos fictícios e não implantáveis
 - Estado: Beta consultivo; deploy real continua no Instalador Seguro
 
@@ -47,7 +47,7 @@ determinísticos, auditáveis e homologados.
 ### Pilar 1 — Conhecimento Completo
 
 **Prioridade:** crítica
-**Estado atual:** 120 de 151 entradas cobertas
+**Estado atual:** 151 de 151 entradas cobertas
 
 Objetivo: possuir um documento canônico revisado para cada entrada do catálogo,
 com fontes verificáveis e profundidade suficiente para orientar escolha,
@@ -180,13 +180,22 @@ o manifesto canônico e o catálogo completos, sem confundir os poucos trechos
 selecionados pelo RAG com a cobertura total. O dataset passou a 660 casos e a
 baseline deixou 31 entradas pendentes.
 
-#### Gate final de governança após todos os lotes
+#### Lote final — concluído na v7.2.7 Beta
 
-Quando a cobertura atingir 151 de 151, atualizar o `AGENTS.md` para tornar
-obrigatória, em toda inclusão de nova aplicação no Setup MNO, a criação conjunta
-do documento canônico, aliases, fontes oficiais, registro, casos de avaliação,
-índice, pacote e baseline de cobertura. Este ajuste deve ocorrer no encerramento
-dos lotes, não antecipadamente.
+O lote final cobriu as 31 entradas restantes e fechou o catálogo em 151 de 151:
+Maybe, Memgraph, Memos, N8N Templates, NocoBase, OpenClaw e seu combo de
+conhecimento, OpenFang, Paperclip, phpMyAdmin, PocketBase, Reactive Resume,
+Redis Commander, Redis Insight, Shlink, SiYuan, Stirling PDF, Strapi, Superset,
+Syncthing, ToolJet, TriliumNext, Twenty CRM, Umami, Vikunja, WAHA, Wekan,
+Wiki.js, Windmill, Woofed CRM e WuzAPI.
+
+A revisão registrou bloqueios importantes sem inventar homologação: Maybe está
+arquivado; Paperclip usa imagem de procedência divergente; PocketBase não possui
+imagem oficial; Redis Insight, Stirling PDF e TriliumNext usam namespaces
+legados; Twenty está fixado em uma linha antiga; e agentes, interfaces de banco,
+mensageria e execução de código permanecem de risco crítico. O dataset passou a
+815 casos, a baseline chegou a zero pendências e o `AGENTS.md` agora torna a
+cobertura completa um gate permanente para toda aplicação nova.
 
 ### Pilar 2 — Soluções Instaláveis
 

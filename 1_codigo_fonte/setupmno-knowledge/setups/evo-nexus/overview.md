@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Evo Nexus no Setup MNO",
   "setupId": "evo-nexus",
-  "setupVersion": "7.2.6",
+  "setupVersion": "7.2.7",
   "architectures": [
     "amd64",
     "arm64"

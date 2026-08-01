@@ -63,9 +63,9 @@ func TestReadRuntimeSnapshotAcceptsGeneratedKnowledgeManifest(t *testing.T) {
 		snapshot.Release.BlueprintFixtureEntries != 5 ||
 		len(snapshot.Release.BlueprintIndexSHA256) != 64 ||
 		snapshot.Release.EvalSchemaVersion != 1 ||
-		snapshot.Release.EvalDatasetVersion != "1.6.0" ||
-		snapshot.Release.EvalGraderVersion != "1.6.0" ||
-		snapshot.Release.EvalCaseEntries != 660 ||
+		snapshot.Release.EvalDatasetVersion != "1.7.0" ||
+		snapshot.Release.EvalGraderVersion != "1.7.0" ||
+		snapshot.Release.EvalCaseEntries != 815 ||
 		len(snapshot.Release.EvalDatasetSHA256) != 64 {
 		t.Fatalf("metadados do conhecimento ausentes: %#v", snapshot.Release)
 	}
@@ -138,12 +138,12 @@ func TestReadRuntimeSnapshotRejectsPartialBlueprintMetadata(t *testing.T) {
 	sum := sha256.Sum256(catalog)
 	release := setupRelease{
 		SchemaVersion:           runtimeSchema,
-		SetupVersion:            "7.2.6",
-		CatalogVersion:          "7.2.6",
+		SetupVersion:            "7.2.7",
+		CatalogVersion:          "7.2.7",
 		CatalogSHA256:           hex.EncodeToString(sum[:]),
 		CatalogEntries:          1,
 		Architecture:            "amd64",
-		KnowledgeVersion:        "3.8.0",
+		KnowledgeVersion:        "3.9.0",
 		KnowledgeArchiveSHA256:  strings.Repeat("a", 64),
 		KnowledgeEntries:        54,
 		BlueprintFactoryVersion: "2.0.0",
@@ -170,12 +170,12 @@ func TestReadRuntimeSnapshotRejectsPartialEvalMetadata(t *testing.T) {
 	sum := sha256.Sum256(catalog)
 	release := setupRelease{
 		SchemaVersion:             runtimeSchema,
-		SetupVersion:              "7.2.6",
-		CatalogVersion:            "7.2.6",
+		SetupVersion:              "7.2.7",
+		CatalogVersion:            "7.2.7",
 		CatalogSHA256:             hex.EncodeToString(sum[:]),
 		CatalogEntries:            1,
 		Architecture:              "amd64",
-		KnowledgeVersion:          "3.8.0",
+		KnowledgeVersion:          "3.9.0",
 		KnowledgeArchiveSHA256:    strings.Repeat("a", 64),
 		KnowledgeEntries:          54,
 		BlueprintFactoryVersion:   "2.0.0",
@@ -477,23 +477,23 @@ func TestKnowledgeStatusMarkdownUsesManifestInsteadOfRetrievalSlice(t *testing.T
 		items[index] = json.RawMessage(fmt.Sprintf(`{"name":"SETUP %03d"}`, index+1))
 	}
 	catalog := catalogResponse{
-		Items: items, SetupVersion: "7.2.6", CatalogVersion: "7.2.6",
+		Items: items, SetupVersion: "7.2.7", CatalogVersion: "7.2.7",
 		CatalogEntries: 151, Architecture: "amd64", Source: "runtime",
 	}
 	state := knowledgePackageState{Manifest: knowledgeManifest{
-		SetupVersion: "7.2.6", KnowledgeVersion: "3.8.0",
-		EvalDatasetVersion: "1.6.0", EvalCaseEntries: 660,
-		DocumentEntries: 134, SetupEntries: 120, InfrastructureEntries: 9,
+		SetupVersion: "7.2.7", KnowledgeVersion: "3.9.0",
+		EvalDatasetVersion: "1.7.0", EvalCaseEntries: 815,
+		DocumentEntries: 165, SetupEntries: 151, InfrastructureEntries: 9,
 		BlueprintKnowledgeEntries: 5,
-		DocumentTypeEntries:       map[string]int{"setup": 120, "infrastructure": 9, "blueprint": 5},
+		DocumentTypeEntries:       map[string]int{"setup": 151, "infrastructure": 9, "blueprint": 5},
 	}}
 	answer, err := knowledgeStatusMarkdown(catalog, state)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, expected := range []string{
-		"120 dos 151 setups", "79.47%", "Restam **31 setups**",
-		"134 documentos canônicos", "manifesto interno versionado",
+		"151 dos 151 setups", "100.00%", "cobertura dedicada do catálogo está **completa**",
+		"165 documentos canônicos", "manifesto interno versionado",
 	} {
 		if !strings.Contains(answer, expected) {
 			t.Fatalf("inventário ausente %q: %s", expected, answer)
@@ -757,8 +757,8 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 	}
 	if state.Source != "image-read-only" ||
 		state.Stale ||
-		state.Manifest.DocumentEntries != 134 ||
-		state.Manifest.SetupEntries != 120 ||
+		state.Manifest.DocumentEntries != 165 ||
+		state.Manifest.SetupEntries != 151 ||
 		state.Manifest.InfrastructureEntries != 9 ||
 		state.Manifest.BlueprintFactoryVersion != "2.0.0" ||
 		state.Manifest.BlueprintSchemaVersion != 2 ||
@@ -769,9 +769,9 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 		state.Manifest.IndexSchemaVersion != 2 ||
 		state.Manifest.RetrievalVersion != "1.2.0" ||
 		state.Manifest.EvalSchemaVersion != 1 ||
-		state.Manifest.EvalDatasetVersion != "1.6.0" ||
-		state.Manifest.EvalGraderVersion != "1.6.0" ||
-		state.Manifest.EvalCaseEntries != 660 ||
+		state.Manifest.EvalDatasetVersion != "1.7.0" ||
+		state.Manifest.EvalGraderVersion != "1.7.0" ||
+		state.Manifest.EvalCaseEntries != 815 ||
 		len(state.Manifest.EvalDatasetSHA256) != 64 ||
 		state.Manifest.ChunkEntries <= state.Manifest.DocumentEntries {
 		t.Fatalf("estado inesperado do conhecimento: %#v", state)

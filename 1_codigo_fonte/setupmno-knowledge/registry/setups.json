@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "selectionVersion": "1.7.0",
-  "setupVersion": "7.2.6",
+  "selectionVersion": "1.8.0",
+  "setupVersion": "7.2.7",
   "selectionPolicy": "Lotes 1 a 6 orientados a deploy, IA, integrações, dados, identidade, colaboração, produtividade, atendimento e segurança operacional",
   "setups": [
     {
@@ -1196,6 +1196,223 @@
         "mautic 7 whatsapp",
         "mautic v7 marketing whatsapp"
       ]
+    },
+    {
+      "setupId": "maybe",
+      "catalogName": "MAYBE",
+      "script": "maybe.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["maybe finance", "financas pessoais maybe"]
+    },
+    {
+      "setupId": "memgraph",
+      "catalogName": "MEMGRAPH",
+      "script": "memgraph.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["banco de grafos memgraph", "graph rag memgraph"]
+    },
+    {
+      "setupId": "memos",
+      "catalogName": "MEMOS",
+      "script": "memos.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["usememos", "notas rapidas memos"]
+    },
+    {
+      "setupId": "n8n-templates",
+      "catalogName": "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS",
+      "script": "n8n-workflows.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["n8n templates", "biblioteca de workflows n8n"]
+    },
+    {
+      "setupId": "nocobase",
+      "catalogName": "NOCOBASE",
+      "script": "nocobase.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["noco base", "plataforma no code nocobase"]
+    },
+    {
+      "setupId": "openclaw",
+      "catalogName": "OPENCLAW",
+      "script": "openclaw.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["open claw", "agente pessoal openclaw"]
+    },
+    {
+      "setupId": "openclaw-knowledge-stack",
+      "catalogName": "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*",
+      "script": "openclawpro.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["combo openclaw pro", "openclaw com graph rag e busca"]
+    },
+    {
+      "setupId": "openfang",
+      "catalogName": "OPENFANG",
+      "script": "openfang.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["open fang", "agent os openfang"]
+    },
+    {
+      "setupId": "paperclip",
+      "catalogName": "PAPERCLIP",
+      "script": "paperclip.sh",
+      "architectures": ["amd64"],
+      "aliases": ["paperclip ai", "gestao de agentes paperclip"]
+    },
+    {
+      "setupId": "phpmyadmin",
+      "catalogName": "PHPMYADMIN",
+      "script": "pma.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["php my admin", "administracao mysql web"]
+    },
+    {
+      "setupId": "pocketbase",
+      "catalogName": "POCKETBASE",
+      "script": "pocketbase.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["pocket base", "backend sqlite pocketbase"]
+    },
+    {
+      "setupId": "reactive-resume",
+      "catalogName": "REACTIVE RESUME",
+      "script": "reactiveresume.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["rx resume", "construtor de curriculo"]
+    },
+    {
+      "setupId": "redis-commander",
+      "catalogName": "REDIS COMMANDER",
+      "script": "redicommander.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["redis commander", "interface redis commander"]
+    },
+    {
+      "setupId": "redisinsight",
+      "catalogName": "REDISINSIGHT",
+      "script": "redisinsight.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["redis insight", "interface oficial redis"]
+    },
+    {
+      "setupId": "shlink",
+      "catalogName": "SHLINK",
+      "script": "shlink.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["sh link", "encurtador de url shlink"]
+    },
+    {
+      "setupId": "siyuan",
+      "catalogName": "SIYUAN",
+      "script": "siyuan.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["si yuan", "pkm siyuan"]
+    },
+    {
+      "setupId": "stirling-pdf",
+      "catalogName": "STIRLING PDF",
+      "script": "stirlingpdf.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["stirling pdf", "ferramentas para pdf"]
+    },
+    {
+      "setupId": "strapi",
+      "catalogName": "STRAPI",
+      "script": "strap.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["strapi cms", "cms headless strapi"]
+    },
+    {
+      "setupId": "superset",
+      "catalogName": "SUPERSET",
+      "script": "superset.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["apache superset", "bi superset"]
+    },
+    {
+      "setupId": "syncthing",
+      "catalogName": "SYNCTHING",
+      "script": "syncthing.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["sync thing", "sincronizacao p2p syncthing"]
+    },
+    {
+      "setupId": "tooljet",
+      "catalogName": "TOOLJET",
+      "script": "tooljet.sh",
+      "architectures": ["amd64"],
+      "aliases": ["tool jet", "construtor de apps internas"]
+    },
+    {
+      "setupId": "triliumnext",
+      "catalogName": "TRILIUMNEXT",
+      "script": "triliumnext.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["trilium next", "notas triliumnext"]
+    },
+    {
+      "setupId": "twenty-crm",
+      "catalogName": "TWENTY CRM",
+      "script": "twentycrm.sh",
+      "architectures": ["amd64"],
+      "aliases": ["twenty", "crm twenty"]
+    },
+    {
+      "setupId": "umami",
+      "catalogName": "UMAMI",
+      "script": "umami.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["umami analytics", "analytics com privacidade"]
+    },
+    {
+      "setupId": "vikunja",
+      "catalogName": "VIKUNJA",
+      "script": "vikunja.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["vikunja tarefas", "kanban vikunja"]
+    },
+    {
+      "setupId": "waha-api",
+      "catalogName": "WAHA API",
+      "script": "waha.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["waha", "whatsapp http api"]
+    },
+    {
+      "setupId": "wekan",
+      "catalogName": "WEKAN",
+      "script": "wekan.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["we kan", "kanban wekan"]
+    },
+    {
+      "setupId": "wiki-js",
+      "catalogName": "WIKI.JS",
+      "script": "wikijs.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["wiki js", "requarks wiki"]
+    },
+    {
+      "setupId": "windmill",
+      "catalogName": "WINDMILL",
+      "script": "windmill.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["windmill workflows", "scripts e jobs windmill"]
+    },
+    {
+      "setupId": "woofed-crm",
+      "catalogName": "WOOFED CRM",
+      "script": "woofedcrm.sh",
+      "architectures": ["amd64"],
+      "aliases": ["woofed", "crm whatsapp woofed"]
+    },
+    {
+      "setupId": "wuzap",
+      "catalogName": "WUZAP",
+      "script": "wuzap.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["wuzapi", "api whatsapp wuzap"]
     }
   ]
 }

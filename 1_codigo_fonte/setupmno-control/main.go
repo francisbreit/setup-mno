@@ -1806,9 +1806,14 @@ func knowledgeStatusMarkdown(catalog catalogResponse, state knowledgePackageStat
 	answer.WriteString("## Conclusão\n\n")
 	fmt.Fprintf(
 		&answer,
-		"A base canônica do **Setup MNO v%s** documenta **%d dos %d setups do catálogo (%.2f%%)**. Restam **%d setups** sem documentação dedicada.\n\n",
-		manifest.SetupVersion, manifest.SetupEntries, catalog.CatalogEntries, coverage, missing,
+		"A base canônica do **Setup MNO v%s** documenta **%d dos %d setups do catálogo (%.2f%%)**.",
+		manifest.SetupVersion, manifest.SetupEntries, catalog.CatalogEntries, coverage,
 	)
+	if missing == 0 {
+		answer.WriteString(" A cobertura dedicada do catálogo está **completa**.\n\n")
+	} else {
+		fmt.Fprintf(&answer, " Restam **%d setups** sem documentação dedicada.\n\n", missing)
+	}
 	answer.WriteString("## Inventário validado\n\n")
 	fmt.Fprintf(
 		&answer,
