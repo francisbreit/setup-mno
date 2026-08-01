@@ -56,7 +56,8 @@ func TestReadRuntimeSnapshotAcceptsGeneratedKnowledgeManifest(t *testing.T) {
 	if snapshot.Release.KnowledgeVersion == "" ||
 		snapshot.Release.KnowledgeEntries < 1 ||
 		len(snapshot.Release.KnowledgeArchiveSHA256) != 64 ||
-		snapshot.Release.BlueprintFactoryVersion != "1.1.0" ||
+		snapshot.Release.BlueprintSchemaVersion != 2 ||
+		snapshot.Release.BlueprintFactoryVersion != "2.0.0" ||
 		snapshot.Release.BlueprintEntries != 5 ||
 		snapshot.Release.BlueprintKnowledgeEntries != 5 ||
 		snapshot.Release.BlueprintFixtureEntries != 5 ||
@@ -132,15 +133,16 @@ func TestReadRuntimeSnapshotRejectsPartialBlueprintMetadata(t *testing.T) {
 	sum := sha256.Sum256(catalog)
 	release := setupRelease{
 		SchemaVersion:           runtimeSchema,
-		SetupVersion:            "6.3.1",
-		CatalogVersion:          "6.3.1",
+		SetupVersion:            "6.4.0",
+		CatalogVersion:          "6.4.0",
 		CatalogSHA256:           hex.EncodeToString(sum[:]),
 		CatalogEntries:          1,
 		Architecture:            "amd64",
-		KnowledgeVersion:        "2.2.0",
+		KnowledgeVersion:        "2.3.0",
 		KnowledgeArchiveSHA256:  strings.Repeat("a", 64),
 		KnowledgeEntries:        34,
-		BlueprintFactoryVersion: "1.1.0",
+		BlueprintFactoryVersion: "2.0.0",
+		BlueprintSchemaVersion:  2,
 	}
 	releaseData, err := json.Marshal(release)
 	if err != nil {
@@ -682,8 +684,8 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 		state.Manifest.DocumentEntries != 34 ||
 		state.Manifest.SetupEntries != 20 ||
 		state.Manifest.InfrastructureEntries != 9 ||
-		state.Manifest.BlueprintSchemaVersion != 1 ||
-		state.Manifest.BlueprintFactoryVersion != "1.1.0" ||
+		state.Manifest.BlueprintFactoryVersion != "2.0.0" ||
+		state.Manifest.BlueprintSchemaVersion != 2 ||
 		state.Manifest.BlueprintEntries != 5 ||
 		state.Manifest.BlueprintBundleEntries != 5 ||
 		state.Manifest.BlueprintKnowledgeEntries != 5 ||
@@ -722,7 +724,12 @@ func TestBlueprintCatalogExposesOnlySafeReadOnlyProjection(t *testing.T) {
 	for _, item := range catalog.Items {
 		if item.Status != "example" || !item.Fictitious || item.Deployable ||
 			item.BlueprintID == "" || item.Objective == "" ||
-			len(item.Components) == 0 || len(item.Media) == 0 {
+			len(item.Components) == 0 || len(item.Media) == 0 ||
+			item.Editorial.CurrentStage != "example" ||
+			item.Editorial.PassedGates != 8 || item.Editorial.TotalGates != 11 ||
+			item.Editorial.PromotionReady ||
+			item.Editorial.VersionSeal.Algorithm != "sha256" ||
+			len(item.Editorial.VersionSeal.PayloadSHA256) != 64 {
 			t.Fatalf("exemplo inseguro ou incompleto: %#v", item)
 		}
 	}
@@ -731,7 +738,7 @@ func TestBlueprintCatalogExposesOnlySafeReadOnlyProjection(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, forbidden := range []string{
-		`"bundlePath"`, `"url"`, "knowledge.md", "blueprints/bundles/",
+		`"bundlePath"`, `"url"`, `"path"`, "knowledge.md", "blueprints/bundles/",
 	} {
 		if strings.Contains(string(encoded), forbidden) {
 			t.Fatalf("campo interno exposto na API: %s", forbidden)
@@ -747,6 +754,39 @@ func TestBlueprintCatalogRejectsPackageMismatch(t *testing.T) {
 	state.Blueprints.SetupVersion = "0.0.0"
 	if _, err := blueprintCatalogFromKnowledge(state); err == nil {
 		t.Fatal("índice incompatível foi aceito")
+	}
+}
+
+func TestBlueprintEditorialRejectsUnsafePromotionAndTampering(t *testing.T) {
+	state, err := loadKnowledgePackageDirectory("knowledge-package")
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := state.Blueprints.Entries[0]
+
+	unsafePromotion := base
+	unsafePromotion.Editorial.PromotionReady = true
+	if err := validateBlueprintEditorial(unsafePromotion); err == nil {
+		t.Fatal("exemplo fictício recebeu promoção editorial")
+	}
+
+	tamperedSeal := base
+	tamperedSeal.Editorial.VersionSeal.PayloadSHA256 = "curto"
+	if err := validateBlueprintEditorial(tamperedSeal); err == nil {
+		t.Fatal("selo editorial adulterado foi aceito")
+	}
+
+	skippedReview := base
+	skippedReview.Status = "homologated"
+	skippedReview.Fictitious = false
+	skippedReview.Deployable = true
+	skippedReview.Editorial.CurrentStage = "homologated"
+	skippedReview.Editorial.History = []blueprintEditorialHistory{
+		{Stage: "draft", ChangedAt: "2026-07-30", Actor: "Editor Setup MNO", Note: "Rascunho editorial inicial."},
+		{Stage: "homologated", ChangedAt: "2026-07-31", Actor: "Homologador Setup MNO", Note: "Tentativa de pular revisão."},
+	}
+	if err := validateBlueprintEditorial(skippedReview); err == nil {
+		t.Fatal("transição draft para homologated foi aceita")
 	}
 }
 

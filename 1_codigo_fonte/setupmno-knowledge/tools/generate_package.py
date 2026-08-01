@@ -540,7 +540,7 @@ def build_manifest(
         "documentTypeEntries": summary["documentTypeEntries"],
         "setupEntries": summary["setupEntries"],
         "infrastructureEntries": summary["infrastructureEntries"],
-        "blueprintSchemaVersion": 1,
+        "blueprintSchemaVersion": summary["blueprintSchemaVersion"],
         "blueprintFactoryVersion": summary["blueprintFactoryVersion"],
         "blueprintEntries": summary["blueprintEntries"],
         "blueprintBundleEntries": summary["blueprintBundleEntries"],

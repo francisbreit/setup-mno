@@ -196,6 +196,14 @@ exige a mesma letra inicial. Títulos, componentes, objetivos e resumos não
 participam da aproximação; os gates de arquitetura, status e RAM continuam
 obrigatórios depois da identificação do candidato.
 
+Na subetapa 5.5, o schema v2 torna o fluxo editorial parte obrigatória do
+Blueprint. A fábrica aceita promoção para `homologated` somente após a sequência
+`draft → reviewed → homologated`, revisão aprovada, homologação em ambiente
+isolado, cobertura das arquiteturas e evidências com SHA-256 válido. O índice
+publica histórico, gates, metadados das evidências e um selo determinístico da
+versão, removendo seus caminhos internos. O Control Center apenas inspeciona
+esses dados; edição, aprovação, upload e deploy continuam fora da API web.
+
 O mesmo pacote é distribuído para x86 e ARM. Na imagem do Assistente, a cópia
 primária fica em `/knowledge-package`, somente leitura pela própria camada da
 imagem. Uma segunda cópia é embutida no binário Go e entra em contingência se a

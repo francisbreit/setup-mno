@@ -732,7 +732,7 @@ entre execuções e versões de modelo homologadas.
 
 ## Etapa 5 — Blueprints MNO
 
-**Status:** em andamento — subetapas 5.1 e 5.2 implementadas
+**Status:** implementação concluída — homologação da subetapa 5.5 pendente
 **Impacto:** alto
 **Tipo:** produto, UX e arquitetura
 **Esforço:** estrutural
@@ -746,14 +746,14 @@ homologadas e explicáveis pelo Assistente.
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "blueprintId": "atendimento-whatsapp-profissional",
   "blueprintVersion": "1.0.0",
   "author": "Francis MNO",
   "status": "homologated",
   "fictitious": false,
   "deployable": true,
-  "setupVersion": "6.0.0",
+  "setupVersion": "6.4.0",
   "architectures": ["amd64", "arm64"],
   "components": [],
   "resourceProfile": {},
@@ -761,9 +761,23 @@ homologadas e explicáveis pelo Assistente.
   "validation": {},
   "rollback": {},
   "media": [],
-  "documentation": {}
+  "documentation": {},
+  "editorial": {
+    "currentStage": "homologated",
+    "history": [
+      {"stage": "draft", "changedAt": "2026-07-29", "actor": "Editor Setup MNO", "note": "Rascunho criado."},
+      {"stage": "reviewed", "changedAt": "2026-07-30", "actor": "Revisor Setup MNO", "note": "Revisão aprovada."},
+      {"stage": "homologated", "changedAt": "2026-07-31", "actor": "Homologador Setup MNO", "note": "Homologação isolada concluída."}
+    ],
+    "review": {"decision": "approved", "reviewedAt": "2026-07-30", "reviewedBy": "Revisor Setup MNO", "notes": "Contrato e segurança aprovados."},
+    "homologation": {"environment": "isolated-temporary", "testedAt": "2026-07-31", "architectures": ["amd64", "arm64"], "evidence": []}
+  }
 }
 ```
+
+O trecho acima é uma visão estrutural abreviada; `components`, planos,
+rollback e evidências precisam estar completos e passar pela fábrica antes de
+o manifesto ser considerado válido ou promovível.
 
 O contrato completo está em `schema/blueprint.schema.json`. JSON foi escolhido
 para manter validação determinística sem dependência de parser YAML no
@@ -818,8 +832,8 @@ instalador ou na fábrica.
 4. **5.4 — Recomendação contextual — implementada na v6.3.0:** selecionar
    Blueprints compatíveis com o objetivo, arquitetura e capacidade, sem
    executar deploy.
-5. **5.5 — Fluxo editorial e homologação:** promover rascunhos somente após
-   revisão, testes isolados, evidências e assinatura de versão.
+5. **5.5 — Fluxo editorial e homologação — implementada na v6.4.0:** promover
+   rascunhos somente após revisão, testes isolados, evidências e selo de versão.
 
 ### Critério de conclusão
 
@@ -898,6 +912,33 @@ servidor e sem inventar componentes.
   apenas à inspeção somente leitura;
 - testes cobrem os cinco objetivos, RAM insuficiente, arquitetura incompatível,
   status inseguro, ausência de match e estabilidade do ranking.
+
+### Evidências da subetapa 5.5
+
+- schema canônico de Blueprint v2 e fábrica `2.0.0`, com objeto `editorial`
+  obrigatório e rejeição de campos desconhecidos;
+- histórico cronológico bloqueante: `homologated` aceita somente a sequência
+  `draft → reviewed → homologated`; saltos diretos são recusados;
+- revisão aprovada exige decisão, data, revisor e notas; exemplos e rascunhos
+  não podem declarar aprovação ou homologação antecipada;
+- homologação exige ambiente `isolated-temporary`, cobertura de todas as
+  arquiteturas e evidências mínimas de relatório de teste, revisão de segurança
+  e teste de rollback;
+- cada evidência aponta para arquivo regular sob `evidence/` e possui SHA-256
+  conferido contra seu conteúdo; hash forjado bloqueia a fábrica;
+- índice público remove caminhos internos e expõe somente metadados, hashes,
+  histórico, 11 gates e selo determinístico vinculado a versão, manifesto,
+  bundle e evidências;
+- exemplos editoriais permanecem com 8 de 11 gates estruturais, promoção
+  bloqueada, `fictitious=true` e `deployable=false`;
+- validador Go repete os gates de estágio, flags, histórico, revisão, evidência,
+  promoção e selo antes de servir o catálogo;
+- Control Center mostra trilha, gates, histórico, evidências e selo apenas para
+  inspeção; nenhuma rota de promoção, aprovação, upload, escrita ou deploy foi
+  adicionada;
+- testes positivos e negativos cobrem reprodutibilidade, revisão pendente,
+  salto de etapa, homologação sem evidência, hash adulterado, promoção insegura
+  e selo inválido.
 
 ---
 
@@ -1438,6 +1479,20 @@ A release corretiva usa Setup MNO `6.3.1` e Control Center `3.3.1`, preservando
 conhecimento canônico `2.2.0` e fábrica de Blueprints `1.1.0`. A tag `v6.3.0`
 permanece como rollback da implementação original da subetapa 5.4.
 
+## Release arquitetural da subetapa 5.5
+
+Escopo implementado na release v6.4.0:
+
+- Setup MNO `6.4.0` e Control Center `3.4.0`;
+- conhecimento canônico `2.3.0`, schema de Blueprint `2` e fábrica `2.0.0`;
+- workflow editorial versionado, histórico cronológico e gates de promoção;
+- evidências locais verificadas por SHA-256 e selo determinístico da versão;
+- inspeção responsiva do fluxo editorial no catálogo de Blueprints;
+- cinco exemplos migrados para o contrato v2, ainda fictícios e não
+  implantáveis;
+- nenhuma nova porta, stack, secret, socket, mount, escrita ou automação de
+  deploy.
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico
@@ -1451,12 +1506,12 @@ permanece como rollback da implementação original da subetapa 5.4.
 
 ## Próxima ação
 
-Homologar a subetapa **5.4 — Recomendação contextual** em amd64 e arm64,
-confirmando os cinco objetivos conhecidos, RAM recomendada, RAM mínima, recusa
-por capacidade, ausência de evidência, erro ortográfico canônico seguro e aviso
-persistente de simulação. Em
-seguida, projetar a **subetapa 5.5 — Fluxo editorial e homologação**. A Etapa 6
-formalizará os thresholds antes de ampliar o orçamento atual do RAG.
+Homologar a subetapa **5.5 — Fluxo editorial e homologação** no navegador
+desktop e Android, confirmando os 11 gates, promoção bloqueada nos cinco
+exemplos, histórico, ausência de evidências, selos SHA-256, responsividade e
+ausência de qualquer ação de escrita ou deploy. Depois da aprovação, iniciar a
+**Etapa 6 — Dataset, Evals e Graders**, formalizando thresholds antes de ampliar
+o orçamento atual do RAG.
 
 ## Referências oficiais
 

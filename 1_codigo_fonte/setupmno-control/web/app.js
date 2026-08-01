@@ -411,6 +411,16 @@ function blueprintRiskLabel(risk) {
   return ({ low: "Baixo", medium: "Médio", high: "Alto" })[risk] || "Não informado";
 }
 
+function blueprintEditorialStageLabel(stage) {
+  return ({
+    example: "Exemplo editorial",
+    draft: "Rascunho",
+    reviewed: "Revisado",
+    homologated: "Homologado",
+    deprecated: "Descontinuado"
+  })[stage] || "Estado desconhecido";
+}
+
 function renderBlueprints() {
   const query = ($("blueprint-search")?.value || "").trim().toLowerCase();
   const status = $("blueprint-status")?.value || "";
@@ -453,13 +463,14 @@ function renderBlueprintGroup(targetId, items, emptyMessage) {
       .map(value => value === "amd64" ? "X86" : value === "arm64" ? "ARM" : value)
       .join(" + ");
     const tags = (Array.isArray(item.tags) ? item.tags : []).slice(0, 4);
+    const editorial = item.editorial || {};
     return `<article class="blueprint-card ${group}">
       <div class="blueprint-card-top"><span class="blueprint-status-badge ${group}">${escapeHTML(blueprintStatusLabel(item))}</span><span class="blueprint-risk risk-${escapeHTML(item.risk)}">Risco ${escapeHTML(blueprintRiskLabel(item.risk))}</span></div>
       <p class="blueprint-id">${escapeHTML(item.blueprintId)}</p>
       <h3>${escapeHTML(item.title)}</h3>
       <p class="blueprint-summary">${escapeHTML(item.summary)}</p>
       <div class="catalog-tags">${tags.map(tag => `<span>${escapeHTML(tag)}</span>`).join("")}</div>
-      <div class="blueprint-card-facts"><span><b>${Array.isArray(item.components) ? item.components.length : 0}</b> componentes</span><span><b>${escapeHTML(architectures || "N/I")}</b> arquitetura</span></div>
+      <div class="blueprint-card-facts"><span><b>${Array.isArray(item.components) ? item.components.length : 0}</b> componentes</span><span><b>${escapeHTML(architectures || "N/I")}</b> arquitetura</span><span><b>${escapeHTML(editorial.passedGates ?? 0)}/${escapeHTML(editorial.totalGates ?? 0)}</b> gates</span></div>
       <button class="light-button" data-action="blueprint" data-blueprint-id="${escapeHTML(item.blueprintId)}">Inspecionar Blueprint <b>→</b></button>
     </article>`;
   }).join("") : `<div class="empty-state compact">${escapeHTML(emptyMessage)}</div>`;
@@ -485,6 +496,13 @@ function openBlueprint(blueprintId) {
   const aliases = Array.isArray(item.aliases) ? item.aliases : [];
   const tags = Array.isArray(item.tags) ? item.tags : [];
   const media = Array.isArray(item.media) ? item.media : [];
+  const editorial = item.editorial || {};
+  const history = Array.isArray(editorial.history) ? editorial.history : [];
+  const gates = Array.isArray(editorial.gates) ? editorial.gates : [];
+  const homologation = editorial.homologation || {};
+  const evidence = Array.isArray(homologation.evidence) ? homologation.evidence : [];
+  const review = editorial.review || {};
+  const versionSeal = editorial.versionSeal || {};
   $("blueprint-detail-content").innerHTML = `
     <section class="blueprint-detail-lead"><p>${escapeHTML(item.summary)}</p><div class="catalog-tags">${tags.map(tag => `<span>${escapeHTML(tag)}</span>`).join("")}</div></section>
     <div class="blueprint-detail-facts">
@@ -493,6 +511,16 @@ function openBlueprint(blueprintId) {
       <span><small>Risco</small><strong>${escapeHTML(blueprintRiskLabel(item.risk))}</strong></span>
       <span><small>Atualizado</small><strong>${escapeHTML(item.updatedAt || "N/I")}</strong></span>
     </div>
+    <section class="blueprint-editorial-panel">
+      <div class="blueprint-editorial-head"><div><p class="eyebrow">Fluxo editorial verificável</p><h3>${escapeHTML(blueprintEditorialStageLabel(editorial.currentStage))}</h3></div><span class="${editorial.promotionReady ? "ready" : "blocked"}">${editorial.promotionReady ? "Promoção liberada" : "Promoção bloqueada"}</span></div>
+      <div class="blueprint-editorial-progress"><span class="${editorial.currentStage === "draft" || ["reviewed", "homologated", "deprecated"].includes(editorial.currentStage) ? "complete" : ""}"><b>1</b>Rascunho</span><i></i><span class="${["reviewed", "homologated", "deprecated"].includes(editorial.currentStage) ? "complete" : ""}"><b>2</b>Revisão</span><i></i><span class="${editorial.currentStage === "homologated" ? "complete" : ""}"><b>3</b>Homologação</span></div>
+      ${editorial.currentStage === "example" ? `<p class="blueprint-example-flow">Exemplos ficam fora da trilha de promoção até serem convertidos em rascunhos reais.</p>` : ""}
+      <div class="blueprint-editorial-gates">${gates.map(gate => `<span class="${gate.passed ? "passed" : "pending"}"><b>${gate.passed ? "✓" : "○"}</b>${escapeHTML(gate.title)}</span>`).join("")}</div>
+      <div class="blueprint-editorial-summary"><span><small>Gates concluídos</small><strong>${escapeHTML(editorial.passedGates ?? 0)} de ${escapeHTML(editorial.totalGates ?? 0)}</strong></span><span><small>Revisão</small><strong>${escapeHTML(review.decision === "approved" ? "Aprovada" : review.decision === "rejected" ? "Rejeitada" : "Pendente")}</strong></span><span><small>Ambiente</small><strong>${escapeHTML(homologation.environment === "isolated-temporary" ? "Isolado temporário" : "Não iniciado")}</strong></span></div>
+    </section>
+    <section><p class="eyebrow">Histórico editorial</p><ol class="blueprint-editorial-history">${history.map(entry => `<li><span>${escapeHTML(entry.changedAt)}</span><div><strong>${escapeHTML(blueprintEditorialStageLabel(entry.stage))}</strong><p>${escapeHTML(entry.note)}</p><small>${escapeHTML(entry.actor)}</small></div></li>`).join("")}</ol></section>
+    <section><p class="eyebrow">Evidências de homologação</p>${evidence.length ? `<ul class="blueprint-evidence-list">${evidence.map(entry => `<li><div><strong>${escapeHTML(entry.title)}</strong><span>${escapeHTML(entry.type)} · ${escapeHTML(entry.architecture)} · ${escapeHTML(entry.verifiedAt)}</span></div><code>${escapeHTML(entry.sha256)}</code></li>`).join("")}</ul>` : `<p class="muted">Nenhuma evidência de homologação declarada. A promoção permanece bloqueada.</p>`}</section>
+    <section class="blueprint-version-seal"><p class="eyebrow">Selo determinístico da versão</p><dl><div><dt>Algoritmo</dt><dd>${escapeHTML(versionSeal.algorithm || "N/I")}</dd></div><div><dt>Manifesto</dt><dd>${escapeHTML(versionSeal.manifestSHA256 || "N/I")}</dd></div><div><dt>Payload editorial</dt><dd>${escapeHTML(versionSeal.payloadSHA256 || "N/I")}</dd></div></dl><p>O selo vincula versão, manifesto, bundle e hashes das evidências. Caminhos internos não são expostos.</p></section>
     <section><p class="eyebrow">Objetivo</p><p>${escapeHTML(item.objective)}</p></section>
     <section><p class="eyebrow">Componentes canônicos</p><ol class="blueprint-component-list">${components.map(component => `<li>${escapeHTML(component)}</li>`).join("")}</ol></section>
     <div class="blueprint-detail-columns">

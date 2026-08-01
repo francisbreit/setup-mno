@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import io
 import json
 import tempfile
@@ -14,16 +15,18 @@ from pathlib import Path
 from blueprint_factory import (
     BLUEPRINT_FACTORY_VERSION,
     SECRET_PATTERNS,
+    build_editorial_projection,
     build_blueprint_package,
     collect_source_files,
     load_blueprints,
+    validate_editorial_evidence_files,
     validate_manifest,
 )
 
 
 ROOT = Path(__file__).resolve().parent.parent
 CATALOG = ROOT.parent / "setupmno-control" / "catalog.json"
-SETUP_VERSION = "6.3.1"
+SETUP_VERSION = "6.4.0"
 
 
 class BlueprintFactoryTests(unittest.TestCase):
@@ -38,6 +41,10 @@ class BlueprintFactoryTests(unittest.TestCase):
         self.assertTrue(all(record.manifest["status"] == "example" for record in records))
         self.assertTrue(all(record.manifest["fictitious"] for record in records))
         self.assertTrue(all(not record.manifest["deployable"] for record in records))
+        self.assertTrue(all(record.manifest["schemaVersion"] == 2 for record in records))
+        self.assertTrue(
+            all(record.manifest["editorial"]["currentStage"] == "example" for record in records)
+        )
 
     def test_bundles_are_reproducible_and_regular(self) -> None:
         first_files, first_summary = build_blueprint_package(ROOT, CATALOG, SETUP_VERSION)
@@ -55,6 +62,15 @@ class BlueprintFactoryTests(unittest.TestCase):
                 for entry in index["entries"]
             )
         )
+        for entry in index["entries"]:
+            editorial = entry["editorial"]
+            self.assertEqual(editorial["passedGates"], 8)
+            self.assertEqual(editorial["totalGates"], 11)
+            self.assertFalse(editorial["promotionReady"])
+            self.assertEqual(editorial["versionSeal"]["algorithm"], "sha256")
+            self.assertEqual(len(editorial["versionSeal"]["manifestSHA256"]), 64)
+            self.assertEqual(len(editorial["versionSeal"]["payloadSHA256"]), 64)
+            self.assertNotIn('"path"', json.dumps(editorial))
         bundles = {
             path: data
             for path, data in first_files.items()
@@ -122,6 +138,215 @@ class BlueprintFactoryTests(unittest.TestCase):
         self.assertIsNotNone(
             SECRET_PATTERNS["atribuição de segredo"].search(fake_secret)
         )
+
+    def test_reviewed_status_requires_approved_review(self) -> None:
+        manifest = copy.deepcopy(
+            load_blueprints(ROOT, CATALOG, SETUP_VERSION)[0].manifest
+        )
+        manifest["status"] = "reviewed"
+        manifest["fictitious"] = False
+        manifest["editorial"]["currentStage"] = "reviewed"
+        manifest["editorial"]["history"] = [
+            {
+                "stage": "draft",
+                "changedAt": "2026-07-29",
+                "actor": "Editor Setup MNO",
+                "note": "Rascunho submetido ao fluxo editorial.",
+            },
+            {
+                "stage": "reviewed",
+                "changedAt": "2026-07-30",
+                "actor": "Revisor Setup MNO",
+                "note": "Revisão estrutural concluída sem promoção.",
+            },
+        ]
+        errors = validate_manifest(
+            manifest,
+            manifest["blueprintId"],
+            self.catalog_by_name,
+            SETUP_VERSION,
+        )
+        self.assertTrue(any("revisão aprovada" in error for error in errors), errors)
+
+    def test_homologated_status_cannot_skip_reviewed_transition(self) -> None:
+        manifest = copy.deepcopy(
+            load_blueprints(ROOT, CATALOG, SETUP_VERSION)[0].manifest
+        )
+        manifest["status"] = "homologated"
+        manifest["fictitious"] = False
+        manifest["deployable"] = True
+        manifest["validation"]["homologatedAt"] = "2026-07-31"
+        manifest["editorial"]["currentStage"] = "homologated"
+        manifest["editorial"]["history"] = [
+            {
+                "stage": "draft",
+                "changedAt": "2026-07-29",
+                "actor": "Editor Setup MNO",
+                "note": "Rascunho submetido ao fluxo editorial.",
+            },
+            {
+                "stage": "homologated",
+                "changedAt": "2026-07-31",
+                "actor": "Homologador Setup MNO",
+                "note": "Tentativa inválida de pular a revisão.",
+            },
+        ]
+        manifest["editorial"]["review"] = {
+            "decision": "approved",
+            "reviewedAt": "2026-07-30",
+            "reviewedBy": "Revisor Setup MNO",
+            "notes": "Revisão aprovada para testar o gate de transição.",
+        }
+        errors = validate_manifest(
+            manifest,
+            manifest["blueprintId"],
+            self.catalog_by_name,
+            SETUP_VERSION,
+        )
+        self.assertTrue(any("transição permitida" in error for error in errors), errors)
+
+    def test_homologated_status_requires_isolated_evidence(self) -> None:
+        manifest = copy.deepcopy(
+            load_blueprints(ROOT, CATALOG, SETUP_VERSION)[0].manifest
+        )
+        manifest["status"] = "homologated"
+        manifest["fictitious"] = False
+        manifest["deployable"] = True
+        manifest["validation"]["homologatedAt"] = "2026-07-31"
+        manifest["editorial"]["currentStage"] = "homologated"
+        manifest["editorial"]["history"] = [
+            {
+                "stage": "draft",
+                "changedAt": "2026-07-29",
+                "actor": "Editor Setup MNO",
+                "note": "Rascunho submetido ao fluxo editorial.",
+            },
+            {
+                "stage": "reviewed",
+                "changedAt": "2026-07-30",
+                "actor": "Revisor Setup MNO",
+                "note": "Revisão editorial aprovada para homologação.",
+            },
+            {
+                "stage": "homologated",
+                "changedAt": "2026-07-31",
+                "actor": "Homologador Setup MNO",
+                "note": "Promoção solicitada sem evidências suficientes.",
+            },
+        ]
+        manifest["editorial"]["review"] = {
+            "decision": "approved",
+            "reviewedAt": "2026-07-30",
+            "reviewedBy": "Revisor Setup MNO",
+            "notes": "Revisão aprovada para testar evidências obrigatórias.",
+        }
+        errors = validate_manifest(
+            manifest,
+            manifest["blueprintId"],
+            self.catalog_by_name,
+            SETUP_VERSION,
+        )
+        self.assertTrue(any("ambiente isolado" in error for error in errors), errors)
+        self.assertTrue(any("relatório" in error for error in errors), errors)
+
+    def test_forged_evidence_hash_is_blocked(self) -> None:
+        editorial = {
+            "homologation": {
+                "evidence": [
+                    {
+                        "path": "evidence/test-report.md",
+                        "sha256": "0" * 64,
+                    }
+                ]
+            }
+        }
+        errors = validate_editorial_evidence_files(
+            editorial,
+            {"evidence/test-report.md": b"evidencia real\n"},
+        )
+        self.assertTrue(any("hash da evidência diverge" in error for error in errors), errors)
+
+    def test_complete_homologated_flow_passes_with_isolated_evidence(self) -> None:
+        manifest = copy.deepcopy(
+            load_blueprints(ROOT, CATALOG, SETUP_VERSION)[0].manifest
+        )
+        manifest["status"] = "homologated"
+        manifest["fictitious"] = False
+        manifest["deployable"] = True
+        manifest["validation"]["homologatedAt"] = "2026-07-31"
+        manifest["editorial"] = {
+            "currentStage": "homologated",
+            "history": [
+                {
+                    "stage": "draft",
+                    "changedAt": "2026-07-29",
+                    "actor": "Editor Setup MNO",
+                    "note": "Rascunho submetido ao fluxo editorial canônico.",
+                },
+                {
+                    "stage": "reviewed",
+                    "changedAt": "2026-07-30",
+                    "actor": "Revisor Setup MNO",
+                    "note": "Revisão estrutural e de segurança aprovada.",
+                },
+                {
+                    "stage": "homologated",
+                    "changedAt": "2026-07-31",
+                    "actor": "Homologador Setup MNO",
+                    "note": "Testes isolados concluídos nas duas arquiteturas.",
+                },
+            ],
+            "review": {
+                "decision": "approved",
+                "reviewedAt": "2026-07-30",
+                "reviewedBy": "Revisor Setup MNO",
+                "notes": "Contrato, segurança e plano de rollback aprovados.",
+            },
+            "homologation": {
+                "environment": "isolated-temporary",
+                "testedAt": "2026-07-31",
+                "architectures": ["amd64", "arm64"],
+                "evidence": [],
+            },
+        }
+        evidence_files = {
+            "evidence/test-amd64.md": b"smoke test isolado amd64: aprovado\n",
+            "evidence/test-arm64.md": b"smoke test isolado arm64: aprovado\n",
+            "evidence/security.md": b"revisao de seguranca: aprovada\n",
+            "evidence/rollback.md": b"rollback isolado: aprovado\n",
+        }
+        evidence_specs = [
+            ("test-amd64", "test-report", "Relatório de teste amd64", "evidence/test-amd64.md", "amd64"),
+            ("test-arm64", "test-report", "Relatório de teste arm64", "evidence/test-arm64.md", "arm64"),
+            ("security-review", "security-review", "Revisão de segurança", "evidence/security.md", "all"),
+            ("rollback-test", "rollback-test", "Teste isolado de rollback", "evidence/rollback.md", "all"),
+        ]
+        for evidence_id, evidence_type, title, path, architecture in evidence_specs:
+            manifest["editorial"]["homologation"]["evidence"].append(
+                {
+                    "evidenceId": evidence_id,
+                    "type": evidence_type,
+                    "title": title,
+                    "path": path,
+                    "sha256": hashlib.sha256(evidence_files[path]).hexdigest(),
+                    "verifiedAt": "2026-07-31",
+                    "architecture": architecture,
+                }
+            )
+
+        errors = validate_manifest(
+            manifest,
+            manifest["blueprintId"],
+            self.catalog_by_name,
+            SETUP_VERSION,
+        )
+        errors.extend(validate_editorial_evidence_files(manifest["editorial"], evidence_files))
+        self.assertEqual(errors, [])
+        projection = build_editorial_projection(manifest, "a" * 64)
+        self.assertEqual(projection["passedGates"], 11)
+        self.assertEqual(projection["totalGates"], 11)
+        self.assertTrue(projection["promotionReady"])
+        self.assertNotIn('"path"', json.dumps(projection))
 
 
 if __name__ == "__main__":

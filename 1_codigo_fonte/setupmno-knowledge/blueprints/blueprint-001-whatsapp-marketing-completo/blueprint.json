@@ -1,14 +1,14 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "blueprintId": "blueprint-001-whatsapp-marketing-completo",
-  "blueprintVersion": "0.1.0",
+  "blueprintVersion": "0.2.0",
   "title": "WhatsApp Marketing Completo — Exemplo fictício",
   "summary": "Exemplo editorial de uma arquitetura para campanhas, filas, fluxos conversacionais e atendimento humano pelo WhatsApp.",
   "author": "Setup MNO — exemplo editorial",
   "status": "example",
   "fictitious": true,
   "deployable": false,
-  "setupVersion": "6.3.1",
+  "setupVersion": "6.4.0",
   "updatedAt": "2026-07-31",
   "architectures": ["amd64", "arm64"],
   "risk": "high",
@@ -132,5 +132,28 @@
   "documentation": {
     "entrypoint": "README.md",
     "artifacts": ["README.md", "blueprint.json"]
+  },
+  "editorial": {
+    "currentStage": "example",
+    "history": [
+      {
+        "stage": "example",
+        "changedAt": "2026-07-31",
+        "actor": "Setup MNO — exemplo editorial",
+        "note": "Fixture fictícia criada somente para validar o fluxo editorial seguro."
+      }
+    ],
+    "review": {
+      "decision": "pending",
+      "reviewedAt": null,
+      "reviewedBy": null,
+      "notes": "Exemplo sem revisão para produção e sem autorização de implantação."
+    },
+    "homologation": {
+      "environment": "not-applicable",
+      "testedAt": null,
+      "architectures": [],
+      "evidence": []
+    }
   }
 }

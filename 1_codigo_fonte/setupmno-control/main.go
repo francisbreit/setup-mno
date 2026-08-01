@@ -107,6 +107,7 @@ type blueprintCatalogItem struct {
 	BundleSHA256     string                   `json:"bundleSHA256"`
 	Components       []string                 `json:"components"`
 	Deployable       bool                     `json:"deployable"`
+	Editorial        blueprintEditorial       `json:"editorial"`
 	Fictitious       bool                     `json:"fictitious"`
 	Media            []blueprintMediaSummary  `json:"media"`
 	Objective        string                   `json:"objective"`
@@ -177,6 +178,7 @@ type setupRelease struct {
 	KnowledgeArchiveSHA256    string `json:"knowledgeArchiveSHA256,omitempty"`
 	KnowledgeEntries          int    `json:"knowledgeEntries,omitempty"`
 	BlueprintFactoryVersion   string `json:"blueprintFactoryVersion,omitempty"`
+	BlueprintSchemaVersion    int    `json:"blueprintSchemaVersion,omitempty"`
 	BlueprintIndexSHA256      string `json:"blueprintIndexSHA256,omitempty"`
 	BlueprintEntries          int    `json:"blueprintEntries,omitempty"`
 	BlueprintKnowledgeEntries int    `json:"blueprintKnowledgeEntries,omitempty"`
@@ -1596,6 +1598,7 @@ func blueprintCatalogFromKnowledge(state knowledgePackageState) (blueprintCatalo
 			BundleSHA256:     entry.BundleSHA256,
 			Components:       append([]string(nil), entry.Components...),
 			Deployable:       entry.Deployable,
+			Editorial:        entry.Editorial,
 			Fictitious:       entry.Fictitious,
 			Media:            media,
 			Objective:        entry.Objective,
@@ -2019,6 +2022,7 @@ func validateReleaseKnowledge(release setupRelease) error {
 		return errors.New("SHA-256 do conhecimento inválido")
 	}
 	hasBlueprintMetadata := release.BlueprintFactoryVersion != "" ||
+		release.BlueprintSchemaVersion != 0 ||
 		release.BlueprintIndexSHA256 != "" ||
 		release.BlueprintEntries != 0 ||
 		release.BlueprintKnowledgeEntries != 0 ||
@@ -2026,7 +2030,8 @@ func validateReleaseKnowledge(release setupRelease) error {
 	if !hasBlueprintMetadata {
 		return nil
 	}
-	if !validSemanticVersion(release.BlueprintFactoryVersion) ||
+	if release.BlueprintSchemaVersion != blueprintSchema ||
+		!validSemanticVersion(release.BlueprintFactoryVersion) ||
 		release.BlueprintEntries < 1 ||
 		release.BlueprintKnowledgeEntries < 1 ||
 		release.BlueprintKnowledgeEntries > release.BlueprintEntries ||

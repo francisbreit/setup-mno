@@ -21,8 +21,8 @@ from pathlib import Path
 from typing import Any
 
 
-BLUEPRINT_SCHEMA_VERSION = 1
-BLUEPRINT_FACTORY_VERSION = "1.1.0"
+BLUEPRINT_SCHEMA_VERSION = 2
+BLUEPRINT_FACTORY_VERSION = "2.0.0"
 MAX_BLUEPRINTS = 64
 MAX_FILES_PER_BLUEPRINT = 128
 MAX_FILE_BYTES = 2 << 20
@@ -38,6 +38,13 @@ STATUSES = {"example", "draft", "reviewed", "homologated", "deprecated"}
 RISKS = {"low", "medium", "high", "critical"}
 ARCHITECTURES = {"amd64", "arm64"}
 MEDIA_TYPES = {"video", "link"}
+EDITORIAL_EVIDENCE_TYPES = {
+    "architecture-check",
+    "rollback-test",
+    "security-review",
+    "test-report",
+}
+EDITORIAL_EVIDENCE_ARCHITECTURES = ARCHITECTURES | {"all"}
 SECRET_PATTERNS = {
     "chave privada": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
     "chave OpenAI": re.compile(r"\bsk-[A-Za-z0-9_-]{16,}\b"),
@@ -76,6 +83,7 @@ REQUIRED_FIELDS = {
     "rollback",
     "media",
     "documentation",
+    "editorial",
 }
 
 
@@ -326,6 +334,230 @@ def validate_media(value: Any, fictitious: Any) -> list[str]:
     return errors
 
 
+def expected_editorial_history(status: str) -> list[list[str]]:
+    if status == "example":
+        return [["example"]]
+    if status == "draft":
+        return [["draft"]]
+    if status == "reviewed":
+        return [["draft", "reviewed"]]
+    if status == "homologated":
+        return [["draft", "reviewed", "homologated"]]
+    if status == "deprecated":
+        return [
+            ["draft", "deprecated"],
+            ["draft", "reviewed", "deprecated"],
+            ["draft", "reviewed", "homologated", "deprecated"],
+        ]
+    return []
+
+
+def evidence_covers_architectures(
+    evidence: list[dict[str, Any]],
+    architectures: set[str],
+) -> bool:
+    covered: set[str] = set()
+    for item in evidence:
+        if item.get("type") != "test-report":
+            continue
+        architecture = item.get("architecture")
+        if architecture == "all":
+            covered.update(architectures)
+        elif architecture in ARCHITECTURES:
+            covered.add(architecture)
+    return architectures.issubset(covered)
+
+
+def validate_editorial(
+    value: Any,
+    status: Any,
+    blueprint_architectures: set[str],
+) -> list[str]:
+    errors: list[str] = []
+    expected_fields = {"currentStage", "history", "review", "homologation"}
+    if not isinstance(value, dict) or set(value) != expected_fields:
+        return ["editorial possui campos ausentes ou desconhecidos"]
+    if value.get("currentStage") != status:
+        errors.append("editorial.currentStage deve ser idêntico a status")
+
+    history = value.get("history")
+    expected_history_fields = {"stage", "changedAt", "actor", "note"}
+    stages: list[str] = []
+    dates: list[str] = []
+    if not isinstance(history, list) or not history:
+        errors.append("editorial.history deve ser uma lista não vazia")
+    else:
+        for index, item in enumerate(history):
+            prefix = f"editorial.history[{index}]"
+            if not isinstance(item, dict) or set(item) != expected_history_fields:
+                errors.append(f"{prefix} possui campos ausentes ou desconhecidos")
+                continue
+            stage = item.get("stage")
+            changed_at = item.get("changedAt")
+            if stage not in STATUSES:
+                errors.append(f"{prefix}.stage inválido")
+            else:
+                stages.append(stage)
+            if not is_iso_date(changed_at):
+                errors.append(f"{prefix}.changedAt deve usar YYYY-MM-DD")
+            else:
+                dates.append(changed_at)
+            for field in ("actor", "note"):
+                if not isinstance(item.get(field), str) or len(item[field]) < 8:
+                    errors.append(f"{prefix}.{field} é inválido")
+        if stages not in expected_editorial_history(str(status)):
+            errors.append("editorial.history não representa uma transição permitida")
+        if dates != sorted(dates):
+            errors.append("editorial.history deve manter ordem cronológica")
+
+    review = value.get("review")
+    expected_review_fields = {"decision", "reviewedAt", "reviewedBy", "notes"}
+    if not isinstance(review, dict) or set(review) != expected_review_fields:
+        errors.append("editorial.review possui campos ausentes ou desconhecidos")
+    else:
+        decision = review.get("decision")
+        reviewed_at = review.get("reviewedAt")
+        reviewed_by = review.get("reviewedBy")
+        if decision not in {"pending", "approved", "rejected"}:
+            errors.append("editorial.review.decision inválido")
+        if reviewed_at is not None and not is_iso_date(reviewed_at):
+            errors.append("editorial.review.reviewedAt deve ser nulo ou usar YYYY-MM-DD")
+        if reviewed_by is not None and (
+            not isinstance(reviewed_by, str) or len(reviewed_by) < 3
+        ):
+            errors.append("editorial.review.reviewedBy inválido")
+        if not isinstance(review.get("notes"), str) or len(review["notes"]) < 10:
+            errors.append("editorial.review.notes é inválido")
+        if status in {"reviewed", "homologated"} and (
+            decision != "approved" or reviewed_at is None or reviewed_by is None
+        ):
+            errors.append("status revisado ou homologado exige revisão aprovada")
+        if status in {"example", "draft"} and (
+            decision != "pending" or reviewed_at is not None or reviewed_by is not None
+        ):
+            errors.append("status example ou draft exige revisão pendente")
+
+    homologation = value.get("homologation")
+    expected_homologation_fields = {
+        "environment",
+        "testedAt",
+        "architectures",
+        "evidence",
+    }
+    if not isinstance(homologation, dict) or set(homologation) != expected_homologation_fields:
+        return errors + ["editorial.homologation possui campos ausentes ou desconhecidos"]
+    environment = homologation.get("environment")
+    tested_at = homologation.get("testedAt")
+    tested_architectures = homologation.get("architectures")
+    evidence = homologation.get("evidence")
+    if environment not in {"not-applicable", "isolated-temporary"}:
+        errors.append("editorial.homologation.environment inválido")
+    if tested_at is not None and not is_iso_date(tested_at):
+        errors.append("editorial.homologation.testedAt deve ser nulo ou usar YYYY-MM-DD")
+    errors.extend(
+        validate_string_list(
+            tested_architectures,
+            "editorial.homologation.architectures",
+            minimum=0,
+        )
+        if tested_architectures != []
+        else []
+    )
+    tested_architecture_set = (
+        set(tested_architectures) if isinstance(tested_architectures, list) else set()
+    )
+    if not tested_architecture_set.issubset(ARCHITECTURES):
+        errors.append("editorial.homologation.architectures contém valor inválido")
+
+    expected_evidence_fields = {
+        "evidenceId",
+        "type",
+        "title",
+        "path",
+        "sha256",
+        "verifiedAt",
+        "architecture",
+    }
+    evidence_ids: set[str] = set()
+    if not isinstance(evidence, list):
+        errors.append("editorial.homologation.evidence deve ser uma lista")
+        evidence = []
+    for index, item in enumerate(evidence):
+        prefix = f"editorial.homologation.evidence[{index}]"
+        if not isinstance(item, dict) or set(item) != expected_evidence_fields:
+            errors.append(f"{prefix} possui campos ausentes ou desconhecidos")
+            continue
+        evidence_id = item.get("evidenceId")
+        if not isinstance(evidence_id, str) or not ID_RE.fullmatch(evidence_id):
+            errors.append(f"{prefix}.evidenceId inválido")
+        elif evidence_id in evidence_ids:
+            errors.append(f"{prefix}.evidenceId duplicado")
+        else:
+            evidence_ids.add(evidence_id)
+        if item.get("type") not in EDITORIAL_EVIDENCE_TYPES:
+            errors.append(f"{prefix}.type inválido")
+        if not isinstance(item.get("title"), str) or len(item["title"]) < 8:
+            errors.append(f"{prefix}.title inválido")
+        path = item.get("path")
+        if (
+            not isinstance(path, str)
+            or not is_safe_relative_path(path)
+            or not path.startswith("evidence/")
+        ):
+            errors.append(f"{prefix}.path deve apontar para evidence/ em caminho seguro")
+        if not isinstance(item.get("sha256"), str) or not re.fullmatch(
+            r"[0-9a-f]{64}", item["sha256"]
+        ):
+            errors.append(f"{prefix}.sha256 inválido")
+        if not is_iso_date(item.get("verifiedAt")):
+            errors.append(f"{prefix}.verifiedAt deve usar YYYY-MM-DD")
+        if item.get("architecture") not in EDITORIAL_EVIDENCE_ARCHITECTURES:
+            errors.append(f"{prefix}.architecture inválida")
+
+    if status in {"example", "draft"} and (
+        environment != "not-applicable"
+        or tested_at is not None
+        or tested_architectures != []
+        or evidence != []
+    ):
+        errors.append("status example ou draft não pode declarar homologação")
+    if status == "homologated":
+        evidence_types = {
+            item.get("type") for item in evidence if isinstance(item, dict)
+        }
+        required_types = {"test-report", "security-review", "rollback-test"}
+        if environment != "isolated-temporary" or tested_at is None:
+            errors.append("status homologated exige teste em ambiente isolado")
+        if tested_architecture_set != blueprint_architectures:
+            errors.append("status homologated exige testar todas as arquiteturas declaradas")
+        if not required_types.issubset(evidence_types):
+            errors.append("status homologated exige relatório, revisão de segurança e teste de rollback")
+        if not evidence_covers_architectures(evidence, blueprint_architectures):
+            errors.append("evidências não cobrem testes de todas as arquiteturas")
+    return errors
+
+
+def validate_editorial_evidence_files(
+    editorial: Any,
+    files: dict[str, bytes],
+) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(editorial, dict):
+        return errors
+    homologation = editorial.get("homologation")
+    evidence = homologation.get("evidence", []) if isinstance(homologation, dict) else []
+    for item in evidence if isinstance(evidence, list) else []:
+        if not isinstance(item, dict):
+            continue
+        path = item.get("path")
+        if not isinstance(path, str) or path not in files:
+            errors.append(f"evidência declarada não existe: {path}")
+            continue
+        if item.get("sha256") != sha256_hex(files[path]):
+            errors.append(f"hash da evidência diverge: {path}")
+    return errors
+
+
 def validate_manifest(
     manifest: Any,
     directory_name: str,
@@ -374,6 +606,8 @@ def validate_manifest(
         errors.append("status example exige fictitious=true e deployable=false")
     if status == "homologated" and (fictitious is not False or deployable is not True):
         errors.append("status homologated exige fictitious=false e deployable=true")
+    if status != "homologated" and deployable is True:
+        errors.append("somente status homologated pode declarar deployable=true")
     architectures = manifest.get("architectures")
     errors.extend(validate_string_list(architectures, "architectures"))
     architecture_set = set(architectures) if isinstance(architectures, list) else set()
@@ -408,6 +642,28 @@ def validate_manifest(
 
     errors.extend(validate_installation(manifest.get("installation"), components))
     errors.extend(validate_validation(manifest.get("validation"), status))
+    editorial = manifest.get("editorial")
+    errors.extend(validate_editorial(editorial, status, architecture_set))
+
+    if isinstance(editorial, dict):
+        review = editorial.get("review")
+        homologation = editorial.get("homologation")
+        review_date = review.get("reviewedAt") if isinstance(review, dict) else None
+        tested_date = (
+            homologation.get("testedAt") if isinstance(homologation, dict) else None
+        )
+        homologated_date = (
+            manifest.get("validation", {}).get("homologatedAt")
+            if isinstance(manifest.get("validation"), dict)
+            else None
+        )
+        chronological = [
+            value
+            for value in (review_date, tested_date, homologated_date, manifest.get("updatedAt"))
+            if isinstance(value, str) and is_iso_date(value)
+        ]
+        if chronological != sorted(chronological):
+            errors.append("revisão, teste, homologação e atualização devem ser cronológicos")
 
     rollback = manifest.get("rollback")
     expected_rollback = {"strategy", "steps"}
@@ -560,6 +816,8 @@ def load_blueprints(
             fictitious=isinstance(manifest, dict) and manifest.get("fictitious") is True,
         )
         errors.extend(file_errors)
+        if isinstance(manifest, dict):
+            errors.extend(validate_editorial_evidence_files(manifest.get("editorial"), files))
         blueprint_id = manifest.get("blueprintId") if isinstance(manifest, dict) else None
         if isinstance(blueprint_id, str):
             if blueprint_id in seen_ids:
@@ -600,6 +858,100 @@ def load_blueprints(
     return records
 
 
+def build_editorial_projection(
+    manifest: dict[str, Any],
+    bundle_sha256: str,
+) -> dict[str, Any]:
+    editorial = manifest["editorial"]
+    review = editorial["review"]
+    homologation = editorial["homologation"]
+    evidence = homologation["evidence"]
+    architectures = set(manifest["architectures"])
+    evidence_types = {item["type"] for item in evidence}
+    review_passed = (
+        review["decision"] == "approved"
+        and review["reviewedAt"] is not None
+        and review["reviewedBy"] is not None
+    )
+    isolated_passed = (
+        homologation["environment"] == "isolated-temporary"
+        and homologation["testedAt"] is not None
+        and set(homologation["architectures"]) == architectures
+    )
+    evidence_passed = (
+        {"test-report", "security-review", "rollback-test"}.issubset(evidence_types)
+        and evidence_covers_architectures(evidence, architectures)
+    )
+    manifest_sha256 = sha256_hex(canonical_json(manifest))
+    seal_payload = {
+        "blueprintId": manifest["blueprintId"],
+        "blueprintVersion": manifest["blueprintVersion"],
+        "setupVersion": manifest["setupVersion"],
+        "status": manifest["status"],
+        "manifestSHA256": manifest_sha256,
+        "bundleSHA256": bundle_sha256,
+        "evidence": [
+            {"evidenceId": item["evidenceId"], "sha256": item["sha256"]}
+            for item in sorted(evidence, key=lambda value: value["evidenceId"])
+        ],
+    }
+    seal_sha256 = sha256_hex(canonical_json(seal_payload))
+    gates = [
+        {"gateId": "schema", "title": "Schema canônico", "passed": True},
+        {"gateId": "catalog", "title": "Componentes do catálogo", "passed": True},
+        {"gateId": "architecture", "title": "Compatibilidade de arquitetura", "passed": True},
+        {"gateId": "resources", "title": "Dimensionamento de recursos", "passed": True},
+        {"gateId": "installation", "title": "Ordem e confirmação humana", "passed": True},
+        {"gateId": "validation-plan", "title": "Plano de validação", "passed": True},
+        {"gateId": "rollback", "title": "Rollback documentado", "passed": True},
+        {"gateId": "review", "title": "Revisão aprovada", "passed": review_passed},
+        {
+            "gateId": "isolated-homologation",
+            "title": "Homologação isolada",
+            "passed": isolated_passed,
+        },
+        {
+            "gateId": "evidence",
+            "title": "Evidências obrigatórias",
+            "passed": evidence_passed,
+        },
+        {"gateId": "version-seal", "title": "Selo de versão SHA-256", "passed": True},
+    ]
+    public_evidence = [
+        {
+            "evidenceId": item["evidenceId"],
+            "type": item["type"],
+            "title": item["title"],
+            "sha256": item["sha256"],
+            "verifiedAt": item["verifiedAt"],
+            "architecture": item["architecture"],
+        }
+        for item in evidence
+    ]
+    passed_gates = sum(1 for gate in gates if gate["passed"])
+    return {
+        "currentStage": editorial["currentStage"],
+        "history": editorial["history"],
+        "review": review,
+        "homologation": {
+            "environment": homologation["environment"],
+            "testedAt": homologation["testedAt"],
+            "architectures": homologation["architectures"],
+            "evidence": public_evidence,
+        },
+        "gates": gates,
+        "passedGates": passed_gates,
+        "totalGates": len(gates),
+        "promotionReady": manifest["status"] in {"reviewed", "homologated"}
+        and passed_gates == len(gates),
+        "versionSeal": {
+            "algorithm": "sha256",
+            "manifestSHA256": manifest_sha256,
+            "payloadSHA256": seal_sha256,
+        },
+    }
+
+
 def build_blueprint_package(
     root: Path,
     catalog_path: Path,
@@ -613,6 +965,7 @@ def build_blueprint_package(
         manifest = record.manifest
         latest_date = max(latest_date, manifest["updatedAt"])
         package_files[record.bundle_path] = record.bundle_data
+        bundle_sha256 = sha256_hex(record.bundle_data)
         entries.append(
             {
                 "aliases": manifest["aliases"],
@@ -622,9 +975,10 @@ def build_blueprint_package(
                 "blueprintVersion": manifest["blueprintVersion"],
                 "bundleBytes": len(record.bundle_data),
                 "bundlePath": record.bundle_path,
-                "bundleSHA256": sha256_hex(record.bundle_data),
+                "bundleSHA256": bundle_sha256,
                 "components": [item["catalogName"] for item in manifest["components"]],
                 "deployable": manifest["deployable"],
+                "editorial": build_editorial_projection(manifest, bundle_sha256),
                 "fictitious": manifest["fictitious"],
                 "media": manifest["media"],
                 "objective": manifest["objective"],
@@ -671,6 +1025,7 @@ def build_blueprint_package(
     }
     package_files["blueprints/manifest.json"] = canonical_json(blueprint_manifest)
     return package_files, {
+        "blueprintSchemaVersion": BLUEPRINT_SCHEMA_VERSION,
         "blueprintEntries": len(entries),
         "blueprintBundleEntries": len(records),
         "blueprintFactoryVersion": BLUEPRINT_FACTORY_VERSION,

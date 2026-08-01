@@ -261,8 +261,8 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$knowledge_chunks" -gt "$knowledge_entries" ] &&
 [ "$knowledge_index_schema" = "2" ] &&
 [ "$knowledge_retrieval_version" = "1.2.0" ] &&
-[ "$blueprint_schema" = "1" ] &&
-[ "$blueprint_factory_version" = "1.1.0" ] &&
+[ "$blueprint_schema" = "2" ] &&
+[ "$blueprint_factory_version" = "2.0.0" ] &&
 [ "$blueprint_entries" -gt 0 ] &&
 [ "$blueprint_bundle_entries" = "$blueprint_entries" ] &&
 [ "$blueprint_knowledge_entries" -gt 0 ] &&
@@ -408,6 +408,7 @@ generate_runtime_package() {
         --arg control_source_sha "$bundle_sha" \
         --argjson catalog_entries "$catalog_entries" \
         --argjson knowledge_entries "$knowledge_entries" \
+        --argjson blueprint_schema "$blueprint_schema" \
         --argjson blueprint_entries "$blueprint_entries" \
         --argjson blueprint_knowledge_entries "$blueprint_knowledge_entries" \
         --argjson blueprint_fixture_entries "$blueprint_fixture_entries" \
@@ -424,6 +425,7 @@ generate_runtime_package() {
             knowledgeVersion: $knowledge_version,
             knowledgeArchiveSHA256: $knowledge_archive_sha,
             knowledgeEntries: $knowledge_entries,
+            blueprintSchemaVersion: $blueprint_schema,
             blueprintFactoryVersion: $blueprint_factory_version,
             blueprintIndexSHA256: $blueprint_index_sha,
             blueprintEntries: $blueprint_entries,

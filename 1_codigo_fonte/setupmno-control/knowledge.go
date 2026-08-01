@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -25,7 +26,7 @@ const (
 	knowledgeSchema          = 1
 	knowledgeIndexSchema     = 2
 	knowledgeRetrieval       = "1.2.0"
-	blueprintSchema          = 1
+	blueprintSchema          = 2
 	maxBlueprintEntries      = 64
 	maxKnowledgeArchiveBytes = 8 << 20
 	maxKnowledgeManifest     = 1 << 20
@@ -175,6 +176,60 @@ type blueprintResourceProfile struct {
 	Basis            string `json:"basis"`
 }
 
+type blueprintEditorialHistory struct {
+	Stage     string `json:"stage"`
+	ChangedAt string `json:"changedAt"`
+	Actor     string `json:"actor"`
+	Note      string `json:"note"`
+}
+
+type blueprintEditorialReview struct {
+	Decision   string  `json:"decision"`
+	ReviewedAt *string `json:"reviewedAt"`
+	ReviewedBy *string `json:"reviewedBy"`
+	Notes      string  `json:"notes"`
+}
+
+type blueprintEditorialEvidence struct {
+	EvidenceID   string `json:"evidenceId"`
+	Type         string `json:"type"`
+	Title        string `json:"title"`
+	SHA256       string `json:"sha256"`
+	VerifiedAt   string `json:"verifiedAt"`
+	Architecture string `json:"architecture"`
+}
+
+type blueprintEditorialHomologation struct {
+	Environment   string                       `json:"environment"`
+	TestedAt      *string                      `json:"testedAt"`
+	Architectures []string                     `json:"architectures"`
+	Evidence      []blueprintEditorialEvidence `json:"evidence"`
+}
+
+type blueprintEditorialGate struct {
+	GateID string `json:"gateId"`
+	Title  string `json:"title"`
+	Passed bool   `json:"passed"`
+}
+
+type blueprintVersionSeal struct {
+	Algorithm      string `json:"algorithm"`
+	ManifestSHA256 string `json:"manifestSHA256"`
+	PayloadSHA256  string `json:"payloadSHA256"`
+}
+
+type blueprintEditorial struct {
+	CurrentStage   string                         `json:"currentStage"`
+	History        []blueprintEditorialHistory    `json:"history"`
+	Review         blueprintEditorialReview       `json:"review"`
+	Homologation   blueprintEditorialHomologation `json:"homologation"`
+	Gates          []blueprintEditorialGate       `json:"gates"`
+	PassedGates    int                            `json:"passedGates"`
+	TotalGates     int                            `json:"totalGates"`
+	PromotionReady bool                           `json:"promotionReady"`
+	VersionSeal    blueprintVersionSeal           `json:"versionSeal"`
+}
+
 type blueprintIndexEntry struct {
 	Aliases          []string                 `json:"aliases"`
 	Architectures    []string                 `json:"architectures"`
@@ -186,6 +241,7 @@ type blueprintIndexEntry struct {
 	BundleSHA256     string                   `json:"bundleSHA256"`
 	Components       []string                 `json:"components"`
 	Deployable       bool                     `json:"deployable"`
+	Editorial        blueprintEditorial       `json:"editorial"`
 	Fictitious       bool                     `json:"fictitious"`
 	Media            []blueprintMediaEntry    `json:"media"`
 	Objective        string                   `json:"objective"`
@@ -602,6 +658,12 @@ func validateBlueprintPackage(files map[string][]byte, manifest knowledgeManifes
 		if entry.Status == "homologated" && (entry.Fictitious || !entry.Deployable) {
 			return fmt.Errorf("Blueprint homologado com flags inválidas: %s", entry.BlueprintID)
 		}
+		if entry.Status != "homologated" && entry.Deployable {
+			return fmt.Errorf("Blueprint não homologado marcado como implantável: %s", entry.BlueprintID)
+		}
+		if err := validateBlueprintEditorial(entry); err != nil {
+			return fmt.Errorf("fluxo editorial inválido em %s: %w", entry.BlueprintID, err)
+		}
 		if _, duplicate := seenIDs[entry.BlueprintID]; duplicate {
 			return fmt.Errorf("blueprintId duplicado: %s", entry.BlueprintID)
 		}
@@ -631,6 +693,185 @@ func validateBlueprintPackage(files map[string][]byte, manifest knowledgeManifes
 		return errors.New("status do índice de Blueprints divergentes")
 	}
 	return nil
+}
+
+func validateBlueprintEditorial(entry blueprintIndexEntry) error {
+	editorial := entry.Editorial
+	if editorial.CurrentStage != entry.Status || len(editorial.History) == 0 {
+		return errors.New("estágio atual ou histórico ausente")
+	}
+	stages := make([]string, 0, len(editorial.History))
+	previousDate := ""
+	for _, item := range editorial.History {
+		if item.Stage == "" || len(item.Actor) < 8 || len(item.Note) < 8 {
+			return errors.New("transição editorial incompleta")
+		}
+		if _, err := time.Parse("2006-01-02", item.ChangedAt); err != nil ||
+			(previousDate != "" && item.ChangedAt < previousDate) {
+			return errors.New("cronologia editorial inválida")
+		}
+		previousDate = item.ChangedAt
+		stages = append(stages, item.Stage)
+	}
+	history := strings.Join(stages, ",")
+	allowedHistory := map[string]map[string]bool{
+		"example":     {"example": true},
+		"draft":       {"draft": true},
+		"reviewed":    {"draft,reviewed": true},
+		"homologated": {"draft,reviewed,homologated": true},
+		"deprecated": {
+			"draft,deprecated":                      true,
+			"draft,reviewed,deprecated":             true,
+			"draft,reviewed,homologated,deprecated": true,
+		},
+	}
+	if !allowedHistory[entry.Status][history] {
+		return errors.New("transição editorial não permitida")
+	}
+	if len(editorial.Review.Notes) < 10 {
+		return errors.New("notas de revisão ausentes")
+	}
+	if entry.Status == "example" || entry.Status == "draft" {
+		if editorial.Review.Decision != "pending" ||
+			editorial.Review.ReviewedAt != nil || editorial.Review.ReviewedBy != nil ||
+			editorial.Homologation.Environment != "not-applicable" ||
+			editorial.Homologation.TestedAt != nil ||
+			len(editorial.Homologation.Architectures) != 0 ||
+			len(editorial.Homologation.Evidence) != 0 {
+			return errors.New("rascunho ou exemplo contém aprovação indevida")
+		}
+	}
+	if entry.Status == "reviewed" || entry.Status == "homologated" {
+		if editorial.Review.Decision != "approved" || editorial.Review.ReviewedAt == nil ||
+			editorial.Review.ReviewedBy == nil || len(*editorial.Review.ReviewedBy) < 3 {
+			return errors.New("revisão aprovada ausente")
+		}
+		if _, err := time.Parse("2006-01-02", *editorial.Review.ReviewedAt); err != nil {
+			return errors.New("data de revisão inválida")
+		}
+	}
+
+	knownGates := map[string]bool{
+		"schema": true, "catalog": true, "architecture": true, "resources": true,
+		"installation": true, "validation-plan": true, "rollback": true,
+		"review": true, "isolated-homologation": true, "evidence": true,
+		"version-seal": true,
+	}
+	if editorial.TotalGates != len(knownGates) || len(editorial.Gates) != len(knownGates) {
+		return errors.New("quantidade de gates divergente")
+	}
+	passed := 0
+	seenGates := make(map[string]struct{}, len(editorial.Gates))
+	for _, gate := range editorial.Gates {
+		if !knownGates[gate.GateID] || gate.Title == "" {
+			return errors.New("gate desconhecido")
+		}
+		if _, duplicate := seenGates[gate.GateID]; duplicate {
+			return errors.New("gate duplicado")
+		}
+		seenGates[gate.GateID] = struct{}{}
+		if gate.Passed {
+			passed++
+		}
+	}
+	if passed != editorial.PassedGates || editorial.PassedGates < 0 ||
+		editorial.PassedGates > editorial.TotalGates {
+		return errors.New("contagem de gates divergente")
+	}
+	if editorial.VersionSeal.Algorithm != "sha256" ||
+		len(editorial.VersionSeal.ManifestSHA256) != 64 ||
+		len(editorial.VersionSeal.PayloadSHA256) != 64 {
+		return errors.New("selo de versão inválido")
+	}
+	if _, err := hex.DecodeString(editorial.VersionSeal.ManifestSHA256); err != nil {
+		return errors.New("hash do manifesto no selo é inválido")
+	}
+	if _, err := hex.DecodeString(editorial.VersionSeal.PayloadSHA256); err != nil {
+		return errors.New("hash do payload no selo é inválido")
+	}
+	if editorial.PromotionReady &&
+		(entry.Status != "reviewed" && entry.Status != "homologated" || passed != editorial.TotalGates) {
+		return errors.New("promoção liberada sem concluir gates")
+	}
+
+	requiredEvidence := map[string]bool{
+		"test-report": false, "security-review": false, "rollback-test": false,
+	}
+	knownEvidenceTypes := map[string]bool{
+		"test-report": true, "security-review": true, "rollback-test": true,
+		"architecture-check": true,
+	}
+	coveredArchitectures := make(map[string]bool)
+	for _, evidence := range editorial.Homologation.Evidence {
+		if evidence.EvidenceID == "" || evidence.Title == "" ||
+			len(evidence.SHA256) != 64 || evidence.VerifiedAt == "" ||
+			!knownEvidenceTypes[evidence.Type] ||
+			(evidence.Architecture != "all" && evidence.Architecture != "amd64" &&
+				evidence.Architecture != "arm64") {
+			return errors.New("evidência editorial inválida")
+		}
+		if _, err := hex.DecodeString(evidence.SHA256); err != nil {
+			return errors.New("hash da evidência editorial inválido")
+		}
+		if _, err := time.Parse("2006-01-02", evidence.VerifiedAt); err != nil {
+			return errors.New("data da evidência editorial inválida")
+		}
+		if _, exists := requiredEvidence[evidence.Type]; exists {
+			requiredEvidence[evidence.Type] = true
+		}
+		if evidence.Type == "test-report" {
+			if evidence.Architecture == "all" {
+				for _, architecture := range entry.Architectures {
+					coveredArchitectures[architecture] = true
+				}
+			} else {
+				coveredArchitectures[evidence.Architecture] = true
+			}
+		}
+	}
+	if entry.Status == "homologated" {
+		if !editorial.PromotionReady || passed != editorial.TotalGates ||
+			editorial.Homologation.Environment != "isolated-temporary" ||
+			editorial.Homologation.TestedAt == nil {
+			return errors.New("homologação isolada incompleta")
+		}
+		if _, err := time.Parse("2006-01-02", *editorial.Homologation.TestedAt); err != nil {
+			return errors.New("data da homologação inválida")
+		}
+		if !sameStringSet(editorial.Homologation.Architectures, entry.Architectures) {
+			return errors.New("arquiteturas homologadas divergentes")
+		}
+		for evidenceType, present := range requiredEvidence {
+			if !present {
+				return fmt.Errorf("evidência obrigatória ausente: %s", evidenceType)
+			}
+		}
+		for _, architecture := range entry.Architectures {
+			if !coveredArchitectures[architecture] {
+				return fmt.Errorf("arquitetura sem relatório de teste: %s", architecture)
+			}
+		}
+	}
+	return nil
+}
+
+func sameStringSet(first, second []string) bool {
+	if len(first) != len(second) {
+		return false
+	}
+	values := make(map[string]struct{}, len(first))
+	for _, value := range first {
+		if _, duplicate := values[value]; duplicate {
+			return false
+		}
+		values[value] = struct{}{}
+	}
+	for _, value := range second {
+		if _, exists := values[value]; !exists {
+			return false
+		}
+	}
+	return true
 }
 
 func validateKnowledgeIndexV2(index knowledgeIndexV2, legacy knowledgeIndex) error {

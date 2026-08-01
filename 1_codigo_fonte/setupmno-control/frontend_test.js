@@ -122,5 +122,18 @@ assert.match(app, /Simulação com exemplos fictícios/);
 assert.match(app, /recusado\(s\) pelos gates/);
 assert.match(app, /memoryAvailableGB/);
 assert.doesNotMatch(app, /data-action="terminal"[^\n]*blueprint-match/);
+assert.match(app, /Fluxo editorial verificável/);
+assert.match(app, /Promoção bloqueada/);
+assert.match(app, /Exemplos ficam fora da trilha de promoção/);
+assert.match(app, /Evidências de homologação/);
+assert.match(app, /Selo determinístico da versão/);
+assert.match(app, /Caminhos internos não são expostos/);
+for (const field of [
+  "entry.changedAt", "entry.note", "entry.actor", "gate.title",
+  "entry.sha256", "versionSeal.manifestSHA256", "versionSeal.payloadSHA256"
+]) {
+  assert.match(app, new RegExp(`escapeHTML\\(${field.replace(".", "\\.")}[^)]*\\)`));
+}
+assert.doesNotMatch(html + app, /promoteBlueprint|approveBlueprint|uploadEvidence|\/api\/blueprints\/promote/);
 
-console.log("Markdown, RAG, autoria e catálogo visual de Blueprints conferidos.");
+console.log("Markdown, RAG, recomendação e fluxo editorial de Blueprints conferidos.");

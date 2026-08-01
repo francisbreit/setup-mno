@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="6.3.1"
+VERSIONSETUP="6.4.0"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -253,6 +253,7 @@ knowledge_version=$(jq -r '.knowledgeVersion // empty' "$knowledge_manifest" 2>/
 knowledge_setup_version=$(jq -r '.setupVersion // empty' "$knowledge_manifest" 2>/dev/null)
 knowledge_entries=$(jq -r '.documentEntries // 0' "$knowledge_manifest" 2>/dev/null)
 blueprint_factory_version=$(jq -r '.blueprintFactoryVersion // empty' "$knowledge_manifest" 2>/dev/null)
+blueprint_schema_version=$(jq -r '.blueprintSchemaVersion // 0' "$knowledge_manifest" 2>/dev/null)
 blueprint_entries=$(jq -r '.blueprintEntries // 0' "$knowledge_manifest" 2>/dev/null)
 blueprint_index_sha=$(jq -r '.blueprintIndexSHA256 // empty' "$knowledge_manifest" 2>/dev/null)
 blueprint_knowledge_entries=$(jq -r '.blueprintKnowledgeEntries // 0' "$knowledge_manifest" 2>/dev/null)
@@ -264,6 +265,7 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_archive" 2>/dev/null)
 runtime_knowledge_sha=$(jq -r '.knowledgeArchiveSHA256 // empty' "$control_package/release.json" 2>/dev/null)
 runtime_knowledge_entries=$(jq -r '.knowledgeEntries // 0' "$control_package/release.json" 2>/dev/null)
 runtime_blueprint_factory_version=$(jq -r '.blueprintFactoryVersion // empty' "$control_package/release.json" 2>/dev/null)
+runtime_blueprint_schema_version=$(jq -r '.blueprintSchemaVersion // 0' "$control_package/release.json" 2>/dev/null)
 runtime_blueprint_entries=$(jq -r '.blueprintEntries // 0' "$control_package/release.json" 2>/dev/null)
 runtime_blueprint_index_sha=$(jq -r '.blueprintIndexSHA256 // empty' "$control_package/release.json" 2>/dev/null)
 runtime_blueprint_knowledge_entries=$(jq -r '.blueprintKnowledgeEntries // 0' "$control_package/release.json" 2>/dev/null)
@@ -288,7 +290,9 @@ if [ "$control_schema" != "1" ] ||
    [ "$knowledge_setup_version" != "$VERSIONSETUP" ] ||
    [ "$knowledge_entries" -le 0 ] ||
    [ "$knowledge_entries" != "$runtime_knowledge_entries" ] ||
-   [ "$blueprint_factory_version" != "1.1.0" ] ||
+   [ "$blueprint_schema_version" != "2" ] ||
+   [ "$blueprint_schema_version" != "$runtime_blueprint_schema_version" ] ||
+   [ "$blueprint_factory_version" != "2.0.0" ] ||
    [ "$blueprint_factory_version" != "$runtime_blueprint_factory_version" ] ||
    [ "$blueprint_entries" -le 0 ] ||
    [ "$blueprint_entries" != "$runtime_blueprint_entries" ] ||
