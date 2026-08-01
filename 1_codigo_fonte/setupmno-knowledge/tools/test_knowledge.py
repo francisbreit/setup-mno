@@ -69,9 +69,9 @@ class KnowledgeFactoryTests(unittest.TestCase):
             ROOT,
         )
         self.assertEqual(report["catalogEntries"], 151)
-        self.assertEqual(report["coveredEntries"], 40)
-        self.assertEqual(report["missingEntries"], 111)
-        self.assertEqual(report["coveragePercent"], 26.49)
+        self.assertEqual(report["coveredEntries"], 50)
+        self.assertEqual(report["missingEntries"], 101)
+        self.assertEqual(report["coveragePercent"], 33.11)
         self.assertEqual(report["status"], "incomplete")
         self.assertTrue(all(not values for values in report["integrity"].values()))
         baseline = load_json(ROOT / "coverage-baseline.json")
@@ -95,7 +95,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
         self.assertEqual(dataset["caseCount"], EXPECTED_CASES)
         self.assertEqual(
             sum(case["evaluationType"] == "retrieval" for case in dataset["cases"]),
-            256,
+            306,
         )
         self.assertTrue(
             all("password" not in json.dumps(case).lower() for case in dataset["cases"])
@@ -105,8 +105,8 @@ class KnowledgeFactoryTests(unittest.TestCase):
         result = run_linter()
         self.assertEqual(result.returncode, 0, result.stderr)
         report = json.loads(result.stdout)
-        self.assertEqual(report["documents"], 54)
-        self.assertEqual(report["setups"], 40)
+        self.assertEqual(report["documents"], 64)
+        self.assertEqual(report["setups"], 50)
         self.assertEqual(report["types"]["blueprint"], 5)
 
     def test_all_pilot_setups_resolve_on_both_architectures(self) -> None:
@@ -250,7 +250,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
                     self.assertEqual(index["chunkCount"], len(index["chunks"]))
                     self.assertGreater(index["chunkCount"], 29)
                     self.assertEqual(legacy_index["schemaVersion"], 1)
-                    self.assertEqual(len(legacy_index["entries"]), 54)
+                    self.assertEqual(len(legacy_index["entries"]), 64)
                     blueprint_index = json.load(
                         package.extractfile("blueprints/index.json")
                     )
@@ -305,8 +305,8 @@ class KnowledgeFactoryTests(unittest.TestCase):
                         )
             self.assertEqual(archives[0], archives[1])
             self.assertEqual(manifests[0], manifests[1])
-            self.assertEqual(manifests[0]["documentEntries"], 54)
-            self.assertEqual(manifests[0]["setupEntries"], 40)
+            self.assertEqual(manifests[0]["documentEntries"], 64)
+            self.assertEqual(manifests[0]["setupEntries"], 50)
             self.assertEqual(manifests[0]["infrastructureEntries"], 9)
             self.assertEqual(manifests[0]["blueprintFactoryVersion"], "2.0.0")
             self.assertEqual(manifests[0]["blueprintSchemaVersion"], 2)

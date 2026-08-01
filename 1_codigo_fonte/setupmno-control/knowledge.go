@@ -46,10 +46,11 @@ type knowledgeFileRecord struct {
 }
 
 type knowledgeLimits struct {
-	MaxArchiveBytes  int64 `json:"maxArchiveBytes"`
-	MaxDocumentBytes int64 `json:"maxDocumentBytes"`
-	MaxDocuments     int   `json:"maxDocuments"`
-	MaxIndexBytes    int64 `json:"maxIndexBytes"`
+	MaxArchiveBytes     int64 `json:"maxArchiveBytes"`
+	MaxDocumentBytes    int64 `json:"maxDocumentBytes"`
+	MaxEvalDatasetBytes int64 `json:"maxEvalDatasetBytes"`
+	MaxDocuments        int   `json:"maxDocuments"`
+	MaxIndexBytes       int64 `json:"maxIndexBytes"`
 }
 
 type knowledgeManifest struct {
@@ -440,6 +441,10 @@ func validateKnowledgePackage(
 	}
 	if manifest.Limits.MaxArchiveBytes <= 0 ||
 		manifest.Limits.MaxArchiveBytes > maxKnowledgeArchiveBytes ||
+		manifest.Limits.MaxDocumentBytes <= 0 ||
+		manifest.Limits.MaxDocumentBytes > maxKnowledgeFileBytes ||
+		manifest.Limits.MaxEvalDatasetBytes <= 0 ||
+		manifest.Limits.MaxEvalDatasetBytes > maxKnowledgeFileBytes ||
 		manifest.Limits.MaxDocuments < manifest.DocumentEntries ||
 		manifest.Limits.MaxIndexBytes <= 0 ||
 		manifest.Limits.MaxIndexBytes > maxKnowledgeFileBytes {
@@ -480,6 +485,9 @@ func validateKnowledgePackage(
 	evalData, exists := files["evals/dataset.json"]
 	if !exists {
 		return knowledgePackageState{}, errors.New("dataset de evals ausente")
+	}
+	if int64(len(evalData)) > manifest.Limits.MaxEvalDatasetBytes {
+		return knowledgePackageState{}, errors.New("dataset de evals excede o limite declarado")
 	}
 	evalDataset, err := validateEvalDataset(evalData, manifest)
 	if err != nil {

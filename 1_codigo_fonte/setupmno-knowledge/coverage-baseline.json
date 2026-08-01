@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "baselineRelease": "v7.2.2 (canal beta — lote 2)",
-  "minimumCoveredEntries": 40,
-  "maximumMissingEntries": 111,
-  "minimumCoveragePercent": 26.49,
+  "baselineRelease": "v7.2.3 (canal beta — lote 3)",
+  "minimumCoveredEntries": 50,
+  "maximumMissingEntries": 101,
+  "minimumCoveragePercent": 33.11,
   "policy": "A dívida conhecida pode diminuir, mas nenhuma nova entrada sem conhecimento pode ampliar a lacuna."
 }

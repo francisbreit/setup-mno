@@ -14,11 +14,11 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.2.2` no canal Beta
-- Control Center: `4.4.0`
-- Conhecimento canônico: `3.4.0`
+- Setup MNO: `7.2.3` no canal Beta
+- Control Center: `4.5.0`
+- Conhecimento canônico: `3.5.0`
 - Catálogo runtime: 151 entradas
-- Cobertura canônica dedicada: 40 de 151 entradas (`26,49%`)
+- Cobertura canônica dedicada: 50 de 151 entradas (`33,11%`)
 - Blueprints: cinco modelos hipotéticos, todos fictícios e não implantáveis
 - Estado: Beta consultivo; deploy real continua no Instalador Seguro
 
@@ -47,7 +47,7 @@ determinísticos, auditáveis e homologados.
 ### Pilar 1 — Conhecimento Completo
 
 **Prioridade:** crítica
-**Estado atual:** 40 de 151 entradas cobertas
+**Estado atual:** 50 de 151 entradas cobertas
 
 Objetivo: possuir um documento canônico revisado para cada entrada do catálogo,
 com fontes verificáveis e profundidade suficiente para orientar escolha,
@@ -120,6 +120,28 @@ em recomendações: divergência arquitetural do Dify, imagens não oficiais e
 dependência compartilhada no Firecrawl, ausência de salt persistente no
 LiteLLM e exposição insegura no RabbitMQ. O dataset passou a 260 casos e a
 baseline deixou 111 entradas pendentes para os lotes seguintes.
+
+#### Lote 3 — concluído na v7.2.3 Beta
+
+O terceiro lote elevou a cobertura de 40 para 50 entradas e incorporou
+ClickHouse, Infisical, Langfuse com MinIO e ClickHouse, LibreChat, LocalAI,
+Meilisearch, Milvus com Attu, Neo4j, vLLM e Weaviate. A seleção aprofundou a
+cadeia de observabilidade de IA, inferência, busca, grafos, vetores, analytics e
+gestão de secrets.
+
+A auditoria bloqueou recomendações de produção onde a distribuição diverge das
+fontes atuais: recursos insuficientes e ClickHouse incompatível no Langfuse,
+imagem ARM incorreta no vLLM, edição Community anunciada como Enterprise no
+Neo4j, autenticação incompleta no Weaviate e API LocalAI exposta sem chave. O
+dataset passou a 310 casos e a baseline deixou 101 entradas pendentes.
+
+#### Gate final de governança após todos os lotes
+
+Quando a cobertura atingir 151 de 151, atualizar o `AGENTS.md` para tornar
+obrigatória, em toda inclusão de nova aplicação no Setup MNO, a criação conjunta
+do documento canônico, aliases, fontes oficiais, registro, casos de avaliação,
+índice, pacote e baseline de cobertura. Este ajuste deve ocorrer no encerramento
+dos lotes, não antecipadamente.
 
 ### Pilar 2 — Soluções Instaláveis
 

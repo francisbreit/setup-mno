@@ -35,6 +35,7 @@ INDEX_SCHEMA = 2
 RETRIEVAL_VERSION = "1.2.0"
 MAX_DOCUMENTS = 512
 MAX_DOCUMENT_BYTES = 256 << 10
+MAX_EVAL_DATASET_BYTES = 512 << 10
 MAX_INDEX_BYTES = 2 << 20
 MAX_ARCHIVE_BYTES = 8 << 20
 MAX_CHUNK_CHARACTERS = 2400
@@ -220,13 +221,17 @@ def aliases_for_document(
     return []
 
 
-def ensure_regular_source(path: Path, root: Path) -> bytes:
+def ensure_regular_source(
+    path: Path,
+    root: Path,
+    max_bytes: int = MAX_DOCUMENT_BYTES,
+) -> bytes:
     if path.is_symlink():
         raise ValueError(f"symlink proibido na fonte: {path.relative_to(root)}")
     stat = path.stat()
     if not path.is_file():
         raise ValueError(f"arquivo não regular na fonte: {path.relative_to(root)}")
-    if stat.st_size > MAX_DOCUMENT_BYTES:
+    if stat.st_size > max_bytes:
         raise ValueError(f"arquivo excede o limite: {path.relative_to(root)}")
     return path.read_bytes()
 
@@ -442,7 +447,11 @@ def build_package_files(
     ):
         add_package_file(files, target, ensure_regular_source(source, root))
 
-    eval_dataset_data = ensure_regular_source(root / "evals" / "dataset.json", root)
+    eval_dataset_data = ensure_regular_source(
+        root / "evals" / "dataset.json",
+        root,
+        MAX_EVAL_DATASET_BYTES,
+    )
     eval_dataset = json.loads(eval_dataset_data)
     eval_errors = validate_dataset(eval_dataset, setup_version)
     if eval_errors:
@@ -575,6 +584,7 @@ def build_manifest(
         "limits": {
             "maxArchiveBytes": MAX_ARCHIVE_BYTES,
             "maxDocumentBytes": MAX_DOCUMENT_BYTES,
+            "maxEvalDatasetBytes": MAX_EVAL_DATASET_BYTES,
             "maxDocuments": MAX_DOCUMENTS,
             "maxIndexBytes": MAX_INDEX_BYTES,
         },

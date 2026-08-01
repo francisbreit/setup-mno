@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
-  "selectionVersion": "1.3.0",
-  "setupVersion": "7.2.2",
-  "selectionPolicy": "Lotes 1 e 2 orientados a deploy, IA, integrações e suporte operacional",
+  "selectionVersion": "1.4.0",
+  "setupVersion": "7.2.3",
+  "selectionPolicy": "Lotes 1 a 3 orientados a deploy, IA, integrações, dados e segurança operacional",
   "setups": [
     {
       "setupId": "activepieces",
@@ -283,6 +283,76 @@
       "script": "searxng.sh",
       "architectures": ["amd64", "arm64"],
       "aliases": ["searx ng", "metabusca searxng", "busca privada"]
+    },
+    {
+      "setupId": "clickhouse",
+      "catalogName": "CLICKHOUSE",
+      "script": "clickhouse.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["click house", "banco olap", "analytics clickhouse"]
+    },
+    {
+      "setupId": "infisical",
+      "catalogName": "INFISICAL",
+      "script": "infisical.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["cofre infisical", "gerenciador de secrets", "secrets infisical"]
+    },
+    {
+      "setupId": "langfuse-minio-clickhouse",
+      "catalogName": "LANGFUSE + MINIO + CLICKHOUSE*",
+      "script": "langfuse.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["langfuse", "observabilidade de llm", "tracing de ia"]
+    },
+    {
+      "setupId": "librechat",
+      "catalogName": "LIBRECHAT",
+      "script": "librechat.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["libre chat", "chat multi modelo", "interface librechat"]
+    },
+    {
+      "setupId": "localai",
+      "catalogName": "LOCALAI",
+      "script": "localai.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["local ai", "api openai local", "inferencia local"]
+    },
+    {
+      "setupId": "meilisearch",
+      "catalogName": "MEILISEARCH",
+      "script": "meilisearch.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["meili search", "busca full text", "motor meilisearch"]
+    },
+    {
+      "setupId": "milvus-attu",
+      "catalogName": "MILVUS + ATTU*",
+      "script": "milvus.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["milvus", "attu", "banco vetorial milvus"]
+    },
+    {
+      "setupId": "neo4j",
+      "catalogName": "NEO4J",
+      "script": "neo4j.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["neo 4 j", "banco de grafos", "knowledge graph neo4j"]
+    },
+    {
+      "setupId": "vllm",
+      "catalogName": "VLLM",
+      "script": "vllm.sh",
+      "architectures": ["amd64"],
+      "aliases": ["v llm", "servidor vllm", "inferencia vllm"]
+    },
+    {
+      "setupId": "weaviate",
+      "catalogName": "WEAVIATE",
+      "script": "weaviate.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["banco vetorial weaviate", "rag weaviate", "busca semantica weaviate"]
     }
   ]
 }
