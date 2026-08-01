@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	assistantRouterVersion = "1.0.0"
+	assistantRouterVersion = "1.1.0"
 )
 
 type assistantRoute struct {
@@ -43,6 +43,15 @@ type routeDomainDefinition struct {
 }
 
 var routeDefinitions = []routeDefinition{
+	{
+		Intent: "knowledge_status", Specialist: "setup_specialist", RiskLevel: "low",
+		RequiredEvidence: []string{"knowledge_manifest", "catalog_entry"},
+		Signal:           "keyword_knowledge_status",
+		Terms: []string{
+			"base de conhecimento", "conhecimento canonico", "aplicacoes documentadas",
+			"setups documentados", "ferramentas documentadas", "cobertura da base",
+		},
+	},
 	{
 		Intent: "security_review", Specialist: "security_reviewer", RiskLevel: "high",
 		RequiredEvidence: []string{"runtime_state", "security_controls", "risks", "rollback"},
@@ -141,6 +150,7 @@ var allowedRouteDomains = map[string]bool{
 	"resources": true, "network": true, "data": true, "automation": true,
 	"observability": true, "security": true, "integration": true,
 	"blueprints": true, "out_of_scope": true,
+	"knowledge": true,
 }
 
 var allowedRouteEvidence = map[string]bool{
@@ -149,6 +159,7 @@ var allowedRouteEvidence = map[string]bool{
 	"resources": true, "setup_requirements": true, "architecture": true,
 	"blueprint": true, "dependencies": true, "network": true,
 	"catalog_entry": true, "infrastructure_documentation": true,
+	"knowledge_manifest": true,
 }
 
 var allowedRouteSignals = map[string]bool{
@@ -156,6 +167,7 @@ var allowedRouteSignals = map[string]bool{
 	"keyword_capacity": true, "keyword_blueprint": true,
 	"keyword_integration": true, "keyword_setup": true,
 	"keyword_infrastructure": true, "domain_infrastructure": true,
+	"keyword_knowledge_status": true,
 	"no_domain_signal":         true,
 	"canonical_setup_detected": true, "destructive_action_language": true,
 	"conversation_context_resolved": true, "route_validation_fallback": true,
@@ -241,6 +253,9 @@ func routeAssistant(
 }
 
 func selectRouteDefinition(question string, hasSetup bool) (routeDefinition, bool) {
+	if isKnowledgeStatusQuestion(question) {
+		return routeDefinitionByIntent("knowledge_status"), true
+	}
 	priority := []string{
 		"troubleshooting", "capacity_planning", "blueprint_recommendation",
 		"security_review", "integration_design", "infrastructure_diagnosis",
@@ -345,6 +360,7 @@ func validateAssistantRoute(route assistantRoute) error {
 		"blueprint_recommendation": "blueprint_architect",
 		"integration_design":       "integration_architect",
 		"setup_guidance":           "setup_specialist",
+		"knowledge_status":         "setup_specialist",
 		"infrastructure_diagnosis": "infrastructure_diagnostician",
 		"scope_redirect":           "scope_guard",
 	}
@@ -396,6 +412,24 @@ func validateAssistantRoute(route assistantRoute) error {
 		}
 	}
 	return nil
+}
+
+func isKnowledgeStatusQuestion(question string) bool {
+	normalized := normalizeRetrievalPhrase(question)
+	if normalized == "" {
+		return false
+	}
+	mentionsKnowledge := anyPhraseContained(normalized, []string{
+		"base de conhecimento", "conhecimento canonico", "conhecimento documentado",
+		"aplicacoes documentadas", "aplicacao documentada", "setups documentados",
+		"setup documentado", "ferramentas documentadas", "ferramenta documentada",
+		"documentacao canonica", "cobertura da base",
+	})
+	requestsStatus := anyPhraseContained(normalized, []string{
+		"quantas", "quantos", "quanto", "total", "cobertura", "faltam", "pendentes",
+		"estado", "status", "versao",
+	})
+	return mentionsKnowledge && requestsStatus
 }
 
 func reflectRouteValues(current []string, expected []string) bool {

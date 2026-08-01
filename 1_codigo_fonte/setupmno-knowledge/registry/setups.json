@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
-  "selectionVersion": "1.6.0",
-  "setupVersion": "7.2.5",
-  "selectionPolicy": "Lotes 1 a 5 orientados a deploy, IA, integrações, dados, identidade, colaboração, produtividade e segurança operacional",
+  "selectionVersion": "1.7.0",
+  "setupVersion": "7.2.6",
+  "selectionPolicy": "Lotes 1 a 6 orientados a deploy, IA, integrações, dados, identidade, colaboração, produtividade, atendimento e segurança operacional",
   "setups": [
     {
       "setupId": "activepieces",
@@ -809,6 +809,392 @@
       "aliases": [
         "kanban planka",
         "projetos planka"
+      ]
+    },
+    {
+      "setupId": "autogen-studio",
+      "catalogName": "AUTOGEN STUDIO",
+      "script": "autogen.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "autogen studio",
+        "microsoft autogen studio"
+      ]
+    },
+    {
+      "setupId": "botpress",
+      "catalogName": "BOTPRESS",
+      "script": "botpress.sh",
+      "architectures": [
+        "amd64"
+      ],
+      "aliases": [
+        "botpress v12",
+        "botpress self hosted legado"
+      ]
+    },
+    {
+      "setupId": "chatwoot-ai-customer-service",
+      "catalogName": "CHATWOOT AI CUSTOMER SERVICE*",
+      "script": "chatwoot_ai_customer_service.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "chatwoot ai customer service",
+        "atendimento ia chatwoot"
+      ]
+    },
+    {
+      "setupId": "chatwoot-evolution-rabbitmq",
+      "catalogName": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*",
+      "script": "chatwootn_evo2_rabbitmq_redisevo.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "chatwoot evolution rabbitmq",
+        "atendimento whatsapp com fila"
+      ]
+    },
+    {
+      "setupId": "chatwoot-original-unlocked-evolution-rabbitmq-minio",
+      "catalogName": "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+      "script": "chatwootorig_desbloq__evo2_rabbitmq_minio.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "chatwoot original desbloqueado",
+        "combo desbloqueado chatwoot evolution"
+      ]
+    },
+    {
+      "setupId": "chatwoot-original-evolution-rabbitmq-minio",
+      "catalogName": "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+      "script": "chatwooto_evo2_rabbitmq_minio.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "chatwoot original evolution minio",
+        "combo chatwoot original"
+      ]
+    },
+    {
+      "setupId": "cognee",
+      "catalogName": "COGNEE",
+      "script": "cognee.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "cognee ai",
+        "memoria cognee"
+      ]
+    },
+    {
+      "setupId": "databasus",
+      "catalogName": "DATABASUS",
+      "script": "databasus.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "databasus backup",
+        "backup banco databasus"
+      ]
+    },
+    {
+      "setupId": "evo-nexus",
+      "catalogName": "EVO NEXUS",
+      "script": "evonexus.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "evonexus",
+        "evo nexus ai"
+      ]
+    },
+    {
+      "setupId": "evoai",
+      "catalogName": "EVOAI",
+      "script": "evoai.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "evo ai",
+        "agentes evoai"
+      ]
+    },
+    {
+      "setupId": "evoai-evolution-minio",
+      "catalogName": "EVOAI + EVOLUTION 2.0 + MINIO*",
+      "script": "evoai_evo2_minio.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "evoai evolution minio",
+        "combo evoai whatsapp"
+      ]
+    },
+    {
+      "setupId": "evolution-api-v1",
+      "catalogName": "EVOLUTION 1.0 API PADRÃO",
+      "script": "evolutionapi.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "evolution api 1",
+        "evolution v1 legado"
+      ]
+    },
+    {
+      "setupId": "evolution-crm",
+      "catalogName": "EVOLUTION CRM",
+      "script": "evocrm.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "evo crm",
+        "crm evolution"
+      ]
+    },
+    {
+      "setupId": "evolution-go",
+      "catalogName": "EVOLUTION GO",
+      "script": "evolutiongo.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "evolution go api",
+        "api whatsapp em go"
+      ]
+    },
+    {
+      "setupId": "formbricks",
+      "catalogName": "FORMBRICKS",
+      "script": "formbricks.sh",
+      "architectures": [
+        "amd64"
+      ],
+      "aliases": [
+        "form bricks",
+        "pesquisas formbricks"
+      ]
+    },
+    {
+      "setupId": "glpi",
+      "catalogName": "GLPI",
+      "script": "glpi.sh",
+      "architectures": [
+        "amd64"
+      ],
+      "aliases": [
+        "helpdesk glpi",
+        "inventario glpi"
+      ]
+    },
+    {
+      "setupId": "hermes-agent",
+      "catalogName": "HERMES AGENT",
+      "script": "hermes.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "hermes agent",
+        "agente nous hermes"
+      ]
+    },
+    {
+      "setupId": "heyform",
+      "catalogName": "HEYFORM",
+      "script": "heyform.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "hey form",
+        "formularios heyform"
+      ]
+    },
+    {
+      "setupId": "humhub",
+      "catalogName": "HUMHUB",
+      "script": "humhub.sh",
+      "architectures": [
+        "amd64"
+      ],
+      "aliases": [
+        "hum hub",
+        "intranet humhub"
+      ]
+    },
+    {
+      "setupId": "it-tools",
+      "catalogName": "IT-TOOLS",
+      "script": "it_tools.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "it tools",
+        "utilitarios para dev"
+      ]
+    },
+    {
+      "setupId": "jellyfin",
+      "catalogName": "JELLYFIN",
+      "script": "jellyfin.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "jelly fin",
+        "servidor de midia jellyfin"
+      ]
+    },
+    {
+      "setupId": "jitsi-meet",
+      "catalogName": "JITSI MEET",
+      "script": "jitsi.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "jitsi meet",
+        "videoconferencia jitsi"
+      ]
+    },
+    {
+      "setupId": "krayin-crm",
+      "catalogName": "KRAYIN CRM",
+      "script": "krayincrm.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "krayin",
+        "crm krayin"
+      ]
+    },
+    {
+      "setupId": "lobechat",
+      "catalogName": "LOBECHAT",
+      "script": "lobechat.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "lobe chat",
+        "interface llm lobechat"
+      ]
+    },
+    {
+      "setupId": "mautic-4",
+      "catalogName": "MAUTIC 4 PADRÃO",
+      "script": "mauticpadrao.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "mautic 4 padrao",
+        "mautic v4 legado"
+      ]
+    },
+    {
+      "setupId": "mautic-4-whatsapp",
+      "catalogName": "MAUTIC 4 WHATSAPP MKT",
+      "script": "mautic4whatsmkt.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "mautic 4 whatsapp",
+        "mautic v4 marketing whatsapp"
+      ]
+    },
+    {
+      "setupId": "mautic-6",
+      "catalogName": "MAUTIC 6 PADRÃO",
+      "script": "mautic6padrao.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "mautic 6 padrao",
+        "mautic v6"
+      ]
+    },
+    {
+      "setupId": "mautic-6-whatsapp",
+      "catalogName": "MAUTIC 6 WHATSAPP MKT",
+      "script": "mautic6whatsmkt.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "mautic 6 whatsapp",
+        "mautic v6 marketing whatsapp"
+      ]
+    },
+    {
+      "setupId": "mautic-7",
+      "catalogName": "MAUTIC 7 PADRÃO",
+      "script": "mautic7padrao.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "mautic 7 padrao",
+        "mautic v7"
+      ]
+    },
+    {
+      "setupId": "mautic-7-whatsapp",
+      "catalogName": "MAUTIC 7 WHATSAPP MKT",
+      "script": "mautic7whatsmkt.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "mautic 7 whatsapp",
+        "mautic v7 marketing whatsapp"
       ]
     }
   ]

@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.2.5"
+VERSIONSETUP="7.2.6"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then

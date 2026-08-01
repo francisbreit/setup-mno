@@ -22,6 +22,7 @@ func TestAssistantRouterSelectsSpecialistsDeterministically(t *testing.T) {
 		{"integration", "Como integrar n8n com PostgreSQL por webhook?", retrievalQueryResolution{SetupIDs: []string{"n8n-main"}}, "integration_design", "integration_architect"},
 		{"setup", "Este setup funciona em ARM?", retrievalQueryResolution{SetupID: "n8n-main", SetupIDs: []string{"n8n-main"}, Contextualized: true}, "setup_guidance", "setup_specialist"},
 		{"infrastructure", "Analise a saúde do meu servidor Docker", retrievalQueryResolution{}, "infrastructure_diagnosis", "infrastructure_diagnostician"},
+		{"knowledge", "Quantas aplicações você possui documentadas em sua base de conhecimento?", retrievalQueryResolution{}, "knowledge_status", "setup_specialist"},
 		{"scope", "Qual é a capital do Brasil?", retrievalQueryResolution{}, "scope_redirect", "scope_guard"},
 	}
 	for _, test := range tests {

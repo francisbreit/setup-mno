@@ -29,7 +29,7 @@ func TestCanonicalEvalSuitePasses(t *testing.T) {
 	if report.Status != "passed" {
 		t.Fatalf("gate de evals falhou: %#v", report.Metrics)
 	}
-	if report.CaseCount != evalExpectedCases || report.RetrievalCases != 506 ||
+	if report.CaseCount != evalExpectedCases || report.RetrievalCases != 656 ||
 		report.RoutingCases != 4 || report.Metrics.RecallAt5 < 90 {
 		t.Fatalf("relatório de evals incompleto: %#v", report)
 	}

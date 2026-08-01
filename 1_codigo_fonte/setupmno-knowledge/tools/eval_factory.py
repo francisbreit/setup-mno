@@ -14,9 +14,9 @@ from typing import Any
 
 
 EVAL_SCHEMA_VERSION = 1
-EVAL_DATASET_VERSION = "1.5.0"
-EVAL_GRADER_VERSION = "1.5.0"
-EXPECTED_CASES = 510
+EVAL_DATASET_VERSION = "1.6.0"
+EVAL_GRADER_VERSION = "1.6.0"
+EXPECTED_CASES = 660
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 ARCHITECTURES = {"amd64", "arm64"}
@@ -132,7 +132,11 @@ def setup_cases(root: Path) -> list[dict[str, Any]]:
                 "security_reviewer" if intent == "security_review" else "setup_specialist"
             )
             if setup_id in {
+                "chatwoot-evolution-rabbitmq",
                 "chatwoot-evolution-rabbitmq-minio",
+                "chatwoot-original-evolution-rabbitmq-minio",
+                "chatwoot-original-unlocked-evolution-rabbitmq-minio",
+                "evolution-api-v1",
                 "evolution-api-v2",
                 "rabbitmq",
             } and name in {"finalidade", "arquitetura"}:

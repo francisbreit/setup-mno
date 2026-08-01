@@ -14,11 +14,11 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.2.5` no canal Beta
-- Control Center: `4.7.0`
-- Conhecimento canônico: `3.7.0`
+- Setup MNO: `7.2.6` no canal Beta
+- Control Center: `4.8.0`
+- Conhecimento canônico: `3.8.0`
 - Catálogo runtime: 151 entradas
-- Cobertura canônica dedicada: 90 de 151 entradas (`59,60%`)
+- Cobertura canônica dedicada: 120 de 151 entradas (`79,47%`)
 - Blueprints: cinco modelos hipotéticos, todos fictícios e não implantáveis
 - Estado: Beta consultivo; deploy real continua no Instalador Seguro
 
@@ -47,7 +47,7 @@ determinísticos, auditáveis e homologados.
 ### Pilar 1 — Conhecimento Completo
 
 **Prioridade:** crítica
-**Estado atual:** 60 de 151 entradas cobertas
+**Estado atual:** 120 de 151 entradas cobertas
 
 Objetivo: possuir um documento canônico revisado para cada entrada do catálogo,
 com fontes verificáveis e profundidade suficiente para orientar escolha,
@@ -164,6 +164,21 @@ Joplin com SQLite e recursos muito abaixo do requisito oficial de produção;
 Focalboard sem manutenção; e Documenso sem o certificado obrigatório, abaixo
 dos recursos recomendados e expondo credenciais na confirmação. O dataset
 passou a 510 casos e a baseline deixou 61 entradas pendentes.
+
+#### Lote 6 — concluído na v7.2.6 Beta
+
+O sexto lote elevou a cobertura de 90 para 120 entradas e incorporou AutoGen
+Studio, Botpress legado, três novas variantes Chatwoot com Evolution, Cognee,
+Databasus, Evo Nexus, EvoAI e seu combo com MinIO, Evolution API v1, Evolution
+CRM, Evolution Go, Formbricks, GLPI, Hermes Agent, HeyForm, HumHub, IT-Tools,
+Jellyfin, Jitsi Meet, Krayin CRM, LobeChat e seis variantes Mautic 4, 6 e 7.
+
+A auditoria bloqueou promoção indevida de Botpress self-hosted e Evolution v1,
+tratados como legado, e das imagens customizadas de Chatwoot e Mautic sem
+homologação. A consulta sobre quantidade documentada passou a usar diretamente
+o manifesto canônico e o catálogo completos, sem confundir os poucos trechos
+selecionados pelo RAG com a cobertura total. O dataset passou a 660 casos e a
+baseline deixou 31 entradas pendentes.
 
 #### Gate final de governança após todos os lotes
 

@@ -1713,6 +1713,10 @@ func (a *webApp) handleAssistant(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	if isKnowledgeStatusQuestion(input.Question) {
+		a.streamKnowledgeStatus(w, r, input.Question)
+		return
+	}
 	if isFullCatalogRequest(input.Question) {
 		a.streamFullCatalog(w, r, input.Question)
 		return
@@ -1778,6 +1782,89 @@ func (a *webApp) handleAssistant(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	a.addAudit("assistant_analysis", "Consulta assistida via "+a.assistantMode, clientAddress(r))
+}
+
+func knowledgeStatusMarkdown(catalog catalogResponse, state knowledgePackageState) (string, error) {
+	manifest := state.Manifest
+	if catalog.Stale || state.Stale ||
+		!validSemanticVersion(catalog.SetupVersion) ||
+		catalog.CatalogVersion != catalog.SetupVersion ||
+		catalog.CatalogEntries < 1 ||
+		catalog.CatalogEntries != len(catalog.Items) ||
+		manifest.SetupVersion != catalog.SetupVersion ||
+		manifest.SetupEntries < 0 ||
+		manifest.SetupEntries > catalog.CatalogEntries ||
+		manifest.DocumentEntries < manifest.SetupEntries ||
+		manifest.DocumentTypeEntries["setup"] != manifest.SetupEntries ||
+		manifest.DocumentTypeEntries["infrastructure"] != manifest.InfrastructureEntries ||
+		manifest.DocumentTypeEntries["blueprint"] != manifest.BlueprintKnowledgeEntries {
+		return "", errors.New("inventário canônico inconsistente")
+	}
+	missing := catalog.CatalogEntries - manifest.SetupEntries
+	coverage := float64(manifest.SetupEntries) * 100 / float64(catalog.CatalogEntries)
+	var answer strings.Builder
+	answer.WriteString("## Conclusão\n\n")
+	fmt.Fprintf(
+		&answer,
+		"A base canônica do **Setup MNO v%s** documenta **%d dos %d setups do catálogo (%.2f%%)**. Restam **%d setups** sem documentação dedicada.\n\n",
+		manifest.SetupVersion, manifest.SetupEntries, catalog.CatalogEntries, coverage, missing,
+	)
+	answer.WriteString("## Inventário validado\n\n")
+	fmt.Fprintf(
+		&answer,
+		"- **%d documentos canônicos** no total: %d de setups, %d de infraestrutura e %d de Blueprints.\n",
+		manifest.DocumentEntries, manifest.SetupEntries, manifest.InfrastructureEntries,
+		manifest.BlueprintKnowledgeEntries,
+	)
+	fmt.Fprintf(
+		&answer,
+		"- Conhecimento **v%s** · dataset de avaliações **v%s** com **%d casos**.\n\n",
+		manifest.KnowledgeVersion, manifest.EvalDatasetVersion, manifest.EvalCaseEntries,
+	)
+	answer.WriteString("Fonte: manifesto interno versionado e catálogo runtime validados localmente. Nenhuma contagem foi inferida a partir dos resultados do RAG.")
+	return answer.String(), nil
+}
+
+func (a *webApp) streamKnowledgeStatus(w http.ResponseWriter, r *http.Request, question string) {
+	var catalog catalogResponse
+	if err := a.agentRequest(r.Context(), "/catalog", &catalog); err != nil {
+		writeError(w, http.StatusServiceUnavailable, "catálogo runtime indisponível")
+		return
+	}
+	state, err := loadRuntimeKnowledgePackage()
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, "base canônica indisponível")
+		return
+	}
+	answer, err := knowledgeStatusMarkdown(catalog, state)
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, "inventário canônico inconsistente")
+		return
+	}
+	route := routeAssistant(
+		question,
+		retrievalQueryResolution{Query: question},
+		catalog.Architecture,
+	)
+	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.WriteHeader(http.StatusOK)
+	a.sendFeedbackTokenSSE(w, "basic", "")
+	sendSSE(w, "meta", map[string]any{
+		"mode":             "knowledge",
+		"model":            "",
+		"setupVersion":     state.Manifest.SetupVersion,
+		"knowledgeVersion": state.Manifest.KnowledgeVersion,
+		"knowledgeEntries": state.Manifest.DocumentEntries,
+		"documentedSetups": state.Manifest.SetupEntries,
+		"catalogEntries":   catalog.CatalogEntries,
+		"knowledgeStale":   state.Stale,
+	})
+	sendSSE(w, "route", route)
+	sendSSE(w, "delta", map[string]any{"delta": answer})
+	sendSSE(w, "done", map[string]any{"ok": true})
+	a.addAudit("assistant_knowledge_status", "Inventário canônico consultado localmente", clientAddress(r))
 }
 
 func isFullCatalogRequest(question string) bool {

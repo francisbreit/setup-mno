@@ -10,9 +10,9 @@ import (
 
 const (
 	evalSchemaVersion  = 1
-	evalDatasetVersion = "1.5.0"
-	evalGraderVersion  = "1.5.0"
-	evalExpectedCases  = 510
+	evalDatasetVersion = "1.6.0"
+	evalGraderVersion  = "1.6.0"
+	evalExpectedCases  = 660
 )
 
 type evalReview struct {
