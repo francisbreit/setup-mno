@@ -14,11 +14,11 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.2.4` no canal Beta
-- Control Center: `4.6.0`
-- Conhecimento canônico: `3.6.0`
+- Setup MNO: `7.2.5` no canal Beta
+- Control Center: `4.7.0`
+- Conhecimento canônico: `3.7.0`
 - Catálogo runtime: 151 entradas
-- Cobertura canônica dedicada: 60 de 151 entradas (`39,74%`)
+- Cobertura canônica dedicada: 90 de 151 entradas (`59,60%`)
 - Blueprints: cinco modelos hipotéticos, todos fictícios e não implantáveis
 - Estado: Beta consultivo; deploy real continua no Instalador Seguro
 
@@ -83,7 +83,7 @@ Gates do pilar:
 
 Sequência editorial:
 
-1. formar lotes de até dez entradas por demanda, centralidade de integração,
+1. formar lotes de até trinta entradas por demanda, centralidade de integração,
    risco, número de variantes e volume de suporte esperado;
 2. pesquisar documentação oficial atual e licença;
 3. confrontar a documentação com os scripts x86/ARM realmente distribuídos;
@@ -147,6 +147,23 @@ do GitLab abaixo do baseline oficial, MongoDB standalone incompatível com o
 Rocket.Chat atual, cadastro aberto e secret SMTP no Vaultwarden, banco do Odoo
 publicado no host, tags móveis e dependências compartilhadas em múltiplos
 setups. O dataset passou a 360 casos e a baseline deixou 91 entradas pendentes.
+
+#### Lote 5 — concluído na v7.2.5 Beta
+
+O quinto lote ampliou o tamanho editorial para 30 aplicações e elevou a
+cobertura de 60 para 90 entradas. Foram incorporados Actual Budget, AFFiNE,
+Cal.com, ChangeDetection.io, Discourse, Docmost, Documenso, DocuSeal, Dozzle,
+Excalidraw, File Browser, Firefly III, Focalboard, FreshRSS, Ghost, Glance,
+Home Assistant, Hoppscotch, Joplin, Karakeep, listmonk, Matomo, Metabase, ntfy,
+OpenProject, Outline, Penpot, PhotoPrism, Pi-hole e PLANKA.
+
+A auditoria registrou como bloqueios, sem inventar homologação: Dozzle com
+socket Docker, porta publicada e autenticação ausente; File Browser sem
+autenticação; Cal.com defasado, com cadastro aberto e validação TLS desabilitada;
+Joplin com SQLite e recursos muito abaixo do requisito oficial de produção;
+Focalboard sem manutenção; e Documenso sem o certificado obrigatório, abaixo
+dos recursos recomendados e expondo credenciais na confirmação. O dataset
+passou a 510 casos e a baseline deixou 61 entradas pendentes.
 
 #### Gate final de governança após todos os lotes
 

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
-  "selectionVersion": "1.5.0",
-  "setupVersion": "7.2.4",
-  "selectionPolicy": "Lotes 1 a 4 orientados a deploy, IA, integrações, dados, identidade, colaboração e segurança operacional",
+  "selectionVersion": "1.6.0",
+  "setupVersion": "7.2.5",
+  "selectionPolicy": "Lotes 1 a 5 orientados a deploy, IA, integrações, dados, identidade, colaboração, produtividade e segurança operacional",
   "setups": [
     {
       "setupId": "activepieces",
@@ -423,6 +423,393 @@
       "script": "vaultwarden.sh",
       "architectures": ["amd64", "arm64"],
       "aliases": ["vault warden", "servidor bitwarden", "cofre de senhas"]
+    },
+    {
+      "setupId": "actual-budget",
+      "catalogName": "ACTUAL BUDGET",
+      "script": "actualbudget.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "actual budget",
+        "orcamento pessoal actual"
+      ]
+    },
+    {
+      "setupId": "affine",
+      "catalogName": "AFFINE",
+      "script": "affine.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "workspace affine",
+        "documentos affine"
+      ]
+    },
+    {
+      "setupId": "calcom",
+      "catalogName": "CAL.COM",
+      "script": "calcom.sh",
+      "architectures": [
+        "amd64"
+      ],
+      "aliases": [
+        "cal com",
+        "agendamento calcom"
+      ]
+    },
+    {
+      "setupId": "changedetection",
+      "catalogName": "CHANGEDETECTION.IO",
+      "script": "changedetection.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "change detection",
+        "monitor de mudancas"
+      ]
+    },
+    {
+      "setupId": "discourse",
+      "catalogName": "DISCOURSE",
+      "script": "discourse.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "forum discourse",
+        "comunidade discourse"
+      ]
+    },
+    {
+      "setupId": "docmost",
+      "catalogName": "DOCMOST",
+      "script": "docmost.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "wiki docmost",
+        "documentacao docmost"
+      ]
+    },
+    {
+      "setupId": "documenso",
+      "catalogName": "DOCUMENSO",
+      "script": "documenso.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "assinatura documenso",
+        "documentos documenso"
+      ]
+    },
+    {
+      "setupId": "docuseal",
+      "catalogName": "DOCUSEAL",
+      "script": "docuseal.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "docu seal",
+        "assinatura docuseal"
+      ]
+    },
+    {
+      "setupId": "dozzle",
+      "catalogName": "DOZZLE",
+      "script": "dozzle.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "logs dozzle",
+        "visualizador docker dozzle"
+      ]
+    },
+    {
+      "setupId": "excalidraw",
+      "catalogName": "EXCALIDRAW",
+      "script": "excalidraw.sh",
+      "architectures": [
+        "amd64"
+      ],
+      "aliases": [
+        "excali draw",
+        "quadro excalidraw"
+      ]
+    },
+    {
+      "setupId": "filebrowser",
+      "catalogName": "FILEBROWSER",
+      "script": "filebrowser.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "file browser",
+        "gerenciador de arquivos web"
+      ]
+    },
+    {
+      "setupId": "firefly-iii",
+      "catalogName": "FIREFLY III",
+      "script": "fireflyiii.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "firefly 3",
+        "financas firefly"
+      ]
+    },
+    {
+      "setupId": "focalboard",
+      "catalogName": "FOCALBOARD",
+      "script": "focalboard.sh",
+      "architectures": [
+        "amd64"
+      ],
+      "aliases": [
+        "focal board",
+        "kanban focalboard"
+      ]
+    },
+    {
+      "setupId": "freshrss",
+      "catalogName": "FRESHRSS",
+      "script": "freshrss.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "fresh rss",
+        "leitor de feeds freshrss"
+      ]
+    },
+    {
+      "setupId": "ghost",
+      "catalogName": "GHOST",
+      "script": "ghost.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "cms ghost",
+        "blog ghost"
+      ]
+    },
+    {
+      "setupId": "glance",
+      "catalogName": "GLANCE",
+      "script": "glance.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "dashboard glance",
+        "painel glance"
+      ]
+    },
+    {
+      "setupId": "home-assistant",
+      "catalogName": "HOME ASSISTANT",
+      "script": "homeassistant.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "home assistant",
+        "automacao residencial"
+      ]
+    },
+    {
+      "setupId": "hoppscotch",
+      "catalogName": "HOPPSCOTCH",
+      "script": "hoppscotch.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "hop scotch",
+        "cliente api hoppscotch"
+      ]
+    },
+    {
+      "setupId": "joplin",
+      "catalogName": "JOPLIN",
+      "script": "joplin.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "joplin server",
+        "sincronizacao joplin"
+      ]
+    },
+    {
+      "setupId": "karakeep",
+      "catalogName": "KARAKEEP",
+      "script": "karakeep.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "kara keep",
+        "bookmarks karakeep"
+      ]
+    },
+    {
+      "setupId": "listmonk",
+      "catalogName": "LISTMONK",
+      "script": "listmonk.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "list monk",
+        "newsletter listmonk"
+      ]
+    },
+    {
+      "setupId": "matomo",
+      "catalogName": "MATOMO",
+      "script": "matomo.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "analytics matomo",
+        "analitica matomo"
+      ]
+    },
+    {
+      "setupId": "metabase",
+      "catalogName": "METABASE",
+      "script": "metabase.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "meta base",
+        "bi metabase"
+      ]
+    },
+    {
+      "setupId": "ntfy",
+      "catalogName": "NTFY",
+      "script": "ntfy.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "notify ntfy",
+        "notificacoes ntfy"
+      ]
+    },
+    {
+      "setupId": "openproject",
+      "catalogName": "OPEN PROJECT",
+      "script": "openproject.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "open project",
+        "projetos openproject"
+      ]
+    },
+    {
+      "setupId": "outline",
+      "catalogName": "OUTLINE",
+      "script": "outline.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "wiki outline",
+        "documentacao outline"
+      ]
+    },
+    {
+      "setupId": "penpot",
+      "catalogName": "PENPOT",
+      "script": "penpot.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "pen pot",
+        "design penpot"
+      ]
+    },
+    {
+      "setupId": "photoprism",
+      "catalogName": "PHOTOPRISM",
+      "script": "photoprism.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "photo prism",
+        "galeria photoprism"
+      ]
+    },
+    {
+      "setupId": "pihole",
+      "catalogName": "PI-HOLE",
+      "script": "pihole.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "pi hole",
+        "dns pihole"
+      ]
+    },
+    {
+      "setupId": "planka",
+      "catalogName": "PLANKA",
+      "script": "planka.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "kanban planka",
+        "projetos planka"
+      ]
     }
   ]
 }

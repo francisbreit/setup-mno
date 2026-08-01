@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Open WebUI sem Ollama no Setup MNO",
   "setupId": "open-webui",
-  "setupVersion": "7.2.4",
+  "setupVersion": "7.2.5",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
