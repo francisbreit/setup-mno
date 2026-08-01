@@ -135,5 +135,18 @@ for (const field of [
   assert.match(app, new RegExp(`escapeHTML\\(${field.replace(".", "\\.")}[^)]*\\)`));
 }
 assert.doesNotMatch(html + app, /promoteBlueprint|approveBlueprint|uploadEvidence|\/api\/blueprints\/promote/);
+assert.match(html, /data-view="evals"/);
+assert.match(html, /id="view-evals"/);
+assert.match(html, /Dataset, Evals e Graders/);
+assert.match(html, /O relatório contém somente métricas agregadas/);
+assert.match(app, /api\("\/api\/evals"\)/);
+assert.match(app, /function renderEvals/);
+assert.match(app, /Release aprovada/);
+assert.match(app, /metrics\.recallAt5/);
+assert.match(app, /metrics\.credentialLeakCount/);
+assert.match(app, /report\.datasetSHA256/);
+assert.doesNotMatch(html + app, /evalQuestion|evalReferenceAnswer|evalExpectedDocuments/);
+assert.match(styles, /\.eval-summary-grid/);
+assert.match(styles, /@media \(max-width: 650px\)[\s\S]*\.eval-intro/);
 
-console.log("Markdown, RAG, recomendação e fluxo editorial de Blueprints conferidos.");
+console.log("Markdown, RAG, Blueprints e relatório agregado de evals conferidos.");

@@ -293,6 +293,10 @@ func (r *knowledgeRetriever) resolveQuery(
 	resolution.SetupIDs = r.matchedSetupIDs(question)
 	if len(resolution.SetupIDs) == 1 {
 		setupID := resolution.SetupIDs[0]
+		if prefersInfrastructureTopic(question) {
+			resolution.SetupIDs = nil
+			return resolution
+		}
 		resolution.SetupID = setupID
 		resolution.CatalogName = r.setupCatalogNames[setupID]
 		return resolution
@@ -321,6 +325,32 @@ func (r *knowledgeRetriever) resolveQuery(
 		return resolution
 	}
 	return resolution
+}
+
+func prefersInfrastructureTopic(question string) bool {
+	normalized := normalizeRetrievalPhrase(question)
+	for _, explicitInfrastructureSignal := range []string{
+		"explique a arquitetura", "arquitetura de",
+	} {
+		if strings.Contains(normalized, explicitInfrastructureSignal) {
+			return true
+		}
+	}
+	for _, setupSignal := range []string{
+		"setup", "aplicacao", "ferramenta", "instalar", "instalacao", "instancia",
+	} {
+		if strings.Contains(normalized, setupSignal) {
+			return false
+		}
+	}
+	for _, infrastructureSignal := range []string{
+		"infraestrutura", "servico base", "compartilhado", "dedicado",
+	} {
+		if strings.Contains(normalized, infrastructureSignal) {
+			return true
+		}
+	}
+	return false
 }
 
 func hasContextualSetupReference(question string) bool {

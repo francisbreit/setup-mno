@@ -87,7 +87,7 @@ var routeDefinitions = []routeDefinition{
 		RequiredEvidence: []string{"setup_documentation", "dependencies", "network", "security_controls", "rollback"},
 		Signal:           "keyword_integration",
 		Terms: []string{
-			"integrar", "integracao", "conectar", "webhook", "api", "fila", "rabbitmq",
+			"integrar", "integracao", "conectar", "webhook", "api", "rabbitmq",
 			"mensageria", "fluxo entre", "comunicar", "sincronizar", "sso", "oauth",
 		},
 	},
@@ -241,13 +241,32 @@ func routeAssistant(
 }
 
 func selectRouteDefinition(question string, hasSetup bool) (routeDefinition, bool) {
-	for _, definition := range routeDefinitions {
+	priority := []string{
+		"troubleshooting", "capacity_planning", "blueprint_recommendation",
+		"security_review", "integration_design", "infrastructure_diagnosis",
+		"setup_guidance",
+	}
+	if hasSetup {
+		for _, intent := range priority {
+			if intent == "setup_guidance" || intent == "infrastructure_diagnosis" ||
+				intent == "blueprint_recommendation" {
+				continue
+			}
+			definition := routeDefinitionByIntent(intent)
+			if anyPhraseContained(question, definition.Terms) {
+				return definition, true
+			}
+		}
+		return routeDefinitionByIntent("setup_guidance"), true
+	}
+	if anyPhraseContained(question, []string{"explique a arquitetura", "arquitetura de"}) {
+		return routeDefinitionByIntent("infrastructure_diagnosis"), true
+	}
+	for _, intent := range priority {
+		definition := routeDefinitionByIntent(intent)
 		if anyPhraseContained(question, definition.Terms) {
 			return definition, true
 		}
-	}
-	if hasSetup {
-		return routeDefinitionByIntent("setup_guidance"), true
 	}
 	return routeDefinition{}, false
 }

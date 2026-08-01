@@ -753,7 +753,7 @@ homologadas e explicáveis pelo Assistente.
   "status": "homologated",
   "fictitious": false,
   "deployable": true,
-  "setupVersion": "6.4.0",
+  "setupVersion": "7.0.0",
   "architectures": ["amd64", "arm64"],
   "components": [],
   "resourceProfile": {},
@@ -944,7 +944,7 @@ servidor e sem inventar componentes.
 
 ## Etapa 6 — Dataset, Evals e Graders
 
-**Status:** pendente
+**Status:** em andamento — subetapa 6.1 implementada na v7.0.0
 **Impacto:** crítico para homologação
 **Tipo:** qualidade e confiabilidade
 **Esforço:** estrutural
@@ -1029,6 +1029,34 @@ Criar entre 150 e 250 casos revisados, cobrindo:
 ### Critério de conclusão
 
 Uma release só avança quando supera o baseline e todos os gates de segurança.
+
+### Subetapa 6.1 — Baseline determinístico e gate de release
+
+Implementada na v7.0.0 com o menor escopo capaz de tornar qualidade uma
+condição técnica de release:
+
+- dataset canônico `1.0.0` com 160 casos revisados e schema JSON estrito;
+- cobertura de 100 casos de setups, 36 de infraestrutura, 20 de Blueprints e
+  quatro cenários críticos de segurança, escopo e ausência de evidência;
+- grader local `1.0.0` executando o retrieval e o roteador reais, sem LLM,
+  rede, nova stack ou dados do servidor;
+- relatório somente agregado e autenticado em `/api/evals`, sem perguntas,
+  respostas, IDs recuperados, traces ou conteúdo sensível;
+- painel responsivo “Evals e qualidade” com métricas, gates de segurança,
+  versões e SHA-256 do dataset;
+- comando `evalcheck` e execução bloqueante na imagem final do instalador;
+- baseline comparativa estabelecida na `v7.0.0`; regressões futuras deverão
+  ser calculadas contra resultados versionados anteriores.
+
+Resultado determinístico da implementação: Recall@5 `94,87%`, precisão@5
+`76,97%`, MRR e MAP `93,91%`, roteamento `100%`, métricas de resposta
+estrutural `100%` e zero vazamento, ação inventada, mistura de arquitetura,
+documento obsoleto ou Blueprint incompatível.
+
+O grader desta subetapa valida as respostas de referência aprovadas e o
+pipeline local. A avaliação comparativa de respostas produzidas por cada
+provedor opcional, com revisão humana dos casos críticos, permanece para a
+subetapa 6.2 e não é simulada por esta release.
 
 ---
 
@@ -1493,6 +1521,17 @@ Escopo implementado na release v6.4.0:
 - nenhuma nova porta, stack, secret, socket, mount, escrita ou automação de
   deploy.
 
+## Release arquitetural da subetapa 6.1
+
+Escopo implementado na release v7.0.0:
+
+- Setup MNO `7.0.0`, Control Center `4.0.0` e conhecimento canônico `3.0.0`;
+- dataset e grader `1.0.0`, 160 casos estritos e revisados;
+- execução local reproduzível contra retrieval e roteamento reais;
+- release bloqueada se os thresholds ou qualquer gate de segurança falhar;
+- painel agregado autenticado, sem expor conteúdo do dataset ou traces;
+- nenhuma nova porta, stack, secret, socket, mount ou capacidade de escrita.
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico
@@ -1506,12 +1545,12 @@ Escopo implementado na release v6.4.0:
 
 ## Próxima ação
 
-Homologar a subetapa **5.5 — Fluxo editorial e homologação** no navegador
-desktop e Android, confirmando os 11 gates, promoção bloqueada nos cinco
-exemplos, histórico, ausência de evidências, selos SHA-256, responsividade e
-ausência de qualquer ação de escrita ou deploy. Depois da aprovação, iniciar a
-**Etapa 6 — Dataset, Evals e Graders**, formalizando thresholds antes de ampliar
-o orçamento atual do RAG.
+Homologar a subetapa **6.1 — Baseline determinístico e gate de release** no
+navegador desktop e Android. Confirmar o status aprovado, 160 casos,
+Recall@5 mínimo de 90%, roteamento, segurança, proveniência, responsividade e
+ausência de perguntas, respostas ou dados sensíveis no relatório. Depois da
+aprovação, iniciar a **subetapa 6.2 — Evals de respostas por provedor e revisão
+humana dos casos críticos**.
 
 ## Referências oficiais
 

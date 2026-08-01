@@ -80,6 +80,7 @@ type webApp struct {
 	httpClient      *http.Client
 	assistantClient *http.Client
 	blueprints      blueprintCatalogResponse
+	evals           evalReport
 
 	sessionMu sync.Mutex
 	sessions  map[string]*session
@@ -183,6 +184,11 @@ type setupRelease struct {
 	BlueprintEntries          int    `json:"blueprintEntries,omitempty"`
 	BlueprintKnowledgeEntries int    `json:"blueprintKnowledgeEntries,omitempty"`
 	BlueprintFixtureEntries   int    `json:"blueprintFixtureEntries,omitempty"`
+	EvalSchemaVersion         int    `json:"evalSchemaVersion,omitempty"`
+	EvalDatasetVersion        string `json:"evalDatasetVersion,omitempty"`
+	EvalGraderVersion         string `json:"evalGraderVersion,omitempty"`
+	EvalDatasetSHA256         string `json:"evalDatasetSHA256,omitempty"`
+	EvalCaseEntries           int    `json:"evalCaseEntries,omitempty"`
 }
 
 type runtimeSnapshot struct {
@@ -342,6 +348,25 @@ type assistantService struct {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "evalcheck" {
+		state, err := loadRuntimeKnowledgePackage()
+		if err != nil {
+			log.Printf("pacote de conhecimento inválido: %v", err)
+			os.Exit(1)
+		}
+		report, err := runEvalSuite(state, state.Manifest.ControlVersion)
+		if err != nil {
+			log.Printf("suíte de evals inválida: %v", err)
+			os.Exit(1)
+		}
+		if err := json.NewEncoder(os.Stdout).Encode(report); err != nil {
+			os.Exit(1)
+		}
+		if report.Status != "passed" {
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "knowledgecheck" {
 		state, err := loadRuntimeKnowledgePackage()
 		if err != nil {
@@ -412,6 +437,13 @@ func runWeb() error {
 	if err != nil {
 		return fmt.Errorf("catálogo de Blueprints inválido: %w", err)
 	}
+	evalReport, err := runEvalSuite(blueprintKnowledge, controlVersion)
+	if err != nil {
+		return fmt.Errorf("suíte de evals indisponível: %w", err)
+	}
+	if evalReport.Status != "passed" {
+		return errors.New("suíte de evals bloqueou a inicialização do Control Center")
+	}
 
 	app := &webApp{
 		adminUser:       envDefault("ADMIN_USERNAME", "admin"),
@@ -430,6 +462,7 @@ func runWeb() error {
 		logins:          make(map[string]*loginWindow),
 		audit:           make([]auditEvent, 0, 200),
 		blueprints:      blueprints,
+		evals:           evalReport,
 	}
 	app.passwordHash = pbkdf2SHA256(passwordSecret, app.passwordSalt, 310000, 32)
 	zero(passwordSecret)
@@ -444,6 +477,7 @@ func runWeb() error {
 	mux.Handle("GET /api/setup-state", app.requireAuth(http.HandlerFunc(app.handleSetupState)))
 	mux.Handle("GET /api/catalog", app.requireAuth(http.HandlerFunc(app.handleCatalog)))
 	mux.Handle("GET /api/blueprints", app.requireAuth(http.HandlerFunc(app.handleBlueprints)))
+	mux.Handle("GET /api/evals", app.requireAuth(http.HandlerFunc(app.handleEvals)))
 	mux.Handle("POST /api/blueprints/recommend", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleBlueprintRecommendation))))
 	mux.Handle("GET /api/audit", app.requireAuth(http.HandlerFunc(app.handleAudit)))
 	mux.Handle("POST /api/assistant", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleAssistant))))
@@ -1553,6 +1587,10 @@ func (a *webApp) handleBlueprints(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, a.blueprints)
 }
 
+func (a *webApp) handleEvals(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, a.evals)
+}
+
 func blueprintCatalogFromKnowledge(state knowledgePackageState) (blueprintCatalogResponse, error) {
 	index := state.Blueprints
 	if index.SchemaVersion != blueprintSchema ||
@@ -2042,6 +2080,16 @@ func validateReleaseKnowledge(release setupRelease) error {
 	blueprintHash, err := hex.DecodeString(release.BlueprintIndexSHA256)
 	if err != nil || len(blueprintHash) != sha256.Size {
 		return errors.New("SHA-256 dos Blueprints inválido")
+	}
+	if release.EvalSchemaVersion != evalSchemaVersion ||
+		release.EvalDatasetVersion != evalDatasetVersion ||
+		release.EvalGraderVersion != evalGraderVersion ||
+		release.EvalCaseEntries != evalExpectedCases {
+		return errors.New("metadados de evals inconsistentes")
+	}
+	evalHash, err := hex.DecodeString(release.EvalDatasetSHA256)
+	if err != nil || len(evalHash) != sha256.Size {
+		return errors.New("SHA-256 do dataset de evals inválido")
 	}
 	return nil
 }

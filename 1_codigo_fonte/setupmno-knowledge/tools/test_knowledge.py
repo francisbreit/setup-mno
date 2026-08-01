@@ -26,6 +26,13 @@ from generate_package import (
     RETRIEVAL_VERSION,
     split_section,
 )
+from eval_factory import (
+    EVAL_DATASET_VERSION,
+    EVAL_GRADER_VERSION,
+    EVAL_SCHEMA_VERSION,
+    EXPECTED_CASES,
+    validate_dataset,
+)
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -54,6 +61,22 @@ def run_linter(*arguments: str) -> subprocess.CompletedProcess[str]:
 
 
 class KnowledgeFactoryTests(unittest.TestCase):
+    def test_eval_dataset_is_reviewed_and_complete(self) -> None:
+        registry = load_json(ROOT / "registry" / "setups.json")
+        dataset = load_json(ROOT / "evals" / "dataset.json")
+        self.assertEqual(validate_dataset(dataset, registry["setupVersion"]), [])
+        self.assertEqual(dataset["schemaVersion"], EVAL_SCHEMA_VERSION)
+        self.assertEqual(dataset["datasetVersion"], EVAL_DATASET_VERSION)
+        self.assertEqual(dataset["graderVersion"], EVAL_GRADER_VERSION)
+        self.assertEqual(dataset["caseCount"], EXPECTED_CASES)
+        self.assertEqual(
+            sum(case["evaluationType"] == "retrieval" for case in dataset["cases"]),
+            156,
+        )
+        self.assertTrue(
+            all("password" not in json.dumps(case).lower() for case in dataset["cases"])
+        )
+
     def test_complete_base_passes_linter(self) -> None:
         result = run_linter()
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -175,7 +198,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
                         "--setup-version",
                         registry["setupVersion"],
                         "--control-version",
-                        "3.4.0",
+                        "4.0.0",
                     ],
                     check=False,
                     capture_output=True,
@@ -207,6 +230,9 @@ class KnowledgeFactoryTests(unittest.TestCase):
                     blueprint_index = json.load(
                         package.extractfile("blueprints/index.json")
                     )
+                    eval_dataset = json.load(package.extractfile("evals/dataset.json"))
+                    self.assertEqual(eval_dataset["caseCount"], EXPECTED_CASES)
+                    self.assertEqual(eval_dataset["setupVersion"], registry["setupVersion"])
                     self.assertEqual(blueprint_index["schemaVersion"], 2)
                     self.assertEqual(blueprint_index["blueprintCount"], 5)
                     self.assertEqual(blueprint_index["statuses"], {"example": 5})
@@ -270,6 +296,11 @@ class KnowledgeFactoryTests(unittest.TestCase):
                 RETRIEVAL_VERSION,
             )
             self.assertGreater(manifests[0]["chunkEntries"], 29)
+            self.assertEqual(manifests[0]["evalSchemaVersion"], EVAL_SCHEMA_VERSION)
+            self.assertEqual(manifests[0]["evalDatasetVersion"], EVAL_DATASET_VERSION)
+            self.assertEqual(manifests[0]["evalGraderVersion"], EVAL_GRADER_VERSION)
+            self.assertEqual(manifests[0]["evalCaseEntries"], EXPECTED_CASES)
+            self.assertEqual(len(manifests[0]["evalDatasetSHA256"]), 64)
 
 
 if __name__ == "__main__":

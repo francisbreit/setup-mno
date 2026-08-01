@@ -204,6 +204,18 @@ publica histórico, gates, metadados das evidências e um selo determinístico d
 versão, removendo seus caminhos internos. O Control Center apenas inspeciona
 esses dados; edição, aprovação, upload e deploy continuam fora da API web.
 
+Na subetapa 6.1, o pacote inclui `evals/dataset.json`, com 160 casos revisados,
+schema estrito, versão e SHA-256 próprios. O comando local `evalcheck` executa o
+retrieval e o roteador reais, calcula métricas agregadas e falha se Recall@5,
+factualidade, groundedness, roteamento, Blueprints, rollback ou honestidade sem
+evidência ficarem abaixo dos thresholds. Vazamentos, ações inventadas,
+documentos obsoletos e mistura de arquitetura possuem tolerância zero.
+
+O instalador executa esse gate na imagem final antes de criar secrets ou
+stacks. A área autenticada **Evals e qualidade** exibe somente contagens,
+percentuais, versões, baseline e hash do dataset. Perguntas, respostas de
+referência, IDs de documentos e traces nunca são publicados pela API.
+
 O mesmo pacote é distribuído para x86 e ARM. Na imagem do Assistente, a cópia
 primária fica em `/knowledge-package`, somente leitura pela própria camada da
 imagem. Uma segunda cópia é embutida no binário Go e entra em contingência se a

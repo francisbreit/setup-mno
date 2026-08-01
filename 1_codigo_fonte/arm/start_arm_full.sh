@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="6.4.0"
+VERSIONSETUP="7.0.0"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -271,6 +271,11 @@ blueprint_entries=$(jq -r '.blueprintEntries // 0' "$knowledge_manifest" 2>/dev/
 blueprint_index_sha=$(jq -r '.blueprintIndexSHA256 // empty' "$knowledge_manifest" 2>/dev/null)
 blueprint_knowledge_entries=$(jq -r '.blueprintKnowledgeEntries // 0' "$knowledge_manifest" 2>/dev/null)
 blueprint_fixture_entries=$(jq -r '.blueprintFixtureEntries // 0' "$knowledge_manifest" 2>/dev/null)
+eval_schema_version=$(jq -r '.evalSchemaVersion // 0' "$knowledge_manifest" 2>/dev/null)
+eval_dataset_version=$(jq -r '.evalDatasetVersion // empty' "$knowledge_manifest" 2>/dev/null)
+eval_grader_version=$(jq -r '.evalGraderVersion // empty' "$knowledge_manifest" 2>/dev/null)
+eval_dataset_sha=$(jq -r '.evalDatasetSHA256 // empty' "$knowledge_manifest" 2>/dev/null)
+eval_case_entries=$(jq -r '.evalCaseEntries // 0' "$knowledge_manifest" 2>/dev/null)
 knowledge_expected_sha=$(jq -r '.archiveSHA256 // empty' "$knowledge_manifest" 2>/dev/null)
 knowledge_expected_bytes=$(jq -r '.archiveBytes // 0' "$knowledge_manifest" 2>/dev/null)
 knowledge_actual_sha=$(sha256sum "$knowledge_archive" | awk '{print $1}')
@@ -283,6 +288,11 @@ runtime_blueprint_entries=$(jq -r '.blueprintEntries // 0' "$control_package/rel
 runtime_blueprint_index_sha=$(jq -r '.blueprintIndexSHA256 // empty' "$control_package/release.json" 2>/dev/null)
 runtime_blueprint_knowledge_entries=$(jq -r '.blueprintKnowledgeEntries // 0' "$control_package/release.json" 2>/dev/null)
 runtime_blueprint_fixture_entries=$(jq -r '.blueprintFixtureEntries // 0' "$control_package/release.json" 2>/dev/null)
+runtime_eval_schema_version=$(jq -r '.evalSchemaVersion // 0' "$control_package/release.json" 2>/dev/null)
+runtime_eval_dataset_version=$(jq -r '.evalDatasetVersion // empty' "$control_package/release.json" 2>/dev/null)
+runtime_eval_grader_version=$(jq -r '.evalGraderVersion // empty' "$control_package/release.json" 2>/dev/null)
+runtime_eval_dataset_sha=$(jq -r '.evalDatasetSHA256 // empty' "$control_package/release.json" 2>/dev/null)
+runtime_eval_case_entries=$(jq -r '.evalCaseEntries // 0' "$control_package/release.json" 2>/dev/null)
 if [ "$control_schema" != "1" ] ||
    [ "$control_version" != "$VERSIONSETUP" ] ||
    [ "$control_arch" != "arm64" ] ||
@@ -315,6 +325,16 @@ if [ "$control_schema" != "1" ] ||
    [ "$blueprint_knowledge_entries" != "$runtime_blueprint_knowledge_entries" ] ||
    [ "$blueprint_fixture_entries" -le 0 ] ||
    [ "$blueprint_fixture_entries" != "$runtime_blueprint_fixture_entries" ] ||
+   [ "$eval_schema_version" != "1" ] ||
+   [ "$eval_schema_version" != "$runtime_eval_schema_version" ] ||
+   [ "$eval_dataset_version" != "1.0.0" ] ||
+   [ "$eval_dataset_version" != "$runtime_eval_dataset_version" ] ||
+   [ "$eval_grader_version" != "1.0.0" ] ||
+   [ "$eval_grader_version" != "$runtime_eval_grader_version" ] ||
+   [ "${#eval_dataset_sha}" -ne 64 ] ||
+   [ "$eval_dataset_sha" != "$runtime_eval_dataset_sha" ] ||
+   [ "$eval_case_entries" != "160" ] ||
+   [ "$eval_case_entries" != "$runtime_eval_case_entries" ] ||
    [ "$knowledge_expected_sha" != "$knowledge_actual_sha" ] ||
    [ "$knowledge_expected_sha" != "$runtime_knowledge_sha" ] ||
    [ "$knowledge_expected_bytes" != "$knowledge_actual_bytes" ] ||

@@ -20,6 +20,12 @@ from pathlib import Path
 from typing import Any
 
 from blueprint_factory import build_blueprint_package
+from eval_factory import (
+    EVAL_DATASET_VERSION,
+    EVAL_GRADER_VERSION,
+    EVAL_SCHEMA_VERSION,
+    validate_dataset,
+)
 from lint_knowledge import load_documents, load_json
 
 
@@ -431,9 +437,17 @@ def build_package_files(
         (root / "schema" / "document.schema.json", "schema/document.schema.json"),
         (root / "schema" / "index-v2.schema.json", "schema/index-v2.schema.json"),
         (root / "schema" / "taxonomy.json", "schema/taxonomy.json"),
+        (root / "schema" / "eval-dataset.schema.json", "schema/eval-dataset.schema.json"),
         (root / "registry" / "setups.json", "registry/setups.json"),
     ):
         add_package_file(files, target, ensure_regular_source(source, root))
+
+    eval_dataset_data = ensure_regular_source(root / "evals" / "dataset.json", root)
+    eval_dataset = json.loads(eval_dataset_data)
+    eval_errors = validate_dataset(eval_dataset, setup_version)
+    if eval_errors:
+        raise ValueError("dataset de evals inválido:\n- " + "\n- ".join(eval_errors))
+    add_package_file(files, "evals/dataset.json", eval_dataset_data)
 
     blueprint_files, blueprint_summary = build_blueprint_package(
         root,
@@ -472,6 +486,11 @@ def build_package_files(
             blueprint_summary["latestBlueprintDate"],
         ),
         "retrievalVersion": RETRIEVAL_VERSION,
+        "evalSchemaVersion": EVAL_SCHEMA_VERSION,
+        "evalDatasetVersion": EVAL_DATASET_VERSION,
+        "evalGraderVersion": EVAL_GRADER_VERSION,
+        "evalDatasetSHA256": sha256_hex(eval_dataset_data),
+        "evalCaseEntries": eval_dataset["caseCount"],
         "setupEntries": sum(entry["documentType"] == "setup" for entry in index_entries),
         "indexSHA256": sha256_hex(index_data),
         **blueprint_summary,
@@ -535,6 +554,11 @@ def build_manifest(
         "legacyIndexSHA256": summary["legacyIndexSHA256"],
         "indexSchemaVersion": summary["indexSchemaVersion"],
         "retrievalVersion": summary["retrievalVersion"],
+        "evalSchemaVersion": summary["evalSchemaVersion"],
+        "evalDatasetVersion": summary["evalDatasetVersion"],
+        "evalGraderVersion": summary["evalGraderVersion"],
+        "evalDatasetSHA256": summary["evalDatasetSHA256"],
+        "evalCaseEntries": summary["evalCaseEntries"],
         "documentEntries": summary["documentEntries"],
         "chunkEntries": summary["chunkEntries"],
         "documentTypeEntries": summary["documentTypeEntries"],
@@ -676,6 +700,10 @@ def main() -> int:
                 "chunkEntries": manifest["chunkEntries"],
                 "indexSchemaVersion": manifest["indexSchemaVersion"],
                 "retrievalVersion": manifest["retrievalVersion"],
+                "evalSchemaVersion": manifest["evalSchemaVersion"],
+                "evalDatasetVersion": manifest["evalDatasetVersion"],
+                "evalGraderVersion": manifest["evalGraderVersion"],
+                "evalCaseEntries": manifest["evalCaseEntries"],
                 "archiveBytes": manifest["archiveBytes"],
                 "archiveSHA256": manifest["archiveSHA256"],
             },

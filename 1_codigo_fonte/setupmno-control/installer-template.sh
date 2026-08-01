@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="3.4.0"
+CONTROL_VERSION="4.0.0"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -465,7 +465,7 @@ error_file="/tmp/${nome_app}-error.log"
     install -m 0644 "$runtime_catalog" "$work_dir/source/catalog.json"
     for source_file in go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
         terminal-menu.sh configure-control.sh \
-        main.go knowledge.go retrieval.go routing.go prompts.go catalog.json \
+        main.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go catalog.json \
         web/index.html web/app.js web/assistant-route.js web/styles.css web/terminal-bridge.js; do
         [ -s "$work_dir/source/$source_file" ] ||
             fail_install 21 "FONTE INCOMPLETO" "O arquivo interno '$source_file' não foi encontrado no bundle."
@@ -488,6 +488,12 @@ error_file="/tmp/${nome_app}-error.log"
     knowledge_chunks=$(jq -r '.chunkEntries // 0' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
     knowledge_index_schema=$(jq -r '.indexSchemaVersion // 0' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
     knowledge_retrieval_version=$(jq -r '.retrievalVersion // empty' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
+    eval_schema=$(jq -r '.evalSchemaVersion // 0' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
+    eval_dataset_version=$(jq -r '.evalDatasetVersion // empty' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
+    eval_grader_version=$(jq -r '.evalGraderVersion // empty' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
+    eval_dataset_sha=$(jq -r '.evalDatasetSHA256 // empty' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
+    eval_case_entries=$(jq -r '.evalCaseEntries // 0' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
+    release_eval_dataset_sha=$(jq -r '.evalDatasetSHA256 // empty' /root/SetupLowCodeMno/.control/release.json 2>>"$install_log")
     release_knowledge_entries=$(jq -r '.knowledgeEntries // 0' /root/SetupLowCodeMno/.control/release.json 2>>"$install_log")
     knowledge_archive_bytes=$(jq -r '.archiveBytes // 0' "$runtime_knowledge_dir/manifest.json" 2>>"$install_log")
     actual_knowledge_bytes=$(stat -c '%s' "$runtime_knowledge_dir/knowledge-package.tar.gz")
@@ -500,6 +506,12 @@ error_file="/tmp/${nome_app}-error.log"
     [ "$knowledge_chunks" -gt "$knowledge_entries" ] &&
     [ "$knowledge_index_schema" = "2" ] &&
     [ "$knowledge_retrieval_version" = "1.2.0" ] &&
+    [ "$eval_schema" = "1" ] &&
+    [ "$eval_dataset_version" = "1.0.0" ] &&
+    [ "$eval_grader_version" = "1.0.0" ] &&
+    [ "${#eval_dataset_sha}" -eq 64 ] &&
+    [ "$eval_dataset_sha" = "$release_eval_dataset_sha" ] &&
+    [ "$eval_case_entries" = "160" ] &&
     [ "$knowledge_entries" = "$release_knowledge_entries" ] &&
     [ "$knowledge_archive_bytes" = "$actual_knowledge_bytes" ] &&
     [ "$knowledge_archive_bytes" -le $((8 * 1024 * 1024)) ] &&
@@ -533,6 +545,10 @@ error_file="/tmp/${nome_app}-error.log"
     if ! docker run --rm --entrypoint /setupmno-control \
         "$control_image" knowledgecheck >>"$install_log" 2>&1; then
         fail_install 31 "CONHECIMENTO DA IMAGEM INVÁLIDO" "A imagem não validou o pacote de conhecimento somente leitura."
+    fi
+    if ! docker run --rm --entrypoint /setupmno-control \
+        "$control_image" evalcheck >>"$install_log" 2>&1; then
+        fail_install 31 "REGRESSÃO DE QUALIDADE DETECTADA" "A suíte canônica de 160 casos não atingiu os gates mínimos desta release."
     fi
     fallback_check="$work_dir/knowledge-fallback.json"
     if ! docker run --rm \

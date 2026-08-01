@@ -109,9 +109,19 @@ grep -Fq 'COPY --from=builder /src/knowledge-package /knowledge-package' \
     printf 'ERRO: a imagem final não contém o pacote de conhecimento somente leitura.\n' >&2
     exit 1
 }
-grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go ./' \
+grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go ./' \
     "$project_dir/Dockerfile" || {
-    printf 'ERRO: o build não inclui retrieval, roteador, prompts e recomendação de Blueprints.\n' >&2
+    printf 'ERRO: o build não inclui retrieval, roteador, prompts, Blueprints e evals.\n' >&2
+    exit 1
+}
+grep -Eq 'evalExpectedCases[[:space:]]*=[[:space:]]*160' "$project_dir/evals.go" &&
+grep -Fq 'runEvalSuite' "$project_dir/evals.go" &&
+grep -Fq 'CredentialLeakCount' "$project_dir/evals.go" || {
+    printf 'ERRO: suíte determinística de evals ausente ou incompleta.\n' >&2
+    exit 1
+}
+grep -Fq '"$control_image" evalcheck' "$template" || {
+    printf 'ERRO: o instalador não executa o gate bloqueante de evals na imagem final.\n' >&2
     exit 1
 }
 grep -Eq 'assistantPromptRegistryVersion[[:space:]]*=[[:space:]]*"1.0.0"' "$project_dir/prompts.go" &&
@@ -242,6 +252,11 @@ knowledge_entries=$(jq -r '.documentEntries // 0' "$knowledge_package/manifest.j
 knowledge_chunks=$(jq -r '.chunkEntries // 0' "$knowledge_package/manifest.json")
 knowledge_index_schema=$(jq -r '.indexSchemaVersion // 0' "$knowledge_package/manifest.json")
 knowledge_retrieval_version=$(jq -r '.retrievalVersion // empty' "$knowledge_package/manifest.json")
+eval_schema=$(jq -r '.evalSchemaVersion // 0' "$knowledge_package/manifest.json")
+eval_dataset_version=$(jq -r '.evalDatasetVersion // empty' "$knowledge_package/manifest.json")
+eval_grader_version=$(jq -r '.evalGraderVersion // empty' "$knowledge_package/manifest.json")
+eval_dataset_sha=$(jq -r '.evalDatasetSHA256 // empty' "$knowledge_package/manifest.json")
+eval_case_entries=$(jq -r '.evalCaseEntries // 0' "$knowledge_package/manifest.json")
 blueprint_schema=$(jq -r '.blueprintSchemaVersion // 0' "$knowledge_package/manifest.json")
 blueprint_factory_version=$(jq -r '.blueprintFactoryVersion // empty' "$knowledge_package/manifest.json")
 blueprint_entries=$(jq -r '.blueprintEntries // 0' "$knowledge_package/manifest.json")
@@ -261,6 +276,11 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$knowledge_chunks" -gt "$knowledge_entries" ] &&
 [ "$knowledge_index_schema" = "2" ] &&
 [ "$knowledge_retrieval_version" = "1.2.0" ] &&
+[ "$eval_schema" = "1" ] &&
+[ "$eval_dataset_version" = "1.0.0" ] &&
+[ "$eval_grader_version" = "1.0.0" ] &&
+[ "${#eval_dataset_sha}" -eq 64 ] &&
+[ "$eval_case_entries" = "160" ] &&
 [ "$blueprint_schema" = "2" ] &&
 [ "$blueprint_factory_version" = "2.0.0" ] &&
 [ "$blueprint_entries" -gt 0 ] &&
@@ -284,11 +304,15 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
         terminal-menu.sh configure-control.sh \
         main.go knowledge.go retrieval.go routing.go prompts.go \
-        blueprint_recommendation.go web |
+        blueprint_recommendation.go evals.go web |
         gzip -9n >"$bundle"
 )
 if ! tar -tzf "$bundle" | grep -Fx 'blueprint_recommendation.go' >/dev/null; then
     printf 'ERRO: bundle de fontes sem o recomendador contextual de Blueprints.\n' >&2
+    exit 1
+fi
+if ! tar -tzf "$bundle" | grep -Fx 'evals.go' >/dev/null; then
+    printf 'ERRO: bundle de fontes sem a suíte determinística de evals.\n' >&2
     exit 1
 fi
 if tar -tzf "$bundle" | grep -q '^knowledge-package/'; then
@@ -403,11 +427,16 @@ generate_runtime_package() {
         --arg architecture "$architecture" \
         --arg knowledge_version "$knowledge_version" \
         --arg knowledge_archive_sha "$knowledge_archive_sha" \
+        --arg eval_dataset_version "$eval_dataset_version" \
+        --arg eval_grader_version "$eval_grader_version" \
+        --arg eval_dataset_sha "$eval_dataset_sha" \
         --arg blueprint_factory_version "$blueprint_factory_version" \
         --arg blueprint_index_sha "$blueprint_index_sha" \
         --arg control_source_sha "$bundle_sha" \
         --argjson catalog_entries "$catalog_entries" \
         --argjson knowledge_entries "$knowledge_entries" \
+        --argjson eval_schema "$eval_schema" \
+        --argjson eval_case_entries "$eval_case_entries" \
         --argjson blueprint_schema "$blueprint_schema" \
         --argjson blueprint_entries "$blueprint_entries" \
         --argjson blueprint_knowledge_entries "$blueprint_knowledge_entries" \
@@ -425,6 +454,11 @@ generate_runtime_package() {
             knowledgeVersion: $knowledge_version,
             knowledgeArchiveSHA256: $knowledge_archive_sha,
             knowledgeEntries: $knowledge_entries,
+            evalSchemaVersion: $eval_schema,
+            evalDatasetVersion: $eval_dataset_version,
+            evalGraderVersion: $eval_grader_version,
+            evalDatasetSHA256: $eval_dataset_sha,
+            evalCaseEntries: $eval_case_entries,
             blueprintSchemaVersion: $blueprint_schema,
             blueprintFactoryVersion: $blueprint_factory_version,
             blueprintIndexSHA256: $blueprint_index_sha,

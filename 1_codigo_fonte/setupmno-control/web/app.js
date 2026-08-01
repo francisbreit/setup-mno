@@ -10,6 +10,7 @@ const state = {
   blueprints: [],
   blueprintCatalog: null,
   blueprintRecommendation: null,
+  evals: null,
   assistantMode: "basic",
   assistantModel: "",
   assistantHistory: [],
@@ -27,6 +28,7 @@ const titles = {
   catalog: ["Deploys e instalações", "Catálogo de setups"],
   blueprints: ["Arquiteturas compostas", "Blueprints MNO"],
   assistant: ["Diagnóstico assistido", "Assistente MNO"],
+  evals: ["Qualidade mensurável", "Evals e graders"],
   audit: ["Rastreabilidade da sessão", "Auditoria"],
   settings: ["Administração protegida", "Configurações"]
 };
@@ -147,6 +149,7 @@ function setAuthenticated(session) {
   state.blueprints = [];
   state.blueprintCatalog = null;
   state.blueprintRecommendation = null;
+  state.evals = null;
   $("blueprint-recommendation-result").hidden = true;
   state.assistantMode = session.assistantMode || "basic";
   state.assistantModel = session.assistantModel || "";
@@ -177,7 +180,7 @@ function showLogin() {
 
 async function refreshAll() {
   $("refresh-button").classList.add("spinning");
-  await Promise.allSettled([refreshOverview(), refreshApps(), refreshReleaseData()]);
+  await Promise.allSettled([refreshOverview(), refreshApps(), refreshReleaseData(), refreshEvals()]);
   $("refresh-button").classList.remove("spinning");
 }
 
@@ -232,6 +235,55 @@ async function refreshBlueprints() {
     target.className = "sync-status stale";
     target.textContent = error.message;
   }
+}
+
+async function refreshEvals() {
+  try {
+    state.evals = await api("/api/evals");
+    renderEvals();
+  } catch (error) {
+    state.evals = null;
+    const status = $("eval-status");
+    status.className = "eval-release-status failed";
+    status.textContent = "Indisponível";
+  }
+}
+
+function evalPercent(value) {
+  return `${fmt.format(Number(value) || 0)}%`;
+}
+
+function renderEvals() {
+  const report = state.evals;
+  if (!report) return;
+  const metrics = report.metrics || {};
+  const status = $("eval-status");
+  const passed = report.status === "passed";
+  status.className = `eval-release-status ${passed ? "passed" : "failed"}`;
+  status.textContent = passed ? "Release aprovada" : "Release bloqueada";
+  $("nav-eval-count").textContent = report.caseCount || 0;
+  $("eval-case-count").textContent = report.caseCount || 0;
+  $("eval-case-detail").textContent = `${report.retrievalCases || 0} retrieval · ${report.routingCases || 0} routing`;
+  $("eval-recall").textContent = evalPercent(metrics.recallAt5);
+  $("eval-routing").textContent = evalPercent(metrics.routingAccuracy);
+  $("eval-safety").textContent = evalPercent(metrics.safety);
+  $("eval-precision").textContent = evalPercent(metrics.precisionAt5);
+  $("eval-mrr").textContent = evalPercent(metrics.meanReciprocalRank);
+  $("eval-map").textContent = evalPercent(metrics.meanAveragePrecision);
+  $("eval-factuality").textContent = evalPercent(metrics.factuality);
+  $("eval-groundedness").textContent = evalPercent(metrics.groundedness);
+  $("eval-blueprint-selection").textContent = evalPercent(metrics.blueprintSelection);
+  $("eval-rollback").textContent = evalPercent(metrics.criticalRollback);
+  $("eval-no-evidence").textContent = evalPercent(metrics.noEvidenceHonesty);
+  $("eval-stale").textContent = evalPercent(metrics.staleDocumentRate);
+  $("eval-architecture-mix").textContent = evalPercent(metrics.architectureMixRate);
+  $("eval-credential-leaks").textContent = String(metrics.credentialLeakCount ?? 0);
+  $("eval-invented-actions").textContent = String(metrics.inventedActionCount ?? 0);
+  $("eval-regressions").textContent = `${report.baseline?.regressions ?? 0} regressões`;
+  $("eval-versions").textContent = `v${report.datasetVersion} / v${report.graderVersion}`;
+  $("eval-engine-versions").textContent = `v${report.retrievalVersion} / v${report.routerVersion} / v${report.promptVersion}`;
+  $("eval-baseline").textContent = `${report.baseline?.release || "N/I"} · ${report.baseline?.mode === "established" ? "estabelecido" : "comparativo"}`;
+  $("eval-dataset-sha").textContent = report.datasetSHA256 || "N/I";
 }
 
 async function refreshSetupState() {
@@ -1076,6 +1128,7 @@ function navigate(view) {
   $("page-kicker").textContent = titles[view][0];
   $("page-title").textContent = titles[view][1];
   if (view === "audit") loadAudit();
+  if (view === "evals" && !state.evals) refreshEvals();
   closeSidebar();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }

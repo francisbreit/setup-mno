@@ -70,7 +70,7 @@ python3 tools/lint_knowledge.py \
   --catalog ../setupmno-control/catalog.json \
   resolve \
   --setup-id n8n-main \
-  --setup-version 6.4.0 \
+  --setup-version 7.0.0 \
   --architecture amd64
 ```
 
@@ -84,11 +84,33 @@ python3 -B tools/test_knowledge.py
 python3 -B tools/test_blueprints.py
 ```
 
+## Dataset e evals
+
+`evals/dataset.json` é um artefato canônico revisado, com 160 casos e schema
+estrito em `schema/eval-dataset.schema.json`. Ele contém perguntas e respostas
+de referência, portanto entra somente no pacote interno de conhecimento e
+nunca é devolvido pela API do painel. A interface recebe apenas métricas
+agregadas, versões e o SHA-256 do dataset.
+
+Para gerar e validar o dataset de forma reproduzível:
+
+```bash
+python3 -B tools/eval_factory.py \
+  --root . \
+  --setup-version 7.0.0
+python3 -B tools/test_knowledge.py
+```
+
+O binário do Control Center executa `evalcheck` contra o retrieval e o roteador
+reais. O instalador repete esse comando na imagem final e bloqueia a release se
+qualquer threshold ou gate de segurança falhar. Nenhuma LLM, rede ou dado do
+servidor participa desse baseline determinístico.
+
 Validação isolada da fábrica de Blueprints:
 
 ```bash
 python3 -B tools/blueprint_factory.py \
-  --setup-version 6.4.0
+  --setup-version 7.0.0
 ```
 
 Cada Blueprint reside em `blueprints/<blueprintId>/`, com `blueprint.json`
@@ -108,8 +130,8 @@ Geração reproduzível do pacote:
 
 ```bash
 python3 -B tools/generate_package.py \
-  --setup-version 6.4.0 \
-  --control-version 3.4.0
+  --setup-version 7.0.0 \
+  --control-version 4.0.0
 ```
 
 O gerador executa o linter antes do build, inclui somente documentos

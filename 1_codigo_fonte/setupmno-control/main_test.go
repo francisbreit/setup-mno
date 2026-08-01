@@ -61,7 +61,12 @@ func TestReadRuntimeSnapshotAcceptsGeneratedKnowledgeManifest(t *testing.T) {
 		snapshot.Release.BlueprintEntries != 5 ||
 		snapshot.Release.BlueprintKnowledgeEntries != 5 ||
 		snapshot.Release.BlueprintFixtureEntries != 5 ||
-		len(snapshot.Release.BlueprintIndexSHA256) != 64 {
+		len(snapshot.Release.BlueprintIndexSHA256) != 64 ||
+		snapshot.Release.EvalSchemaVersion != 1 ||
+		snapshot.Release.EvalDatasetVersion != "1.0.0" ||
+		snapshot.Release.EvalGraderVersion != "1.0.0" ||
+		snapshot.Release.EvalCaseEntries != 160 ||
+		len(snapshot.Release.EvalDatasetSHA256) != 64 {
 		t.Fatalf("metadados do conhecimento ausentes: %#v", snapshot.Release)
 	}
 }
@@ -133,12 +138,12 @@ func TestReadRuntimeSnapshotRejectsPartialBlueprintMetadata(t *testing.T) {
 	sum := sha256.Sum256(catalog)
 	release := setupRelease{
 		SchemaVersion:           runtimeSchema,
-		SetupVersion:            "6.4.0",
-		CatalogVersion:          "6.4.0",
+		SetupVersion:            "7.0.0",
+		CatalogVersion:          "7.0.0",
 		CatalogSHA256:           hex.EncodeToString(sum[:]),
 		CatalogEntries:          1,
 		Architecture:            "amd64",
-		KnowledgeVersion:        "2.3.0",
+		KnowledgeVersion:        "3.0.0",
 		KnowledgeArchiveSHA256:  strings.Repeat("a", 64),
 		KnowledgeEntries:        34,
 		BlueprintFactoryVersion: "2.0.0",
@@ -156,6 +161,43 @@ func TestReadRuntimeSnapshotRejectsPartialBlueprintMetadata(t *testing.T) {
 	}
 	if _, err := readRuntimeSnapshot(directory); err == nil {
 		t.Fatal("metadados parciais dos Blueprints foram aceitos")
+	}
+}
+
+func TestReadRuntimeSnapshotRejectsPartialEvalMetadata(t *testing.T) {
+	directory := t.TempDir()
+	catalog := []byte(`[{"name":"TESTE","cats":"Utilitários","arch":"x86-arm"}]`)
+	sum := sha256.Sum256(catalog)
+	release := setupRelease{
+		SchemaVersion:             runtimeSchema,
+		SetupVersion:              "7.0.0",
+		CatalogVersion:            "7.0.0",
+		CatalogSHA256:             hex.EncodeToString(sum[:]),
+		CatalogEntries:            1,
+		Architecture:              "amd64",
+		KnowledgeVersion:          "3.0.0",
+		KnowledgeArchiveSHA256:    strings.Repeat("a", 64),
+		KnowledgeEntries:          34,
+		BlueprintFactoryVersion:   "2.0.0",
+		BlueprintSchemaVersion:    2,
+		BlueprintIndexSHA256:      strings.Repeat("b", 64),
+		BlueprintEntries:          5,
+		BlueprintKnowledgeEntries: 5,
+		BlueprintFixtureEntries:   5,
+		EvalSchemaVersion:         1,
+	}
+	releaseData, err := json.Marshal(release)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(directory, "catalog.json"), catalog, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(directory, "release.json"), releaseData, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readRuntimeSnapshot(directory); err == nil {
+		t.Fatal("metadados parciais de evals foram aceitos")
 	}
 }
 
@@ -692,6 +734,11 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 		state.Manifest.BlueprintFixtureEntries != 5 ||
 		state.Manifest.IndexSchemaVersion != 2 ||
 		state.Manifest.RetrievalVersion != "1.2.0" ||
+		state.Manifest.EvalSchemaVersion != 1 ||
+		state.Manifest.EvalDatasetVersion != "1.0.0" ||
+		state.Manifest.EvalGraderVersion != "1.0.0" ||
+		state.Manifest.EvalCaseEntries != 160 ||
+		len(state.Manifest.EvalDatasetSHA256) != 64 ||
 		state.Manifest.ChunkEntries <= state.Manifest.DocumentEntries {
 		t.Fatalf("estado inesperado do conhecimento: %#v", state)
 	}
@@ -703,6 +750,9 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 	}
 	if len(state.Blueprints.Entries) != state.Manifest.BlueprintEntries {
 		t.Fatalf("catálogo de Blueprints incompleto: %d", len(state.Blueprints.Entries))
+	}
+	if len(state.Evals.Cases) != state.Manifest.EvalCaseEntries {
+		t.Fatalf("dataset de evals incompleto: %d", len(state.Evals.Cases))
 	}
 }
 

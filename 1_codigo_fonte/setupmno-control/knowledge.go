@@ -65,6 +65,11 @@ type knowledgeManifest struct {
 	LegacyIndexSHA256         string                `json:"legacyIndexSHA256"`
 	IndexSchemaVersion        int                   `json:"indexSchemaVersion"`
 	RetrievalVersion          string                `json:"retrievalVersion"`
+	EvalSchemaVersion         int                   `json:"evalSchemaVersion"`
+	EvalDatasetVersion        string                `json:"evalDatasetVersion"`
+	EvalGraderVersion         string                `json:"evalGraderVersion"`
+	EvalDatasetSHA256         string                `json:"evalDatasetSHA256"`
+	EvalCaseEntries           int                   `json:"evalCaseEntries"`
 	DocumentEntries           int                   `json:"documentEntries"`
 	ChunkEntries              int                   `json:"chunkEntries"`
 	DocumentTypeEntries       map[string]int        `json:"documentTypeEntries"`
@@ -156,6 +161,7 @@ type knowledgePackageState struct {
 	Index      knowledgeIndex
 	IndexV2    knowledgeIndexV2
 	Blueprints blueprintIndex
+	Evals      evalDataset
 	Files      map[string][]byte
 	Source     string
 	Stale      bool
@@ -384,6 +390,9 @@ func validateKnowledgePackage(
 	if manifest.SchemaVersion != knowledgeSchema ||
 		manifest.IndexSchemaVersion != knowledgeIndexSchema ||
 		manifest.RetrievalVersion != knowledgeRetrieval ||
+		manifest.EvalSchemaVersion != evalSchemaVersion ||
+		manifest.EvalDatasetVersion != evalDatasetVersion ||
+		manifest.EvalGraderVersion != evalGraderVersion ||
 		manifest.BlueprintSchemaVersion != blueprintSchema ||
 		manifest.BlueprintFactoryVersion == "" ||
 		manifest.KnowledgeVersion == "" ||
@@ -409,7 +418,9 @@ func validateKnowledgePackage(
 		manifest.BlueprintKnowledgeEntries > manifest.BlueprintEntries ||
 		manifest.BlueprintFixtureEntries < 0 ||
 		manifest.BlueprintFixtureEntries > manifest.BlueprintKnowledgeEntries ||
-		len(manifest.BlueprintIndexSHA256) != 64 {
+		len(manifest.BlueprintIndexSHA256) != 64 ||
+		manifest.EvalCaseEntries != evalExpectedCases ||
+		len(manifest.EvalDatasetSHA256) != 64 {
 		return knowledgePackageState{}, errors.New("contagens do manifesto inválidas")
 	}
 	typeTotal := 0
@@ -464,6 +475,14 @@ func validateKnowledgePackage(
 		}
 	}
 	if err := validateBlueprintPackage(files, manifest); err != nil {
+		return knowledgePackageState{}, err
+	}
+	evalData, exists := files["evals/dataset.json"]
+	if !exists {
+		return knowledgePackageState{}, errors.New("dataset de evals ausente")
+	}
+	evalDataset, err := validateEvalDataset(evalData, manifest)
+	if err != nil {
 		return knowledgePackageState{}, err
 	}
 
@@ -586,6 +605,7 @@ func validateKnowledgePackage(
 		Index:      index,
 		IndexV2:    indexV2,
 		Blueprints: blueprintCatalog,
+		Evals:      evalDataset,
 		Files:      files,
 	}, nil
 }
@@ -1056,6 +1076,11 @@ func knowledgeCheckPayload(state knowledgePackageState) map[string]any {
 		"knowledgeVersion":          state.Manifest.KnowledgeVersion,
 		"indexSchemaVersion":        state.Manifest.IndexSchemaVersion,
 		"retrievalVersion":          state.Manifest.RetrievalVersion,
+		"evalSchemaVersion":         state.Manifest.EvalSchemaVersion,
+		"evalDatasetVersion":        state.Manifest.EvalDatasetVersion,
+		"evalGraderVersion":         state.Manifest.EvalGraderVersion,
+		"evalCaseEntries":           state.Manifest.EvalCaseEntries,
+		"evalDatasetSHA256":         state.Manifest.EvalDatasetSHA256,
 		"setupVersion":              state.Manifest.SetupVersion,
 		"controlVersion":            state.Manifest.ControlVersion,
 		"documentEntries":           state.Manifest.DocumentEntries,

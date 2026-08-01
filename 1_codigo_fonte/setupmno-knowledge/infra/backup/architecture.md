@@ -7,7 +7,7 @@
   "documentType": "infrastructure",
   "title": "Princípios de backup e restauração",
   "topicId": "backup",
-  "setupVersion": "6.4.0",
+  "setupVersion": "7.0.0",
   "architectures": ["amd64", "arm64"],
   "category": "backup",
   "status": "reviewed",

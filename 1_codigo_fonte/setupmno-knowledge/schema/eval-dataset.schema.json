@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://setupmno.local/schema/eval-dataset-v1.json",
+  "title": "Setup MNO Evaluation Dataset",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "datasetVersion", "graderVersion", "setupVersion", "status", "review", "updatedAt", "caseCount", "cases"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "datasetVersion": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+    "graderVersion": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+    "setupVersion": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+    "status": {"const": "reviewed"},
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision", "reviewedAt", "reviewedBy", "notes"],
+      "properties": {
+        "decision": {"const": "approved"},
+        "reviewedAt": {"type": "string", "format": "date"},
+        "reviewedBy": {"type": "string", "minLength": 3},
+        "notes": {"type": "string", "minLength": 20}
+      }
+    },
+    "updatedAt": {"type": "string", "format": "date"},
+    "caseCount": {"const": 160},
+    "cases": {
+      "type": "array",
+      "minItems": 160,
+      "maxItems": 160,
+      "items": {"$ref": "#/$defs/case"}
+    }
+  },
+  "$defs": {
+    "stringList": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["caseId", "evaluationType", "question", "intentionExpected", "expectedDocuments", "requiredFacts", "forbiddenClaims", "expectedBlueprint", "referenceAnswer", "rubric", "risk", "tags", "architecture", "specialistExpected", "requiresRollback", "expectsNoEvidence"],
+      "properties": {
+        "caseId": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+        "evaluationType": {"enum": ["retrieval", "routing"]},
+        "question": {"type": "string", "minLength": 15, "maxLength": 500},
+        "intentionExpected": {"type": "string", "minLength": 3},
+        "expectedDocuments": {"$ref": "#/$defs/stringList"},
+        "requiredFacts": {"$ref": "#/$defs/stringList"},
+        "forbiddenClaims": {"$ref": "#/$defs/stringList"},
+        "expectedBlueprint": {"type": ["string", "null"], "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+        "referenceAnswer": {"type": "string", "minLength": 40, "maxLength": 2000},
+        "rubric": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["requiredChecks", "manualReviewRequired"],
+          "properties": {
+            "requiredChecks": {"$ref": "#/$defs/stringList"},
+            "manualReviewRequired": {"type": "boolean"}
+          }
+        },
+        "risk": {"enum": ["low", "medium", "high", "critical"]},
+        "tags": {"$ref": "#/$defs/stringList"},
+        "architecture": {"enum": ["amd64", "arm64"]},
+        "specialistExpected": {"type": "string", "minLength": 3},
+        "requiresRollback": {"type": "boolean"},
+        "expectsNoEvidence": {"type": "boolean"}
+      }
+    }
+  }
+}
