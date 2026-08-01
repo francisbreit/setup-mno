@@ -54,6 +54,59 @@ python3 tools/lint_knowledge.py --root . hashes
 6. Mudar para `homologated` somente após teste controlado.
 7. Marcar como `deprecated` quando o conteúdo não representar mais o Setup.
 
+## Cobertura do catálogo
+
+A base atual cobre 20 das 151 entradas do catálogo. Essa cobertura piloto é
+íntegra, mas não representa uma base completa. O relatório reproduzível é:
+
+```bash
+python3 -B tools/knowledge_coverage.py
+```
+
+Para usar a cobertura total como gate bloqueante de uma futura versão estável:
+
+```bash
+python3 -B tools/knowledge_coverage.py --require-complete
+```
+
+Enquanto a base beta é expandida, o gate monotônico obrigatório impede que uma
+nova ferramenta aumente a lacuna conhecida:
+
+```bash
+python3 -B tools/knowledge_coverage.py --enforce-baseline
+```
+
+A baseline `coverage-baseline.json` permite reduzir as 131 pendências atuais,
+mas bloqueia cobertura inferior, remoção de conteúdo coberto ou nova entrada
+sem registro e documento. Quando um lote revisado for promovido, seus mínimos
+devem avançar no mesmo commit; nunca devem ser reduzidos para liberar a build.
+
+O comando cruza nome do catálogo, registro canônico e documento
+`setups/<setupId>/overview.md`. Uma entrada só conta como coberta se os três
+existirem e forem coerentes. O modo normal informa a lacuna sem bloquear as
+releases beta; `--require-complete` retorna código 3 enquanto faltar qualquer
+entrada.
+
+### Definição de conhecimento completo
+
+Cada nova entrada deve documentar, com fontes revisadas:
+
+1. finalidade, público, casos de uso e alternativas;
+2. variantes e comportamento específico do Setup MNO;
+3. arquitetura, RAM, imagens, portas e dependências verificadas;
+4. pré-requisitos, instalação, primeiro acesso e configuração;
+5. segurança, exposição e tratamento de secrets;
+6. backup, atualização, migração e rollback;
+7. diagnóstico e falhas frequentes;
+8. integrações suportadas e limitações;
+9. aliases e fontes oficiais;
+10. casos de eval para fatos, capacidade, segurança e recuperação.
+
+Rascunhos gerados a partir de scripts ou catálogo não contam como cobertura.
+Eles só entram no RAG normal após revisão humana, validação do linter e status
+`reviewed` ou `homologated`. Uma nova ferramenta não deve ser liberada sem o
+documento e os testes correspondentes.
+
 ## Validação
 
 ```bash
@@ -82,6 +135,7 @@ Testes de regressão:
 ```bash
 python3 -B tools/test_knowledge.py
 python3 -B tools/test_blueprints.py
+python3 -B tools/knowledge_coverage.py
 ```
 
 ## Dataset e evals

@@ -243,6 +243,10 @@ grep -Fq "/assistant-route.js?v=$control_version" "$project_dir/web/index.html"
 grep -Fq "/app.js?v=$control_version" "$project_dir/web/index.html"
 
 knowledge_package="$project_dir/knowledge-package"
+python3 -B "$source_root/setupmno-knowledge/tools/knowledge_coverage.py" \
+    --root "$source_root/setupmno-knowledge" \
+    --catalog "$project_dir/catalog.json" \
+    --enforce-baseline >/dev/null
 python3 -B "$source_root/setupmno-knowledge/tools/generate_package.py" \
     --root "$source_root/setupmno-knowledge" \
     --catalog "$project_dir/catalog.json" \

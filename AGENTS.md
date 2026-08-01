@@ -282,6 +282,16 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
 
     **Erro comum:** Esquecer de adicionar `warn_heavy` em apps pesadas, fazendo o usuário instalar sem saber do consumo de RAM.
 
+7.8 **CONHECIMENTO DO ASSISTENTE PARA TODA NOVA FERRAMENTA (⚠️ GATE DE RELEASE):** Uma nova entrada de catálogo só está concluída quando o Assistente MNO também foi ensinado por conteúdo canônico revisado. No mesmo commit da ferramenta:
+   - adicionar a identidade, aliases, script e arquiteturas em `1_codigo_fonte/setupmno-knowledge/registry/setups.json`;
+   - criar `1_codigo_fonte/setupmno-knowledge/setups/<setupId>/overview.md` com finalidade, variantes, arquitetura, RAM, dependências, pré-requisitos, instalação, primeiro acesso, segurança, backup, atualização, rollback, diagnóstico, integrações, limitações e fontes;
+   - confrontar documentação oficial atual com os scripts x86/ARM reais; texto genérico gerado a partir do catálogo não conta como conhecimento;
+   - manter o documento como `draft` até revisão humana e promover somente para `reviewed` ou `homologated` depois dos gates;
+   - criar casos de eval para fatos, arquitetura, capacidade, segurança e rollback;
+   - executar `python3 -B tools/knowledge_coverage.py --enforce-baseline`, `python3 -B tools/test_knowledge.py` e o gerador oficial a partir de `1_codigo_fonte/setupmno-knowledge/`;
+   - elevar `coverage-baseline.json` no mesmo commit quando a cobertura aumentar. É proibido reduzir mínimos ou ampliar `maximumMissingEntries` para liberar a build;
+   - não empacotar se uma nova entrada aumentar a lacuna de conhecimento. A meta para remover o rótulo Beta é 151 de 151 entradas cobertas.
+
 6. **Versionamento:** Incremente o MINOR da versão (ex: 4.20.2 → 4.21.0).
 7. **Empacotamento:** Finalize com o comando de build após validar a sintaxe.
 8. **Pergunta Portainer (OBRIGATÓRIO):** Todo script de instalação DEVE perguntar "Criar Stack no Portainer?" com opções 0 (editável) ou 1 (direto no Docker). Esta pergunta deve aparecer após todas as outras coletas de dados e antes da tela de confirmação. O deployment deve usar a API do Portainer quando opção 0 for selecionada, ou `docker stack deploy` quando opção 1 for selecionada. **Este é um erro comum — nunca esqueça esta pergunta.**

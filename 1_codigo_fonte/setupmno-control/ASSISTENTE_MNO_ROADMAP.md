@@ -2,14 +2,166 @@
 
 ## Propósito
 
-Este documento registra o plano oficial para evoluir o Assistente MNO Beta de
-um copiloto consultivo com contexto operacional para um especialista de
-infraestrutura, catálogo de setups e Blueprints homologados pelo Setup MNO.
+Este documento registra o plano oficial para transformar o Setup MNO Control
+Center na interface web de operação e suporte do Setup MNO. O diferencial do
+produto é combinar catálogo, contexto seguro do servidor e conhecimento
+especializado para ajudar usuários comuns a escolher, instalar, configurar,
+integrar e diagnosticar aplicações open-source.
 
-O roadmap deve ser executado uma etapa por vez. Cada etapa precisa concluir
-seus entregáveis, testes e gates antes do início da etapa seguinte.
+As etapas 1 a 7 construíram a fundação técnica. A evolução para produção deixa
+de ser uma sequência de recursos de IA e passa a ser dirigida por três pilares
+de produto, com trabalho incremental e gates próprios.
 
-## Baseline da release da Etapa 2
+## Baseline beta atual
+
+- Setup MNO: `7.2.0` no canal Beta
+- Control Center: `4.2.0`
+- Conhecimento canônico: `3.2.0`
+- Catálogo runtime: 151 entradas
+- Cobertura canônica dedicada: 20 de 151 entradas (`13,25%`)
+- Blueprints: cinco modelos hipotéticos, todos fictícios e não implantáveis
+- Estado: Beta consultivo; deploy real continua no Instalador Seguro
+
+A tag `v7.2.0` é imutável e permanece como baseline beta. Correções e
+implementações futuras devem receber nova versão; é proibido reescrever a tag
+ou apresentar a cobertura parcial como conhecimento completo.
+
+## Norte do produto
+
+```text
+Necessidade do usuário
+  -> Assistente entende o objetivo
+  -> conhecimento canônico explica opções e restrições
+  -> catálogo ou Solução pronta apresenta o caminho
+  -> verificação de arquitetura, RAM e dependências
+  -> Instalador Seguro executa scripts determinísticos com confirmação humana
+  -> Assistente orienta integração, validação, diagnóstico e rollback
+```
+
+A IA interpreta intenção, explica e recomenda. Ela não inventa comandos nem
+recebe autoridade genérica de escrita. Toda ação real continua em fluxos
+determinísticos, auditáveis e homologados.
+
+## Os três pilares até a produção
+
+### Pilar 1 — Conhecimento Completo
+
+**Prioridade:** crítica
+**Estado atual:** 20 de 151 entradas cobertas
+
+Objetivo: possuir um documento canônico revisado para cada entrada do catálogo,
+com fontes verificáveis e profundidade suficiente para orientar escolha,
+instalação, configuração, integração, segurança, diagnóstico e rollback.
+
+“Completo” é um estado mensurável; “perfeito” nunca será presumido. Um setup
+só conta como coberto quando registro, documento, fontes, aliases e testes
+existirem e passarem pelos gates. Texto genérico gerado em massa não conta.
+
+Contrato obrigatório por entrada:
+
+1. finalidade, público e cenários de uso e de não uso;
+2. variantes do Setup MNO e diferenças entre elas;
+3. arquiteturas, RAM, dependências, imagens e portas verificadas;
+4. pré-requisitos e fluxo real do instalador;
+5. primeiro acesso e configuração inicial;
+6. segurança, exposição, secrets e responsabilidades do operador;
+7. backup, atualização, migração e rollback;
+8. diagnóstico e falhas frequentes;
+9. integrações suportadas e limitações conhecidas;
+10. aliases, fontes oficiais e fontes internas verificadas;
+11. casos de eval para fatos, arquitetura, capacidade, segurança e rollback.
+
+Gates do pilar:
+
+- cobertura publicada pelo `tools/knowledge_coverage.py`;
+- 151 de 151 entradas antes de remover o rótulo Beta;
+- nenhuma nova entrada de catálogo sem conhecimento revisado e evals;
+- nenhuma imagem, porta ou requisito sem evidência compatível;
+- revisão em lotes pequenos, priorizando uso e impacto;
+- conteúdo obsoleto marcado e excluído da recuperação normal;
+- atualização conjunta de documento, índice, pacote e testes em toda mudança.
+
+Sequência editorial:
+
+1. formar lotes de até dez entradas por demanda, centralidade de integração,
+   risco, número de variantes e volume de suporte esperado;
+2. pesquisar documentação oficial atual e licença;
+3. confrontar a documentação com os scripts x86/ARM realmente distribuídos;
+4. produzir e revisar o conhecimento sem copiar secrets ou dados de clientes;
+5. criar evals e executar linter, cobertura, retrieval e gates de segurança;
+6. promover o lote e elevar a baseline monotônica no mesmo commit.
+
+As variantes de uma mesma família devem ser estudadas juntas para explicar as
+diferenças reais, mas cada entrada do catálogo continua precisando de identidade
+e cobertura rastreáveis.
+
+### Pilar 2 — Soluções Instaláveis
+
+**Prioridade:** alta
+**Estado atual:** cinco modelos hipotéticos; zero Soluções implantáveis
+
+Blueprint é o formato técnico; “Solução pronta” é o nome do benefício para o
+cliente. Os modelos hipotéticos permanecem como demonstração do potencial do
+Setup MNO e como fixtures de engenharia, sempre com `fictitious: true`,
+`deployable: false` e aviso visível de que não autorizam instalação.
+
+Um Blueprint real será criado pelo mantenedor somente quando objetivo,
+componentes, ordem, configuração, integração, validação e rollback estiverem
+definidos. Ele só poderá virar Solução instalável depois de homologação isolada
+e evidências nas arquiteturas declaradas.
+
+Gates do pilar:
+
+- exemplos hipotéticos nunca aparecem como homologados ou instaláveis;
+- o Assistente pode usá-los como inspiração, mas não como prova de deploy;
+- componentes precisam existir no catálogo e possuir conhecimento revisado;
+- pré-flight determinístico de arquitetura, RAM, conflitos e dependências;
+- plano direto ao ponto, confirmação humana e rollback obrigatório;
+- execução somente por scripts homologados do Setup MNO;
+- primeiro marco de produção: três Soluções reais homologadas, quando seus
+  projetos forem fornecidos pelo mantenedor.
+
+### Pilar 3 — Assistente Orientado a Objetivos
+
+**Prioridade:** crítica
+**Estado atual:** roteamento e RAG implementados; jornada ainda consultiva
+
+Objetivo: permitir que o usuário descreva o resultado desejado em linguagem
+natural e receba uma orientação acionável, sustentada pela base canônica e
+conectada ao catálogo ou a uma Solução pronta.
+
+O Assistente deve:
+
+- entender objetivo, experiência, arquitetura e capacidade disponível;
+- fazer poucas perguntas de esclarecimento quando a decisão realmente mudar;
+- recomendar setups ou Soluções com justificativa e alternativas;
+- explicar requisitos, custos de recursos, riscos e integrações;
+- abrir o Instalador Seguro no fluxo correto sem executar comandos arbitrários;
+- orientar configuração, validação, diagnóstico e rollback após o deploy;
+- declarar ausência de evidência em vez de completar lacunas por imaginação.
+
+Gates do pilar:
+
+- respostas sustentadas por documentos compatíveis com a versão e arquitetura;
+- nenhum setup inexistente, ação inventada ou compatibilidade presumida;
+- jornada testada de objetivo até o próximo passo em desktop e Android;
+- linguagem de benefício na interface; Dataset, Evals, Graders, RAG e filas de
+  engenharia não entram na navegação principal;
+- modo básico e fallback continuam disponíveis sem provedor de IA.
+
+## Exposição no produto final
+
+| Capacidade | Cliente | Engenharia interna |
+| --- | --- | --- |
+| Visão geral, aplicações e catálogo | visível | testada por gates |
+| Soluções prontas e exemplos hipotéticos identificados | visível | fábrica e evidências |
+| Assistente orientado a objetivos | visível | prompts, roteador e RAG |
+| Fontes da resposta | detalhe opcional | inspeção completa |
+| Qualidade | selo simples | Dataset, Evals, Graders e canários |
+| Feedback | opcional e simples | fila e análise somente quando úteis |
+| Fine-tuning e índices | invisível | condicionado a evidência |
+
+## Baseline histórica da release da Etapa 2
 
 - Setup MNO: `4.94.2`
 - Control Center: `1.2.2`
@@ -54,8 +206,9 @@ Já estão implementados:
     fins de instrução; o prompt deve impedir prompt injection.
 11. Nenhuma pergunta, resposta ou feedback com dados de cliente será armazenado
     sem consentimento explícito e sanitização.
-12. Blueprints não executam ações. Eles orientam o usuário até o Instalador
-    Seguro.
+12. Modelos hipotéticos de Blueprint não executam ações. Futuras Soluções reais
+    poderão conduzir fluxos determinísticos do Instalador Seguro, mas a LLM
+    nunca receberá uma API genérica de shell, Docker ou escrita.
 
 ## Visão da arquitetura final
 
@@ -732,7 +885,8 @@ entre execuções e versões de modelo homologadas.
 
 ## Etapa 5 — Blueprints MNO
 
-**Status:** concluída e homologada — subetapas 5.1 a 5.5 aprovadas
+**Status:** fundação técnica homologada — cinco modelos hipotéticos e nenhuma
+Solução real implantável
 **Impacto:** alto
 **Tipo:** produto, UX e arquitetura
 **Esforço:** estrutural
@@ -740,7 +894,9 @@ entre execuções e versões de modelo homologadas.
 ### Objetivo
 
 Registrar o método de Francis MNO em arquiteturas pré-construídas, versionadas,
-homologadas e explicáveis pelo Assistente.
+homologadas e explicáveis pelo Assistente. Enquanto os primeiros projetos reais
+não forem fornecidos, preservar modelos hipotéticos seguros para demonstrar o
+formato e exercitar a fábrica sem prometer deploy.
 
 ### Schema canônico da subetapa 5.1
 
@@ -835,10 +991,20 @@ instalador ou na fábrica.
 5. **5.5 — Fluxo editorial e homologação — implementada na v6.4.0:** promover
    rascunhos somente após revisão, testes isolados, evidências e selo de versão.
 
-### Critério de conclusão
+### Critério de conclusão da fundação técnica
 
-O Assistente deve selecionar, explicar e adaptar um Blueprint sem alterar o
-servidor e sem inventar componentes.
+O Assistente deve selecionar e explicar um modelo hipotético sem alterar o
+servidor, sem inventar componentes e sem apresentá-lo como configuração
+homologada. A conclusão das subetapas 5.1 a 5.5 não significa que já exista uma
+Solução real implantável.
+
+### Critério de conclusão do pilar de produto
+
+O pilar Soluções Instaláveis só poderá ser considerado pronto para produção
+quando existirem ao menos três Blueprints reais criados pelo mantenedor,
+homologados nas arquiteturas declaradas e capazes de conduzir instalação,
+configuração, integração, validação e rollback pelos fluxos determinísticos do
+Setup MNO.
 
 ### Evidências da subetapa 5.1
 
@@ -1062,7 +1228,8 @@ subetapa 6.2 e homologada na v7.1.0.
 
 ## Etapa 7 — Feedback e Melhoria Contínua
 
-**Status:** em implementação — contrato mínimo da subetapa 7.1 na v7.2.0
+**Status:** experimento beta implementado na v7.2.0; fora do caminho crítico
+dos três pilares
 **Impacto:** médio
 **Tipo:** produto e manutenção
 **Esforço:** moderado
@@ -1199,6 +1366,8 @@ segurança, atualidade, portabilidade entre provedores ou capacidade de rollback
 
 Antes de remover o rótulo Beta:
 
+- cobertura canônica de 151 de 151 entradas, sem inconsistências no relatório;
+- gate que bloqueia nova ferramenta sem conhecimento e evals correspondentes;
 - modo básico em servidor pequeno;
 - OpenAI válida, inválida e indisponível;
 - Ollama válido, inválido e indisponível;
@@ -1207,7 +1376,9 @@ Antes de remover o rótulo Beta:
 - consultas sobre todos os grupos do catálogo;
 - recuperação por sinônimos;
 - compatibilidade x86 e ARM;
-- Blueprints em recursos suficientes e insuficientes;
+- exemplos hipotéticos sempre identificados e incapazes de autorizar deploy;
+- ao menos três Soluções reais homologadas, quando criadas pelo mantenedor;
+- jornada objetivo → recomendação → Instalador Seguro → validação;
 - documentos obsoletos;
 - prompt injection em documentos;
 - ausência de dados sensíveis no payload;
@@ -1606,16 +1777,22 @@ a clientes ou bloqueio para concluir a Etapa 6. Sua futura implementação só
 deverá ocorrer se houver ganho operacional mensurável e não deverá transformar
 o painel do cliente em bancada de benchmark de modelos.
 
-## Ordem de execução
+## Ordem de execução reorganizada
 
-1. Etapa 1 — Fábrica de Conhecimento Canônico
-2. Etapa 2 — Pacote de Conhecimento Versionado
-3. Etapa 3 — RAG Híbrido Local
-4. Etapa 4 — Roteador de Especialistas e Prompts
-5. Etapa 5 — Blueprints MNO
-6. Etapa 6 — Dataset, Evals e Graders
-7. Etapa 7 — Feedback e Melhoria Contínua
-8. Etapa 8 — RAG Semântico e Fine-tuning Condicional
+As etapas 1 a 7 permanecem como histórico e fundação técnica. A partir da
+baseline `v7.2.0` no canal Beta, a prioridade oficial é:
+
+1. **Conhecimento Completo:** medir cobertura, definir lotes, revisar fontes e
+   alcançar 151 de 151 entradas sem usar conteúdo genérico como atalho.
+2. **Assistente Orientado a Objetivos:** melhorar a jornada sobre a cobertura
+   já revisada, conectando necessidade, recomendação, Instalador Seguro,
+   configuração, integração e diagnóstico.
+3. **Soluções Instaláveis:** manter exemplos hipotéticos seguros e transformar
+   os primeiros projetos reais do mantenedor em Blueprints homologados.
+4. **Convergência para produção:** simplificar exposição pública, validar
+   onboarding, desktop, Android, fallback, atualização e rollback.
+5. **Otimizações condicionais:** feedback avançado, embeddings e fine-tuning
+   somente quando métricas demonstrarem benefício real.
 
 ## Release arquitetural da subetapa 7.1
 
@@ -1632,11 +1809,13 @@ Escopo implementado na release v7.2.0:
 
 ### Próxima ação
 
-Homologar a subetapa 7.1 no navegador desktop e Android. Depois da aprovação,
-projetar a subetapa 7.2 para converter somente candidatos reproduzidos em casos
-sintéticos rastreáveis, mantendo perguntas e respostas reais fora da
-persistência. A suíte ampliada por provedor permanece interna e não bloqueia
-esta progressão.
+Não iniciar a subetapa 7.2 nem a Etapa 8. Executar o Pilar 1 em lotes editoriais
+pequenos: usar o relatório de cobertura, priorizar as aplicações de maior uso,
+pesquisar fontes oficiais, revisar o instalador real, produzir documentos e
+evals e repetir os gates. Em paralelo, especificar a jornada orientada a
+objetivos sem ampliar a autoridade de execução da IA. Os cinco Blueprints
+hipotéticos permanecem disponíveis como demonstração claramente não
+implantável até o mantenedor fornecer os primeiros projetos reais.
 
 ## Referências oficiais
 

@@ -33,6 +33,7 @@ from eval_factory import (
     EXPECTED_CASES,
     validate_dataset,
 )
+from knowledge_coverage import build_report, evaluate_baseline
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -61,6 +62,29 @@ def run_linter(*arguments: str) -> subprocess.CompletedProcess[str]:
 
 
 class KnowledgeFactoryTests(unittest.TestCase):
+    def test_catalog_coverage_is_explicit_and_internally_consistent(self) -> None:
+        report = build_report(
+            CATALOG,
+            ROOT / "registry" / "setups.json",
+            ROOT,
+        )
+        self.assertEqual(report["catalogEntries"], 151)
+        self.assertEqual(report["coveredEntries"], 20)
+        self.assertEqual(report["missingEntries"], 131)
+        self.assertEqual(report["coveragePercent"], 13.25)
+        self.assertEqual(report["status"], "incomplete")
+        self.assertTrue(all(not values for values in report["integrity"].values()))
+        baseline = load_json(ROOT / "coverage-baseline.json")
+        self.assertEqual(evaluate_baseline(report, baseline), [])
+
+        regressed = copy.deepcopy(report)
+        regressed["catalogEntries"] = 152
+        regressed["missingEntries"] = 132
+        regressed["coveragePercent"] = 13.16
+        errors = evaluate_baseline(regressed, baseline)
+        self.assertTrue(any("nova entrada" in error for error in errors), errors)
+        self.assertTrue(any("percentual" in error for error in errors), errors)
+
     def test_eval_dataset_is_reviewed_and_complete(self) -> None:
         registry = load_json(ROOT / "registry" / "setups.json")
         dataset = load_json(ROOT / "evals" / "dataset.json")
