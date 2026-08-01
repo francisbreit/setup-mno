@@ -198,7 +198,7 @@ válidos para cada setup, versão e arquitetura.
 
 ## Etapa 2 — Pacote de Conhecimento Versionado
 
-**Status:** concluída tecnicamente em 2026-07-30; aguardando aprovação do mantenedor
+**Status:** concluída e homologada funcionalmente na v4.94.2
 **Impacto:** alto
 **Tipo:** segurança e manutenção
 **Esforço:** moderado
@@ -732,7 +732,7 @@ entre execuções e versões de modelo homologadas.
 
 ## Etapa 5 — Blueprints MNO
 
-**Status:** implementação concluída — homologação da subetapa 5.5 pendente
+**Status:** concluída e homologada — subetapas 5.1 a 5.5 aprovadas
 **Impacto:** alto
 **Tipo:** produto, UX e arquitetura
 **Esforço:** estrutural
@@ -944,7 +944,7 @@ servidor e sem inventar componentes.
 
 ## Etapa 6 — Dataset, Evals e Graders
 
-**Status:** em andamento — subetapa 6.1 implementada na v7.0.0
+**Status:** concluída e homologada — subetapas 6.1 e 6.2 aprovadas
 **Impacto:** crítico para homologação
 **Tipo:** qualidade e confiabilidade
 **Esforço:** estrutural
@@ -1054,9 +1054,9 @@ estrutural `100%` e zero vazamento, ação inventada, mistura de arquitetura,
 documento obsoleto ou Blueprint incompatível.
 
 O grader desta subetapa valida as respostas de referência aprovadas e o
-pipeline local. A avaliação comparativa de respostas produzidas por cada
-provedor opcional, com revisão humana dos casos críticos, permanece para a
-subetapa 6.2 e não é simulada por esta release.
+pipeline local. A avaliação de respostas produzidas pelo provedor opcional,
+com revisão humana dos casos críticos, foi posteriormente implementada na
+subetapa 6.2 e homologada na v7.1.0.
 
 ---
 
@@ -1565,6 +1565,22 @@ Escopo implementado na release v7.1.0:
 - modo básico sem chamada a provedor e nenhuma nova porta, stack, secret,
   socket, mount, escrita ou autorização de deploy.
 
+### Homologação funcional da subetapa 6.2
+
+Aprovada pelo mantenedor em 2026-08-01. A v7.1.0 passa a ser a baseline
+homologada da Etapa 6. Eventuais incompatibilidades específicas de provedor,
+modelo ou navegador serão tratadas posteriormente como correções, sem reabrir
+automaticamente a etapa nem ampliar a autoridade consultiva do Assistente.
+
+### Destino da antiga subetapa 6.3
+
+A suíte ampliada por provedor e a comparação controlada entre modelos deixam
+de integrar o fluxo público do Control Center. Permanecem como ferramenta
+interna opcional de engenharia e manutenção, sem item de navegação, exposição
+a clientes ou bloqueio para concluir a Etapa 6. Sua futura implementação só
+deverá ocorrer se houver ganho operacional mensurável e não deverá transformar
+o painel do cliente em bancada de benchmark de modelos.
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico
@@ -1578,13 +1594,11 @@ Escopo implementado na release v7.1.0:
 
 ## Próxima ação
 
-Homologar a **v7.1.0** no navegador desktop e Android. No modo básico, confirmar
-que o canário permanece desabilitado e não consome IA. Com um provedor opcional
-configurado, autorizar uma execução, revisar as quatro respostas, aprovar ou
-reprovar cada caso e confirmar o cooldown de dez minutos. Verificar também que
-nenhuma revisão é apresentada como autorização de deploy. Depois da aprovação,
-iniciar a **subetapa 6.3 — suíte ampliada por provedor e comparação controlada
-entre modelos**.
+Iniciar a **Etapa 7 — Feedback e Melhoria Contínua** com o menor contrato capaz
+de gerar valor ao usuário: feedback opcional, consentimento explícito,
+categorias estruturadas, sanitização antes de persistência e revisão humana.
+Perguntas e respostas não devem ser armazenadas por padrão. A suíte ampliada
+por provedor permanece interna e não bloqueia esta progressão.
 
 ## Referências oficiais
 
