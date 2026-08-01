@@ -45,12 +45,12 @@ func recommendationTestCatalog() blueprintCatalogResponse {
 			Summary: "Composição conservadora para pouca memória.", ResourceProfile: blueprintResourceProfile{MinimumRAMGB: 2, RecommendedRAMGB: 4, Basis: "Estimativa fictícia para teste."},
 		},
 	}
-	return blueprintCatalogResponse{SetupVersion: "7.0.0", BlueprintCount: len(items), Items: items}
+	return blueprintCatalogResponse{SetupVersion: "7.0.1", BlueprintCount: len(items), Items: items}
 }
 
 func recommendationTestContext(available float64) blueprintRecommendationContext {
 	return blueprintRecommendationContext{
-		SetupVersion: "7.0.0", Architecture: "amd64", MemoryTotalGB: 64,
+		SetupVersion: "7.0.1", Architecture: "amd64", MemoryTotalGB: 64,
 		MemoryAvailableGB: available, Source: "runtime-read-only",
 	}
 }

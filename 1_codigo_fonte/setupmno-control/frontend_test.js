@@ -135,18 +135,28 @@ for (const field of [
   assert.match(app, new RegExp(`escapeHTML\\(${field.replace(".", "\\.")}[^)]*\\)`));
 }
 assert.doesNotMatch(html + app, /promoteBlueprint|approveBlueprint|uploadEvidence|\/api\/blueprints\/promote/);
-assert.match(html, /data-view="evals"/);
+assert.doesNotMatch(html, /class="nav-item" data-view="evals"/);
 assert.match(html, /id="view-evals"/);
-assert.match(html, /Dataset, Evals e Graders/);
+assert.match(html, /id="assistant-quality-card"/);
+assert.match(html, /data-action="quality-report"/);
+assert.match(html, /data-action="quality-return"/);
+assert.match(html, /Qualidade do Assistente/);
+assert.match(html, /Documentação correta/);
+assert.match(html, /Especialista correto/);
+assert.match(html, /Respostas baseadas nas fontes/);
 assert.match(html, /O relatório contém somente métricas agregadas/);
 assert.match(app, /api\("\/api\/evals"\)/);
 assert.match(app, /function renderEvals/);
-assert.match(app, /Release aprovada/);
+assert.match(app, /Qualidade verificada/);
+assert.match(app, /testes automatizados aprovados antes desta release/);
+assert.match(app, /quality-report/);
+assert.match(app, /quality-return/);
 assert.match(app, /metrics\.recallAt5/);
 assert.match(app, /metrics\.credentialLeakCount/);
 assert.match(app, /report\.datasetSHA256/);
 assert.doesNotMatch(html + app, /evalQuestion|evalReferenceAnswer|evalExpectedDocuments/);
 assert.match(styles, /\.eval-summary-grid/);
+assert.match(styles, /\.assistant-quality-card/);
 assert.match(styles, /@media \(max-width: 650px\)[\s\S]*\.eval-intro/);
 
 console.log("Markdown, RAG, Blueprints e relatório agregado de evals conferidos.");

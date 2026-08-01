@@ -212,9 +212,13 @@ evidência ficarem abaixo dos thresholds. Vazamentos, ações inventadas,
 documentos obsoletos e mistura de arquitetura possuem tolerância zero.
 
 O instalador executa esse gate na imagem final antes de criar secrets ou
-stacks. A área autenticada **Evals e qualidade** exibe somente contagens,
-percentuais, versões, baseline e hash do dataset. Perguntas, respostas de
-referência, IDs de documentos e traces nunca são publicados pela API.
+stacks. Desde a v7.0.1, o Assistente mostra somente o selo simples **Qualidade
+verificada** e a quantidade de testes aprovados. O relatório completo fica fora
+da navegação principal e abre pelo botão **Ver relatório técnico**, com nomes
+compreensíveis e siglas técnicas secundárias. Ele continua exibindo somente
+contagens, percentuais, versões, baseline e hash do dataset. Perguntas,
+respostas de referência, IDs de documentos e traces nunca são publicados pela
+API.
 
 O mesmo pacote é distribuído para x86 e ARM. Na imagem do Assistente, a cópia
 primária fica em `/knowledge-package`, somente leitura pela própria camada da

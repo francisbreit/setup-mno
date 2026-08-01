@@ -42,7 +42,7 @@ required_environment=(
 )
 for variable_name in "${required_environment[@]}"; do
     [ -n "${!variable_name:-}" ] || {
-        msg "Esta instalação não possui os metadados seguros necessários para reconfiguração.\n\nReinstale ou atualize o Control Center pela versão 7.0.0."
+        msg "Esta instalação não possui os metadados seguros necessários para reconfiguração.\n\nReinstale ou atualize o Control Center pela versão 7.0.1."
         exit 1
     }
 done
@@ -310,7 +310,7 @@ services:
       - ALL
     environment:
       - MODE=assistant
-      - HEALTHCHECK_URL=http://127.0.0.1:7070/health
+      - HEALTHCHECK_URL=http://127.0.1.1:7070/health
       - ASSISTANT_PROVIDER=$provider
       - ASSISTANT_MODEL=$model
       - ASSISTANT_BASE_URL=$base_url

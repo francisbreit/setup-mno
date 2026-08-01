@@ -28,7 +28,7 @@ const titles = {
   catalog: ["Deploys e instalações", "Catálogo de setups"],
   blueprints: ["Arquiteturas compostas", "Blueprints MNO"],
   assistant: ["Diagnóstico assistido", "Assistente MNO"],
-  evals: ["Qualidade mensurável", "Evals e graders"],
+  evals: ["Relatório técnico", "Qualidade do Assistente"],
   audit: ["Rastreabilidade da sessão", "Auditoria"],
   settings: ["Administração protegida", "Configurações"]
 };
@@ -68,6 +68,8 @@ function bindEvents() {
     if (action.dataset.action === "assistant") navigate("assistant");
     if (action.dataset.action === "settings") openTerminal("settings");
     if (action.dataset.action === "blueprint") openBlueprint(action.dataset.blueprintId);
+    if (action.dataset.action === "quality-report") navigate("evals");
+    if (action.dataset.action === "quality-return") navigate("assistant");
   });
   $("open-terminal-top").addEventListener("click", openTerminal);
   $("terminal-close").addEventListener("click", closeTerminal);
@@ -150,6 +152,9 @@ function setAuthenticated(session) {
   state.blueprintCatalog = null;
   state.blueprintRecommendation = null;
   state.evals = null;
+  $("assistant-quality-card").classList.remove("passed", "failed");
+  $("assistant-quality-title").textContent = "Verificando qualidade";
+  $("assistant-quality-summary").textContent = "Conferindo os testes automatizados desta release.";
   $("blueprint-recommendation-result").hidden = true;
   state.assistantMode = session.assistantMode || "basic";
   state.assistantModel = session.assistantModel || "";
@@ -246,6 +251,11 @@ async function refreshEvals() {
     const status = $("eval-status");
     status.className = "eval-release-status failed";
     status.textContent = "Indisponível";
+    const qualityCard = $("assistant-quality-card");
+    qualityCard.classList.remove("passed");
+    qualityCard.classList.add("failed");
+    $("assistant-quality-title").textContent = "Qualidade indisponível";
+    $("assistant-quality-summary").textContent = "Não foi possível consultar a verificação desta release.";
   }
 }
 
@@ -260,8 +270,14 @@ function renderEvals() {
   const status = $("eval-status");
   const passed = report.status === "passed";
   status.className = `eval-release-status ${passed ? "passed" : "failed"}`;
-  status.textContent = passed ? "Release aprovada" : "Release bloqueada";
-  $("nav-eval-count").textContent = report.caseCount || 0;
+  status.textContent = passed ? "Qualidade verificada" : "Verificação bloqueada";
+  const qualityCard = $("assistant-quality-card");
+  qualityCard.classList.toggle("passed", passed);
+  qualityCard.classList.toggle("failed", !passed);
+  $("assistant-quality-title").textContent = passed ? "Qualidade verificada" : "Verificação bloqueada";
+  $("assistant-quality-summary").textContent = passed
+    ? `${report.caseCount || 0} testes automatizados aprovados antes desta release.`
+    : "Os testes de qualidade bloquearam esta release.";
   $("eval-case-count").textContent = report.caseCount || 0;
   $("eval-case-detail").textContent = `${report.retrievalCases || 0} retrieval · ${report.routingCases || 0} routing`;
   $("eval-recall").textContent = evalPercent(metrics.recallAt5);

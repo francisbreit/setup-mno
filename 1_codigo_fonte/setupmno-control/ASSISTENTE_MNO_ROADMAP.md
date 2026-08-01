@@ -1532,6 +1532,23 @@ Escopo implementado na release v7.0.0:
 - painel agregado autenticado, sem expor conteúdo do dataset ou traces;
 - nenhuma nova porta, stack, secret, socket, mount ou capacidade de escrita.
 
+### Correção de experiência v7.0.1
+
+A homologação conceitual mostrou que “Dataset, Evals e Graders” comunica uma
+ferramenta de engenharia, não um benefício claro para clientes do Setup MNO.
+A correção preserva integralmente o gate de release e altera somente a camada
+de apresentação:
+
+- remove o relatório técnico da navegação principal;
+- adiciona ao Assistente o selo “Qualidade verificada”, com a quantidade de
+  testes aprovados;
+- mantém os detalhes disponíveis pelo botão “Ver relatório técnico”;
+- traduz métricas para benefícios compreensíveis, preservando as siglas
+  técnicas como referência secundária;
+- adiciona retorno direto ao Assistente e mantém o relatório somente leitura;
+- não altera dataset, grader, thresholds, endpoint autenticado ou bloqueio da
+  release.
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico
@@ -1545,12 +1562,12 @@ Escopo implementado na release v7.0.0:
 
 ## Próxima ação
 
-Homologar a subetapa **6.1 — Baseline determinístico e gate de release** no
-navegador desktop e Android. Confirmar o status aprovado, 160 casos,
-Recall@5 mínimo de 90%, roteamento, segurança, proveniência, responsividade e
-ausência de perguntas, respostas ou dados sensíveis no relatório. Depois da
-aprovação, iniciar a **subetapa 6.2 — Evals de respostas por provedor e revisão
-humana dos casos críticos**.
+Homologar a experiência simplificada da **v7.0.1** no navegador desktop e
+Android. Confirmar que o relatório saiu do menu, o selo “Qualidade verificada”
+aparece no Assistente, o botão abre os detalhes técnicos, “Voltar ao
+Assistente” funciona e não existe rolagem horizontal. Depois da aprovação,
+iniciar a **subetapa 6.2 — Evals de respostas por provedor e revisão humana dos
+casos críticos**.
 
 ## Referências oficiais
 

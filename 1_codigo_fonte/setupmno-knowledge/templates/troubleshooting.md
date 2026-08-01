@@ -6,7 +6,7 @@
   "contentSHA256": "substitua-pelo-hash-informado-pelo-linter",
   "documentType": "troubleshooting",
   "title": "Exemplo de diagnóstico",
-  "setupVersion": "7.0.0",
+  "setupVersion": "7.0.1",
   "architectures": ["amd64", "arm64"],
   "category": "diagnosis",
   "status": "draft",
