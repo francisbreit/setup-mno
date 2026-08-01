@@ -64,7 +64,7 @@ func TestReadRuntimeSnapshotAcceptsGeneratedKnowledgeManifest(t *testing.T) {
 		len(snapshot.Release.BlueprintIndexSHA256) != 64 ||
 		snapshot.Release.EvalSchemaVersion != 1 ||
 		snapshot.Release.EvalDatasetVersion != "1.0.0" ||
-		snapshot.Release.EvalGraderVersion != "1.0.0" ||
+		snapshot.Release.EvalGraderVersion != "1.1.0" ||
 		snapshot.Release.EvalCaseEntries != 160 ||
 		len(snapshot.Release.EvalDatasetSHA256) != 64 {
 		t.Fatalf("metadados do conhecimento ausentes: %#v", snapshot.Release)
@@ -138,12 +138,12 @@ func TestReadRuntimeSnapshotRejectsPartialBlueprintMetadata(t *testing.T) {
 	sum := sha256.Sum256(catalog)
 	release := setupRelease{
 		SchemaVersion:           runtimeSchema,
-		SetupVersion:            "7.0.1",
-		CatalogVersion:          "7.0.1",
+		SetupVersion:            "7.1.0",
+		CatalogVersion:          "7.1.0",
 		CatalogSHA256:           hex.EncodeToString(sum[:]),
 		CatalogEntries:          1,
 		Architecture:            "amd64",
-		KnowledgeVersion:        "3.0.0",
+		KnowledgeVersion:        "3.1.0",
 		KnowledgeArchiveSHA256:  strings.Repeat("a", 64),
 		KnowledgeEntries:        34,
 		BlueprintFactoryVersion: "2.0.0",
@@ -170,12 +170,12 @@ func TestReadRuntimeSnapshotRejectsPartialEvalMetadata(t *testing.T) {
 	sum := sha256.Sum256(catalog)
 	release := setupRelease{
 		SchemaVersion:             runtimeSchema,
-		SetupVersion:              "7.0.1",
-		CatalogVersion:            "7.0.1",
+		SetupVersion:              "7.1.0",
+		CatalogVersion:            "7.1.0",
 		CatalogSHA256:             hex.EncodeToString(sum[:]),
 		CatalogEntries:            1,
 		Architecture:              "amd64",
-		KnowledgeVersion:          "3.0.0",
+		KnowledgeVersion:          "3.1.0",
 		KnowledgeArchiveSHA256:    strings.Repeat("a", 64),
 		KnowledgeEntries:          34,
 		BlueprintFactoryVersion:   "2.0.0",
@@ -301,6 +301,7 @@ func TestStreamChatCompletionsUsesSafeProviderContract(t *testing.T) {
 		recorder,
 		"instruções seguras",
 		[]assistantMessage{{Role: "user", Content: "pergunta"}},
+		1400,
 	)
 	if err != nil {
 		t.Fatalf("streaming compatível falhou: %v", err)
@@ -736,7 +737,7 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 		state.Manifest.RetrievalVersion != "1.2.0" ||
 		state.Manifest.EvalSchemaVersion != 1 ||
 		state.Manifest.EvalDatasetVersion != "1.0.0" ||
-		state.Manifest.EvalGraderVersion != "1.0.0" ||
+		state.Manifest.EvalGraderVersion != "1.1.0" ||
 		state.Manifest.EvalCaseEntries != 160 ||
 		len(state.Manifest.EvalDatasetSHA256) != 64 ||
 		state.Manifest.ChunkEntries <= state.Manifest.DocumentEntries {

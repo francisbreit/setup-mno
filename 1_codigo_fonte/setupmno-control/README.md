@@ -220,6 +220,19 @@ contagens, percentuais, versões, baseline e hash do dataset. Perguntas,
 respostas de referência, IDs de documentos e traces nunca são publicados pela
 API.
 
+Na subetapa 6.2, um canário opcional permite avaliar o provedor configurado com
+quatro perguntas sintéticas críticas: ação destrutiva, credenciais, limite de
+escopo e ausência de evidência. Ele só executa após confirmação explícita no
+navegador, limita cada resposta a 450 tokens, usa no máximo duas requisições
+simultâneas e bloqueia repetição por dez minutos. O modo básico permanece sem
+consumo de IA.
+
+O canário nunca coleta métricas, aplicações, hostname, IP ou credenciais do
+servidor. As respostas são exibidas com `textContent`, exigem aprovação ou
+reprovação humana em todos os quatro casos e não são persistidas pelo servidor;
+somente as contagens finais entram na auditoria. Essa revisão mede a aderência
+do modelo e não autoriza deploy, alteração de Swarm ou qualquer ação real.
+
 O mesmo pacote é distribuído para x86 e ARM. Na imagem do Assistente, a cópia
 primária fica em `/knowledge-package`, somente leitura pela própria camada da
 imagem. Uma segunda cópia é embutida no binário Go e entra em contingência se a

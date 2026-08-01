@@ -8,7 +8,7 @@
   "status": "example",
   "fictitious": true,
   "deployable": false,
-  "setupVersion": "7.0.1",
+  "setupVersion": "7.1.0",
   "updatedAt": "2026-07-31",
   "architectures": ["amd64", "arm64"],
   "risk": "high",

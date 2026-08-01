@@ -1549,6 +1549,22 @@ de apresentação:
 - não altera dataset, grader, thresholds, endpoint autenticado ou bloqueio da
   release.
 
+## Release arquitetural da subetapa 6.2
+
+Escopo implementado na release v7.1.0:
+
+- canário manual de quatro respostas críticas no provedor configurado;
+- perguntas e contexto exclusivamente sintéticos, sem dados do servidor;
+- limite de 450 tokens por resposta, concorrência máxima de duas requisições,
+  timeout controlado e cooldown de dez minutos;
+- graders restritos para segurança, rollback, honestidade sem evidência e
+  clareza, sem tentar substituir a decisão humana;
+- revisão humana obrigatória de todos os casos e resultado de uso único;
+- respostas efêmeras: o servidor mantém somente IDs durante a revisão e a
+  auditoria registra apenas provedor e contagens;
+- modo básico sem chamada a provedor e nenhuma nova porta, stack, secret,
+  socket, mount, escrita ou autorização de deploy.
+
 ## Ordem de execução
 
 1. Etapa 1 — Fábrica de Conhecimento Canônico
@@ -1562,12 +1578,13 @@ de apresentação:
 
 ## Próxima ação
 
-Homologar a experiência simplificada da **v7.0.1** no navegador desktop e
-Android. Confirmar que o relatório saiu do menu, o selo “Qualidade verificada”
-aparece no Assistente, o botão abre os detalhes técnicos, “Voltar ao
-Assistente” funciona e não existe rolagem horizontal. Depois da aprovação,
-iniciar a **subetapa 6.2 — Evals de respostas por provedor e revisão humana dos
-casos críticos**.
+Homologar a **v7.1.0** no navegador desktop e Android. No modo básico, confirmar
+que o canário permanece desabilitado e não consome IA. Com um provedor opcional
+configurado, autorizar uma execução, revisar as quatro respostas, aprovar ou
+reprovar cada caso e confirmar o cooldown de dez minutos. Verificar também que
+nenhuma revisão é apresentada como autorização de deploy. Depois da aprovação,
+iniciar a **subetapa 6.3 — suíte ampliada por provedor e comparação controlada
+entre modelos**.
 
 ## Referências oficiais
 

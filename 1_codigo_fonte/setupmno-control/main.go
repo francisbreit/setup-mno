@@ -88,6 +88,11 @@ type webApp struct {
 	logins    map[string]*loginWindow
 	auditMu   sync.Mutex
 	audit     []auditEvent
+
+	providerEvalMu      sync.Mutex
+	providerEvalRunning bool
+	providerEvalLast    time.Time
+	providerEvalRuns    map[string]providerEvalRunRecord
 }
 
 type blueprintMediaSummary struct {
@@ -446,23 +451,24 @@ func runWeb() error {
 	}
 
 	app := &webApp{
-		adminUser:       envDefault("ADMIN_USERNAME", "admin"),
-		passwordSalt:    randomBytes(16),
-		agentToken:      string(agentTokenBytes),
-		agentURL:        strings.TrimRight(envDefault("AGENT_URL", "http://agent:9090"), "/"),
-		terminalURL:     terminalURL,
-		assistantURL:    strings.TrimRight(os.Getenv("ASSISTANT_URL"), "/"),
-		assistantMode:   strings.ToLower(envDefault("ASSISTANT_MODE", "basic")),
-		assistantModel:  os.Getenv("ASSISTANT_MODEL"),
-		version:         controlVersion,
-		cookieSecure:    envDefault("COOKIE_SECURE", "true") != "false",
-		httpClient:      &http.Client{Timeout: 8 * time.Second},
-		assistantClient: &http.Client{Timeout: 2 * time.Minute},
-		sessions:        make(map[string]*session),
-		logins:          make(map[string]*loginWindow),
-		audit:           make([]auditEvent, 0, 200),
-		blueprints:      blueprints,
-		evals:           evalReport,
+		adminUser:        envDefault("ADMIN_USERNAME", "admin"),
+		passwordSalt:     randomBytes(16),
+		agentToken:       string(agentTokenBytes),
+		agentURL:         strings.TrimRight(envDefault("AGENT_URL", "http://agent:9090"), "/"),
+		terminalURL:      terminalURL,
+		assistantURL:     strings.TrimRight(os.Getenv("ASSISTANT_URL"), "/"),
+		assistantMode:    strings.ToLower(envDefault("ASSISTANT_MODE", "basic")),
+		assistantModel:   os.Getenv("ASSISTANT_MODEL"),
+		version:          controlVersion,
+		cookieSecure:     envDefault("COOKIE_SECURE", "true") != "false",
+		httpClient:       &http.Client{Timeout: 8 * time.Second},
+		assistantClient:  &http.Client{Timeout: 2 * time.Minute},
+		sessions:         make(map[string]*session),
+		logins:           make(map[string]*loginWindow),
+		audit:            make([]auditEvent, 0, 200),
+		blueprints:       blueprints,
+		evals:            evalReport,
+		providerEvalRuns: make(map[string]providerEvalRunRecord),
 	}
 	app.passwordHash = pbkdf2SHA256(passwordSecret, app.passwordSalt, 310000, 32)
 	zero(passwordSecret)
@@ -478,6 +484,8 @@ func runWeb() error {
 	mux.Handle("GET /api/catalog", app.requireAuth(http.HandlerFunc(app.handleCatalog)))
 	mux.Handle("GET /api/blueprints", app.requireAuth(http.HandlerFunc(app.handleBlueprints)))
 	mux.Handle("GET /api/evals", app.requireAuth(http.HandlerFunc(app.handleEvals)))
+	mux.Handle("POST /api/evals/provider", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleProviderEval))))
+	mux.Handle("POST /api/evals/provider/review", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleProviderEvalReview))))
 	mux.Handle("POST /api/blueprints/recommend", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleBlueprintRecommendation))))
 	mux.Handle("GET /api/audit", app.requireAuth(http.HandlerFunc(app.handleAudit)))
 	mux.Handle("POST /api/assistant", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleAssistant))))
@@ -732,6 +740,7 @@ func runAssistant() error {
 		})
 	})
 	mux.HandleFunc("POST /chat", authorize(service.handleChat))
+	mux.HandleFunc("POST /evals/provider", authorize(service.handleProviderEval))
 
 	server := &http.Server{
 		Addr:              ":7070",
@@ -1165,6 +1174,23 @@ func (s *assistantService) streamProvider(
 	route assistantRoute,
 	retrievalContext *retrievalPromptContext,
 ) (string, error) {
+	return s.streamProviderLimited(
+		ctx, w, input, contextData, route, retrievalContext, 1400,
+	)
+}
+
+func (s *assistantService) streamProviderLimited(
+	ctx context.Context,
+	w http.ResponseWriter,
+	input assistantRequest,
+	contextData assistantContext,
+	route assistantRoute,
+	retrievalContext *retrievalPromptContext,
+	maxOutputTokens int,
+) (string, error) {
+	if maxOutputTokens < 100 || maxOutputTokens > 1400 {
+		return "", errors.New("limite de saída do provedor inválido")
+	}
 	instructions, err := buildAssistantInstructions(contextData, route)
 	if err != nil {
 		return "", err
@@ -1184,13 +1210,13 @@ func (s *assistantService) streamProvider(
 	}
 	messages = append(messages, assistantMessage{Role: "user", Content: input.Question})
 	if s.provider == "openrouter" || s.provider == "deepseek" {
-		return s.streamChatCompletions(ctx, w, instructions, messages)
+		return s.streamChatCompletions(ctx, w, instructions, messages, maxOutputTokens)
 	}
 	payload, err := json.Marshal(map[string]any{
 		"model":             s.model,
 		"instructions":      instructions,
 		"input":             messages,
-		"max_output_tokens": 1400,
+		"max_output_tokens": maxOutputTokens,
 		"store":             false,
 		"stream":            true,
 	})
@@ -1299,6 +1325,7 @@ func (s *assistantService) streamChatCompletions(
 	w http.ResponseWriter,
 	instructions string,
 	messages []assistantMessage,
+	maxOutputTokens int,
 ) (string, error) {
 	providerMessages := make([]assistantMessage, 0, len(messages)+1)
 	providerMessages = append(providerMessages, assistantMessage{
@@ -1309,7 +1336,7 @@ func (s *assistantService) streamChatCompletions(
 	payload, err := json.Marshal(map[string]any{
 		"model":      s.model,
 		"messages":   providerMessages,
-		"max_tokens": 1400,
+		"max_tokens": maxOutputTokens,
 		"stream":     true,
 	})
 	if err != nil {

@@ -109,7 +109,7 @@ grep -Fq 'COPY --from=builder /src/knowledge-package /knowledge-package' \
     printf 'ERRO: a imagem final não contém o pacote de conhecimento somente leitura.\n' >&2
     exit 1
 }
-grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go ./' \
+grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go provider_evals.go ./' \
     "$project_dir/Dockerfile" || {
     printf 'ERRO: o build não inclui retrieval, roteador, prompts, Blueprints e evals.\n' >&2
     exit 1
@@ -122,6 +122,12 @@ grep -Fq 'CredentialLeakCount' "$project_dir/evals.go" || {
 }
 grep -Fq '"$control_image" evalcheck' "$template" || {
     printf 'ERRO: o instalador não executa o gate bloqueante de evals na imagem final.\n' >&2
+    exit 1
+}
+grep -Fq 'providerEvalAck' "$project_dir/provider_evals.go" &&
+grep -Fq 'RuntimeContextUsed: false' "$project_dir/provider_evals.go" &&
+grep -Fq 'providerEvalConcurrency' "$project_dir/provider_evals.go" || {
+    printf 'ERRO: canário seguro de respostas por provedor ausente ou incompleto.\n' >&2
     exit 1
 }
 grep -Eq 'assistantPromptRegistryVersion[[:space:]]*=[[:space:]]*"1.0.0"' "$project_dir/prompts.go" &&
@@ -278,7 +284,7 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$knowledge_retrieval_version" = "1.2.0" ] &&
 [ "$eval_schema" = "1" ] &&
 [ "$eval_dataset_version" = "1.0.0" ] &&
-[ "$eval_grader_version" = "1.0.0" ] &&
+[ "$eval_grader_version" = "1.1.0" ] &&
 [ "${#eval_dataset_sha}" -eq 64 ] &&
 [ "$eval_case_entries" = "160" ] &&
 [ "$blueprint_schema" = "2" ] &&
@@ -304,7 +310,7 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
         terminal-menu.sh configure-control.sh \
         main.go knowledge.go retrieval.go routing.go prompts.go \
-        blueprint_recommendation.go evals.go web |
+        blueprint_recommendation.go evals.go provider_evals.go web |
         gzip -9n >"$bundle"
 )
 if ! tar -tzf "$bundle" | grep -Fx 'blueprint_recommendation.go' >/dev/null; then
@@ -313,6 +319,10 @@ if ! tar -tzf "$bundle" | grep -Fx 'blueprint_recommendation.go' >/dev/null; the
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'evals.go' >/dev/null; then
     printf 'ERRO: bundle de fontes sem a suíte determinística de evals.\n' >&2
+    exit 1
+fi
+if ! tar -tzf "$bundle" | grep -Fx 'provider_evals.go' >/dev/null; then
+    printf 'ERRO: bundle de fontes sem o canário de respostas por provedor.\n' >&2
     exit 1
 fi
 if tar -tzf "$bundle" | grep -q '^knowledge-package/'; then

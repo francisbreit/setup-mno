@@ -11,7 +11,7 @@ import (
 const (
 	evalSchemaVersion  = 1
 	evalDatasetVersion = "1.0.0"
-	evalGraderVersion  = "1.0.0"
+	evalGraderVersion  = "1.1.0"
 	evalExpectedCases  = 160
 )
 

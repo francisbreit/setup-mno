@@ -11,6 +11,9 @@ const state = {
   blueprintCatalog: null,
   blueprintRecommendation: null,
   evals: null,
+  providerEval: null,
+  providerEvalDecisions: {},
+  providerEvalCooldown: false,
   assistantMode: "basic",
   assistantModel: "",
   assistantHistory: [],
@@ -93,6 +96,12 @@ function bindEvents() {
     closeBlueprint();
   });
   $("assistant-form").addEventListener("submit", askAssistant);
+  $("provider-eval-run").addEventListener("click", runProviderEval);
+  $("provider-eval-review").addEventListener("click", submitProviderEvalReview);
+  $("provider-eval-cases").addEventListener("click", event => {
+    const decision = event.target.closest("[data-provider-decision]");
+    if (decision) setProviderEvalDecision(decision.dataset.caseId, decision.dataset.providerDecision === "approve");
+  });
   document.querySelector(".prompt-chips").addEventListener("click", event => {
     if (event.target.tagName !== "BUTTON") return;
     $("assistant-input").value = event.target.textContent;
@@ -152,9 +161,14 @@ function setAuthenticated(session) {
   state.blueprintCatalog = null;
   state.blueprintRecommendation = null;
   state.evals = null;
+  state.providerEval = null;
+  state.providerEvalDecisions = {};
+  state.providerEvalCooldown = false;
   $("assistant-quality-card").classList.remove("passed", "failed");
   $("assistant-quality-title").textContent = "Verificando qualidade";
   $("assistant-quality-summary").textContent = "Conferindo os testes automatizados desta release.";
+  $("provider-eval-result").hidden = true;
+  $("provider-eval-review-status").textContent = "";
   $("blueprint-recommendation-result").hidden = true;
   state.assistantMode = session.assistantMode || "basic";
   state.assistantModel = session.assistantModel || "";
@@ -300,6 +314,149 @@ function renderEvals() {
   $("eval-engine-versions").textContent = `v${report.retrievalVersion} / v${report.routerVersion} / v${report.promptVersion}`;
   $("eval-baseline").textContent = `${report.baseline?.release || "N/I"} · ${report.baseline?.mode === "established" ? "estabelecido" : "comparativo"}`;
   $("eval-dataset-sha").textContent = report.datasetSHA256 || "N/I";
+}
+
+function renderProviderEvalAvailability() {
+  const enabled = state.assistantMode !== "basic" && Boolean(state.assistantModel);
+  const button = $("provider-eval-run");
+  $("provider-eval-provider").textContent = enabled
+    ? `${providerLabel(state.assistantMode)} · ${state.assistantModel}`
+    : "Diagnóstico básico";
+  if (!enabled) {
+    button.disabled = true;
+    button.textContent = "Requer provedor opcional";
+    $("provider-eval-status").textContent = "Sem consumo de IA";
+    $("provider-eval-help").textContent = "Configure OpenAI, OpenRouter, DeepSeek ou Ollama para habilitar este canário.";
+    return;
+  }
+  if (state.providerEvalCooldown) {
+    button.disabled = true;
+    button.textContent = "Canário já executado";
+    $("provider-eval-help").textContent = "A repetição fica bloqueada por dez minutos para evitar consumo acidental.";
+    return;
+  }
+  button.disabled = false;
+  button.textContent = "Executar 4 testes críticos";
+  $("provider-eval-status").textContent = "Pronto para execução manual";
+  $("provider-eval-help").textContent = "Usa o modelo configurado e pode consumir créditos ou recursos locais.";
+}
+
+async function runProviderEval() {
+  if (!window.confirm("Executar quatro perguntas críticas sintéticas no provedor configurado? Isso pode consumir créditos ou recursos locais. Nenhum dado do servidor será enviado.")) return;
+  const button = $("provider-eval-run");
+  button.disabled = true;
+  button.textContent = "Executando canário...";
+  $("provider-eval-status").textContent = "Em execução";
+  $("provider-eval-review-status").textContent = "";
+  try {
+    const report = await api("/api/evals/provider", {
+      method: "POST",
+      body: JSON.stringify({ acknowledgement: "CONSUMO DE API AUTORIZADO" })
+    });
+    state.providerEval = report;
+    state.providerEvalDecisions = {};
+    state.providerEvalCooldown = true;
+    renderProviderEvalReport();
+  } catch (error) {
+    state.providerEvalCooldown = true;
+    $("provider-eval-status").textContent = "Falha controlada";
+    $("provider-eval-help").textContent = error.message;
+    button.textContent = "Canário não concluído";
+  }
+}
+
+function renderProviderEvalReport() {
+  const report = state.providerEval;
+  if (!report) return;
+  $("provider-eval-result").hidden = false;
+  $("provider-eval-status").textContent = report.status === "human_review_required"
+    ? "Revisão humana necessária"
+    : "Verificação automática reprovada";
+  $("provider-eval-summary").textContent = `${providerLabel(report.provider)} · ${report.model}`;
+  $("provider-eval-metrics").textContent = `${report.automaticPassed || 0} de ${report.caseCount || 0} respostas passaram nos checks automáticos`;
+  const container = $("provider-eval-cases");
+  container.replaceChildren();
+  for (const item of report.cases || []) {
+    const card = document.createElement("article");
+    card.className = `provider-eval-case ${item.automaticPass ? "automatic-pass" : "automatic-fail"}`;
+    card.id = `provider-case-${item.caseId}`;
+    const head = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = item.category;
+    const automatic = document.createElement("span");
+    automatic.textContent = item.automaticPass ? "Checks automáticos aprovados" : "Checks automáticos reprovados";
+    head.append(title, automatic);
+    const promptLabel = document.createElement("small");
+    promptLabel.textContent = "Pergunta sintética";
+    const prompt = document.createElement("p");
+    prompt.textContent = item.syntheticPrompt;
+    const answerLabel = document.createElement("small");
+    answerLabel.textContent = "Resposta do provedor";
+    const answer = document.createElement("pre");
+    answer.textContent = item.providerResponse;
+    const checks = document.createElement("p");
+    checks.className = "provider-eval-checks";
+    checks.textContent = [
+      ["segurança", item.automaticChecks?.safe],
+      ["reversão", item.automaticChecks?.rollback],
+      ["honestidade", item.automaticChecks?.noEvidenceHonesty],
+      ["clareza", item.automaticChecks?.clear]
+    ].map(([label, passed]) => `${passed ? "✓" : "×"} ${label}`).join(" · ");
+    const choices = document.createElement("div");
+    choices.className = "provider-eval-decisions";
+    for (const [label, value] of [["Aprovar resposta", "approve"], ["Reprovar resposta", "reject"]]) {
+      const choice = document.createElement("button");
+      choice.type = "button";
+      choice.textContent = label;
+      choice.dataset.caseId = item.caseId;
+      choice.dataset.providerDecision = value;
+      choices.append(choice);
+    }
+    card.append(head, promptLabel, prompt, answerLabel, answer, checks, choices);
+    container.append(card);
+  }
+  $("provider-eval-review").disabled = true;
+}
+
+function setProviderEvalDecision(caseId, approved) {
+  if (!state.providerEval || !caseId) return;
+  state.providerEvalDecisions[caseId] = approved;
+  const card = $(`provider-case-${caseId}`);
+  if (card) {
+    card.querySelectorAll("[data-provider-decision]").forEach(button => {
+      const selected = (button.dataset.providerDecision === "approve") === approved;
+      button.classList.toggle("selected", selected);
+    });
+  }
+  $("provider-eval-review").disabled = Object.keys(state.providerEvalDecisions).length !== state.providerEval.caseCount;
+}
+
+async function submitProviderEvalReview() {
+  if (!state.providerEval) return;
+  const button = $("provider-eval-review");
+  button.disabled = true;
+  button.textContent = "Registrando revisão...";
+  const decisions = Object.entries(state.providerEvalDecisions).map(([caseId, approved]) => ({
+    caseId,
+    decision: approved ? "approved" : "rejected"
+  }));
+  try {
+    const result = await api("/api/evals/provider/review", {
+      method: "POST",
+      body: JSON.stringify({ runId: state.providerEval.runId, decisions })
+    });
+    const approved = result.status === "approved";
+    $("provider-eval-review-status").textContent = approved
+      ? `Revisão concluída: ${result.approved} respostas aprovadas.`
+      : `Revisão concluída com reprovação: ${result.rejected} resposta(s) precisam de correção.`;
+    $("provider-eval-status").textContent = approved ? "Aprovado por revisão humana" : "Reprovado por revisão humana";
+    document.querySelectorAll("[data-provider-decision]").forEach(choice => { choice.disabled = true; });
+    button.textContent = "Revisão concluída";
+  } catch (error) {
+    $("provider-eval-review-status").textContent = error.message;
+    button.disabled = false;
+    button.textContent = "Concluir revisão humana";
+  }
 }
 
 async function refreshSetupState() {
@@ -1085,6 +1242,7 @@ function updateAssistantRuntime(runtime = {}) {
     $("assistant-welcome-text").textContent = "Sou especializado em Setup MNO e infraestrutura. Posso avaliar capacidade, serviços degradados e prontidão para novos deploys.";
     $("assistant-privacy").textContent = "O modo básico interpreta métricas localmente e não envia dados para terceiros.";
   }
+  renderProviderEvalAvailability();
 }
 
 function providerLabel(mode) {

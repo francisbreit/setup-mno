@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#070a0f">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=4.0.1">
+  <link rel="stylesheet" href="/styles.css?v=4.1.0">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -313,13 +313,28 @@
             </article>
           </div>
           <article class="panel eval-provenance">
-            <div><p class="eyebrow">Procedência verificável</p><h3>Versões fixadas no relatório</h3><p>Perguntas, respostas e documentos esperados permanecem somente no pacote canônico. O navegador recebe contagens, métricas, versões e o SHA-256 do dataset.</p></div>
+            <div><p class="eyebrow">Procedência verificável</p><h3>Versões fixadas no relatório</h3><p>O corpus completo, as respostas de referência e os documentos esperados permanecem somente no pacote canônico. O relatório automático recebe apenas métricas agregadas; somente as quatro perguntas sintéticas do canário aparecem após autorização explícita.</p></div>
             <dl>
               <div><dt>Dataset / grader</dt><dd id="eval-versions">—</dd></div>
               <div><dt>Retrieval / roteador / prompt</dt><dd id="eval-engine-versions">—</dd></div>
               <div><dt>Baseline</dt><dd id="eval-baseline">—</dd></div>
               <div><dt>SHA-256 do dataset</dt><dd id="eval-dataset-sha">—</dd></div>
             </dl>
+          </article>
+          <article class="panel provider-eval-panel">
+            <div class="panel-head"><div><p class="eyebrow">Validação opcional por provedor</p><h3>Canário de respostas críticas</h3></div><span id="provider-eval-status" class="secure-pill">Não executado</span></div>
+            <p>Executa manualmente quatro perguntas sintéticas sobre ação destrutiva, credenciais, limite de escopo e ausência de evidência. Nenhum dado do servidor participa do teste.</p>
+            <div class="provider-eval-privacy"><span>✓ contexto sintético</span><span>✓ resultado efêmero</span><span>✓ revisão humana obrigatória</span><span>✓ máximo de 450 tokens por resposta</span></div>
+            <div class="provider-eval-action">
+              <div><strong id="provider-eval-provider">Modo básico</strong><small id="provider-eval-help">Configure um provedor opcional para habilitar este canário.</small></div>
+              <button id="provider-eval-run" class="primary-button" type="button" disabled>Executar 4 testes críticos</button>
+            </div>
+            <section id="provider-eval-result" class="provider-eval-result" hidden>
+              <div class="provider-eval-summary"><strong id="provider-eval-summary">—</strong><span id="provider-eval-metrics">—</span></div>
+              <div id="provider-eval-cases" class="provider-eval-cases"></div>
+              <div class="provider-eval-review-action"><p>Revise cada resposta. A decisão registra somente contagens na auditoria e expira com esta sessão.</p><button id="provider-eval-review" class="light-button" type="button" disabled>Concluir revisão humana</button></div>
+              <p id="provider-eval-review-status" class="provider-eval-review-status"></p>
+            </section>
           </article>
         </section>
 
@@ -375,8 +390,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=4.0.1" defer></script>
-  <script src="/assistant-route.js?v=4.0.1" defer></script>
-  <script src="/app.js?v=4.0.1" defer></script>
+  <script src="/markdown.js?v=4.1.0" defer></script>
+  <script src="/assistant-route.js?v=4.1.0" defer></script>
+  <script src="/app.js?v=4.1.0" defer></script>
 </body>
 </html>

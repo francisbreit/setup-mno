@@ -158,5 +158,17 @@ assert.doesNotMatch(html + app, /evalQuestion|evalReferenceAnswer|evalExpectedDo
 assert.match(styles, /\.eval-summary-grid/);
 assert.match(styles, /\.assistant-quality-card/);
 assert.match(styles, /@media \(max-width: 650px\)[\s\S]*\.eval-intro/);
+assert.match(html, /id="provider-eval-run"/);
+assert.match(html, /Canário de respostas críticas/);
+assert.match(html, /Nenhum dado do servidor participa do teste/);
+assert.match(html, /revisão humana obrigatória/);
+assert.match(app, /\/api\/evals\/provider/);
+assert.match(app, /\/api\/evals\/provider\/review/);
+assert.match(app, /CONSUMO DE API AUTORIZADO/);
+assert.match(app, /window\.confirm/);
+assert.match(app, /answer\.textContent = item\.providerResponse/);
+assert.doesNotMatch(app, /innerHTML\s*=\s*item\.providerResponse/);
+assert.match(styles, /\.provider-eval-panel/);
+assert.match(styles, /\.provider-eval-cases/);
 
 console.log("Markdown, RAG, Blueprints e relatório agregado de evals conferidos.");

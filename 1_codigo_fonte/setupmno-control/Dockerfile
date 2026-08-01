@@ -3,7 +3,7 @@ FROM --platform=$BUILDPLATFORM golang:1.25-alpine@sha256:56961d79ea8129efddcc0b8
 ARG TARGETOS
 ARG TARGETARCH
 WORKDIR /src
-COPY go.mod main.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go ./
+COPY go.mod main.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go provider_evals.go ./
 COPY web ./web
 COPY catalog.json ./
 COPY knowledge-package ./knowledge-package
