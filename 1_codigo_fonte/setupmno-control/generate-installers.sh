@@ -109,7 +109,7 @@ grep -Fq 'COPY --from=builder /src/knowledge-package /knowledge-package' \
     printf 'ERRO: a imagem final não contém o pacote de conhecimento somente leitura.\n' >&2
     exit 1
 }
-grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go provider_evals.go ./' \
+grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go provider_evals.go feedback.go ./' \
     "$project_dir/Dockerfile" || {
     printf 'ERRO: o build não inclui retrieval, roteador, prompts, Blueprints e evals.\n' >&2
     exit 1
@@ -128,6 +128,13 @@ grep -Fq 'providerEvalAck' "$project_dir/provider_evals.go" &&
 grep -Fq 'RuntimeContextUsed: false' "$project_dir/provider_evals.go" &&
 grep -Fq 'providerEvalConcurrency' "$project_dir/provider_evals.go" || {
     printf 'ERRO: canário seguro de respostas por provedor ausente ou incompleto.\n' >&2
+    exit 1
+}
+grep -Fq 'conversationStored": false' "$project_dir/feedback.go" &&
+grep -Fq 'feedbackRetention' "$project_dir/feedback.go" &&
+grep -Fq 'humanReviewRequired": true' "$project_dir/feedback.go" &&
+grep -Fq 'feedback_data:/feedback' "$template" || {
+    printf 'ERRO: feedback seguro, temporizado e revisável ausente ou incompleto.\n' >&2
     exit 1
 }
 grep -Eq 'assistantPromptRegistryVersion[[:space:]]*=[[:space:]]*"1.0.0"' "$project_dir/prompts.go" &&
@@ -310,7 +317,7 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
         terminal-menu.sh configure-control.sh \
         main.go knowledge.go retrieval.go routing.go prompts.go \
-        blueprint_recommendation.go evals.go provider_evals.go web |
+        blueprint_recommendation.go evals.go provider_evals.go feedback.go web |
         gzip -9n >"$bundle"
 )
 if ! tar -tzf "$bundle" | grep -Fx 'blueprint_recommendation.go' >/dev/null; then
@@ -323,6 +330,10 @@ if ! tar -tzf "$bundle" | grep -Fx 'evals.go' >/dev/null; then
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'provider_evals.go' >/dev/null; then
     printf 'ERRO: bundle de fontes sem o canário de respostas por provedor.\n' >&2
+    exit 1
+fi
+if ! tar -tzf "$bundle" | grep -Fx 'feedback.go' >/dev/null; then
+    printf 'ERRO: bundle de fontes sem o feedback sanitizado.\n' >&2
     exit 1
 fi
 if tar -tzf "$bundle" | grep -q '^knowledge-package/'; then

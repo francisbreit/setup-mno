@@ -1062,7 +1062,7 @@ subetapa 6.2 e homologada na v7.1.0.
 
 ## Etapa 7 — Feedback e Melhoria Contínua
 
-**Status:** pendente
+**Status:** em implementação — contrato mínimo da subetapa 7.1 na v7.2.0
 **Impacto:** médio
 **Tipo:** produto e manutenção
 **Esforço:** moderado
@@ -1107,6 +1107,31 @@ Pergunta real
 
 Toda falha relevante deve possuir rastreabilidade até uma correção e um teste
 que impeça sua repetição.
+
+### Subetapa 7.1 — Coleta privada e triagem humana
+
+Implementada na v7.2.0, com homologação visual ainda pendente:
+
+- avaliação opcional por resposta, protegida por token opaco, temporário e de
+  uso único;
+- área e motivo escolhidos exclusivamente em listas canônicas;
+- consentimento explícito e contrato que rejeita campos desconhecidos, texto
+  livre, pergunta ou resposta;
+- persistência local limitada a 200 registros e 256 KiB, com retenção de 30
+  dias, escrita atômica e rejeição de symlink;
+- fila administrativa dentro da Auditoria para aceitar como candidato a eval,
+  descartar ou excluir explicitamente;
+- relatório agregado por versão do Control Center;
+- nenhum IP, hostname, credencial, comando, conteúdo da conversa ou ação
+  automática;
+- volume Docker dedicado montado somente no painel web, sem banco, porta,
+  stack, socket Docker ou mount do host adicional.
+
+Aceitar um registro apenas o classifica como candidato. A criação do caso
+sintético, a alteração do conhecimento e a promoção para a suíte continuam
+fora do painel e exigem revisão no repositório. A conversão rastreável em eval
+e o processo de depreciação pertencem à próxima subetapa e não devem reduzir
+essas garantias de privacidade.
 
 ---
 
@@ -1592,13 +1617,26 @@ o painel do cliente em bancada de benchmark de modelos.
 7. Etapa 7 — Feedback e Melhoria Contínua
 8. Etapa 8 — RAG Semântico e Fine-tuning Condicional
 
-## Próxima ação
+## Release arquitetural da subetapa 7.1
 
-Iniciar a **Etapa 7 — Feedback e Melhoria Contínua** com o menor contrato capaz
-de gerar valor ao usuário: feedback opcional, consentimento explícito,
-categorias estruturadas, sanitização antes de persistência e revisão humana.
-Perguntas e respostas não devem ser armazenadas por padrão. A suíte ampliada
-por provedor permanece interna e não bloqueia esta progressão.
+Escopo implementado na release v7.2.0:
+
+- coleta estruturada, opcional e consentida sem conteúdo da conversa;
+- tokens temporários vinculando a classificação ao modo e à versão, sem criar
+  identificador do usuário ou do servidor;
+- fila persistente, limitada e revisável na área de Auditoria;
+- triagem humana sem promoção automática de conhecimento, prompt ou dataset;
+- persistência entre upgrades e relatório agregado por versão;
+- testes de contrato, retenção, replay, campos desconhecidos, persistência,
+  revisão, exclusão e caminho inseguro.
+
+### Próxima ação
+
+Homologar a subetapa 7.1 no navegador desktop e Android. Depois da aprovação,
+projetar a subetapa 7.2 para converter somente candidatos reproduzidos em casos
+sintéticos rastreáveis, mantendo perguntas e respostas reais fora da
+persistência. A suíte ampliada por provedor permanece interna e não bloqueia
+esta progressão.
 
 ## Referências oficiais
 

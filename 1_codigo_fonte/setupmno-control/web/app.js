@@ -14,6 +14,8 @@ const state = {
   providerEval: null,
   providerEvalDecisions: {},
   providerEvalCooldown: false,
+  feedbackTarget: null,
+  feedbackRating: "",
   assistantMode: "basic",
   assistantModel: "",
   assistantHistory: [],
@@ -102,6 +104,23 @@ function bindEvents() {
     const decision = event.target.closest("[data-provider-decision]");
     if (decision) setProviderEvalDecision(decision.dataset.caseId, decision.dataset.providerDecision === "approve");
   });
+  $("assistant-conversation").addEventListener("click", event => {
+    const button = event.target.closest("[data-feedback-rating]");
+    if (button) openFeedbackDialog(button.closest(".assistant-message"), button.dataset.feedbackRating);
+  });
+  $("feedback-form").addEventListener("submit", submitAssistantFeedback);
+  $("feedback-dialog-close").addEventListener("click", closeFeedbackDialog);
+  $("feedback-dialog-cancel").addEventListener("click", closeFeedbackDialog);
+  $("feedback-dialog").addEventListener("cancel", event => {
+    event.preventDefault();
+    closeFeedbackDialog();
+  });
+  $("feedback-review-list").addEventListener("click", event => {
+    const button = event.target.closest("[data-feedback-action]");
+    if (!button) return;
+    if (button.dataset.feedbackAction === "delete") deleteFeedbackRecord(button.dataset.feedbackId);
+    else reviewFeedbackRecord(button.dataset.feedbackId, button.dataset.feedbackAction);
+  });
   document.querySelector(".prompt-chips").addEventListener("click", event => {
     if (event.target.tagName !== "BUTTON") return;
     $("assistant-input").value = event.target.textContent;
@@ -164,6 +183,8 @@ function setAuthenticated(session) {
   state.providerEval = null;
   state.providerEvalDecisions = {};
   state.providerEvalCooldown = false;
+  state.feedbackTarget = null;
+  state.feedbackRating = "";
   $("assistant-quality-card").classList.remove("passed", "failed");
   $("assistant-quality-title").textContent = "Verificando qualidade";
   $("assistant-quality-summary").textContent = "Conferindo os testes automatizados desta release.";
@@ -858,6 +879,7 @@ async function askAssistant(event) {
     setAssistantMessageRouteUnavailable(pending);
     pending.querySelector(".message-content").textContent = `Não consegui concluir a análise: ${error.message}`;
   } finally {
+    renderMessageFeedback(pending);
     input.disabled = false;
     button.disabled = false;
     input.focus();
@@ -914,6 +936,9 @@ async function streamAssistant(question, history, target, basic, fallbackReason 
         target.dataset.catalogEntries = String(event.data.catalogEntries || "");
         target.dataset.fallbackReason = event.data.fallbackReason || "";
         updateAssistantRuntime(event.data);
+      } else if (event.type === "feedback") {
+        target.dataset.feedbackToken = event.data.token || "";
+        target.dataset.feedbackPolicyVersion = event.data.policyVersion || "";
       } else if (event.type === "route") {
         updateAssistantRoute(event.data);
         attachAssistantMessageRoute(target, event.data);
@@ -1251,6 +1276,7 @@ function providerLabel(mode) {
     openrouter: "OpenRouter",
     deepseek: "DeepSeek",
     ollama: "Ollama",
+    catalog: "Catálogo local",
     basic: "Diagnóstico básico"
   }[mode] || "Diagnóstico básico";
 }
@@ -1280,9 +1306,118 @@ function renderAssistantContent(element, markdown) {
   element.innerHTML = renderer.render(markdown);
 }
 
+const feedbackReasonLabels = {
+  helpful: {
+    accurate: "Informação correta",
+    clear: "Explicação clara",
+    useful: "Orientação útil"
+  },
+  unhelpful: {
+    incorrect: "Informação incorreta",
+    incomplete: "Resposta incompleta",
+    unclear: "Explicação confusa",
+    outdated: "Informação desatualizada",
+    unsafe: "Orientação potencialmente insegura",
+    insufficient_evidence: "Faltaram evidências"
+  }
+};
+
+const feedbackAreaLabels = {
+  setup: "Setup ou aplicação",
+  infrastructure: "Infraestrutura",
+  capacity: "Capacidade e recursos",
+  security: "Segurança",
+  blueprint: "Blueprint",
+  troubleshooting: "Diagnóstico de falha",
+  integration: "Integração",
+  other: "Outro tema técnico"
+};
+
+function renderMessageFeedback(target) {
+  if (!target?.dataset.feedbackToken || target.querySelector(".message-feedback")) return;
+  const container = document.createElement("div");
+  container.className = "message-feedback";
+  const label = document.createElement("small");
+  label.textContent = "Esta resposta ajudou?";
+  container.append(label);
+  for (const [rating, text] of [["helpful", "Sim"], ["unhelpful", "Precisa melhorar"]]) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.feedbackRating = rating;
+    button.textContent = text;
+    container.append(button);
+  }
+  target.querySelector(".message-content")?.parentElement.append(container);
+}
+
+function openFeedbackDialog(target, rating) {
+  if (!target?.dataset.feedbackToken || !feedbackReasonLabels[rating]) return;
+  state.feedbackTarget = target;
+  state.feedbackRating = rating;
+  $("feedback-dialog-title").textContent = rating === "helpful" ? "Registrar resposta útil" : "Indicar o que precisa melhorar";
+  $("feedback-dialog-summary").textContent = rating === "helpful"
+    ? "Sua classificação ajuda a preservar respostas úteis sem armazenar a conversa."
+    : "Escolha o motivo da falha. Um administrador decidirá se ela deve originar um teste de qualidade sintético.";
+  const reason = $("feedback-reason");
+  reason.replaceChildren();
+  for (const [value, label] of Object.entries(feedbackReasonLabels[rating])) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    reason.append(option);
+  }
+  $("feedback-area").value = "setup";
+  $("feedback-consent").checked = false;
+  $("feedback-error").textContent = "";
+  $("feedback-dialog").showModal();
+}
+
+function closeFeedbackDialog() {
+  $("feedback-dialog").close();
+  state.feedbackTarget = null;
+  state.feedbackRating = "";
+}
+
+async function submitAssistantFeedback(event) {
+  event.preventDefault();
+  const target = state.feedbackTarget;
+  const token = target?.dataset.feedbackToken || "";
+  const button = event.currentTarget.querySelector("button[type=submit]");
+  if (!token || !state.feedbackRating || !$("feedback-consent").checked) {
+    $("feedback-error").textContent = "Confirme o consentimento para enviar apenas as classificações.";
+    return;
+  }
+  button.disabled = true;
+  try {
+    await api("/api/feedback", {
+      method: "POST",
+      body: JSON.stringify({
+        token,
+        rating: state.feedbackRating,
+        area: $("feedback-area").value,
+        reason: $("feedback-reason").value,
+        consent: true
+      })
+    });
+    const controls = target.querySelector(".message-feedback");
+    if (controls) {
+      controls.replaceChildren();
+      const status = document.createElement("small");
+      status.textContent = "Feedback estruturado enviado para revisão humana.";
+      controls.append(status);
+    }
+    target.dataset.feedbackToken = "";
+    closeFeedbackDialog();
+  } catch (error) {
+    $("feedback-error").textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
 async function loadAudit() {
   try {
-    const data = await api("/api/audit");
+    const [data, feedback] = await Promise.all([api("/api/audit"), api("/api/feedback")]);
     $("audit-list").innerHTML = data.events.length ? data.events.map(event => `
       <div class="audit-row">
         <span>${new Date(event.time).toLocaleString("pt-BR")}</span>
@@ -1290,6 +1425,99 @@ async function loadAudit() {
         <span>${escapeHTML(event.detail)}</span>
         <span>${escapeHTML(event.address)}</span>
       </div>`).join("") : `<div class="empty-state">Nenhum evento nesta sessão.</div>`;
+    renderFeedbackReview(feedback);
+  } catch (error) {
+    showAlert(error.message);
+  }
+}
+
+function renderFeedbackReview(data = {}) {
+  const report = data.report || {};
+  $("feedback-total").textContent = String(report.total || 0);
+  $("feedback-helpful").textContent = String(report.helpful || 0);
+  $("feedback-unhelpful").textContent = String(report.unhelpful || 0);
+  $("feedback-pending").textContent = String(report.pending || 0);
+  $("feedback-accepted").textContent = String(report.accepted || 0);
+  const versionCounts = report.versionCounts && typeof report.versionCounts === "object" ? report.versionCounts : {};
+  const versionSummary = Object.entries(versionCounts)
+    .sort(([left], [right]) => right.localeCompare(left, undefined, { numeric: true }))
+    .map(([version, count]) => `Control v${version}: ${count}`);
+  $("feedback-versions").textContent = versionSummary.length
+    ? `Registros por versão: ${versionSummary.join(" · ")}`
+    : "Nenhum registro nesta versão.";
+  const container = $("feedback-review-list");
+  container.replaceChildren();
+  const records = Array.isArray(data.records) ? data.records : [];
+  if (!records.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = "Nenhum feedback estruturado aguardando revisão.";
+    container.append(empty);
+    return;
+  }
+  for (const record of records) {
+    const card = document.createElement("article");
+    card.className = "feedback-review-card";
+    const heading = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = record.rating === "helpful" ? "Resposta útil" : "Resposta precisa melhorar";
+    const status = document.createElement("span");
+    status.textContent = {
+      pending_review: "Aguardando revisão",
+      accepted_for_eval: "Candidato a teste",
+      dismissed: "Descartado"
+    }[record.status] || "Estado inválido";
+    heading.append(title, status);
+    const metadata = document.createElement("p");
+    const fallback = record.fallbackReason ? ` · contingência: ${record.fallbackReason}` : "";
+    metadata.textContent = `${feedbackAreaLabels[record.area] || "Área técnica"} · ${feedbackReasonLabels[record.rating]?.[record.reason] || "Motivo estruturado"} · ${providerLabel(record.assistantMode)}${fallback} · Control v${record.controlVersion}`;
+    const date = document.createElement("small");
+    date.textContent = new Date(record.createdAt).toLocaleString("pt-BR");
+    const actions = document.createElement("div");
+    actions.className = "feedback-review-actions";
+    if (record.status === "pending_review") {
+      for (const [action, label] of [["accept_for_eval", "Aceitar para melhoria"], ["dismiss", "Descartar"]]) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "light-button";
+        button.dataset.feedbackAction = action;
+        button.dataset.feedbackId = record.feedbackId;
+        button.textContent = label;
+        actions.append(button);
+      }
+    }
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "feedback-delete-button";
+    remove.dataset.feedbackAction = "delete";
+    remove.dataset.feedbackId = record.feedbackId;
+    remove.textContent = "Excluir";
+    actions.append(remove);
+    card.append(heading, metadata, date, actions);
+    container.append(card);
+  }
+}
+
+async function reviewFeedbackRecord(feedbackId, decision) {
+  try {
+    await api("/api/feedback/review", {
+      method: "POST",
+      body: JSON.stringify({ feedbackId, decision })
+    });
+    await loadAudit();
+  } catch (error) {
+    showAlert(error.message);
+  }
+}
+
+async function deleteFeedbackRecord(feedbackId) {
+  if (!window.confirm("Excluir permanentemente este feedback estruturado?")) return;
+  try {
+    await api("/api/feedback/delete", {
+      method: "POST",
+      body: JSON.stringify({ feedbackId })
+    });
+    await loadAudit();
   } catch (error) {
     showAlert(error.message);
   }

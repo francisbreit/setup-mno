@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.1.0"
+CONTROL_VERSION="4.2.0"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -465,7 +465,7 @@ error_file="/tmp/${nome_app}-error.log"
     install -m 0644 "$runtime_catalog" "$work_dir/source/catalog.json"
     for source_file in go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
         terminal-menu.sh configure-control.sh \
-        main.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go provider_evals.go catalog.json \
+        main.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go provider_evals.go feedback.go catalog.json \
         web/index.html web/app.js web/assistant-route.js web/styles.css web/terminal-bridge.js; do
         [ -s "$work_dir/source/$source_file" ] ||
             fail_install 21 "FONTE INCOMPLETO" "O arquivo interno '$source_file' não foi encontrado no bundle."
@@ -841,6 +841,7 @@ services:
       - ASSISTANT_MODE=$assistant_mode
       - ASSISTANT_MODEL=$assistant_model
       - ASSISTANT_URL=$assistant_internal_url
+      - FEEDBACK_STORE_PATH=/feedback/feedback.json
       - COOKIE_SECURE=true
     networks:
       - externa
@@ -849,6 +850,8 @@ services:
       - source: $admin_secret
         target: admin_password
       - $agent_secret
+    volumes:
+      - feedback_data:/feedback
     healthcheck:
       test:
         - CMD
@@ -898,6 +901,9 @@ secrets:
     external: true
   $agent_secret:
     external: true
+
+volumes:
+  feedback_data:
 EOL
 
     stack_files=("${terminal_stack}.yaml" "${agent_stack}.yaml")

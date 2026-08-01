@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#070a0f">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=4.1.0">
+  <link rel="stylesheet" href="/styles.css?v=4.2.0">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -275,6 +275,20 @@
             <div class="panel-head"><div><p class="eyebrow">Segurança</p><h3>Eventos da sessão</h3></div><span class="secure-pill"><i></i> Protegido</span></div>
             <div id="audit-list" class="audit-list"></div>
           </article>
+          <article class="panel feedback-review-panel">
+            <div class="panel-head"><div><p class="eyebrow">Melhoria contínua com consentimento</p><h3>Feedback do Assistente</h3></div><span class="secure-pill"><i></i> Sem conteúdo da conversa</span></div>
+            <p class="muted">A fila contém somente avaliação, área, motivo, modo do Assistente e versão. Perguntas, respostas, texto livre, IP, hostname e credenciais não são armazenados.</p>
+            <div class="feedback-report-grid">
+              <div><small>Total</small><strong id="feedback-total">0</strong></div>
+              <div><small>Úteis</small><strong id="feedback-helpful">0</strong></div>
+              <div><small>Precisam melhorar</small><strong id="feedback-unhelpful">0</strong></div>
+              <div><small>Aguardando revisão</small><strong id="feedback-pending">0</strong></div>
+              <div><small>Candidatos para melhoria</small><strong id="feedback-accepted">0</strong></div>
+            </div>
+            <div class="feedback-policy"><span>Retenção máxima: 30 dias</span><span>Limite local: 200 registros</span><span>Revisão humana obrigatória</span><span>Nenhuma correção automática</span></div>
+            <p id="feedback-versions" class="feedback-versions">Nenhum registro nesta versão.</p>
+            <div id="feedback-review-list" class="feedback-review-list"></div>
+          </article>
         </section>
 
         <section id="view-evals" class="view">
@@ -389,9 +403,37 @@
     <iframe id="terminal-frame" title="Terminal seguro do Setup MNO" sandbox="allow-scripts allow-forms allow-same-origin"></iframe>
   </dialog>
 
+  <dialog id="feedback-dialog" class="feedback-dialog" aria-labelledby="feedback-dialog-title">
+    <form id="feedback-form" method="dialog">
+      <div class="feedback-dialog-head">
+        <div><p class="eyebrow">Feedback opcional</p><h2 id="feedback-dialog-title">Avaliar resposta</h2></div>
+        <button id="feedback-dialog-close" class="icon-button" type="button" aria-label="Fechar feedback">×</button>
+      </div>
+      <p id="feedback-dialog-summary">Escolha classificações estruturadas. O texto da conversa não será enviado.</p>
+      <label>Área avaliada
+        <select id="feedback-area" required>
+          <option value="setup">Setup ou aplicação</option>
+          <option value="infrastructure">Infraestrutura</option>
+          <option value="capacity">Capacidade e recursos</option>
+          <option value="security">Segurança</option>
+          <option value="blueprint">Blueprint</option>
+          <option value="troubleshooting">Diagnóstico de falha</option>
+          <option value="integration">Integração</option>
+          <option value="other">Outro tema técnico</option>
+        </select>
+      </label>
+      <label>Motivo
+        <select id="feedback-reason" required></select>
+      </label>
+      <label class="feedback-consent"><input id="feedback-consent" type="checkbox" required><span>Autorizo armazenar somente estas classificações estruturadas por até 30 dias. Nenhuma pergunta, resposta ou texto livre será incluído.</span></label>
+      <p id="feedback-error" class="form-error"></p>
+      <div class="feedback-dialog-actions"><button id="feedback-dialog-cancel" class="light-button" type="button">Cancelar</button><button class="primary-button" type="submit">Enviar para revisão</button></div>
+    </form>
+  </dialog>
+
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=4.1.0" defer></script>
-  <script src="/assistant-route.js?v=4.1.0" defer></script>
-  <script src="/app.js?v=4.1.0" defer></script>
+  <script src="/markdown.js?v=4.2.0" defer></script>
+  <script src="/assistant-route.js?v=4.2.0" defer></script>
+  <script src="/app.js?v=4.2.0" defer></script>
 </body>
 </html>

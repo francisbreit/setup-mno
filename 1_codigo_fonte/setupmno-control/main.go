@@ -93,6 +93,10 @@ type webApp struct {
 	providerEvalRunning bool
 	providerEvalLast    time.Time
 	providerEvalRuns    map[string]providerEvalRunRecord
+
+	feedbackMu     sync.Mutex
+	feedback       feedbackState
+	feedbackTokens map[string]feedbackTokenRecord
 }
 
 type blueprintMediaSummary struct {
@@ -427,6 +431,10 @@ func runWeb() error {
 	}
 
 	controlVersion := envDefault("APP_VERSION", "dev")
+	feedback, err := loadFeedbackState(envDefault("FEEDBACK_STORE_PATH", "/feedback/feedback.json"))
+	if err != nil {
+		return fmt.Errorf("fila de feedback indisponível: %w", err)
+	}
 	blueprintKnowledge, err := loadEmbeddedKnowledgePackage()
 	if err != nil {
 		return fmt.Errorf("catálogo de Blueprints indisponível: %w", err)
@@ -469,6 +477,8 @@ func runWeb() error {
 		blueprints:       blueprints,
 		evals:            evalReport,
 		providerEvalRuns: make(map[string]providerEvalRunRecord),
+		feedback:         feedback,
+		feedbackTokens:   make(map[string]feedbackTokenRecord),
 	}
 	app.passwordHash = pbkdf2SHA256(passwordSecret, app.passwordSalt, 310000, 32)
 	zero(passwordSecret)
@@ -488,6 +498,10 @@ func runWeb() error {
 	mux.Handle("POST /api/evals/provider/review", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleProviderEvalReview))))
 	mux.Handle("POST /api/blueprints/recommend", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleBlueprintRecommendation))))
 	mux.Handle("GET /api/audit", app.requireAuth(http.HandlerFunc(app.handleAudit)))
+	mux.Handle("GET /api/feedback", app.requireAuth(http.HandlerFunc(app.handleFeedbackList)))
+	mux.Handle("POST /api/feedback", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFeedbackSubmit))))
+	mux.Handle("POST /api/feedback/review", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFeedbackReview))))
+	mux.Handle("POST /api/feedback/delete", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFeedbackDelete))))
 	mux.Handle("POST /api/assistant", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleAssistant))))
 	mux.Handle("/terminal/", app.requireAuth(app.terminalProxy()))
 
@@ -1746,6 +1760,7 @@ func (a *webApp) handleAssistant(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
+	a.sendFeedbackTokenSSE(w, normalizeFeedbackMode(a.assistantMode, false), "")
 	stream := io.LimitReader(response.Body, 16<<20)
 	buffer := make([]byte, 4096)
 	for {
@@ -1837,6 +1852,7 @@ func (a *webApp) streamFullCatalog(w http.ResponseWriter, r *http.Request, quest
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
+	a.sendFeedbackTokenSSE(w, "catalog", "")
 	sendSSE(w, "meta", map[string]any{
 		"mode":           "catalog",
 		"model":          "",
@@ -1875,6 +1891,7 @@ func (a *webApp) streamBasicAssistant(
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
+	a.sendFeedbackTokenSSE(w, "basic", fallbackReason)
 	sendSSE(w, "meta", map[string]any{
 		"mode":           "basic",
 		"model":          "",
@@ -2291,6 +2308,21 @@ func (a *webApp) sessionJanitor() {
 			}
 		}
 		a.sessionMu.Unlock()
+
+		a.feedbackMu.Lock()
+		for token, record := range a.feedbackTokens {
+			if now.After(record.Expires) {
+				delete(a.feedbackTokens, token)
+			}
+		}
+		previousCount := len(a.feedback.Records)
+		a.feedback.Records = pruneFeedbackRecords(a.feedback.Records, now.UTC())
+		if len(a.feedback.Records) != previousCount {
+			if err := saveFeedbackState(a.feedback); err != nil {
+				log.Printf("Control Center: retenção do feedback não pôde ser persistida: %v", err)
+			}
+		}
+		a.feedbackMu.Unlock()
 	}
 }
 

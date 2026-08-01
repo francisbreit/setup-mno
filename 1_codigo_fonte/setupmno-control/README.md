@@ -3,7 +3,8 @@
 Painel web oficial do Setup MNO. O projeto é compilado localmente durante a
 instalação e executado em três stacks obrigatórias e uma quarta opcional:
 
-- `web`: autenticação, interface responsiva, catálogo, auditoria e proxy do terminal;
+- `web`: autenticação, interface responsiva, catálogo, auditoria, feedback
+  estruturado e proxy do terminal;
 - `agent`: inventário somente leitura do Docker Swarm, métricas do host e leitura
   validada do manifesto e catálogo runtime;
 - `terminal`: menu seguro para o instalador original e a Central de
@@ -232,6 +233,21 @@ servidor. As respostas são exibidas com `textContent`, exigem aprovação ou
 reprovação humana em todos os quatro casos e não são persistidas pelo servidor;
 somente as contagens finais entram na auditoria. Essa revisão mede a aderência
 do modelo e não autoriza deploy, alteração de Swarm ou qualquer ação real.
+
+## Feedback privado do Assistente
+
+Cada resposta concluída recebe um token opaco válido por 30 minutos e utilizável
+uma única vez. O usuário pode escolher avaliação, área e motivo em listas
+fechadas e precisa autorizar explicitamente a retenção. O endpoint rejeita texto
+livre e campos desconhecidos; pergunta, resposta, IP, hostname, credencial e
+comando não fazem parte do schema persistido.
+
+A fila usa um volume Docker dedicado montado somente no serviço web. O arquivo
+JSON estrito é gravado atomicamente, rejeita symlinks, fica limitado a 200
+registros e 256 KiB e retém dados por no máximo 30 dias. Na Auditoria, o
+administrador pode aceitar um item como candidato a eval, descartá-lo ou
+excluí-lo. Nenhuma dessas decisões altera automaticamente dataset,
+conhecimento, prompt, Swarm ou aplicação instalada.
 
 O mesmo pacote é distribuído para x86 e ARM. Na imagem do Assistente, a cópia
 primária fica em `/knowledge-package`, somente leitura pela própria camada da
