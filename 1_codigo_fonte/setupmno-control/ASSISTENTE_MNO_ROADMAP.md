@@ -14,11 +14,11 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.2.0` no canal Beta
-- Control Center: `4.2.0`
-- Conhecimento canônico: `3.2.0`
+- Setup MNO: `7.2.1` no canal Beta
+- Control Center: `4.3.0`
+- Conhecimento canônico: `3.3.0`
 - Catálogo runtime: 151 entradas
-- Cobertura canônica dedicada: 20 de 151 entradas (`13,25%`)
+- Cobertura canônica dedicada: 30 de 151 entradas (`19,87%`)
 - Blueprints: cinco modelos hipotéticos, todos fictícios e não implantáveis
 - Estado: Beta consultivo; deploy real continua no Instalador Seguro
 
@@ -47,7 +47,7 @@ determinísticos, auditáveis e homologados.
 ### Pilar 1 — Conhecimento Completo
 
 **Prioridade:** crítica
-**Estado atual:** 20 de 151 entradas cobertas
+**Estado atual:** 30 de 151 entradas cobertas
 
 Objetivo: possuir um documento canônico revisado para cada entrada do catálogo,
 com fontes verificáveis e profundidade suficiente para orientar escolha,
@@ -94,6 +94,19 @@ Sequência editorial:
 As variantes de uma mesma família devem ser estudadas juntas para explicar as
 diferenças reais, mas cada entrada do catálogo continua precisando de identidade
 e cobertura rastreáveis.
+
+#### Lote 1 — concluído na v7.2.1 Beta
+
+O primeiro lote elevou a cobertura de 20 para 30 entradas e incorporou
+conhecimento revisado para Evolution API v2, n8n Queue v1, n8n Queue v2,
+Typebot, MinIO, Open WebUI, Uptime Kuma, WordPress, Nginx Proxy Manager e o
+combo Chatwoot + Evolution API v2 + RabbitMQ + MinIO.
+
+O lote confrontou documentação oficial com os instaladores x86 e ARM, registrou
+dívidas e bloqueios de segurança sem ocultá-los e ampliou o dataset para 210
+casos. Linter, cobertura, retrieval, roteamento, factualidade, groundedness,
+segurança, pacote reproduzível e smoke test SHC passaram. O lote 2 deve partir
+das 121 entradas ainda sem cobertura dedicada, mantendo a baseline monotônica.
 
 ### Pilar 2 — Soluções Instaláveis
 

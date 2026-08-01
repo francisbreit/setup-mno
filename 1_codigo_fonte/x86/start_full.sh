@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.2.0"
+VERSIONSETUP="7.2.1"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -314,13 +314,13 @@ if [ "$control_schema" != "1" ] ||
    [ "$blueprint_fixture_entries" != "$runtime_blueprint_fixture_entries" ] ||
    [ "$eval_schema_version" != "1" ] ||
    [ "$eval_schema_version" != "$runtime_eval_schema_version" ] ||
-   [ "$eval_dataset_version" != "1.0.0" ] ||
+   [ "$eval_dataset_version" != "1.1.0" ] ||
    [ "$eval_dataset_version" != "$runtime_eval_dataset_version" ] ||
    [ "$eval_grader_version" != "1.1.0" ] ||
    [ "$eval_grader_version" != "$runtime_eval_grader_version" ] ||
    [ "${#eval_dataset_sha}" -ne 64 ] ||
    [ "$eval_dataset_sha" != "$runtime_eval_dataset_sha" ] ||
-   [ "$eval_case_entries" != "160" ] ||
+   [ "$eval_case_entries" != "210" ] ||
    [ "$eval_case_entries" != "$runtime_eval_case_entries" ] ||
    [ "$knowledge_expected_sha" != "$knowledge_actual_sha" ] ||
    [ "$knowledge_expected_sha" != "$runtime_knowledge_sha" ] ||

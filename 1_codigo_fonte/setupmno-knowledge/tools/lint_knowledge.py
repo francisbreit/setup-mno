@@ -496,8 +496,10 @@ def validate_registry(
     if registry.get("schemaVersion") != 2:
         errors.append("registry/setups.json: schemaVersion deve ser 2")
     entries = registry.get("setups")
-    if not isinstance(entries, list) or len(entries) != 20:
-        errors.append("registry/setups.json deve conter exatamente 20 setups no lote piloto")
+    if not isinstance(entries, list) or not entries or len(entries) > len(catalog_names):
+        errors.append(
+            "registry/setups.json deve conter de 1 até a quantidade de setups do catálogo"
+        )
         return errors
     seen_ids: set[str] = set()
     seen_names: set[str] = set()

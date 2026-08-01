@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.2.0"
+CONTROL_VERSION="4.3.0"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -507,11 +507,11 @@ error_file="/tmp/${nome_app}-error.log"
     [ "$knowledge_index_schema" = "2" ] &&
     [ "$knowledge_retrieval_version" = "1.2.0" ] &&
     [ "$eval_schema" = "1" ] &&
-    [ "$eval_dataset_version" = "1.0.0" ] &&
+    [ "$eval_dataset_version" = "1.1.0" ] &&
     [ "$eval_grader_version" = "1.1.0" ] &&
     [ "${#eval_dataset_sha}" -eq 64 ] &&
     [ "$eval_dataset_sha" = "$release_eval_dataset_sha" ] &&
-    [ "$eval_case_entries" = "160" ] &&
+    [ "$eval_case_entries" = "210" ] &&
     [ "$knowledge_entries" = "$release_knowledge_entries" ] &&
     [ "$knowledge_archive_bytes" = "$actual_knowledge_bytes" ] &&
     [ "$knowledge_archive_bytes" -le $((8 * 1024 * 1024)) ] &&
@@ -548,7 +548,7 @@ error_file="/tmp/${nome_app}-error.log"
     fi
     if ! docker run --rm --entrypoint /setupmno-control \
         "$control_image" evalcheck >>"$install_log" 2>&1; then
-        fail_install 31 "REGRESSÃO DE QUALIDADE DETECTADA" "A suíte canônica de 160 casos não atingiu os gates mínimos desta release."
+        fail_install 31 "REGRESSÃO DE QUALIDADE DETECTADA" "A suíte canônica de 210 casos não atingiu os gates mínimos desta release."
     fi
     fallback_check="$work_dir/knowledge-fallback.json"
     if ! docker run --rm \

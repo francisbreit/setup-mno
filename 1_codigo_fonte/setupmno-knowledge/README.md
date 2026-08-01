@@ -14,7 +14,7 @@ regular, versionado e validado por SHA-256, distribuído em `.control-package/`.
   adulterações detectáveis antes da recuperação.
 - IDs, tipos, categorias, status, riscos, arquiteturas e licenças permitidos
   estão em `schema/taxonomy.json`.
-- Setups do lote piloto devem existir em `registry/setups.json` e no catálogo
+- Setups de cada lote devem existir em `registry/setups.json` e no catálogo
   canônico do Control Center.
 - `draft` identifica conteúdo em construção; `reviewed` identifica conteúdo
   revisado contra as fontes declaradas; `homologated` exige teste no ambiente
@@ -56,8 +56,9 @@ python3 tools/lint_knowledge.py --root . hashes
 
 ## Cobertura do catálogo
 
-A base atual cobre 20 das 151 entradas do catálogo. Essa cobertura piloto é
-íntegra, mas não representa uma base completa. O relatório reproduzível é:
+A base atual cobre 30 das 151 entradas do catálogo. O primeiro lote elevou a
+cobertura para 19,87%, mas ainda não representa uma base completa. O relatório
+reproduzível é:
 
 ```bash
 python3 -B tools/knowledge_coverage.py
@@ -76,7 +77,7 @@ nova ferramenta aumente a lacuna conhecida:
 python3 -B tools/knowledge_coverage.py --enforce-baseline
 ```
 
-A baseline `coverage-baseline.json` permite reduzir as 131 pendências atuais,
+A baseline `coverage-baseline.json` permite reduzir as 121 pendências atuais,
 mas bloqueia cobertura inferior, remoção de conteúdo coberto ou nova entrada
 sem registro e documento. Quando um lote revisado for promovido, seus mínimos
 devem avançar no mesmo commit; nunca devem ser reduzidos para liberar a build.
@@ -123,7 +124,7 @@ python3 tools/lint_knowledge.py \
   --catalog ../setupmno-control/catalog.json \
   resolve \
   --setup-id n8n-main \
-  --setup-version 7.2.0 \
+  --setup-version 7.2.1 \
   --architecture amd64
 ```
 
@@ -140,7 +141,7 @@ python3 -B tools/knowledge_coverage.py
 
 ## Dataset e evals
 
-`evals/dataset.json` é um artefato canônico revisado, com 160 casos e schema
+`evals/dataset.json` é um artefato canônico revisado, com 210 casos e schema
 estrito em `schema/eval-dataset.schema.json`. Ele contém perguntas e respostas
 de referência, portanto entra somente no pacote interno de conhecimento e
 nunca é devolvido pela API do painel. A interface recebe apenas métricas
@@ -151,7 +152,7 @@ Para gerar e validar o dataset de forma reproduzível:
 ```bash
 python3 -B tools/eval_factory.py \
   --root . \
-  --setup-version 7.2.0
+  --setup-version 7.2.1
 python3 -B tools/test_knowledge.py
 ```
 
@@ -164,7 +165,7 @@ Validação isolada da fábrica de Blueprints:
 
 ```bash
 python3 -B tools/blueprint_factory.py \
-  --setup-version 7.2.0
+  --setup-version 7.2.1
 ```
 
 Cada Blueprint reside em `blueprints/<blueprintId>/`, com `blueprint.json`

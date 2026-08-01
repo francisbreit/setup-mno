@@ -14,9 +14,9 @@ from typing import Any
 
 
 EVAL_SCHEMA_VERSION = 1
-EVAL_DATASET_VERSION = "1.0.0"
+EVAL_DATASET_VERSION = "1.1.0"
 EVAL_GRADER_VERSION = "1.1.0"
-EXPECTED_CASES = 160
+EXPECTED_CASES = 210
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 ARCHITECTURES = {"amd64", "arm64"}
@@ -127,12 +127,22 @@ def setup_cases(root: Path) -> list[dict[str, Any]]:
             "rollback": f"Qual é o rollback seguro para uma mudança em {title}?",
         }
         for template_index, (name, intent, fact, tag, rollback) in enumerate(templates, 1):
+            expected_intent = intent
+            expected_specialist = "capacity_planner" if intent == "capacity_planning" else (
+                "security_reviewer" if intent == "security_review" else "setup_specialist"
+            )
+            if setup_id in {
+                "chatwoot-evolution-rabbitmq-minio",
+                "evolution-api-v2",
+            } and name in {"finalidade", "arquitetura"}:
+                expected_intent = "integration_design"
+                expected_specialist = "integration_architect"
             result.append(
                 base_case(
                     f"eval-setup-{document_index:02d}-{template_index}",
                     "retrieval",
                     questions[name],
-                    intent,
+                    expected_intent,
                     [metadata["documentId"]],
                     [title, fact],
                     None,
@@ -140,9 +150,7 @@ def setup_cases(root: Path) -> list[dict[str, Any]]:
                     metadata["risk"],
                     ["setup", setup_id, tag],
                     architecture,
-                    "capacity_planner" if intent == "capacity_planning" else (
-                        "security_reviewer" if intent == "security_review" else "setup_specialist"
-                    ),
+                    expected_specialist,
                     rollback,
                 )
             )

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
-  "selectionVersion": "1.1.0",
-  "setupVersion": "7.2.0",
-  "selectionPolicy": "Lote piloto de alto valor e diversidade arquitetural",
+  "selectionVersion": "1.2.0",
+  "setupVersion": "7.2.1",
+  "selectionPolicy": "Lote 1 orientado a deploy, integrações e suporte operacional",
   "setups": [
     {
       "setupId": "activepieces",
@@ -61,6 +61,13 @@
       "aliases": ["chroma db", "banco vetorial chroma"]
     },
     {
+      "setupId": "chatwoot-evolution-rabbitmq-minio",
+      "catalogName": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+      "script": "chatwootn_evo2_rabbitmq_minio.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["chatwoot evolution rabbitmq minio", "combo atendimento whatsapp completo"]
+    },
+    {
       "setupId": "code-server",
       "catalogName": "CODE SERVER",
       "script": "codeserver.sh",
@@ -82,6 +89,13 @@
       "aliases": ["backup duplicati", "duplicati backup"]
     },
     {
+      "setupId": "evolution-api-v2",
+      "catalogName": "EVOLUTION 2.0 API PADRÃO",
+      "script": "evolution2api.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["evolution api 2", "evolution v2", "api whatsapp evolution"]
+    },
+    {
       "setupId": "grafana-prometheus",
       "catalogName": "GRAFANA/PROMETHEUS MONITOR",
       "script": "grafana.sh",
@@ -94,6 +108,27 @@
       "script": "n8nmain.sh",
       "architectures": ["amd64", "arm64"],
       "aliases": ["n8n main", "n8n sem fila"]
+    },
+    {
+      "setupId": "n8n-queue-v1",
+      "catalogName": "N8N V1 - FILA (QUEUE)",
+      "script": "n8n.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["n8n v1 queue", "n8n fila v1", "n8n com workers v1"]
+    },
+    {
+      "setupId": "n8n-queue-v2",
+      "catalogName": "N8N V2 - FILA (QUEUE)",
+      "script": "n8n2.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["n8n v2 queue", "n8n fila v2", "n8n com runners v2"]
+    },
+    {
+      "setupId": "nginx-proxy-manager",
+      "catalogName": "NGINXPROXYMANAGER",
+      "script": "nginxproxymanager.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["nginx proxy manager", "npm proxy reverso"]
     },
     {
       "setupId": "nextcloud",
@@ -117,6 +152,13 @@
       "aliases": ["ollama openwebui", "ollama open webui"]
     },
     {
+      "setupId": "open-webui",
+      "catalogName": "OPEN WEBUI",
+      "script": "openwebui.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["open webui", "interface web para llm"]
+    },
+    {
       "setupId": "qdrant",
       "catalogName": "QDRANT",
       "script": "qdrant.sh",
@@ -131,6 +173,13 @@
       "aliases": ["cache redis", "banco redis"]
     },
     {
+      "setupId": "minio",
+      "catalogName": "MINIO",
+      "script": "minio.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["storage minio", "armazenamento s3 minio"]
+    },
+    {
       "setupId": "setupmno-control",
       "catalogName": "SETUP MNO CONTROL CENTER",
       "script": "setupmno_control.sh",
@@ -143,6 +192,27 @@
       "script": "typebot_minio.sh",
       "architectures": ["amd64", "arm64"],
       "aliases": ["typebot minio", "typebot com minio"]
+    },
+    {
+      "setupId": "typebot",
+      "catalogName": "TYPEBOT",
+      "script": "typebot.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["typebot standalone", "criador de chatbot typebot"]
+    },
+    {
+      "setupId": "uptime-kuma",
+      "catalogName": "UPTIMEKUMA",
+      "script": "uptimekuma.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["uptime kuma", "monitor de disponibilidade kuma"]
+    },
+    {
+      "setupId": "wordpress",
+      "catalogName": "WORDPRESS",
+      "script": "wordpress.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["word press", "cms wordpress", "site wordpress"]
     }
   ]
 }
