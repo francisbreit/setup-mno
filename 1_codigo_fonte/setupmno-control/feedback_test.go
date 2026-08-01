@@ -163,8 +163,8 @@ func TestFeedbackSurvivesControlUpgradeWithoutConversationData(t *testing.T) {
 	if err != nil || len(reloaded.Records) != 1 || reloaded.Records[0].ControlVersion != "4.2.0" {
 		t.Fatalf("feedback anterior foi perdido no upgrade: %#v %v", reloaded, err)
 	}
-	report := buildFeedbackReport(reloaded.Records, "4.5.0")
-	if report.ControlVersion != "4.5.0" || report.VersionCounts["4.2.0"] != 1 {
+	report := buildFeedbackReport(reloaded.Records, "4.6.0")
+	if report.ControlVersion != "4.6.0" || report.VersionCounts["4.2.0"] != 1 {
 		t.Fatalf("relatório por versão divergente: %#v", report)
 	}
 }

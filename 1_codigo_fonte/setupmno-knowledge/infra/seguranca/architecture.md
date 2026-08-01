@@ -7,7 +7,7 @@
   "documentType": "infrastructure",
   "title": "Limites de segurança do Control Center",
   "topicId": "security",
-  "setupVersion": "7.2.3",
+  "setupVersion": "7.2.4",
   "architectures": ["amd64", "arm64"],
   "category": "security",
   "status": "reviewed",

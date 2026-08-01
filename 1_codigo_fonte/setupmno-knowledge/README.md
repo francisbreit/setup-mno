@@ -56,8 +56,8 @@ python3 tools/lint_knowledge.py --root . hashes
 
 ## Cobertura do catálogo
 
-A base atual cobre 50 das 151 entradas do catálogo. Os três primeiros lotes
-elevaram a cobertura para 33,11%, mas ainda não representam uma base completa. O relatório
+A base atual cobre 60 das 151 entradas do catálogo. Os quatro primeiros lotes
+elevaram a cobertura para 39,74%, mas ainda não representam uma base completa. O relatório
 reproduzível é:
 
 ```bash
@@ -77,7 +77,7 @@ nova ferramenta aumente a lacuna conhecida:
 python3 -B tools/knowledge_coverage.py --enforce-baseline
 ```
 
-A baseline `coverage-baseline.json` permite reduzir as 101 pendências atuais,
+A baseline `coverage-baseline.json` permite reduzir as 91 pendências atuais,
 mas bloqueia cobertura inferior, remoção de conteúdo coberto ou nova entrada
 sem registro e documento. Quando um lote revisado for promovido, seus mínimos
 devem avançar no mesmo commit; nunca devem ser reduzidos para liberar a build.
@@ -124,7 +124,7 @@ python3 tools/lint_knowledge.py \
   --catalog ../setupmno-control/catalog.json \
   resolve \
   --setup-id n8n-main \
-  --setup-version 7.2.3 \
+  --setup-version 7.2.4 \
   --architecture amd64
 ```
 
@@ -141,7 +141,7 @@ python3 -B tools/knowledge_coverage.py
 
 ## Dataset e evals
 
-`evals/dataset.json` é um artefato canônico revisado, com 310 casos e schema
+`evals/dataset.json` é um artefato canônico revisado, com 360 casos e schema
 estrito em `schema/eval-dataset.schema.json`. Ele contém perguntas e respostas
 de referência, portanto entra somente no pacote interno de conhecimento e
 nunca é devolvido pela API do painel. A interface recebe apenas métricas
@@ -152,7 +152,7 @@ Para gerar e validar o dataset de forma reproduzível:
 ```bash
 python3 -B tools/eval_factory.py \
   --root . \
-  --setup-version 7.2.3
+  --setup-version 7.2.4
 python3 -B tools/test_knowledge.py
 ```
 
@@ -165,7 +165,7 @@ Validação isolada da fábrica de Blueprints:
 
 ```bash
 python3 -B tools/blueprint_factory.py \
-  --setup-version 7.2.3
+  --setup-version 7.2.4
 ```
 
 Cada Blueprint reside em `blueprints/<blueprintId>/`, com `blueprint.json`

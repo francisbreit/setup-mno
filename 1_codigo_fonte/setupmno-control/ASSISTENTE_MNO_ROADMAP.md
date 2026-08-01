@@ -14,11 +14,11 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.2.3` no canal Beta
-- Control Center: `4.5.0`
-- Conhecimento canônico: `3.5.0`
+- Setup MNO: `7.2.4` no canal Beta
+- Control Center: `4.6.0`
+- Conhecimento canônico: `3.6.0`
 - Catálogo runtime: 151 entradas
-- Cobertura canônica dedicada: 50 de 151 entradas (`33,11%`)
+- Cobertura canônica dedicada: 60 de 151 entradas (`39,74%`)
 - Blueprints: cinco modelos hipotéticos, todos fictícios e não implantáveis
 - Estado: Beta consultivo; deploy real continua no Instalador Seguro
 
@@ -47,7 +47,7 @@ determinísticos, auditáveis e homologados.
 ### Pilar 1 — Conhecimento Completo
 
 **Prioridade:** crítica
-**Estado atual:** 50 de 151 entradas cobertas
+**Estado atual:** 60 de 151 entradas cobertas
 
 Objetivo: possuir um documento canônico revisado para cada entrada do catálogo,
 com fontes verificáveis e profundidade suficiente para orientar escolha,
@@ -134,6 +134,19 @@ fontes atuais: recursos insuficientes e ClickHouse incompatível no Langfuse,
 imagem ARM incorreta no vLLM, edição Community anunciada como Enterprise no
 Neo4j, autenticação incompleta no Weaviate e API LocalAI exposta sem chave. O
 dataset passou a 310 casos e a baseline deixou 101 entradas pendentes.
+
+#### Lote 4 — concluído na v7.2.4 Beta
+
+O quarto lote elevou a cobertura de 50 para 60 entradas e incorporou Gitea,
+GitLab, Immich, Keycloak, Mattermost, Odoo, Paperless-ngx, Plane, Rocket.Chat e
+Vaultwarden. A seleção cobre identidade, repositórios, DevOps, colaboração,
+gestão de projetos, documentos, ERP e ativos pessoais críticos.
+
+A auditoria registrou bloqueios sem transformá-los em recomendações: recursos
+do GitLab abaixo do baseline oficial, MongoDB standalone incompatível com o
+Rocket.Chat atual, cadastro aberto e secret SMTP no Vaultwarden, banco do Odoo
+publicado no host, tags móveis e dependências compartilhadas em múltiplos
+setups. O dataset passou a 360 casos e a baseline deixou 91 entradas pendentes.
 
 #### Gate final de governança após todos os lotes
 

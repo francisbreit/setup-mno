@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
-  "selectionVersion": "1.4.0",
-  "setupVersion": "7.2.3",
-  "selectionPolicy": "Lotes 1 a 3 orientados a deploy, IA, integrações, dados e segurança operacional",
+  "selectionVersion": "1.5.0",
+  "setupVersion": "7.2.4",
+  "selectionPolicy": "Lotes 1 a 4 orientados a deploy, IA, integrações, dados, identidade, colaboração e segurança operacional",
   "setups": [
     {
       "setupId": "activepieces",
@@ -353,6 +353,76 @@
       "script": "weaviate.sh",
       "architectures": ["amd64", "arm64"],
       "aliases": ["banco vetorial weaviate", "rag weaviate", "busca semantica weaviate"]
+    },
+    {
+      "setupId": "gitea",
+      "catalogName": "GITEA",
+      "script": "gitea.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["git gitea", "repositorio gitea", "servidor git leve"]
+    },
+    {
+      "setupId": "gitlab",
+      "catalogName": "GITLAB",
+      "script": "gitlab.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["git lab", "devops gitlab", "ci cd gitlab"]
+    },
+    {
+      "setupId": "immich",
+      "catalogName": "IMMICH",
+      "script": "immich.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["fotos immich", "galeria de fotos", "backup de fotos immich"]
+    },
+    {
+      "setupId": "keycloak",
+      "catalogName": "KEYCLOAK",
+      "script": "keycloak.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["key cloak", "sso keycloak", "provedor de identidade"]
+    },
+    {
+      "setupId": "mattermost",
+      "catalogName": "MATTERMOST",
+      "script": "mattermost.sh",
+      "architectures": ["amd64"],
+      "aliases": ["matter most", "chat mattermost", "colaboracao mattermost"]
+    },
+    {
+      "setupId": "odoo",
+      "catalogName": "ODOO",
+      "script": "odoo.sh",
+      "architectures": ["amd64"],
+      "aliases": ["erp odoo", "crm odoo", "odoo community"]
+    },
+    {
+      "setupId": "paperless",
+      "catalogName": "PAPERLESS",
+      "script": "paperless.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["paperless ngx", "gestao de documentos", "ocr paperless"]
+    },
+    {
+      "setupId": "plane",
+      "catalogName": "PLANE",
+      "script": "plane.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["plane projetos", "gestao de projetos plane", "issues plane"]
+    },
+    {
+      "setupId": "rocketchat",
+      "catalogName": "ROCKET.CHAT",
+      "script": "rocketchat.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["rocket chat", "chat rocket", "colaboracao rocketchat"]
+    },
+    {
+      "setupId": "vaultwarden",
+      "catalogName": "VAULTWARDEN",
+      "script": "vaultwarden.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["vault warden", "servidor bitwarden", "cofre de senhas"]
     }
   ]
 }

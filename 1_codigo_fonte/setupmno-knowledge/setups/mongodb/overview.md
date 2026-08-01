@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "MongoDB no Setup MNO",
   "setupId": "mongodb",
-  "setupVersion": "7.2.3",
+  "setupVersion": "7.2.4",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
