@@ -14,7 +14,7 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.2.9` no canal Beta
+- Setup MNO: `7.2.10` no canal Beta
 - Control Center: `4.9.2`
 - Conhecimento canônico: `3.9.0`
 - Catálogo runtime: 151 entradas
@@ -46,6 +46,13 @@ preto, Whiptail de alto contraste e dimensões calculadas pelo terminal real.
 A barra touch permanece integralmente dentro do ttyd, sem rolagem horizontal,
 e o xterm recalcula colunas e linhas ao redimensionar, girar a tela ou abrir e
 fechar o teclado virtual.
+
+### Hotfix v7.2.10 Beta
+
+Restaura integralmente a apresentação, as cores e as dimensões Whiptail dos
+`install.sh` x86 e ARM ao comportamento da v7.2.8. As melhorias contextuais,
+de contraste e de responsividade permanecem restritas às demais telas do
+Terminal Seguro, à Central de Configurações e à camada web do Control Center.
 
 ## Norte do produto
 

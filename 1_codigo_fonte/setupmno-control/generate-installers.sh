@@ -238,15 +238,6 @@ grep -Fq 'background: "#000000"' "$project_dir/web/terminal-bridge.js" || {
     printf 'ERRO: ponte móvel do terminal sem reflow ou tema preto de alto contraste.\n' >&2
     exit 1
 }
-for installer_script in \
-    "$source_root/x86/SetupLowCodeMno/install.sh" \
-    "$source_root/arm/SetupLowCodeMno/install.sh"; do
-    grep -Fq 'dialog_width()' "$installer_script" &&
-    grep -Fq '"$(dialog_rows 10 20)"' "$installer_script" || {
-        printf 'ERRO: instalador sem dimensões Whiptail responsivas em %s.\n' "$installer_script" >&2
-        exit 1
-    }
-done
 grep -Fq 'target: admin_password' "$template" || {
     printf 'ERRO: a credencial administrativa precisa usar target estável para rotação.\n' >&2
     exit 1
