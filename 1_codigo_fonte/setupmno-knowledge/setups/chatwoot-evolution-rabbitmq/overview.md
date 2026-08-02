@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Chatwoot com Evolution e RabbitMQ no Setup MNO",
   "setupId": "chatwoot-evolution-rabbitmq",
-  "setupVersion": "7.2.11",
+  "setupVersion": "7.2.12",
   "architectures": [
     "amd64",
     "arm64"

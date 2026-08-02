@@ -245,6 +245,14 @@ grep -Fq 'target: admin_password' "$template" || {
     printf 'ERRO: a credencial administrativa precisa usar target estável para rotação.\n' >&2
     exit 1
 }
+grep -Fq 'assistant_mode="later"' "$template" &&
+grep -Fq 'assistant_has_llm="false"' "$template" &&
+grep -Fq 'id="assistant-disabled"' "$project_dir/web/index.html" &&
+grep -Fq 'id="assistant-diagnostic-run"' "$project_dir/web/index.html" &&
+grep -Fq 'function renderAssistantAvailability' "$project_dir/web/app.js" || {
+    printf 'ERRO: modos BASIC/LATER ainda expõem chat sem LLM ou não oferecem diagnóstico local.\n' >&2
+    exit 1
+}
 
 x86_version=$(sed -n 's/^VERSIONSETUP="\([^"]*\)"/\1/p' "$source_root/x86/SetupLowCodeMno/install.sh" | head -n1)
 [ -n "$x86_version" ] || {

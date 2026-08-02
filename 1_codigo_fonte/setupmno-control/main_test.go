@@ -62,6 +62,19 @@ func TestTerminalIntentAllowed(t *testing.T) {
 	}
 }
 
+func TestAssistantModeUsesLLM(t *testing.T) {
+	for _, mode := range []string{"openai", "openrouter", "deepseek", "ollama", " OPENAI "} {
+		if !assistantModeUsesLLM(mode) {
+			t.Fatalf("modo com LLM recusado: %q", mode)
+		}
+	}
+	for _, mode := range []string{"", "basic", "later", "catalog", "unknown"} {
+		if assistantModeUsesLLM(mode) {
+			t.Fatalf("modo sem LLM aceito: %q", mode)
+		}
+	}
+}
+
 func TestReadRuntimeSnapshotAcceptsGeneratedKnowledgeManifest(t *testing.T) {
 	directory := filepath.Join("..", "x86", "SetupLowCodeMno", ".control-package")
 	snapshot, err := readRuntimeSnapshot(directory)

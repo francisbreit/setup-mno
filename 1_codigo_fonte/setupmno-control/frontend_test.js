@@ -60,6 +60,17 @@ for (const provider of ["OpenAI", "OpenRouter", "DeepSeek", "Ollama"]) {
 }
 assert.match(app, /openTerminal\("settings"\)/);
 assert.match(html, /id="assistant-route-specialist"/);
+assert.match(html, /id="assistant-disabled"/);
+assert.match(html, /Assistente com IA desativado/);
+assert.match(html, /id="assistant-diagnostic-run"/);
+const disabledAssistant = html.match(/<section id="assistant-disabled"[\s\S]*?<\/section>/)?.[0] || "";
+assert.equal((disabledAssistant.match(/<button/g) || []).length, 1);
+assert.doesNotMatch(disabledAssistant, /<textarea|<form/);
+assert.match(app, /function assistantModeUsesLLM/);
+assert.match(app, /function renderAssistantAvailability/);
+assert.match(app, /function runLocalDiagnostic/);
+assert.match(app, /state\.assistantMode === "later"/);
+assert.match(app, /openai", "openrouter", "deepseek", "ollama/);
 assert.match(html, /Roteador local/);
 assert.match(html, /sem usar uma segunda LLM/);
 assert.match(app, /event\.type === "route"/);

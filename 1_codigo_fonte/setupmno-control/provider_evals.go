@@ -425,7 +425,7 @@ func (a *webApp) handleProviderEval(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "confirmação explícita obrigatória")
 		return
 	}
-	if a.assistantURL == "" || a.assistantMode == "basic" {
+	if a.assistantURL == "" || !assistantModeUsesLLM(a.assistantMode) {
 		writeError(w, http.StatusConflict, "configure um provedor opcional antes de executar o canário")
 		return
 	}

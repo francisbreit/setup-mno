@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.9.3"
+CONTROL_VERSION="4.10.0"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -262,8 +262,12 @@ else
         assistant_status=$?
         [ "$assistant_status" -ne 0 ] && exit 0
         case "$assistant_choice" in
-            BASIC|LATER)
+            BASIC)
                 assistant_mode="basic"
+                break
+                ;;
+            LATER)
+                assistant_mode="later"
                 break
                 ;;
             OPENAI)
@@ -357,6 +361,7 @@ agent_secret="${nome_app}-agent-token"
 llm_secret="${nome_app}-llm-api-key"
 
 assistant_label="Diagnóstico básico (sem LLM)"
+assistant_has_llm="false"
 memory_limit="576 MB"
 assistant_internal_url=""
 assistant_external="false"
@@ -369,13 +374,17 @@ if [ "$assistant_mode" = "openai" ] ||
         deepseek) assistant_provider_label="DeepSeek" ;;
     esac
     assistant_label="$assistant_provider_label · $assistant_model"
+    assistant_has_llm="true"
     memory_limit="832 MB"
     assistant_internal_url="http://${assistant_stack}_${assistant_service}:7070"
     assistant_external="true"
 elif [ "$assistant_mode" = "ollama" ]; then
     assistant_label="Ollama · $assistant_model"
+    assistant_has_llm="true"
     memory_limit="832 MB + consumo do modelo Ollama"
     assistant_internal_url="http://${assistant_stack}_${assistant_service}:7070"
+elif [ "$assistant_mode" = "later" ]; then
+    assistant_label="Conector de IA adiado (chat desativado)"
 fi
 
 dns_mode="Cloudflare Tunnel"
@@ -740,7 +749,7 @@ secrets:
     external: true
 EOL
 
-    if [ "$assistant_mode" != "basic" ]; then
+    if [ "$assistant_has_llm" = "true" ]; then
         cat >"${assistant_stack}.yaml" <<EOL
 
 version: "3.7"
@@ -908,7 +917,7 @@ volumes:
 EOL
 
     stack_files=("${terminal_stack}.yaml" "${agent_stack}.yaml")
-    if [ "$assistant_mode" != "basic" ]; then
+    if [ "$assistant_has_llm" = "true" ]; then
         stack_files+=("${assistant_stack}.yaml")
     fi
     stack_files+=("${web_stack}.yaml")
@@ -1017,7 +1026,7 @@ EOL
         echo "Rota confirmada: $url_control -> http://${web_stack}_${web_service}:8080" >>"$install_log"
     fi
 
-    if [ "$assistant_mode" = "basic" ]; then
+    if [ "$assistant_has_llm" = "false" ]; then
         echo -e "XXX\n80\nPREPARANDO DEPLOY DAS TRÊS STACKS... \nXXX"
     else
         echo -e "XXX\n80\nPREPARANDO DEPLOY DAS QUATRO STACKS... \nXXX"
@@ -1102,7 +1111,7 @@ EOL
         echo -e "XXX\n90\nCRIANDO AGENTE NO PORTAINER... \nXXX"
         create_portainer_stack "$agent_stack" "${agent_stack}.yaml" ||
             fail_install 90 "ERRO NA STACK DO AGENTE" "$(cat "$error_file")"
-        if [ "$assistant_mode" != "basic" ]; then
+        if [ "$assistant_has_llm" = "true" ]; then
             echo -e "XXX\n92\nCRIANDO ASSISTENTE NO PORTAINER... \nXXX"
             create_portainer_stack "$assistant_stack" "${assistant_stack}.yaml" ||
                 fail_install 91 "ERRO NA STACK DO ASSISTENTE" "$(cat "$error_file")"
@@ -1119,7 +1128,7 @@ EOL
         docker stack deploy --prune --resolve-image never \
             -c "/root/${agent_stack}.yaml" "$agent_stack" >>"$install_log" 2>&1 ||
             fail_install 93 "ERRO NA STACK DO AGENTE" "Falha ao publicar a stack do agente no Docker."
-        if [ "$assistant_mode" != "basic" ]; then
+        if [ "$assistant_has_llm" = "true" ]; then
             echo -e "XXX\n92\nCRIANDO ASSISTENTE NO DOCKER... \nXXX"
             docker stack deploy --prune --resolve-image never \
                 -c "/root/${assistant_stack}.yaml" "$assistant_stack" >>"$install_log" 2>&1 ||
@@ -1136,7 +1145,7 @@ EOL
         "${terminal_stack}_${terminal_service}"
         "${agent_stack}_${agent_service}"
     )
-    if [ "$assistant_mode" != "basic" ]; then
+    if [ "$assistant_has_llm" = "true" ]; then
         expected_services+=("${assistant_stack}_${assistant_service}")
     fi
     expected_services+=("${web_stack}_${web_service}")
@@ -1185,7 +1194,7 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "1" ]; then
 fi
 
 whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
-    "Control Center instalado com sucesso.\n\nAcesse: https://$url_control\nUsuário: $usuario_control\nSenha: definida durante a instalação\nAssistente: $assistant_label\n\nStacks:\n- $web_stack\n- $agent_stack\n- $terminal_stack$([ "$assistant_mode" != "basic" ] && printf '\\n- %s' "$assistant_stack")\n\nAs imagens foram construídas localmente e validadas sem upload pelo Cloudflare.$manual_dns_note" \
+    "Control Center instalado com sucesso.\n\nAcesse: https://$url_control\nUsuário: $usuario_control\nSenha: definida durante a instalação\nAssistente: $assistant_label\n\nStacks:\n- $web_stack\n- $agent_stack\n- $terminal_stack$([ "$assistant_has_llm" = "true" ] && printf '\\n- %s' "$assistant_stack")\n\nAs imagens foram construídas localmente e validadas sem upload pelo Cloudflare.$manual_dns_note" \
     24 90
 
 exit 0

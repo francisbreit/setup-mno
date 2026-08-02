@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Nginx Proxy Manager no Setup MNO",
   "setupId": "nginx-proxy-manager",
-  "setupVersion": "7.2.11",
+  "setupVersion": "7.2.12",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

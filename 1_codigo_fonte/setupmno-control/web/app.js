@@ -103,6 +103,7 @@ function bindEvents() {
     closeBlueprint();
   });
   $("assistant-form").addEventListener("submit", askAssistant);
+  $("assistant-diagnostic-run").addEventListener("click", runLocalDiagnostic);
   $("provider-eval-run").addEventListener("click", runProviderEval);
   $("provider-eval-review").addEventListener("click", submitProviderEvalReview);
   $("provider-eval-cases").addEventListener("click", event => {
@@ -343,16 +344,18 @@ function renderEvals() {
 }
 
 function renderProviderEvalAvailability() {
-  const enabled = state.assistantMode !== "basic" && Boolean(state.assistantModel);
+  const enabled = assistantModeUsesLLM(state.assistantMode) && Boolean(state.assistantModel);
   const button = $("provider-eval-run");
   $("provider-eval-provider").textContent = enabled
     ? `${providerLabel(state.assistantMode)} · ${state.assistantModel}`
-    : "Diagnóstico básico";
+    : providerLabel(state.assistantMode);
   if (!enabled) {
     button.disabled = true;
     button.textContent = "Requer provedor opcional";
     $("provider-eval-status").textContent = "Sem consumo de IA";
-    $("provider-eval-help").textContent = "Configure OpenAI, OpenRouter, DeepSeek ou Ollama para habilitar este canário.";
+    $("provider-eval-help").textContent = state.assistantMode === "later"
+      ? "O conector foi adiado. Configure OpenAI, OpenRouter, DeepSeek ou Ollama para habilitar este canário."
+      : "Configure OpenAI, OpenRouter, DeepSeek ou Ollama para habilitar este canário.";
     return;
   }
   if (state.providerEvalCooldown) {
@@ -891,6 +894,33 @@ async function askAssistant(event) {
   }
 }
 
+async function runLocalDiagnostic() {
+  const button = $("assistant-diagnostic-run");
+  const target = $("assistant-diagnostic-result");
+  const content = target.querySelector(".message-content");
+  const originalLabel = button.innerHTML;
+  target.hidden = false;
+  target.dataset.feedbackToken = "";
+  content.textContent = "Consultando métricas locais do servidor...";
+  button.disabled = true;
+  button.textContent = "Executando diagnóstico...";
+  try {
+    await streamAssistant(
+      "Execute um diagnóstico geral do sistema, incluindo memória, disco, serviços e réplicas.",
+      [],
+      target,
+      true
+    );
+  } catch (error) {
+    setAssistantMessageRouteUnavailable(target);
+    content.textContent = `Não foi possível concluir o diagnóstico local: ${error.message}`;
+  } finally {
+    button.disabled = false;
+    button.innerHTML = originalLabel;
+    renderAssistantMode();
+  }
+}
+
 async function streamAssistant(question, history, target, basic, fallbackReason = "") {
   clearRetrievalInspection(target);
   clearBlueprintSimulation(target);
@@ -1226,6 +1256,27 @@ function renderAssistantMode() {
     model: state.assistantModel,
     configured: true
   });
+  renderAssistantAvailability();
+}
+
+function assistantModeUsesLLM(mode) {
+  return ["openai", "openrouter", "deepseek", "ollama"].includes(mode);
+}
+
+function renderAssistantAvailability() {
+  const enabled = assistantModeUsesLLM(state.assistantMode);
+  $("assistant-chat").hidden = !enabled;
+  $("assistant-disabled").hidden = enabled;
+  $("assistant-route-card").hidden = !enabled;
+  $("assistant-rag-card").hidden = !enabled;
+  if (enabled) return;
+  const deferred = state.assistantMode === "later";
+  $("assistant-disabled-text").textContent = deferred
+    ? "A configuração do conector de IA foi adiada durante a instalação. Nenhuma LLM está conectada e o chat permanecerá desativado até que um provedor seja escolhido."
+    : "O modo Básico foi selecionado. Nenhuma LLM está conectada e, por isso, o campo de conversa permanece desativado.";
+  $("assistant-disabled-help").textContent = deferred
+    ? "Quando desejar ativar o chat, abra Configurações e escolha Alterar Provedor."
+    : "Para habilitar o chat, abra Configurações e escolha Alterar Provedor.";
 }
 
 function updateAssistantRuntime(runtime = {}) {
@@ -1267,6 +1318,12 @@ function updateAssistantRuntime(runtime = {}) {
     $("assistant-welcome-title").textContent = `${fallbackLabel}.`;
     $("assistant-welcome-text").textContent = "O diagnóstico básico assumiu esta resposta. O Copiloto tentará restabelecer o modo configurado automaticamente na próxima pergunta.";
     $("assistant-privacy").textContent = "A contingência interpreta métricas localmente e não envia dados para terceiros.";
+  } else if (mode === "later") {
+    $("assistant-model").textContent = "Conector de IA ainda não configurado.";
+    $("settings-model").textContent = "Conector de IA ainda não configurado.";
+    $("assistant-welcome-title").textContent = "Configuração de IA adiada.";
+    $("assistant-welcome-text").textContent = "O chat permanece desativado até que um provedor de IA seja configurado.";
+    $("assistant-privacy").textContent = "Nenhuma LLM está conectada e nenhum dado é enviado para terceiros.";
   } else {
     $("assistant-welcome-title").textContent = "Olá! O diagnóstico básico está pronto.";
     $("assistant-welcome-text").textContent = "Sou especializado em Setup MNO e infraestrutura. Posso avaliar capacidade, serviços degradados e prontidão para novos deploys.";
@@ -1282,7 +1339,8 @@ function providerLabel(mode) {
     deepseek: "DeepSeek",
     ollama: "Ollama",
     catalog: "Catálogo local",
-    basic: "Diagnóstico básico"
+    basic: "Diagnóstico básico",
+    later: "IA não configurada"
   }[mode] || "Diagnóstico básico";
 }
 

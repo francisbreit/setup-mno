@@ -3,6 +3,10 @@ set -euo pipefail
 
 project_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 template="$project_dir/installer-template.sh"
+grep -Fq 'LATER)' "$template"
+grep -Fq 'assistant_mode="later"' "$template"
+grep -Fq 'assistant_has_llm="false"' "$template"
+grep -Fq 'if [ "$assistant_has_llm" = "true" ]; then' "$template"
 test_dir=$(mktemp -d)
 trap 'rm -rf "$test_dir"' EXIT
 

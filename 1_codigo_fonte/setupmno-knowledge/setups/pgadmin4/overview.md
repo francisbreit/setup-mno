@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "pgAdmin 4 no Setup MNO",
   "setupId": "pgadmin4",
-  "setupVersion": "7.2.11",
+  "setupVersion": "7.2.12",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

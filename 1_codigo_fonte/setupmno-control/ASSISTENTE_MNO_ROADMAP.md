@@ -14,8 +14,8 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.2.11` no canal Beta
-- Control Center: `4.9.3`
+- Setup MNO: `7.2.12` no canal Beta
+- Control Center: `4.10.0`
 - Conhecimento canônico: `3.9.0`
 - Catálogo runtime: 151 entradas
 - Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
@@ -61,6 +61,17 @@ agora é exibido e dimensionado antes do carregamento do ttyd, desktop e mobile
 usam o renderizador DOM consistente e o `fit()` acompanha também o contêiner
 real do xterm. O `install.sh` permanece com apresentação e comportamento
 idênticos aos da v7.2.8, alterando somente o número da versão da release.
+
+### Hotfix v7.2.12 Beta
+
+Alinha o Assistente MNO ao conector realmente configurado. Quando o usuário
+seleciona `BASIC`, o painel identifica o diagnóstico local sem LLM; quando
+seleciona `LATER`, preserva o estado de configuração adiada. Nos dois casos, o
+campo de conversa, os atalhos de perguntas e o histórico deixam de ser
+exibidos. A tela informa claramente que o chat com IA está desativado e oferece
+um único botão para executar o diagnóstico local de memória, disco, serviços e
+réplicas. OpenAI, OpenRouter, DeepSeek e Ollama continuam exibindo o chat
+consultivo completo quando o respectivo conector está ativo.
 
 ## Norte do produto
 

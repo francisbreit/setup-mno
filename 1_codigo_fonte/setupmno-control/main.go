@@ -1721,7 +1721,7 @@ func (a *webApp) handleAssistant(w http.ResponseWriter, r *http.Request) {
 		a.streamFullCatalog(w, r, input.Question)
 		return
 	}
-	if input.Basic || a.assistantURL == "" || a.assistantMode == "basic" {
+	if input.Basic || a.assistantURL == "" || !assistantModeUsesLLM(a.assistantMode) {
 		a.streamBasicAssistant(w, r, input.Question, input.Basic, input.FallbackReason)
 		return
 	}
@@ -1782,6 +1782,15 @@ func (a *webApp) handleAssistant(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	a.addAudit("assistant_analysis", "Consulta assistida via "+a.assistantMode, clientAddress(r))
+}
+
+func assistantModeUsesLLM(mode string) bool {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "openai", "openrouter", "deepseek", "ollama":
+		return true
+	default:
+		return false
+	}
 }
 
 func knowledgeStatusMarkdown(catalog catalogResponse, state knowledgePackageState) (string, error) {
