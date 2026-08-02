@@ -14,7 +14,7 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.2.15` no canal Beta
+- Setup MNO: `7.2.16` no canal Beta
 - Control Center: `4.11.0`
 - Conhecimento canônico: `3.10.0`
 - Catálogo runtime: 151 entradas
@@ -98,6 +98,15 @@ A recomendação passa a separar aderência de compatibilidade: um Blueprint
 relacionado continua visível quando a RAM ou arquitetura não atende, mas a tela
 bloqueia a instalação naquele servidor e explica o motivo. A correspondência
 aproximada permanece restrita a tags e aliases canônicos e não cria soluções.
+
+### Hotfix v7.2.16 Beta
+
+Corrige o código 41 que bloqueava toda instalação da v7.2.15. Os gatilhos x86
+e ARM ainda exigiam a fábrica de Blueprints `2.0.0` e pelo menos uma fixture,
+enquanto o pacote correto já distribuía a fábrica `2.1.0` e zero fixtures após
+a promoção dos cinco guias para o canal Beta. As expectativas agora são
+declaradas nos dois gatilhos e comparadas mecanicamente com o manifesto pelo
+gerador; qualquer divergência futura bloqueia a geração antes do empacotamento.
 
 ## Norte do produto
 

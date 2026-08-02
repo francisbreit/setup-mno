@@ -367,18 +367,31 @@ runtime_gate_files=(
     "$source_root/arm/start_arm_full.sh"
 )
 for runtime_gate_file in "${runtime_gate_files[@]}"; do
+    grep -Fq '[ "$blueprint_factory_version" != "$EXPECTED_BLUEPRINT_FACTORY_VERSION" ]' "$runtime_gate_file" &&
+    grep -Fq '[ "$blueprint_fixture_entries" != "$EXPECTED_BLUEPRINT_FIXTURE_ENTRIES" ]' "$runtime_gate_file" || {
+        printf 'ERRO: gate de Blueprint não usa as expectativas versionadas em %s.\n' \
+            "$runtime_gate_file" >&2
+        exit 1
+    }
     gate_eval_dataset_version=$(sed -n 's/^EXPECTED_EVAL_DATASET_VERSION="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
     gate_eval_grader_version=$(sed -n 's/^EXPECTED_EVAL_GRADER_VERSION="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
     gate_eval_case_entries=$(sed -n 's/^EXPECTED_EVAL_CASE_ENTRIES="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
+    gate_blueprint_factory_version=$(sed -n 's/^EXPECTED_BLUEPRINT_FACTORY_VERSION="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
+    gate_blueprint_fixture_entries=$(sed -n 's/^EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
     [ "$gate_eval_dataset_version" = "$eval_dataset_version" ] &&
     [ "$gate_eval_grader_version" = "$eval_grader_version" ] &&
-    [ "$gate_eval_case_entries" = "$eval_case_entries" ] || {
-        printf 'ERRO: gate de Evals divergente em %s (esperado dataset=%s, grader=%s, casos=%s; encontrado dataset=%s, grader=%s, casos=%s).\n' \
+    [ "$gate_eval_case_entries" = "$eval_case_entries" ] &&
+    [ "$gate_blueprint_factory_version" = "$blueprint_factory_version" ] &&
+    [ "$gate_blueprint_fixture_entries" = "$blueprint_fixture_entries" ] || {
+        printf 'ERRO: gate runtime divergente em %s (esperado evals=%s/%s/%s, blueprint=%s/%s; encontrado evals=%s/%s/%s, blueprint=%s/%s).\n' \
             "$runtime_gate_file" \
             "$eval_dataset_version" "$eval_grader_version" "$eval_case_entries" \
+            "$blueprint_factory_version" "$blueprint_fixture_entries" \
             "${gate_eval_dataset_version:-ausente}" \
             "${gate_eval_grader_version:-ausente}" \
-            "${gate_eval_case_entries:-ausente}" >&2
+            "${gate_eval_case_entries:-ausente}" \
+            "${gate_blueprint_factory_version:-ausente}" \
+            "${gate_blueprint_fixture_entries:-ausente}" >&2
         exit 1
     }
 done

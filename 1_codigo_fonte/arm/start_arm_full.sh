@@ -1,9 +1,11 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.2.15"
+VERSIONSETUP="7.2.16"
 EXPECTED_EVAL_DATASET_VERSION="1.7.0"
 EXPECTED_EVAL_GRADER_VERSION="1.7.0"
 EXPECTED_EVAL_CASE_ENTRIES="815"
+EXPECTED_BLUEPRINT_FACTORY_VERSION="2.1.0"
+EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="0"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -318,7 +320,7 @@ if [ "$control_schema" != "1" ] ||
    [ "$knowledge_entries" != "$runtime_knowledge_entries" ] ||
    [ "$blueprint_schema_version" != "2" ] ||
    [ "$blueprint_schema_version" != "$runtime_blueprint_schema_version" ] ||
-   [ "$blueprint_factory_version" != "2.0.0" ] ||
+   [ "$blueprint_factory_version" != "$EXPECTED_BLUEPRINT_FACTORY_VERSION" ] ||
    [ "$blueprint_factory_version" != "$runtime_blueprint_factory_version" ] ||
    [ "$blueprint_entries" -le 0 ] ||
    [ "$blueprint_entries" != "$runtime_blueprint_entries" ] ||
@@ -326,7 +328,7 @@ if [ "$control_schema" != "1" ] ||
    [ "$blueprint_index_sha" != "$runtime_blueprint_index_sha" ] ||
    [ "$blueprint_knowledge_entries" -le 0 ] ||
    [ "$blueprint_knowledge_entries" != "$runtime_blueprint_knowledge_entries" ] ||
-   [ "$blueprint_fixture_entries" -le 0 ] ||
+   [ "$blueprint_fixture_entries" != "$EXPECTED_BLUEPRINT_FIXTURE_ENTRIES" ] ||
    [ "$blueprint_fixture_entries" != "$runtime_blueprint_fixture_entries" ] ||
    [ "$eval_schema_version" != "1" ] ||
    [ "$eval_schema_version" != "$runtime_eval_schema_version" ] ||
