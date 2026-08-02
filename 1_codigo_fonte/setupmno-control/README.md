@@ -157,38 +157,34 @@ Na subetapa 5.1, o pacote também transporta a fábrica canônica de Blueprints:
 - `blueprints/manifest.json`: versão da fábrica, contagens e hashes;
 - `blueprints/bundles/*.zip`: um bundle determinístico por Blueprint.
 
-Blueprints com status `example` são obrigatoriamente fictícios, não
-implantáveis e limitados a links `.invalid`. Seus `README.md` permanecem fora
-do RAG. Na subetapa 5.2, cada exemplo possui um `knowledge.md` revisado que
-percorre o mesmo índice, ranking, prompt especializado, citações e inspeção de
-um Blueprint real. A recuperação exige simultaneamente o Arquiteto de
-Blueprints e o modo explícito de homologação; a interface identifica a resposta
-como simulação e nunca a apresenta como autorização de deploy.
+Os cinco modelos iniciais são publicados como guias `reviewed` em canal Beta:
+possuem conteúdo manual, ZIP autenticado, checklist, validação e rollback, mas
+permanecem `deployable: false` até a homologação técnica de ponta a ponta.
+Materiais ainda não publicados usam `url: null` e aparecem como “Em preparação”;
+o sistema nunca inventa links. Seus `knowledge.md` revisados percorrem o índice,
+ranking, prompt especializado e citações do RAG normal.
 
 Quando a pergunta resolve um `blueprintId` exato, o ranking fica restrito a
-esse documento. O gate rejeita exemplos fora do especialista, fora do modo de
-homologação ou com a combinação insegura `fictitious: true` e
-`deployable: true`. Assim, o comportamento funcional é equivalente ao de um
-Blueprint real, enquanto a procedência e a capacidade operacional continuam
-inequivocamente separadas.
+esse documento. O gate rejeita a combinação insegura `fictitious: true` e
+`deployable: true`. Guias Beta são informação operacional revisada, mas devem
+ser identificados como não homologados e não podem autorizar implantação.
 
 Na subetapa 5.3, a área **Blueprints** apresenta esse inventário diretamente no
-Control Center, inclusive no modo básico. Homologados, exemplos fictícios e
-itens em revisão ocupam grupos visuais distintos. Filtros locais e uma inspeção
-detalhada mostram objetivo, componentes, arquitetura, risco, mídia declarada e
-procedência, sempre sem botão de deploy. A API autenticada entrega somente uma
-projeção tipada do índice validado: conteúdo RAG, URLs editoriais, caminhos
-internos e downloads de bundles não são expostos.
+Control Center, inclusive no modo básico. Homologados, guias Beta e itens em
+revisão ocupam grupos visuais distintos. Filtros locais e a visualização do
+guia mostram objetivo, ordem de instalação, integração, validação, rollback,
+mídia e procedência. A API autenticada entrega a projeção tipada do índice e
+permite baixar somente o ZIP validado por `blueprintId`, sem expor caminhos
+internos.
 
 Na subetapa 5.4, o mesmo painel oferece recomendação contextual local. O
 usuário descreve o resultado desejado e o Control Center consulta arquitetura e
-RAM pelo agente somente leitura. Versão, origem runtime, arquitetura, status
-editorial e RAM mínima são gates bloqueantes executados antes do ranking.
-Somente então aliases, tags, título, componentes, objetivo e resumo determinam
-a aderência. O resultado explica os motivos, diferencia RAM recomendada de RAM
-mínima e lista candidatos recusados. Ausência de evidência produz zero
-recomendações; exemplos continuam fictícios, não implantáveis e abrem apenas a
-inspeção segura.
+RAM pelo agente somente leitura. Versão, origem runtime e status editorial
+permanecem gates de segurança. Arquitetura e RAM são avaliadas depois da
+aderência: um guia relacionado continua visível, mas recebe bloqueios claros
+quando não cabe no servidor. Somente aliases e tags canônicos aceitam
+correspondência aproximada; ausência de evidência ainda produz zero
+recomendações e nunca gera um Blueprint novo.
 
 A correção 6.3.1 tolera somente um erro ortográfico em tokens com pelo menos
 sete caracteres, comparados exclusivamente com tags e aliases canônicos. A

@@ -209,10 +209,15 @@
       "required": ["mediaId", "type", "title", "url", "status", "transcript"],
       "properties": {
         "mediaId": { "$ref": "#/$defs/identifier" },
-        "type": { "enum": ["video", "link"] },
+        "type": { "enum": ["video", "link", "pdf", "download"] },
         "title": { "type": "string", "minLength": 5 },
-        "url": { "type": "string", "format": "uri", "pattern": "^https://" },
-        "status": { "enum": ["example", "reviewed"] },
+        "url": {
+          "oneOf": [
+            { "type": "string", "format": "uri", "pattern": "^https://" },
+            { "type": "null" }
+          ]
+        },
+        "status": { "enum": ["pending", "reviewed"] },
         "transcript": {
           "oneOf": [
             { "type": "string", "minLength": 3 },

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#070a0f">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=4.10.2">
+  <link rel="stylesheet" href="/styles.css?v=4.11.0">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -187,11 +187,11 @@
 
         <section id="view-blueprints" class="view">
           <div class="blueprint-intro">
-            <div><p class="eyebrow">Arquiteturas compostas e auditáveis</p><h2>Blueprints MNO</h2><p>Inspecione objetivos, componentes, compatibilidade e procedência. Este catálogo é estritamente consultivo e não executa instalações.</p></div>
+            <div><p class="eyebrow">Ecossistemas guiados passo a passo</p><h2>Blueprints MNO</h2><p>Escolha um objetivo, siga a instalação na ordem indicada e conecte as ferramentas com validações e rollback claros.</p></div>
             <div class="blueprint-totals" aria-label="Resumo do catálogo de Blueprints">
               <span><strong id="blueprint-total">—</strong><small>Total</small></span>
               <span class="homologated"><strong id="blueprint-homologated-total">—</strong><small>Homologados</small></span>
-              <span class="example"><strong id="blueprint-example-total">—</strong><small>Exemplos</small></span>
+              <span class="example"><strong id="blueprint-example-total">—</strong><small>Guias Beta</small></span>
             </div>
           </div>
           <div id="blueprint-sync-status" class="sync-status">Validando o índice canônico de Blueprints...</div>
@@ -199,7 +199,7 @@
             <div class="blueprint-recommender-copy">
               <p class="eyebrow">Recomendação contextual local</p>
               <h3>Qual resultado você quer alcançar?</h3>
-              <p>O Control Center compara seu objetivo com o índice canônico e aplica gates da arquitetura e da RAM disponível neste servidor. Nenhuma LLM ou deploy é executado.</p>
+              <p>O Control Center encontra Blueprints relacionados e informa separadamente se a arquitetura e a RAM deste servidor atendem ao guia. Nenhuma LLM ou deploy é executado.</p>
             </div>
             <form id="blueprint-recommendation-form" class="blueprint-recommendation-form">
               <label for="blueprint-objective">Objetivo da solução</label>
@@ -210,7 +210,7 @@
           </article>
           <div class="section-tools sticky-tools blueprint-tools">
             <div class="search-box grow"><span>⌕</span><input id="blueprint-search" placeholder="Buscar por objetivo, componente ou tag..."></div>
-            <select id="blueprint-status"><option value="">Todos os estados</option><option value="homologated">Homologados</option><option value="example">Exemplos editoriais</option><option value="review">Em revisão</option></select>
+            <select id="blueprint-status"><option value="">Todos os estados</option><option value="homologated">Homologados</option><option value="beta">Guias Beta</option><option value="review">Em revisão</option></select>
             <select id="blueprint-arch"><option value="">X86 e ARM</option><option value="amd64">Compatível com X86</option><option value="arm64">Compatível com ARM</option></select>
             <select id="blueprint-risk"><option value="">Todos os riscos</option><option value="low">Risco baixo</option><option value="medium">Risco médio</option><option value="high">Risco alto</option></select>
           </div>
@@ -223,14 +223,14 @@
           </section>
 
           <section id="blueprint-example-section" class="blueprint-group example-group">
-            <div class="blueprint-group-head"><div><p class="eyebrow">Laboratório editorial</p><h3>Exemplos fictícios</h3></div><span class="blueprint-status-badge example">Exemplo</span></div>
-            <div class="blueprint-safety-notice"><strong>Simulação — não implantável</strong><span>Estes registros testam o mesmo schema, RAG e experiência visual da produção, mas não representam uma configuração homologada e não autorizam deploy.</span></div>
+            <div class="blueprint-group-head"><div><p class="eyebrow">Guias disponíveis agora</p><h3>Blueprints Beta</h3></div><span class="blueprint-status-badge example">Beta</span></div>
+            <div class="blueprint-safety-notice"><strong>Guia manual em evolução</strong><span>Você pode visualizar e baixar o passo a passo. Confirme cada etapa: estes Blueprints ainda não concluíram a homologação técnica de ponta a ponta.</span></div>
             <div id="blueprint-example-grid" class="blueprint-grid"></div>
           </section>
 
           <section id="blueprint-review-section" class="blueprint-group review-group">
             <div class="blueprint-group-head"><div><p class="eyebrow">Fluxo editorial</p><h3>Em revisão ou descontinuados</h3></div><span class="blueprint-status-badge review">Não homologado</span></div>
-            <p>Rascunhos, itens revisados e registros descontinuados permanecem separados de conteúdo homologado.</p>
+            <p>Rascunhos e registros descontinuados permanecem separados dos guias Beta e do conteúdo homologado.</p>
             <div id="blueprint-review-grid" class="blueprint-grid"></div>
           </section>
         </section>
@@ -408,8 +408,8 @@
 
   <dialog id="blueprint-dialog" class="blueprint-dialog" aria-labelledby="blueprint-detail-title">
     <div class="blueprint-dialog-head">
-      <div><p class="eyebrow">Inspeção somente leitura</p><h2 id="blueprint-detail-title">Blueprint</h2></div>
-      <button id="blueprint-dialog-close" class="icon-button" aria-label="Fechar inspeção">×</button>
+      <div><p class="eyebrow">Guia passo a passo</p><h2 id="blueprint-detail-title">Blueprint</h2></div>
+      <button id="blueprint-dialog-close" class="icon-button" aria-label="Fechar Blueprint">×</button>
     </div>
     <div id="blueprint-detail-alert" class="blueprint-detail-alert"></div>
     <div id="blueprint-detail-content" class="blueprint-detail-content"></div>
@@ -453,8 +453,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=4.10.2" defer></script>
-  <script src="/assistant-route.js?v=4.10.2" defer></script>
-  <script src="/app.js?v=4.10.2" defer></script>
+  <script src="/markdown.js?v=4.11.0" defer></script>
+  <script src="/assistant-route.js?v=4.11.0" defer></script>
+  <script src="/app.js?v=4.11.0" defer></script>
 </body>
 </html>

@@ -26,7 +26,7 @@ from blueprint_factory import (
 
 ROOT = Path(__file__).resolve().parent.parent
 CATALOG = ROOT.parent / "setupmno-control" / "catalog.json"
-SETUP_VERSION = "7.2.14"
+SETUP_VERSION = "7.2.15"
 
 
 class BlueprintFactoryTests(unittest.TestCase):
@@ -35,15 +35,15 @@ class BlueprintFactoryTests(unittest.TestCase):
         cls.catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
         cls.catalog_by_name = {entry["name"]: entry for entry in cls.catalog}
 
-    def test_complete_example_factory_passes(self) -> None:
+    def test_reviewed_beta_guides_pass_factory(self) -> None:
         records = load_blueprints(ROOT, CATALOG, SETUP_VERSION)
         self.assertEqual(len(records), 5)
-        self.assertTrue(all(record.manifest["status"] == "example" for record in records))
-        self.assertTrue(all(record.manifest["fictitious"] for record in records))
+        self.assertTrue(all(record.manifest["status"] == "reviewed" for record in records))
+        self.assertTrue(all(not record.manifest["fictitious"] for record in records))
         self.assertTrue(all(not record.manifest["deployable"] for record in records))
         self.assertTrue(all(record.manifest["schemaVersion"] == 2 for record in records))
         self.assertTrue(
-            all(record.manifest["editorial"]["currentStage"] == "example" for record in records)
+            all(record.manifest["editorial"]["currentStage"] == "reviewed" for record in records)
         )
 
     def test_bundles_are_reproducible_and_regular(self) -> None:
@@ -64,7 +64,7 @@ class BlueprintFactoryTests(unittest.TestCase):
         )
         for entry in index["entries"]:
             editorial = entry["editorial"]
-            self.assertEqual(editorial["passedGates"], 8)
+            self.assertEqual(editorial["passedGates"], 9)
             self.assertEqual(editorial["totalGates"], 11)
             self.assertFalse(editorial["promotionReady"])
             self.assertEqual(editorial["versionSeal"]["algorithm"], "sha256")
@@ -89,11 +89,12 @@ class BlueprintFactoryTests(unittest.TestCase):
                     self.assertNotIn("..", Path(info.filename).parts)
                     self.assertEqual((info.external_attr >> 16) & 0o777, 0o644)
 
-    def test_example_links_use_reserved_invalid_domain(self) -> None:
+    def test_pending_media_does_not_invent_links(self) -> None:
         for record in load_blueprints(ROOT, CATALOG, SETUP_VERSION):
             for media in record.manifest["media"]:
                 with self.subTest(blueprint=record.manifest["blueprintId"]):
-                    self.assertIn(".invalid/", media["url"])
+                    self.assertEqual(media["status"], "pending")
+                    self.assertIsNone(media["url"])
 
     def test_external_url_in_fictitious_document_is_blocked(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -160,6 +161,12 @@ class BlueprintFactoryTests(unittest.TestCase):
                 "note": "Revisão estrutural concluída sem promoção.",
             },
         ]
+        manifest["editorial"]["review"] = {
+            "decision": "pending",
+            "reviewedAt": None,
+            "reviewedBy": None,
+            "notes": "Revisão humana ainda não concluída.",
+        }
         errors = validate_manifest(
             manifest,
             manifest["blueprintId"],

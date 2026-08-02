@@ -259,10 +259,10 @@ class KnowledgeFactoryTests(unittest.TestCase):
                     self.assertEqual(eval_dataset["setupVersion"], registry["setupVersion"])
                     self.assertEqual(blueprint_index["schemaVersion"], 2)
                     self.assertEqual(blueprint_index["blueprintCount"], 5)
-                    self.assertEqual(blueprint_index["statuses"], {"example": 5})
+                    self.assertEqual(blueprint_index["statuses"], {"reviewed": 5})
                     self.assertTrue(
                         all(
-                            entry["fictitious"] and not entry["deployable"]
+                            not entry["fictitious"] and not entry["deployable"]
                             for entry in blueprint_index["entries"]
                         )
                     )
@@ -274,7 +274,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
                     self.assertEqual(len(blueprint_documents), 5)
                     self.assertTrue(
                         all(
-                            entry["fictitious"]
+                            not entry["fictitious"]
                             and not entry["deployable"]
                             and entry["status"] == "reviewed"
                             and entry["blueprintId"]
@@ -308,12 +308,12 @@ class KnowledgeFactoryTests(unittest.TestCase):
             self.assertEqual(manifests[0]["documentEntries"], 165)
             self.assertEqual(manifests[0]["setupEntries"], 151)
             self.assertEqual(manifests[0]["infrastructureEntries"], 9)
-            self.assertEqual(manifests[0]["blueprintFactoryVersion"], "2.0.0")
+            self.assertEqual(manifests[0]["blueprintFactoryVersion"], "2.1.0")
             self.assertEqual(manifests[0]["blueprintSchemaVersion"], 2)
             self.assertEqual(manifests[0]["blueprintEntries"], 5)
             self.assertEqual(manifests[0]["blueprintBundleEntries"], 5)
             self.assertEqual(manifests[0]["blueprintKnowledgeEntries"], 5)
-            self.assertEqual(manifests[0]["blueprintFixtureEntries"], 5)
+            self.assertEqual(manifests[0]["blueprintFixtureEntries"], 0)
             self.assertEqual(manifests[0]["indexSchemaVersion"], 2)
             self.assertEqual(
                 manifests[0]["retrievalVersion"],

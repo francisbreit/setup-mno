@@ -1,15 +1,15 @@
 ---
-{"schemaVersion":1,"documentId":"blueprint-004-observabilidade-knowledge","documentVersion":"0.1.0","contentSHA256":"f829091ba4db25b8721c3480ecbf6ed6dbd3d493e139742f053d97c8bd70058d","documentType":"blueprint","blueprintId":"blueprint-004-observabilidade-monitoramento","fictitious":true,"deployable":false,"title":"Blueprint 004 — Observabilidade e Monitoramento (homologação)","setupVersion":"7.2.14","architectures":["amd64","arm64"],"category":"architecture","status":"reviewed","updatedAt":"2026-07-31","sourceType":"homologation-test","risk":"medium","language":"pt-BR","tags":["blueprint","observabilidade","monitoramento","beszel","grafana","prometheus","uptimekuma"],"sources":[{"sourceId":"blueprint-004-manifest","title":"Manifesto canônico fictício do Blueprint 004","sourceType":"setup-mno","location":"setupmno-knowledge/blueprints/blueprint-004-observabilidade-monitoramento/blueprint.json","license":"maintainer-owned","verifiedAt":"2026-07-31"}],"homologation":{"verifiedAt":null,"verifiedPorts":[],"verifiedImages":[]}}
+{"schemaVersion":1,"documentId":"blueprint-004-observabilidade-knowledge","documentVersion":"0.2.0","contentSHA256":"780b13926c02e36d0e263d0406f63062449c2e0247b6958809b00b9d7d64764f","documentType":"blueprint","blueprintId":"blueprint-004-observabilidade-monitoramento","fictitious":false,"deployable":false,"title":"Blueprint 004 — Observabilidade e Monitoramento","setupVersion":"7.2.15","architectures":["amd64","arm64"],"category":"architecture","status":"reviewed","updatedAt":"2026-08-02","sourceType":"maintainer-authored","risk":"medium","language":"pt-BR","tags":["blueprint","observabilidade","monitoramento","beszel","grafana","prometheus","uptimekuma"],"sources":[{"sourceId":"blueprint-004-manifest","title":"Manifesto canônico do Blueprint 004","sourceType":"setup-mno","location":"setupmno-knowledge/blueprints/blueprint-004-observabilidade-monitoramento/blueprint.json","license":"maintainer-owned","verifiedAt":"2026-08-02"}],"homologation":{"verifiedAt":null,"verifiedPorts":[],"verifiedImages":[]}}
 ---
 # Blueprint 004 — Observabilidade e Monitoramento
 
 ## Estado de homologação
 
-Esta fixture fictícia homologa o caminho RAG de um Blueprint de monitoramento. Ela não contém alvos reais, política aprovada de retenção nem canais reais de alerta.
+Este é um guia Beta revisado para orientar a montagem manual. Ele não executa deploy e ainda exige validar retenção, capacidade e canais de alerta no ambiente de destino.
 
 ## Objetivo
 
-Simular uma arquitetura em camadas para visibilidade leve do host, séries temporais e dashboards detalhados, além de verificação externa de disponibilidade.
+Montar uma arquitetura em camadas para visibilidade leve do host, séries temporais e dashboards detalhados, além de verificação externa de disponibilidade.
 
 ## Topologia
 
@@ -23,7 +23,7 @@ O Beszel fornece uma visão leve de recursos e saúde. Prometheus e Grafana repr
 
 ## Pré-requisitos
 
-A estimativa fictícia é de 4 GB de RAM mínima e 8 GB recomendada, em amd64 ou arm64. Quantidade de hosts, frequência de coleta, cardinalidade, retenção, canais de alerta e armazenamento precisam ser medidos antes da homologação.
+A estimativa preliminar é de 4 GB de RAM mínima e 8 GB recomendada, em amd64 ou arm64. Quantidade de hosts, frequência de coleta, cardinalidade, retenção, canais de alerta e armazenamento precisam ser medidos antes da homologação.
 
 ## Ordem segura
 
@@ -38,7 +38,7 @@ Uma métrica de laboratório deve receber amostras no intervalo documentado. Um 
 
 ## Riscos e limites
 
-Coleta excessiva pode consumir disco e memória. Alta cardinalidade pode degradar consultas. Alertas mal configurados podem gerar ruído ou deixar falhas sem notificação. A fixture não representa uma política operacional aprovada.
+Coleta excessiva pode consumir disco e memória. Alta cardinalidade pode degradar consultas. Alertas mal configurados podem gerar ruído ou deixar falhas sem notificação. O guia ainda não representa uma política operacional homologada.
 
 ## Rollback
 

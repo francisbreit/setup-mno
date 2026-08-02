@@ -110,17 +110,17 @@ assert.match(app, /inspection\.promptSourceCount/);
 assert.match(html, /data-view="blueprints"/);
 assert.match(html, /id="view-blueprints"/);
 assert.match(html, /Blueprints homologados/);
-assert.match(html, /Exemplos fictícios/);
-assert.match(html, /Simulação — não implantável/);
-assert.match(html, /não executa instalações/);
+assert.match(html, /Blueprints Beta/);
+assert.match(html, /Guia manual em evolução/);
+assert.match(html, /conecte as ferramentas com validações e rollback claros/);
 assert.match(html, /id="blueprint-dialog"/);
 assert.match(app, /api\("\/api\/blueprints"\)/);
 assert.match(app, /function renderBlueprints/);
 assert.match(app, /function openBlueprint/);
-assert.match(app, /Blueprint fictício|Exemplo fictício/);
-assert.match(app, /não autoriza deploy/);
-assert.match(app, /Downloads e caminhos internos não são expostos/);
-assert.doesNotMatch(html + app, /downloadBlueprint|\/api\/blueprints\/download/);
+assert.match(app, /Blueprint Beta/);
+assert.match(app, /ainda não concluiu a homologação técnica/);
+assert.match(app, /Baixar Blueprint em ZIP/);
+assert.match(app, /\/api\/blueprints\/\$\{encodeURIComponent\(item\.blueprintId\)\}\/download/);
 for (const field of ["item.title", "item.summary", "item.objective", "item.blueprintId", "item.bundleSHA256"]) {
   assert.match(app, new RegExp(`escapeHTML\\(${field.replace(".", "\\.")}\\)`));
 }
@@ -129,16 +129,14 @@ assert.match(html, /Recomendação contextual local/);
 assert.match(html, /Nenhuma LLM ou deploy é executado/);
 assert.match(app, /\/api\/blueprints\/recommend/);
 assert.match(app, /function renderBlueprintRecommendation/);
-assert.match(app, /Simulação com exemplos fictícios/);
+assert.match(app, /Blueprint\(s\) relacionado\(s\)/);
+assert.match(app, /Não instale neste servidor ainda/);
 assert.match(app, /recusado\(s\) pelos gates/);
 assert.match(app, /memoryAvailableGB/);
-assert.doesNotMatch(app, /data-action="terminal"[^\n]*blueprint-match/);
-assert.match(app, /Fluxo editorial verificável/);
-assert.match(app, /Promoção bloqueada/);
-assert.match(app, /Exemplos ficam fora da trilha de promoção/);
-assert.match(app, /Evidências de homologação/);
-assert.match(app, /Selo determinístico da versão/);
-assert.match(app, /Caminhos internos não são expostos/);
+assert.match(app, /Passo a passo de instalação e integração/);
+assert.match(app, /Confirme que o ecossistema funciona/);
+assert.match(app, /Plano de rollback/);
+assert.match(app, /Informações técnicas e procedência/);
 for (const field of [
   "entry.changedAt", "entry.note", "entry.actor", "gate.title",
   "entry.sha256", "versionSeal.manifestSHA256", "versionSeal.payloadSHA256"

@@ -66,21 +66,22 @@ type loginWindow struct {
 }
 
 type webApp struct {
-	adminUser       string
-	passwordSalt    []byte
-	passwordHash    []byte
-	agentToken      string
-	agentURL        string
-	terminalURL     *url.URL
-	assistantURL    string
-	assistantMode   string
-	assistantModel  string
-	version         string
-	cookieSecure    bool
-	httpClient      *http.Client
-	assistantClient *http.Client
-	blueprints      blueprintCatalogResponse
-	evals           evalReport
+	adminUser        string
+	passwordSalt     []byte
+	passwordHash     []byte
+	agentToken       string
+	agentURL         string
+	terminalURL      *url.URL
+	assistantURL     string
+	assistantMode    string
+	assistantModel   string
+	version          string
+	cookieSecure     bool
+	httpClient       *http.Client
+	assistantClient  *http.Client
+	blueprints       blueprintCatalogResponse
+	blueprintBundles map[string]blueprintBundleDownload
+	evals            evalReport
 
 	sessionMu sync.Mutex
 	sessions  map[string]*session
@@ -100,34 +101,46 @@ type webApp struct {
 }
 
 type blueprintMediaSummary struct {
-	MediaID       string `json:"mediaId"`
-	Type          string `json:"type"`
-	Title         string `json:"title"`
-	Status        string `json:"status"`
-	HasTranscript bool   `json:"hasTranscript"`
+	MediaID       string  `json:"mediaId"`
+	Type          string  `json:"type"`
+	Title         string  `json:"title"`
+	Status        string  `json:"status"`
+	HasTranscript bool    `json:"hasTranscript"`
+	URL           *string `json:"url"`
+}
+
+type blueprintBundleDownload struct {
+	Filename string
+	SHA256   string
+	Data     []byte
 }
 
 type blueprintCatalogItem struct {
-	Aliases          []string                 `json:"aliases"`
-	Architectures    []string                 `json:"architectures"`
-	Author           string                   `json:"author"`
-	BlueprintID      string                   `json:"blueprintId"`
-	BlueprintVersion string                   `json:"blueprintVersion"`
-	BundleBytes      int64                    `json:"bundleBytes"`
-	BundleSHA256     string                   `json:"bundleSHA256"`
-	Components       []string                 `json:"components"`
-	Deployable       bool                     `json:"deployable"`
-	Editorial        blueprintEditorial       `json:"editorial"`
-	Fictitious       bool                     `json:"fictitious"`
-	Media            []blueprintMediaSummary  `json:"media"`
-	Objective        string                   `json:"objective"`
-	ResourceProfile  blueprintResourceProfile `json:"resourceProfile"`
-	Risk             string                   `json:"risk"`
-	Status           string                   `json:"status"`
-	Summary          string                   `json:"summary"`
-	Tags             []string                 `json:"tags"`
-	Title            string                   `json:"title"`
-	UpdatedAt        string                   `json:"updatedAt"`
+	Aliases           []string                   `json:"aliases"`
+	Architectures     []string                   `json:"architectures"`
+	Author            string                     `json:"author"`
+	BlueprintID       string                     `json:"blueprintId"`
+	BlueprintVersion  string                     `json:"blueprintVersion"`
+	BundleBytes       int64                      `json:"bundleBytes"`
+	BundleSHA256      string                     `json:"bundleSHA256"`
+	Components        []string                   `json:"components"`
+	ComponentDetails  []blueprintComponentDetail `json:"componentDetails"`
+	Deployable        bool                       `json:"deployable"`
+	Editorial         blueprintEditorial         `json:"editorial"`
+	Fictitious        bool                       `json:"fictitious"`
+	Media             []blueprintMediaSummary    `json:"media"`
+	Installation      blueprintInstallation      `json:"installation"`
+	Validation        blueprintValidation        `json:"validation"`
+	Rollback          blueprintRollback          `json:"rollback"`
+	DownloadAvailable bool                       `json:"downloadAvailable"`
+	Objective         string                     `json:"objective"`
+	ResourceProfile   blueprintResourceProfile   `json:"resourceProfile"`
+	Risk              string                     `json:"risk"`
+	Status            string                     `json:"status"`
+	Summary           string                     `json:"summary"`
+	Tags              []string                   `json:"tags"`
+	Title             string                     `json:"title"`
+	UpdatedAt         string                     `json:"updatedAt"`
 }
 
 type blueprintCatalogResponse struct {
@@ -139,6 +152,7 @@ type blueprintCatalogResponse struct {
 	Source           string                 `json:"source"`
 	BlueprintCount   int                    `json:"blueprintCount"`
 	ExampleCount     int                    `json:"exampleCount"`
+	BetaCount        int                    `json:"betaCount"`
 	HomologatedCount int                    `json:"homologatedCount"`
 	ReviewCount      int                    `json:"reviewCount"`
 	Items            []blueprintCatalogItem `json:"items"`
@@ -450,6 +464,18 @@ func runWeb() error {
 	if err != nil {
 		return fmt.Errorf("catálogo de Blueprints inválido: %w", err)
 	}
+	blueprintBundles := make(map[string]blueprintBundleDownload, len(blueprintKnowledge.Blueprints.Entries))
+	for _, entry := range blueprintKnowledge.Blueprints.Entries {
+		data, ok := blueprintKnowledge.Files[entry.BundlePath]
+		if !ok {
+			return fmt.Errorf("bundle do Blueprint %s indisponível", entry.BlueprintID)
+		}
+		blueprintBundles[entry.BlueprintID] = blueprintBundleDownload{
+			Filename: entry.BlueprintID + "-v" + entry.BlueprintVersion + ".zip",
+			SHA256:   entry.BundleSHA256,
+			Data:     append([]byte(nil), data...),
+		}
+	}
 	evalReport, err := runEvalSuite(blueprintKnowledge, controlVersion)
 	if err != nil {
 		return fmt.Errorf("suíte de evals indisponível: %w", err)
@@ -475,6 +501,7 @@ func runWeb() error {
 		logins:           make(map[string]*loginWindow),
 		audit:            make([]auditEvent, 0, 200),
 		blueprints:       blueprints,
+		blueprintBundles: blueprintBundles,
 		evals:            evalReport,
 		providerEvalRuns: make(map[string]providerEvalRunRecord),
 		feedback:         feedback,
@@ -493,6 +520,7 @@ func runWeb() error {
 	mux.Handle("GET /api/setup-state", app.requireAuth(http.HandlerFunc(app.handleSetupState)))
 	mux.Handle("GET /api/catalog", app.requireAuth(http.HandlerFunc(app.handleCatalog)))
 	mux.Handle("GET /api/blueprints", app.requireAuth(http.HandlerFunc(app.handleBlueprints)))
+	mux.Handle("GET /api/blueprints/{blueprintId}/download", app.requireAuth(http.HandlerFunc(app.handleBlueprintDownload)))
 	mux.Handle("GET /api/evals", app.requireAuth(http.HandlerFunc(app.handleEvals)))
 	mux.Handle("POST /api/evals/provider", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleProviderEval))))
 	mux.Handle("POST /api/evals/provider/review", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleProviderEvalReview))))
@@ -680,9 +708,10 @@ func runAssistant() error {
 		envDefault("BLUEPRINT_HOMOLOGATION_ENABLED", "false"),
 		"true",
 	)
-	if blueprintHomologation && knowledge.Manifest.BlueprintFixtureEntries <= 0 {
-		return errors.New("homologação de Blueprints habilitada sem fixtures validadas")
-	}
+	// Releases anteriores podiam persistir o modo de homologação de fixtures.
+	// Quando o pacote já não transporta fixtures, a opção legada é simplesmente
+	// desativada; os guias Beta revisados continuam disponíveis no fluxo normal.
+	blueprintHomologation = blueprintHomologation && knowledge.Manifest.BlueprintFixtureEntries > 0
 	var retriever *knowledgeRetriever
 	if shadowMode {
 		retriever, err = newKnowledgeRetriever(knowledge, blueprintHomologation)
@@ -1628,6 +1657,22 @@ func (a *webApp) handleBlueprints(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, a.blueprints)
 }
 
+func (a *webApp) handleBlueprintDownload(w http.ResponseWriter, r *http.Request) {
+	blueprintID := r.PathValue("blueprintId")
+	bundle, ok := a.blueprintBundles[blueprintID]
+	if !ok {
+		writeError(w, http.StatusNotFound, "Blueprint não encontrado")
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+bundle.Filename+`"`)
+	w.Header().Set("X-Content-SHA256", bundle.SHA256)
+	a.addAudit("blueprint_download", "Bundle Beta baixado: "+blueprintID, clientAddress(r))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(bundle.Data)
+}
+
 func (a *webApp) handleEvals(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, a.evals)
 }
@@ -1651,10 +1696,10 @@ func blueprintCatalogFromKnowledge(state knowledgePackageState) (blueprintCatalo
 		Source:           "control-image-read-only",
 		BlueprintCount:   index.BlueprintCount,
 		ExampleCount:     index.Statuses["example"],
+		BetaCount:        index.Statuses["reviewed"],
 		HomologatedCount: index.Statuses["homologated"],
-		ReviewCount: index.Statuses["draft"] + index.Statuses["reviewed"] +
-			index.Statuses["deprecated"],
-		Items: make([]blueprintCatalogItem, 0, len(index.Entries)),
+		ReviewCount:      index.Statuses["draft"] + index.Statuses["deprecated"],
+		Items:            make([]blueprintCatalogItem, 0, len(index.Entries)),
 	}
 	for _, entry := range index.Entries {
 		media := make([]blueprintMediaSummary, 0, len(entry.Media))
@@ -1665,29 +1710,35 @@ func blueprintCatalogFromKnowledge(state knowledgePackageState) (blueprintCatalo
 				Title:         item.Title,
 				Status:        item.Status,
 				HasTranscript: item.Transcript != nil,
+				URL:           item.URL,
 			})
 		}
 		response.Items = append(response.Items, blueprintCatalogItem{
-			Aliases:          append([]string(nil), entry.Aliases...),
-			Architectures:    append([]string(nil), entry.Architectures...),
-			Author:           entry.Author,
-			BlueprintID:      entry.BlueprintID,
-			BlueprintVersion: entry.BlueprintVersion,
-			BundleBytes:      entry.BundleBytes,
-			BundleSHA256:     entry.BundleSHA256,
-			Components:       append([]string(nil), entry.Components...),
-			Deployable:       entry.Deployable,
-			Editorial:        entry.Editorial,
-			Fictitious:       entry.Fictitious,
-			Media:            media,
-			Objective:        entry.Objective,
-			ResourceProfile:  entry.ResourceProfile,
-			Risk:             entry.Risk,
-			Status:           entry.Status,
-			Summary:          entry.Summary,
-			Tags:             append([]string(nil), entry.Tags...),
-			Title:            entry.Title,
-			UpdatedAt:        entry.UpdatedAt,
+			Aliases:           append([]string(nil), entry.Aliases...),
+			Architectures:     append([]string(nil), entry.Architectures...),
+			Author:            entry.Author,
+			BlueprintID:       entry.BlueprintID,
+			BlueprintVersion:  entry.BlueprintVersion,
+			BundleBytes:       entry.BundleBytes,
+			BundleSHA256:      entry.BundleSHA256,
+			Components:        append([]string(nil), entry.Components...),
+			ComponentDetails:  append([]blueprintComponentDetail(nil), entry.ComponentDetails...),
+			Deployable:        entry.Deployable,
+			Editorial:         entry.Editorial,
+			Fictitious:        entry.Fictitious,
+			Media:             media,
+			Installation:      entry.Installation,
+			Validation:        entry.Validation,
+			Rollback:          entry.Rollback,
+			DownloadAvailable: true,
+			Objective:         entry.Objective,
+			ResourceProfile:   entry.ResourceProfile,
+			Risk:              entry.Risk,
+			Status:            entry.Status,
+			Summary:           entry.Summary,
+			Tags:              append([]string(nil), entry.Tags...),
+			Title:             entry.Title,
+			UpdatedAt:         entry.UpdatedAt,
 		})
 	}
 	return response, nil

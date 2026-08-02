@@ -48,6 +48,8 @@ type blueprintRecommendationItem struct {
 	Components       []string `json:"components"`
 	Reasons          []string `json:"reasons"`
 	Score            int      `json:"score"`
+	Compatible       bool     `json:"compatible"`
+	Blockers         []string `json:"blockers"`
 }
 
 type blueprintRecommendationRejected struct {
@@ -144,7 +146,7 @@ func recommendBlueprints(
 		Rejected:        make([]blueprintRecommendationRejected, 0),
 		Guardrails: []string{
 			"A recomendação não executa deploy nem altera o servidor.",
-			"Exemplos fictícios servem somente para simulação de homologação.",
+			"Guias Beta podem ser seguidos manualmente, mas ainda não possuem homologação completa.",
 			"RAM estimada não substitui medição, validação e confirmação humana.",
 		},
 	}
@@ -153,22 +155,28 @@ func recommendBlueprints(
 		if score == 0 {
 			continue
 		}
-		rejectionReasons := blueprintEligibilityReasons(blueprint, context)
-		if len(rejectionReasons) > 0 {
+		editorialReasons := blueprintEditorialEligibilityReasons(blueprint)
+		if len(editorialReasons) > 0 {
 			result.Rejected = append(result.Rejected, blueprintRecommendationRejected{
 				BlueprintID: blueprint.BlueprintID,
 				Title:       blueprint.Title,
-				Reasons:     rejectionReasons,
+				Reasons:     editorialReasons,
 			})
 			continue
 		}
+		blockers := blueprintCompatibilityBlockers(blueprint, context)
 		capacityFit := "recommended"
 		capacityReason := "RAM disponível atende a estimativa recomendada."
-		if context.MemoryAvailableGB < float64(blueprint.ResourceProfile.RecommendedRAMGB) {
+		if context.MemoryAvailableGB < float64(blueprint.ResourceProfile.MinimumRAMGB) {
+			capacityFit = "insufficient"
+			capacityReason = "RAM disponível está abaixo da estimativa mínima; o guia pode ser consultado, mas não deve ser implantado neste servidor."
+		} else if context.MemoryAvailableGB < float64(blueprint.ResourceProfile.RecommendedRAMGB) {
 			capacityFit = "minimum"
 			capacityReason = "RAM disponível atende apenas a estimativa mínima; exige margem e medição."
 		}
-		matchReasons = append(matchReasons, capacityReason)
+		if capacityFit != "insufficient" {
+			matchReasons = append(matchReasons, capacityReason)
+		}
 		result.Recommendations = append(result.Recommendations, blueprintRecommendationItem{
 			BlueprintID:      blueprint.BlueprintID,
 			Title:            blueprint.Title,
@@ -184,6 +192,8 @@ func recommendBlueprints(
 			Components:       append([]string(nil), blueprint.Components...),
 			Reasons:          matchReasons,
 			Score:            score,
+			Compatible:       len(blockers) == 0,
+			Blockers:         blockers,
 		})
 	}
 	sort.SliceStable(result.Recommendations, func(left, right int) bool {
@@ -192,8 +202,8 @@ func recommendBlueprints(
 		if first.Score != second.Score {
 			return first.Score > second.Score
 		}
-		if first.CapacityFit != second.CapacityFit {
-			return first.CapacityFit == "recommended"
+		if first.Compatible != second.Compatible {
+			return first.Compatible
 		}
 		return first.BlueprintID < second.BlueprintID
 	})
@@ -208,7 +218,7 @@ func recommendBlueprints(
 	}
 	if len(result.Recommendations) == 0 {
 		if len(result.Rejected) > 0 {
-			result.NoMatchReason = "Há aderência ao objetivo, mas nenhum Blueprint passou pelos gates de arquitetura e capacidade atuais."
+			result.NoMatchReason = "Há aderência ao objetivo, mas nenhum Blueprint possui estado editorial elegível para visualização orientada."
 		} else {
 			result.NoMatchReason = "Nenhum Blueprint possui evidência canônica suficiente para este objetivo."
 		}
@@ -357,16 +367,22 @@ func absInt(value int) int {
 	return value
 }
 
-func blueprintEligibilityReasons(
-	blueprint blueprintCatalogItem,
-	context blueprintRecommendationContext,
-) []string {
-	reasons := make([]string, 0, 3)
+func blueprintEditorialEligibilityReasons(blueprint blueprintCatalogItem) []string {
+	reasons := make([]string, 0, 1)
 	validStatus := (blueprint.Status == "homologated" && !blueprint.Fictitious && blueprint.Deployable) ||
+		(blueprint.Status == "reviewed" && !blueprint.Fictitious && !blueprint.Deployable) ||
 		(blueprint.Status == "example" && blueprint.Fictitious && !blueprint.Deployable)
 	if !validStatus {
 		reasons = append(reasons, "Status editorial não elegível para recomendação.")
 	}
+	return reasons
+}
+
+func blueprintCompatibilityBlockers(
+	blueprint blueprintCatalogItem,
+	context blueprintRecommendationContext,
+) []string {
+	reasons := make([]string, 0, 2)
 	if !containsString(blueprint.Architectures, context.Architecture) {
 		reasons = append(reasons, "Arquitetura incompatível com o servidor atual.")
 	}
@@ -395,9 +411,16 @@ func appendUniqueLimited(values []string, value string, limit int) []string {
 
 func recommendationAuditDetail(result blueprintRecommendationResponse) string {
 	if len(result.Recommendations) == 0 {
-		return "nenhum compatível; recusados=" + itoa(len(result.Rejected))
+		return "nenhum relacionado; recusados=" + itoa(len(result.Rejected))
 	}
-	return "compatíveis=" + itoa(len(result.Recommendations)) +
+	compatible := 0
+	for _, item := range result.Recommendations {
+		if item.Compatible {
+			compatible++
+		}
+	}
+	return "relacionados=" + itoa(len(result.Recommendations)) +
+		"; compatíveis=" + itoa(compatible) +
 		"; recusados=" + itoa(len(result.Rejected))
 }
 

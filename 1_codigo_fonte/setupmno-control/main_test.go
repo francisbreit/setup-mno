@@ -85,10 +85,10 @@ func TestReadRuntimeSnapshotAcceptsGeneratedKnowledgeManifest(t *testing.T) {
 		snapshot.Release.KnowledgeEntries < 1 ||
 		len(snapshot.Release.KnowledgeArchiveSHA256) != 64 ||
 		snapshot.Release.BlueprintSchemaVersion != 2 ||
-		snapshot.Release.BlueprintFactoryVersion != "2.0.0" ||
+		snapshot.Release.BlueprintFactoryVersion != "2.1.0" ||
 		snapshot.Release.BlueprintEntries != 5 ||
 		snapshot.Release.BlueprintKnowledgeEntries != 5 ||
-		snapshot.Release.BlueprintFixtureEntries != 5 ||
+		snapshot.Release.BlueprintFixtureEntries != 0 ||
 		len(snapshot.Release.BlueprintIndexSHA256) != 64 ||
 		snapshot.Release.EvalSchemaVersion != 1 ||
 		snapshot.Release.EvalDatasetVersion != "1.7.0" ||
@@ -171,10 +171,10 @@ func TestReadRuntimeSnapshotRejectsPartialBlueprintMetadata(t *testing.T) {
 		CatalogSHA256:           hex.EncodeToString(sum[:]),
 		CatalogEntries:          1,
 		Architecture:            "amd64",
-		KnowledgeVersion:        "3.9.0",
+		KnowledgeVersion:        "3.10.0",
 		KnowledgeArchiveSHA256:  strings.Repeat("a", 64),
 		KnowledgeEntries:        54,
-		BlueprintFactoryVersion: "2.0.0",
+		BlueprintFactoryVersion: "2.1.0",
 		BlueprintSchemaVersion:  2,
 	}
 	releaseData, err := json.Marshal(release)
@@ -203,10 +203,10 @@ func TestReadRuntimeSnapshotRejectsPartialEvalMetadata(t *testing.T) {
 		CatalogSHA256:             hex.EncodeToString(sum[:]),
 		CatalogEntries:            1,
 		Architecture:              "amd64",
-		KnowledgeVersion:          "3.9.0",
+		KnowledgeVersion:          "3.10.0",
 		KnowledgeArchiveSHA256:    strings.Repeat("a", 64),
 		KnowledgeEntries:          54,
-		BlueprintFactoryVersion:   "2.0.0",
+		BlueprintFactoryVersion:   "2.1.0",
 		BlueprintSchemaVersion:    2,
 		BlueprintIndexSHA256:      strings.Repeat("b", 64),
 		BlueprintEntries:          5,
@@ -509,7 +509,7 @@ func TestKnowledgeStatusMarkdownUsesManifestInsteadOfRetrievalSlice(t *testing.T
 		CatalogEntries: 151, Architecture: "amd64", Source: "runtime",
 	}
 	state := knowledgePackageState{Manifest: knowledgeManifest{
-		SetupVersion: "7.2.8", KnowledgeVersion: "3.9.0",
+		SetupVersion: "7.2.8", KnowledgeVersion: "3.10.0",
 		EvalDatasetVersion: "1.7.0", EvalCaseEntries: 815,
 		DocumentEntries: 165, SetupEntries: 151, InfrastructureEntries: 9,
 		BlueprintKnowledgeEntries: 5,
@@ -788,12 +788,12 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 		state.Manifest.DocumentEntries != 165 ||
 		state.Manifest.SetupEntries != 151 ||
 		state.Manifest.InfrastructureEntries != 9 ||
-		state.Manifest.BlueprintFactoryVersion != "2.0.0" ||
+		state.Manifest.BlueprintFactoryVersion != "2.1.0" ||
 		state.Manifest.BlueprintSchemaVersion != 2 ||
 		state.Manifest.BlueprintEntries != 5 ||
 		state.Manifest.BlueprintBundleEntries != 5 ||
 		state.Manifest.BlueprintKnowledgeEntries != 5 ||
-		state.Manifest.BlueprintFixtureEntries != 5 ||
+		state.Manifest.BlueprintFixtureEntries != 0 ||
 		state.Manifest.IndexSchemaVersion != 2 ||
 		state.Manifest.RetrievalVersion != "1.2.0" ||
 		state.Manifest.EvalSchemaVersion != 1 ||
@@ -828,17 +828,19 @@ func TestBlueprintCatalogExposesOnlySafeReadOnlyProjection(t *testing.T) {
 		t.Fatalf("catálogo válido foi recusado: %v", err)
 	}
 	if catalog.Source != "control-image-read-only" ||
-		catalog.BlueprintCount != 5 || catalog.ExampleCount != 5 ||
+		catalog.BlueprintCount != 5 || catalog.ExampleCount != 0 || catalog.BetaCount != 5 ||
 		catalog.HomologatedCount != 0 || catalog.ReviewCount != 0 ||
 		len(catalog.Items) != 5 || len(catalog.IndexSHA256) != 64 {
 		t.Fatalf("resumo inesperado: %#v", catalog)
 	}
 	for _, item := range catalog.Items {
-		if item.Status != "example" || !item.Fictitious || item.Deployable ||
+		if item.Status != "reviewed" || item.Fictitious || item.Deployable ||
 			item.BlueprintID == "" || item.Objective == "" ||
-			len(item.Components) == 0 || len(item.Media) == 0 ||
-			item.Editorial.CurrentStage != "example" ||
-			item.Editorial.PassedGates != 8 || item.Editorial.TotalGates != 11 ||
+			len(item.Components) == 0 || len(item.ComponentDetails) == 0 || len(item.Media) == 0 ||
+			len(item.Installation.Steps) == 0 || len(item.Validation.Checks) == 0 ||
+			len(item.Rollback.Steps) == 0 || !item.DownloadAvailable ||
+			item.Editorial.CurrentStage != "reviewed" ||
+			item.Editorial.PassedGates != 9 || item.Editorial.TotalGates != 11 ||
 			item.Editorial.PromotionReady ||
 			item.Editorial.VersionSeal.Algorithm != "sha256" ||
 			len(item.Editorial.VersionSeal.PayloadSHA256) != 64 {
@@ -850,11 +852,45 @@ func TestBlueprintCatalogExposesOnlySafeReadOnlyProjection(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, forbidden := range []string{
-		`"bundlePath"`, `"url"`, `"path"`, "knowledge.md", "blueprints/bundles/",
+		`"bundlePath"`, `"path"`, "knowledge.md", "blueprints/bundles/",
 	} {
 		if strings.Contains(string(encoded), forbidden) {
 			t.Fatalf("campo interno exposto na API: %s", forbidden)
 		}
+	}
+}
+
+func TestBlueprintDownloadServesOnlyValidatedBundleMap(t *testing.T) {
+	payload := []byte("PK\x03\x04blueprint-beta")
+	app := &webApp{
+		blueprintBundles: map[string]blueprintBundleDownload{
+			"blueprint-001": {
+				Filename: "blueprint-001-v0.3.0.zip",
+				SHA256:   strings.Repeat("a", 64),
+				Data:     payload,
+			},
+		},
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/api/blueprints/blueprint-001/download", nil)
+	request.SetPathValue("blueprintId", "blueprint-001")
+	response := httptest.NewRecorder()
+	app.handleBlueprintDownload(response, request)
+	if response.Code != http.StatusOK || response.Body.String() != string(payload) {
+		t.Fatalf("download validado falhou: status=%d body=%q", response.Code, response.Body.String())
+	}
+	if response.Header().Get("Content-Type") != "application/zip" ||
+		response.Header().Get("Cache-Control") != "no-store" ||
+		response.Header().Get("X-Content-SHA256") != strings.Repeat("a", 64) {
+		t.Fatalf("headers de segurança ausentes: %#v", response.Header())
+	}
+
+	missingRequest := httptest.NewRequest(http.MethodGet, "/api/blueprints/inexistente/download", nil)
+	missingRequest.SetPathValue("blueprintId", "../../etc/passwd")
+	missingResponse := httptest.NewRecorder()
+	app.handleBlueprintDownload(missingResponse, missingRequest)
+	if missingResponse.Code != http.StatusNotFound {
+		t.Fatalf("identificador fora do mapa não foi recusado: %d", missingResponse.Code)
 	}
 }
 

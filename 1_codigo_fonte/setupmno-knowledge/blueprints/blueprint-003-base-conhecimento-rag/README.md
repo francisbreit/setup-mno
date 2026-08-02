@@ -1,10 +1,10 @@
 # Base de Conhecimento com IA e RAG
 
-> EXEMPLO FICTÍCIO. Não contém dataset real, modelo aprovado ou evidência de homologação.
+> GUIA BETA. Pode ser seguido manualmente, mas ainda não foi homologado de ponta a ponta. Valide modelo, dados e capacidade antes de avançar.
 
 ## Objetivo
 
-Demonstrar uma arquitetura de recuperação documental com rastreabilidade, política de acesso e inferência local opcional.
+Orientar a montagem de uma arquitetura de recuperação documental com rastreabilidade, política de acesso e inferência local opcional.
 
 ## Arquitetura
 
@@ -27,7 +27,7 @@ O Qdrant representa o índice vetorial. O Dify representa ingestão, recuperaç�
 
 ## Ordem de instalação
 
-Defina a política documental antes de criar coleções. Configure a aplicação e só depois selecione o modelo local compatível.
+Defina a política documental antes de criar coleções. Instale Qdrant, crie a coleção, instale Dify e sua conta administrativa, cadastre o provedor sem expor chaves e só depois selecione e conecte o modelo local compatível. Importe primeiro um conjunto documental controlado.
 
 ## Validação
 
@@ -35,17 +35,18 @@ Use perguntas com resposta conhecida, perguntas sem fonte e tentativas de atrave
 
 ## Riscos e limites
 
-Documentos podem conter instruções maliciosas. Modelos podem alucinar e a estimativa de recursos é apenas fictícia. Nenhum conteúdo privado deve entrar sem governança.
+Documentos podem conter instruções maliciosas. Modelos podem alucinar e a estimativa de recursos é preliminar. Nenhum conteúdo privado deve entrar sem governança.
 
 ## Rollback
 
 Interrompa ingestões, preserve o inventário, restaure coleção e aplicação da mesma versão e repita o conjunto de avaliações.
 
-## Vídeos e links
+## Downloads, vídeos e PDFs
 
-- [Vídeo fictício sobre RAG seguro](https://videos.setupmno.invalid/blueprints/003/rag-seguro)
-- [Matriz fictícia de evidências](https://docs.setupmno.invalid/blueprints/003/evidencias)
+- O ZIP deste Blueprint está disponível no Control Center.
+- Vídeo sobre RAG seguro: em preparação.
+- PDF com matriz de evidências: em preparação.
 
-## Promoção para produção
+## Homologação futura
 
 Exige dataset aprovado, política de acesso, evals, limites medidos e procedimento testado de backup e restauração.

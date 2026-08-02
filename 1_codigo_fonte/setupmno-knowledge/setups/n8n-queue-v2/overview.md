@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "n8n v2 em modo fila no Setup MNO",
   "setupId": "n8n-queue-v2",
-  "setupVersion": "7.2.14",
+  "setupVersion": "7.2.15",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

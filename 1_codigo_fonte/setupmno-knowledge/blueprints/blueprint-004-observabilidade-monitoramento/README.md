@@ -1,10 +1,10 @@
 # Observabilidade e Monitoramento
 
-> EXEMPLO FICTÍCIO. Retenção, alertas e capacidade não foram homologados.
+> GUIA BETA. Pode ser seguido manualmente, mas retenção, alertas e capacidade ainda exigem homologação no ambiente de destino.
 
 ## Objetivo
 
-Demonstrar responsabilidades separadas para saúde do host, métricas detalhadas e disponibilidade externa.
+Orientar uma arquitetura com responsabilidades separadas para saúde do host, métricas detalhadas e disponibilidade externa.
 
 ## Arquitetura
 
@@ -27,7 +27,7 @@ Beszel fornece a camada leve, Grafana e Prometheus fornecem séries temporais e 
 
 ## Ordem de instalação
 
-Comece pela visão leve, acrescente métricas detalhadas com retenção limitada e finalize com testes externos controlados.
+Comece pela visão leve e crie a conta administrativa. Cadastre os hosts autorizados, acrescente Prometheus e Grafana com retenção limitada, conecte a fonte e importe dashboards revisados. Finalize no Uptime Kuma com monitores, canal de alerta e teste controlado de indisponibilidade.
 
 ## Validação
 
@@ -35,16 +35,17 @@ Valide métrica recente, alerta de queda e encerramento do incidente. Use soment
 
 ## Riscos e limites
 
-Coleta excessiva aumenta cardinalidade e armazenamento. Alertas sem responsável geram ruído. Os números deste exemplo não são garantia de capacidade.
+Coleta excessiva aumenta cardinalidade e armazenamento. Alertas sem responsável geram ruído. Os números preliminares não são garantia de capacidade.
 
 ## Rollback
 
 Remova os alvos temporários, suspenda alertas e restaure dashboards e retenção da versão anterior.
 
-## Vídeos e links
+## Downloads, vídeos e PDFs
 
-- [Vídeo fictício sobre camadas de monitoramento](https://videos.setupmno.invalid/blueprints/004/camadas)
+- O ZIP deste Blueprint está disponível no Control Center.
+- Vídeo sobre camadas de monitoramento: em preparação.
 
-## Promoção para produção
+## Homologação futura
 
 Exige retenção medida, testes de alerta, responsáveis, backup dos dashboards e evidência de restauração.

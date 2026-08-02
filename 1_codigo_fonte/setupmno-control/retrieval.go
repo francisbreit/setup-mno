@@ -880,7 +880,8 @@ func buildRetrievalPrompt(result retrievalResult) (*retrievalPromptContext, stri
 					return nil, "invalid-blueprint-evidence"
 				}
 				simulation = true
-			} else if !item.Deployable || item.Status != "homologated" {
+			} else if !((item.Status == "reviewed" && !item.Deployable) ||
+				(item.Status == "homologated" && item.Deployable)) {
 				return nil, "invalid-blueprint-evidence"
 			}
 			blueprintIDs[item.BlueprintID] = struct{}{}

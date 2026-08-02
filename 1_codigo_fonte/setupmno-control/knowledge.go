@@ -172,9 +172,47 @@ type blueprintMediaEntry struct {
 	MediaID    string  `json:"mediaId"`
 	Type       string  `json:"type"`
 	Title      string  `json:"title"`
-	URL        string  `json:"url"`
+	URL        *string `json:"url"`
 	Status     string  `json:"status"`
 	Transcript *string `json:"transcript"`
+}
+
+type blueprintComponentDetail struct {
+	CatalogName  string `json:"catalogName"`
+	Role         string `json:"role"`
+	Required     bool   `json:"required"`
+	InstallOrder int    `json:"installOrder"`
+}
+
+type blueprintInstallationStep struct {
+	Step              int    `json:"step"`
+	Component         string `json:"component"`
+	Title             string `json:"title"`
+	Description       string `json:"description"`
+	HumanConfirmation bool   `json:"humanConfirmation"`
+}
+
+type blueprintInstallation struct {
+	Mode                      string                      `json:"mode"`
+	HumanConfirmationRequired bool                        `json:"humanConfirmationRequired"`
+	Steps                     []blueprintInstallationStep `json:"steps"`
+}
+
+type blueprintValidationCheck struct {
+	CheckID     string `json:"checkId"`
+	Description string `json:"description"`
+	Expected    string `json:"expected"`
+	Required    bool   `json:"required"`
+}
+
+type blueprintValidation struct {
+	HomologatedAt *string                    `json:"homologatedAt"`
+	Checks        []blueprintValidationCheck `json:"checks"`
+}
+
+type blueprintRollback struct {
+	Strategy string   `json:"strategy"`
+	Steps    []string `json:"steps"`
 }
 
 type blueprintResourceProfile struct {
@@ -238,27 +276,31 @@ type blueprintEditorial struct {
 }
 
 type blueprintIndexEntry struct {
-	Aliases          []string                 `json:"aliases"`
-	Architectures    []string                 `json:"architectures"`
-	Author           string                   `json:"author"`
-	BlueprintID      string                   `json:"blueprintId"`
-	BlueprintVersion string                   `json:"blueprintVersion"`
-	BundleBytes      int64                    `json:"bundleBytes"`
-	BundlePath       string                   `json:"bundlePath"`
-	BundleSHA256     string                   `json:"bundleSHA256"`
-	Components       []string                 `json:"components"`
-	Deployable       bool                     `json:"deployable"`
-	Editorial        blueprintEditorial       `json:"editorial"`
-	Fictitious       bool                     `json:"fictitious"`
-	Media            []blueprintMediaEntry    `json:"media"`
-	Objective        string                   `json:"objective"`
-	ResourceProfile  blueprintResourceProfile `json:"resourceProfile"`
-	Risk             string                   `json:"risk"`
-	Status           string                   `json:"status"`
-	Summary          string                   `json:"summary"`
-	Tags             []string                 `json:"tags"`
-	Title            string                   `json:"title"`
-	UpdatedAt        string                   `json:"updatedAt"`
+	Aliases          []string                   `json:"aliases"`
+	Architectures    []string                   `json:"architectures"`
+	Author           string                     `json:"author"`
+	BlueprintID      string                     `json:"blueprintId"`
+	BlueprintVersion string                     `json:"blueprintVersion"`
+	BundleBytes      int64                      `json:"bundleBytes"`
+	BundlePath       string                     `json:"bundlePath"`
+	BundleSHA256     string                     `json:"bundleSHA256"`
+	Components       []string                   `json:"components"`
+	ComponentDetails []blueprintComponentDetail `json:"componentDetails"`
+	Deployable       bool                       `json:"deployable"`
+	Editorial        blueprintEditorial         `json:"editorial"`
+	Fictitious       bool                       `json:"fictitious"`
+	Media            []blueprintMediaEntry      `json:"media"`
+	Installation     blueprintInstallation      `json:"installation"`
+	Validation       blueprintValidation        `json:"validation"`
+	Rollback         blueprintRollback          `json:"rollback"`
+	Objective        string                     `json:"objective"`
+	ResourceProfile  blueprintResourceProfile   `json:"resourceProfile"`
+	Risk             string                     `json:"risk"`
+	Status           string                     `json:"status"`
+	Summary          string                     `json:"summary"`
+	Tags             []string                   `json:"tags"`
+	Title            string                     `json:"title"`
+	UpdatedAt        string                     `json:"updatedAt"`
 }
 
 type blueprintIndex struct {
@@ -579,10 +621,11 @@ func validateKnowledgePackage(
 					)
 				}
 				blueprintFixtureEntries++
-			} else if !entry.Deployable || entry.Status != "homologated" {
-				return knowledgePackageState{}, fmt.Errorf(
-					"Blueprint real sem homologação: %s", entry.DocumentID,
-				)
+			} else if (entry.Status == "reviewed" && !entry.Deployable) ||
+				(entry.Status == "homologated" && entry.Deployable) {
+				// Guias Beta revisados são recuperáveis, mas permanecem não implantáveis.
+			} else {
+				return knowledgePackageState{}, fmt.Errorf("estado editorial inválido no Blueprint: %s", entry.DocumentID)
 			}
 		} else if entry.BlueprintID != nil || entry.Fictitious || entry.Deployable {
 			return knowledgePackageState{}, fmt.Errorf(
@@ -707,11 +750,17 @@ func validateBlueprintPackage(files map[string][]byte, manifest knowledgeManifes
 		}
 		for _, media := range entry.Media {
 			if media.MediaID == "" || media.Title == "" ||
-				(media.Type != "video" && media.Type != "link") ||
-				!strings.HasPrefix(media.URL, "https://") {
+				(media.Type != "video" && media.Type != "link" && media.Type != "pdf" && media.Type != "download") ||
+				(media.Status != "pending" && media.Status != "reviewed") {
 				return fmt.Errorf("mídia inválida no Blueprint: %s", entry.BlueprintID)
 			}
-			if entry.Fictitious && !strings.Contains(media.URL, ".invalid/") {
+			if media.Status == "pending" && media.URL != nil {
+				return fmt.Errorf("mídia pendente expõe URL no Blueprint: %s", entry.BlueprintID)
+			}
+			if media.Status == "reviewed" && (media.URL == nil || !strings.HasPrefix(*media.URL, "https://")) {
+				return fmt.Errorf("mídia publicada sem HTTPS no Blueprint: %s", entry.BlueprintID)
+			}
+			if entry.Fictitious && media.URL != nil && !strings.Contains(*media.URL, ".invalid/") {
 				return fmt.Errorf("mídia fictícia fora de domínio reservado: %s", entry.BlueprintID)
 			}
 		}

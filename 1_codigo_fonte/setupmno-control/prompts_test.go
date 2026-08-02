@@ -62,7 +62,7 @@ func TestAssistantTrustedPrefixIsDeterministicAndExcludesDynamicContext(t *testi
 	}
 }
 
-func TestBlueprintArchitectKeepsHomologationFixtureNonDeployable(t *testing.T) {
+func TestBlueprintArchitectDistinguishesBetaFromHomologated(t *testing.T) {
 	route := routeAssistant(
 		"Explique o Blueprint 001",
 		retrievalQueryResolution{BlueprintRoute: true},
@@ -73,13 +73,13 @@ func TestBlueprintArchitectKeepsHomologationFixtureNonDeployable(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, expected := range []string{
-		"modo explícito de homologação",
-		"não implantável",
-		"não autoriza deploy",
-		"nunca as chame de oficiais",
+		"guia Blueprint Beta",
+		"passos manuais",
+		"ainda não foi homologado",
+		"não autoriza deploy automático",
 	} {
 		if !strings.Contains(prefix, expected) {
-			t.Fatalf("gate de fixture ausente do prompt: %q", expected)
+			t.Fatalf("distinção do guia Beta ausente do prompt: %q", expected)
 		}
 	}
 }

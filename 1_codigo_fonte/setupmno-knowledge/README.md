@@ -122,7 +122,7 @@ python3 tools/lint_knowledge.py \
   --catalog ../setupmno-control/catalog.json \
   resolve \
   --setup-id n8n-main \
-  --setup-version 7.2.14 \
+  --setup-version 7.2.15 \
   --architecture amd64
 ```
 
@@ -150,7 +150,7 @@ Para gerar e validar o dataset de forma reproduzível:
 ```bash
 python3 -B tools/eval_factory.py \
   --root . \
-  --setup-version 7.2.14
+  --setup-version 7.2.15
 python3 -B tools/test_knowledge.py
 ```
 
@@ -163,28 +163,29 @@ Validação isolada da fábrica de Blueprints:
 
 ```bash
 python3 -B tools/blueprint_factory.py \
-  --setup-version 7.2.14
+  --setup-version 7.2.15
 ```
 
 Cada Blueprint reside em `blueprints/<blueprintId>/`, com `blueprint.json`
 validado por `schema/blueprint.schema.json` e `README.md` humano. A fábrica gera
-um ZIP determinístico por pasta, um índice e um manifesto com SHA-256. O status
-`example` exige `fictitious: true`, `deployable: false` e links no domínio
-reservado `.invalid`.
+um ZIP determinístico por pasta, um índice e um manifesto com SHA-256. Os cinco
+guias iniciais usam status `reviewed`, `fictitious: false` e `deployable: false`:
+podem orientar execução manual, mas não representam homologação técnica nem
+autorização de deploy automático.
 
-Os `README.md` dos bundles nunca entram diretamente no RAG. Na subetapa 5.2,
-cada exemplo possui um `knowledge.md` revisado que percorre o mesmo pipeline de
-produção. Como esses documentos declaram `fictitious: true` e
-`deployable: false`, somente o Arquiteto de Blueprints pode recuperá-los quando
-o modo explícito de homologação está ativo. Workflows, PDFs, imagens e vídeos
-permanecem como artefatos e não são tratados como instruções para o modelo.
+Os `README.md` dos bundles nunca entram diretamente no RAG. Cada guia possui um
+`knowledge.md` revisado que percorre o pipeline normal e pode ser recuperado
+pelo Arquiteto de Blueprints. O índice também transporta checklist, ordem de
+instalação, validação e rollback para a interface. Workflows, PDFs, imagens e
+vídeos permanecem artefatos; links não publicados ficam nulos e não são
+inventados pelo gerador nem pelo Assistente.
 
 Geração reproduzível do pacote:
 
 ```bash
 python3 -B tools/generate_package.py \
-  --setup-version 7.2.14 \
-  --control-version 4.10.2
+  --setup-version 7.2.15 \
+  --control-version 4.11.0
 ```
 
 O gerador executa o linter antes do build, inclui somente documentos

@@ -1,15 +1,15 @@
 ---
-{"schemaVersion":1,"documentId":"blueprint-001-whatsapp-marketing-knowledge","documentVersion":"0.1.0","contentSHA256":"cb4823bbdfab4ea0a11e1e1ad6f41d42c042e0ec2cb62fdaaaade93800333a0d","documentType":"blueprint","blueprintId":"blueprint-001-whatsapp-marketing-completo","fictitious":true,"deployable":false,"title":"Blueprint 001 — WhatsApp Marketing Completo (homologação)","setupVersion":"7.2.14","architectures":["amd64","arm64"],"category":"architecture","status":"reviewed","updatedAt":"2026-07-31","sourceType":"homologation-test","risk":"high","language":"pt-BR","tags":["blueprint","whatsapp","marketing","mautic","n8n","typebot"],"sources":[{"sourceId":"blueprint-001-manifest","title":"Manifesto canônico fictício do Blueprint 001","sourceType":"setup-mno","location":"setupmno-knowledge/blueprints/blueprint-001-whatsapp-marketing-completo/blueprint.json","license":"maintainer-owned","verifiedAt":"2026-07-31"}],"homologation":{"verifiedAt":null,"verifiedPorts":[],"verifiedImages":[]}}
+{"schemaVersion":1,"documentId":"blueprint-001-whatsapp-marketing-knowledge","documentVersion":"0.2.0","contentSHA256":"87f2aef5c48be6d3365f7be419f92d5b39f5755b9fa77468ff7a73a26db51ccb","documentType":"blueprint","blueprintId":"blueprint-001-whatsapp-marketing-completo","fictitious":false,"deployable":false,"title":"Blueprint 001 — WhatsApp Marketing Completo","setupVersion":"7.2.15","architectures":["amd64","arm64"],"category":"architecture","status":"reviewed","updatedAt":"2026-08-02","sourceType":"maintainer-authored","risk":"high","language":"pt-BR","tags":["blueprint","whatsapp","marketing","mautic","n8n","typebot"],"sources":[{"sourceId":"blueprint-001-manifest","title":"Manifesto canônico do Blueprint 001","sourceType":"setup-mno","location":"setupmno-knowledge/blueprints/blueprint-001-whatsapp-marketing-completo/blueprint.json","license":"maintainer-owned","verifiedAt":"2026-08-02"}],"homologation":{"verifiedAt":null,"verifiedPorts":[],"verifiedImages":[]}}
 ---
 # Blueprint 001 — WhatsApp Marketing Completo
 
 ## Estado de homologação
 
-Este documento é uma fixture fictícia de homologação do RAG. Ele percorre o mesmo pipeline reservado a um Blueprint real, mas não representa uma solução homologada, não autoriza deploy e não comprova funcionamento das integrações descritas.
+Este é um guia Beta revisado para orientar a montagem manual. Ele ainda não possui homologação técnica de ponta a ponta, não executa deploy e exige validação humana em cada etapa.
 
 ## Objetivo
 
-Simular uma arquitetura de campanhas de WhatsApp com segmentação no Mautic, orquestração e atrasos no n8n, filas RabbitMQ, conexão pela Evolution API, fluxos Typebot e atendimento humano no Chatwoot.
+Montar uma arquitetura de campanhas de WhatsApp com segmentação no Mautic, orquestração e atrasos no n8n, filas RabbitMQ, conexão pela Evolution API, fluxos Typebot e atendimento humano no Chatwoot.
 
 ## Topologia
 
@@ -24,7 +24,7 @@ O Mautic representa a origem das campanhas. O n8n recebe os eventos, aplica o pr
 
 ## Pré-requisitos
 
-A estimativa fictícia é de 20 GB de RAM mínima e 24 GB recomendada, em amd64 ou arm64. É necessário validar capacidade real, domínios, persistência, backups, responsáveis, política de consentimento, limites do canal e credenciais protegidas antes de qualquer homologação.
+A estimativa preliminar é de 20 GB de RAM mínima e 24 GB recomendada, em amd64 ou arm64. É necessário validar capacidade real, domínios, persistência, backups, responsáveis, política de consentimento, limites do canal e credenciais protegidas antes de qualquer homologação.
 
 ## Ordem segura
 
@@ -36,11 +36,11 @@ A estimativa fictícia é de 20 GB de RAM mínima e 24 GB recomendada, em amd64 
 
 ## Validação
 
-O cenário de homologação deve rastrear uma mensagem de texto do Mautic ao destinatário de laboratório, localizar um fluxo Typebot pelo identificador fictício e transferir uma conversa de teste para a caixa prevista do Chatwoot. Cada evento deve ocorrer uma única vez e produzir evidência auditável.
+O cenário de validação deve rastrear uma mensagem de texto do Mautic ao destinatário controlado, localizar um fluxo Typebot pelo identificador documentado e transferir uma conversa de teste para a caixa prevista do Chatwoot. Cada evento deve ocorrer uma única vez e produzir evidência auditável.
 
 ## Riscos e limites
 
-O conteúdo não confirma APIs, templates, endpoints ou políticas reais. Campanhas podem gerar duplicidade, bloqueio do canal, perda de consentimento ou exposição de dados se idempotência, fila, rate limit e segregação de acesso não forem validados. A fixture nunca deve ser apresentada como pronta para produção.
+O conteúdo ainda não homologa APIs, templates, endpoints ou políticas. Campanhas podem gerar duplicidade, bloqueio do canal, perda de consentimento ou exposição de dados se idempotência, fila, rate limit e segregação de acesso não forem validados. O guia Beta não deve ser apresentado como homologado para produção.
 
 ## Rollback
 

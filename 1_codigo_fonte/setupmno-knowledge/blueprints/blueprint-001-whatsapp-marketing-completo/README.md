@@ -1,10 +1,10 @@
 # WhatsApp Marketing Completo
 
-> EXEMPLO FICTÍCIO. Este Blueprint não foi homologado, não contém credenciais reais e não autoriza deploy.
+> GUIA BETA. Pode ser seguido manualmente, mas ainda não foi homologado de ponta a ponta. Valide cada etapa antes de avançar.
 
 ## Objetivo
 
-Demonstrar a documentação de uma arquitetura de marketing e atendimento por WhatsApp com campanhas, fila de mensagens, fluxo conversacional e atendimento humano.
+Orientar a montagem de uma arquitetura de marketing e atendimento por WhatsApp com campanhas, fila de mensagens, fluxo conversacional e atendimento humano.
 
 ## Arquitetura
 
@@ -23,12 +23,12 @@ O Mautic organiza contatos e campanhas. O n8n recebe os eventos e coordena o pro
 
 - Ambiente Setup MNO saudável em uma das arquiteturas declaradas.
 - Capacidade validada com margem operacional.
-- Dados exclusivamente de laboratório.
+- Dados controlados para a primeira validação.
 - Consentimento, opt-out e política vigente do provedor revisados pelo responsável.
 
 ## Ordem de instalação
 
-Instale os quatro itens na ordem da tabela. Pare entre as etapas e confirme a saúde do item anterior. O Typebot deve reutilizar o MinIO existente com bucket e identidade exclusivos; o exemplo não fornece valores de acesso.
+Instale os quatro itens na ordem da tabela. Pare entre as etapas e confirme a saúde do item anterior. Crie as contas administrativas, conecte Chatwoot e Evolution, cadastre credenciais e webhooks no n8n, publique o fluxo Typebot e execute uma jornada completa antes de ativar campanhas. O Typebot deve reutilizar o MinIO existente com bucket e identidade exclusivos; o guia não distribui credenciais.
 
 ## Contrato de configuração
 
@@ -40,17 +40,18 @@ Execute testes independentes para texto simples, fluxo conversacional, fila, pre
 
 ## Riscos e limites
 
-A estimativa de memória é fictícia. APIs não oficiais podem sofrer bloqueios ou mudanças. Disparos exigem autorização do público, limites conservadores e revisão das políticas aplicáveis. Este material não comprova compatibilidade operacional.
+A estimativa de memória é preliminar. APIs não oficiais podem sofrer bloqueios ou mudanças. Disparos exigem autorização do público, limites conservadores e revisão das políticas aplicáveis. Este material não comprova compatibilidade operacional.
 
 ## Rollback
 
 Desative primeiro campanhas e workflows. Preserve apenas exports sanitizados e retorne à configuração anterior pelo fluxo autorizado do Setup MNO.
 
-## Vídeos e links
+## Downloads, vídeos e PDFs
 
-- [Vídeo fictício de visão geral](https://videos.setupmno.invalid/blueprints/001/visao-geral)
-- [Guia fictício de integrações](https://docs.setupmno.invalid/blueprints/001/integracoes)
+- O ZIP deste Blueprint está disponível no Control Center.
+- Vídeo de visão geral: em preparação.
+- PDF com checklist de integrações: em preparação.
 
-## Promoção para produção
+## Homologação futura
 
-Substitua todos os exemplos por procedimentos reproduzíveis, transcrições revisadas, versões reais e evidências de homologação. Somente então altere o status editorial.
+Acrescente transcrições revisadas, versões confirmadas e evidências de homologação antes de conceder o selo de produção.

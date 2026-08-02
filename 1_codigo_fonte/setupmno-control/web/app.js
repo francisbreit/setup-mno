@@ -647,16 +647,16 @@ function renderBlueprintSyncStatus() {
 
 function blueprintGroup(status) {
   if (status === "homologated") return "homologated";
-  if (status === "example") return "example";
+  if (status === "reviewed") return "beta";
   return "review";
 }
 
 function blueprintStatusLabel(item) {
   return ({
     homologated: "Homologado",
-    example: "Exemplo fictício",
+    example: "Legado editorial",
     draft: "Rascunho",
-    reviewed: "Revisado",
+    reviewed: "Blueprint Beta",
     deprecated: "Descontinuado"
   })[item.status] || "Não homologado";
 }
@@ -696,17 +696,17 @@ function renderBlueprints() {
   const catalog = state.blueprintCatalog || {};
   $("blueprint-total").textContent = catalog.blueprintCount ?? state.blueprints.length;
   $("blueprint-homologated-total").textContent = catalog.homologatedCount ?? 0;
-  $("blueprint-example-total").textContent = catalog.exampleCount ?? 0;
+  $("blueprint-example-total").textContent = catalog.betaCount ?? 0;
   $("nav-blueprint-count").textContent = catalog.blueprintCount ?? state.blueprints.length;
   $("blueprint-result").textContent = `${items.length} de ${state.blueprints.length} Blueprints encontrados`;
 
   const groups = {
     homologated: items.filter(item => blueprintGroup(item.status) === "homologated"),
-    example: items.filter(item => blueprintGroup(item.status) === "example"),
+    beta: items.filter(item => blueprintGroup(item.status) === "beta"),
     review: items.filter(item => blueprintGroup(item.status) === "review")
   };
   renderBlueprintGroup("blueprint-homologated-grid", groups.homologated, "Nenhum Blueprint homologado disponível nesta versão.");
-  renderBlueprintGroup("blueprint-example-grid", groups.example, "Nenhum exemplo editorial corresponde aos filtros.");
+  renderBlueprintGroup("blueprint-example-grid", groups.beta, "Nenhum guia Beta corresponde aos filtros.");
   renderBlueprintGroup("blueprint-review-grid", groups.review, "Nenhum Blueprint em revisão ou descontinuado corresponde aos filtros.");
 }
 
@@ -725,12 +725,14 @@ function renderBlueprintGroup(targetId, items, emptyMessage) {
       <p class="blueprint-summary">${escapeHTML(item.summary)}</p>
       <div class="catalog-tags">${tags.map(tag => `<span>${escapeHTML(tag)}</span>`).join("")}</div>
       <div class="blueprint-card-facts"><span><b>${Array.isArray(item.components) ? item.components.length : 0}</b> componentes</span><span><b>${escapeHTML(architectures || "N/I")}</b> arquitetura</span><span><b>${escapeHTML(editorial.passedGates ?? 0)}/${escapeHTML(editorial.totalGates ?? 0)}</b> gates</span></div>
-      <button class="light-button" data-action="blueprint" data-blueprint-id="${escapeHTML(item.blueprintId)}">Inspecionar Blueprint <b>→</b></button>
+      <button class="light-button" data-action="blueprint" data-blueprint-id="${escapeHTML(item.blueprintId)}">Visualizar Blueprint <b>→</b></button>
     </article>`;
   }).join("") : `<div class="empty-state compact">${escapeHTML(emptyMessage)}</div>`;
 }
 
-function openBlueprint(blueprintId) {
+// Mantido somente para compatibilidade estrutural com registros editoriais antigos.
+// A interface atual usa openBlueprint() abaixo, com o guia operacional Beta.
+function openBlueprintLegacyEditorial(blueprintId) {
   const item = state.blueprints.find(candidate => candidate.blueprintId === blueprintId);
   if (!item) return;
   const group = blueprintGroup(item.status);
@@ -741,7 +743,7 @@ function openBlueprint(blueprintId) {
   alert.innerHTML = group === "homologated"
     ? `<strong>Conteúdo homologado</strong><span>O registro concluiu o fluxo editorial. Esta tela permanece consultiva e não executa deploy.</span>`
     : group === "example"
-      ? `<strong>Exemplo fictício — não implantável</strong><span>Material de simulação para validar schema, RAG e interface. Não representa configuração homologada e não autoriza deploy.</span>`
+      ? `<strong>Blueprint Beta</strong><span>Guia manual em evolução; valide cada etapa e não o trate como conteúdo homologado.</span>`
       : `<strong>Conteúdo não homologado</strong><span>Este registro permanece separado do catálogo homologado e não deve orientar uma implantação.</span>`;
 
   const architectures = (Array.isArray(item.architectures) ? item.architectures : [])
@@ -783,6 +785,82 @@ function openBlueprint(blueprintId) {
     </div>
     <section><p class="eyebrow">Mídia declarada</p>${media.length ? `<ul class="blueprint-media-list">${media.map(entry => `<li><strong>${escapeHTML(entry.title)}</strong><span>${escapeHTML(entry.type)} · ${escapeHTML(entry.status)}${entry.hasTranscript ? " · transcrição disponível" : ""}</span></li>`).join("")}</ul>` : `<p class="muted">Nenhuma mídia declarada.</p>`}</section>
     <section class="blueprint-provenance"><p class="eyebrow">Procedência verificável</p><dl><div><dt>Blueprint ID</dt><dd>${escapeHTML(item.blueprintId)}</dd></div><div><dt>Autor</dt><dd>${escapeHTML(item.author)}</dd></div><div><dt>Bundle</dt><dd>${escapeHTML(bytes(item.bundleBytes))}</dd></div><div><dt>SHA-256</dt><dd>${escapeHTML(item.bundleSHA256)}</dd></div></dl><p>O bundle foi validado durante a geração do pacote. Downloads e caminhos internos não são expostos pelo painel.</p></section>`;
+  dialog.showModal();
+}
+
+function openBlueprint(blueprintId) {
+  const item = state.blueprints.find(candidate => candidate.blueprintId === blueprintId);
+  if (!item) return;
+  const dialog = $("blueprint-dialog");
+  $("blueprint-detail-title").textContent = item.title || "Blueprint";
+  const alert = $("blueprint-detail-alert");
+  const isHomologated = item.status === "homologated";
+  alert.className = `blueprint-detail-alert ${isHomologated ? "homologated" : "review"}`;
+  alert.innerHTML = isHomologated
+    ? `<strong>Blueprint homologado</strong><span>Guia consultivo validado. A instalação continua exigindo confirmação humana no Instalador Seguro.</span>`
+    : `<strong>Blueprint Beta</strong><span>Este guia pode ser seguido manualmente, mas ainda não concluiu a homologação técnica de ponta a ponta. Valide cada etapa antes de avançar.</span>`;
+
+  const tags = Array.isArray(item.tags) ? item.tags : [];
+  const components = Array.isArray(item.componentDetails) ? item.componentDetails : [];
+  const installation = item.installation || {};
+  const steps = Array.isArray(installation.steps) ? installation.steps : [];
+  const validation = item.validation || {};
+  const checks = Array.isArray(validation.checks) ? validation.checks : [];
+  const rollback = item.rollback || {};
+  const rollbackSteps = Array.isArray(rollback.steps) ? rollback.steps : [];
+  const media = Array.isArray(item.media) ? item.media : [];
+  const editorial = item.editorial || {};
+  const gates = Array.isArray(editorial.gates) ? editorial.gates : [];
+  const architectures = (Array.isArray(item.architectures) ? item.architectures : [])
+    .map(value => value === "amd64" ? "X86 / amd64" : value === "arm64" ? "ARM / arm64" : value)
+    .join(" + ");
+  const downloadURL = `/api/blueprints/${encodeURIComponent(item.blueprintId)}/download`;
+
+  $("blueprint-detail-content").innerHTML = `
+    <section class="blueprint-guide-intro">
+      <div><p class="eyebrow">Resultado esperado</p><p>${escapeHTML(item.objective)}</p></div>
+      ${item.downloadAvailable ? `<a class="primary-button blueprint-download" href="${downloadURL}" download>Baixar Blueprint em ZIP <b>↓</b></a>` : ""}
+      <div class="catalog-tags">${tags.map(tag => `<span>${escapeHTML(tag)}</span>`).join("")}</div>
+    </section>
+    <div class="blueprint-detail-facts">
+      <span><small>Status</small><strong>${escapeHTML(blueprintStatusLabel(item))}</strong></span>
+      <span><small>Versão</small><strong>v${escapeHTML(item.blueprintVersion)}</strong></span>
+      <span><small>RAM mínima</small><strong>${escapeHTML(item.resourceProfile?.minimumRamGB ?? "N/I")} GB</strong></span>
+      <span><small>Arquitetura</small><strong>${escapeHTML(architectures || "N/I")}</strong></span>
+    </div>
+    <section>
+      <p class="eyebrow">Antes de começar</p>
+      <p>${escapeHTML(item.summary)}</p>
+      <div class="blueprint-component-roles">${components.map(component => `<article><span>${escapeHTML(component.installOrder)}</span><div><strong>${escapeHTML(component.catalogName)}</strong><p>${escapeHTML(component.role)}</p></div></article>`).join("")}</div>
+      <p class="blueprint-resource-note"><strong>Dimensionamento:</strong> ${escapeHTML(item.resourceProfile?.basis || "Valide a capacidade antes da instalação.")}</p>
+    </section>
+    <section>
+      <div class="blueprint-section-heading"><div><p class="eyebrow">Checklist orientado</p><h3>Passo a passo de instalação e integração</h3></div><button class="light-button" data-action="terminal">Abrir Instalador Seguro <b>→</b></button></div>
+      <ol class="blueprint-guide-steps">${steps.map(step => `<li><span>${escapeHTML(step.step)}</span><div><small>${escapeHTML(step.component)}</small><strong>${escapeHTML(step.title)}</strong><p>${escapeHTML(step.description)}</p><em>Confirme esta etapa antes de continuar</em></div></li>`).join("")}</ol>
+    </section>
+    <section>
+      <p class="eyebrow">Validação final</p>
+      <h3>Confirme que o ecossistema funciona</h3>
+      <div class="blueprint-checklist">${checks.map(check => `<label><input type="checkbox"><span><strong>${escapeHTML(check.description)}</strong><small>Resultado esperado: ${escapeHTML(check.expected)}</small></span></label>`).join("")}</div>
+    </section>
+    <section>
+      <p class="eyebrow">Downloads, vídeos e PDFs</p>
+      <div class="blueprint-materials">
+        ${item.downloadAvailable ? `<a href="${downloadURL}" download><span>ZIP</span><div><strong>Pacote deste Blueprint</strong><small>Checklist e manifesto da versão v${escapeHTML(item.blueprintVersion)}</small></div><b>Baixar ↓</b></a>` : ""}
+        ${media.map(entry => entry.url
+          ? `<a href="${escapeHTML(entry.url)}" target="_blank" rel="noopener noreferrer"><span>${escapeHTML(entry.type)}</span><div><strong>${escapeHTML(entry.title)}</strong><small>Material revisado</small></div><b>Abrir ↗</b></a>`
+          : `<div class="pending"><span>${escapeHTML(entry.type)}</span><div><strong>${escapeHTML(entry.title)}</strong><small>Link em preparação</small></div><b>Em breve</b></div>`).join("")}
+      </div>
+    </section>
+    <section class="blueprint-rollback-guide">
+      <p class="eyebrow">Se algo der errado</p><h3>Plano de rollback</h3><p>${escapeHTML(rollback.strategy || "Interrompa o fluxo e retorne à configuração anterior.")}</p>
+      <ol>${rollbackSteps.map(step => `<li>${escapeHTML(step)}</li>`).join("")}</ol>
+    </section>
+    <details class="blueprint-technical-details">
+      <summary>Informações técnicas e procedência</summary>
+      <div><span><small>Autor</small><strong>${escapeHTML(item.author)}</strong></span><span><small>Risco</small><strong>${escapeHTML(blueprintRiskLabel(item.risk))}</strong></span><span><small>Gates editoriais</small><strong>${escapeHTML(editorial.passedGates ?? 0)} de ${escapeHTML(editorial.totalGates ?? 0)}</strong></span><span><small>SHA-256 do ZIP</small><code>${escapeHTML(item.bundleSHA256)}</code></span></div>
+      <ul>${gates.map(gate => `<li>${gate.passed ? "✓" : "○"} ${escapeHTML(gate.title)}</li>`).join("")}</ul>
+    </details>`;
   dialog.showModal();
 }
 
@@ -828,22 +906,19 @@ function renderBlueprintRecommendation(data) {
   target.hidden = false;
   const architecture = context.architecture === "amd64" ? "X86 / amd64"
     : context.architecture === "arm64" ? "ARM / arm64" : context.architecture || "N/I";
-  const simulation = data.simulation
-    ? `<div class="blueprint-recommendation-warning"><strong>Simulação com exemplos fictícios</strong><span>Os resultados atuais validam o mecanismo de seleção, mas não são implantáveis e não autorizam deploy.</span></div>`
-    : "";
   const recommendationCards = recommendations.length ? recommendations.map(item => `
-    <article class="blueprint-match-card ${item.capacityFit === "minimum" ? "limited" : "ready"}">
+    <article class="blueprint-match-card ${item.compatible ? (item.capacityFit === "minimum" ? "limited" : "ready") : "blocked"}">
       <div class="blueprint-match-rank"><span>#${escapeHTML(item.rank)}</span><div><small>${escapeHTML(item.confidence === "high" ? "Alta aderência" : item.confidence === "medium" ? "Aderência média" : "Aderência baixa")}</small><strong>${escapeHTML(item.title)}</strong></div></div>
-      <div class="blueprint-match-badges"><span>${escapeHTML(item.status === "example" ? "Exemplo fictício" : "Homologado")}</span><span>${escapeHTML(item.capacityFit === "recommended" ? "RAM recomendada atendida" : "Somente RAM mínima")}</span></div>
+      <div class="blueprint-match-badges"><span>${escapeHTML(item.status === "reviewed" ? "Blueprint Beta" : "Homologado")}</span><span>${escapeHTML(item.capacityFit === "recommended" ? "RAM recomendada atendida" : item.capacityFit === "minimum" ? "RAM mínima atendida" : "Capacidade insuficiente")}</span></div>
       <ul>${(Array.isArray(item.reasons) ? item.reasons : []).map(reason => `<li>${escapeHTML(reason)}</li>`).join("")}</ul>
+      ${(Array.isArray(item.blockers) && item.blockers.length) ? `<div class="blueprint-match-blockers"><strong>Não instale neste servidor ainda</strong>${item.blockers.map(reason => `<span>${escapeHTML(reason)}</span>`).join("")}</div>` : ""}
       <div class="blueprint-match-resources"><span><small>Mínima</small><strong>${escapeHTML(item.minimumRamGB)} GB</strong></span><span><small>Recomendada</small><strong>${escapeHTML(item.recommendedRamGB)} GB</strong></span><span><small>Risco</small><strong>${escapeHTML(blueprintRiskLabel(item.risk))}</strong></span></div>
       <p>${escapeHTML(item.resourceBasis)}</p>
-      <button class="light-button" data-action="blueprint" data-blueprint-id="${escapeHTML(item.blueprintId)}">Inspecionar evidências <b>→</b></button>
+      <button class="light-button" data-action="blueprint" data-blueprint-id="${escapeHTML(item.blueprintId)}">Visualizar Blueprint <b>→</b></button>
     </article>`).join("") : `<div class="blueprint-no-match"><strong>Nenhum Blueprint compatível</strong><span>${escapeHTML(data.noMatchReason || "Não há evidência suficiente para recomendar com segurança.")}</span></div>`;
   const rejectedBlock = rejected.length ? `<details class="blueprint-rejected"><summary>${rejected.length} candidato(s) recusado(s) pelos gates</summary><ul>${rejected.map(item => `<li><strong>${escapeHTML(item.title)}</strong><span>${(Array.isArray(item.reasons) ? item.reasons : []).map(escapeHTML).join(" · ")}</span></li>`).join("")}</ul></details>` : "";
   target.innerHTML = `
-    <div class="blueprint-recommendation-head"><div><p class="eyebrow">Contexto verificado</p><h3>${recommendations.length} recomendação(ões) compatível(is)</h3></div><div class="blueprint-runtime-facts"><span>${escapeHTML(architecture)}</span><span>${escapeHTML(context.memoryAvailableGB ?? "N/I")} GB livres</span><span>Setup v${escapeHTML(context.setupVersion || "N/I")}</span></div></div>
-    ${simulation}
+    <div class="blueprint-recommendation-head"><div><p class="eyebrow">Resultado por objetivo</p><h3>${recommendations.length} Blueprint(s) relacionado(s)</h3></div><div class="blueprint-runtime-facts"><span>${escapeHTML(architecture)}</span><span>${escapeHTML(context.memoryAvailableGB ?? "N/I")} GB livres</span><span>Setup v${escapeHTML(context.setupVersion || "N/I")}</span></div></div>
     <div class="blueprint-match-grid">${recommendationCards}</div>
     ${rejectedBlock}
     <div class="blueprint-recommendation-guardrails">${(Array.isArray(data.guardrails) ? data.guardrails : []).map(value => `<span>◎ ${escapeHTML(value)}</span>`).join("")}</div>`;

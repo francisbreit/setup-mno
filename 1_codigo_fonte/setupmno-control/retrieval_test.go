@@ -21,7 +21,7 @@ func testKnowledgeRetriever(t *testing.T) (*knowledgeRetriever, knowledgePackage
 	return retriever, state
 }
 
-func TestBlueprintFixtureUsesSameControlledRetrievalPath(t *testing.T) {
+func TestBlueprintBetaUsesSameControlledRetrievalPath(t *testing.T) {
 	retriever, state := testKnowledgeRetriever(t)
 	resolution := retriever.resolveQuery(
 		"Explique o blueprint-001-whatsapp-marketing-completo e a ordem segura",
@@ -44,8 +44,8 @@ func TestBlueprintFixtureUsesSameControlledRetrievalPath(t *testing.T) {
 			t.Fatalf("fonte externa contaminou Blueprint exato: %#v", evidence)
 		}
 		if evidence.BlueprintID != "blueprint-001-whatsapp-marketing-completo" ||
-			!evidence.Fictitious || evidence.Deployable || evidence.Status != "reviewed" {
-			t.Fatalf("metadados inseguros na fixture recuperada: %#v", evidence)
+			evidence.Fictitious || evidence.Deployable || evidence.Status != "reviewed" {
+			t.Fatalf("metadados inseguros no guia Beta recuperado: %#v", evidence)
 		}
 		found = true
 	}
@@ -53,19 +53,19 @@ func TestBlueprintFixtureUsesSameControlledRetrievalPath(t *testing.T) {
 		t.Fatalf("documento esperado não foi recuperado: %#v", result.Evidence)
 	}
 	prompt, status := buildRetrievalPrompt(result)
-	if status != "active" || prompt == nil || !prompt.Simulation ||
-		prompt.Mode != "blueprint-homologation" ||
+	if status != "active" || prompt == nil || prompt.Simulation ||
+		prompt.Mode != "controlled" ||
 		!containsString(prompt.BlueprintIDs, "blueprint-001-whatsapp-marketing-completo") {
 		t.Fatalf("fixture não chegou ao prompt equivalente: status=%s prompt=%#v", status, prompt)
 	}
 	inspection := buildRetrievalInspection(result, state.Manifest.SetupVersion, "image-read-only", false)
-	if !inspection.Simulation ||
+	if inspection.Simulation ||
 		!containsString(inspection.BlueprintIDs, "blueprint-001-whatsapp-marketing-completo") {
 		t.Fatalf("inspeção não sinalizou simulação: %#v", inspection)
 	}
 }
 
-func TestBlueprintFixturesResolveAndRetrieveWithoutCrossContamination(t *testing.T) {
+func TestBlueprintBetaGuidesResolveWithoutCrossContamination(t *testing.T) {
 	retriever, state := testKnowledgeRetriever(t)
 	cases := []struct {
 		question    string
@@ -99,7 +99,7 @@ func TestBlueprintFixturesResolveAndRetrieveWithoutCrossContamination(t *testing
 	}
 }
 
-func TestBlueprintFixturesAreBlockedOutsideHomologationAndSpecialist(t *testing.T) {
+func TestBlueprintBetaRequiresBlueprintSpecialistButNotHomologationFlag(t *testing.T) {
 	state, err := loadKnowledgePackageDirectory("knowledge-package")
 	if err != nil {
 		t.Fatal(err)
@@ -108,29 +108,28 @@ func TestBlueprintFixturesAreBlockedOutsideHomologationAndSpecialist(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	for name, retrieverAndRoute := range map[string]struct {
-		retriever *knowledgeRetriever
-		route     bool
-	}{
-		"homologation-disabled": {retriever: disabled, route: true},
-		"wrong-specialist":      {retriever: testRetrieverFromState(t, state, true), route: false},
-	} {
-		t.Run(name, func(t *testing.T) {
-			result := retrieverAndRoute.retriever.retrieveResolved(
-				retrievalQueryResolution{
-					Query:          "blueprint-001-whatsapp-marketing-completo",
-					BlueprintRoute: retrieverAndRoute.route,
-				},
-				state.Manifest.SetupVersion,
-				"amd64",
-			)
-			for _, evidence := range result.Evidence {
-				if evidence.DocumentType == "blueprint" || evidence.Fictitious {
-					t.Fatalf("fixture atravessou o gate: %#v", evidence)
-				}
-			}
-		})
+	result := disabled.retrieveResolved(
+		retrievalQueryResolution{Query: "blueprint-001-whatsapp-marketing-completo", BlueprintRoute: true},
+		state.Manifest.SetupVersion, "amd64",
+	)
+	if len(result.Evidence) == 0 {
+		t.Fatalf("guia Beta dependeu indevidamente do modo de homologação: %#v", result)
 	}
+	t.Run("wrong-specialist", func(t *testing.T) {
+		result := testRetrieverFromState(t, state, true).retrieveResolved(
+			retrievalQueryResolution{
+				Query:          "blueprint-001-whatsapp-marketing-completo",
+				BlueprintRoute: false,
+			},
+			state.Manifest.SetupVersion,
+			"amd64",
+		)
+		for _, evidence := range result.Evidence {
+			if evidence.DocumentType == "blueprint" || evidence.Fictitious {
+				t.Fatalf("Blueprint atravessou o gate do especialista: %#v", evidence)
+			}
+		}
+	})
 }
 
 func testRetrieverFromState(

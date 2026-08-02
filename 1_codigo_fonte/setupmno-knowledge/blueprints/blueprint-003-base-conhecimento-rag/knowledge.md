@@ -1,15 +1,15 @@
 ---
-{"schemaVersion":1,"documentId":"blueprint-003-base-conhecimento-rag-knowledge","documentVersion":"0.1.0","contentSHA256":"ac02f326d699d95e5c5b12daef5983a9bedf84c288cb5824b2d008ca7ada3b9e","documentType":"blueprint","blueprintId":"blueprint-003-base-conhecimento-rag","fictitious":true,"deployable":false,"title":"Blueprint 003 — Base de Conhecimento com IA e RAG (homologação)","setupVersion":"7.2.14","architectures":["amd64","arm64"],"category":"architecture","status":"reviewed","updatedAt":"2026-07-31","sourceType":"homologation-test","risk":"high","language":"pt-BR","tags":["blueprint","rag","inteligencia-artificial","qdrant","dify","ollama"],"sources":[{"sourceId":"blueprint-003-manifest","title":"Manifesto canônico fictício do Blueprint 003","sourceType":"setup-mno","location":"setupmno-knowledge/blueprints/blueprint-003-base-conhecimento-rag/blueprint.json","license":"maintainer-owned","verifiedAt":"2026-07-31"}],"homologation":{"verifiedAt":null,"verifiedPorts":[],"verifiedImages":[]}}
+{"schemaVersion":1,"documentId":"blueprint-003-base-conhecimento-rag-knowledge","documentVersion":"0.2.0","contentSHA256":"ce0281c95400756e96b5b109a4161cef5737dae780d528c639868a750e736973","documentType":"blueprint","blueprintId":"blueprint-003-base-conhecimento-rag","fictitious":false,"deployable":false,"title":"Blueprint 003 — Base de Conhecimento com IA e RAG","setupVersion":"7.2.15","architectures":["amd64","arm64"],"category":"architecture","status":"reviewed","updatedAt":"2026-08-02","sourceType":"maintainer-authored","risk":"high","language":"pt-BR","tags":["blueprint","rag","inteligencia-artificial","qdrant","dify","ollama"],"sources":[{"sourceId":"blueprint-003-manifest","title":"Manifesto canônico do Blueprint 003","sourceType":"setup-mno","location":"setupmno-knowledge/blueprints/blueprint-003-base-conhecimento-rag/blueprint.json","license":"maintainer-owned","verifiedAt":"2026-08-02"}],"homologation":{"verifiedAt":null,"verifiedPorts":[],"verifiedImages":[]}}
 ---
 # Blueprint 003 — Base de Conhecimento com IA e RAG
 
 ## Estado de homologação
 
-Este documento é uma fixture fictícia para avaliar o Arquiteto de Blueprints. Ele não contém documentos privados, modelos aprovados nem uma implantação homologada.
+Este é um guia Beta revisado para orientar a montagem manual. Ele não contém documentos privados, não executa deploy e ainda exige validação do modelo, dos dados e da capacidade.
 
 ## Objetivo
 
-Simular uma base de conhecimento com ingestão controlada, recuperação rastreável e geração de respostas com fontes, usando Dify, Qdrant e inferência local opcional.
+Montar uma base de conhecimento com ingestão controlada, recuperação rastreável e geração de respostas com fontes, usando Dify, Qdrant e inferência local opcional.
 
 ## Topologia
 
@@ -23,7 +23,7 @@ O Qdrant representa o armazenamento vetorial e seus metadados. O Dify representa
 
 ## Pré-requisitos
 
-A estimativa fictícia é de 16 GB de RAM mínima e 32 GB recomendada, em amd64 ou arm64. Modelo, contexto, simultaneidade, aceleração, volume documental, política de retenção e licenças precisam ser medidos e revisados.
+A estimativa preliminar é de 16 GB de RAM mínima e 32 GB recomendada, em amd64 ou arm64. Modelo, contexto, simultaneidade, aceleração, volume documental, política de retenção e licenças precisam ser medidos e revisados.
 
 ## Ordem segura
 
@@ -31,7 +31,7 @@ A estimativa fictícia é de 16 GB de RAM mínima e 32 GB recomendada, em amd64 
 2. Preparar o Qdrant e uma coleção exclusiva de laboratório.
 3. Preparar o Dify com limites de contexto e citações obrigatórias.
 4. Avaliar o Ollama somente depois do gate de capacidade e licença.
-5. Ingerir apenas documentos fictícios conhecidos e executar avaliações negativas.
+5. Ingerir apenas documentos controlados conhecidos e executar avaliações negativas.
 
 ## Validação
 
@@ -39,7 +39,7 @@ Uma pergunta conhecida deve recuperar a fonte correta e citá-la. Uma consulta f
 
 ## Riscos e limites
 
-Documentos podem conter instruções maliciosas, dados pessoais ou conteúdo sem licença. Similaridade vetorial não comprova verdade. A fixture não valida modelo, custo, desempenho, isolamento de tenant ou qualidade de uma base real.
+Documentos podem conter instruções maliciosas, dados pessoais ou conteúdo sem licença. Similaridade vetorial não comprova verdade. O guia não homologa modelo, custo, desempenho, isolamento de tenant ou qualidade da base.
 
 ## Rollback
 

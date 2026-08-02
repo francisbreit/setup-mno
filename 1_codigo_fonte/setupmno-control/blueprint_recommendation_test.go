@@ -6,43 +6,43 @@ func recommendationTestCatalog() blueprintCatalogResponse {
 	items := []blueprintCatalogItem{
 		{
 			BlueprintID: "blueprint-001-whatsapp-marketing-completo", Title: "WhatsApp Marketing Completo",
-			Status: "example", Fictitious: true, Deployable: false, Risk: "high",
+			Status: "reviewed", Fictitious: false, Deployable: false, Risk: "high",
 			Architectures: []string{"amd64", "arm64"}, Tags: []string{"whatsapp", "marketing", "automacao", "atendimento"},
 			Aliases:    []string{"marketing por whatsapp", "campanhas whatsapp", "automação whatsapp completa"},
 			Components: []string{"CHATWOOT", "MAUTIC", "N8N", "TYPEBOT"}, Objective: "Campanhas, automação e atendimento humano pelo WhatsApp.",
-			Summary: "Arquitetura de marketing e atendimento.", ResourceProfile: blueprintResourceProfile{MinimumRAMGB: 20, RecommendedRAMGB: 24, Basis: "Estimativa fictícia para teste."},
+			Summary: "Arquitetura de marketing e atendimento.", ResourceProfile: blueprintResourceProfile{MinimumRAMGB: 20, RecommendedRAMGB: 24, Basis: "Estimativa preliminar para teste."},
 		},
 		{
 			BlueprintID: "blueprint-002-automacao-negocios", Title: "Automação de Negócios",
-			Status: "example", Fictitious: true, Deployable: false, Risk: "medium",
+			Status: "reviewed", Fictitious: false, Deployable: false, Risk: "medium",
 			Architectures: []string{"amd64", "arm64"}, Tags: []string{"n8n", "activepieces", "workflows", "processos"},
 			Aliases:    []string{"automação de negócios", "workflows empresariais", "integração de processos"},
 			Components: []string{"BOOKSTACK", "ACTIVEPIECES", "N8N"}, Objective: "Automatizar processos de negócio com workflows.",
-			Summary: "Dois motores de automação.", ResourceProfile: blueprintResourceProfile{MinimumRAMGB: 12, RecommendedRAMGB: 16, Basis: "Estimativa fictícia para teste."},
+			Summary: "Dois motores de automação.", ResourceProfile: blueprintResourceProfile{MinimumRAMGB: 12, RecommendedRAMGB: 16, Basis: "Estimativa preliminar para teste."},
 		},
 		{
 			BlueprintID: "blueprint-003-base-conhecimento-rag", Title: "Base de Conhecimento com IA e RAG",
-			Status: "example", Fictitious: true, Deployable: false, Risk: "high",
+			Status: "reviewed", Fictitious: false, Deployable: false, Risk: "high",
 			Architectures: []string{"amd64", "arm64"}, Tags: []string{"rag", "dify", "qdrant", "ollama"},
 			Aliases:    []string{"base de conhecimento com ia", "rag local", "assistente documental"},
 			Components: []string{"QDRANT", "DIFY", "OLLAMA"}, Objective: "Base documental com inteligência artificial e RAG.",
-			Summary: "Recuperação de conhecimento com IA.", ResourceProfile: blueprintResourceProfile{MinimumRAMGB: 16, RecommendedRAMGB: 32, Basis: "Estimativa fictícia para teste."},
+			Summary: "Recuperação de conhecimento com IA.", ResourceProfile: blueprintResourceProfile{MinimumRAMGB: 16, RecommendedRAMGB: 32, Basis: "Estimativa preliminar para teste."},
 		},
 		{
 			BlueprintID: "blueprint-004-observabilidade-monitoramento", Title: "Observabilidade e Monitoramento",
-			Status: "example", Fictitious: true, Deployable: false, Risk: "medium",
+			Status: "reviewed", Fictitious: false, Deployable: false, Risk: "medium",
 			Architectures: []string{"amd64", "arm64"}, Tags: []string{"observabilidade", "monitoramento", "metricas", "alertas"},
 			Aliases:    []string{"monitoramento de servidor", "observabilidade completa", "saúde dos serviços"},
 			Components: []string{"BESZEL", "GRAFANA", "PROMETHEUS", "UPTIMEKUMA"}, Objective: "Monitorar métricas, saúde e disponibilidade.",
-			Summary: "Observabilidade em camadas.", ResourceProfile: blueprintResourceProfile{MinimumRAMGB: 4, RecommendedRAMGB: 8, Basis: "Estimativa fictícia para teste."},
+			Summary: "Observabilidade em camadas.", ResourceProfile: blueprintResourceProfile{MinimumRAMGB: 4, RecommendedRAMGB: 8, Basis: "Estimativa preliminar para teste."},
 		},
 		{
 			BlueprintID: "blueprint-005-servidor-pequeno", Title: "Servidor Pequeno com Ferramentas Leves",
-			Status: "example", Fictitious: true, Deployable: false, Risk: "medium",
+			Status: "reviewed", Fictitious: false, Deployable: false, Risk: "medium",
 			Architectures: []string{"amd64", "arm64"}, Tags: []string{"servidor-pequeno", "monitoramento", "dns", "capacidade"},
 			Aliases:    []string{"stack leve", "vps pequena", "servidor com pouca memória"},
 			Components: []string{"BESZEL", "UPTIMEKUMA", "ADGUARDHOME"}, Objective: "Serviços leves com visibilidade e DNS.",
-			Summary: "Composição conservadora para pouca memória.", ResourceProfile: blueprintResourceProfile{MinimumRAMGB: 2, RecommendedRAMGB: 4, Basis: "Estimativa fictícia para teste."},
+			Summary: "Composição conservadora para pouca memória.", ResourceProfile: blueprintResourceProfile{MinimumRAMGB: 2, RecommendedRAMGB: 4, Basis: "Estimativa preliminar para teste."},
 		},
 	}
 	return blueprintCatalogResponse{SetupVersion: "7.2.0", BlueprintCount: len(items), Items: items}
@@ -76,7 +76,7 @@ func TestBlueprintRecommendationSelectsExpectedObjective(t *testing.T) {
 			}
 			if len(result.Recommendations) == 0 ||
 				result.Recommendations[0].BlueprintID != testCase.expected ||
-				result.Recommendations[0].Rank != 1 || !result.Simulation ||
+				result.Recommendations[0].Rank != 1 || result.Simulation ||
 				result.Recommendations[0].Deployable {
 				t.Fatalf("recomendação inesperada: %#v", result)
 			}
@@ -84,16 +84,32 @@ func TestBlueprintRecommendationSelectsExpectedObjective(t *testing.T) {
 	}
 }
 
-func TestBlueprintRecommendationRejectsInsufficientRAM(t *testing.T) {
+func TestBlueprintRecommendationShowsRelatedGuideWithInsufficientRAM(t *testing.T) {
 	result, err := recommendBlueprints(
 		recommendationTestCatalog(), "observabilidade completa", recommendationTestContext(3),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Recommendations) != 0 || !rejectedBlueprint(result, "blueprint-004-observabilidade-monitoramento") ||
-		result.NoMatchReason == "" {
-		t.Fatalf("gate de RAM falhou: %#v", result)
+	if len(result.Recommendations) != 1 || result.Recommendations[0].Compatible ||
+		result.Recommendations[0].CapacityFit != "insufficient" || len(result.Recommendations[0].Blockers) == 0 {
+		t.Fatalf("guia relacionado não exibiu o bloqueio de RAM: %#v", result)
+	}
+}
+
+func TestWhatsAppMarketingRemainsVisibleBelowMinimumRAM(t *testing.T) {
+	result, err := recommendBlueprints(
+		recommendationTestCatalog(), "WhatsApp Marketing", recommendationTestContext(4.6),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Recommendations) != 1 ||
+		result.Recommendations[0].BlueprintID != "blueprint-001-whatsapp-marketing-completo" ||
+		result.Recommendations[0].Compatible ||
+		result.Recommendations[0].CapacityFit != "insufficient" ||
+		len(result.Recommendations[0].Blockers) == 0 {
+		t.Fatalf("caso real de WhatsApp Marketing não preservou o guia relacionado: %#v", result)
 	}
 }
 
@@ -104,7 +120,8 @@ func TestBlueprintRecommendationUsesUnroundedCapacityGate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Recommendations) != 0 || !rejectedBlueprint(result, "blueprint-004-observabilidade-monitoramento") {
+	if len(result.Recommendations) != 1 || result.Recommendations[0].Compatible ||
+		result.Recommendations[0].CapacityFit != "insufficient" {
 		t.Fatalf("arredondamento atravessou o gate de RAM: %#v", result)
 	}
 	if result.Context.MemoryAvailableGB != 4 {
@@ -125,7 +142,7 @@ func TestNormalizeBlueprintArchitecture(t *testing.T) {
 func TestBlueprintRecommendationRejectsArchitectureAndUnsafeStatus(t *testing.T) {
 	catalog := recommendationTestCatalog()
 	catalog.Items[0].Architectures = []string{"arm64"}
-	catalog.Items[1].Status = "reviewed"
+	catalog.Items[1].Status = "draft"
 	for _, testCase := range []struct {
 		objective string
 		id        string
@@ -137,8 +154,12 @@ func TestBlueprintRecommendationRejectsArchitectureAndUnsafeStatus(t *testing.T)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(result.Recommendations) != 0 || !rejectedBlueprint(result, testCase.id) {
-			t.Fatalf("candidato incompatível atravessou o gate: %#v", result)
+		if testCase.id == catalog.Items[0].BlueprintID {
+			if len(result.Recommendations) != 1 || result.Recommendations[0].Compatible || len(result.Recommendations[0].Blockers) == 0 {
+				t.Fatalf("incompatibilidade de arquitetura não foi informada: %#v", result)
+			}
+		} else if !rejectedBlueprint(result, testCase.id) {
+			t.Fatalf("estado editorial inseguro atravessou o gate: %#v", result)
 		}
 	}
 }
@@ -186,10 +207,9 @@ func TestBlueprintRecommendationAppliesCapacityGateAfterSafeTypo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Recommendations) != 0 ||
-		!rejectedBlueprint(result, "blueprint-001-whatsapp-marketing-completo") ||
-		result.NoMatchReason != "Há aderência ao objetivo, mas nenhum Blueprint passou pelos gates de arquitetura e capacidade atuais." {
-		t.Fatalf("gate de RAM não foi aplicado após a aproximação: %#v", result)
+	if len(result.Recommendations) != 1 || result.Recommendations[0].Compatible ||
+		result.Recommendations[0].CapacityFit != "insufficient" || len(result.Recommendations[0].Blockers) == 0 {
+		t.Fatalf("bloqueio de RAM não foi aplicado após a aproximação: %#v", result)
 	}
 }
 

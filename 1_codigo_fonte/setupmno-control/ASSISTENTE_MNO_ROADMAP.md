@@ -14,12 +14,12 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.2.14` no canal Beta
-- Control Center: `4.10.2`
-- Conhecimento canônico: `3.9.0`
+- Setup MNO: `7.2.15` no canal Beta
+- Control Center: `4.11.0`
+- Conhecimento canônico: `3.10.0`
 - Catálogo runtime: 151 entradas
 - Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
-- Blueprints: cinco modelos hipotéticos, todos fictícios e não implantáveis
+- Blueprints: cinco guias Beta editáveis, consultáveis e baixáveis; ainda não homologados
 - Estado: Beta consultivo; deploy real continua no Instalador Seguro
 
 A tag `v7.2.0` é imutável e permanece como baseline beta. Correções e
@@ -81,7 +81,7 @@ modo `BASIC`, informam que a aplicação precisa ser reiniciada e que o site e o
 Instalador Seguro podem ficar inacessíveis por cerca de dois minutos. A
 mensagem orienta o usuário a aguardar esse período antes de entrar novamente.
 
-### Hotfix v7.2.14 Beta
+### Hotfix v7.2.15 Beta
 
 Preserva o gerenciador de stacks escolhido na instalação do Control Center.
 Quando o usuário opta por stacks editáveis no Portainer, a recriação,
@@ -90,6 +90,14 @@ Portainer e permanecem sincronizados com seu editor. Instalações anteriores
 são detectadas pelo registro das stacks do próprio Control Center; uma falha de
 autenticação no modo explícito bloqueia a operação em vez de converter a stack
 silenciosamente para Docker direto.
+
+Transforma também os cinco modelos iniciais em guias Blueprint Beta reais para
+o usuário: remove a apresentação de conteúdo fictício, publica ZIP autenticado,
+ordem de instalação e integração, checklist de validação, materiais e rollback.
+A recomendação passa a separar aderência de compatibilidade: um Blueprint
+relacionado continua visível quando a RAM ou arquitetura não atende, mas a tela
+bloqueia a instalação naquele servidor e explica o motivo. A correspondência
+aproximada permanece restrita a tags e aliases canônicos e não cria soluções.
 
 ## Norte do produto
 
@@ -1248,7 +1256,7 @@ Setup MNO.
 
 ### Evidências da subetapa 5.5
 
-- schema canônico de Blueprint v2 e fábrica `2.0.0`, com objeto `editorial`
+- schema canônico de Blueprint v2 e fábrica `2.1.0`, com objeto `editorial`
   obrigatório e rejeição de campos desconhecidos;
 - histórico cronológico bloqueante: `homologated` aceita somente a sequência
   `draft → reviewed → homologated`; saltos diretos são recusados;

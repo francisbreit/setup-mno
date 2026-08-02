@@ -1,15 +1,15 @@
 ---
-{"schemaVersion":1,"documentId":"blueprint-005-servidor-pequeno-knowledge","documentVersion":"0.1.0","contentSHA256":"cb35666e8ca105d8559d842ac06a5a1730feb23c2c918a30711face494657628","documentType":"blueprint","blueprintId":"blueprint-005-servidor-pequeno","fictitious":true,"deployable":false,"title":"Blueprint 005 — Servidor Pequeno (homologação)","setupVersion":"7.2.14","architectures":["amd64","arm64"],"category":"capacity","status":"reviewed","updatedAt":"2026-07-31","sourceType":"homologation-test","risk":"medium","language":"pt-BR","tags":["blueprint","servidor-pequeno","capacidade","beszel","uptimekuma","adguardhome"],"sources":[{"sourceId":"blueprint-005-manifest","title":"Manifesto canônico fictício do Blueprint 005","sourceType":"setup-mno","location":"setupmno-knowledge/blueprints/blueprint-005-servidor-pequeno/blueprint.json","license":"maintainer-owned","verifiedAt":"2026-07-31"}],"homologation":{"verifiedAt":null,"verifiedPorts":[],"verifiedImages":[]}}
+{"schemaVersion":1,"documentId":"blueprint-005-servidor-pequeno-knowledge","documentVersion":"0.2.0","contentSHA256":"e815db822e06721d4796a0bbb78cd1665aeb5e70a114515fb4535ad9a35b56fc","documentType":"blueprint","blueprintId":"blueprint-005-servidor-pequeno","fictitious":false,"deployable":false,"title":"Blueprint 005 — Servidor Pequeno","setupVersion":"7.2.15","architectures":["amd64","arm64"],"category":"capacity","status":"reviewed","updatedAt":"2026-08-02","sourceType":"maintainer-authored","risk":"medium","language":"pt-BR","tags":["blueprint","servidor-pequeno","capacidade","beszel","uptimekuma","adguardhome"],"sources":[{"sourceId":"blueprint-005-manifest","title":"Manifesto canônico do Blueprint 005","sourceType":"setup-mno","location":"setupmno-knowledge/blueprints/blueprint-005-servidor-pequeno/blueprint.json","license":"maintainer-owned","verifiedAt":"2026-08-02"}],"homologation":{"verifiedAt":null,"verifiedPorts":[],"verifiedImages":[]}}
 ---
 # Blueprint 005 — Servidor Pequeno
 
 ## Estado de homologação
 
-Este conteúdo é uma fixture fictícia. Ele permite testar recomendações conservadoras de capacidade, mas não prova que um servidor real suporta os componentes nem autoriza instalação.
+Este é um guia Beta revisado para orientar a montagem manual. A capacidade deve ser medida no servidor de destino e cada etapa exige confirmação humana.
 
 ## Objetivo
 
-Simular uma composição leve para observar recursos, verificar disponibilidade e avaliar filtragem DNS opcional, mantendo margem operacional em um servidor pequeno.
+Montar uma composição leve para observar recursos, verificar disponibilidade e avaliar filtragem DNS opcional, mantendo margem operacional em um servidor pequeno.
 
 ## Topologia
 
@@ -23,7 +23,7 @@ O Beszel mede a baseline e a evolução de CPU, memória e disco. O Uptime Kuma 
 
 ## Pré-requisitos
 
-A estimativa fictícia é de 2 GB de RAM mínima e 4 GB recomendada, em amd64 ou arm64. Serviços-base, sistema operacional, picos, atualizações, retenção e crescimento exigem margem adicional. A memória disponível deve ser medida, não inferida pelo total.
+A estimativa preliminar é de 2 GB de RAM mínima e 4 GB recomendada, em amd64 ou arm64. Serviços-base, sistema operacional, picos, atualizações, retenção e crescimento exigem margem adicional. A memória disponível deve ser medida, não inferida pelo total.
 
 ## Ordem segura
 

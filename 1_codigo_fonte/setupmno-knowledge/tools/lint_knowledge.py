@@ -390,7 +390,10 @@ def validate_document(
         elif deployable is True and metadata.get("status") != "homologated":
             errors.append("Blueprint implantável exige status=homologated")
         elif fictitious is False and deployable is False:
-            errors.append("Blueprint real recuperável deve estar homologado e implantável")
+            if metadata.get("status") != "reviewed":
+                errors.append("Blueprint Beta não implantável exige status=reviewed")
+            if metadata.get("sourceType") != "maintainer-authored":
+                errors.append("Blueprint Beta exige sourceType=maintainer-authored")
     elif any(field in metadata for field in blueprint_fields):
         errors.append(
             "blueprintId, fictitious e deployable só são permitidos em documentos blueprint"

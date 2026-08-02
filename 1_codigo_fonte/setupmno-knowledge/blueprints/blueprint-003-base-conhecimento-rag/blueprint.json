@@ -1,15 +1,15 @@
 {
   "schemaVersion": 2,
   "blueprintId": "blueprint-003-base-conhecimento-rag",
-  "blueprintVersion": "0.2.0",
-  "title": "Base de Conhecimento com IA e RAG — Exemplo fictício",
-  "summary": "Exemplo editorial de uma base de conhecimento com aplicação de IA, banco vetorial e modelo local opcional.",
-  "author": "Setup MNO — exemplo editorial",
-  "status": "example",
-  "fictitious": true,
+  "blueprintVersion": "0.3.0",
+  "title": "Base de Conhecimento com IA e RAG",
+  "summary": "Guia Beta de uma base de conhecimento com aplicação de IA, banco vetorial e modelo local opcional.",
+  "author": "Setup MNO — equipe editorial",
+  "status": "reviewed",
+  "fictitious": false,
   "deployable": false,
-  "setupVersion":"7.2.14",
-  "updatedAt": "2026-07-31",
+  "setupVersion": "7.2.15",
+  "updatedAt": "2026-08-02",
   "architectures": ["amd64", "arm64"],
   "risk": "high",
   "audiences": ["ia", "conhecimento", "infraestrutura"],
@@ -39,7 +39,7 @@
   "resourceProfile": {
     "minimumRamGB": 16,
     "recommendedRamGB": 32,
-    "basis": "Estimativa fictícia; o modelo, contexto, simultaneidade e aceleração alteram radicalmente o consumo."
+    "basis": "Estimativa preliminar; modelo, contexto, simultaneidade e aceleração alteram radicalmente o consumo."
   },
   "installation": {
     "mode": "assisted-manual",
@@ -56,7 +56,7 @@
         "step": 2,
         "component": "DIFY",
         "title": "Preparar aplicação RAG",
-        "description": "Configurar fontes fictícias, limites de contexto e citações verificáveis.",
+        "description": "Configurar fontes controladas, limites de contexto e citações verificáveis.",
         "humanConfirmation": true
       },
       {
@@ -64,6 +64,34 @@
         "component": "OLLAMA + OPENWEBUI*",
         "title": "Preparar inferência local",
         "description": "Selecionar um modelo compatível somente após validar capacidade e licença.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 4,
+        "component": "QDRANT",
+        "title": "Criar a coleção e a política documental",
+        "description": "Definir coleção, metadados, escopo de acesso e ciclo de atualização antes de importar documentos.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 5,
+        "component": "DIFY",
+        "title": "Criar conta e conectar os provedores",
+        "description": "Criar o administrador, cadastrar o provedor de modelo sem expor chaves e apontar a base de conhecimento para o Qdrant.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 6,
+        "component": "OLLAMA + OPENWEBUI*",
+        "title": "Selecionar e validar o modelo local",
+        "description": "Escolher um modelo compatível com a capacidade, confirmar licença e testar inferência antes de conectá-lo ao Dify.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 7,
+        "component": "DIFY",
+        "title": "Ingerir documentos e testar respostas",
+        "description": "Importar um conjunto controlado, ajustar recuperação e exigir citações antes de disponibilizar o aplicativo aos usuários.",
         "humanConfirmation": true
       }
     ]
@@ -73,7 +101,7 @@
     "checks": [
       {
         "checkId": "citacao-rastreavel",
-        "description": "Responder uma pergunta com documento fictício conhecido.",
+        "description": "Responder uma pergunta com documento controlado conhecido.",
         "expected": "A resposta aponta para a fonte correta e não inventa documento ausente.",
         "required": true
       },
@@ -102,17 +130,17 @@
     {
       "mediaId": "video-rag-seguro",
       "type": "video",
-      "title": "RAG seguro e rastreável — vídeo fictício",
-      "url": "https://videos.setupmno.invalid/blueprints/003/rag-seguro",
-      "status": "example",
+        "title": "Vídeo: RAG seguro e rastreável",
+        "url": null,
+        "status": "pending",
       "transcript": null
     },
     {
       "mediaId": "matriz-evidencias",
-      "type": "link",
-      "title": "Matriz fictícia de evidências",
-      "url": "https://docs.setupmno.invalid/blueprints/003/evidencias",
-      "status": "example",
+      "title": "PDF: matriz de evidências",
+      "type": "pdf",
+      "url": null,
+      "status": "pending",
       "transcript": null
     }
   ],
@@ -121,20 +149,26 @@
     "artifacts": ["README.md", "blueprint.json"]
   },
   "editorial": {
-    "currentStage": "example",
+    "currentStage": "reviewed",
     "history": [
       {
-        "stage": "example",
+        "stage": "draft",
         "changedAt": "2026-07-31",
-        "actor": "Setup MNO — exemplo editorial",
-        "note": "Fixture fictícia criada somente para validar o fluxo editorial seguro."
+        "actor": "Setup MNO — equipe editorial",
+        "note": "Primeira versão do guia Beta criada para orientar a montagem manual."
+      },
+      {
+        "stage": "reviewed",
+        "changedAt": "2026-08-02",
+        "actor": "Setup MNO — revisão editorial",
+        "note": "Estrutura e sequência revisadas para publicação como guia Beta não homologado."
       }
     ],
     "review": {
-      "decision": "pending",
-      "reviewedAt": null,
-      "reviewedBy": null,
-      "notes": "Exemplo sem revisão para produção e sem autorização de implantação."
+      "decision": "approved",
+      "reviewedAt": "2026-08-02",
+      "reviewedBy": "Setup MNO",
+      "notes": "Aprovado como guia Beta manual; a homologação técnica integral permanece pendente."
     },
     "homologation": {
       "environment": "not-applicable",

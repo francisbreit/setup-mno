@@ -22,7 +22,7 @@ from typing import Any
 
 
 BLUEPRINT_SCHEMA_VERSION = 2
-BLUEPRINT_FACTORY_VERSION = "2.0.0"
+BLUEPRINT_FACTORY_VERSION = "2.1.0"
 MAX_BLUEPRINTS = 64
 MAX_FILES_PER_BLUEPRINT = 128
 MAX_FILE_BYTES = 2 << 20
@@ -37,7 +37,7 @@ ALLOWED_SUFFIXES = TEXT_SUFFIXES | {".pdf", ".png", ".jpg", ".jpeg", ".webp"}
 STATUSES = {"example", "draft", "reviewed", "homologated", "deprecated"}
 RISKS = {"low", "medium", "high", "critical"}
 ARCHITECTURES = {"amd64", "arm64"}
-MEDIA_TYPES = {"video", "link"}
+MEDIA_TYPES = {"video", "link", "pdf", "download"}
 EDITORIAL_EVIDENCE_TYPES = {
     "architecture-check",
     "rollback-test",
@@ -318,13 +318,17 @@ def validate_media(value: Any, fictitious: Any) -> list[str]:
             errors.append(f"{prefix}.type inválido")
         if not isinstance(item.get("title"), str) or len(item["title"]) < 5:
             errors.append(f"{prefix}.title inválido")
+        status = item.get("status")
         url = item.get("url")
         parsed = urllib.parse.urlparse(url) if isinstance(url, str) else None
-        if parsed is None or parsed.scheme != "https" or not parsed.hostname:
-            errors.append(f"{prefix}.url deve usar HTTPS")
+        if status == "pending":
+            if url is not None:
+                errors.append(f"{prefix}.url deve ser nula enquanto o material estiver pendente")
+        elif parsed is None or parsed.scheme != "https" or not parsed.hostname:
+            errors.append(f"{prefix}.url deve usar HTTPS quando o material estiver publicado")
         elif fictitious is True and not parsed.hostname.endswith(".invalid"):
             errors.append(f"{prefix}.url fictícia deve usar domínio reservado .invalid")
-        if item.get("status") not in {"example", "reviewed"}:
+        if status not in {"pending", "reviewed"}:
             errors.append(f"{prefix}.status inválido")
         transcript = item.get("transcript")
         if transcript is not None and (
@@ -977,10 +981,14 @@ def build_blueprint_package(
                 "bundlePath": record.bundle_path,
                 "bundleSHA256": bundle_sha256,
                 "components": [item["catalogName"] for item in manifest["components"]],
+                "componentDetails": manifest["components"],
                 "deployable": manifest["deployable"],
                 "editorial": build_editorial_projection(manifest, bundle_sha256),
                 "fictitious": manifest["fictitious"],
                 "media": manifest["media"],
+                "installation": manifest["installation"],
+                "validation": manifest["validation"],
+                "rollback": manifest["rollback"],
                 "objective": manifest["objective"],
                 "resourceProfile": manifest["resourceProfile"],
                 "risk": manifest["risk"],

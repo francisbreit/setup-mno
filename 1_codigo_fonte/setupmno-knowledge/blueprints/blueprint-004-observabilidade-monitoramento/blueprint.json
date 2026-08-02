@@ -1,21 +1,21 @@
 {
   "schemaVersion": 2,
   "blueprintId": "blueprint-004-observabilidade-monitoramento",
-  "blueprintVersion": "0.2.0",
-  "title": "Observabilidade e Monitoramento — Exemplo fictício",
-  "summary": "Exemplo editorial de métricas, monitoramento leve e verificação externa com responsabilidades separadas.",
-  "author": "Setup MNO — exemplo editorial",
-  "status": "example",
-  "fictitious": true,
+  "blueprintVersion": "0.3.0",
+  "title": "Observabilidade e Monitoramento",
+  "summary": "Guia Beta de métricas, monitoramento leve e verificação externa com responsabilidades separadas.",
+  "author": "Setup MNO — equipe editorial",
+  "status": "reviewed",
+  "fictitious": false,
   "deployable": false,
-  "setupVersion":"7.2.14",
-  "updatedAt": "2026-07-31",
+  "setupVersion": "7.2.15",
+  "updatedAt": "2026-08-02",
   "architectures": ["amd64", "arm64"],
   "risk": "medium",
   "audiences": ["operacoes", "sre", "infraestrutura"],
   "tags": ["observabilidade", "monitoramento", "metricas", "alertas"],
   "aliases": ["monitoramento de servidor", "observabilidade completa", "saúde dos serviços"],
-  "objective": "Demonstrar uma arquitetura em camadas para métricas, saúde do host e disponibilidade externa sem apresentar exemplos como configuração homologada.",
+  "objective": "Montar uma arquitetura em camadas para métricas, saúde do host e disponibilidade externa com responsabilidades separadas.",
   "components": [
     {
       "catalogName": "BESZEL",
@@ -39,7 +39,7 @@
   "resourceProfile": {
     "minimumRamGB": 4,
     "recommendedRamGB": 8,
-    "basis": "Estimativa fictícia sem retenção, cardinalidade, quantidade de hosts ou frequência de coleta reais."
+    "basis": "Estimativa preliminar sem retenção, cardinalidade, quantidade de hosts ou frequência de coleta definitivas."
   },
   "installation": {
     "mode": "assisted-manual",
@@ -49,7 +49,7 @@
         "step": 1,
         "component": "BESZEL",
         "title": "Preparar visão leve",
-        "description": "Instalar o monitor leve e validar somente hosts fictícios autorizados.",
+        "description": "Instalar o monitor leve e validar somente hosts autorizados.",
         "humanConfirmation": true
       },
       {
@@ -65,6 +65,34 @@
         "title": "Preparar disponibilidade externa",
         "description": "Adicionar somente alvos de laboratório e validar os canais de alerta.",
         "humanConfirmation": true
+      },
+      {
+        "step": 4,
+        "component": "BESZEL",
+        "title": "Criar conta e cadastrar os hosts",
+        "description": "Criar o administrador e adicionar apenas os hosts autorizados, confirmando que CPU, memória e disco recebem amostras.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 5,
+        "component": "GRAFANA/PROMETHEUS MONITOR",
+        "title": "Conectar fontes e importar dashboards",
+        "description": "Cadastrar a fonte Prometheus, definir retenção e importar dashboards somente após revisar consultas e cardinalidade.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 6,
+        "component": "UPTIMEKUMA",
+        "title": "Criar monitores e canais de alerta",
+        "description": "Cadastrar URLs críticas, definir intervalos e configurar um canal de teste antes de ativar notificações operacionais.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 7,
+        "component": "UPTIMEKUMA",
+        "title": "Executar teste controlado de indisponibilidade",
+        "description": "Interromper apenas um alvo descartável, conferir alerta e recuperação e registrar o resultado no checklist.",
+        "humanConfirmation": true
       }
     ]
   },
@@ -74,7 +102,7 @@
       {
         "checkId": "metrica-recente",
         "description": "Confirmar atualização de uma métrica de laboratório.",
-        "expected": "A série recebe amostras no intervalo fictício documentado.",
+        "expected": "A série recebe amostras no intervalo documentado.",
         "required": true
       },
       {
@@ -85,7 +113,7 @@
       },
       {
         "checkId": "retencao-limitada",
-        "description": "Revisar a política de retenção do exemplo.",
+        "description": "Revisar a política de retenção do guia.",
         "expected": "A retenção possui responsável, limite e estimativa de armazenamento.",
         "required": true
       }
@@ -102,9 +130,9 @@
     {
       "mediaId": "video-camadas-monitoramento",
       "type": "video",
-      "title": "Camadas de monitoramento — vídeo fictício",
-      "url": "https://videos.setupmno.invalid/blueprints/004/camadas",
-      "status": "example",
+        "title": "Vídeo: camadas de monitoramento",
+        "url": null,
+        "status": "pending",
       "transcript": null
     }
   ],
@@ -113,20 +141,26 @@
     "artifacts": ["README.md", "blueprint.json"]
   },
   "editorial": {
-    "currentStage": "example",
+    "currentStage": "reviewed",
     "history": [
       {
-        "stage": "example",
+        "stage": "draft",
         "changedAt": "2026-07-31",
-        "actor": "Setup MNO — exemplo editorial",
-        "note": "Fixture fictícia criada somente para validar o fluxo editorial seguro."
+        "actor": "Setup MNO — equipe editorial",
+        "note": "Primeira versão do guia Beta criada para orientar a montagem manual."
+      },
+      {
+        "stage": "reviewed",
+        "changedAt": "2026-08-02",
+        "actor": "Setup MNO — revisão editorial",
+        "note": "Estrutura e sequência revisadas para publicação como guia Beta não homologado."
       }
     ],
     "review": {
-      "decision": "pending",
-      "reviewedAt": null,
-      "reviewedBy": null,
-      "notes": "Exemplo sem revisão para produção e sem autorização de implantação."
+      "decision": "approved",
+      "reviewedAt": "2026-08-02",
+      "reviewedBy": "Setup MNO",
+      "notes": "Aprovado como guia Beta manual; a homologação técnica integral permanece pendente."
     },
     "homologation": {
       "environment": "not-applicable",

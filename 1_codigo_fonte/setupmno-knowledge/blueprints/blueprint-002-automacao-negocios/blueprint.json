@@ -1,15 +1,15 @@
 {
   "schemaVersion": 2,
   "blueprintId": "blueprint-002-automacao-negocios",
-  "blueprintVersion": "0.2.0",
-  "title": "Automação de Negócios — Exemplo fictício",
-  "summary": "Exemplo editorial de automações com dois motores de workflow e uma base de procedimentos para equipes de negócio.",
-  "author": "Setup MNO — exemplo editorial",
-  "status": "example",
-  "fictitious": true,
+  "blueprintVersion": "0.3.0",
+  "title": "Automação de Negócios",
+  "summary": "Guia Beta de automações com dois motores de workflow e uma base de procedimentos para equipes de negócio.",
+  "author": "Setup MNO — equipe editorial",
+  "status": "reviewed",
+  "fictitious": false,
   "deployable": false,
-  "setupVersion":"7.2.14",
-  "updatedAt": "2026-07-31",
+  "setupVersion": "7.2.15",
+  "updatedAt": "2026-08-02",
   "architectures": ["amd64", "arm64"],
   "risk": "medium",
   "audiences": ["operacoes", "automacao", "infraestrutura"],
@@ -39,7 +39,7 @@
   "resourceProfile": {
     "minimumRamGB": 12,
     "recommendedRamGB": 16,
-    "basis": "Estimativa fictícia baseada no catálogo e sem medição de concorrência ou volume real."
+    "basis": "Estimativa preliminar baseada no catálogo e ainda sem medição de concorrência ou volume real."
   },
   "installation": {
     "mode": "assisted-manual",
@@ -56,7 +56,7 @@
         "step": 2,
         "component": "ACTIVEPIECES",
         "title": "Preparar automações leves",
-        "description": "Criar integrações de baixo risco com dados e endpoints fictícios.",
+        "description": "Criar integrações de baixo risco com dados e endpoints controlados.",
         "humanConfirmation": true
       },
       {
@@ -64,6 +64,34 @@
         "component": "N8N V2 - FILA (QUEUE)",
         "title": "Preparar workflows avançados",
         "description": "Separar fluxos críticos e validar filas, retries e idempotência.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 4,
+        "component": "BOOKSTACK",
+        "title": "Criar contas, responsáveis e critérios de aceite",
+        "description": "Criar o administrador, documentar cada processo e registrar quem pode aprovar, alterar e interromper uma automação.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 5,
+        "component": "ACTIVEPIECES",
+        "title": "Conectar integrações simples",
+        "description": "Cadastrar credenciais de teste, criar os fluxos leves e validar gatilho, ação e tratamento de erro antes de ativar agendas.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 6,
+        "component": "N8N V2 - FILA (QUEUE)",
+        "title": "Importar e validar workflows avançados",
+        "description": "Importar os workflows disponibilizados, substituir credenciais, testar cada nó e confirmar retries e idempotência.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 7,
+        "component": "BOOKSTACK",
+        "title": "Publicar o checklist operacional",
+        "description": "Registrar URLs, responsáveis, dependências, validações e rollback e obter confirmação humana antes da ativação.",
         "humanConfirmation": true
       }
     ]
@@ -102,9 +130,9 @@
     {
       "mediaId": "video-separacao-workflows",
       "type": "video",
-      "title": "Separação fictícia entre Activepieces e n8n",
-      "url": "https://videos.setupmno.invalid/blueprints/002/separacao-workflows",
-      "status": "example",
+      "title": "Vídeo: separação entre Activepieces e n8n",
+      "url": null,
+      "status": "pending",
       "transcript": null
     }
   ],
@@ -113,20 +141,26 @@
     "artifacts": ["README.md", "blueprint.json"]
   },
   "editorial": {
-    "currentStage": "example",
+    "currentStage": "reviewed",
     "history": [
       {
-        "stage": "example",
+        "stage": "draft",
         "changedAt": "2026-07-31",
-        "actor": "Setup MNO — exemplo editorial",
-        "note": "Fixture fictícia criada somente para validar o fluxo editorial seguro."
+        "actor": "Setup MNO — equipe editorial",
+        "note": "Primeira versão do guia Beta criada para orientar a montagem manual."
+      },
+      {
+        "stage": "reviewed",
+        "changedAt": "2026-08-02",
+        "actor": "Setup MNO — revisão editorial",
+        "note": "Estrutura e sequência revisadas para publicação como guia Beta não homologado."
       }
     ],
     "review": {
-      "decision": "pending",
-      "reviewedAt": null,
-      "reviewedBy": null,
-      "notes": "Exemplo sem revisão para produção e sem autorização de implantação."
+      "decision": "approved",
+      "reviewedAt": "2026-08-02",
+      "reviewedBy": "Setup MNO",
+      "notes": "Aprovado como guia Beta manual; a homologação técnica integral permanece pendente."
     },
     "homologation": {
       "environment": "not-applicable",
