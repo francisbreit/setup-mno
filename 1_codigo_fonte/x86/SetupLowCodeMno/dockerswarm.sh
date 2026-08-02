@@ -119,92 +119,61 @@ fi
 TRIAL_DIR="/root/SetupLowCodeMno/.meu_app_trial"
 TRIAL_FILE="$TRIAL_DIR/trial_info"
 
-# Verifica se o arquivo de informações do trial existe
-if [ ! -f "$TRIAL_FILE" ]; then
-    echo "Erro: Arquivo de informações do trial não encontrado. Por favor, reinstale."
-    exit 1
-fi
-
-# Lê as informações do trial do arquivo
-source "$TRIAL_FILE"
-
-
-
-# Função para enviar HTTP POST e validar a resposta
-function verificar_cliente() {
-
-
-    local URL="https://hook45.manualnegocioonline.com.br/webhook/valida-cliente-mno"
-
-    # Envia o HTTP POST
-    RESPOSTA=$(curl -s -X POST -H "Content-Type: application/json" \
-        -d "{\"email\":\"$EMAIL\",\"senha\":\"$SENHA\"}" "$URL")
-
-
-    # Verifica se houve falha no curl
-    if [ $? -ne 0 ]; then
-        whiptail --msgbox "Estamos com um problema temporário. Por favor, tente mais tarde. Pressione ENTER para sair" 20 78
-        echo "Estamos com um problema temporário. Por favor, tente mais tarde." >&2
-        exit 4
-    fi
-
-    # Extrai valores do JSON usando jq (instalado anteriormente)
-    SITUACAO=$(echo "$RESPOSTA" | jq -r '.situacao_cliente')
-    PLANO=$(echo "$RESPOSTA" | jq -r '.plano')
-    DATAAQ=$(echo "$RESPOSTA" | jq -r '.dataaq')
-    DOWNLOADS=$(echo "$RESPOSTA" | jq -r '.downloads // 0')  # Default 0 se não existir
-
-    DATA_FORMATADA=$(echo "$DATAAQ" | awk -F/ '{print $2 "/" $1 "/" $3}')
-
-    # Converter datas para timestamp
-    DATAAQ_TIMESTAMP=$(date -d "$DATA_FORMATADA" +%s)
-    DATAHOJE_TIMESTAMP=$(date +%s)
-
-    # Calcular diferença em dias: hoje - data de aquisição
-    DIFERENCA_SEGUNDOS=$(( DATAHOJE_TIMESTAMP - DATAAQ_TIMESTAMP ))
-    DIASDECORRIDOS=$(( DIFERENCA_SEGUNDOS / 86400 ))
-
-
-
-# Diretório onde as informações do trial serão armazenadas
-TRIAL_DIR="/root/SetupLowCodeMno/.meu_app_trial"
-
-# Arquivo que conterá as informações do trial
-TRIAL_FILE="$TRIAL_DIR/trial_info"
-
-
-# Calcular dias restantes do trial
-DATA_FORMATADA=$(echo "$DATAAQ" | awk -F/ '{print $2 "/" $1 "/" $3}')
-DATAAQ_TIMESTAMP=$(date -d "$DATA_FORMATADA" +%s)
-DATAHOJE_TIMESTAMP=$(date +%s)
-
-DIFERENCA_SEGUNDOS=$(( DATAAQ_TIMESTAMP + 7*86400 - DATAHOJE_TIMESTAMP ))
-#DAYS_TRIAL=$(( DIFERENCA_SEGUNDOS / 86400 ))
-DAYS_TRIAL=$(( (DIFERENCA_SEGUNDOS / 86400) + 1 ))
-
-# Garante que não mostre negativo
-if [ "$DAYS_TRIAL" -lt 0 ]; then
-    DAYS_TRIAL=0
-fi
-
-
-# Verifica se o diretório já existe
-if [ ! -d "$TRIAL_DIR" ]; then
-    mkdir -p "$TRIAL_DIR"
-fi
-
-
-cd .meu_app_trial
-rm trial_info
-echo "DATA_INSTALACAO=$DATAAQ" >> "$TRIAL_FILE"
-echo "DAYS_TRIAL=$DAYS_TRIAL" >> "$TRIAL_FILE"
-echo "PLANO=\"$PLANO\"" >> "$TRIAL_FILE"
-
-
+valid_setup_plan() {
+    case "$1" in
+        pro|"trial pro"|trial|free|free1|free2) return 0 ;;
+        *) return 1 ;;
+    esac
 }
 
-# Valida o cliente antes de prosseguir
-verificar_cliente "$EMAIL" "$SENHA"
+valid_setup_date() {
+    local value="$1" formatted
+    [[ "$value" =~ ^[0-9]{2}/[0-9]{2}/[0-9]{4}$ ]] || return 1
+    formatted=$(printf '%s' "$value" | awk -F/ '{print $2 "/" $1 "/" $3}')
+    date -d "$formatted" +%s >/dev/null 2>&1
+}
+
+write_trial_state() {
+    local temporary_file
+    temporary_file=$(mktemp "$TRIAL_DIR/trial_info.tmp.XXXXXX") || return 1
+    chmod 600 "$temporary_file" || { rm -f "$temporary_file"; return 1; }
+    {
+        printf 'DATA_INSTALACAO=%s\n' "$DATA_INSTALACAO"
+        printf 'DAYS_TRIAL=%s\n' "$DAYS_TRIAL"
+        printf 'PLANO=%q\n' "$PLANO"
+    } >"$temporary_file" || { rm -f "$temporary_file"; return 1; }
+    mv -f "$temporary_file" "$TRIAL_FILE"
+}
+
+# O licenciamento já foi validado pelo start_full. O dockerswarm nunca recebe
+# nem persiste as credenciais e deve somente preservar o estado autenticado.
+if [ ! -f "$TRIAL_FILE" ] || [ -L "$TRIAL_FILE" ] ||
+   [ "$(stat -c '%s' "$TRIAL_FILE" 2>/dev/null || printf '0')" -gt 1024 ]; then
+    whiptail --title "ESTADO DE LICENÇA INVÁLIDO" --msgbox \
+        "O estado local do plano está ausente ou inseguro. Execute novamente o instalador oficial do Setup MNO para autenticar e reparar a instalação." 14 76
+    exit 41
+fi
+
+# shellcheck disable=SC1090
+source "$TRIAL_FILE"
+if ! valid_setup_plan "$PLANO" || ! valid_setup_date "$DATA_INSTALACAO"; then
+    whiptail --title "ESTADO DE LICENÇA INVÁLIDO" --msgbox \
+        "O plano salvo está vazio ou inválido. Execute novamente o instalador oficial do Setup MNO. O estado atual não será sobrescrito." 14 76
+    exit 41
+fi
+
+DATA_FORMATADA=$(printf '%s' "$DATA_INSTALACAO" | awk -F/ '{print $2 "/" $1 "/" $3}')
+DATA_INSTALACAO_TIMESTAMP=$(date -d "$DATA_FORMATADA" +%s)
+DATA_ATUAL_TIMESTAMP=$(date +%s)
+DIFERENCA_SEGUNDOS=$(( DATA_INSTALACAO_TIMESTAMP + 7*86400 - DATA_ATUAL_TIMESTAMP ))
+DAYS_TRIAL=$(( (DIFERENCA_SEGUNDOS / 86400) + 1 ))
+[ "$DAYS_TRIAL" -lt 0 ] && DAYS_TRIAL=0
+
+if ! write_trial_state; then
+    whiptail --title "ERRO AO SALVAR O PLANO" --msgbox \
+        "Não foi possível atualizar o estado local do plano com segurança. A preparação do servidor foi interrompida." 12 76
+    exit 41
+fi
 
 # 🚀 DETECÇÃO DE AMBIENTE (WSL2 vs NUVEM)
 IS_WSL=0

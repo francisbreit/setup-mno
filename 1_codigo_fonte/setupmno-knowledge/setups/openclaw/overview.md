@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "OpenClaw no Setup MNO",
   "setupId": "openclaw",
-  "setupVersion": "7.3.0",
+  "setupVersion": "7.3.1",
   "architectures": [
     "amd64",
     "arm64"

@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.3.0"
+VERSIONSETUP="7.3.1"
 EXPECTED_EVAL_DATASET_VERSION="1.7.0"
 EXPECTED_EVAL_GRADER_VERSION="1.7.0"
 EXPECTED_EVAL_CASE_ENTRIES="815"
@@ -22,6 +22,39 @@ button=black,white
 '
 
 clear
+
+valid_setup_plan() {
+    case "$1" in
+        pro|"trial pro"|trial|free|free1|free2) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+valid_setup_date() {
+    local value="$1" formatted
+    [[ "$value" =~ ^[0-9]{2}/[0-9]{2}/[0-9]{4}$ ]] || return 1
+    formatted=$(printf '%s' "$value" | awk -F/ '{print $2 "/" $1 "/" $3}')
+    date -d "$formatted" +%s >/dev/null 2>&1
+}
+
+write_trial_state() {
+    local trial_dir="$1" installation_date="$2" remaining_days="$3" plan="$4"
+    local trial_file="$trial_dir/trial_info" temporary_file
+
+    valid_setup_plan "$plan" || return 1
+    valid_setup_date "$installation_date" || return 1
+    [[ "$remaining_days" =~ ^[0-9]+$ ]] || return 1
+
+    mkdir -p "$trial_dir" || return 1
+    temporary_file=$(mktemp "$trial_dir/trial_info.tmp.XXXXXX") || return 1
+    chmod 600 "$temporary_file" || { rm -f "$temporary_file"; return 1; }
+    {
+        printf 'DATA_INSTALACAO=%s\n' "$installation_date"
+        printf 'DAYS_TRIAL=%s\n' "$remaining_days"
+        printf 'PLANO=%q\n' "$plan"
+    } >"$temporary_file" || { rm -f "$temporary_file"; return 1; }
+    mv -f "$temporary_file" "$trial_file"
+}
 
 # Função para enviar HTTP POST e validar a resposta
 function verificar_cliente() {
@@ -60,6 +93,10 @@ function verificar_cliente() {
 
     case "$SITUACAO" in
     "cliente_regularizado")
+        if ! valid_setup_plan "$PLANO" || ! valid_setup_date "$DATAAQ"; then
+            whiptail --title "ERRO: Falha no Sistema" --msgbox "A resposta de licenciamento não trouxe um plano ou uma data válida. Nenhum estado local foi alterado. Tente novamente mais tarde." 20 78
+            exit 5
+        fi
         if [ "$PLANO" = "trial pro" ] || [ "$PLANO" = "trial" ]; then
             if [ "$DOWNLOADS" -ge 3 ]; then
                 whiptail --title "ERRO: Número máximo de instalações atingido" --msgbox "Atenção: Você superou o número máximo de 3 instalações (downloads) da versão trial ou trial pro.\n\nEntre em contato com o nosso Suporte Técnico (apenas WhatsApp):\n\nWhatsApp: +55 (11)96816-2690.\n\nPressione ENTER para sair" 22 78
@@ -387,16 +424,10 @@ if [ "$DAYS_TRIAL" -lt 0 ]; then
 fi
 
 
-# Verifica se o diretório já existe
-if [ ! -d "$TRIAL_DIR" ]; then
-    mkdir -p "$TRIAL_DIR"
+if ! write_trial_state "$TRIAL_DIR" "$DATAAQ" "$DAYS_TRIAL" "$PLANO"; then
+    printf 'Não foi possível persistir de forma segura o plano validado. Nenhuma instalação foi iniciada.\n' >"$control_state_error"
+    exit 41
 fi
-
-# Grava a data de instalação e o período de trial no arquivo
-#echo "DATA_INSTALACAO=$(date +%Y-%m-%d)" > "$TRIAL_FILE"
-echo "DATA_INSTALACAO=$DATAAQ" >> "$TRIAL_FILE"
-echo "DAYS_TRIAL=$DAYS_TRIAL" >> "$TRIAL_FILE"
-echo "PLANO=\"$PLANO\"" >> "$TRIAL_FILE"
 
 
 if [ "$PLANO" = "pro" ] || [ "$PLANO" == "free" ] || [ "$PLANO" == "free1" ] || [ "$PLANO" == "free2" ] ; then

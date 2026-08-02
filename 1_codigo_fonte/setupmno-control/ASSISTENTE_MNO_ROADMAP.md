@@ -14,7 +14,7 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.3.0` no canal Beta
+- Setup MNO: `7.3.1` no canal Beta
 - Control Center: `4.11.1`
 - Conhecimento canônico: `3.10.1`
 - Catálogo runtime: 151 entradas
@@ -122,6 +122,16 @@ serviço do namespace reservado `mnoctrl` já existe. O próprio instalador repe
 o gate antes de coletar qualquer dado, impedindo duplicação por execução direta
 ou por uma sessão de menu desatualizada. Uma trava exclusiva cobre também duas
 tentativas simultâneas antes da criação das stacks.
+
+### Hotfix v7.3.1 Beta
+
+Preserva o plano autenticado durante a preparação inicial do Docker Swarm. O
+`dockerswarm.sh` deixa de repetir a consulta de licenciamento com credenciais
+já descartadas e passa a consumir exclusivamente o estado validado pelo
+gatilho. A gravação de `trial_info` é atômica, restrita aos planos conhecidos e
+usa permissão `600`; plano vazio, data inválida, symlink ou arquivo anormalmente
+grande bloqueiam o fluxo sem sobrescrever o estado anterior. O gerador verifica
+essa invariância nas duas arquiteturas antes de produzir a release.
 
 ## Norte do produto
 

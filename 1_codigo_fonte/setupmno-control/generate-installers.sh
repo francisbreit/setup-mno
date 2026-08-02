@@ -71,14 +71,42 @@ bash "$project_dir/configure-control_test.sh"
 for architecture in x86 arm; do
     install_script="$source_root/$architecture/SetupLowCodeMno/install.sh"
     foundation_script="$source_root/$architecture/SetupLowCodeMno/dockerswarm.sh"
+    if [ "$architecture" = "x86" ]; then
+        start_script="$source_root/x86/start_full.sh"
+    else
+        start_script="$source_root/arm/start_arm_full.sh"
+    fi
     bash -n "$install_script"
     bash -n "$foundation_script"
+    bash -n "$start_script"
     grep -Fq 'control_center_installed()' "$install_script"
     grep -Fq 'control_center_installed()' "$foundation_script"
     grep -Fq 'offer_control_center_installation()' "$foundation_script"
     grep -Fq 'A instalação é opcional.' "$foundation_script"
     [ "$(grep -Fc '"${CONTROL_CENTER_MENU[@]}"' "$install_script")" -eq 1 ]
     [ "$(grep -Fc '"${CONTROL_CENTER_PRO_MENU[@]}"' "$install_script")" -eq 3 ]
+
+    # O start_full é o único ponto que autentica o cliente. O dockerswarm
+    # recebe somente o plano validado e jamais pode tentar reutilizar credenciais.
+    if grep -Fq 'verificar_cliente "$EMAIL" "$SENHA"' "$foundation_script"; then
+        printf 'ERRO: %s tenta revalidar o plano sem credenciais e pode apagar o estado autenticado.\n' \
+            "$foundation_script" >&2
+        exit 1
+    fi
+    for state_script in "$start_script" "$install_script" "$foundation_script"; do
+        grep -Fq 'valid_setup_plan()' "$state_script" &&
+        grep -Fq 'write_trial_state()' "$state_script" &&
+        grep -Fq 'mktemp ' "$state_script" &&
+        grep -Fq 'mv -f ' "$state_script" || {
+            printf 'ERRO: persistência atômica do plano ausente em %s.\n' "$state_script" >&2
+            exit 1
+        }
+    done
+    if grep -Eq 'echo "PLANO=.*"[[:space:]]*>>[[:space:]]*"?\$TRIAL_FILE' \
+        "$start_script" "$install_script" "$foundation_script"; then
+        printf 'ERRO: gravação incremental do plano detectada em %s.\n' "$architecture" >&2
+        exit 1
+    fi
 done
 
 grep -Fq -- '- /root/SetupLowCodeMno/.control:/runtime-control:ro' "$template" || {

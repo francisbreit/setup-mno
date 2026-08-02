@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="7.3.0"
+VERSIONSETUP="7.3.1"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -70,12 +70,46 @@ clear
 TRIAL_DIR="/root/SetupLowCodeMno/.meu_app_trial"
 TRIAL_FILE="$TRIAL_DIR/trial_info"
 
-if [ ! -f "$TRIAL_FILE" ]; then
-    echo "Erro: Arquivo de informações do trial não encontrado. Por favor, reinstale."
-    exit 1
+valid_setup_plan() {
+    case "$1" in
+        pro|"trial pro"|trial|free|free1|free2) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+valid_setup_date() {
+    local value="$1" formatted
+    [[ "$value" =~ ^[0-9]{2}/[0-9]{2}/[0-9]{4}$ ]] || return 1
+    formatted=$(printf '%s' "$value" | awk -F/ '{print $2 "/" $1 "/" $3}')
+    date -d "$formatted" +%s >/dev/null 2>&1
+}
+
+write_trial_state() {
+    local temporary_file
+    temporary_file=$(mktemp "$TRIAL_DIR/trial_info.tmp.XXXXXX") || return 1
+    chmod 600 "$temporary_file" || { rm -f "$temporary_file"; return 1; }
+    {
+        printf 'DATA_INSTALACAO=%s\n' "$DATA_INSTALACAO"
+        printf 'DAYS_TRIAL=%s\n' "$DIAS_RESTANTES"
+        printf 'PLANO=%q\n' "$PLANO"
+    } >"$temporary_file" || { rm -f "$temporary_file"; return 1; }
+    mv -f "$temporary_file" "$TRIAL_FILE"
+}
+
+if [ ! -f "$TRIAL_FILE" ] || [ -L "$TRIAL_FILE" ] ||
+   [ "$(stat -c '%s' "$TRIAL_FILE" 2>/dev/null || printf '0')" -gt 1024 ]; then
+    whiptail --title "ESTADO DE LICENÇA INVÁLIDO" --msgbox \
+        "O estado local do plano está ausente ou inseguro. Execute novamente o instalador oficial do Setup MNO para autenticar e reparar a instalação." 14 76
+    exit 41
 fi
 
+# shellcheck disable=SC1090
 source "$TRIAL_FILE"
+if ! valid_setup_plan "$PLANO" || ! valid_setup_date "$DATA_INSTALACAO"; then
+    whiptail --title "ESTADO DE LICENÇA INVÁLIDO" --msgbox \
+        "O plano salvo está vazio ou inválido. Execute novamente o instalador oficial do Setup MNO. O estado atual não será sobrescrito." 14 76
+    exit 41
+fi
 
 DATA_FORMATADA=$(echo "$DATA_INSTALACAO" | awk -F/ '{print $2 "/" $1 "/" $3}')
 DATA_INSTALACAO_TIMESTAMP=$(date -d "$DATA_FORMATADA" +%s)
@@ -84,11 +118,11 @@ DIFERENCA_SEGUNDOS=$(( DATA_INSTALACAO_TIMESTAMP + 7*86400 - DATA_ATUAL_TIMESTAM
 DIAS_RESTANTES=$(( (DIFERENCA_SEGUNDOS / 86400) + 1 ))
 [ "$DIAS_RESTANTES" -lt 0 ] && DIAS_RESTANTES=0
 
-cat > "$TRIAL_FILE" <<EOF
-DATA_INSTALACAO=$DATA_INSTALACAO
-DAYS_TRIAL=$DIAS_RESTANTES
-PLANO="$PLANO"
-EOF
+if ! write_trial_state; then
+    whiptail --title "ERRO AO SALVAR O PLANO" --msgbox \
+        "Não foi possível atualizar o estado local do plano com segurança. O menu não será aberto para evitar uma sessão inconsistente." 12 76
+    exit 41
+fi
 
 # --- REBRANDING POR PLANO ---
 if [ "$PLANO" = "free1" ]; then
