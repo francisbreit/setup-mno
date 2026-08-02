@@ -79,6 +79,26 @@ agent_secret=$SETUPMNO_CONTROL_AGENT_SECRET
 admin_secret=$SETUPMNO_CONTROL_ADMIN_SECRET
 admin_username=$SETUPMNO_CONTROL_ADMIN_USERNAME
 admin_password_file=$ADMIN_PASSWORD_FILE
+stack_manager=${SETUPMNO_CONTROL_STACK_MANAGER:-auto}
+portainer_credentials=${SETUPMNO_CONTROL_PORTAINER_CREDENTIALS:-/root/dados_portainer/dados_portainer}
+portainer_url=""
+portainer_token=""
+portainer_stacks="$work_dir/portainer-stacks.json"
+assistant_deploy_backend=""
+assistant_portainer_action=""
+assistant_portainer_stack_id=""
+assistant_portainer_endpoint_id=""
+assistant_portainer_swarm_id=""
+assistant_portainer_previous_yaml="$work_dir/assistant-previous.yaml"
+assistant_portainer_previous_env="$work_dir/assistant-previous-env.json"
+
+case "$stack_manager" in
+    portainer|docker|auto) ;;
+    *)
+        msg "O gerenciador de stacks informado pela instalação é inválido. Nenhuma alteração foi realizada."
+        exit 1
+        ;;
+esac
 
 for service_name in "$web_service" "$terminal_service"; do
     docker service inspect "$service_name" >/dev/null 2>&1 || {
@@ -168,6 +188,209 @@ rollback_service() {
     local service_name="$1"
     docker service rollback --detach=true "$service_name" >>"$operation_log" 2>&1 || true
     wait_service "$service_name" || true
+}
+
+portainer_request_ok() {
+    local method="$1" url="$2" output_file="$3" payload_file="${4:-}" http_code
+    if [ -n "$payload_file" ]; then
+        http_code=$(curl -skS -o "$output_file" -w '%{http_code}' -X "$method" \
+            -H "Authorization: Bearer $portainer_token" \
+            -H "Content-Type: application/json" \
+            --data-binary "@$payload_file" "$url" 2>>"$operation_log") || return 1
+    else
+        http_code=$(curl -skS -o "$output_file" -w '%{http_code}' -X "$method" \
+            -H "Authorization: Bearer $portainer_token" \
+            "$url" 2>>"$operation_log") || return 1
+    fi
+    [[ "$http_code" =~ ^2[0-9][0-9]$ ]] || {
+        printf 'Portainer HTTP %s ao acessar %s.\n' "${http_code:-indisponível}" "$url" \
+            >>"$operation_log"
+        return 1
+    }
+}
+
+portainer_authenticate() {
+    local domain username password auth_file="$work_dir/portainer-auth.json"
+    [ -f "$portainer_credentials" ] && [ ! -L "$portainer_credentials" ] || return 1
+    domain=$(sed -n 's/^Dominio do portainer:[[:space:]]*//p' "$portainer_credentials" | head -n1)
+    username=$(sed -n 's/^Usuario:[[:space:]]*//p' "$portainer_credentials" | head -n1)
+    password=$(sed -n 's/^Senha:[[:space:]]*//p' "$portainer_credentials" | head -n1)
+    [ -n "$domain" ] && [ -n "$username" ] && [ -n "$password" ] || {
+        unset password
+        return 1
+    }
+    case "$domain" in
+        http://*|https://*) portainer_url="${domain%/}" ;;
+        *) portainer_url="https://${domain%/}" ;;
+    esac
+    if ! printf '%s\0%s' "$username" "$password" |
+        jq -Rs 'split("\u0000") | {username:.[0], password:.[1]}' |
+        curl -skS -o "$auth_file" -X POST \
+            -H "Content-Type: application/json" --data-binary @- \
+            "$portainer_url/api/auth" 2>>"$operation_log"; then
+        unset password
+        return 1
+    fi
+    unset password
+    portainer_token=$(jq -r '.jwt // empty' "$auth_file" 2>/dev/null)
+    [ -n "$portainer_token" ] || return 1
+    portainer_request_ok GET "$portainer_url/api/stacks" "$portainer_stacks" || return 1
+    jq -e 'type == "array"' "$portainer_stacks" >/dev/null 2>&1
+}
+
+portainer_stack_field() {
+    local stack_name="$1" field="$2"
+    jq -r --arg name "$stack_name" --arg field "$field" \
+        '.[] | select(.Name == $name) | .[$field] // empty' "$portainer_stacks" | head -n1
+}
+
+refresh_portainer_stacks() {
+    portainer_request_ok GET "$portainer_url/api/stacks" "$portainer_stacks" &&
+        jq -e 'type == "array"' "$portainer_stacks" >/dev/null 2>&1
+}
+
+resolve_stack_manager() {
+    local web_stack existing_control_stack
+    [ -n "$assistant_deploy_backend" ] && return 0
+    case "$stack_manager" in
+        docker)
+            assistant_deploy_backend="docker"
+            return 0
+            ;;
+        portainer)
+            if ! portainer_authenticate; then
+                fail "A instalação foi configurada para stacks editáveis no Portainer, mas a API não pôde ser autenticada.\n\nConfira as credenciais em $portainer_credentials. Nenhuma conversão para Docker direto foi realizada."
+                return 1
+            fi
+            assistant_deploy_backend="portainer"
+            return 0
+            ;;
+    esac
+
+    # Compatibilidade com instalações anteriores à persistência explícita do modo.
+    # Somente seleciona o Portainer quando uma stack deste Control Center já está
+    # registrada nele; caso contrário preserva o comportamento Docker anterior.
+    if portainer_authenticate; then
+        web_stack=${web_service%%_*}
+        existing_control_stack=$(jq -r --arg assistant "$assistant_stack" --arg web "$web_stack" \
+            '.[] | select(.Name == $assistant or .Name == $web) | .Id // empty' \
+            "$portainer_stacks" | head -n1)
+        if [ -n "$existing_control_stack" ]; then
+            assistant_deploy_backend="portainer"
+            return 0
+        fi
+    fi
+    assistant_deploy_backend="docker"
+}
+
+portainer_endpoint_and_swarm() {
+    local endpoint_file="$work_dir/portainer-endpoints.json"
+    local swarm_file="$work_dir/portainer-swarm.json" web_stack
+    assistant_portainer_endpoint_id=$(portainer_stack_field "$assistant_stack" EndpointId)
+    if [ -z "$assistant_portainer_endpoint_id" ]; then
+        web_stack=${web_service%%_*}
+        assistant_portainer_endpoint_id=$(portainer_stack_field "$web_stack" EndpointId)
+    fi
+    if [ -z "$assistant_portainer_endpoint_id" ]; then
+        portainer_request_ok GET "$portainer_url/api/endpoints" "$endpoint_file" || return 1
+        assistant_portainer_endpoint_id=$(jq -r '.[0].Id // empty' "$endpoint_file")
+    fi
+    [ -n "$assistant_portainer_endpoint_id" ] || return 1
+    portainer_request_ok GET \
+        "$portainer_url/api/endpoints/$assistant_portainer_endpoint_id/docker/swarm" \
+        "$swarm_file" || return 1
+    assistant_portainer_swarm_id=$(jq -r '.ID // empty' "$swarm_file")
+    [ -n "$assistant_portainer_swarm_id" ]
+}
+
+portainer_update_stack() {
+    local stack_id="$1" endpoint_id="$2" yaml_file="$3" env_file="$4"
+    local payload="$work_dir/portainer-stack-update.json" response="$work_dir/portainer-stack-update-response.json"
+    jq -n --rawfile stack_file "$yaml_file" --slurpfile stack_env "$env_file" \
+        '{stackFileContent:$stack_file, env:$stack_env[0], prune:true, pullImage:false}' \
+        >"$payload" || return 1
+    portainer_request_ok PUT \
+        "$portainer_url/api/stacks/$stack_id?endpointId=$endpoint_id" \
+        "$response" "$payload"
+}
+
+deploy_assistant_through_portainer() {
+    local stack_file_response="$work_dir/portainer-assistant-file.json"
+    local create_response="$work_dir/portainer-assistant-create.json" http_code
+    refresh_portainer_stacks || return 1
+    assistant_portainer_stack_id=$(portainer_stack_field "$assistant_stack" Id)
+    if [ -n "$assistant_portainer_stack_id" ]; then
+        assistant_portainer_endpoint_id=$(portainer_stack_field "$assistant_stack" EndpointId)
+        [ -n "$assistant_portainer_endpoint_id" ] || return 1
+        portainer_request_ok GET \
+            "$portainer_url/api/stacks/$assistant_portainer_stack_id/file" \
+            "$stack_file_response" || return 1
+        jq -er '.StackFileContent' "$stack_file_response" >"$assistant_portainer_previous_yaml" || return 1
+        jq --arg name "$assistant_stack" \
+            '[.[] | select(.Name == $name) | .Env // []][0] // []' \
+            "$portainer_stacks" >"$assistant_portainer_previous_env" || return 1
+        assistant_portainer_action="updated"
+        portainer_update_stack "$assistant_portainer_stack_id" \
+            "$assistant_portainer_endpoint_id" "$assistant_yaml" \
+            "$assistant_portainer_previous_env" || return 1
+        return 0
+    fi
+
+    portainer_endpoint_and_swarm || return 1
+    assistant_portainer_action="created"
+    http_code=$(curl -skS -o "$create_response" -w '%{http_code}' -X POST \
+        -H "Authorization: Bearer $portainer_token" \
+        -F "Name=$assistant_stack" \
+        -F "file=@$assistant_yaml" \
+        -F "SwarmID=$assistant_portainer_swarm_id" \
+        -F "endpointId=$assistant_portainer_endpoint_id" \
+        "$portainer_url/api/stacks/create/swarm/file" 2>>"$operation_log") || return 1
+    [[ "$http_code" =~ ^2[0-9][0-9]$ ]] || return 1
+    assistant_portainer_stack_id=$(jq -r '.Id // empty' "$create_response")
+}
+
+remove_assistant_stack() {
+    local response="$work_dir/portainer-assistant-delete.json" stack_id endpoint_id
+    resolve_stack_manager || return 1
+    if [ "$assistant_deploy_backend" = "docker" ]; then
+        docker stack rm "$assistant_stack" >>"$operation_log" 2>&1 || true
+        return 0
+    fi
+    refresh_portainer_stacks || return 1
+    stack_id=$(portainer_stack_field "$assistant_stack" Id)
+    [ -n "$stack_id" ] || return 0
+    endpoint_id=$(portainer_stack_field "$assistant_stack" EndpointId)
+    [ -n "$endpoint_id" ] || return 1
+    portainer_request_ok DELETE \
+        "$portainer_url/api/stacks/$stack_id?endpointId=$endpoint_id" "$response"
+}
+
+rollback_assistant_deploy() {
+    local previous_exists="${1:-false}" response="$work_dir/portainer-assistant-rollback.json"
+    if [ "$assistant_deploy_backend" = "portainer" ]; then
+        case "$assistant_portainer_action" in
+            updated)
+                portainer_update_stack "$assistant_portainer_stack_id" \
+                    "$assistant_portainer_endpoint_id" "$assistant_portainer_previous_yaml" \
+                    "$assistant_portainer_previous_env" >>"$operation_log" 2>&1 || true
+                wait_service "$assistant_service" || true
+                ;;
+            created)
+                [ -n "$assistant_portainer_stack_id" ] || {
+                    refresh_portainer_stacks || true
+                    assistant_portainer_stack_id=$(portainer_stack_field "$assistant_stack" Id)
+                }
+                [ -z "$assistant_portainer_stack_id" ] ||
+                    portainer_request_ok DELETE \
+                        "$portainer_url/api/stacks/$assistant_portainer_stack_id?endpointId=$assistant_portainer_endpoint_id" \
+                        "$response" >>"$operation_log" 2>&1 || true
+                ;;
+        esac
+    elif [ "$previous_exists" = "true" ]; then
+        rollback_service "$assistant_service"
+    else
+        docker stack rm "$assistant_stack" >>"$operation_log" 2>&1 || true
+    fi
 }
 
 update_web_assistant() {
@@ -408,9 +631,14 @@ EOF
 EOF
     fi
     chmod 0600 "$assistant_yaml"
-    docker stack config -c "$assistant_yaml" >/dev/null 2>>"$operation_log" &&
+    docker stack config -c "$assistant_yaml" >/dev/null 2>>"$operation_log" || return 1
+    resolve_stack_manager || return 1
+    if [ "$assistant_deploy_backend" = "portainer" ]; then
+        deploy_assistant_through_portainer
+    else
         docker stack deploy --prune --resolve-image never \
             -c "$assistant_yaml" "$assistant_stack" >>"$operation_log" 2>&1
+    fi
 }
 
 configure_provider() {
@@ -447,7 +675,11 @@ configure_provider() {
             fail "O painel não aceitou o modo básico. A configuração anterior foi restaurada."
             return
         fi
-        docker stack rm "$assistant_stack" >>"$operation_log" 2>&1 || true
+        if ! remove_assistant_stack; then
+            rollback_service "$web_service"
+            fail "O Portainer não confirmou a remoção da stack do Assistente. A configuração anterior foi restaurada."
+            return
+        fi
         msg "Diagnóstico básico ativado.\n\nNenhuma chave de LLM permanece anexada ao Assistente.\n\nA aplicação foi reiniciada. O site e o Instalador Seguro poderão ficar inacessíveis por cerca de 2 minutos. Aguarde esse período antes de acessar novamente."
         return
     fi
@@ -537,11 +769,7 @@ configure_provider() {
        ! wait_service "$assistant_service" ||
        ! curl -fsS --max-time 10 "http://${assistant_service}:7070/health" \
             >/dev/null 2>>"$operation_log"; then
-        if [ "$previous_exists" = "true" ]; then
-            rollback_service "$assistant_service"
-        else
-            docker stack rm "$assistant_stack" >>"$operation_log" 2>&1 || true
-        fi
+        rollback_assistant_deploy "$previous_exists"
         [ -z "$provider_secret" ] ||
             docker secret rm "$provider_secret" >>"$operation_log" 2>&1 || true
         fail "O provedor ou modelo não passou pela validação. A configuração anterior foi preservada."
@@ -551,11 +779,7 @@ configure_provider() {
     if ! update_web_assistant "$provider" "$model" \
         "http://${assistant_service}:7070"; then
         rollback_service "$web_service"
-        if [ "$previous_exists" = "true" ]; then
-            rollback_service "$assistant_service"
-        else
-            docker stack rm "$assistant_stack" >>"$operation_log" 2>&1 || true
-        fi
+        rollback_assistant_deploy "$previous_exists"
         [ -z "$provider_secret" ] ||
             docker secret rm "$provider_secret" >>"$operation_log" 2>&1 || true
         fail "O painel não confirmou o novo provedor. A configuração anterior foi restaurada."

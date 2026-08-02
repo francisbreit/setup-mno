@@ -66,6 +66,7 @@ grep -Fq 'if ! check_cloudflare_route "$route_check"; then' "$template" || {
     exit 1
 }
 bash "$project_dir/installer-template_test.sh"
+bash "$project_dir/configure-control_test.sh"
 
 grep -Fq -- '- /root/SetupLowCodeMno/.control:/runtime-control:ro' "$template" || {
     printf 'ERRO: o agente precisa montar somente o estado runtime do Control Center.\n' >&2

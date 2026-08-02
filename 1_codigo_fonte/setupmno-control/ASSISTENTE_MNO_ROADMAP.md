@@ -14,8 +14,8 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.2.13` no canal Beta
-- Control Center: `4.10.1`
+- Setup MNO: `7.2.14` no canal Beta
+- Control Center: `4.10.2`
 - Conhecimento canônico: `3.9.0`
 - Catálogo runtime: 151 entradas
 - Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
@@ -80,6 +80,16 @@ telas de confirmação e de conclusão, tanto para provedores LLM quanto para o
 modo `BASIC`, informam que a aplicação precisa ser reiniciada e que o site e o
 Instalador Seguro podem ficar inacessíveis por cerca de dois minutos. A
 mensagem orienta o usuário a aguardar esse período antes de entrar novamente.
+
+### Hotfix v7.2.14 Beta
+
+Preserva o gerenciador de stacks escolhido na instalação do Control Center.
+Quando o usuário opta por stacks editáveis no Portainer, a recriação,
+atualização, remoção e o rollback de `mnoct-assistant` passam pela API do
+Portainer e permanecem sincronizados com seu editor. Instalações anteriores
+são detectadas pelo registro das stacks do próprio Control Center; uma falha de
+autenticação no modo explícito bloqueia a operação em vez de converter a stack
+silenciosamente para Docker direto.
 
 ## Norte do produto
 

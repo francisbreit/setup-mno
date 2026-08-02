@@ -7,6 +7,10 @@ grep -Fq 'LATER)' "$template"
 grep -Fq 'assistant_mode="later"' "$template"
 grep -Fq 'assistant_has_llm="false"' "$template"
 grep -Fq 'if [ "$assistant_has_llm" = "true" ]; then' "$template"
+grep -Fq 'control_stack_manager="portainer"' "$template"
+grep -Fq 'control_stack_manager="docker"' "$template"
+grep -Fq 'SETUPMNO_CONTROL_STACK_MANAGER=$control_stack_manager' "$template"
+grep -Fq 'SETUPMNO_CONTROL_PORTAINER_CREDENTIALS=/root/dados_portainer/dados_portainer' "$template"
 test_dir=$(mktemp -d)
 trap 'rm -rf "$test_dir"' EXIT
 

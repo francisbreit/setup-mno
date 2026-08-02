@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.10.1"
+CONTROL_VERSION="4.10.2"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -359,6 +359,11 @@ terminal_image="${nome_app}-terminal:${CONTROL_VERSION}"
 admin_secret="${nome_app}-admin-password"
 agent_secret="${nome_app}-agent-token"
 llm_secret="${nome_app}-llm-api-key"
+if [ "$criar_portainer" = "0" ]; then
+    control_stack_manager="portainer"
+else
+    control_stack_manager="docker"
+fi
 
 assistant_label="Diagnóstico básico (sem LLM)"
 assistant_has_llm="false"
@@ -652,6 +657,8 @@ services:
       - SETUPMNO_CONTROL_AGENT_SERVICE=${agent_stack}_${agent_service}
       - SETUPMNO_CONTROL_ASSISTANT_STACK=$assistant_stack
       - SETUPMNO_CONTROL_ASSISTANT_COMPONENT=$assistant_service
+      - SETUPMNO_CONTROL_STACK_MANAGER=$control_stack_manager
+      - SETUPMNO_CONTROL_PORTAINER_CREDENTIALS=/root/dados_portainer/dados_portainer
       - SETUPMNO_CONTROL_AGENT_SECRET=$agent_secret
       - SETUPMNO_CONTROL_ADMIN_SECRET=$admin_secret
       - SETUPMNO_CONTROL_ADMIN_USERNAME=$usuario_control
