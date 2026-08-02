@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Twenty CRM no Setup MNO",
   "setupId": "twenty-crm",
-  "setupVersion": "7.2.10",
+  "setupVersion": "7.2.11",
   "architectures": [
     "amd64"
   ],

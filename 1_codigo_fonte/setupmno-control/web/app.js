@@ -27,6 +27,7 @@ const state = {
 
 const $ = id => document.getElementById(id);
 const fmt = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
+let terminalLoadSequence = 0;
 const titles = {
   dashboard: ["Infraestrutura em tempo real", "Visão geral"],
   installed: ["Inventário do Docker Swarm", "Aplicações instaladas"],
@@ -1566,18 +1567,31 @@ function openTerminal(intent = "installer") {
   $("terminal-warning").innerHTML = `<span>◎</span> ${presentation.warning}`;
   const parameters = new URLSearchParams({
     arg: intent,
+    rendererType: "dom",
     disableResizeOverlay: "true",
     disableLeaveAlert: "true",
-    setupmnoTouch: "6"
+    setupmnoTouch: "7"
   });
   if (mobile) {
-    parameters.set("rendererType", "dom");
     parameters.set("fontSize", "10");
     parameters.set("lineHeight", "1.05");
   }
-  $("terminal-frame").src = `/terminal/?${parameters.toString()}`;
-  dialog.showModal();
+  const frame = $("terminal-frame");
+  const terminalURL = `/terminal/?${parameters.toString()}`;
+  const loadSequence = ++terminalLoadSequence;
+  frame.src = "about:blank";
+  if (!dialog.open) dialog.showModal();
   syncTerminalDialogViewport();
+  loadTerminalAfterDialogLayout(dialog, frame, terminalURL, loadSequence);
+}
+
+function loadTerminalAfterDialogLayout(dialog, frame, terminalURL, loadSequence) {
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      if (!dialog.open || loadSequence !== terminalLoadSequence) return;
+      frame.src = terminalURL;
+    });
+  });
 }
 
 function syncTerminalDialogViewport() {
@@ -1589,6 +1603,7 @@ function syncTerminalDialogViewport() {
 
 function closeTerminal() {
   const dialog = $("terminal-dialog");
+  terminalLoadSequence += 1;
   $("terminal-frame").src = "about:blank";
   dialog.style.removeProperty("--terminal-viewport-height");
   if (dialog.open) dialog.close();

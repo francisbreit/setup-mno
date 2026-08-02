@@ -227,12 +227,15 @@ grep -Fq '"installer", "settings", "gateway"' "$project_dir/main.go" || {
     exit 1
 }
 grep -Fq 'arg: intent' "$project_dir/web/app.js" &&
+grep -Fq 'rendererType: "dom"' "$project_dir/web/app.js" &&
+grep -Fq 'loadTerminalAfterDialogLayout' "$project_dir/web/app.js" &&
 grep -Fq 'data-action="gateway"' "$project_dir/web/index.html" || {
-    printf 'ERRO: painel sem roteamento contextual ou entrada explícita do Terminal Seguro.\n' >&2
+    printf 'ERRO: painel sem roteamento contextual, renderização DOM ou abertura segura do Terminal.\n' >&2
     exit 1
 }
 grep -Fq 'window.visualViewport?.addEventListener("resize", scheduleFit' "$project_dir/web/terminal-bridge.js" &&
 grep -Fq 'new ResizeObserver(scheduleFit)' "$project_dir/web/terminal-bridge.js" &&
+grep -Fq 'observer.observe(terminalContainer)' "$project_dir/web/terminal-bridge.js" &&
 grep -Fq 'overflow-x: hidden !important' "$project_dir/web/terminal-bridge.js" &&
 grep -Fq 'background: "#000000"' "$project_dir/web/terminal-bridge.js" || {
     printf 'ERRO: ponte móvel do terminal sem reflow ou tema preto de alto contraste.\n' >&2

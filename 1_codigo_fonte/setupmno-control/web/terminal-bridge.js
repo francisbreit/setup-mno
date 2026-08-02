@@ -326,7 +326,10 @@
   if (window.ResizeObserver) {
     const observer = new ResizeObserver(scheduleFit);
     observer.observe(document.documentElement);
+    const terminalContainer = document.getElementById("terminal-container");
+    if (terminalContainer) observer.observe(terminalContainer);
     const touchbar = document.getElementById("setupmno-terminal-touchbar");
     if (touchbar) observer.observe(touchbar);
   }
+  window.requestAnimationFrame(scheduleFit);
 })();

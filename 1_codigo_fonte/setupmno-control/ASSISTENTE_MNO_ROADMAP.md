@@ -14,8 +14,8 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.2.10` no canal Beta
-- Control Center: `4.9.2`
+- Setup MNO: `7.2.11` no canal Beta
+- Control Center: `4.9.3`
 - Conhecimento canônico: `3.9.0`
 - Catálogo runtime: 151 entradas
 - Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
@@ -53,6 +53,14 @@ Restaura integralmente a apresentação, as cores e as dimensões Whiptail dos
 `install.sh` x86 e ARM ao comportamento da v7.2.8. As melhorias contextuais,
 de contraste e de responsividade permanecem restritas às demais telas do
 Terminal Seguro, à Central de Configurações e à camada web do Control Center.
+
+### Hotfix v7.2.11 Beta
+
+Corrige a tela vazia das Configurações Seguras no navegador desktop. O modal
+agora é exibido e dimensionado antes do carregamento do ttyd, desktop e mobile
+usam o renderizador DOM consistente e o `fit()` acompanha também o contêiner
+real do xterm. O `install.sh` permanece com apresentação e comportamento
+idênticos aos da v7.2.8, alterando somente o número da versão da release.
 
 ## Norte do produto
 
