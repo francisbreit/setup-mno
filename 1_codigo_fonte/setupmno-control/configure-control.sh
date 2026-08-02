@@ -11,6 +11,25 @@ title="SETUP MNO — CONFIGURAÇÕES"
 work_dir=$(mktemp -d)
 operation_log="$work_dir/operation.log"
 assistant_yaml="$work_dir/assistant.yaml"
+terminal_mode="${SETUPMNO_TERMINAL_MODE:-direct}"
+
+dialog_height() {
+    local requested="$1" available
+    available=$(tput lines 2>/dev/null || printf '24')
+    available=$((available - 2))
+    [ "$available" -ge 5 ] || available=5
+    [ "$requested" -le "$available" ] || requested="$available"
+    printf '%s' "$requested"
+}
+
+dialog_width() {
+    local requested="$1" available
+    available=$(tput cols 2>/dev/null || printf '80')
+    available=$((available - 2))
+    [ "$available" -ge 10 ] || available=10
+    [ "$requested" -le "$available" ] || requested="$available"
+    printf '%s' "$requested"
+}
 
 cleanup() {
     unset current_password expected_password new_password password_confirmation llm_api_key
@@ -19,7 +38,10 @@ cleanup() {
 trap cleanup EXIT
 
 msg() {
-    whiptail --title "$title" --msgbox "$1" 16 84 1>&2
+    local height width
+    height=$(dialog_height 16)
+    width=$(dialog_width 84)
+    whiptail --title "$title" --msgbox "$1" "$height" "$width" 1>&2
 }
 
 fail() {
@@ -42,7 +64,7 @@ required_environment=(
 )
 for variable_name in "${required_environment[@]}"; do
     [ -n "${!variable_name:-}" ] || {
-        msg "Esta instalação não possui os metadados seguros necessários para reconfiguração.\n\nReinstale ou atualize o Control Center pela versão 7.2.8."
+        msg "Esta instalação não possui os metadados seguros necessários para reconfiguração.\n\nReinstale ou atualize o Control Center pela versão 7.2.9."
         exit 1
     }
 done
@@ -70,9 +92,11 @@ done
 }
 
 ask_required() {
-    local prompt="$1" default_value="${2:-}" value status
+    local prompt="$1" default_value="${2:-}" value status height width
+    height=$(dialog_height 14)
+    width=$(dialog_width 84)
     while true; do
-        value=$(whiptail --title "$title" --inputbox "$prompt" 14 84 "$default_value" \
+        value=$(whiptail --title "$title" --inputbox "$prompt" "$height" "$width" "$default_value" \
             3>&1 1>&2 2>&3)
         status=$?
         [ "$status" -ne 0 ] && return 130
@@ -85,9 +109,11 @@ ask_required() {
 }
 
 ask_secret() {
-    local prompt="$1" value status
+    local prompt="$1" value status height width
+    height=$(dialog_height 14)
+    width=$(dialog_width 84)
     while true; do
-        value=$(whiptail --title "$title" --passwordbox "$prompt" 14 84 \
+        value=$(whiptail --title "$title" --passwordbox "$prompt" "$height" "$width" \
             3>&1 1>&2 2>&3)
         status=$?
         [ "$status" -ne 0 ] && return 130
@@ -100,10 +126,12 @@ ask_secret() {
 }
 
 authenticate_admin() {
-    local entered status
+    local entered status height width
+    height=$(dialog_height 14)
+    width=$(dialog_width 84)
     entered=$(whiptail --title "$title" --passwordbox \
         "Confirme a senha administrativa atual.\n\nEla será comparada localmente com o Docker Secret e não será registrada." \
-        14 84 3>&1 1>&2 2>&3)
+        "$height" "$width" 3>&1 1>&2 2>&3)
     status=$?
     [ "$status" -ne 0 ] && return 130
     expected_password=$(<"$admin_password_file")
@@ -153,7 +181,7 @@ update_web_assistant() {
 }
 
 configure_username() {
-    local new_username
+    local new_username height width
     authenticate_admin || return $?
     if ! new_username=$(ask_required \
         "Novo usuário administrador:\n\nUse de 3 a 40 caracteres: letras, números, ponto, hífen ou sublinhado." \
@@ -168,9 +196,11 @@ configure_username() {
         msg "O nome informado já é o usuário atual."
         return
     }
+    height=$(dialog_height 15)
+    width=$(dialog_width 84)
     whiptail --title "$title" --yesno \
         "Alterar o usuário de '$admin_username' para '$new_username'?\n\nTodas as sessões serão encerradas e você precisará entrar novamente." \
-        15 84 || return 0
+        "$height" "$width" || return 0
 
     if ! docker service update --detach=true \
         --env-rm ADMIN_USERNAME --env-add "ADMIN_USERNAME=$new_username" \
@@ -222,15 +252,18 @@ validate_new_password() {
 }
 
 configure_password() {
-    local new_secret timestamp
+    local new_secret timestamp height width confirmation_height
+    height=$(dialog_height 14)
+    confirmation_height=$(dialog_height 12)
+    width=$(dialog_width 84)
     authenticate_admin || return $?
     while true; do
         new_password=$(whiptail --title "$title" --passwordbox \
             "Nova senha administrativa:\n\nMínimo de 12 caracteres, com maiúscula, minúscula, número e símbolo." \
-            14 84 3>&1 1>&2 2>&3) || return 0
+            "$height" "$width" 3>&1 1>&2 2>&3) || return 0
         validate_new_password "$new_password" || continue
         password_confirmation=$(whiptail --title "$title" --passwordbox \
-            "Confirme a nova senha administrativa:" 12 84 \
+            "Confirme a nova senha administrativa:" "$confirmation_height" "$width" \
             3>&1 1>&2 2>&3) || return 0
         [ "$new_password" = "$password_confirmation" ] || {
             msg "As senhas não coincidem."
@@ -238,9 +271,10 @@ configure_password() {
         }
         break
     done
+    height=$(dialog_height 15)
     whiptail --title "$title" --yesno \
         "Alterar a senha administrativa?\n\nTodas as sessões serão encerradas. O secret anterior será mantido até o novo serviço ficar saudável." \
-        15 84 || return 0
+        "$height" "$width" || return 0
 
     timestamp=$(date +%Y%m%d%H%M%S)
     new_secret="${admin_secret%-*}-password-$timestamp"
@@ -381,12 +415,17 @@ EOF
 
 configure_provider() {
     local provider status model base_url provider_secret="" old_secret=""
-    local previous_exists="false" default_model provider_name timestamp
+    local previous_exists="false" default_model provider_name timestamp height width menu_rows
     authenticate_admin || return $?
 
+    height=$(dialog_height 21)
+    width=$(dialog_width 88)
+    menu_rows=$((height - 9))
+    [ "$menu_rows" -ge 1 ] || menu_rows=1
+    [ "$menu_rows" -le 7 ] || menu_rows=7
     provider=$(whiptail --title "$title" --default-item "OPENAI" --menu \
         "Escolha o provedor do Assistente MNO.\n\nOpenAI permanece como padrão. Chaves são armazenadas somente como Docker Secrets." \
-        21 88 7 \
+        "$height" "$width" "$menu_rows" \
         "OPENAI" "Responses API oficial (padrão)" \
         "OPENROUTER" "Catálogo multi-modelo pela API compatível" \
         "DEEPSEEK" "Modelos oficiais DeepSeek" \
@@ -398,9 +437,11 @@ configure_provider() {
     provider=$(printf '%s' "$provider" | tr '[:upper:]' '[:lower:]')
 
     if [ "$provider" = "basic" ]; then
+        height=$(dialog_height 15)
+        width=$(dialog_width 84)
         whiptail --title "$title" --yesno \
             "Ativar somente o diagnóstico básico?\n\nA stack isolada do Assistente será removida após o painel confirmar a nova configuração." \
-            15 84 || return 0
+            "$height" "$width" || return 0
         if ! update_web_assistant "basic" "" ""; then
             rollback_service "$web_service"
             fail "O painel não aceitou o modo básico. A configuração anterior foi restaurada."
@@ -466,9 +507,11 @@ configure_provider() {
     fi
 
     provider_name=$(provider_label "$provider")
+    height=$(dialog_height 17)
+    width=$(dialog_width 88)
     whiptail --title "$title" --yesno \
         "Aplicar o provedor $provider_name com o modelo:\n\n$model\n\nA nova stack será validada antes de substituir a configuração ativa." \
-        17 88 || return 0
+        "$height" "$width" || return 0
 
     if docker service inspect "$assistant_service" >/dev/null 2>&1; then
         previous_exists="true"
@@ -526,13 +569,25 @@ configure_provider() {
 }
 
 while true; do
+    menu_height=$(dialog_height 20)
+    menu_width=$(dialog_width 88)
+    menu_rows=$((menu_height - 9))
+    [ "$menu_rows" -ge 1 ] || menu_rows=1
+    [ "$menu_rows" -le 4 ] || menu_rows=4
+    if [ "$terminal_mode" = "gateway" ]; then
+        exit_code="BACK"
+        exit_label="Voltar ao menu do Terminal Seguro"
+    else
+        exit_code="EXIT"
+        exit_label="Encerrar as configurações seguras"
+    fi
     choice=$(whiptail --title "$title" --menu \
         "As alterações são executadas somente neste terminal autenticado, com confirmação humana e rollback em caso de falha." \
-        20 88 6 \
+        "$menu_height" "$menu_width" "$menu_rows" \
         "USERNAME" "Alterar nome do usuário administrador" \
         "PASSWORD" "Alterar senha administrativa" \
         "PROVIDER" "Alterar provedor e modelo do Assistente MNO" \
-        "BACK" "Voltar ao menu do Terminal Seguro" \
+        "$exit_code" "$exit_label" \
         3>&1 1>&2 2>&3)
     status=$?
     [ "$status" -ne 0 ] && exit 0
@@ -540,6 +595,6 @@ while true; do
         USERNAME) configure_username ;;
         PASSWORD) configure_password ;;
         PROVIDER) configure_provider ;;
-        BACK) exit 0 ;;
+        BACK|EXIT) exit 0 ;;
     esac
 done

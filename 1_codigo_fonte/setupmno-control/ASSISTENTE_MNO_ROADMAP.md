@@ -14,8 +14,8 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.2.8` no canal Beta
-- Control Center: `4.9.1`
+- Setup MNO: `7.2.9` no canal Beta
+- Control Center: `4.9.2`
 - Conhecimento canônico: `3.9.0`
 - Catálogo runtime: 151 entradas
 - Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
@@ -35,6 +35,17 @@ esperados agora são declarados explicitamente nos dois gatilhos e o gerador
 bloqueia qualquer nova divergência antes de criar instaladores ou manifestos.
 Também evita que `API`, quando faz parte do nome canônico de uma aplicação,
 seja interpretado isoladamente como pedido de integração.
+
+### Hotfix v7.2.9 Beta
+
+Torna o Terminal Seguro contextual e responsivo. Ações de deploy abrem o
+Instalador diretamente, ações administrativas abrem Configurações diretamente
+e o menu genérico passa a ter uma entrada explícita em Configurações. O proxy e
+o launcher aceitam somente essas três intenções fixas. O terminal usa fundo
+preto, Whiptail de alto contraste e dimensões calculadas pelo terminal real.
+A barra touch permanece integralmente dentro do ttyd, sem rolagem horizontal,
+e o xterm recalcula colunas e linhas ao redimensionar, girar a tela ou abrir e
+fechar o teclado virtual.
 
 ## Norte do produto
 

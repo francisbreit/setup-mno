@@ -376,6 +376,7 @@ nav { display: grid; gap: 5px; }
 .settings-security { margin-top: 14px; }.settings-security > div { display: flex; align-items: center; gap: 14px; }.settings-security .guard-icon { flex: 0 0 auto; margin: 0; }
 .settings-security h3 { margin: 0; }.settings-security > p { max-width: 920px; color: var(--muted); line-height: 1.7; }
 .settings-security ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 22px; padding: 0; list-style: none; }.settings-security li { padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; color: #aeb5c0; font-size: 8px; }
+.settings-security .settings-security-actions { display: flex; align-items: stretch; flex-wrap: wrap; gap: 10px; }.settings-security-actions button { min-width: 220px; }
 
 .message-feedback { display: flex; align-items: center; gap: 7px; margin-top: 11px; padding-top: 9px; border-top: 1px solid var(--line); }
 .message-feedback > small { margin-right: 2px; color: var(--muted-2); font-size: 8px; }
@@ -413,12 +414,13 @@ nav { display: grid; gap: 5px; }
 .feedback-consent input { margin-top: 2px; accent-color: var(--green); }
 .feedback-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 
-.terminal-dialog { width: min(1180px, calc(100% - 40px)); height: min(780px, calc(100vh - 40px)); padding: 0; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 19px; color: var(--text); background: #080b0f; box-shadow: 0 35px 120px rgba(0,0,0,.7); }
+.terminal-dialog { width: min(1180px, calc(100% - 40px)); height: min(780px, calc(100vh - 40px)); padding: 0; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 19px; color: var(--text); background: #000; box-shadow: 0 35px 120px rgba(0,0,0,.7); }
+.terminal-dialog[open] { display: grid; grid-template-rows: 62px auto minmax(0,1fr); }
 .terminal-dialog::backdrop { background: rgba(0,0,0,.78); backdrop-filter: blur(8px); }
 .terminal-head { height: 62px; display: flex; align-items: center; justify-content: space-between; padding: 0 15px 0 20px; border-bottom: 1px solid var(--line); background: #11151b; }.terminal-head > div { display: flex; align-items: center; gap: 15px; }.terminal-head strong, .terminal-head small { display: block; }.terminal-head strong { font-size: 11px; }.terminal-head small { margin-top: 3px; color: var(--muted); font-size: 8px; }
 .terminal-lights { display: flex; gap: 5px; }.terminal-lights i { width: 8px; height: 8px; border-radius: 50%; background: #ff5e70; }.terminal-lights i:nth-child(2) { background: var(--yellow); }.terminal-lights i:nth-child(3) { background: var(--green); }
-.terminal-warning { height: 39px; display: flex; align-items: center; gap: 8px; padding: 0 18px; color: #c6a567; background: rgba(245,196,81,.07); font-size: 9px; }
-.terminal-dialog iframe { width: 100%; height: calc(100% - 101px); border: 0; background: #000; }
+.terminal-warning { min-height: 39px; display: flex; align-items: center; gap: 8px; box-sizing: border-box; padding: 9px 18px; color: #f5c451; background: #0d100d; font-size: 9px; line-height: 1.45; }
+.terminal-dialog iframe { display: block; width: 100%; min-width: 0; height: 100%; min-height: 0; border: 0; color-scheme: dark; background: #000; }
 .toast { position: fixed; z-index: 100; right: 22px; bottom: 22px; max-width: 360px; padding: 12px 16px; border: 1px solid var(--line-strong); border-radius: 11px; color: #d9dde3; background: #151a22; box-shadow: var(--shadow); font-size: 10px; transform: translateY(80px); opacity: 0; transition: .25s; }.toast.show { transform: none; opacity: 1; }
 .skeleton-block { position: relative; overflow: hidden; background: rgba(255,255,255,.02); }.skeleton-block::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg,transparent,rgba(255,255,255,.05),transparent); animation: skeleton 1.5s infinite; }@keyframes skeleton { to { transform: translateX(100%); } }
 
@@ -491,10 +493,11 @@ nav { display: grid; gap: 5px; }
   .health-summary { grid-template-columns: 1fr; }
   .recent-row { grid-template-columns: 1fr 70px; }.recent-row > span:last-child { display: none; }
   .audit-row { grid-template-columns: 95px 1fr; }.audit-row span:nth-child(3), .audit-row span:nth-child(4) { grid-column: 2; }
-  .terminal-dialog[open] { width: 100%; height: 100dvh; max-width: none; max-height: none; display: grid; grid-template-rows: 54px auto minmax(0,1fr); border: 0; border-radius: 0; }
-  .terminal-head { height: auto; padding-left: 14px; }
-  .terminal-warning { height: auto; min-height: 45px; line-height: 1.4; }
-  .terminal-dialog iframe { min-height: 0; height: 100%; }
+  .settings-security .settings-security-actions { align-items: stretch; flex-direction: column; width: 100%; }.settings-security-actions button { width: 100%; min-width: 0; }
+  .terminal-dialog[open] { position: fixed; inset: 0; width: 100dvw; height: var(--terminal-viewport-height,100dvh); max-width: none; max-height: none; margin: 0; display: grid; grid-template-rows: 54px auto minmax(0,1fr); border: 0; border-radius: 0; }
+  .terminal-head { height: auto; min-width: 0; padding: max(5px,env(safe-area-inset-top)) max(9px,env(safe-area-inset-right)) 5px max(14px,env(safe-area-inset-left)); }
+  .terminal-warning { min-width: 0; min-height: 45px; padding-right: max(12px,env(safe-area-inset-right)); padding-left: max(12px,env(safe-area-inset-left)); }
+  .terminal-dialog iframe { min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
   .message > div { max-width: calc(100% - 40px); }
   .message-route { align-items: flex-start; }
   .message-route-specialist { flex-basis: 100%; line-height: 1.35; }
@@ -504,4 +507,9 @@ nav { display: grid; gap: 5px; }
   .feedback-dialog form { padding: 18px 16px; }
   .feedback-dialog-actions { align-items: stretch; flex-direction: column-reverse; }
   .feedback-dialog-actions button { width: 100%; }
+}
+@media (max-height: 520px) and (orientation: landscape) and (pointer: coarse) {
+  .terminal-dialog[open] { grid-template-rows: 46px auto minmax(0,1fr); }
+  .terminal-head { padding-top: 3px; padding-bottom: 3px; }
+  .terminal-warning { min-height: 34px; padding-top: 5px; padding-bottom: 5px; font-size: 8px; }
 }

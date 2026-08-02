@@ -2022,7 +2022,28 @@ func (a *webApp) terminalProxy() http.Handler {
 		writeError(w, http.StatusBadGateway, "terminal seguro indisponível")
 	}
 	proxy.FlushInterval = 50 * time.Millisecond
-	return proxy
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !terminalIntentAllowed(r.URL.Query()["arg"]) {
+			writeError(w, http.StatusBadRequest, "intenção do Terminal Seguro inválida")
+			return
+		}
+		proxy.ServeHTTP(w, r)
+	})
+}
+
+func terminalIntentAllowed(values []string) bool {
+	if len(values) == 0 {
+		return true
+	}
+	if len(values) != 1 {
+		return false
+	}
+	switch values[0] {
+	case "installer", "settings", "gateway":
+		return true
+	default:
+		return false
+	}
 }
 
 func (a *webApp) requireAuth(next http.Handler) http.Handler {

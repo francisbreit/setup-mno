@@ -206,6 +206,47 @@ grep -Fq -- '- /usr/local/bin/setupmno-terminal-menu' "$template" || {
     printf 'ERRO: o terminal não inicia pelo menu seguro permitido.\n' >&2
     exit 1
 }
+grep -Fq -- '- -a' "$template" || {
+    printf 'ERRO: o ttyd não encaminha a intenção contextual permitida.\n' >&2
+    exit 1
+}
+grep -Fq 'case "$intent" in' "$project_dir/terminal-menu.sh" &&
+grep -Fq 'installer)' "$project_dir/terminal-menu.sh" &&
+grep -Fq 'settings)' "$project_dir/terminal-menu.sh" &&
+grep -Fq 'gateway)' "$project_dir/terminal-menu.sh" || {
+    printf 'ERRO: launcher do Terminal Seguro sem allowlist contextual completa.\n' >&2
+    exit 1
+}
+if grep -Eq '(^|[[:space:]])(eval|bash -c|sh -c)[[:space:]]+.*intent' "$project_dir/terminal-menu.sh"; then
+    printf 'ERRO: a intenção do Terminal Seguro não pode ser interpretada como comando.\n' >&2
+    exit 1
+fi
+grep -Fq 'terminalIntentAllowed' "$project_dir/main.go" &&
+grep -Fq '"installer", "settings", "gateway"' "$project_dir/main.go" || {
+    printf 'ERRO: proxy web não valida as intenções fixas do Terminal Seguro.\n' >&2
+    exit 1
+}
+grep -Fq 'arg: intent' "$project_dir/web/app.js" &&
+grep -Fq 'data-action="gateway"' "$project_dir/web/index.html" || {
+    printf 'ERRO: painel sem roteamento contextual ou entrada explícita do Terminal Seguro.\n' >&2
+    exit 1
+}
+grep -Fq 'window.visualViewport?.addEventListener("resize", scheduleFit' "$project_dir/web/terminal-bridge.js" &&
+grep -Fq 'new ResizeObserver(scheduleFit)' "$project_dir/web/terminal-bridge.js" &&
+grep -Fq 'overflow-x: hidden !important' "$project_dir/web/terminal-bridge.js" &&
+grep -Fq 'background: "#000000"' "$project_dir/web/terminal-bridge.js" || {
+    printf 'ERRO: ponte móvel do terminal sem reflow ou tema preto de alto contraste.\n' >&2
+    exit 1
+}
+for installer_script in \
+    "$source_root/x86/SetupLowCodeMno/install.sh" \
+    "$source_root/arm/SetupLowCodeMno/install.sh"; do
+    grep -Fq 'dialog_width()' "$installer_script" &&
+    grep -Fq '"$(dialog_rows 10 20)"' "$installer_script" || {
+        printf 'ERRO: instalador sem dimensões Whiptail responsivas em %s.\n' "$installer_script" >&2
+        exit 1
+    }
+done
 grep -Fq 'target: admin_password' "$template" || {
     printf 'ERRO: a credencial administrativa precisa usar target estável para rotação.\n' >&2
     exit 1

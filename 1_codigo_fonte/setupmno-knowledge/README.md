@@ -122,7 +122,7 @@ python3 tools/lint_knowledge.py \
   --catalog ../setupmno-control/catalog.json \
   resolve \
   --setup-id n8n-main \
-  --setup-version 7.2.8 \
+  --setup-version 7.2.9 \
   --architecture amd64
 ```
 
@@ -150,7 +150,7 @@ Para gerar e validar o dataset de forma reproduzível:
 ```bash
 python3 -B tools/eval_factory.py \
   --root . \
-  --setup-version 7.2.8
+  --setup-version 7.2.9
 python3 -B tools/test_knowledge.py
 ```
 
@@ -163,7 +163,7 @@ Validação isolada da fábrica de Blueprints:
 
 ```bash
 python3 -B tools/blueprint_factory.py \
-  --setup-version 7.2.8
+  --setup-version 7.2.9
 ```
 
 Cada Blueprint reside em `blueprints/<blueprintId>/`, com `blueprint.json`
@@ -183,8 +183,8 @@ Geração reproduzível do pacote:
 
 ```bash
 python3 -B tools/generate_package.py \
-  --setup-version 7.2.8 \
-  --control-version 4.9.1
+  --setup-version 7.2.9 \
+  --control-version 4.9.2
 ```
 
 O gerador executa o linter antes do build, inclui somente documentos

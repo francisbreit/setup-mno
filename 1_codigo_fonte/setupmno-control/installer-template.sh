@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.9.1"
+CONTROL_VERSION="4.9.2"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -628,6 +628,7 @@ services:
       - "7681"
       - -b
       - /terminal
+      - -a
       - -W
       - -O
       - -m

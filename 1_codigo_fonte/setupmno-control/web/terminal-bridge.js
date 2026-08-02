@@ -10,15 +10,84 @@
     ArrowRight: "\u001b[C",
     Enter: "\r"
   });
+  const terminalTheme = Object.freeze({
+    background: "#000000",
+    foreground: "#f5f7fa",
+    cursor: "#ff7214",
+    cursorAccent: "#000000",
+    selectionBackground: "#7a3b18",
+    black: "#000000",
+    red: "#ff5a67",
+    green: "#21d49a",
+    yellow: "#f5c451",
+    blue: "#64a8ff",
+    magenta: "#d18cff",
+    cyan: "#55d8e8",
+    white: "#dce3ed",
+    brightBlack: "#687384",
+    brightRed: "#ff7a84",
+    brightGreen: "#58e3b3",
+    brightYellow: "#ffdc7b",
+    brightBlue: "#8abfff",
+    brightMagenta: "#e1adff",
+    brightCyan: "#84e9f3",
+    brightWhite: "#ffffff"
+  });
+
+  let resizeTimer = 0;
+  let fitTimers = [];
+  let themeApplied = false;
 
   function terminal() {
     return window.term && typeof window.term.input === "function" ? window.term : null;
+  }
+
+  function touchLayout() {
+    return window.matchMedia("(max-width: 650px), (pointer: coarse)").matches;
   }
 
   function reconnectOverlayVisible() {
     return Array.from(document.querySelectorAll(".xterm div")).some(element =>
       /Press.+Reconnect/i.test(element.textContent || "")
     );
+  }
+
+  function applyTerminalPresentation(activeTerminal) {
+    if (!activeTerminal) return;
+    activeTerminal.options.theme = terminalTheme;
+    activeTerminal.options.scrollback = 2000;
+    activeTerminal.options.scrollOnUserInput = false;
+    activeTerminal.options.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+    if (touchLayout()) {
+      activeTerminal.options.fontSize = window.matchMedia("(orientation: portrait)").matches ? 10 : 11;
+      activeTerminal.options.lineHeight = 1.05;
+    }
+    themeApplied = true;
+  }
+
+  function fitTerminal() {
+    const activeTerminal = terminal();
+    const container = document.getElementById("terminal-container");
+    if (!activeTerminal || !container || container.clientWidth < 40 || container.clientHeight < 40) {
+      return false;
+    }
+    applyTerminalPresentation(activeTerminal);
+    try {
+      activeTerminal.fit?.();
+      if (Number.isInteger(activeTerminal.rows) && activeTerminal.rows > 0) {
+        activeTerminal.refresh?.(0, activeTerminal.rows - 1);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function scheduleFit() {
+    window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(fitTerminal, 30);
+    fitTimers.forEach(window.clearTimeout);
+    fitTimers = [80, 180, 360, 700].map(delay => window.setTimeout(fitTerminal, delay));
   }
 
   function reconnectTerminal() {
@@ -35,6 +104,7 @@
       bubbles: true,
       cancelable: true
     }));
+    window.setTimeout(scheduleFit, 120);
     return true;
   }
 
@@ -51,14 +121,55 @@
     return true;
   }
 
-  function mountTouchbar() {
-    if (!window.matchMedia("(max-width: 650px), (pointer: coarse)").matches) return;
+  function updateStatus(ready, label = "") {
+    const status = document.getElementById("setupmno-terminal-touch-status");
+    if (!status) return;
+    status.classList.toggle("ready", ready);
+    status.textContent = label || (ready ? "Touch pronto" : "Aguardando…");
+  }
 
+  function mountStyles() {
     const style = document.createElement("style");
     style.textContent = `
+      :root { color-scheme: dark; background: #000; }
+      html, body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        overscroll-behavior: none;
+        background: #000 !important;
+      }
+      body #terminal-container {
+        position: fixed;
+        inset: 0;
+        box-sizing: border-box;
+        width: auto !important;
+        max-width: 100%;
+        height: auto !important;
+        margin: 0 !important;
+        overflow: hidden;
+        background: #000 !important;
+      }
+      #terminal-container .xterm {
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        background: #000 !important;
+      }
+      #terminal-container .xterm-viewport {
+        max-width: 100%;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+        touch-action: pan-y;
+        background: #000 !important;
+      }
+      body.setupmno-touch-terminal {
+        --setupmno-touchbar-height: calc(54px + env(safe-area-inset-top));
+      }
       body.setupmno-touch-terminal #terminal-container {
-        height: calc(100% - 58px);
-        margin: 58px auto 0;
+        top: var(--setupmno-touchbar-height);
       }
       #setupmno-terminal-touchbar {
         position: fixed;
@@ -66,81 +177,84 @@
         top: 0;
         right: 0;
         left: 0;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        height: 58px;
+        display: grid;
+        grid-template-columns: minmax(62px,.9fr) repeat(6,minmax(38px,1fr)) minmax(54px,1.15fr) minmax(42px,.9fr);
+        align-items: stretch;
+        gap: 5px;
+        height: var(--setupmno-touchbar-height);
         box-sizing: border-box;
-        padding: max(7px, env(safe-area-inset-top)) 8px 7px;
-        overflow-x: auto;
-        border-top: 1px solid rgba(255,255,255,.14);
-        background: #10141a;
-        scrollbar-width: none;
+        padding: max(6px,env(safe-area-inset-top)) max(7px,env(safe-area-inset-right)) 6px max(7px,env(safe-area-inset-left));
+        overflow: hidden;
+        border-bottom: 1px solid rgba(255,255,255,.16);
+        background: #10141b;
       }
-      #setupmno-terminal-touchbar::-webkit-scrollbar { display: none; }
       #setupmno-terminal-touchbar button {
-        min-width: 48px;
-        min-height: 42px;
-        flex: 1 0 48px;
-        padding: 0 10px;
-        border: 1px solid rgba(255,255,255,.15);
+        min-width: 0;
+        min-height: 40px;
+        padding: 0 4px;
+        border: 1px solid rgba(255,255,255,.18);
         border-radius: 9px;
-        color: #f2f4f7;
-        background: #1b212a;
-        font: 800 13px system-ui, sans-serif;
+        color: #f5f7fa;
+        background: #1b222c;
+        font: 800 12px system-ui, sans-serif;
         touch-action: manipulation;
       }
       #setupmno-terminal-touchbar button:active {
-        border-color: rgba(255,122,26,.75);
-        background: #ff7a1a;
+        border-color: #ff9a52;
+        color: #05070a;
+        background: #ff7214;
       }
       #setupmno-terminal-touch-status {
-        min-width: 72px;
+        min-width: 0;
+        align-self: center;
+        overflow: hidden;
         color: #f5c451;
         font: 800 9px system-ui, sans-serif;
+        text-overflow: ellipsis;
         white-space: nowrap;
       }
-      #setupmno-terminal-touch-status.ready { color: #31d98b; }
+      #setupmno-terminal-touch-status.ready { color: #21d49a; }
       @media (max-width: 480px) and (orientation: portrait) {
-        body.setupmno-touch-terminal #terminal-container {
-          height: calc(100% - 52px);
-          margin-top: 52px;
+        body.setupmno-touch-terminal {
+          --setupmno-touchbar-height: calc(50px + env(safe-area-inset-top));
         }
         #setupmno-terminal-touchbar {
+          grid-template-columns: 14px repeat(6,minmax(0,1fr)) minmax(43px,1.25fr) minmax(34px,.9fr);
           gap: 3px;
-          height: 52px;
-          padding: max(5px, env(safe-area-inset-top)) 4px 5px;
-          overflow-x: hidden;
+          padding-right: max(4px,env(safe-area-inset-right));
+          padding-left: max(4px,env(safe-area-inset-left));
         }
         #setupmno-terminal-touchbar button {
-          min-width: 30px;
-          min-height: 40px;
-          flex: 1 1 30px;
-          padding: 0 3px;
+          min-height: 38px;
+          padding: 0 2px;
           border-radius: 7px;
-          font-size: 11px;
-        }
-        #setupmno-terminal-touchbar button[data-key="Enter"] {
-          min-width: 43px;
-          flex-grow: 1.35;
           font-size: 10px;
         }
         #setupmno-terminal-touch-status {
-          min-width: 14px;
           width: 14px;
-          max-width: 14px;
-          overflow: hidden;
-          color: #f5c451;
           font-size: 0;
         }
         #setupmno-terminal-touch-status::before {
           content: "●";
-          font-size: 10px;
+          font-size: 9px;
         }
+      }
+      @media (max-height: 520px) and (orientation: landscape) {
+        body.setupmno-touch-terminal {
+          --setupmno-touchbar-height: calc(46px + env(safe-area-inset-top));
+        }
+        #setupmno-terminal-touchbar {
+          padding-top: max(4px,env(safe-area-inset-top));
+          padding-bottom: 4px;
+        }
+        #setupmno-terminal-touchbar button { min-height: 34px; }
       }
     `;
     document.head.append(style);
+  }
 
+  function mountTouchbar() {
+    if (!touchLayout()) return;
     const touchbar = document.createElement("div");
     touchbar.id = "setupmno-terminal-touchbar";
     touchbar.setAttribute("aria-label", "Controles touch do terminal");
@@ -168,32 +282,29 @@
         document.querySelector(".xterm-helper-textarea")?.focus();
       }
       updateStatus(Boolean(terminal()));
+      scheduleFit();
     });
     document.body.append(touchbar);
     document.body.classList.add("setupmno-touch-terminal");
   }
 
-  function updateStatus(ready, label = "") {
-    const status = document.getElementById("setupmno-terminal-touch-status");
-    if (!status) return;
-    status.classList.toggle("ready", ready);
-    status.textContent = label || (ready ? "Touch pronto" : "Aguardando…");
-  }
-
+  mountStyles();
   mountTouchbar();
+  scheduleFit();
 
   let attempts = 0;
   const readyTimer = window.setInterval(() => {
     attempts += 1;
     if (terminal()) {
+      if (!themeApplied) applyTerminalPresentation(terminal());
       window.clearInterval(readyTimer);
       updateStatus(true);
-      window.term.fit?.();
-    } else if (attempts >= 120) {
+      scheduleFit();
+    } else if (attempts >= 240) {
       window.clearInterval(readyTimer);
       updateStatus(false);
     }
-  }, 250);
+  }, 50);
 
   window.setInterval(() => {
     if (reconnectOverlayVisible()) {
@@ -201,9 +312,21 @@
     }
   }, 500);
 
-  let resizeTimer = 0;
-  window.addEventListener("resize", () => {
-    window.clearTimeout(resizeTimer);
-    resizeTimer = window.setTimeout(() => window.term?.fit?.(), 120);
-  });
+  window.addEventListener("resize", scheduleFit, { passive: true });
+  window.addEventListener("orientationchange", scheduleFit, { passive: true });
+  window.addEventListener("pageshow", scheduleFit, { passive: true });
+  window.visualViewport?.addEventListener("resize", scheduleFit, { passive: true });
+  window.visualViewport?.addEventListener("scroll", scheduleFit, { passive: true });
+  document.addEventListener("focusin", scheduleFit, { passive: true });
+  document.addEventListener("focusout", scheduleFit, { passive: true });
+  if (document.fonts?.ready) {
+    document.fonts.ready.then(scheduleFit).catch(() => {});
+  }
+
+  if (window.ResizeObserver) {
+    const observer = new ResizeObserver(scheduleFit);
+    observer.observe(document.documentElement);
+    const touchbar = document.getElementById("setupmno-terminal-touchbar");
+    if (touchbar) observer.observe(touchbar);
+  }
 })();

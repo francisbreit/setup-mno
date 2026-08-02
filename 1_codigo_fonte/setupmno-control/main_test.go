@@ -47,6 +47,21 @@ func TestReadRuntimeSnapshot(t *testing.T) {
 	}
 }
 
+func TestTerminalIntentAllowed(t *testing.T) {
+	valid := [][]string{nil, {"installer"}, {"settings"}, {"gateway"}}
+	for _, values := range valid {
+		if !terminalIntentAllowed(values) {
+			t.Fatalf("intenção válida recusada: %#v", values)
+		}
+	}
+	invalid := [][]string{{""}, {"shell"}, {"/bin/bash"}, {"installer", "settings"}}
+	for _, values := range invalid {
+		if terminalIntentAllowed(values) {
+			t.Fatalf("intenção inválida aceita: %#v", values)
+		}
+	}
+}
+
 func TestReadRuntimeSnapshotAcceptsGeneratedKnowledgeManifest(t *testing.T) {
 	directory := filepath.Join("..", "x86", "SetupLowCodeMno", ".control-package")
 	snapshot, err := readRuntimeSnapshot(directory)

@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="7.2.8"
+VERSIONSETUP="7.2.9"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -23,20 +23,49 @@ phases=(
 )
 
 export NEWT_COLORS='
-root=,white
-border=black,gray
-title=white,gray
-roottext=red,gray
-window=red,gray
-textbox=white,gray
-button=white,green
+root=white,black
+border=lightgray,black
+title=yellow,black
+roottext=white,black
+window=white,black
+textbox=white,black
+acttextbox=black,yellow
+button=white,black
+actbutton=black,yellow
 compactbutton=white,black
-listbox=black,white
-actlistbox=black,white
-actsellistbox=white,green
-checkbox=green,black
-actcheckbox=white,green
+listbox=white,black
+actlistbox=black,yellow
+actsellistbox=black,yellow
+checkbox=white,black
+actcheckbox=black,yellow
 '
+
+dialog_height() {
+    local requested="$1" available
+    available=$(tput lines 2>/dev/null || printf '24')
+    available=$((available - 2))
+    [ "$available" -ge 5 ] || available=5
+    [ "$requested" -le "$available" ] || requested="$available"
+    printf '%s' "$requested"
+}
+
+dialog_width() {
+    local requested="$1" available
+    available=$(tput cols 2>/dev/null || printf '80')
+    available=$((available - 2))
+    [ "$available" -ge 10 ] || available=10
+    [ "$requested" -le "$available" ] || requested="$available"
+    printf '%s' "$requested"
+}
+
+dialog_rows() {
+    local requested="$1" height
+    height=$(dialog_height "$2")
+    height=$((height - 10))
+    [ "$height" -ge 1 ] || height=1
+    [ "$requested" -le "$height" ] || requested="$height"
+    printf '%s' "$requested"
+}
 {
   tput reset 2>/dev/null
   exec 0</dev/tty 1>/dev/tty 2>&1
@@ -63,7 +92,7 @@ for i in $(seq 1 100); do
     else
         echo $i
     fi
-done | whiptail --title 'CHECANDO SERVIDOR' --gauge "${phases[0]}" 6 60 0
+done | whiptail --title 'CHECANDO SERVIDOR' --gauge "${phases[0]}" "$(dialog_height 6)" "$(dialog_width 60)" 0
 clear
 
 # --- TRIAL ---
@@ -157,7 +186,7 @@ warn_heavy() {
     local app_name="$1"
     local ram_needed="$2"
     local response
-    response=$(whiptail --title "⚠️ ALERTA DE RECURSOS" --yesno "⚠️ ATENÇÃO: O $app_name consome aproximadamente $ram_needed de RAM.\n\nAntes de prosseguir, verifique se existem recursos suficientes disponíveis, caso contrário, você precisará fazer upgrade de servidor ou deletar outras aplicações.\n\nDeseja prosseguir com a instalação?" --fb 16 70 3>&1 1>&2 2>&3)
+    response=$(whiptail --title "⚠️ ALERTA DE RECURSOS" --yesno "⚠️ ATENÇÃO: O $app_name consome aproximadamente $ram_needed de RAM.\n\nAntes de prosseguir, verifique se existem recursos suficientes disponíveis, caso contrário, você precisará fazer upgrade de servidor ou deletar outras aplicações.\n\nDeseja prosseguir com a instalação?" --fb "$(dialog_height 16)" "$(dialog_width 70)" 3>&1 1>&2 2>&3)
     if [[ $? -ne 0 ]]; then
         return 1
     fi
@@ -166,19 +195,21 @@ warn_heavy() {
 
 # --- TÍTULO ---
 export NEWT_COLORS='
-root=,white
-border=black,gray
-title=white,blue
-roottext=red,gray
-window=red,gray
-textbox=white,gray
-button=white,green
+root=white,black
+border=lightgray,black
+title=yellow,black
+roottext=white,black
+window=white,black
+textbox=white,black
+acttextbox=black,yellow
+button=white,black
+actbutton=black,yellow
 compactbutton=white,black
-listbox=black,white
-actlistbox=black,white
-actsellistbox=white,green
-checkbox=green,black
-actcheckbox=white,green
+listbox=white,black
+actlistbox=black,yellow
+actsellistbox=black,yellow
+checkbox=white,black
+actcheckbox=black,yellow
 '
 
 if [ "$PLANO" == "trial pro" ]; then
@@ -241,7 +272,7 @@ while true; do
 if [[ ! "$PLANO" = *free* ]]; then
 
 CHOICE=$(
-whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 20 70 10 \
+whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" "$(dialog_height 20)" "$(dialog_width 70)" "$(dialog_rows 10 20)" \
     "ACTIVEPIECES" "" \
     "ADGUARDHOME" "" \
     "AFFINE" "" \
@@ -396,7 +427,7 @@ case "$CHOICE" in
     "SAIR") do_exit ;;
     *)
         if check_already_installed "$CHOICE"; then
-            whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
+            whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." "$(dialog_height 12)" "$(dialog_width 70)"
             continue
         fi
         # Mapeamento nome -> script
@@ -558,7 +589,7 @@ fi
 
 if [ "$PLANO" == "free" ]; then
 CHOICE=$(
-whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 20 70 10 \
+whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" "$(dialog_height 20)" "$(dialog_width 70)" "$(dialog_rows 10 20)" \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" ""   \
     "CLICKHOUSE" ""   \
     "DATABASUS" ""   \
@@ -716,11 +747,11 @@ case "$CHOICE" in
     "SAIR") do_exit ;;
     *)
         if check_already_installed "$CHOICE"; then
-            whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
+            whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." "$(dialog_height 12)" "$(dialog_width 70)"
             continue
         fi
         if [[ ("$CHOICE" == "AFFINE") || ("$CHOICE" == "APPSMITH") || ("$CHOICE" == "AUTOGEN STUDIO") || ("$CHOICE" == "BASEROW") || ("$CHOICE" == "BOTPRESS") || ("$CHOICE" == "CAL.COM") || ("$CHOICE" == "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "DOCUMENSO") || ("$CHOICE" == "DOCUSEAL") || ("$CHOICE" == "DOZZLE") || ("$CHOICE" == "EVOAI + EVOLUTION 2.0 + MINIO*") || ("$CHOICE" == "IMMICH") || ("$CHOICE" == "HOME ASSISTANT") || ("$CHOICE" == "HOPPSCOTCH") || ("$CHOICE" == "HUMHUB") || ("$CHOICE" == "KRAYIN CRM") || ("$CHOICE" == "LANGFUSE + MINIO + CLICKHOUSE*") || ("$CHOICE" == "LITELLM") || ("$CHOICE" == "MAUTIC 4 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 6 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 7 WHATSAPP MKT") || ("$CHOICE" == "MATOMO") || ("$CHOICE" == "NEXTCLOUD") || ("$CHOICE" == "OPEN PROJECT") || ("$CHOICE" == "TWENTY CRM") || ("$CHOICE" == "TYPEBOT + MINIO*") || ("$CHOICE" == "OPENCLAW") || ("$CHOICE" == "DISCOURSE") || ("$CHOICE" == "GHOST") || ("$CHOICE" == "GLANCE") || ("$CHOICE" == "IT-TOOLS") || ("$CHOICE" == "COGNEE") || ("$CHOICE" == "MEMGRAPH") || ("$CHOICE" == "NEO4J") || ("$CHOICE" == "OPENFANG") || ("$CHOICE" == "PAPERCLIP") || ("$CHOICE" == "SEARXNG") || ("$CHOICE" == "SETUP MNO CONTROL CENTER") || ("$CHOICE" == "SYNCTHING") || ("$CHOICE" == "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*") || ("$CHOICE" == "HERMES AGENT") || ("$CHOICE" == "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOT AI CUSTOMER SERVICE*") || ("\$CHOICE" == "DIFY") || ("\$CHOICE" == "CHANGEDETECTION.IO") ]]; then
-            whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
+            whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." "$(dialog_height 12)" "$(dialog_width 70)"
             continue
         fi
         case "$CHOICE" in
@@ -879,7 +910,7 @@ fi
 
 if [ "$PLANO" == "free1" ]; then
 CHOICE=$(
-whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 20 70 10 \
+whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" "$(dialog_height 20)" "$(dialog_width 70)" "$(dialog_rows 10 20)" \
     "DATABASUS" ""   \
     "EVOLUTION 2.0 API PADRÃO" ""  \
     "EVOLUTION CRM" ""  \
@@ -1029,11 +1060,11 @@ case "$CHOICE" in
     "SAIR") do_exit ;;
     *)
         if check_already_installed "$CHOICE"; then
-            whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
+            whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." "$(dialog_height 12)" "$(dialog_width 70)"
             continue
         fi
         if [[ ("$CHOICE" != "DATABASUS") && ("$CHOICE" != "EVOLUTION 2.0 API PADRÃO") && ("$CHOICE" != "N8N V1 - SEM FILA (MAIN)") && ("$CHOICE" != "N8N V1 - FILA (QUEUE)") && ("$CHOICE" != "N8N V2 - FILA (QUEUE)") && ("$CHOICE" != "PGADMIN4") && ("$CHOICE" != "MINIO") && ("$CHOICE" != "REDIS") && ("$CHOICE" != "EVOLUTION CRM") && ("$CHOICE" != "EVOLUTION GO") && ("$CHOICE" != "EVO NEXUS") && ("$CHOICE" != "WAHA API") ]]; then
-            whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free1.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
+            whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free1.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." "$(dialog_height 12)" "$(dialog_width 70)"
             continue
         fi
         case "$CHOICE" in
@@ -1192,7 +1223,7 @@ fi
 
 if [ "$PLANO" == "free2" ]; then
 CHOICE=$(
-whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 20 70 10 \
+whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" "$(dialog_height 20)" "$(dialog_width 70)" "$(dialog_rows 10 20)" \
     "EVOLUTION 2.0 API PADRÃO" ""  \
     "EVOLUTION CRM" ""  \
     "EVOLUTION GO" ""  \
@@ -1342,11 +1373,11 @@ case "$CHOICE" in
     "SAIR") do_exit ;;
     *)
         if check_already_installed "$CHOICE"; then
-            whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
+            whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." "$(dialog_height 12)" "$(dialog_width 70)"
             continue
         fi
         if [[ ("$CHOICE" != "OPENCLAW") && ("$CHOICE" != "EVOLUTION 2.0 API PADRÃO") && ("$CHOICE" != "N8N V1 - SEM FILA (MAIN)") && ("$CHOICE" != "N8N V1 - FILA (QUEUE)") && ("$CHOICE" != "N8N V2 - FILA (QUEUE)") && ("$CHOICE" != "PGADMIN4") && ("$CHOICE" != "MINIO") && ("$CHOICE" != "REDIS") && ("$CHOICE" != "EVOLUTION CRM") && ("$CHOICE" != "EVOLUTION GO") && ("$CHOICE" != "EVO NEXUS") && ("$CHOICE" != "WAHA API") ]]; then
-            whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free2.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
+            whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free2.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." "$(dialog_height 12)" "$(dialog_width 70)"
             continue
         fi
         case "$CHOICE" in

@@ -72,6 +72,7 @@ function bindEvents() {
     if (action.dataset.action === "terminal") openTerminal();
     if (action.dataset.action === "assistant") navigate("assistant");
     if (action.dataset.action === "settings") openTerminal("settings");
+    if (action.dataset.action === "gateway") openTerminal("gateway");
     if (action.dataset.action === "blueprint") openBlueprint(action.dataset.blueprintId);
     if (action.dataset.action === "quality-report") navigate("evals");
     if (action.dataset.action === "quality-return") navigate("assistant");
@@ -82,6 +83,9 @@ function bindEvents() {
     event.preventDefault();
     closeTerminal();
   });
+  window.addEventListener("resize", syncTerminalDialogViewport, { passive: true });
+  window.addEventListener("orientationchange", syncTerminalDialogViewport, { passive: true });
+  window.visualViewport?.addEventListener("resize", syncTerminalDialogViewport, { passive: true });
   $("installed-search").addEventListener("input", renderInstalled);
   $("installed-filter").addEventListener("change", renderInstalled);
   $("catalog-search").addEventListener("input", renderCatalog);
@@ -1537,24 +1541,56 @@ function navigate(view) {
 
 function openTerminal(intent = "installer") {
   intent = typeof intent === "string" ? intent : "installer";
+  if (!["installer", "settings", "gateway"].includes(intent)) intent = "gateway";
   const dialog = $("terminal-dialog");
   const mobile = window.matchMedia("(max-width: 650px), (pointer: coarse)").matches;
-  $("terminal-title").textContent = intent === "settings" ? "Configurações Seguras" : "Terminal Seguro";
-  $("terminal-subtitle").textContent = intent === "settings"
-    ? "Conta e provedores · confirmação obrigatória"
-    : "Setup MNO · sessão administrativa";
-  $("terminal-warning").innerHTML = intent === "settings"
-    ? "<span>◎</span> No Terminal Seguro, selecione CONFIGURAÇÕES. Senhas e chaves não passam pelo navegador."
-    : "<span>◎</span> Selecione INSTALADOR para abrir o Setup MNO original. Whiptails e regras de plano permanecem ativos.";
-  $("terminal-frame").src = mobile
-    ? "/terminal/?rendererType=dom&fontSize=10&lineHeight=1&disableResizeOverlay=true&disableLeaveAlert=true&setupmnoTouch=5"
-    : "/terminal/";
+  const presentation = {
+    installer: {
+      title: "Instalador Seguro",
+      subtitle: "Setup MNO · deploy com confirmação humana",
+      warning: "O Instalador Setup MNO será aberto diretamente. Whiptails, planos e confirmações permanecem ativos."
+    },
+    settings: {
+      title: "Configurações Seguras",
+      subtitle: "Conta e provedores · confirmação obrigatória",
+      warning: "O menu de configurações será aberto diretamente. Senhas e chaves nunca passam pelo navegador."
+    },
+    gateway: {
+      title: "Terminal Seguro",
+      subtitle: "Setup MNO · sessão administrativa",
+      warning: "Escolha entre Instalador, Configurações ou encerrar a sessão no menu protegido."
+    }
+  }[intent];
+  $("terminal-title").textContent = presentation.title;
+  $("terminal-subtitle").textContent = presentation.subtitle;
+  $("terminal-warning").innerHTML = `<span>◎</span> ${presentation.warning}`;
+  const parameters = new URLSearchParams({
+    arg: intent,
+    disableResizeOverlay: "true",
+    disableLeaveAlert: "true",
+    setupmnoTouch: "6"
+  });
+  if (mobile) {
+    parameters.set("rendererType", "dom");
+    parameters.set("fontSize", "10");
+    parameters.set("lineHeight", "1.05");
+  }
+  $("terminal-frame").src = `/terminal/?${parameters.toString()}`;
   dialog.showModal();
+  syncTerminalDialogViewport();
+}
+
+function syncTerminalDialogViewport() {
+  const dialog = $("terminal-dialog");
+  if (!dialog?.open) return;
+  const height = Math.round(window.visualViewport?.height || window.innerHeight);
+  dialog.style.setProperty("--terminal-viewport-height", `${height}px`);
 }
 
 function closeTerminal() {
   const dialog = $("terminal-dialog");
   $("terminal-frame").src = "about:blank";
+  dialog.style.removeProperty("--terminal-viewport-height");
   if (dialog.open) dialog.close();
 }
 

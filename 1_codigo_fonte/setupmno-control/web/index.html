@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#070a0f">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=4.9.1">
+  <link rel="stylesheet" href="/styles.css?v=4.9.2">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -376,9 +376,12 @@
           </div>
           <article class="panel settings-security">
             <div><span class="guard-icon">◎</span><div><p class="eyebrow">Fluxo seguro</p><h3>As alterações não são executadas pelo navegador</h3></div></div>
-            <p>A Central abre o Terminal Seguro com uma lista fixa de operações. Senhas e chaves são coletadas pelo Whiptail, enviadas diretamente ao Docker Secret e nunca retornam ao painel, ao histórico do navegador ou aos logs.</p>
+            <p>As ações abrem diretamente o menu seguro correspondente. Senhas e chaves são coletadas pelo Whiptail, enviadas diretamente ao Docker Secret e nunca retornam ao painel, ao histórico do navegador ou aos logs.</p>
             <ul><li>OpenAI como seleção inicial</li><li>OpenRouter e DeepSeek disponíveis</li><li>Ollama já existente</li><li>Diagnóstico básico sem LLM</li></ul>
-            <button class="primary-button" data-action="settings">Abrir configurações seguras <b>→</b></button>
+            <div class="settings-security-actions">
+              <button class="primary-button" data-action="settings">Abrir configurações seguras <b>→</b></button>
+              <button class="light-button" data-action="gateway">Abrir Terminal Seguro <b>→</b></button>
+            </div>
           </article>
         </section>
       </div>
@@ -432,8 +435,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=4.9.1" defer></script>
-  <script src="/assistant-route.js?v=4.9.1" defer></script>
-  <script src="/app.js?v=4.9.1" defer></script>
+  <script src="/markdown.js?v=4.9.2" defer></script>
+  <script src="/assistant-route.js?v=4.9.2" defer></script>
+  <script src="/app.js?v=4.9.2" defer></script>
 </body>
 </html>
