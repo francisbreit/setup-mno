@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="7.2.16"
+VERSIONSETUP="7.3.0"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -149,6 +149,11 @@ fi
 # --- DISPATCH DINÂMICO (substitui 240+ case blocks) ---
 run_app() {
     local script="$1"
+    if [ "$script" = "setupmno_control" ] && control_center_installed; then
+        whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
+            "Já existe um Setup MNO Control Center neste servidor.\n\nSomente uma instalação é permitida por servidor." 12 72
+        return 0
+    fi
     clear
     cd && cd SetupLowCodeMno && ./"$script"
 }
@@ -205,6 +210,12 @@ check_already_installed() {
     [ -n "$c" ]
 }
 
+control_center_installed() {
+    command -v docker >/dev/null 2>&1 || return 1
+    docker service ls --format '{{.Name}}' 2>/dev/null |
+        grep -Eq '^mnoctrl[[:alnum:]]+-(web|agent|terminal|assistant)_'
+}
+
 # --- SAIR ---
 do_exit() {
     clear
@@ -237,6 +248,13 @@ do_exit() {
 
 # ===================== LOOP PRINCIPAL =====================
 while true; do
+
+CONTROL_CENTER_MENU=()
+CONTROL_CENTER_PRO_MENU=()
+if ! control_center_installed; then
+    CONTROL_CENTER_MENU=("SETUP MNO CONTROL CENTER" "")
+    CONTROL_CENTER_PRO_MENU=("SETUP MNO CONTROL CENTER" "PRO")
+fi
 
 if [[ ! "$PLANO" = *free* ]]; then
 
@@ -356,7 +374,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "REDISINSIGHT" "" \
     "ROCKET.CHAT" "" \
     "SEARXNG" "" \
-    "SETUP MNO CONTROL CENTER" "" \
+    "${CONTROL_CENTER_MENU[@]}" \
     "SYNCTHING" "" \
     "SHLINK" "" \
     "SIYUAN" "" \
@@ -689,7 +707,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "REACTIVE RESUME" "PRO" \
     "ROCKET.CHAT" "PRO" \
     "SEARXNG" "PRO" \
-    "SETUP MNO CONTROL CENTER" "PRO" \
+    "${CONTROL_CENTER_PRO_MENU[@]}" \
     "SYNCTHING" "PRO" \
     "SIYUAN" "PRO" \
     "TYPEBOT + MINIO*" "PRO" \
@@ -990,7 +1008,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "REDIS COMMANDER" "PRO" \
     "REDISINSIGHT" "PRO" \
     "SEARXNG" "PRO" \
-    "SETUP MNO CONTROL CENTER" "PRO" \
+    "${CONTROL_CENTER_PRO_MENU[@]}" \
     "SYNCTHING" "PRO" \
     "SHLINK" "PRO" \
     "SIYUAN" "PRO" \
@@ -1303,7 +1321,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "REDIS COMMANDER" "PRO" \
     "REDISINSIGHT" "PRO" \
     "SEARXNG" "PRO" \
-    "SETUP MNO CONTROL CENTER" "PRO" \
+    "${CONTROL_CENTER_PRO_MENU[@]}" \
     "SYNCTHING" "PRO" \
     "SHLINK" "PRO" \
     "SIYUAN" "PRO" \

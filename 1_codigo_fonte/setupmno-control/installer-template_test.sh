@@ -11,6 +11,10 @@ grep -Fq 'control_stack_manager="portainer"' "$template"
 grep -Fq 'control_stack_manager="docker"' "$template"
 grep -Fq 'SETUPMNO_CONTROL_STACK_MANAGER=$control_stack_manager' "$template"
 grep -Fq 'SETUPMNO_CONTROL_PORTAINER_CREDENTIALS=/root/dados_portainer/dados_portainer' "$template"
+grep -Fq 'if control_center_installed; then' "$template"
+grep -Fq 'somente uma instalação é permitida por servidor' "$template"
+grep -Fq '/root/SetupLowCodeMno/.setupmno-control-install.lock' "$template"
+grep -Fq 'flock -n 9' "$template"
 test_dir=$(mktemp -d)
 trap 'rm -rf "$test_dir"' EXIT
 
@@ -66,8 +70,31 @@ case "$MOCK_CURL_MODE" in
         ;;
 esac
 EOF
-chmod 0755 "$test_dir/bin/whiptail" "$test_dir/bin/curl"
+cat >"$test_dir/bin/docker" <<'EOF'
+#!/usr/bin/bash
+if [ "${MOCK_CONTROL_CENTER:-absent}" = "installed" ]; then
+    printf '%s\n' 'mnoctrlabc1234-web_mnoctrlabc1234-web'
+else
+    printf '%s\n' 'portainer_portainer'
+fi
+EOF
+chmod 0755 "$test_dir/bin/whiptail" "$test_dir/bin/curl" "$test_dir/bin/docker"
 PATH="$test_dir/bin:$PATH"
+
+control_function_source=$(awk '
+    /^control_center_installed\(\)/ { inside=1 }
+    inside { print }
+    inside && /^}/ { exit }
+' "$template")
+[ -n "$control_function_source" ]
+eval "$control_function_source"
+export MOCK_CONTROL_CENTER="installed"
+control_center_installed
+export MOCK_CONTROL_CENTER="absent"
+if control_center_installed; then
+    printf 'ERRO: serviço não relacionado foi identificado como Control Center.\n' >&2
+    exit 1
+fi
 
 route_output="$test_dir/route.json"
 check_cloudflare_route "$route_output"

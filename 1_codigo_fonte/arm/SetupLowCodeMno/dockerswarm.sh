@@ -35,6 +35,42 @@ bege="\e[93m"
 vermelho="\e[91m"
 reset="\e[0m"
 
+control_center_installed() {
+    command -v docker >/dev/null 2>&1 || return 1
+    docker service ls --format '{{.Name}}' 2>/dev/null |
+        grep -Eq '^mnoctrl[[:alnum:]]+-(web|agent|terminal|assistant)_'
+}
+
+essential_services_ready() {
+    local service
+    command -v docker >/dev/null 2>&1 || return 1
+    docker info >/dev/null 2>&1 || return 1
+    for service in traefik portainer postgres redis pgbouncer; do
+        docker service ls --filter "name=$service" --format '{{.Name}}' 2>/dev/null |
+            grep -q "$service" || return 1
+    done
+}
+
+offer_control_center_installation() {
+    local installer="/root/SetupLowCodeMno/setupmno_control" status
+    [ -x "$installer" ] || return 0
+    essential_services_ready || return 0
+    control_center_installed && return 0
+
+    if whiptail --title "SETUP MNO CONTROL CENTER (OPCIONAL)" --yesno \
+        "Deseja instalar agora o Setup MNO Control Center?\n\nEle adiciona uma interface web para acompanhar o servidor, consultar o catálogo, visualizar Blueprints, usar o Assistente MNO e abrir o Instalador Seguro.\n\nA instalação é opcional. Se escolher NÃO, o Setup MNO continuará funcionando normalmente e você poderá instalar o Control Center depois pelo menu principal." \
+        20 82; then
+        clear
+        "$installer"
+        status=$?
+        if [ "$status" -ne 0 ]; then
+            whiptail --title "CONTROL CENTER NÃO INSTALADO" --msgbox \
+                "A instalação opcional do Control Center não foi concluída.\n\nAs ferramentas essenciais do Setup MNO permanecem instaladas. Você poderá tentar novamente pelo menu principal." \
+                14 78
+        fi
+    fi
+}
+
 #
 # FIM DE LOADING
 #
@@ -1842,17 +1878,30 @@ echo -e "XXX\n100\nCONCLUÍDO: INICIANDO SETUP MNO \nXXX"
 
 #######################################################################
 
+else
+
+    echo -e "XXX\n76\nERRO: Não foi possível iniciar o Docker \nXXX"
+    sleep 5
+    echo -e "XXX\n76\nERRO: formate a VPS e tente novamente \nXXX"
+    sleep 5
+    echo -e "XXX\n80\nERRO: Obrigatório o uso de VPS vazia \nXXX"
+    sleep 10
+
+    $SHELL
+
+fi
+}|whiptail --title "SETUP MNO - FERRAMENTAS ESSENCIAIS" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
+
+offer_control_center_installation
+
 if [[ "$INSTALL_CHOICE" = "TRADICIONAL" && "$criar_dns" == "0" ]] ; then
 {
-  tput reset 2>/dev/null         # Reinicia o terminal de forma segura
-  exec 0</dev/tty 1>/dev/tty 2>&1 # Força redirecionamentos explícitos
-  sleep 0.01                     # Pausa microscópica para sincronia
-  clear                          # Limpeza final antes do whiptail
+  tput reset 2>/dev/null
+  exec 0</dev/tty 1>/dev/tty 2>&1
+  sleep 0.01
+  clear
 } || true
 clear
-# Primeiro mostra o banner MNO
-
-# Mostra as mensagens de conclusão
 whiptail --title "INSTALAÇÃO CONCLUÍDA" --msgbox "
 INSTALAÇÃO DAS FERRAMENTAS ESSENCIAIS CONCLUÍDA!
 O SERVIDOR PRECISA SER REINICIADO. DIGITE ENTER PARA REINICIAR
@@ -1869,32 +1918,12 @@ PARA USAR O SETUP MNO NOVAMENTE SIGA AS INSTRUÇÕES ABAIXO
 
 📡 DIGITE ENTER PARA REINICIAR:
 " 20 70
-
 reboot
-
-
 else
-
-cd /root/SetupLowCodeMno
-sleep 5
-./install
-
-fi
-
-
-else
-
-    echo -e "XXX\n76\nERRO: Não foi possível iniciar o Docker \nXXX"
+    cd /root/SetupLowCodeMno
     sleep 5
-    echo -e "XXX\n76\nERRO: formate a VPS e tente novamente \nXXX"
-    sleep 5
-    echo -e "XXX\n80\nERRO: Obrigatório o uso de VPS vazia \nXXX"
-    sleep 10
-
-    $SHELL
-
+    ./install
 fi
-}|whiptail --title "SETUP MNO - FERRAMENTAS ESSENCIAIS" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
 
 
 # Verificação final de DNS

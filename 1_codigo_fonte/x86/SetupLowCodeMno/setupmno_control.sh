@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.11.0"
+CONTROL_VERSION="4.11.1"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -45,6 +45,30 @@ msg() {
     # a interface para stderr mantém o Whiptail visível no terminal/ttyd.
     whiptail --title "SETUP MNO CONTROL CENTER" --msgbox "$1" 14 78 1>&2
 }
+
+control_center_installed() {
+    command -v docker >/dev/null 2>&1 || return 1
+    docker service ls --format '{{.Name}}' 2>/dev/null |
+        grep -Eq '^mnoctrl[[:alnum:]]+-(web|agent|terminal|assistant)_'
+}
+
+command -v flock >/dev/null 2>&1 || {
+    msg "A trava de instalação segura (flock) não está disponível. Nenhuma alteração foi realizada."
+    exit 1
+}
+exec 9>"/root/SetupLowCodeMno/.setupmno-control-install.lock" || {
+    msg "Não foi possível criar a trava de instalação do Control Center. Nenhuma alteração foi realizada."
+    exit 1
+}
+flock -n 9 || {
+    msg "Já existe uma instalação do Setup MNO Control Center em andamento neste servidor.\n\nAguarde a conclusão antes de tentar novamente."
+    exit 0
+}
+
+if control_center_installed; then
+    msg "Já existe um Setup MNO Control Center neste servidor.\n\nPor segurança, somente uma instalação é permitida por servidor. A instalação atual não foi alterada."
+    exit 0
+fi
 
 ask_required() {
     local prompt="$1" value status

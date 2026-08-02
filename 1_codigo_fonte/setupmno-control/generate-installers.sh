@@ -68,6 +68,19 @@ grep -Fq 'if ! check_cloudflare_route "$route_check"; then' "$template" || {
 bash "$project_dir/installer-template_test.sh"
 bash "$project_dir/configure-control_test.sh"
 
+for architecture in x86 arm; do
+    install_script="$source_root/$architecture/SetupLowCodeMno/install.sh"
+    foundation_script="$source_root/$architecture/SetupLowCodeMno/dockerswarm.sh"
+    bash -n "$install_script"
+    bash -n "$foundation_script"
+    grep -Fq 'control_center_installed()' "$install_script"
+    grep -Fq 'control_center_installed()' "$foundation_script"
+    grep -Fq 'offer_control_center_installation()' "$foundation_script"
+    grep -Fq 'A instalação é opcional.' "$foundation_script"
+    [ "$(grep -Fc '"${CONTROL_CENTER_MENU[@]}"' "$install_script")" -eq 1 ]
+    [ "$(grep -Fc '"${CONTROL_CENTER_PRO_MENU[@]}"' "$install_script")" -eq 3 ]
+done
+
 grep -Fq -- '- /root/SetupLowCodeMno/.control:/runtime-control:ro' "$template" || {
     printf 'ERRO: o agente precisa montar somente o estado runtime do Control Center.\n' >&2
     exit 1

@@ -2,16 +2,16 @@
 {
   "schemaVersion": 1,
   "documentId": "setup-setupmno-control-overview",
-  "documentVersion": "1.3.0",
-  "contentSHA256": "6a64421e8e584ff4c80f2fa2efb69231c9cc2f93d153f2b0472b52a68799b21f",
+  "documentVersion": "1.4.0",
+  "contentSHA256": "ce7b3c137b70903e2fd778075fbb33c48b48102a7f4797030be6a433bff41be5",
   "documentType": "setup",
   "title": "Setup MNO Control Center",
   "setupId": "setupmno-control",
-  "setupVersion": "7.2.16",
+  "setupVersion": "7.3.0",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
-  "updatedAt": "2026-07-31",
+  "updatedAt": "2026-08-02",
   "sourceType": "setup-mno",
   "risk": "critical",
   "language": "pt-BR",
@@ -61,6 +61,20 @@ Exige infraestrutura-base, domínio, memória mínima do modo escolhido e pacote
 runtime consistente. OpenAI, OpenRouter, DeepSeek e Ollama são opcionais; o
 diagnóstico básico deve permanecer disponível. OpenAI é a seleção inicial do
 instalador quando os requisitos mínimos de memória são atendidos.
+
+## Instalação opcional e única
+
+Na primeira preparação da infraestrutura-base, o `dockerswarm.sh` explica a
+finalidade do Control Center e pergunta se o usuário deseja instalá-lo. A
+resposta negativa não altera o Setup MNO: a instalação continua disponível no
+menu principal para outro momento.
+
+Somente uma instalação é aceita por servidor. A presença de qualquer serviço
+do Control Center no namespace reservado `mnoctrl` remove a opção do menu. O
+instalador também executa o mesmo gate antes de solicitar domínio, usuário,
+senha ou provedor, protegendo contra execução direta e menus antigos. Uma trava
+exclusiva impede ainda duas instalações simultâneas antes da criação das
+stacks.
 
 ## Fluxo seguro
 

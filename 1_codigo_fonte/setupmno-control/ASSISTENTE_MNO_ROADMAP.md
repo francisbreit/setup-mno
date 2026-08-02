@@ -14,9 +14,9 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.2.16` no canal Beta
-- Control Center: `4.11.0`
-- Conhecimento canônico: `3.10.0`
+- Setup MNO: `7.3.0` no canal Beta
+- Control Center: `4.11.1`
+- Conhecimento canônico: `3.10.1`
 - Catálogo runtime: 151 entradas
 - Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
 - Blueprints: cinco guias Beta editáveis, consultáveis e baixáveis; ainda não homologados
@@ -99,7 +99,7 @@ relacionado continua visível quando a RAM ou arquitetura não atende, mas a tel
 bloqueia a instalação naquele servidor e explica o motivo. A correspondência
 aproximada permanece restrita a tags e aliases canônicos e não cria soluções.
 
-### Hotfix v7.2.16 Beta
+### Hotfix v7.3.0 Beta
 
 Corrige o código 41 que bloqueava toda instalação da v7.2.15. Os gatilhos x86
 e ARM ainda exigiam a fábrica de Blueprints `2.0.0` e pelo menos uma fixture,
@@ -107,6 +107,21 @@ enquanto o pacote correto já distribuía a fábrica `2.1.0` e zero fixtures ap�
 a promoção dos cinco guias para o canal Beta. As expectativas agora são
 declaradas nos dois gatilhos e comparadas mecanicamente com o manifesto pelo
 gerador; qualquer divergência futura bloqueia a geração antes do empacotamento.
+
+### Release v7.3.0 Beta
+
+Profissionaliza a primeira instalação do Setup MNO com uma oferta opcional do
+Control Center logo após a validação de Traefik, Portainer, PostgreSQL, Redis e
+PgBouncer. A tela explica o painel, o catálogo, os Blueprints, o Assistente e o
+Instalador Seguro, e deixa claro que a recusa não impede instalação posterior
+pelo menu.
+
+Impõe também uma única instalação do Control Center por servidor. Os menus PRO,
+Free, Free1 e Free2 passam a ocultar dinamicamente a opção quando qualquer
+serviço do namespace reservado `mnoctrl` já existe. O próprio instalador repete
+o gate antes de coletar qualquer dado, impedindo duplicação por execução direta
+ou por uma sessão de menu desatualizada. Uma trava exclusiva cobre também duas
+tentativas simultâneas antes da criação das stacks.
 
 ## Norte do produto
 

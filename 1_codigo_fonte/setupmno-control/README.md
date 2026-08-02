@@ -18,6 +18,21 @@ comandos. O único componente com acesso ao
 instalador original é o terminal, protegido pela autenticação e pela sessão do
 painel.
 
+## Instalação única e opcional
+
+O `dockerswarm.sh` oferece o Control Center depois que Traefik, Portainer,
+PostgreSQL, Redis e PgBouncer ficam prontos na primeira instalação do Setup
+MNO. A escolha é opcional: recusar não altera a infraestrutura-base e mantém a
+opção disponível no menu principal para instalação posterior.
+
+O servidor aceita somente uma instalação do Control Center. A detecção usa os
+serviços reais do Swarm com o namespace reservado `mnoctrl`; quando encontra
+qualquer componente existente, o item deixa de ser apresentado no menu. O
+próprio instalador repete o gate antes de coletar domínio ou credenciais, para
+impedir uma segunda instância por execução direta ou menu desatualizado. Uma
+trava exclusiva com `flock` cobre também duas tentativas simultâneas antes da
+criação do primeiro serviço.
+
 Web e Assistente executam como usuário não-root e sem capabilities Linux. O
 agente também remove todas as capabilities e monta somente o diretório runtime
 `.control` do Setup, além de `/proc` e do socket Docker necessários às métricas.
