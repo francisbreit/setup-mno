@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "HumHub no Setup MNO",
   "setupId": "humhub",
-  "setupVersion": "7.2.12",
+  "setupVersion": "7.2.13",
   "architectures": [
     "amd64"
   ],

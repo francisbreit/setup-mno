@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Jitsi Meet no Setup MNO",
   "setupId": "jitsi-meet",
-  "setupVersion": "7.2.12",
+  "setupVersion": "7.2.13",
   "architectures": [
     "amd64",
     "arm64"

@@ -440,7 +440,7 @@ configure_provider() {
         height=$(dialog_height 15)
         width=$(dialog_width 84)
         whiptail --title "$title" --yesno \
-            "Ativar somente o diagnóstico básico?\n\nA stack isolada do Assistente será removida após o painel confirmar a nova configuração." \
+            "Ativar somente o diagnóstico básico?\n\nA stack isolada do Assistente será removida após o painel confirmar a nova configuração.\n\nA aplicação precisará ser reiniciada. O site e o Instalador Seguro poderão ficar inacessíveis por cerca de 2 minutos." \
             "$height" "$width" || return 0
         if ! update_web_assistant "basic" "" ""; then
             rollback_service "$web_service"
@@ -448,7 +448,7 @@ configure_provider() {
             return
         fi
         docker stack rm "$assistant_stack" >>"$operation_log" 2>&1 || true
-        msg "Diagnóstico básico ativado.\n\nNenhuma chave de LLM permanece anexada ao Assistente."
+        msg "Diagnóstico básico ativado.\n\nNenhuma chave de LLM permanece anexada ao Assistente.\n\nA aplicação foi reiniciada. O site e o Instalador Seguro poderão ficar inacessíveis por cerca de 2 minutos. Aguarde esse período antes de acessar novamente."
         return
     fi
 
@@ -510,7 +510,7 @@ configure_provider() {
     height=$(dialog_height 17)
     width=$(dialog_width 88)
     whiptail --title "$title" --yesno \
-        "Aplicar o provedor $provider_name com o modelo:\n\n$model\n\nA nova stack será validada antes de substituir a configuração ativa." \
+        "Aplicar o provedor $provider_name com o modelo:\n\n$model\n\nA nova stack será validada antes de substituir a configuração ativa.\n\nA aplicação precisará ser reiniciada. O site e o Instalador Seguro poderão ficar inacessíveis por cerca de 2 minutos." \
         "$height" "$width" || return 0
 
     if docker service inspect "$assistant_service" >/dev/null 2>&1; then
@@ -565,7 +565,7 @@ configure_provider() {
     if [ -n "$old_secret" ] && [ "$old_secret" != "$provider_secret" ]; then
         docker secret rm "$old_secret" >>"$operation_log" 2>&1 || true
     fi
-    msg "Provedor atualizado com sucesso.\n\nProvedor: $provider_name\nModelo: $model\n\nO painel será reiniciado e solicitará novo login."
+    msg "Provedor atualizado com sucesso.\n\nProvedor: $provider_name\nModelo: $model\n\nA aplicação foi reiniciada e solicitará novo login. O site e o Instalador Seguro poderão ficar inacessíveis por cerca de 2 minutos. Aguarde esse período antes de acessar novamente."
 }
 
 while true; do

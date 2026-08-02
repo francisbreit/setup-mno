@@ -14,8 +14,8 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.2.12` no canal Beta
-- Control Center: `4.10.0`
+- Setup MNO: `7.2.13` no canal Beta
+- Control Center: `4.10.1`
 - Conhecimento canônico: `3.9.0`
 - Catálogo runtime: 151 entradas
 - Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
@@ -72,6 +72,14 @@ exibidos. A tela informa claramente que o chat com IA está desativado e oferece
 um único botão para executar o diagnóstico local de memória, disco, serviços e
 réplicas. OpenAI, OpenRouter, DeepSeek e Ollama continuam exibindo o chat
 consultivo completo quando o respectivo conector está ativo.
+
+### Hotfix v7.2.13 Beta
+
+Explicita o impacto operacional da troca de provedor do Assistente MNO. As
+telas de confirmação e de conclusão, tanto para provedores LLM quanto para o
+modo `BASIC`, informam que a aplicação precisa ser reiniciada e que o site e o
+Instalador Seguro podem ficar inacessíveis por cerca de dois minutos. A
+mensagem orienta o usuário a aguardar esse período antes de entrar novamente.
 
 ## Norte do produto
 

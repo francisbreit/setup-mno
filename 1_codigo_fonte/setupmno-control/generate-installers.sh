@@ -197,6 +197,10 @@ grep -Fq 'SETUPMNO_CONFIG_SMOKE_TEST' "$project_dir/configure-control.sh" || {
     printf 'ERRO: a Central de Configurações não possui smoke test isolado.\n' >&2
     exit 1
 }
+[ "$(grep -Fc 'O site e o Instalador Seguro poderão ficar inacessíveis por cerca de 2 minutos' "$project_dir/configure-control.sh")" -eq 4 ] || {
+    printf 'ERRO: troca de provedor sem aviso completo de reinício e indisponibilidade.\n' >&2
+    exit 1
+}
 grep -Fq 'COPY configure-control.sh /usr/local/bin/setupmno-control-configure' \
     "$project_dir/terminal.Dockerfile" || {
     printf 'ERRO: a imagem do terminal não inclui a Central de Configurações.\n' >&2
