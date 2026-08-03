@@ -118,6 +118,8 @@ for architecture in x86 arm; do
     grep -Fq "! -name '.control'" "$start_script" &&
     ! grep -Fq 'mv "$live_dir" "$hold_dir/.control"' "$start_script" &&
     grep -Fq 'reconcile_control_center_plan_services "$PLANO"' "$start_script" &&
+    grep -Fq "swarm_state=\$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null) || return 0" "$start_script" &&
+    grep -Fq '[ "$swarm_state" = "active" ] || return 0' "$start_script" &&
     grep -Fq 'service_has_mount_target "$service" /runtime-control' "$start_script" &&
     grep -Fq 'service_has_env_key "$service" SETUPMNO_PLAN' "$start_script" &&
     grep -Fq 'service_has_env_value "$service" SETUPMNO_PLAN "$plan"' "$start_script" &&
@@ -126,7 +128,7 @@ for architecture in x86 arm; do
     grep -Fq 'docker service update --replicas "$assistant_replicas"' "$start_script" &&
     grep -Fq -- '--env-rm SETUPMNO_PLAN --env-add "SETUPMNO_PLAN=$plan"' "$start_script" &&
     grep -Fq 'O estado anterior do painel foi restaurado quando disponível.' "$start_script" || {
-        printf 'ERRO: %s não preserva o runtime, o mount do agente ou o plano do painel.\n' \
+        printf 'ERRO: %s não preserva o runtime, o bootstrap legado, o mount do agente ou o plano do painel.\n' \
             "$architecture" >&2
         exit 1
     }

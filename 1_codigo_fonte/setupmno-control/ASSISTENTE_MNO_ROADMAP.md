@@ -14,7 +14,7 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.7.6` no canal Beta
+- Setup MNO: `7.7.7` no canal Beta
 - Control Center: `4.15.1`
 - Conhecimento canônico: `3.14.0`
 - Catálogo runtime: 151 entradas
@@ -2396,6 +2396,29 @@ estiver sem `/runtime-control`, o mount canônico é adicionado e confirmado sem
 criar stacks, serviços, volumes ou containers permanentes. Instalações já
 corretas não sofrem restart. Ambiguidade com múltiplos agentes é bloqueada e
 exibida ao usuário, nunca corrigida por aproximação.
+
+## Correção v7.7.7 — Bootstrap anterior ao Control Center
+
+**Status:** implementado
+**Impacto:** crítico
+**Tipo:** confiabilidade e compatibilidade
+**Esforço:** rápido
+
+Instalações criadas antes do lançamento do Control Center podem executar o
+gatilho de licenciamento antes de o Docker Swarm estar ativo. A v7.7.5
+confundia a indisponibilidade de `docker service ls` nesse estágio com uma
+falha ao reconciliar serviços existentes e interrompia o bootstrap com o
+código 41, mesmo sem existir qualquer serviço do painel.
+
+A reconciliação agora consulta primeiro o estado local do Swarm. Docker ainda
+indisponível, Swarm inativo ou Swarm ainda sendo preparado significam que não
+há Control Center a reconciliar, portanto o bootstrap de base prossegue. Em um
+Swarm ativo, a listagem e a atualização dos serviços continuam estritas:
+falhas reais permanecem bloqueantes e preservam o rollback de plano.
+
+O gate automatizado cobre Docker temporariamente indisponível, Swarm inativo,
+Swarm sem serviços, falha real de listagem em Swarm ativo, instalações legadas
+sem mount/variável e as 16 transições entre `free`, `free1`, `free2` e `pro`.
 
 ## Referências oficiais
 
