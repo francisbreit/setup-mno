@@ -68,6 +68,7 @@ grep -Fq 'if ! check_cloudflare_route "$route_check"; then' "$template" || {
 bash "$project_dir/installer-template_test.sh"
 bash "$project_dir/configure-control_test.sh"
 bash "$project_dir/control-runtime-transition_test.sh"
+bash "$project_dir/control-upgrade_test.sh"
 
 for architecture in x86 arm; do
     install_script="$source_root/$architecture/SetupLowCodeMno/install.sh"
@@ -113,10 +114,13 @@ for architecture in x86 arm; do
     grep -Fq "! -name '.control'" "$start_script" &&
     ! grep -Fq 'mv "$live_dir" "$hold_dir/.control"' "$start_script" &&
     grep -Fq 'reconcile_control_center_plan_services "$PLANO"' "$start_script" &&
+    grep -Fq 'service_has_mount_target "$service" /runtime-control' "$start_script" &&
+    grep -Fq 'service_has_env_key "$service" SETUPMNO_PLAN' "$start_script" &&
     grep -Fq -- '--mount-rm /runtime-control' "$start_script" &&
     grep -Fq -- '--mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly' "$start_script" &&
     grep -Fq 'docker service update --replicas "$assistant_replicas"' "$start_script" &&
-    grep -Fq -- '--env-rm SETUPMNO_PLAN --env-add "SETUPMNO_PLAN=$plan"' "$start_script" || {
+    grep -Fq -- '--env-rm SETUPMNO_PLAN --env-add "SETUPMNO_PLAN=$plan"' "$start_script" &&
+    grep -Fq 'O estado anterior do painel foi restaurado quando disponível.' "$start_script" || {
         printf 'ERRO: %s não preserva o runtime, o mount do agente ou o plano do painel.\n' \
             "$architecture" >&2
         exit 1
@@ -521,7 +525,7 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
     cd "$project_dir"
     tar -cf - \
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
-        terminal-menu.sh configure-control.sh \
+        terminal-menu.sh configure-control.sh control-upgrade.sh \
         main.go knowledge.go retrieval.go routing.go prompts.go \
         blueprint_recommendation.go evals.go provider_evals.go feedback.go web |
         gzip -9n >"$bundle"
@@ -540,6 +544,10 @@ if ! tar -tzf "$bundle" | grep -Fx 'provider_evals.go' >/dev/null; then
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'feedback.go' >/dev/null; then
     printf 'ERRO: bundle de fontes sem o feedback sanitizado.\n' >&2
+    exit 1
+fi
+if ! tar -tzf "$bundle" | grep -Fx 'control-upgrade.sh' >/dev/null; then
+    printf 'ERRO: bundle de fontes sem o atualizador in-place do Control Center.\n' >&2
     exit 1
 fi
 if tar -tzf "$bundle" | grep -q '^knowledge-package/'; then

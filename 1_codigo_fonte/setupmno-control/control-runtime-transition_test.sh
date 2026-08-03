@@ -25,6 +25,7 @@ for architecture in x86 arm; do
     functions=""
     for name in valid_setup_plan write_control_environment \
         prepare_setup_directory_preserving_control \
+        service_has_mount_target service_has_env_key \
         reconcile_control_center_plan_services; do
         function_source=$(extract_function "$start_script" "$name")
         [ -n "$function_source" ] || {
@@ -86,6 +87,16 @@ if [ "$1 $2" = "service ls" ]; then
         'portainer_portainer'
     exit 0
 fi
+if [ "$1 $2" = "service inspect" ]; then
+    if [ "${MOCK_LEGACY:-false}" = "true" ]; then
+        exit 0
+    fi
+    case "$*" in
+        *Mounts*) printf '%s\n' '/runtime-control' ;;
+        *Env*) printf '%s\n' 'SETUPMNO_PLAN=free2' ;;
+    esac
+    exit 0
+fi
 if [ "$1 $2" = "service update" ]; then
     printf '%s\n' "$*" >>"$DOCKER_TEST_LOG"
     exit 0
@@ -94,21 +105,30 @@ exit 1
 EOF
 chmod 0755 "$test_dir/bin/docker"
 PATH="$test_dir/bin:$PATH"
-for target_plan in free free1 free2 pro; do
-    : >"$docker_log"
-    reconcile_control_center_plan_services "$target_plan"
-    [ "$(wc -l <"$docker_log")" -eq 4 ]
-    grep -Fq 'service update --mount-rm /runtime-control --detach=true mnoctrlabc1234-agent_mnoctrlabc1234-agent' "$docker_log"
-    grep -Fq 'service update --mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly --force --detach=true mnoctrlabc1234-agent_mnoctrlabc1234-agent' "$docker_log"
-    if [ "$target_plan" = "pro" ]; then
-        expected_replicas="1"
-    else
-        expected_replicas="0"
-    fi
-    grep -Fq "service update --replicas $expected_replicas --detach=true mnoctrlabc1234-assistant_mnoctrlabc1234-assistant" \
-        "$docker_log"
-    grep -Fq "service update --env-rm SETUPMNO_PLAN --env-add SETUPMNO_PLAN=$target_plan --detach=true mnoctrlabc1234-web_mnoctrlabc1234-web" \
-        "$docker_log"
+for legacy in false true; do
+  export MOCK_LEGACY="$legacy"
+  for target_plan in free free1 free2 pro; do
+      : >"$docker_log"
+      reconcile_control_center_plan_services "$target_plan"
+      [ "$(wc -l <"$docker_log")" -eq 3 ]
+      grep -Fq 'service update' "$docker_log"
+      grep -Fq -- '--mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly' "$docker_log"
+      if [ "$legacy" = "true" ]; then
+          ! grep -Fq -- '--mount-rm /runtime-control' "$docker_log"
+          ! grep -Fq -- '--env-rm SETUPMNO_PLAN' "$docker_log"
+      else
+          grep -Fq -- '--mount-rm /runtime-control' "$docker_log"
+          grep -Fq -- '--env-rm SETUPMNO_PLAN' "$docker_log"
+      fi
+      if [ "$target_plan" = "pro" ]; then
+          expected_replicas="1"
+      else
+          expected_replicas="0"
+      fi
+      grep -Fq "service update --replicas $expected_replicas --detach=true mnoctrlabc1234-assistant_mnoctrlabc1234-assistant" \
+          "$docker_log"
+      grep -Fq -- "--env-add SETUPMNO_PLAN=$target_plan" "$docker_log"
+  done
 done
 
-printf 'Matriz de planos, plano web, caminho runtime estável e remount WSL2 aprovados.\n'
+printf 'Matriz de planos, legado, plano web, caminho runtime estável e remount WSL2 aprovados.\n'

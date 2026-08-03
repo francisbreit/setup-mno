@@ -12,7 +12,9 @@ grep -Fq 'control_stack_manager="docker"' "$template"
 grep -Fq 'SETUPMNO_CONTROL_STACK_MANAGER=$control_stack_manager' "$template"
 grep -Fq 'SETUPMNO_CONTROL_PORTAINER_CREDENTIALS=/root/dados_portainer/dados_portainer' "$template"
 grep -Fq 'if control_center_installed; then' "$template"
-grep -Fq 'somente uma instalação é permitida por servidor' "$template"
+grep -Fq 'upgrade_existing_control_center' "$template"
+grep -Fq 'exatamente uma instalação identificável do Control Center' \
+    "$project_dir/control-upgrade.sh"
 grep -Fq '/root/SetupLowCodeMno/.setupmno-control-install.lock' "$template"
 grep -Fq 'flock -n 9' "$template"
 test_dir=$(mktemp -d)

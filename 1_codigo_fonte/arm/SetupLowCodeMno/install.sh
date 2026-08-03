@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="7.7.4"
+VERSIONSETUP="7.7.5"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -183,11 +183,6 @@ fi
 # --- DISPATCH DINÂMICO (substitui 240+ case blocks) ---
 run_app() {
     local script="$1"
-    if [ "$script" = "setupmno_control" ] && control_center_installed; then
-        whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
-            "Já existe um Setup MNO Control Center neste servidor.\n\nSomente uma instalação é permitida por servidor." 12 72
-        return 0
-    fi
     clear
     cd && cd SetupLowCodeMno && ./"$script"
 }
@@ -285,7 +280,10 @@ while true; do
 
 CONTROL_CENTER_MENU=()
 CONTROL_CENTER_FREE_MENU=()
-if ! control_center_installed; then
+if control_center_installed; then
+    CONTROL_CENTER_MENU=("ATUALIZAR CONTROL CENTER" "")
+    CONTROL_CENTER_FREE_MENU=("ATUALIZAR CONTROL CENTER" "")
+else
     CONTROL_CENTER_MENU=("SETUP MNO CONTROL CENTER" "")
     CONTROL_CENTER_FREE_MENU=("SETUP MNO CONTROL CENTER" "")
 fi
@@ -579,7 +577,7 @@ case "$CHOICE" in
             "REDIS COMMANDER")                                       run_app redicommander ;;
             "REDISINSIGHT")                                          run_app redisinsight ;;
             "SEARXNG")                                               run_app searxng ;;
-            "SETUP MNO CONTROL CENTER")                              run_app setupmno_control ;;
+            "SETUP MNO CONTROL CENTER"|"ATUALIZAR CONTROL CENTER")  run_app setupmno_control ;;
             "SYNCTHING")                                             run_app syncthing ;;
             "SHLINK")                                                run_app shlink ;;
             "SIYUAN")                                                run_app siyuan ;;
@@ -900,7 +898,7 @@ case "$CHOICE" in
             "REDIS COMMANDER")                                       run_app redicommander ;;
             "REDISINSIGHT")                                          run_app redisinsight ;;
             "SEARXNG")                                               run_app searxng ;;
-            "SETUP MNO CONTROL CENTER")                              run_app setupmno_control ;;
+            "SETUP MNO CONTROL CENTER"|"ATUALIZAR CONTROL CENTER")  run_app setupmno_control ;;
             "SYNCTHING")                                             run_app syncthing ;;
             "SHLINK")                                                run_app shlink ;;
             "SIYUAN")                                                run_app siyuan ;;
@@ -1213,7 +1211,7 @@ case "$CHOICE" in
             "REDIS COMMANDER")                                       run_app redicommander ;;
             "REDISINSIGHT")                                          run_app redisinsight ;;
             "SEARXNG")                                               run_app searxng ;;
-            "SETUP MNO CONTROL CENTER")                              run_app setupmno_control ;;
+            "SETUP MNO CONTROL CENTER"|"ATUALIZAR CONTROL CENTER")  run_app setupmno_control ;;
             "SYNCTHING")                                             run_app syncthing ;;
             "SHLINK")                                                run_app shlink ;;
             "SIYUAN")                                                run_app siyuan ;;
@@ -1526,7 +1524,7 @@ case "$CHOICE" in
             "REDIS COMMANDER")                                       run_app redicommander ;;
             "REDISINSIGHT")                                          run_app redisinsight ;;
             "SEARXNG")                                               run_app searxng ;;
-            "SETUP MNO CONTROL CENTER")                              run_app setupmno_control ;;
+            "SETUP MNO CONTROL CENTER"|"ATUALIZAR CONTROL CENTER")  run_app setupmno_control ;;
             "SYNCTHING")                                             run_app syncthing ;;
             "SHLINK")                                                run_app shlink ;;
             "SIYUAN")                                                run_app siyuan ;;

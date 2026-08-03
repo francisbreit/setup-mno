@@ -14,8 +14,8 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.7.4` no canal Beta
-- Control Center: `4.15.0`
+- Setup MNO: `7.7.5` no canal Beta
+- Control Center: `4.15.1`
 - Conhecimento canônico: `3.14.0`
 - Catálogo runtime: 151 entradas
 - Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
@@ -2366,6 +2366,32 @@ do painel; falhas preservam a configuração anterior.
 Os gates cobrem as 16 transições de plano, a propagação do plano ao serviço
 web, o bloqueio dos três planos gratuitos e a ativação completa de um provedor
 válido no PRO.
+
+## Correção v7.7.5 — Atualização in-place e compatibilidade legada
+
+**Status:** implementado
+**Impacto:** crítico
+**Tipo:** confiabilidade, manutenção e compatibilidade
+**Esforço:** estrutural
+
+O item do instalador passa a oferecer atualização quando já existe exatamente
+um Control Center no servidor. O fluxo constrói e valida o Control Center
+`4.15.1`, atualiza os serviços existentes e conserva nomes, domínio, secrets,
+volume de feedback, provedor, plano e metadados de propriedade do Portainer.
+Nenhuma segunda instalação, stack ou volume permanente é criado.
+
+O agente, o Assistente e o painel são atualizados antes do terminal. A troca
+do terminal é agendada por um finalizador efêmero para que o processo não seja
+interrompido antes de o Docker aceitar a nova especificação. O usuário recebe
+aviso explícito de indisponibilidade temporária e pode reconectar após a
+convergência. Falhas anteriores à troca final acionam rollback dos serviços já
+alterados.
+
+A reconciliação de plano passa a inspecionar mounts e variáveis antes de usar
+`--mount-rm` ou `--env-rm`. Isso permite migrar versões antigas que não possuíam
+`/runtime-control` ou `SETUPMNO_PLAN`, eliminando a falha 41 sem enfraquecer a
+validação. Se ainda houver erro, o plano anterior do painel é restaurado quando
+estiver disponível.
 
 ## Referências oficiais
 

@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.7.4"
+VERSIONSETUP="7.7.5"
 EXPECTED_EVAL_DATASET_VERSION="1.9.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
 EXPECTED_EVAL_CASE_ENTRIES="843"
@@ -122,11 +122,15 @@ reconcile_control_center_plan_services() {
         case "$service" in
             mnoctrl*-agent_mnoctrl*-agent)
                 [[ "$service" =~ ^mnoctrl[[:alnum:]]+-agent_mnoctrl[[:alnum:]]+-agent$ ]] || continue
-                docker service update --mount-rm /runtime-control \
-                    --detach=true "$service" >/dev/null 2>&1 || return 1
-                docker service update \
-                    --mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly \
-                    --force --detach=true "$service" >/dev/null 2>&1 || return 1
+                if service_has_mount_target "$service" /runtime-control; then
+                    docker service update --mount-rm /runtime-control \
+                        --mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly \
+                        --force --detach=true "$service" >/dev/null 2>&1 || return 1
+                else
+                    docker service update \
+                        --mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly \
+                        --force --detach=true "$service" >/dev/null 2>&1 || return 1
+                fi
                 ;;
             mnoctrl*-assistant_mnoctrl*-assistant)
                 [[ "$service" =~ ^mnoctrl[[:alnum:]]+-assistant_mnoctrl[[:alnum:]]+-assistant$ ]] || continue
@@ -135,12 +139,29 @@ reconcile_control_center_plan_services() {
                 ;;
             mnoctrl*-web_mnoctrl*-web)
                 [[ "$service" =~ ^mnoctrl[[:alnum:]]+-web_mnoctrl[[:alnum:]]+-web$ ]] || continue
-                docker service update \
-                    --env-rm SETUPMNO_PLAN --env-add "SETUPMNO_PLAN=$plan" \
-                    --detach=true "$service" >/dev/null 2>&1 || return 1
+                if service_has_env_key "$service" SETUPMNO_PLAN; then
+                    docker service update \
+                        --env-rm SETUPMNO_PLAN --env-add "SETUPMNO_PLAN=$plan" \
+                        --detach=true "$service" >/dev/null 2>&1 || return 1
+                else
+                    docker service update --env-add "SETUPMNO_PLAN=$plan" \
+                        --detach=true "$service" >/dev/null 2>&1 || return 1
+                fi
                 ;;
         esac
     done <<<"$services"
+}
+
+service_has_mount_target() {
+    local service="$1" target="$2"
+    docker service inspect --format '{{range .Spec.TaskTemplate.ContainerSpec.Mounts}}{{println .Target}}{{end}}' \
+        "$service" 2>/dev/null | grep -Fxq "$target"
+}
+
+service_has_env_key() {
+    local service="$1" key="$2"
+    docker service inspect --format '{{range .Spec.TaskTemplate.ContainerSpec.Env}}{{println .}}{{end}}' \
+        "$service" 2>/dev/null | grep -Eq "^${key}="
 }
 
 # Função para enviar HTTP POST e validar a resposta
@@ -556,6 +577,14 @@ if [ "$DAYS_TRIAL" -lt 0 ]; then
 fi
 
 
+previous_control_plan=""
+if [ -f /root/SetupLowCodeMno/.control/environment.json ] &&
+   [ ! -L /root/SetupLowCodeMno/.control/environment.json ]; then
+    previous_control_plan=$(jq -r '.plan // empty' \
+        /root/SetupLowCodeMno/.control/environment.json 2>/dev/null || true)
+    valid_setup_plan "$previous_control_plan" || previous_control_plan=""
+fi
+
 if ! write_trial_state "$TRIAL_DIR" "$DATAAQ" "$DAYS_TRIAL" "$PLANO"; then
     printf 'Não foi possível persistir de forma segura o plano validado. Nenhuma instalação foi iniciada.\n' >"$control_state_error"
     exit 41
@@ -566,7 +595,13 @@ if ! write_control_environment "/root/SetupLowCodeMno/.control" "$PLANO"; then
     exit 41
 fi
 if ! reconcile_control_center_plan_services "$PLANO"; then
-    printf 'O plano foi atualizado, mas os serviços existentes do Control Center não puderam ser reconciliados com o novo acesso.\n' >"$control_state_error"
+    if [ -n "$previous_control_plan" ]; then
+        write_control_environment "/root/SetupLowCodeMno/.control" \
+            "$previous_control_plan" >/dev/null 2>&1 || true
+        reconcile_control_center_plan_services "$previous_control_plan" \
+            >/dev/null 2>&1 || true
+    fi
+    printf 'Os serviços existentes do Control Center não puderam ser reconciliados com o novo acesso. O estado anterior do painel foi restaurado quando disponível.\n' >"$control_state_error"
     exit 41
 fi
 

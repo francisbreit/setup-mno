@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Flowise no Setup MNO",
   "setupId": "flowise",
-  "setupVersion": "7.7.4",
+  "setupVersion": "7.7.5",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
