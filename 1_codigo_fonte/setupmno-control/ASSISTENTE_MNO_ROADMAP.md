@@ -14,7 +14,7 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.7.2` no canal Beta
+- Setup MNO: `7.7.3` no canal Beta
 - Control Center: `4.15.0`
 - Conhecimento canônico: `3.14.0`
 - Catálogo runtime: 151 entradas
@@ -2321,6 +2321,28 @@ ao PRO, a mesma stack é reativada com uma réplica, sem exigir nova chave.
 O gate de release passa a testar as 16 combinações entre os quatro planos,
 preservação do inode runtime, rollback, paralisação da LLM nos planos gratuitos
 e reativação no PRO.
+
+## Correção v7.7.3 — Runtime estável no WSL2 e Docker nativo
+
+**Status:** implementado
+**Impacto:** crítico
+**Tipo:** confiabilidade e compatibilidade
+**Esforço:** moderado
+
+A reinstalação deixa de mover o diretório `.control`. A estratégia anterior
+preservava o inode no Linux nativo, mas invalidava o caminho intermediário de
+bind mount criado pelo Docker Desktop no WSL2, impedindo o agente de iniciar e
+gerando tentativas sucessivas de containers.
+
+O novo fluxo mantém `/root/SetupLowCodeMno` e `.control` no mesmo caminho,
+remove somente os demais filhos da instalação e extrai a nova versão sobre o
+diretório preservado. Symlinks no diretório runtime continuam bloqueados.
+
+Durante a reconciliação, o mount `/runtime-control` do agente é removido e
+adicionado novamente usando o caminho canônico. Isso recupera instalações já
+afetadas e força o Docker Desktop a produzir um bind mount válido. Os gates
+simulam arquivos normais e ocultos, preservação do inode, bloqueio de symlink,
+matriz completa de planos e remount explícito do agente.
 
 ## Referências oficiais
 

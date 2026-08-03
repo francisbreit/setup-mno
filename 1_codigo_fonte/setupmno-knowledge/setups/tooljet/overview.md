@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "ToolJet no Setup MNO",
   "setupId": "tooljet",
-  "setupVersion": "7.7.2",
+  "setupVersion": "7.7.3",
   "architectures": [
     "amd64"
   ],

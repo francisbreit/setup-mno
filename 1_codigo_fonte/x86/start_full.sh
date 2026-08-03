@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.7.2"
+VERSIONSETUP="7.7.3"
 EXPECTED_EVAL_DATASET_VERSION="1.9.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
 EXPECTED_EVAL_CASE_ENTRIES="843"
@@ -87,56 +87,25 @@ write_control_environment() {
     mv -f "$temporary_file" "$control_dir/environment.json"
 }
 
-CONTROL_RUNTIME_HOLD=""
+prepare_setup_directory_preserving_control() {
+    local setup_dir="${1:-/root/SetupLowCodeMno}"
+    local control_dir="$setup_dir/.control"
 
-preserve_control_runtime() {
-    local live_dir="${1:-/root/SetupLowCodeMno/.control}"
-    local hold_root="${2:-/root}"
-    local hold_dir
-
-    if [ ! -e "$live_dir" ] && [ ! -L "$live_dir" ]; then
-        return 0
-    fi
-    [ -d "$live_dir" ] && [ ! -L "$live_dir" ] || return 1
-
-    hold_dir=$(mktemp -d "$hold_root/.setupmno-control-runtime.XXXXXX") || return 1
-    chmod 0700 "$hold_dir" || { rmdir "$hold_dir"; return 1; }
-    if ! mv "$live_dir" "$hold_dir/.control"; then
-        rmdir "$hold_dir" 2>/dev/null || true
+    if [ -L "$setup_dir" ]; then
         return 1
     fi
-    CONTROL_RUNTIME_HOLD="$hold_dir"
-}
-
-restore_control_runtime() {
-    local live_dir="${1:-/root/SetupLowCodeMno/.control}"
-
-    [ -n "$CONTROL_RUNTIME_HOLD" ] || return 0
-    [ -d "$CONTROL_RUNTIME_HOLD/.control" ] &&
-        [ ! -L "$CONTROL_RUNTIME_HOLD/.control" ] || return 1
-    mkdir -p "$(dirname "$live_dir")" || return 1
-    rm -rf "$live_dir"
-    mv "$CONTROL_RUNTIME_HOLD/.control" "$live_dir" || return 1
-    rmdir "$CONTROL_RUNTIME_HOLD" 2>/dev/null || true
-    CONTROL_RUNTIME_HOLD=""
-}
-
-activate_preserved_control_runtime() {
-    local live_dir="${1:-/root/SetupLowCodeMno/.control}"
-
-    if [ -z "$CONTROL_RUNTIME_HOLD" ]; then
-        mkdir -p "$live_dir"
+    if [ ! -e "$setup_dir" ]; then
+        mkdir -p "$setup_dir"
         return $?
     fi
-    [ -d "$CONTROL_RUNTIME_HOLD/.control" ] &&
-        [ ! -L "$CONTROL_RUNTIME_HOLD/.control" ] || return 1
-    if [ -e "$live_dir" ] || [ -L "$live_dir" ]; then
-        return 1
+    [ -d "$setup_dir" ] || return 1
+    if [ -e "$control_dir" ] || [ -L "$control_dir" ]; then
+        [ -d "$control_dir" ] && [ ! -L "$control_dir" ] || return 1
     fi
-    mkdir -p "$(dirname "$live_dir")" || return 1
-    mv "$CONTROL_RUNTIME_HOLD/.control" "$live_dir" || return 1
-    rmdir "$CONTROL_RUNTIME_HOLD" 2>/dev/null || return 1
-    CONTROL_RUNTIME_HOLD=""
+
+    find "$setup_dir" -mindepth 1 -maxdepth 1 ! -name '.control' \
+        -exec rm -rf -- {} + || return 1
+    mkdir -p "$control_dir"
 }
 
 reconcile_control_center_plan_services() {
@@ -153,7 +122,11 @@ reconcile_control_center_plan_services() {
         case "$service" in
             mnoctrl*-agent_mnoctrl*-agent)
                 [[ "$service" =~ ^mnoctrl[[:alnum:]]+-agent_mnoctrl[[:alnum:]]+-agent$ ]] || continue
-                docker service update --force --detach=true "$service" >/dev/null 2>&1 || return 1
+                docker service update --mount-rm /runtime-control \
+                    --detach=true "$service" >/dev/null 2>&1 || return 1
+                docker service update \
+                    --mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly \
+                    --force --detach=true "$service" >/dev/null 2>&1 || return 1
                 ;;
             mnoctrl*-assistant_mnoctrl*-assistant)
                 [[ "$service" =~ ^mnoctrl[[:alnum:]]+-assistant_mnoctrl[[:alnum:]]+-assistant$ ]] || continue
@@ -305,12 +278,10 @@ chmod +x setup-mno  >/dev/null 2>&1
 
 cd /
 cd
-if ! preserve_control_runtime; then
-    printf 'Não foi possível preservar o estado runtime atual do Control Center. A reinstalação foi interrompida sem remover o estado existente.\n' >"$control_state_error"
+if ! prepare_setup_directory_preserving_control "/root/SetupLowCodeMno"; then
+    printf 'Não foi possível preparar a reinstalação sem remover o estado runtime do Control Center.\n' >"$control_state_error"
     exit 41
 fi
-trap 'restore_control_runtime >/dev/null 2>&1 || true' EXIT
-sudo rm -r SetupLowCodeMno >/dev/null 2>&1
 apt-get install sudo -y >/dev/null 2>&1
 sudo apt-get update -y >/dev/null 2>&1
 sudo apt-get upgrade -y >/dev/null 2>&1
@@ -326,7 +297,7 @@ echo -e "XXX\n25\nAGUARDE: ISSO PODE LEVAR ALGUNS MINUTOS... 2/8 \nXXX"
 
 # 1. Remover instalação antiga e garantir diretório limpo
 cd /root 2>/dev/null || true
-rm -rf SetupLowCodeMno
+mkdir -p SetupLowCodeMno
 rm -f SetupLowCodeMno.zip
 
 echo -e "XXX\n25\nSETUPMNO: INSTALANDO DEPENDÊNCIAS... 2/8 \nXXX"
@@ -517,10 +488,7 @@ if [ "$control_schema" != "1" ] ||
         "$VERSIONSETUP" >"$control_state_error"
     exit 41
 fi
-if ! activate_preserved_control_runtime "$control_target"; then
-    printf 'Não foi possível reativar com segurança o estado runtime preservado do Control Center.\n' >"$control_state_error"
-    exit 41
-fi
+mkdir -p "$control_target"
 mkdir -p "$control_target/knowledge-package"
 install -m 0644 "$control_package/catalog.json" "$control_target/catalog.json.tmp"
 install -m 0644 "$control_package/release.json" "$control_target/release.json.tmp"

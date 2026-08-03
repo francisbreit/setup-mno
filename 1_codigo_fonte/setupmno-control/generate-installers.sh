@@ -109,11 +109,14 @@ for architecture in x86 arm; do
         printf 'ERRO: gravação incremental do plano detectada em %s.\n' "$architecture" >&2
         exit 1
     fi
-    grep -Fq 'preserve_control_runtime' "$start_script" &&
-    grep -Fq 'activate_preserved_control_runtime "$control_target"' "$start_script" &&
+    grep -Fq 'prepare_setup_directory_preserving_control "/root/SetupLowCodeMno"' "$start_script" &&
+    grep -Fq "! -name '.control'" "$start_script" &&
+    ! grep -Fq 'mv "$live_dir" "$hold_dir/.control"' "$start_script" &&
     grep -Fq 'reconcile_control_center_plan_services "$PLANO"' "$start_script" &&
+    grep -Fq -- '--mount-rm /runtime-control' "$start_script" &&
+    grep -Fq -- '--mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly' "$start_script" &&
     grep -Fq 'docker service update --replicas "$assistant_replicas"' "$start_script" || {
-        printf 'ERRO: %s não preserva ou não renova o runtime do Control Center durante reinstalações.\n' \
+        printf 'ERRO: %s não preserva o caminho runtime ou não renova o mount do agente.\n' \
             "$architecture" >&2
         exit 1
     }

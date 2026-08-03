@@ -23,8 +23,8 @@ for architecture in x86 arm; do
     fi
 
     functions=""
-    for name in valid_setup_plan write_control_environment preserve_control_runtime \
-        restore_control_runtime activate_preserved_control_runtime \
+    for name in valid_setup_plan write_control_environment \
+        prepare_setup_directory_preserving_control \
         reconcile_control_center_plan_services; do
         function_source=$(extract_function "$start_script" "$name")
         [ -n "$function_source" ] || {
@@ -39,17 +39,14 @@ for architecture in x86 arm; do
       for target_plan in free free1 free2 pro; do
         case_dir="$test_dir/$architecture-$previous_plan-$target_plan"
         live_dir="$case_dir/SetupLowCodeMno/.control"
-        hold_root="$case_dir"
         mkdir -p "$live_dir"
         printf '%s\n' "$previous_plan" >"$live_dir/runtime-marker"
+        printf '%s\n' remove >"$case_dir/SetupLowCodeMno/install"
+        mkdir -p "$case_dir/SetupLowCodeMno/.hidden-old"
+        printf '%s\n' remove >"$case_dir/SetupLowCodeMno/.hidden-old/file"
         inode_before=$(stat -c '%i' "$live_dir")
 
-        CONTROL_RUNTIME_HOLD=""
-        preserve_control_runtime "$live_dir" "$hold_root"
-        [ ! -e "$live_dir" ]
-        rm -rf "$case_dir/SetupLowCodeMno"
-        mkdir -p "$case_dir/SetupLowCodeMno"
-        activate_preserved_control_runtime "$live_dir"
+        prepare_setup_directory_preserving_control "$case_dir/SetupLowCodeMno"
         inode_after=$(stat -c '%i' "$live_dir")
         [ "$inode_before" = "$inode_after" ] || {
             printf 'ERRO: inode do runtime mudou na transição %s -> %s (%s).\n' \
@@ -57,6 +54,8 @@ for architecture in x86 arm; do
             exit 1
         }
         [ "$(cat "$live_dir/runtime-marker")" = "$previous_plan" ]
+        [ ! -e "$case_dir/SetupLowCodeMno/install" ]
+        [ ! -e "$case_dir/SetupLowCodeMno/.hidden-old" ]
 
         write_control_environment "$live_dir" "$target_plan"
         jq -e --arg plan "$target_plan" '.schemaVersion == 1 and .plan == $plan and
@@ -65,15 +64,13 @@ for architecture in x86 arm; do
       done
     done
 
-    rollback_dir="$test_dir/$architecture-rollback"
-    rollback_live="$rollback_dir/SetupLowCodeMno/.control"
-    mkdir -p "$rollback_live"
-    printf '%s\n' preserved >"$rollback_live/runtime-marker"
-    CONTROL_RUNTIME_HOLD=""
-    preserve_control_runtime "$rollback_live" "$rollback_dir"
-    rm -rf "$rollback_dir/SetupLowCodeMno"
-    restore_control_runtime "$rollback_live"
-    [ "$(cat "$rollback_live/runtime-marker")" = "preserved" ]
+    symlink_dir="$test_dir/$architecture-symlink"
+    mkdir -p "$symlink_dir/SetupLowCodeMno" "$symlink_dir/target"
+    ln -s "$symlink_dir/target" "$symlink_dir/SetupLowCodeMno/.control"
+    if prepare_setup_directory_preserving_control "$symlink_dir/SetupLowCodeMno"; then
+        printf 'ERRO: symlink em .control foi aceito (%s).\n' "$architecture" >&2
+        exit 1
+    fi
 done
 
 mkdir -p "$test_dir/bin"
@@ -100,9 +97,9 @@ PATH="$test_dir/bin:$PATH"
 for target_plan in free free1 free2 pro; do
     : >"$docker_log"
     reconcile_control_center_plan_services "$target_plan"
-    [ "$(wc -l <"$docker_log")" -eq 2 ]
-    grep -Fq 'service update --force --detach=true mnoctrlabc1234-agent_mnoctrlabc1234-agent' \
-        "$docker_log"
+    [ "$(wc -l <"$docker_log")" -eq 3 ]
+    grep -Fq 'service update --mount-rm /runtime-control --detach=true mnoctrlabc1234-agent_mnoctrlabc1234-agent' "$docker_log"
+    grep -Fq 'service update --mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly --force --detach=true mnoctrlabc1234-agent_mnoctrlabc1234-agent' "$docker_log"
     if [ "$target_plan" = "pro" ]; then
         expected_replicas="1"
     else
@@ -112,4 +109,4 @@ for target_plan in free free1 free2 pro; do
         "$docker_log"
 done
 
-printf 'Matriz bidirecional free/free1/free2/pro e ciclo da stack LLM aprovados.\n'
+printf 'Matriz de planos, caminho runtime estável e remount WSL2 aprovados.\n'
