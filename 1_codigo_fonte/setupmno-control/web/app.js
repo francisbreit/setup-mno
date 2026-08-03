@@ -1417,6 +1417,8 @@ function updateAssistantRuntime(runtime = {}) {
   const model = runtime.model || state.assistantModel || "";
   const fallback = Boolean(runtime.fallback);
   const operationalContextAvailable = runtime.operationalContextAvailable !== false;
+  const operationalContextWarning = String(runtime.operationalContextWarning || "").trim();
+  const operationalContextPartial = operationalContextAvailable && operationalContextWarning !== "";
   const fallbackReason = runtime.fallbackReason || "";
   const fallbackLabel = fallbackReason === "provider"
     ? "Provedor de IA indisponível"
@@ -1442,6 +1444,12 @@ function updateAssistantRuntime(runtime = {}) {
       ? `Modelo: ${model} · métricas locais temporariamente indisponíveis`
       : "Conhecimento canônico ativo · métricas locais temporariamente indisponíveis";
   }
+  if (!fallback && assistantModeUsesLLM(mode) && operationalContextPartial) {
+    $("assistant-provider").textContent = `${provider} · métricas ativas`;
+    $("assistant-model").textContent = model
+      ? `Modelo: ${model} · contexto operacional parcial`
+      : "Métricas locais ativas · contexto operacional parcial";
+  }
   if (mode === "catalog") {
     $("assistant-welcome-title").textContent = "Catálogo runtime validado.";
     $("assistant-welcome-text").textContent = "Listagens completas são geradas localmente para garantir todos os setups, sem omissões ou alucinações.";
@@ -1453,6 +1461,9 @@ function updateAssistantRuntime(runtime = {}) {
     if (!operationalContextAvailable) {
       $("assistant-welcome-text").textContent = "A base canônica continua disponível para explicar aplicações, requisitos e integrações. A leitura de métricas deste servidor está temporariamente indisponível.";
       $("assistant-privacy").textContent = "A resposta usa o conhecimento canônico; nenhuma métrica local foi enviada nesta consulta.";
+    } else if (operationalContextPartial) {
+      $("assistant-welcome-text").textContent = operationalContextWarning;
+      $("assistant-privacy").textContent = "As métricas agregadas disponíveis são combinadas com o conhecimento canônico; dados ausentes não são inventados.";
     }
   } else if (mode === "ollama") {
     $("assistant-welcome-title").textContent = "Olá! O Copiloto MNO está conectado ao Ollama.";
@@ -1461,6 +1472,9 @@ function updateAssistantRuntime(runtime = {}) {
     if (!operationalContextAvailable) {
       $("assistant-welcome-text").textContent = "A base canônica continua disponível para explicar aplicações, requisitos e integrações. A leitura de métricas deste servidor está temporariamente indisponível.";
       $("assistant-privacy").textContent = "O processamento usa o conhecimento canônico no endpoint Ollama configurado; nenhuma métrica local foi enviada nesta consulta.";
+    } else if (operationalContextPartial) {
+      $("assistant-welcome-text").textContent = operationalContextWarning;
+      $("assistant-privacy").textContent = "O Ollama recebe somente as métricas agregadas disponíveis e o conhecimento canônico necessário à consulta.";
     }
   } else if (fallback) {
     $("assistant-welcome-title").textContent = `${fallbackLabel}.`;

@@ -621,6 +621,9 @@ func TestCollectContextIncludesExactCatalogTotalAndSystem(t *testing.T) {
 	if contextData.RelevantSetupCount != 12 || len(contextData.RelevantSetups) != 12 {
 		t.Fatalf("recorte relevante não respeitou o limite: %#v", contextData)
 	}
+	if !assistantCatalogContextAvailable(contextData) {
+		t.Fatal("catálogo runtime validado não foi reconhecido")
+	}
 	if contextData.OperatingSystem != "Docker Desktop" ||
 		contextData.OSType != "linux" ||
 		contextData.KernelVersion != "6.6.87.2-microsoft-standard-WSL2" ||
@@ -633,6 +636,67 @@ func TestCollectContextIncludesExactCatalogTotalAndSystem(t *testing.T) {
 	}
 	if strings.Contains(string(serialized), "hostname-secreto") {
 		t.Fatal("hostname não deve ser enviado ao provedor")
+	}
+}
+
+func TestCollectContextPreservesMetricsWhenRuntimeCatalogIsUnavailable(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-SetupMNO-Agent-Token") != "token-teste" {
+			t.Errorf("token do agente ausente")
+		}
+		switch r.URL.Path {
+		case "/overview":
+			_ = json.NewEncoder(w).Encode(overview{
+				Metrics: hostMetrics{
+					CPUPercent:    12.5,
+					MemoryPercent: 37.5,
+					MemoryTotal:   8 << 30,
+					MemoryUsed:    3 << 30,
+					DiskPercent:   18.2,
+				},
+				Services:         12,
+				DegradedServices: 1,
+				SwarmNodes:       1,
+				Architecture:     "x86_64",
+				OperatingSystem:  "Docker Desktop",
+			})
+		case "/apps":
+			_, _ = w.Write([]byte(`{"apps":[{"name":"postgres","status":"healthy","running":1,"desired":1}]}`))
+		case "/setup-state", "/catalog":
+			writeError(w, http.StatusServiceUnavailable, "estado runtime indisponível")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	service := assistantService{
+		agentURL:    server.URL,
+		agentToken:  "token-teste",
+		agentClient: server.Client(),
+		knowledge: knowledgePackageState{Manifest: knowledgeManifest{
+			SetupVersion: "7.5.5",
+		}},
+	}
+	contextData, err := service.collectContext(context.Background(), "Qual o uso de RAM?", "")
+	if err != nil {
+		t.Fatalf("telemetria válida foi descartada por falha do catálogo: %v", err)
+	}
+	if !contextData.OperationalContextAvailable ||
+		contextData.MemoryPercent != 37.5 || contextData.MemoryAvailableGB != 5 ||
+		contextData.CPUPercent != 12.5 || contextData.DiskPercent != 18.2 ||
+		contextData.Services != 12 || contextData.DegradedServices != 1 {
+		t.Fatalf("métricas parciais não foram preservadas: %#v", contextData)
+	}
+	if contextData.SetupVersion != "7.5.5" || contextData.CatalogSource != "unavailable" ||
+		!contextData.CatalogStale || !strings.Contains(contextData.OperationalContextWarning, "catálogo runtime") {
+		t.Fatalf("contingência canônica incorreta: %#v", contextData)
+	}
+	if len(contextData.InstalledApps) != 1 || contextData.InstalledApps[0].Name != "postgres" {
+		t.Fatalf("aplicações recuperadas foram descartadas: %#v", contextData.InstalledApps)
+	}
+	if assistantCatalogContextAvailable(contextData) {
+		t.Fatal("catálogo indisponível foi tratado como evidência runtime validada")
 	}
 }
 

@@ -14,8 +14,8 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.5.4` no canal Beta
-- Control Center: `4.13.4`
+- Setup MNO: `7.5.5` no canal Beta
+- Control Center: `4.13.5`
 - Conhecimento canônico: `3.12.0`
 - Catálogo runtime: 151 entradas
 - Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
@@ -2199,6 +2199,29 @@ da tela.
 O fallback `overflow-x: hidden` é mantido para navegadores antigos e
 `overflow-x: clip` impede rolagem horizontal nos navegadores atuais. Um gate de
 frontend verifica as regras de contenção para evitar regressão em novas telas.
+
+## Ajuste v7.5.5 — Telemetria resiliente no Assistente MNO
+
+**Status:** implementado
+**Impacto:** crítico
+**Tipo:** confiabilidade, produto e UX/UI
+**Esforço:** moderado
+
+A auditoria da instalação 4.13.3 confirmou que rede interna, DNS e Docker Secret
+estavam corretos. O endpoint `/setup-state` retornava HTTP 503 porque o runtime
+usava o schema editorial 2 e o agente antigo validava somente o schema 1. A
+compatibilidade com ambos os schemas foi incorporada ao agente atual.
+
+O coletor do Assistente deixa de tratar as quatro fontes internas como uma
+transação indivisível. CPU, RAM, disco e saúde de serviços recuperados por
+`/overview` continuam disponíveis mesmo que catálogo, estado do Setup ou lista
+de aplicações apresentem uma falha temporária. O pacote canônico cobre apenas
+os dados documentais ausentes, sem apagar métricas válidas nem inventar dados.
+
+A interface diferencia três estados: contexto completo, métricas ativas com
+contexto parcial e métricas indisponíveis. Testes de regressão comprovam que
+uma falha HTTP 503 no catálogo não remove CPU, RAM disponível, disco, serviços
+ou aplicações já recuperadas.
 
 ## Referências oficiais
 

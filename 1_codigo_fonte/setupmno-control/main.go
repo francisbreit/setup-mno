@@ -912,7 +912,7 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 			contextData.SetupVersion,
 			contextData.Architecture,
 		)
-		if contextData.OperationalContextAvailable {
+		if assistantCatalogContextAvailable(contextData) {
 			shadow = s.retriever.attachCatalogEvidence(shadow, contextData)
 		}
 		s.recordRetrieval(shadow.Metrics)
@@ -923,7 +923,7 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 				retrievalPromptOptions{
 					Quality:                     s.knowledge.Quality,
 					Question:                    input.Question,
-					AllowMissingCatalogEvidence: !contextData.OperationalContextAvailable,
+					AllowMissingCatalogEvidence: !assistantCatalogContextAvailable(contextData),
 				},
 			)
 			if promptContext != nil && promptContext.Simulation &&
@@ -1124,6 +1124,7 @@ func (s *assistantService) collectContext(
 		err  error
 	}
 	results := make(chan callResult, 4)
+	requestErrors := make(map[string]error, 4)
 	requests := []struct {
 		name     string
 		endpoint string
@@ -1143,36 +1144,61 @@ func (s *assistantService) collectContext(
 	for range requests {
 		result := <-results
 		if result.err != nil {
-			return assistantContext{}, fmt.Errorf("%s: %w", result.name, result.err)
+			requestErrors[result.name] = result.err
 		}
 	}
-	if err := validateAssistantCatalog(setupState, catalog); err != nil {
-		return assistantContext{}, err
+	if err := requestErrors["overview"]; err != nil {
+		return assistantContext{}, fmt.Errorf("overview: %w", err)
 	}
 
-	installed := make([]assistantApp, 0, min(len(appsPayload.Apps), 60))
-	for _, app := range appsPayload.Apps {
-		if len(installed) == 60 {
-			break
+	warnings := make([]string, 0, 2)
+	installed := make([]assistantApp, 0)
+	if err := requestErrors["apps"]; err != nil {
+		log.Printf("Assistente MNO: lista de aplicações indisponível; métricas preservadas: %v", err)
+		warnings = append(warnings, "A lista de aplicações está temporariamente indisponível.")
+	} else {
+		installed = make([]assistantApp, 0, min(len(appsPayload.Apps), 60))
+		for _, app := range appsPayload.Apps {
+			if len(installed) == 60 {
+				break
+			}
+			installed = append(installed, assistantApp{
+				Name: app.Name, Status: app.Status, Running: app.Running, Desired: app.Desired,
+			})
 		}
-		installed = append(installed, assistantApp{
-			Name: app.Name, Status: app.Status, Running: app.Running, Desired: app.Desired,
-		})
 	}
+
+	catalogAvailable := requestErrors["setup-state"] == nil && requestErrors["catalog"] == nil
+	if catalogAvailable {
+		if err := validateAssistantCatalog(setupState, catalog); err != nil {
+			requestErrors["catalog-validation"] = err
+			catalogAvailable = false
+		}
+	}
+	if !catalogAvailable {
+		for _, name := range []string{"setup-state", "catalog", "catalog-validation"} {
+			if err := requestErrors[name]; err != nil {
+				log.Printf("Assistente MNO: %s indisponível; métricas preservadas: %v", name, err)
+			}
+		}
+		warnings = append(warnings, "As métricas do servidor estão disponíveis, mas o catálogo runtime está temporariamente indisponível; a orientação usa o pacote canônico de conhecimento.")
+	}
+
 	available := uint64(0)
 	if current.Metrics.MemoryTotal > current.Metrics.MemoryUsed {
 		available = current.Metrics.MemoryTotal - current.Metrics.MemoryUsed
 	}
-	relevantSetups := relevantCatalogItems(catalog.Items, question, exactCatalogName, 12)
-	return assistantContext{
+	architecture := current.Architecture
+	if architecture == "" {
+		architecture = "unknown"
+	}
+	contextData := assistantContext{
 		OperationalContextAvailable: true,
-		SetupVersion:                setupState.SetupVersion,
-		CatalogVersion:              catalog.CatalogVersion,
-		CatalogSHA256:               catalog.CatalogSHA256,
-		CatalogEntries:              catalog.CatalogEntries,
-		CatalogSource:               catalog.Source,
-		CatalogStale:                catalog.Stale,
-		Architecture:                setupState.Architecture,
+		OperationalContextWarning:   strings.Join(warnings, " "),
+		SetupVersion:                s.knowledge.Manifest.SetupVersion,
+		CatalogSource:               "unavailable",
+		CatalogStale:                true,
+		Architecture:                architecture,
 		OperatingSystem:             current.OperatingSystem,
 		OSVersion:                   current.OSVersion,
 		OSType:                      current.OSType,
@@ -1186,9 +1212,20 @@ func (s *assistantService) collectContext(
 		DegradedServices:            current.DegradedServices,
 		SwarmNodes:                  current.SwarmNodes,
 		InstalledApps:               installed,
-		RelevantSetupCount:          len(relevantSetups),
-		RelevantSetups:              relevantSetups,
-	}, nil
+	}
+	if catalogAvailable {
+		relevantSetups := relevantCatalogItems(catalog.Items, question, exactCatalogName, 12)
+		contextData.SetupVersion = setupState.SetupVersion
+		contextData.CatalogVersion = catalog.CatalogVersion
+		contextData.CatalogSHA256 = catalog.CatalogSHA256
+		contextData.CatalogEntries = catalog.CatalogEntries
+		contextData.CatalogSource = catalog.Source
+		contextData.CatalogStale = catalog.Stale
+		contextData.Architecture = setupState.Architecture
+		contextData.RelevantSetupCount = len(relevantSetups)
+		contextData.RelevantSetups = relevantSetups
+	}
+	return contextData, nil
 }
 
 func (s *assistantService) knowledgeOnlyContext() assistantContext {
@@ -1213,6 +1250,11 @@ func validateAssistantCatalog(state setupStateResponse, catalog catalogResponse)
 		return errors.New("manifesto e catálogo divergentes durante a coleta do contexto")
 	}
 	return nil
+}
+
+func assistantCatalogContextAvailable(contextData assistantContext) bool {
+	return contextData.CatalogSource != "" && contextData.CatalogSource != "unavailable" &&
+		validEvidenceSHA256(contextData.CatalogSHA256)
 }
 
 func (s *assistantService) agentRequest(ctx context.Context, endpoint string, target any) error {
