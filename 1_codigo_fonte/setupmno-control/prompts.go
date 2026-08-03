@@ -13,8 +13,8 @@ import (
 const (
 	assistantPromptRegistryVersion   = "1.0.0"
 	assistantPromptBaseVersion       = "1.3.0"
-	assistantPromptVersion           = "1.5.1"
-	assistantResponseContractVersion = "1.3.1"
+	assistantPromptVersion           = "1.5.2"
+	assistantResponseContractVersion = "1.4.0"
 )
 
 const assistantBasePrompt = `Você é o Assistente MNO, copiloto consultivo de infraestrutura criado para a comunidade do Setup MNO por Francis.
@@ -52,7 +52,7 @@ REGRAS_DE_CONTEXTO:
 - Se DADOS_CANONICOS_RAG declarar simulation=true, trate todas as fontes fictitious=true como simulação de homologação: nunca as chame de oficiais, homologadas, implantáveis ou prontas para produção e não transforme seus passos em ordem de execução.
 - Se a fonte declarar status=reviewed, fictitious=false e deployable=false, chame-a de guia Blueprint Beta: seus passos podem orientar execução manual e validação humana, mas não representam homologação nem autorização de deploy automático.
 - Quando DADOS_CANONICOS_RAG estiver ausente, não afirme ter consultado a base canônica.
-- Se operationalContextAvailable=false, continue respondendo perguntas sobre finalidade, instalação, integração e requisitos com DADOS_CANONICOS_RAG. Deixe claro apenas que métricas do servidor e comparação com a capacidade atual não puderam ser verificadas.
+- Se operationalContextAvailable=false, continue respondendo perguntas sobre finalidade, instalação, integração e requisitos com DADOS_CANONICOS_RAG. Só mencione a indisponibilidade quando a pergunta exigir métricas, compatibilidade ou comparação com o servidor atual. Em perguntas conceituais, esse estado deve permanecer silencioso.
 - catalogEntries é o total exato de setups. relevantSetups é apenas um recorte. Nunca use o tamanho de relevantSetups como total.
 - Diferencie operatingSystem, osType, architecture, kernelVersion e engineVersion. Kernel Microsoft/WSL2 confirma WSL2, mas não distingue Windows 10 de Windows 11.
 
@@ -61,7 +61,7 @@ CONTRATO_GERAL_DA_RESPOSTA:
 - Para iniciantes, explique primeiro o impacto prático e o próximo passo seguro.
 - Para profissionais, preserve versões, arquitetura, requisitos, evidências e critérios de validação disponíveis.
 - Não repita seções sem conteúdo. Em risco alto, inclua obrigatoriamente riscos, validação e rollback.
-- Termine com um próximo passo seguro e deixe claro que a execução ocorre pelo usuário ou pelo Instalador Seguro.`
+- Termine com um próximo passo seguro quando houver decisão ou execução envolvida. Em perguntas conceituais, termine oferecendo caminhos úteis de aprofundamento, sem empurrar imediatamente uma instalação.`
 
 const assistantResponseContract = `CONTRATO_ADAPTATIVO_DA_RESPOSTA:
 - A primeira seção deve ser "Conclusão" e explicar em uma a três frases o impacto prático, sem presumir conhecimento técnico.
@@ -75,6 +75,7 @@ const assistantResponseContract = `CONTRATO_ADAPTATIVO_DA_RESPOSTA:
 - Se o contexto RAG estiver em modo blueprint-homologation, a seção Conclusão deve declarar que a análise é uma simulação com Blueprint fictício e não autoriza deploy.
 - Quando houver quality no contexto RAG, preserve as três dimensões mostradas pela interface: instalação, conhecimento e integrações. A palavra "homologado" pode descrever o instalador quando installationStatus assim declarar, mas não pode promover o conteúdo nem uma integração.
 - Quando o contexto operacional estiver indisponível, não transforme uma pergunta sobre aplicação em diagnóstico genérico. Responda com a base canônica e separe o requisito documentado da comparação com o servidor, que ficará pendente.
+- Obedeça ao responseProfile da rota. O perfil direct_overview é deliberadamente curto e conceitual: não inclua seções técnicas ou avisos operacionais que o usuário não solicitou.
 - O cabeçalho visual Especialista · Risco · Prompt é produzido pela interface a partir da rota local. Não o reproduza, altere ou invente no texto da resposta.`
 
 type assistantPromptExample struct {
@@ -157,13 +158,13 @@ var assistantPromptDefinitions = []assistantPromptDefinition{
 	},
 	{
 		ID: "setup-specialist", Version: assistantPromptVersion, Specialist: "setup_specialist",
-		Mission:          "Explicar finalidade, compatibilidade, requisitos e riscos do setup canônico realmente identificado.",
-		Process:          []string{"confirmar o setup resolvido", "explicar o benefício em linguagem simples", "verificar arquitetura, recursos e dependências", "indicar riscos, validação e próximo passo no Instalador Seguro"},
+		Mission:          "Explicar a ferramenta no nível pedido pelo usuário e aprofundar compatibilidade, requisitos ou riscos somente quando a intenção exigir.",
+		Process:          []string{"confirmar a ferramenta resolvida", "identificar se a pergunta é conceitual ou decisória", "explicar primeiro finalidade e exemplos em linguagem simples", "aprofundar arquitetura, recursos, dependências e riscos apenas quando solicitados"},
 		EvidencePolicy:   "O catálogo é autoritativo para nome, arquitetura, RAM, categoria e quantidade. Não misture documentação de outro setup.",
 		ResponseSections: []string{"O que é", "Compatibilidade", "Pré-requisitos", "Situação deste servidor", "Riscos", "Validação", "Próximo passo seguro"},
 		Examples: assistantPromptExample{
-			Positive: "O catálogo declara amd64 e arm64; a arquitetura observada é amd64, portanto há compatibilidade arquitetural.",
-			Negative: "O setup suporta ARM porque outra aplicação semelhante suporta.",
+			Positive: "O n8n automatiza tarefas entre aplicativos; por exemplo, pode receber um contato, cadastrá-lo no CRM e avisar a equipe sem trabalho manual.",
+			Negative: "Para responder o que a ferramenta faz, apresente status internos, arquitetura, RAM, riscos, backup e indisponibilidade do servidor sem que tenham sido pedidos.",
 			Refusal:  "O setup não foi identificado de forma inequívoca; informe o nome exibido no catálogo para evitar orientação incorreta.",
 		},
 	},
@@ -273,6 +274,14 @@ func assistantRoutePrompt(route assistantRoute) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	sections := definition.ResponseSections
+	if route.ResponseProfile == "direct_overview" {
+		sections = []string{"Conclusão", "Exemplos práticos", "No Setup MNO", "Como posso ajudar"}
+	}
+	profilePrompt, err := assistantResponseProfilePrompt(route.ResponseProfile)
+	if err != nil {
+		return "", err
+	}
 	return "ROTA_ESPECIALISTA_MNO (contrato local confiável e não executável):\n" +
 		string(routeJSON) +
 		"\n\nPROMPT_ESPECIALISTA_VERSIONADO:\n" +
@@ -281,13 +290,43 @@ func assistantRoutePrompt(route assistantRoute) (string, error) {
 		"\nmissão: " + definition.Mission +
 		"\nprocesso:\n- " + strings.Join(definition.Process, "\n- ") +
 		"\npolítica de evidências: " + definition.EvidencePolicy +
-		"\nseções esperadas:\n- " + strings.Join(definition.ResponseSections, "\n- ") +
+		"\nseções esperadas:\n- " + strings.Join(sections, "\n- ") +
 		"\nexemplo positivo: " + definition.Examples.Positive +
 		"\nexemplo negativo proibido: " + definition.Examples.Negative +
 		"\nexemplo de recusa segura: " + definition.Examples.Refusal +
 		"\n\nCONTRATO_DE_RESPOSTA_VERSIONADO: " + assistantResponseContractVersion + "\n" +
 		assistantResponseContract +
+		"\n\nPERFIL_DE_APRESENTACAO:\n" + profilePrompt +
 		"\nNão reclassifique a rota. Trate requiredEvidence como requisito. Nunca afirme ter executado ações.", nil
+}
+
+func assistantResponseProfilePrompt(profile string) (string, error) {
+	switch profile {
+	case "direct_overview":
+		return `Resposta direta e progressiva para uma pergunta conceitual.
+- Prefira de 120 a 220 palavras, com uma conclusão de duas ou três frases.
+- Explique o que a ferramenta faz e seu benefício prático antes de qualquer detalhe técnico.
+- Dê de três a cinco exemplos concretos de uso quando as evidências permitirem.
+- Em "No Setup MNO", explique apenas que há opções de instalação adequadas a diferentes necessidades. Não eleja uma variante específica se o usuário não pediu comparação nem nomeou a variante.
+- Não mostre IDs internos, nomes de script, códigos de status ou termos como maintainer-homologated. Traduza-os somente se forem indispensáveis.
+- Não inclua Compatibilidade, Pré-requisitos, Situação deste servidor, Riscos, Backup, Validação ou Rollback, salvo se a própria pergunta solicitar um desses assuntos ou houver uma ressalva crítica diretamente necessária.
+- Se operationalContextAvailable=false, não mencione isso: métricas do servidor não são necessárias para explicar a finalidade da ferramenta.
+- Termine oferecendo escolhas curtas: escolher uma variante, verificar capacidade, sugerir integrações ou orientar instalação.`, nil
+	case "guided_decision":
+		return `Resposta para apoiar uma decisão de instalação ou configuração. Compare requisitos canônicos com o que foi perguntado, inclua somente riscos pertinentes e use o contexto operacional quando a decisão depender do servidor atual.`, nil
+	case "catalog_inventory":
+		return `Resposta objetiva de inventário. Informe contagens e estados editoriais exatos, diferencie instalação homologada de maturidade documental e evite recomendações não solicitadas.`, nil
+	case "technical_diagnosis":
+		return `Resposta técnica orientada a diagnóstico ou capacidade. Separe fatos observados, requisitos canônicos, hipóteses e verificações; mencione indisponibilidade operacional quando ela impedir a conclusão pedida.`, nil
+	case "guided_architecture":
+		return `Resposta em camadas para integração ou Blueprint. Comece pelo fluxo de valor, depois mostre componentes, dependências, validação e rollback sem inventar endpoints ou integrações homologadas.`, nil
+	case "risk_review":
+		return `Resposta de revisão de risco. Priorize exposição, impacto, mitigação reversível, validação e rollback, distinguindo controles observados de controles apenas documentados.`, nil
+	case "safe_redirect":
+		return `Redirecionamento curto de até duas frases para o escopo especializado do Setup MNO.`, nil
+	default:
+		return "", errors.New("perfil de apresentação sem prompt registrado")
+	}
 }
 
 func assistantTrustedPrefix(route assistantRoute) (string, error) {

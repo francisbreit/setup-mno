@@ -133,6 +133,27 @@ func TestAssistantResponseContractSupportsBothAudiences(t *testing.T) {
 	}
 }
 
+func TestSetupOverviewPromptSuppressesUnrequestedOperationalDetails(t *testing.T) {
+	route := routeAssistant(
+		"Para que serve o n8n?",
+		retrievalQueryResolution{SetupID: "n8n-main", SetupIDs: []string{"n8n-main"}},
+		"unknown",
+	)
+	prompt, err := assistantTrustedPrefix(route)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		"direct_overview", "Resposta direta e progressiva", "Exemplos práticos",
+		"não mencione isso", "Não eleja uma variante específica",
+		"Não inclua Compatibilidade", "Como posso ajudar",
+	} {
+		if !strings.Contains(prompt, expected) {
+			t.Fatalf("regra de apresentação direta ausente: %q", expected)
+		}
+	}
+}
+
 func TestAssistantResponseContractIsPartOfPromptDigest(t *testing.T) {
 	definition := assistantPromptDefinitions[0]
 	original := assistantPromptDigest(definition)

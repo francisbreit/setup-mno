@@ -1325,8 +1325,21 @@ func (s *assistantService) streamProvider(
 	retrievalContext *retrievalPromptContext,
 ) (string, error) {
 	return s.streamProviderLimited(
-		ctx, w, input, contextData, route, retrievalContext, 1400,
+		ctx, w, input, contextData, route, retrievalContext, assistantOutputTokenLimit(route),
 	)
+}
+
+func assistantOutputTokenLimit(route assistantRoute) int {
+	switch route.ResponseProfile {
+	case "direct_overview":
+		return 500
+	case "safe_redirect":
+		return 180
+	case "catalog_inventory":
+		return 800
+	default:
+		return 1400
+	}
 }
 
 func (s *assistantService) streamProviderLimited(

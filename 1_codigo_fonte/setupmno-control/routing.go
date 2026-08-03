@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	assistantRouterVersion = "1.1.0"
+	assistantRouterVersion = "1.2.0"
 )
 
 type assistantRoute struct {
@@ -17,6 +17,7 @@ type assistantRoute struct {
 	PromptVersion           string   `json:"promptVersion"`
 	PromptSHA256            string   `json:"promptSHA256"`
 	ResponseContractVersion string   `json:"responseContractVersion"`
+	ResponseProfile         string   `json:"responseProfile"`
 	Intent                  string   `json:"intent"`
 	Specialist              string   `json:"specialist"`
 	Setups                  []string `json:"setups"`
@@ -216,6 +217,10 @@ func routeAssistant(
 
 	riskLevel := definition.RiskLevel
 	requiredEvidence := append([]string(nil), definition.RequiredEvidence...)
+	responseProfile := responseProfileForRoute(question, definition.Intent)
+	if responseProfile == "direct_overview" {
+		requiredEvidence = []string{"catalog_entry", "setup_documentation"}
+	}
 	signals := []string{definition.Signal}
 	if len(setups) > 0 {
 		signals = append(signals, "canonical_setup_detected")
@@ -246,6 +251,7 @@ func routeAssistant(
 		PromptVersion:           promptVersion,
 		PromptSHA256:            promptSHA256,
 		ResponseContractVersion: assistantResponseContractVersion,
+		ResponseProfile:         responseProfile,
 		Intent:                  definition.Intent,
 		Specialist:              definition.Specialist,
 		Setups:                  setups,
@@ -260,6 +266,34 @@ func routeAssistant(
 		return safeScopeRoute(runtimeArchitecture)
 	}
 	return route
+}
+
+func responseProfileForRoute(question string, intent string) string {
+	switch intent {
+	case "setup_guidance":
+		if isSetupOverviewQuestion(question) {
+			return "direct_overview"
+		}
+		return "guided_decision"
+	case "knowledge_status":
+		return "catalog_inventory"
+	case "capacity_planning", "troubleshooting", "infrastructure_diagnosis":
+		return "technical_diagnosis"
+	case "integration_design", "blueprint_recommendation":
+		return "guided_architecture"
+	case "security_review":
+		return "risk_review"
+	default:
+		return "safe_redirect"
+	}
+}
+
+func isSetupOverviewQuestion(question string) bool {
+	return anyPhraseContained(question, []string{
+		"o que e", "o que faz", "para que serve", "qual a finalidade",
+		"qual e a finalidade", "me explique o", "me explique a",
+		"explique o", "explique a ferramenta", "quero conhecer",
+	})
 }
 
 func selectRouteDefinition(question string, setups []string) (routeDefinition, bool) {
@@ -350,6 +384,7 @@ func safeScopeRoute(runtimeArchitecture string) assistantRoute {
 		PromptVersion:           promptVersion,
 		PromptSHA256:            promptSHA256,
 		ResponseContractVersion: assistantResponseContractVersion,
+		ResponseProfile:         "safe_redirect",
 		Intent:                  "scope_redirect",
 		Specialist:              "scope_guard",
 		Domains:                 []string{"out_of_scope"},
@@ -367,6 +402,15 @@ func validateAssistantRoute(route assistantRoute) error {
 		route.PromptVersion != promptVersion || route.PromptSHA256 != promptSHA256 ||
 		route.ResponseContractVersion != assistantResponseContractVersion {
 		return errors.New("versão do roteador incompatível")
+	}
+	allowedResponseProfiles := map[string]bool{
+		"direct_overview": true, "guided_decision": true,
+		"catalog_inventory": true, "technical_diagnosis": true,
+		"guided_architecture": true, "risk_review": true,
+		"safe_redirect": true,
+	}
+	if !allowedResponseProfiles[route.ResponseProfile] {
+		return errors.New("perfil de resposta inválido")
 	}
 	allowedIntents := map[string]string{
 		"security_review":          "security_reviewer",

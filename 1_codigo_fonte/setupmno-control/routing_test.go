@@ -46,6 +46,38 @@ func TestAssistantRouterSelectsSpecialistsDeterministically(t *testing.T) {
 	}
 }
 
+func TestSetupOverviewUsesDirectProgressiveProfile(t *testing.T) {
+	for _, question := range []string{
+		"Para que serve o n8n?",
+		"O que é o Baserow?",
+		"Qual a finalidade do Uptime Kuma?",
+	} {
+		route := routeAssistant(
+			question,
+			retrievalQueryResolution{SetupID: "n8n-main", SetupIDs: []string{"n8n-main"}},
+			"unknown",
+		)
+		if route.Intent != "setup_guidance" || route.ResponseProfile != "direct_overview" {
+			t.Fatalf("pergunta conceitual sem explicação direta: %q %#v", question, route)
+		}
+		if !reflect.DeepEqual(route.RequiredEvidence, []string{"catalog_entry", "setup_documentation"}) {
+			t.Fatalf("perfil conceitual exigiu evidência operacional: %#v", route.RequiredEvidence)
+		}
+		if assistantOutputTokenLimit(route) != 500 {
+			t.Fatalf("limite progressivo inesperado: %d", assistantOutputTokenLimit(route))
+		}
+	}
+
+	decision := routeAssistant(
+		"Meu servidor suporta o n8n com 4 GB de RAM?",
+		retrievalQueryResolution{SetupID: "n8n-main", SetupIDs: []string{"n8n-main"}},
+		"amd64",
+	)
+	if decision.ResponseProfile != "technical_diagnosis" || decision.Intent != "capacity_planning" {
+		t.Fatalf("decisão de capacidade simplificada indevidamente: %#v", decision)
+	}
+}
+
 func TestKnowledgeStatusQuestionRecognizesGovernanceWithoutFalsePositives(t *testing.T) {
 	positive := []string{
 		"Quantos setups estão documentados e quantos estão homologados?",
@@ -176,6 +208,11 @@ func TestAssistantRouteValidationRejectsUntrustedFields(t *testing.T) {
 	invalidResponseContract.ResponseContractVersion = "9.9.9"
 	if validateAssistantRoute(invalidResponseContract) == nil {
 		t.Fatal("contrato de resposta incompatível foi aceito")
+	}
+	invalidResponseProfile := valid
+	invalidResponseProfile.ResponseProfile = "invented"
+	if validateAssistantRoute(invalidResponseProfile) == nil {
+		t.Fatal("perfil de resposta fora da allowlist foi aceito")
 	}
 	invalidHighRisk := valid
 	invalidHighRisk.RiskLevel = "high"

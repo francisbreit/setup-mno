@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Joplin Server no Setup MNO",
   "setupId": "joplin",
-  "setupVersion": "7.5.2",
+  "setupVersion": "7.5.3",
   "architectures": [
     "amd64",
     "arm64"

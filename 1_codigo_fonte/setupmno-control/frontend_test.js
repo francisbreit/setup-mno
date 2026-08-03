@@ -12,6 +12,7 @@ const routeMetadata = globalThis.SetupMNOAssistantRoute;
 const routeSnapshot = routeMetadata.snapshot({
   specialist: "infrastructure_diagnostician",
   riskLevel: "low",
+  responseProfile: "technical_diagnosis",
   promptVersion: "1.3.0",
   responseContractVersion: "1.1.0",
   promptSHA256: "a".repeat(64),
@@ -23,11 +24,14 @@ assert.deepEqual(routeSnapshot, {
   specialistName: "Diagnóstico de infraestrutura",
   risk: "low",
   riskName: "baixo",
+  responseProfile: "technical_diagnosis",
+  responseProfileName: "Análise técnica",
   promptVersion: "1.3.0",
   responseContractVersion: "1.1.0"
 });
-assert.equal(routeMetadata.snapshot({ specialist: "execute_shell", riskLevel: "high", promptVersion: "1.3.0", responseContractVersion: "1.1.0" }), null);
-assert.equal(routeMetadata.snapshot({ specialist: "scope_guard", riskLevel: "low", promptVersion: "<script>", responseContractVersion: "1.1.0" }), null);
+assert.equal(routeMetadata.snapshot({ specialist: "execute_shell", riskLevel: "high", responseProfile: "risk_review", promptVersion: "1.3.0", responseContractVersion: "1.1.0" }), null);
+assert.equal(routeMetadata.snapshot({ specialist: "scope_guard", riskLevel: "low", responseProfile: "safe_redirect", promptVersion: "<script>", responseContractVersion: "1.1.0" }), null);
+assert.equal(routeMetadata.snapshot({ specialist: "setup_specialist", riskLevel: "low", responseProfile: "invented", promptVersion: "1.3.0", responseContractVersion: "1.1.0" }), null);
 
 assert.equal(
   render("A versão é **4.93.3**."),
@@ -86,7 +90,8 @@ assert.match(app, /slice\(0, 12\)/);
 assert.match(html, /assistant-route\.js\?v=/);
 assert.match(app, /attachAssistantMessageRoute/);
 assert.match(app, /message-route-specialist/);
-assert.match(app, /textContent = snapshot\.specialistName/);
+assert.match(app, /snapshot\.specialistName.*snapshot\.responseProfileName/);
+assert.match(app, /direct_overview: "explicação direta"/);
 assert.match(app, /setAssistantMessageRouteUnavailable/);
 assert.doesNotMatch(app, /target\._assistantMessageRoute\s*=\s*route/);
 assert.match(styles, /\.message-route\s*\{[^}]*flex-wrap:\s*wrap/);

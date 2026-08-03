@@ -1167,14 +1167,14 @@ function updateAssistantRoute(route, message = "") {
   const setups = Array.isArray(route.setups) && route.setups.length
     ? ` · ${route.setups.join(", ")}`
     : "";
-  summary.textContent = `${intentLabel(route.intent)} · confiança ${route.confidence === "high" ? "alta" : "média"}${setups}`;
+  summary.textContent = `${intentLabel(route.intent)} · ${responseProfileLabel(route.responseProfile)} · confiança ${route.confidence === "high" ? "alta" : "média"}${setups}`;
   const evidence = Array.isArray(route.requiredEvidence) && route.requiredEvidence.length
     ? route.requiredEvidence.map(evidenceLabel).join(", ")
     : "redirecionamento de escopo";
   const promptHash = typeof route.promptSHA256 === "string" && route.promptSHA256.length >= 12
     ? route.promptSHA256.slice(0, 12)
     : "N/I";
-  metadata.textContent = `Roteador ${route.routerVersion || "N/I"} · registro ${route.promptRegistryVersion || "N/I"} · prompt ${route.promptVersion || "N/I"} · contrato ${route.responseContractVersion || "N/I"} · SHA ${promptHash} · exige: ${evidence}.`;
+  metadata.textContent = `Roteador ${route.routerVersion || "N/I"} · registro ${route.promptRegistryVersion || "N/I"} · prompt ${route.promptVersion || "N/I"} · contrato ${route.responseContractVersion || "N/I"} · perfil ${route.responseProfile || "N/I"} · SHA ${promptHash} · exige: ${evidence}.`;
 }
 
 function assistantMessageRouteSnapshot(route) {
@@ -1212,7 +1212,7 @@ function attachAssistantMessageRoute(target, route) {
   const risk = target.querySelector(".message-route-risk");
   const prompt = target.querySelector(".message-route-prompt");
   if (!header || !specialist || !risk || !prompt) return;
-  specialist.textContent = snapshot.specialistName;
+  specialist.textContent = `${snapshot.specialistName} · ${snapshot.responseProfileName}`;
   risk.textContent = `Risco ${snapshot.riskName}`;
   risk.className = `message-route-chip message-route-risk risk-${snapshot.risk}`;
   risk.hidden = false;
@@ -1220,7 +1220,7 @@ function attachAssistantMessageRoute(target, route) {
   prompt.hidden = false;
   header.setAttribute(
     "aria-label",
-    `${snapshot.specialistName}, risco ${snapshot.riskName}, prompt ${snapshot.promptVersion}, contrato ${snapshot.responseContractVersion}`
+    `${snapshot.specialistName}, ${snapshot.responseProfileName}, risco ${snapshot.riskName}, prompt ${snapshot.promptVersion}, contrato ${snapshot.responseContractVersion}`
   );
 }
 
@@ -1236,9 +1236,22 @@ function intentLabel(value) {
     blueprint_recommendation: "recomendação de Blueprint",
     integration_design: "projeto de integração",
     setup_guidance: "orientação de setup",
+    knowledge_status: "estado da base de conhecimento",
     infrastructure_diagnosis: "diagnóstico de infraestrutura",
     scope_redirect: "consulta fora do escopo"
   }[value] || "intenção não identificada";
+}
+
+function responseProfileLabel(value) {
+  return {
+    direct_overview: "explicação direta",
+    guided_decision: "decisão guiada",
+    catalog_inventory: "inventário canônico",
+    technical_diagnosis: "análise técnica",
+    guided_architecture: "arquitetura guiada",
+    risk_review: "revisão de risco",
+    safe_redirect: "redirecionamento seguro"
+  }[value] || "apresentação adaptativa";
 }
 
 function riskLabel(value) {

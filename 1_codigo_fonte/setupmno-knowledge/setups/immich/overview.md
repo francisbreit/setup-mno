@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Immich no Setup MNO",
   "setupId": "immich",
-  "setupVersion": "7.5.2",
+  "setupVersion": "7.5.3",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

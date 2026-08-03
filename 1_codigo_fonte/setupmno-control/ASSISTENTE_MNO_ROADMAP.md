@@ -14,8 +14,8 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.5.2` no canal Beta
-- Control Center: `4.13.2`
+- Setup MNO: `7.5.3` no canal Beta
+- Control Center: `4.13.3`
 - Conhecimento canônico: `3.12.0`
 - Catálogo runtime: 151 entradas
 - Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
@@ -2161,6 +2161,26 @@ Construir a 8.2 em torno de descoberta orientada a objetivos: mapa de
 capacidades, combinações sugeridas e receitas de integração. A autoridade do
 chat permanece somente leitura até a Etapa 8.5 definir ações estreitas,
 confirmadas, auditáveis e reversíveis.
+
+## Ajuste v7.5.3 — Respostas progressivas por intenção
+
+**Status:** implementado
+**Impacto:** alto
+**Tipo:** UX/UI, confiabilidade e produto
+**Esforço:** moderado
+
+O roteador local passa a escolher também um perfil de apresentação. Perguntas
+conceituais como “Para que serve o n8n?” usam `direct_overview`: começam pela
+finalidade, apresentam exemplos práticos e oferecem caminhos de aprofundamento.
+Arquitetura, RAM, riscos, backup, validação e estado operacional aparecem
+somente quando a pergunta pede instalação, capacidade, segurança ou
+diagnóstico.
+
+O perfil faz parte do contrato local versionado, aparece na interface e reduz o
+limite de saída de explicações diretas. Se as métricas do servidor estiverem
+indisponíveis, o estado permanece silencioso em perguntas conceituais, porque
+isso não impede a consulta ao conhecimento canônico. Perguntas que dependem do
+servidor continuam declarando a limitação sem inventar capacidade.
 
 ## Referências oficiais
 
