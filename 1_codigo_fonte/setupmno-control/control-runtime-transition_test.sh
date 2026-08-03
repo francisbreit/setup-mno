@@ -25,7 +25,9 @@ for architecture in x86 arm; do
     functions=""
     for name in valid_setup_plan write_control_environment \
         prepare_setup_directory_preserving_control \
-        service_has_mount_target service_has_env_key service_has_env_value \
+        service_has_mount_target service_has_running_task \
+        wait_for_service_mount_target service_has_env_key service_has_env_value \
+        wait_for_service_env_value \
         reconcile_control_center_plan_services; do
         function_source=$(extract_function "$start_script" "$name")
         [ -n "$function_source" ] || {
@@ -80,6 +82,7 @@ export DOCKER_TEST_LOG="$docker_log"
 cat >"$test_dir/bin/docker" <<'EOF'
 #!/usr/bin/bash
 if [ "$1 $2" = "service ls" ]; then
+    [ "${MOCK_SERVICE_LS_FAIL:-false}" != "true" ] || exit 1
     printf '%s\n' \
         'mnoctrlabc1234-agent_mnoctrlabc1234-agent' \
         'mnoctrlabc1234-assistant_mnoctrlabc1234-assistant' \
@@ -105,6 +108,13 @@ if [ "$1 $2" = "service inspect" ]; then
     esac
     exit 0
 fi
+if [ "$1 $2" = "service ps" ]; then
+    [ "${MOCK_SERVICE_PS_FAIL:-false}" != "true" ] || exit 1
+    if [ "${MOCK_AGENT_RUNNING:-true}" = "true" ]; then
+        printf '%s\n' 'Running 1 minute ago'
+    fi
+    exit 0
+fi
 if [ "$1 $2" = "service update" ]; then
     printf '%s\n' "$*" >>"$DOCKER_TEST_LOG"
     [[ " $* " == *" --mount-add "* ]] && : >"$MOCK_DOCKER_STATE_DIR/mount"
@@ -118,6 +128,27 @@ EOF
 chmod 0755 "$test_dir/bin/docker"
 PATH="$test_dir/bin:$PATH"
 export MOCK_DOCKER_STATE_DIR="$test_dir/docker-state"
+export MOCK_AGENT_RUNNING=true
+
+export MOCK_SERVICE_LS_FAIL=true
+: >"$docker_log"
+if reconcile_control_center_plan_services free1; then
+    printf 'ERRO: Docker/Swarm indisponível deixou de bloquear a reconciliação.\n' >&2
+    exit 1
+fi
+[ ! -s "$docker_log" ]
+unset MOCK_SERVICE_LS_FAIL
+
+export MOCK_LEGACY=false
+export MOCK_SERVICE_PS_FAIL=true
+: >"$docker_log"
+if reconcile_control_center_plan_services free1; then
+    printf 'ERRO: falha de leitura do agente não foi bloqueada antes do remount.\n' >&2
+    exit 1
+fi
+[ ! -s "$docker_log" ]
+unset MOCK_SERVICE_PS_FAIL
+
 for legacy in false true; do
   export MOCK_LEGACY="$legacy"
   for target_plan in free free1 free2 pro; do
@@ -125,14 +156,20 @@ for legacy in false true; do
       mkdir -p "$MOCK_DOCKER_STATE_DIR"
       : >"$docker_log"
       reconcile_control_center_plan_services "$target_plan"
-      [ "$(wc -l <"$docker_log")" -eq 3 ]
-      grep -Fq 'service update' "$docker_log"
-      grep -Fq -- '--mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly' "$docker_log"
       if [ "$legacy" = "true" ]; then
+          expected_updates=3
+      else
+          expected_updates=2
+      fi
+      [ "$(wc -l <"$docker_log")" -eq "$expected_updates" ]
+      grep -Fq 'service update' "$docker_log"
+      if [ "$legacy" = "true" ]; then
+          grep -Fq -- '--mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly' "$docker_log"
           ! grep -Fq -- '--mount-rm /runtime-control' "$docker_log"
           ! grep -Fq -- '--env-rm SETUPMNO_PLAN' "$docker_log"
       else
-          grep -Fq -- '--mount-rm /runtime-control' "$docker_log"
+          ! grep -Fq -- '--mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly' "$docker_log"
+          ! grep -Fq -- '--mount-rm /runtime-control' "$docker_log"
           grep -Fq -- '--env-rm SETUPMNO_PLAN' "$docker_log"
       fi
       if [ "$target_plan" = "pro" ]; then
@@ -146,4 +183,15 @@ for legacy in false true; do
   done
 done
 
-printf 'Matriz de planos, legado, plano web, caminho runtime estável e remount WSL2 aprovados.\n'
+export MOCK_LEGACY=false
+export MOCK_AGENT_RUNNING=false
+rm -rf "$MOCK_DOCKER_STATE_DIR"
+mkdir -p "$MOCK_DOCKER_STATE_DIR"
+: >"$docker_log"
+reconcile_control_center_plan_services free1
+[ "$(wc -l <"$docker_log")" -eq 3 ]
+grep -Fq -- '--mount-rm /runtime-control' "$docker_log"
+grep -Fq -- '--mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly' "$docker_log"
+export MOCK_AGENT_RUNNING=true
+
+printf 'Matriz de planos, agente saudável preservado, recuperação legada e remount WSL2 aprovados.\n'

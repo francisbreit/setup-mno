@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.7.6"
+VERSIONSETUP="7.7.7"
 EXPECTED_EVAL_DATASET_VERSION="1.9.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
 EXPECTED_EVAL_CASE_ENTRIES="843"
@@ -109,7 +109,7 @@ prepare_setup_directory_preserving_control() {
 }
 
 reconcile_control_center_plan_services() {
-    local plan="$1" services service assistant_replicas
+    local plan="$1" services service assistant_replicas running_task_status
 
     valid_setup_plan "$plan" || return 1
     case "$plan" in
@@ -123,15 +123,21 @@ reconcile_control_center_plan_services() {
             mnoctrl*-agent_mnoctrl*-agent)
                 [[ "$service" =~ ^mnoctrl[[:alnum:]]+-agent_mnoctrl[[:alnum:]]+-agent$ ]] || continue
                 if service_has_mount_target "$service" /runtime-control; then
-                    docker service update --mount-rm /runtime-control \
-                        --mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly \
-                        --force --detach=true "$service" >/dev/null 2>&1 || return 1
+                    if service_has_running_task "$service"; then
+                        :
+                    else
+                        running_task_status=$?
+                        [ "$running_task_status" -eq 1 ] || return 1
+                        docker service update --mount-rm /runtime-control \
+                            --mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly \
+                            --force --detach=true "$service" >/dev/null 2>&1 || return 1
+                    fi
                 else
                     docker service update \
                         --mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly \
                         --force --detach=true "$service" >/dev/null 2>&1 || return 1
                 fi
-                service_has_mount_target "$service" /runtime-control || return 1
+                wait_for_service_mount_target "$service" /runtime-control || return 1
                 ;;
             mnoctrl*-assistant_mnoctrl*-assistant)
                 [[ "$service" =~ ^mnoctrl[[:alnum:]]+-assistant_mnoctrl[[:alnum:]]+-assistant$ ]] || continue
@@ -148,7 +154,7 @@ reconcile_control_center_plan_services() {
                     docker service update --env-add "SETUPMNO_PLAN=$plan" \
                         --detach=true "$service" >/dev/null 2>&1 || return 1
                 fi
-                service_has_env_value "$service" SETUPMNO_PLAN "$plan" || return 1
+                wait_for_service_env_value "$service" SETUPMNO_PLAN "$plan" || return 1
                 ;;
         esac
     done <<<"$services"
@@ -158,6 +164,22 @@ service_has_mount_target() {
     local service="$1" target="$2"
     docker service inspect --format '{{range .Spec.TaskTemplate.ContainerSpec.Mounts}}{{println .Target}}{{end}}' \
         "$service" 2>/dev/null | grep -Fxq "$target"
+}
+
+service_has_running_task() {
+    local service="$1" current_states
+    current_states=$(docker service ps --filter desired-state=running \
+        --format '{{.CurrentState}}' "$service" 2>/dev/null) || return 2
+    grep -Eq '^Running([[:space:]]|$)' <<<"$current_states"
+}
+
+wait_for_service_mount_target() {
+    local service="$1" target="$2" attempt
+    for attempt in 1 2 3 4 5; do
+        service_has_mount_target "$service" "$target" && return 0
+        sleep 1
+    done
+    return 1
 }
 
 service_has_env_key() {
@@ -170,6 +192,15 @@ service_has_env_value() {
     local service="$1" key="$2" value="$3"
     docker service inspect --format '{{range .Spec.TaskTemplate.ContainerSpec.Env}}{{println .}}{{end}}' \
         "$service" 2>/dev/null | grep -Fxq "${key}=${value}"
+}
+
+wait_for_service_env_value() {
+    local service="$1" key="$2" value="$3" attempt
+    for attempt in 1 2 3 4 5; do
+        service_has_env_value "$service" "$key" "$value" && return 0
+        sleep 1
+    done
+    return 1
 }
 
 # Função para enviar HTTP POST e validar a resposta

@@ -119,14 +119,17 @@ for architecture in x86 arm; do
     ! grep -Fq 'mv "$live_dir" "$hold_dir/.control"' "$start_script" &&
     grep -Fq 'reconcile_control_center_plan_services "$PLANO"' "$start_script" &&
     grep -Fq 'service_has_mount_target "$service" /runtime-control' "$start_script" &&
+    grep -Fq 'service_has_running_task "$service"' "$start_script" &&
+    grep -Fq 'current_states=$(docker service ps --filter desired-state=running' "$start_script" &&
+    grep -Fq 'wait_for_service_mount_target "$service" /runtime-control' "$start_script" &&
     grep -Fq 'service_has_env_key "$service" SETUPMNO_PLAN' "$start_script" &&
-    grep -Fq 'service_has_env_value "$service" SETUPMNO_PLAN "$plan"' "$start_script" &&
+    grep -Fq 'wait_for_service_env_value "$service" SETUPMNO_PLAN "$plan"' "$start_script" &&
     grep -Fq -- '--mount-rm /runtime-control' "$start_script" &&
     grep -Fq -- '--mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly' "$start_script" &&
     grep -Fq 'docker service update --replicas "$assistant_replicas"' "$start_script" &&
     grep -Fq -- '--env-rm SETUPMNO_PLAN --env-add "SETUPMNO_PLAN=$plan"' "$start_script" &&
     grep -Fq 'O estado anterior do painel foi restaurado quando disponível.' "$start_script" || {
-        printf 'ERRO: %s não preserva o runtime, o mount do agente ou o plano do painel.\n' \
+        printf 'ERRO: %s não preserva o runtime, a estabilidade do agente ou o plano do painel.\n' \
             "$architecture" >&2
         exit 1
     }

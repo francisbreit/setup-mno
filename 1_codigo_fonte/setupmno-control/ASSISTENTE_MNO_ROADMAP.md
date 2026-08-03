@@ -14,7 +14,7 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.7.6` no canal Beta
+- Setup MNO: `7.7.7` no canal Beta
 - Control Center: `4.15.1`
 - Conhecimento canônico: `3.14.0`
 - Catálogo runtime: 151 entradas
@@ -2396,6 +2396,31 @@ estiver sem `/runtime-control`, o mount canônico é adicionado e confirmado sem
 criar stacks, serviços, volumes ou containers permanentes. Instalações já
 corretas não sofrem restart. Ambiguidade com múltiplos agentes é bloqueada e
 exibida ao usuário, nunca corrigida por aproximação.
+
+## Correção v7.7.7 — Downgrade de plano sem reiniciar agente saudável
+
+**Status:** implementado
+**Impacto:** crítico
+**Tipo:** confiabilidade e licenciamento
+**Esforço:** moderado
+
+Na transição de `pro` para `free`, `free1` ou `free2`, a reconciliação da
+v7.7.6 forçava um remount e restart do agente mesmo quando o mount runtime já
+existia e a tarefa estava saudável. No Docker Desktop com WSL2, a atualização
+era aplicada, mas a verificação imediata podia falhar durante a convergência;
+o fluxo então restaurava o plano anterior e encerrava com o código 41 antes de
+reduzir o Assistente para zero réplicas.
+
+A reconciliação agora preserva integralmente um agente que possua o mount
+`/runtime-control` e uma tarefa em execução. O remount fica restrito a agentes
+legados sem mount ou realmente sem tarefa ativa. Leituras do estado Docker que
+falharem não provocam restart por suposição, e as confirmações de mount e plano
+aceitam a latência curta do control plane antes de bloquear com segurança.
+
+Os gates cobrem as 16 transições de plano, agente moderno saudável sem
+restart, agente legado sem mount, agente parado que exige recuperação, falha
+de leitura antes de qualquer mutação, redução da LLM nos planos gratuitos e
+reativação no PRO.
 
 ## Referências oficiais
 
