@@ -79,14 +79,7 @@ docker_log="$test_dir/docker.log"
 export DOCKER_TEST_LOG="$docker_log"
 cat >"$test_dir/bin/docker" <<'EOF'
 #!/usr/bin/bash
-if [ "$1" = "info" ]; then
-    [ "${MOCK_SWARM_STATE:-active}" != "error" ] || exit 1
-    printf '%s\n' "${MOCK_SWARM_STATE:-active}"
-    exit 0
-fi
 if [ "$1 $2" = "service ls" ]; then
-    [ "${MOCK_SERVICE_LS_FAIL:-false}" != "true" ] || exit 1
-    [ "${MOCK_NO_SERVICES:-false}" != "true" ] || exit 0
     printf '%s\n' \
         'mnoctrlabc1234-agent_mnoctrlabc1234-agent' \
         'mnoctrlabc1234-assistant_mnoctrlabc1234-assistant' \
@@ -125,36 +118,6 @@ EOF
 chmod 0755 "$test_dir/bin/docker"
 PATH="$test_dir/bin:$PATH"
 export MOCK_DOCKER_STATE_DIR="$test_dir/docker-state"
-export MOCK_SWARM_STATE=active
-
-for non_reconcilable_state in inactive pending locked error; do
-    export MOCK_SWARM_STATE="$non_reconcilable_state"
-    : >"$docker_log"
-    reconcile_control_center_plan_services pro
-    [ ! -s "$docker_log" ] || {
-        printf 'ERRO: estado Swarm %s tentou reconciliar serviços (%s).\n' \
-            "$non_reconcilable_state" "$architecture" >&2
-        exit 1
-    }
-done
-
-export MOCK_SWARM_STATE=active
-export MOCK_NO_SERVICES=true
-: >"$docker_log"
-reconcile_control_center_plan_services pro
-[ ! -s "$docker_log" ]
-unset MOCK_NO_SERVICES
-
-export MOCK_SERVICE_LS_FAIL=true
-: >"$docker_log"
-if reconcile_control_center_plan_services pro; then
-    printf 'ERRO: falha de listagem em Swarm ativo não foi bloqueada (%s).\n' \
-        "$architecture" >&2
-    exit 1
-fi
-[ ! -s "$docker_log" ]
-unset MOCK_SERVICE_LS_FAIL
-
 for legacy in false true; do
   export MOCK_LEGACY="$legacy"
   for target_plan in free free1 free2 pro; do
@@ -183,4 +146,4 @@ for legacy in false true; do
   done
 done
 
-printf 'Matriz de planos, bootstrap pré-Control Center, plano web, caminho runtime estável e remount WSL2 aprovados.\n'
+printf 'Matriz de planos, legado, plano web, caminho runtime estável e remount WSL2 aprovados.\n'
