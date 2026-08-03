@@ -70,84 +70,6 @@ control_center_installed() {
         grep -Eq '^mnoctrl[[:alnum:]]+-(web|agent|terminal|assistant)_'
 }
 
-upgrade_existing_control_center() {
-    local upgrade_dir upgrade_log upgrade_error upgrade_state status detail
-    local terminal_service terminal_image control_image plan finalizer_name
-    local has_image_env has_plan_env
-    local -a terminal_update_args
-
-    whiptail --title "ATUALIZAR SETUP MNO CONTROL CENTER" --yesno \
-        "Já existe um Control Center neste servidor.\n\nA instalação única será atualizada in-place para a versão $CONTROL_VERSION. Domínio, usuário, senha, provedor, secrets, volume de feedback, nomes das stacks e edição no Portainer serão preservados.\n\nO site e o Instalador Seguro poderão ficar inacessíveis por cerca de 2 minutos durante a troca final.\n\nDeseja atualizar agora?" \
-        20 88 || return 0
-
-    upgrade_dir=$(mktemp -d) || return 1
-    upgrade_log="/tmp/setupmno-control-upgrade-${CONTROL_VERSION}.log"
-    upgrade_error="$upgrade_dir/error.log"
-    upgrade_state="$upgrade_dir/terminal-update.json"
-    : >"$upgrade_log"
-    : >"$upgrade_error"
-    if ! extract_control_bundle 2>>"$upgrade_log" |
-        tar -xzf - -C "$upgrade_dir" >>"$upgrade_log" 2>&1; then
-        rm -rf -- "$upgrade_dir"
-        msg "O pacote autenticado do Control Center não pôde ser extraído. Atualize primeiro o Setup MNO e tente novamente."
-        return 1
-    fi
-    [ -s "$upgrade_dir/control-upgrade.sh" ] &&
-    [ ! -L "$upgrade_dir/control-upgrade.sh" ] || {
-        rm -rf -- "$upgrade_dir"
-        msg "O atualizador interno não foi encontrado no pacote desta versão."
-        return 1
-    }
-
-    /usr/bin/bash "$upgrade_dir/control-upgrade.sh" "$upgrade_dir" \
-        "$CONTROL_VERSION" "$upgrade_log" "$upgrade_error" "$upgrade_state" |
-        whiptail --title "ATUALIZANDO SETUP MNO CONTROL CENTER" --gauge \
-            "Preservando a instalação existente..." 8 84 0
-    status=${PIPESTATUS[0]}
-    if [ "$status" -ne 0 ] || [ ! -s "$upgrade_state" ]; then
-        detail=$(cat "$upgrade_error" 2>/dev/null)
-        [ -n "$detail" ] || detail=$(tail -n 20 "$upgrade_log" 2>/dev/null)
-        rm -rf -- "$upgrade_dir"
-        whiptail --title "ERRO NA ATUALIZAÇÃO DO CONTROL CENTER" --scrolltext --msgbox \
-            "A atualização foi interrompida e os serviços alterados foram revertidos.\n\n$detail\n\nLog: $upgrade_log" \
-            24 94
-        return "$status"
-    fi
-
-    terminal_service=$(jq -er '.service' "$upgrade_state") || return 1
-    terminal_image=$(jq -er '.image' "$upgrade_state") || return 1
-    control_image=$(jq -er '.controlImage' "$upgrade_state") || return 1
-    plan=$(jq -er '.plan' "$upgrade_state") || return 1
-    has_image_env=$(jq -r '.hasImageEnv' "$upgrade_state")
-    has_plan_env=$(jq -r '.hasPlanEnv' "$upgrade_state")
-    [[ "$terminal_service" =~ ^mnoctrl[[:alnum:]]+-terminal_mnoctrl[[:alnum:]]+-terminal$ ]] || return 1
-    [[ "$terminal_image" =~ ^mnoctrl[[:alnum:]]+-terminal:[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
-    [[ "$control_image" =~ ^mnoctrl[[:alnum:]]+-app:[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
-    [[ "$plan" =~ ^(pro|free|free1|free2)$ ]] || return 1
-
-    whiptail --title "CONTROL CENTER ATUALIZADO" --msgbox \
-        "Painel, agente e Assistente foram atualizados para $CONTROL_VERSION sem criar novas stacks ou containers permanentes.\n\nAo confirmar, o Terminal Seguro será reiniciado. A sessão atual será desconectada e o site poderá levar até 2 minutos para voltar. Recarregue o navegador depois desse período." \
-        17 86
-
-    terminal_update_args=(--image "$terminal_image")
-    [ "$has_image_env" = "true" ] && terminal_update_args+=(--env-rm SETUPMNO_CONTROL_IMAGE)
-    terminal_update_args+=(--env-add "SETUPMNO_CONTROL_IMAGE=$control_image")
-    [ "$has_plan_env" = "true" ] && terminal_update_args+=(--env-rm SETUPMNO_CONTROL_PLAN)
-    terminal_update_args+=(--env-add "SETUPMNO_CONTROL_PLAN=$plan" --force --detach=true "$terminal_service")
-    finalizer_name="${terminal_service%%_*}-upgrade-finalizer"
-    if ! docker run -d --rm --network none --name "$finalizer_name" \
-        -v /var/run/docker.sock:/var/run/docker.sock \
-        --entrypoint /usr/bin/bash "$terminal_image" \
-        -c 'sleep 4; docker service update "$@"' _ \
-        "${terminal_update_args[@]}" >>"$upgrade_log" 2>&1; then
-        rm -rf -- "$upgrade_dir"
-        msg "O painel foi atualizado, mas não foi possível agendar o reinício do Terminal Seguro. Execute novamente a atualização para concluir."
-        return 1
-    fi
-    rm -rf -- "$upgrade_dir"
-    return 0
-}
-
 command -v flock >/dev/null 2>&1 || {
     msg "A trava de instalação segura (flock) não está disponível. Nenhuma alteração foi realizada."
     exit 1
@@ -162,8 +84,8 @@ flock -n 9 || {
 }
 
 if control_center_installed; then
-    upgrade_existing_control_center
-    exit $?
+    msg "Já existe um Setup MNO Control Center neste servidor.\n\nPor segurança, somente uma instalação é permitida por servidor. A instalação atual não foi alterada."
+    exit 0
 fi
 
 ask_required() {
@@ -600,7 +522,7 @@ error_file="/tmp/${nome_app}-error.log"
         fail_install 21 "CATÁLOGO RUNTIME INVÁLIDO" "O catálogo não corresponde ao manifesto desta release."
     install -m 0644 "$runtime_catalog" "$work_dir/source/catalog.json"
     for source_file in go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
-        terminal-menu.sh configure-control.sh control-upgrade.sh \
+        terminal-menu.sh configure-control.sh \
         main.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go provider_evals.go feedback.go catalog.json \
         web/index.html web/app.js web/assistant-route.js web/styles.css web/terminal-bridge.js; do
         [ -s "$work_dir/source/$source_file" ] ||

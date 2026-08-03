@@ -68,7 +68,7 @@ grep -Fq 'if ! check_cloudflare_route "$route_check"; then' "$template" || {
 bash "$project_dir/installer-template_test.sh"
 bash "$project_dir/configure-control_test.sh"
 bash "$project_dir/control-runtime-transition_test.sh"
-bash "$project_dir/control-upgrade_test.sh"
+bash "$project_dir/control-runtime-selfheal_test.sh"
 
 for architecture in x86 arm; do
     install_script="$source_root/$architecture/SetupLowCodeMno/install.sh"
@@ -82,6 +82,10 @@ for architecture in x86 arm; do
     bash -n "$foundation_script"
     bash -n "$start_script"
     grep -Fq 'control_center_installed()' "$install_script"
+    grep -Fq 'ensure_control_center_runtime_access()' "$install_script"
+    grep -Fq 'if control_center_installed && ! ensure_control_center_runtime_access; then' "$install_script"
+    grep -Fq 'control_center_agent_has_runtime_mount "$service" && return 0' "$install_script"
+    ! grep -Fq 'ATUALIZAR CONTROL CENTER' "$install_script"
     grep -Fq 'control_center_installed()' "$foundation_script"
     grep -Fq 'offer_control_center_installation()' "$foundation_script"
     grep -Fq 'A instalação é opcional.' "$foundation_script"
@@ -116,6 +120,7 @@ for architecture in x86 arm; do
     grep -Fq 'reconcile_control_center_plan_services "$PLANO"' "$start_script" &&
     grep -Fq 'service_has_mount_target "$service" /runtime-control' "$start_script" &&
     grep -Fq 'service_has_env_key "$service" SETUPMNO_PLAN' "$start_script" &&
+    grep -Fq 'service_has_env_value "$service" SETUPMNO_PLAN "$plan"' "$start_script" &&
     grep -Fq -- '--mount-rm /runtime-control' "$start_script" &&
     grep -Fq -- '--mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly' "$start_script" &&
     grep -Fq 'docker service update --replicas "$assistant_replicas"' "$start_script" &&
@@ -525,7 +530,7 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
     cd "$project_dir"
     tar -cf - \
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
-        terminal-menu.sh configure-control.sh control-upgrade.sh \
+        terminal-menu.sh configure-control.sh \
         main.go knowledge.go retrieval.go routing.go prompts.go \
         blueprint_recommendation.go evals.go provider_evals.go feedback.go web |
         gzip -9n >"$bundle"
@@ -544,10 +549,6 @@ if ! tar -tzf "$bundle" | grep -Fx 'provider_evals.go' >/dev/null; then
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'feedback.go' >/dev/null; then
     printf 'ERRO: bundle de fontes sem o feedback sanitizado.\n' >&2
-    exit 1
-fi
-if ! tar -tzf "$bundle" | grep -Fx 'control-upgrade.sh' >/dev/null; then
-    printf 'ERRO: bundle de fontes sem o atualizador in-place do Control Center.\n' >&2
     exit 1
 fi
 if tar -tzf "$bundle" | grep -q '^knowledge-package/'; then

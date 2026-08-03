@@ -25,7 +25,7 @@ for architecture in x86 arm; do
     functions=""
     for name in valid_setup_plan write_control_environment \
         prepare_setup_directory_preserving_control \
-        service_has_mount_target service_has_env_key \
+        service_has_mount_target service_has_env_key service_has_env_value \
         reconcile_control_center_plan_services; do
         function_source=$(extract_function "$start_script" "$name")
         [ -n "$function_source" ] || {
@@ -88,26 +88,41 @@ if [ "$1 $2" = "service ls" ]; then
     exit 0
 fi
 if [ "$1 $2" = "service inspect" ]; then
-    if [ "${MOCK_LEGACY:-false}" = "true" ]; then
-        exit 0
-    fi
     case "$*" in
-        *Mounts*) printf '%s\n' '/runtime-control' ;;
-        *Env*) printf '%s\n' 'SETUPMNO_PLAN=free2' ;;
+        *Mounts*)
+            if [ "${MOCK_LEGACY:-false}" != "true" ] ||
+               [ -f "$MOCK_DOCKER_STATE_DIR/mount" ]; then
+                printf '%s\n' '/runtime-control'
+            fi
+            ;;
+        *Env*)
+            if [ -f "$MOCK_DOCKER_STATE_DIR/env" ]; then
+                printf 'SETUPMNO_PLAN=%s\n' "$(cat "$MOCK_DOCKER_STATE_DIR/env")"
+            elif [ "${MOCK_LEGACY:-false}" != "true" ]; then
+                printf '%s\n' 'SETUPMNO_PLAN=free2'
+            fi
+            ;;
     esac
     exit 0
 fi
 if [ "$1 $2" = "service update" ]; then
     printf '%s\n' "$*" >>"$DOCKER_TEST_LOG"
+    [[ " $* " == *" --mount-add "* ]] && : >"$MOCK_DOCKER_STATE_DIR/mount"
+    if [[ " $* " =~ --env-add[[:space:]]SETUPMNO_PLAN=([^[:space:]]+) ]]; then
+        printf '%s' "${BASH_REMATCH[1]}" >"$MOCK_DOCKER_STATE_DIR/env"
+    fi
     exit 0
 fi
 exit 1
 EOF
 chmod 0755 "$test_dir/bin/docker"
 PATH="$test_dir/bin:$PATH"
+export MOCK_DOCKER_STATE_DIR="$test_dir/docker-state"
 for legacy in false true; do
   export MOCK_LEGACY="$legacy"
   for target_plan in free free1 free2 pro; do
+      rm -rf "$MOCK_DOCKER_STATE_DIR"
+      mkdir -p "$MOCK_DOCKER_STATE_DIR"
       : >"$docker_log"
       reconcile_control_center_plan_services "$target_plan"
       [ "$(wc -l <"$docker_log")" -eq 3 ]

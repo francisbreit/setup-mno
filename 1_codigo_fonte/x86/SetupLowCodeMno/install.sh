@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="7.7.5"
+VERSIONSETUP="7.7.6"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -183,6 +183,11 @@ fi
 # --- DISPATCH DINÂMICO (substitui 240+ case blocks) ---
 run_app() {
     local script="$1"
+    if [ "$script" = "setupmno_control" ] && control_center_installed; then
+        whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
+            "Já existe um Setup MNO Control Center neste servidor.\n\nSomente uma instalação é permitida por servidor." 12 72
+        return 0
+    fi
     clear
     cd && cd SetupLowCodeMno && ./"$script"
 }
@@ -245,6 +250,43 @@ control_center_installed() {
         grep -Eq '^mnoctrl[[:alnum:]]+-(web|agent|terminal|assistant)_'
 }
 
+control_center_agent_has_runtime_mount() {
+    local service="$1"
+    docker service inspect --format \
+        '{{range .Spec.TaskTemplate.ContainerSpec.Mounts}}{{println .Target}}{{end}}' \
+        "$service" 2>/dev/null | grep -Fxq /runtime-control
+}
+
+control_center_runtime_is_valid() {
+    [ -d /root/SetupLowCodeMno/.control ] &&
+    [ ! -L /root/SetupLowCodeMno/.control ] &&
+    [ -f /root/SetupLowCodeMno/.control/catalog.json ] &&
+    [ ! -L /root/SetupLowCodeMno/.control/catalog.json ] &&
+    [ -f /root/SetupLowCodeMno/.control/release.json ] &&
+    [ ! -L /root/SetupLowCodeMno/.control/release.json ]
+}
+
+ensure_control_center_runtime_access() {
+    local services service
+    command -v docker >/dev/null 2>&1 || return 1
+    control_center_runtime_is_valid || return 1
+    services=$(docker service ls --format '{{.Name}}' 2>/dev/null |
+        grep -E '^mnoctrl[[:alnum:]]+-agent_mnoctrl[[:alnum:]]+-agent$' || true)
+    [ "$(grep -c . <<<"$services")" -eq 1 ] || return 1
+    service="$services"
+    control_center_agent_has_runtime_mount "$service" && return 0
+    docker service update \
+        --mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly \
+        --force --detach=true "$service" >/dev/null 2>&1 || return 1
+    control_center_agent_has_runtime_mount "$service"
+}
+
+if control_center_installed && ! ensure_control_center_runtime_access; then
+    whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
+        "O Control Center existente foi preservado, mas o acesso somente leitura ao catálogo runtime não pôde ser confirmado.\n\nNenhuma segunda instalação foi criada. Reinstale o Setup MNO ou consulte o suporte antes de usar Catálogo, Blueprints ou Assistente." \
+        16 82
+fi
+
 # --- SAIR ---
 do_exit() {
     clear
@@ -280,10 +322,7 @@ while true; do
 
 CONTROL_CENTER_MENU=()
 CONTROL_CENTER_FREE_MENU=()
-if control_center_installed; then
-    CONTROL_CENTER_MENU=("ATUALIZAR CONTROL CENTER" "")
-    CONTROL_CENTER_FREE_MENU=("ATUALIZAR CONTROL CENTER" "")
-else
+if ! control_center_installed; then
     CONTROL_CENTER_MENU=("SETUP MNO CONTROL CENTER" "")
     CONTROL_CENTER_FREE_MENU=("SETUP MNO CONTROL CENTER" "")
 fi
@@ -593,7 +632,7 @@ case "$CHOICE" in
             "REDIS COMMANDER")                                       run_app redicommander ;;
             "REDISINSIGHT")                                          run_app redisinsight ;;
             "SEARXNG")                                               run_app searxng ;;
-            "SETUP MNO CONTROL CENTER"|"ATUALIZAR CONTROL CENTER")  run_app setupmno_control ;;
+            "SETUP MNO CONTROL CENTER")                              run_app setupmno_control ;;
             "SYNCTHING")                                             run_app syncthing ;;
             "SHLINK")                                                run_app shlink ;;
             "SIYUAN")                                                run_app siyuan ;;
@@ -929,7 +968,7 @@ case "$CHOICE" in
             "REDIS COMMANDER")                                       run_app redicommander ;;
             "REDISINSIGHT")                                          run_app redisinsight ;;
             "SEARXNG")                                               run_app searxng ;;
-            "SETUP MNO CONTROL CENTER"|"ATUALIZAR CONTROL CENTER")  run_app setupmno_control ;;
+            "SETUP MNO CONTROL CENTER")                              run_app setupmno_control ;;
             "SYNCTHING")                                             run_app syncthing ;;
             "SHLINK")                                                run_app shlink ;;
             "SIYUAN")                                                run_app siyuan ;;
@@ -1257,7 +1296,7 @@ case "$CHOICE" in
             "REDIS COMMANDER")                                       run_app redicommander ;;
             "REDISINSIGHT")                                          run_app redisinsight ;;
             "SEARXNG")                                               run_app searxng ;;
-            "SETUP MNO CONTROL CENTER"|"ATUALIZAR CONTROL CENTER")  run_app setupmno_control ;;
+            "SETUP MNO CONTROL CENTER")                              run_app setupmno_control ;;
             "SYNCTHING")                                             run_app syncthing ;;
             "SHLINK")                                                run_app shlink ;;
             "SIYUAN")                                                run_app siyuan ;;
@@ -1585,7 +1624,7 @@ case "$CHOICE" in
             "REDIS COMMANDER")                                       run_app redicommander ;;
             "REDISINSIGHT")                                          run_app redisinsight ;;
             "SEARXNG")                                               run_app searxng ;;
-            "SETUP MNO CONTROL CENTER"|"ATUALIZAR CONTROL CENTER")  run_app setupmno_control ;;
+            "SETUP MNO CONTROL CENTER")                              run_app setupmno_control ;;
             "SYNCTHING")                                             run_app syncthing ;;
             "SHLINK")                                                run_app shlink ;;
             "SIYUAN")                                                run_app siyuan ;;

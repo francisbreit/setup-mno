@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.7.5"
+VERSIONSETUP="7.7.6"
 EXPECTED_EVAL_DATASET_VERSION="1.9.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
 EXPECTED_EVAL_CASE_ENTRIES="843"
@@ -131,6 +131,7 @@ reconcile_control_center_plan_services() {
                         --mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly \
                         --force --detach=true "$service" >/dev/null 2>&1 || return 1
                 fi
+                service_has_mount_target "$service" /runtime-control || return 1
                 ;;
             mnoctrl*-assistant_mnoctrl*-assistant)
                 [[ "$service" =~ ^mnoctrl[[:alnum:]]+-assistant_mnoctrl[[:alnum:]]+-assistant$ ]] || continue
@@ -147,6 +148,7 @@ reconcile_control_center_plan_services() {
                     docker service update --env-add "SETUPMNO_PLAN=$plan" \
                         --detach=true "$service" >/dev/null 2>&1 || return 1
                 fi
+                service_has_env_value "$service" SETUPMNO_PLAN "$plan" || return 1
                 ;;
         esac
     done <<<"$services"
@@ -162,6 +164,12 @@ service_has_env_key() {
     local service="$1" key="$2"
     docker service inspect --format '{{range .Spec.TaskTemplate.ContainerSpec.Env}}{{println .}}{{end}}' \
         "$service" 2>/dev/null | grep -Eq "^${key}="
+}
+
+service_has_env_value() {
+    local service="$1" key="$2" value="$3"
+    docker service inspect --format '{{range .Spec.TaskTemplate.ContainerSpec.Env}}{{println .}}{{end}}' \
+        "$service" 2>/dev/null | grep -Fxq "${key}=${value}"
 }
 
 # Função para enviar HTTP POST e validar a resposta

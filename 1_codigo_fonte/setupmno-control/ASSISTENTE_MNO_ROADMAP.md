@@ -14,7 +14,7 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.7.5` no canal Beta
+- Setup MNO: `7.7.6` no canal Beta
 - Control Center: `4.15.1`
 - Conhecimento canônico: `3.14.0`
 - Catálogo runtime: 151 entradas
@@ -2367,31 +2367,35 @@ Os gates cobrem as 16 transições de plano, a propagação do plano ao serviço
 web, o bloqueio dos três planos gratuitos e a ativação completa de um provedor
 válido no PRO.
 
-## Correção v7.7.5 — Atualização in-place e compatibilidade legada
+## Correção v7.7.6 — Compatibilidade legada e autorreparo invisível
 
 **Status:** implementado
 **Impacto:** crítico
-**Tipo:** confiabilidade, manutenção e compatibilidade
-**Esforço:** estrutural
+**Tipo:** confiabilidade, UX e compatibilidade
+**Esforço:** moderado
 
-O item do instalador passa a oferecer atualização quando já existe exatamente
-um Control Center no servidor. O fluxo constrói e valida o Control Center
-`4.15.1`, atualiza os serviços existentes e conserva nomes, domínio, secrets,
-volume de feedback, provedor, plano e metadados de propriedade do Portainer.
-Nenhuma segunda instalação, stack ou volume permanente é criado.
+O instalador volta à experiência de instalação única: a opção `SETUP MNO
+CONTROL CENTER` aparece somente quando o painel ainda não existe e desaparece
+de todos os menus depois da instalação. Não há botão nem fluxo manual de
+atualização do Control Center para o cliente.
 
-O agente, o Assistente e o painel são atualizados antes do terminal. A troca
-do terminal é agendada por um finalizador efêmero para que o processo não seja
-interrompido antes de o Docker aceitar a nova especificação. O usuário recebe
-aviso explícito de indisponibilidade temporária e pode reconectar após a
-convergência. Falhas anteriores à troca final acionam rollback dos serviços já
-alterados.
+Instalações novas recebem diretamente o Control Center `4.15.1`, já alinhado
+ao catálogo, ao conhecimento e aos Blueprints da release. Servidores
+anteriores ao lançamento do painel continuam sem qualquer ação adicional e
+podem realizar a primeira instalação normalmente.
 
 A reconciliação de plano passa a inspecionar mounts e variáveis antes de usar
 `--mount-rm` ou `--env-rm`. Isso permite migrar versões antigas que não possuíam
 `/runtime-control` ou `SETUPMNO_PLAN`, eliminando a falha 41 sem enfraquecer a
 validação. Se ainda houver erro, o plano anterior do painel é restaurado quando
 estiver disponível.
+
+Como segunda camada de proteção, o `install.sh` verifica silenciosamente o
+mount somente leitura do agente ao abrir o menu. Se um Control Center legado
+estiver sem `/runtime-control`, o mount canônico é adicionado e confirmado sem
+criar stacks, serviços, volumes ou containers permanentes. Instalações já
+corretas não sofrem restart. Ambiguidade com múltiplos agentes é bloqueada e
+exibida ao usuário, nunca corrigida por aproximação.
 
 ## Referências oficiais
 
