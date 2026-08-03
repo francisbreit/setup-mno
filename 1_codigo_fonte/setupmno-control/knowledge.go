@@ -54,38 +54,75 @@ type knowledgeLimits struct {
 }
 
 type knowledgeManifest struct {
-	SchemaVersion             int                   `json:"schemaVersion"`
-	KnowledgeVersion          string                `json:"knowledgeVersion"`
-	SetupVersion              string                `json:"setupVersion"`
-	ControlVersion            string                `json:"controlVersion"`
-	GeneratedAt               string                `json:"generatedAt"`
-	ArchiveFile               string                `json:"archiveFile"`
-	ArchiveSHA256             string                `json:"archiveSHA256"`
-	ArchiveBytes              int64                 `json:"archiveBytes"`
-	IndexSHA256               string                `json:"indexSHA256"`
-	LegacyIndexSHA256         string                `json:"legacyIndexSHA256"`
-	IndexSchemaVersion        int                   `json:"indexSchemaVersion"`
-	RetrievalVersion          string                `json:"retrievalVersion"`
-	EvalSchemaVersion         int                   `json:"evalSchemaVersion"`
-	EvalDatasetVersion        string                `json:"evalDatasetVersion"`
-	EvalGraderVersion         string                `json:"evalGraderVersion"`
-	EvalDatasetSHA256         string                `json:"evalDatasetSHA256"`
-	EvalCaseEntries           int                   `json:"evalCaseEntries"`
-	DocumentEntries           int                   `json:"documentEntries"`
-	ChunkEntries              int                   `json:"chunkEntries"`
-	DocumentTypeEntries       map[string]int        `json:"documentTypeEntries"`
-	SetupEntries              int                   `json:"setupEntries"`
-	InfrastructureEntries     int                   `json:"infrastructureEntries"`
-	BlueprintSchemaVersion    int                   `json:"blueprintSchemaVersion"`
-	BlueprintFactoryVersion   string                `json:"blueprintFactoryVersion"`
-	BlueprintEntries          int                   `json:"blueprintEntries"`
-	BlueprintBundleEntries    int                   `json:"blueprintBundleEntries"`
-	BlueprintIndexSHA256      string                `json:"blueprintIndexSHA256"`
-	BlueprintKnowledgeEntries int                   `json:"blueprintKnowledgeEntries"`
-	BlueprintFixtureEntries   int                   `json:"blueprintFixtureEntries"`
-	FileEntries               int                   `json:"fileEntries"`
-	Limits                    knowledgeLimits       `json:"limits"`
-	Files                     []knowledgeFileRecord `json:"files"`
+	SchemaVersion             int                     `json:"schemaVersion"`
+	KnowledgeVersion          string                  `json:"knowledgeVersion"`
+	SetupVersion              string                  `json:"setupVersion"`
+	ControlVersion            string                  `json:"controlVersion"`
+	GeneratedAt               string                  `json:"generatedAt"`
+	ArchiveFile               string                  `json:"archiveFile"`
+	ArchiveSHA256             string                  `json:"archiveSHA256"`
+	ArchiveBytes              int64                   `json:"archiveBytes"`
+	IndexSHA256               string                  `json:"indexSHA256"`
+	LegacyIndexSHA256         string                  `json:"legacyIndexSHA256"`
+	IndexSchemaVersion        int                     `json:"indexSchemaVersion"`
+	RetrievalVersion          string                  `json:"retrievalVersion"`
+	EvalSchemaVersion         int                     `json:"evalSchemaVersion"`
+	EvalDatasetVersion        string                  `json:"evalDatasetVersion"`
+	EvalGraderVersion         string                  `json:"evalGraderVersion"`
+	EvalDatasetSHA256         string                  `json:"evalDatasetSHA256"`
+	EvalCaseEntries           int                     `json:"evalCaseEntries"`
+	DocumentEntries           int                     `json:"documentEntries"`
+	ChunkEntries              int                     `json:"chunkEntries"`
+	DocumentTypeEntries       map[string]int          `json:"documentTypeEntries"`
+	SetupEntries              int                     `json:"setupEntries"`
+	InfrastructureEntries     int                     `json:"infrastructureEntries"`
+	BlueprintSchemaVersion    int                     `json:"blueprintSchemaVersion"`
+	BlueprintFactoryVersion   string                  `json:"blueprintFactoryVersion"`
+	BlueprintEntries          int                     `json:"blueprintEntries"`
+	BlueprintBundleEntries    int                     `json:"blueprintBundleEntries"`
+	BlueprintIndexSHA256      string                  `json:"blueprintIndexSHA256"`
+	BlueprintKnowledgeEntries int                     `json:"blueprintKnowledgeEntries"`
+	BlueprintFixtureEntries   int                     `json:"blueprintFixtureEntries"`
+	QualitySchemaVersion      int                     `json:"qualitySchemaVersion"`
+	QualityReportSHA256       string                  `json:"qualityReportSHA256"`
+	QualitySummary            knowledgeQualitySummary `json:"qualitySummary"`
+	FileEntries               int                     `json:"fileEntries"`
+	Limits                    knowledgeLimits         `json:"limits"`
+	Files                     []knowledgeFileRecord   `json:"files"`
+}
+
+type knowledgeQualitySummary struct {
+	SetupEntries               int            `json:"setupEntries"`
+	EditorialStatuses          map[string]int `json:"editorialStatuses"`
+	MaturityLevels             map[string]int `json:"maturityLevels"`
+	OfficialSourceEntries      int            `json:"officialSourceEntries"`
+	OfficialSourceExceptions   int            `json:"officialSourceExceptions"`
+	InternalOnlySourceEntries  int            `json:"internalOnlySourceEntries"`
+	OperationalEvidenceEntries int            `json:"operationalEvidenceEntries"`
+	HomologatedEntries         int            `json:"homologatedEntries"`
+	IssueEntries               int            `json:"issueEntries"`
+	UnresolvedIssueCount       int            `json:"unresolvedIssueCount"`
+}
+
+type knowledgeQualityEntry struct {
+	SetupID              string   `json:"setupId"`
+	CatalogName          string   `json:"catalogName"`
+	EditorialStatus      string   `json:"editorialStatus"`
+	Maturity             string   `json:"maturity"`
+	SourceClassification string   `json:"sourceClassification"`
+	ScriptSourceDeclared bool     `json:"scriptSourceDeclared"`
+	OperationalEvidence  bool     `json:"operationalEvidence"`
+	HomologationEvidence bool     `json:"homologationEvidence"`
+	Issues               []string `json:"issues"`
+}
+
+type knowledgeQualityReport struct {
+	SchemaVersion    int                     `json:"schemaVersion"`
+	SetupVersion     string                  `json:"setupVersion"`
+	KnowledgeVersion string                  `json:"knowledgeVersion"`
+	GeneratedAt      string                  `json:"generatedAt"`
+	Summary          knowledgeQualitySummary `json:"summary"`
+	Entries          []knowledgeQualityEntry `json:"entries"`
 }
 
 type knowledgeIndexEntry struct {
@@ -438,6 +475,7 @@ func validateKnowledgePackage(
 		manifest.EvalGraderVersion != evalGraderVersion ||
 		manifest.BlueprintSchemaVersion != blueprintSchema ||
 		manifest.BlueprintFactoryVersion == "" ||
+		manifest.QualitySchemaVersion != 1 ||
 		manifest.KnowledgeVersion == "" ||
 		manifest.SetupVersion == "" ||
 		manifest.ControlVersion == "" {
@@ -462,6 +500,7 @@ func validateKnowledgePackage(
 		manifest.BlueprintFixtureEntries < 0 ||
 		manifest.BlueprintFixtureEntries > manifest.BlueprintKnowledgeEntries ||
 		len(manifest.BlueprintIndexSHA256) != 64 ||
+		len(manifest.QualityReportSHA256) != 64 ||
 		manifest.EvalCaseEntries != evalExpectedCases ||
 		len(manifest.EvalDatasetSHA256) != 64 {
 		return knowledgePackageState{}, errors.New("contagens do manifesto inválidas")
@@ -520,6 +559,17 @@ func validateKnowledgePackage(
 			record.SHA256 != sha256String(data) {
 			return knowledgePackageState{}, fmt.Errorf("arquivo diverge do inventário: %s", filename)
 		}
+	}
+	qualityData, exists := files["registry/quality-report.json"]
+	if !exists || manifest.QualityReportSHA256 != sha256String(qualityData) {
+		return knowledgePackageState{}, errors.New("relatório de qualidade ausente ou divergente")
+	}
+	var qualityReport knowledgeQualityReport
+	if err := decodeStrictJSON(qualityData, &qualityReport); err != nil {
+		return knowledgePackageState{}, fmt.Errorf("relatório de qualidade inválido: %w", err)
+	}
+	if err := validateKnowledgeQualityReport(qualityReport, manifest); err != nil {
+		return knowledgePackageState{}, err
 	}
 	if err := validateBlueprintPackage(files, manifest); err != nil {
 		return knowledgePackageState{}, err
@@ -659,6 +709,86 @@ func validateKnowledgePackage(
 		Evals:      evalDataset,
 		Files:      files,
 	}, nil
+}
+
+func validateKnowledgeQualityReport(report knowledgeQualityReport, manifest knowledgeManifest) error {
+	if report.SchemaVersion != manifest.QualitySchemaVersion ||
+		report.SetupVersion != manifest.SetupVersion ||
+		report.KnowledgeVersion != manifest.KnowledgeVersion ||
+		report.GeneratedAt == "" ||
+		report.Summary.SetupEntries != manifest.SetupEntries ||
+		len(report.Entries) != manifest.SetupEntries ||
+		!reflect.DeepEqual(report.Summary, manifest.QualitySummary) {
+		return errors.New("relatório de qualidade incompatível com o manifesto")
+	}
+	expectedMaturity := map[string]bool{
+		"structural": true, "source-reviewed": true, "script-reviewed": true,
+		"operational-reviewed": true, "homologated": true,
+	}
+	expectedStatuses := map[string]bool{
+		"draft": true, "reviewed": true, "homologated": true,
+		"outdated": true, "deprecated": true,
+	}
+	if len(report.Summary.MaturityLevels) != len(expectedMaturity) ||
+		len(report.Summary.EditorialStatuses) != len(expectedStatuses) {
+		return errors.New("taxonomia de qualidade incompleta")
+	}
+	maturityTotal := 0
+	for maturity := range expectedMaturity {
+		count, exists := report.Summary.MaturityLevels[maturity]
+		if !exists || count < 0 {
+			return errors.New("contagem de maturidade inválida")
+		}
+		maturityTotal += count
+	}
+	statusTotal := 0
+	for status := range expectedStatuses {
+		count, exists := report.Summary.EditorialStatuses[status]
+		if !exists || count < 0 {
+			return errors.New("contagem editorial inválida")
+		}
+		statusTotal += count
+	}
+	if maturityTotal != manifest.SetupEntries || statusTotal != manifest.SetupEntries ||
+		report.Summary.HomologatedEntries != report.Summary.MaturityLevels["homologated"] ||
+		report.Summary.OfficialSourceEntries < 0 ||
+		report.Summary.OfficialSourceExceptions < 0 ||
+		report.Summary.InternalOnlySourceEntries < 0 ||
+		report.Summary.OfficialSourceEntries+report.Summary.OfficialSourceExceptions+
+			report.Summary.InternalOnlySourceEntries != manifest.SetupEntries ||
+		report.Summary.OperationalEvidenceEntries < 0 ||
+		report.Summary.OperationalEvidenceEntries > manifest.SetupEntries ||
+		report.Summary.IssueEntries < 0 ||
+		report.Summary.IssueEntries > manifest.SetupEntries ||
+		report.Summary.UnresolvedIssueCount < report.Summary.IssueEntries {
+		return errors.New("resumo de qualidade inconsistente")
+	}
+	seen := make(map[string]struct{}, len(report.Entries))
+	issueEntries := 0
+	issueCount := 0
+	for _, entry := range report.Entries {
+		if entry.SetupID == "" || entry.CatalogName == "" ||
+			!expectedMaturity[entry.Maturity] || !expectedStatuses[entry.EditorialStatus] {
+			return errors.New("entrada inválida no relatório de qualidade")
+		}
+		if entry.SourceClassification != "official-and-internal" &&
+			entry.SourceClassification != "internal-only" &&
+			entry.SourceClassification != "exception-approved" {
+			return errors.New("classificação de fonte inválida")
+		}
+		if _, exists := seen[entry.SetupID]; exists {
+			return errors.New("setupId duplicado no relatório de qualidade")
+		}
+		seen[entry.SetupID] = struct{}{}
+		if len(entry.Issues) > 0 {
+			issueEntries++
+		}
+		issueCount += len(entry.Issues)
+	}
+	if issueEntries != report.Summary.IssueEntries || issueCount != report.Summary.UnresolvedIssueCount {
+		return errors.New("pendências do relatório de qualidade divergentes")
+	}
+	return nil
 }
 
 func validateBlueprintPackage(files map[string][]byte, manifest knowledgeManifest) error {
@@ -1150,6 +1280,8 @@ func knowledgeCheckPayload(state knowledgePackageState) map[string]any {
 		"blueprintBundleEntries":    state.Manifest.BlueprintBundleEntries,
 		"blueprintKnowledgeEntries": state.Manifest.BlueprintKnowledgeEntries,
 		"blueprintFixtureEntries":   state.Manifest.BlueprintFixtureEntries,
+		"qualitySchemaVersion":      state.Manifest.QualitySchemaVersion,
+		"qualitySummary":            state.Manifest.QualitySummary,
 		"archiveSHA256":             state.Manifest.ArchiveSHA256,
 	}
 }

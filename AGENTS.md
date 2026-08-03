@@ -286,11 +286,13 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
    - adicionar a identidade, aliases, script e arquiteturas em `1_codigo_fonte/setupmno-knowledge/registry/setups.json`;
    - criar `1_codigo_fonte/setupmno-knowledge/setups/<setupId>/overview.md` com finalidade, variantes, arquitetura, RAM, dependências, pré-requisitos, instalação, primeiro acesso, segurança, backup, atualização, rollback, diagnóstico, integrações, limitações e fontes;
    - confrontar documentação oficial atual com os scripts x86/ARM reais; texto genérico gerado a partir do catálogo não conta como conhecimento;
-   - manter o documento como `draft` até revisão humana e promover somente para `reviewed` ou `homologated` depois dos gates;
+   - manter o documento como `draft` até revisão humana; `reviewed` confirma apenas estado editorial e nunca deve ser apresentado como revisão operacional ou homologação;
+   - registrar a classificação em `registry/governance.json` e regenerar `registry/quality-report.json`; a maturidade começa em `structural` e só pode avançar por `source-reviewed`, `script-reviewed`, `operational-reviewed` e `homologated` quando todos os gates cumulativos possuírem evidência;
    - criar casos de eval para fatos, arquitetura, capacidade, segurança e rollback;
-   - executar `python3 -B tools/knowledge_coverage.py --enforce-baseline`, `python3 -B tools/test_knowledge.py` e o gerador oficial a partir de `1_codigo_fonte/setupmno-knowledge/`;
+   - executar `python3 -B tools/knowledge_coverage.py --enforce-baseline`, `python3 -B tools/knowledge_quality.py --write-report registry/quality-report.json --enforce-baseline`, `python3 -B tools/test_knowledge.py` e o gerador oficial a partir de `1_codigo_fonte/setupmno-knowledge/`;
    - elevar `coverage-baseline.json` no mesmo commit quando a cobertura aumentar. É proibido reduzir mínimos ou ampliar `maximumMissingEntries` para liberar a build;
    - não empacotar se uma nova entrada quebrar a cobertura completa. A baseline canônica é **151 de 151 entradas cobertas**; todo crescimento do catálogo deve elevar registro, documentos, evals e baseline no mesmo commit.
+   - é proibido reduzir mínimos de maturidade, aumentar `maximumUnresolvedIssueCount` ou promover uma entrada com pendência para liberar a build.
 
 6. **Versionamento:** Incremente o MINOR da versão (ex: 4.20.2 → 4.21.0).
 7. **Empacotamento:** Finalize com o comando de build após validar a sintaxe.

@@ -14,9 +14,9 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.3.1` no canal Beta
-- Control Center: `4.11.1`
-- Conhecimento canônico: `3.10.1`
+- Setup MNO: `7.4.0` no canal Beta
+- Control Center: `4.12.0`
+- Conhecimento canônico: `3.11.0`
 - Catálogo runtime: 151 entradas
 - Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
 - Blueprints: cinco guias Beta editáveis, consultáveis e baixáveis; ainda não homologados
@@ -2025,6 +2025,47 @@ evals e repetir os gates. Em paralelo, especificar a jornada orientada a
 objetivos sem ampliar a autoridade de execução da IA. Os cinco Blueprints
 hipotéticos permanecem disponíveis como demonstração claramente não
 implantável até o mantenedor fornecer os primeiros projetos reais.
+
+## Etapa 8.1A — Governança editorial e classificação real
+
+**Status:** implementada na v7.4.0
+**Impacto:** crítico
+**Tipo:** governança, confiabilidade e manutenção
+**Esforço:** estrutural
+
+Esta subetapa não ativa RAG semântico nem fine-tuning. Ela corrige a semântica
+da base canônica antes de qualquer otimização: cobertura documental, revisão
+editorial, revisão operacional e homologação passam a ser medidas separadas.
+
+Baseline real da release:
+
+- 151 de 151 setups possuem documento estrutural recuperável;
+- 151 classificados como `structural`;
+- zero classificados como `source-reviewed`, `script-reviewed`,
+  `operational-reviewed` ou `homologated`;
+- 131 documentos possuem fonte oficial declarada;
+- uma exceção de fonte aprovada para o produto interno Control Center;
+- 29 pendências rastreadas sem retirar os documentos atuais do Assistente.
+
+O registro `registry/governance.json` define a política e as exceções. O
+relatório `registry/quality-report.json` é reproduzível, validado contra uma
+baseline monotônica, incluído no pacote assinado e conferido novamente pelo
+Control Center. Uma promoção é bloqueada se faltar fonte oficial ou exceção,
+fonte do instalador real, evidência operacional por arquitetura, checks, data,
+portas ou imagens verificadas.
+
+A resposta agregada do Assistente deixa explícito que 100% de cobertura
+estrutural não significa 100% de homologação. Ela informa os cinco níveis de
+maturidade e a quantidade de pendências usando o manifesto validado, sem
+inferir números a partir do RAG.
+
+### Próxima ação após a 8.1A
+
+Resolver as pendências por prioridade de risco e promover pequenos lotes. Cada
+promoção futura deverá reduzir ou manter a quantidade de pendências e nunca
+reduzir a contagem já alcançada nos níveis superiores. RAG semântico e
+fine-tuning continuam condicionados a evidência mensurável, como definido na
+Etapa 8 original.
 
 ## Referências oficiais
 

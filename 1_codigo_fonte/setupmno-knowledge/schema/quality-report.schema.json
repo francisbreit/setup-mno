@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://setupmno.local/schemas/quality-report.schema.json",
+  "title": "Setup MNO Knowledge Quality Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "setupVersion",
+    "knowledgeVersion",
+    "generatedAt",
+    "summary",
+    "entries"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "setupVersion": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "knowledgeVersion": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "generatedAt": {"type": "string", "format": "date-time"},
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "setupEntries",
+        "editorialStatuses",
+        "maturityLevels",
+        "officialSourceEntries",
+        "officialSourceExceptions",
+        "internalOnlySourceEntries",
+        "operationalEvidenceEntries",
+        "homologatedEntries",
+        "issueEntries",
+        "unresolvedIssueCount"
+      ],
+      "properties": {
+        "setupEntries": {"type": "integer", "minimum": 0},
+        "editorialStatuses": {"$ref": "#/$defs/countMap"},
+        "maturityLevels": {"$ref": "#/$defs/countMap"},
+        "officialSourceEntries": {"type": "integer", "minimum": 0},
+        "officialSourceExceptions": {"type": "integer", "minimum": 0},
+        "internalOnlySourceEntries": {"type": "integer", "minimum": 0},
+        "operationalEvidenceEntries": {"type": "integer", "minimum": 0},
+        "homologatedEntries": {"type": "integer", "minimum": 0},
+        "issueEntries": {"type": "integer", "minimum": 0},
+        "unresolvedIssueCount": {"type": "integer", "minimum": 0}
+      }
+    },
+    "entries": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/entry"}
+    }
+  },
+  "$defs": {
+    "countMap": {
+      "type": "object",
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "setupId",
+        "catalogName",
+        "editorialStatus",
+        "maturity",
+        "sourceClassification",
+        "scriptSourceDeclared",
+        "operationalEvidence",
+        "homologationEvidence",
+        "issues"
+      ],
+      "properties": {
+        "setupId": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+        "catalogName": {"type": "string", "minLength": 1},
+        "editorialStatus": {
+          "enum": ["draft", "reviewed", "homologated", "outdated", "deprecated"]
+        },
+        "maturity": {
+          "enum": [
+            "structural",
+            "source-reviewed",
+            "script-reviewed",
+            "operational-reviewed",
+            "homologated"
+          ]
+        },
+        "sourceClassification": {
+          "enum": ["official-and-internal", "internal-only", "exception-approved"]
+        },
+        "scriptSourceDeclared": {"type": "boolean"},
+        "operationalEvidence": {"type": "boolean"},
+        "homologationEvidence": {"type": "boolean"},
+        "issues": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"}
+        }
+      }
+    }
+  }
+}

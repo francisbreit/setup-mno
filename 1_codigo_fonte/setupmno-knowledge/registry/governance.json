@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "setupVersion": "7.4.0",
+  "knowledgeVersion": "3.11.0",
+  "defaultMaturity": "structural",
+  "maturityLevels": [
+    "structural",
+    "source-reviewed",
+    "script-reviewed",
+    "operational-reviewed",
+    "homologated"
+  ],
+  "promotionPolicy": {
+    "source-reviewed": "Documento revisado, com fonte oficial ou exceção interna justificada.",
+    "script-reviewed": "Revisão de fonte concluída e instalador real conferido contra o documento.",
+    "operational-reviewed": "Revisão do script concluída e evidência operacional explícita nas arquiteturas declaradas.",
+    "homologated": "Revisão operacional concluída, status editorial homologated e evidências de imagem, porta e data verificadas."
+  },
+  "sourceExceptions": [
+    {
+      "setupId": "setupmno-control",
+      "reason": "Produto interno do Setup MNO; código-fonte, arquitetura e homologação mantidos neste repositório são as fontes primárias."
+    }
+  ],
+  "promotions": {},
+  "knownIssues": [
+    {
+      "setupId": "plane",
+      "code": "capacity-inconsistent",
+      "reason": "O catálogo declara 2 GB, enquanto o documento registra requisito oficial mínimo de 4 GB."
+    }
+  ]
+}

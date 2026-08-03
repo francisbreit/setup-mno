@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "knowledgeVersion": "3.10.1",
+  "knowledgeVersion": "3.11.0",
   "documentTypes": [
     "infrastructure",
     "setup",
@@ -30,6 +30,7 @@
     "draft",
     "reviewed",
     "homologated",
+    "outdated",
     "deprecated"
   ],
   "architectures": [

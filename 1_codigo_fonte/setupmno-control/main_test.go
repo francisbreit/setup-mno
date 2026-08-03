@@ -514,14 +514,24 @@ func TestKnowledgeStatusMarkdownUsesManifestInsteadOfRetrievalSlice(t *testing.T
 		DocumentEntries: 165, SetupEntries: 151, InfrastructureEntries: 9,
 		BlueprintKnowledgeEntries: 5,
 		DocumentTypeEntries:       map[string]int{"setup": 151, "infrastructure": 9, "blueprint": 5},
+		QualitySummary: knowledgeQualitySummary{
+			SetupEntries: 151,
+			MaturityLevels: map[string]int{
+				"structural": 151, "source-reviewed": 0, "script-reviewed": 0,
+				"operational-reviewed": 0, "homologated": 0,
+			},
+			OfficialSourceEntries: 131,
+			UnresolvedIssueCount:  29,
+		},
 	}}
 	answer, err := knowledgeStatusMarkdown(catalog, state)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, expected := range []string{
-		"151 dos 151 setups", "100.00%", "cobertura dedicada do catálogo está **completa**",
-		"165 documentos canônicos", "manifesto interno versionado",
+		"151 dos 151 setups", "100.00%", "cobertura estrutural dedicada do catálogo está **completa**",
+		"165 documentos canônicos", "151 estruturais", "0 com evidência operacional",
+		"131 fontes oficiais declaradas", "29 pendências", "manifesto interno versionado",
 	} {
 		if !strings.Contains(answer, expected) {
 			t.Fatalf("inventário ausente %q: %s", expected, answer)

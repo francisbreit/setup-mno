@@ -336,6 +336,11 @@ python3 -B "$source_root/setupmno-knowledge/tools/knowledge_coverage.py" \
     --root "$source_root/setupmno-knowledge" \
     --catalog "$project_dir/catalog.json" \
     --enforce-baseline >/dev/null
+python3 -B "$source_root/setupmno-knowledge/tools/knowledge_quality.py" \
+    --root "$source_root/setupmno-knowledge" \
+    --catalog "$project_dir/catalog.json" \
+    --write-report "$source_root/setupmno-knowledge/registry/quality-report.json" \
+    --enforce-baseline >/dev/null
 python3 -B "$source_root/setupmno-knowledge/tools/generate_package.py" \
     --root "$source_root/setupmno-knowledge" \
     --catalog "$project_dir/catalog.json" \
@@ -370,6 +375,17 @@ blueprint_bundle_entries=$(jq -r '.blueprintBundleEntries // 0' "$knowledge_pack
 blueprint_index_sha=$(jq -r '.blueprintIndexSHA256 // empty' "$knowledge_package/manifest.json")
 blueprint_knowledge_entries=$(jq -r '.blueprintKnowledgeEntries // 0' "$knowledge_package/manifest.json")
 blueprint_fixture_entries=$(jq -r '.blueprintFixtureEntries // 0' "$knowledge_package/manifest.json")
+quality_schema=$(jq -r '.qualitySchemaVersion // 0' "$knowledge_package/manifest.json")
+quality_report_sha=$(jq -r '.qualityReportSHA256 // empty' "$knowledge_package/manifest.json")
+quality_setup_entries=$(jq -r '.qualitySummary.setupEntries // 0' "$knowledge_package/manifest.json")
+quality_structural_entries=$(jq -r '.qualitySummary.maturityLevels.structural // -1' "$knowledge_package/manifest.json")
+quality_source_reviewed_entries=$(jq -r '.qualitySummary.maturityLevels["source-reviewed"] // -1' "$knowledge_package/manifest.json")
+quality_script_reviewed_entries=$(jq -r '.qualitySummary.maturityLevels["script-reviewed"] // -1' "$knowledge_package/manifest.json")
+quality_operational_entries=$(jq -r '.qualitySummary.maturityLevels["operational-reviewed"] // -1' "$knowledge_package/manifest.json")
+quality_homologated_entries=$(jq -r '.qualitySummary.maturityLevels.homologated // -1' "$knowledge_package/manifest.json")
+quality_official_entries=$(jq -r '.qualitySummary.officialSourceEntries // -1' "$knowledge_package/manifest.json")
+quality_unresolved_issues=$(jq -r '.qualitySummary.unresolvedIssueCount // -1' "$knowledge_package/manifest.json")
+quality_maturity_total=$((quality_structural_entries + quality_source_reviewed_entries + quality_script_reviewed_entries + quality_operational_entries + quality_homologated_entries))
 knowledge_archive_sha=$(jq -r '.archiveSHA256 // empty' "$knowledge_package/manifest.json")
 knowledge_archive_bytes=$(jq -r '.archiveBytes // 0' "$knowledge_package/manifest.json")
 knowledge_actual_sha=$(sha256sum "$knowledge_package/knowledge-package.tar.gz" | awk '{print $1}')
@@ -396,6 +412,17 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$blueprint_fixture_entries" -ge 0 ] &&
 [ "$blueprint_fixture_entries" -le "$blueprint_knowledge_entries" ] &&
 [ "${#blueprint_index_sha}" -eq 64 ] &&
+[ "$quality_schema" = "1" ] &&
+[ "${#quality_report_sha}" -eq 64 ] &&
+[ "$quality_setup_entries" = "151" ] &&
+[ "$quality_maturity_total" = "$quality_setup_entries" ] &&
+[ "$quality_structural_entries" -ge 0 ] &&
+[ "$quality_source_reviewed_entries" -ge 0 ] &&
+[ "$quality_script_reviewed_entries" -ge 0 ] &&
+[ "$quality_operational_entries" -ge 0 ] &&
+[ "$quality_homologated_entries" -ge 0 ] &&
+[ "$quality_official_entries" -ge 131 ] &&
+[ "$quality_unresolved_issues" -le 29 ] &&
 [ "$knowledge_archive_sha" = "$knowledge_actual_sha" ] &&
 [ "$knowledge_archive_bytes" = "$knowledge_actual_bytes" ] &&
 [ "$knowledge_archive_bytes" -le $((8 * 1024 * 1024)) ] || {
@@ -409,8 +436,9 @@ runtime_gate_files=(
 )
 for runtime_gate_file in "${runtime_gate_files[@]}"; do
     grep -Fq '[ "$blueprint_factory_version" != "$EXPECTED_BLUEPRINT_FACTORY_VERSION" ]' "$runtime_gate_file" &&
-    grep -Fq '[ "$blueprint_fixture_entries" != "$EXPECTED_BLUEPRINT_FIXTURE_ENTRIES" ]' "$runtime_gate_file" || {
-        printf 'ERRO: gate de Blueprint não usa as expectativas versionadas em %s.\n' \
+    grep -Fq '[ "$blueprint_fixture_entries" != "$EXPECTED_BLUEPRINT_FIXTURE_ENTRIES" ]' "$runtime_gate_file" &&
+    grep -Fq '[ "$quality_schema_version" != "$EXPECTED_QUALITY_SCHEMA_VERSION" ]' "$runtime_gate_file" || {
+        printf 'ERRO: gate de Blueprint/qualidade não usa as expectativas versionadas em %s.\n' \
             "$runtime_gate_file" >&2
         exit 1
     }
@@ -419,20 +447,23 @@ for runtime_gate_file in "${runtime_gate_files[@]}"; do
     gate_eval_case_entries=$(sed -n 's/^EXPECTED_EVAL_CASE_ENTRIES="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
     gate_blueprint_factory_version=$(sed -n 's/^EXPECTED_BLUEPRINT_FACTORY_VERSION="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
     gate_blueprint_fixture_entries=$(sed -n 's/^EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
+    gate_quality_schema=$(sed -n 's/^EXPECTED_QUALITY_SCHEMA_VERSION="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
     [ "$gate_eval_dataset_version" = "$eval_dataset_version" ] &&
     [ "$gate_eval_grader_version" = "$eval_grader_version" ] &&
     [ "$gate_eval_case_entries" = "$eval_case_entries" ] &&
     [ "$gate_blueprint_factory_version" = "$blueprint_factory_version" ] &&
-    [ "$gate_blueprint_fixture_entries" = "$blueprint_fixture_entries" ] || {
-        printf 'ERRO: gate runtime divergente em %s (esperado evals=%s/%s/%s, blueprint=%s/%s; encontrado evals=%s/%s/%s, blueprint=%s/%s).\n' \
+    [ "$gate_blueprint_fixture_entries" = "$blueprint_fixture_entries" ] &&
+    [ "$gate_quality_schema" = "$quality_schema" ] || {
+        printf 'ERRO: gate runtime divergente em %s (esperado evals=%s/%s/%s, blueprint=%s/%s, qualidade=%s; encontrado evals=%s/%s/%s, blueprint=%s/%s, qualidade=%s).\n' \
             "$runtime_gate_file" \
             "$eval_dataset_version" "$eval_grader_version" "$eval_case_entries" \
-            "$blueprint_factory_version" "$blueprint_fixture_entries" \
+            "$blueprint_factory_version" "$blueprint_fixture_entries" "$quality_schema" \
             "${gate_eval_dataset_version:-ausente}" \
             "${gate_eval_grader_version:-ausente}" \
             "${gate_eval_case_entries:-ausente}" \
             "${gate_blueprint_factory_version:-ausente}" \
-            "${gate_blueprint_fixture_entries:-ausente}" >&2
+            "${gate_blueprint_fixture_entries:-ausente}" \
+            "${gate_quality_schema:-ausente}" >&2
         exit 1
     }
 done
@@ -580,6 +611,7 @@ generate_runtime_package() {
         --arg eval_dataset_sha "$eval_dataset_sha" \
         --arg blueprint_factory_version "$blueprint_factory_version" \
         --arg blueprint_index_sha "$blueprint_index_sha" \
+        --arg quality_report_sha "$quality_report_sha" \
         --arg control_source_sha "$bundle_sha" \
         --argjson catalog_entries "$catalog_entries" \
         --argjson knowledge_entries "$knowledge_entries" \
@@ -589,6 +621,14 @@ generate_runtime_package() {
         --argjson blueprint_entries "$blueprint_entries" \
         --argjson blueprint_knowledge_entries "$blueprint_knowledge_entries" \
         --argjson blueprint_fixture_entries "$blueprint_fixture_entries" \
+        --argjson quality_schema "$quality_schema" \
+        --argjson quality_setup_entries "$quality_setup_entries" \
+        --argjson quality_structural_entries "$quality_structural_entries" \
+        --argjson quality_source_reviewed_entries "$quality_source_reviewed_entries" \
+        --argjson quality_script_reviewed_entries "$quality_script_reviewed_entries" \
+        --argjson quality_operational_entries "$quality_operational_entries" \
+        --argjson quality_homologated_entries "$quality_homologated_entries" \
+        --argjson quality_unresolved_issues "$quality_unresolved_issues" \
         --argjson control_source_bytes "$bundle_bytes" \
         '{
             schemaVersion: 1,
@@ -612,7 +652,16 @@ generate_runtime_package() {
             blueprintIndexSHA256: $blueprint_index_sha,
             blueprintEntries: $blueprint_entries,
             blueprintKnowledgeEntries: $blueprint_knowledge_entries,
-            blueprintFixtureEntries: $blueprint_fixture_entries
+            blueprintFixtureEntries: $blueprint_fixture_entries,
+            qualitySchemaVersion: $quality_schema,
+            qualityReportSHA256: $quality_report_sha,
+            qualitySetupEntries: $quality_setup_entries,
+            qualityStructuralEntries: $quality_structural_entries,
+            qualitySourceReviewedEntries: $quality_source_reviewed_entries,
+            qualityScriptReviewedEntries: $quality_script_reviewed_entries,
+            qualityOperationalEntries: $quality_operational_entries,
+            qualityHomologatedEntries: $quality_homologated_entries,
+            qualityUnresolvedIssues: $quality_unresolved_issues
         }' >"$temporary_manifest"
     chmod 0644 "$temporary_manifest"
     mv -f "$temporary_manifest" "$target/release.json"

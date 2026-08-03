@@ -192,26 +192,35 @@ type appSummary struct {
 }
 
 type setupRelease struct {
-	SchemaVersion             int    `json:"schemaVersion"`
-	SetupVersion              string `json:"setupVersion"`
-	CatalogVersion            string `json:"catalogVersion"`
-	CatalogSHA256             string `json:"catalogSHA256"`
-	CatalogEntries            int    `json:"catalogEntries"`
-	Architecture              string `json:"architecture"`
-	KnowledgeVersion          string `json:"knowledgeVersion,omitempty"`
-	KnowledgeArchiveSHA256    string `json:"knowledgeArchiveSHA256,omitempty"`
-	KnowledgeEntries          int    `json:"knowledgeEntries,omitempty"`
-	BlueprintFactoryVersion   string `json:"blueprintFactoryVersion,omitempty"`
-	BlueprintSchemaVersion    int    `json:"blueprintSchemaVersion,omitempty"`
-	BlueprintIndexSHA256      string `json:"blueprintIndexSHA256,omitempty"`
-	BlueprintEntries          int    `json:"blueprintEntries,omitempty"`
-	BlueprintKnowledgeEntries int    `json:"blueprintKnowledgeEntries,omitempty"`
-	BlueprintFixtureEntries   int    `json:"blueprintFixtureEntries,omitempty"`
-	EvalSchemaVersion         int    `json:"evalSchemaVersion,omitempty"`
-	EvalDatasetVersion        string `json:"evalDatasetVersion,omitempty"`
-	EvalGraderVersion         string `json:"evalGraderVersion,omitempty"`
-	EvalDatasetSHA256         string `json:"evalDatasetSHA256,omitempty"`
-	EvalCaseEntries           int    `json:"evalCaseEntries,omitempty"`
+	SchemaVersion                int    `json:"schemaVersion"`
+	SetupVersion                 string `json:"setupVersion"`
+	CatalogVersion               string `json:"catalogVersion"`
+	CatalogSHA256                string `json:"catalogSHA256"`
+	CatalogEntries               int    `json:"catalogEntries"`
+	Architecture                 string `json:"architecture"`
+	KnowledgeVersion             string `json:"knowledgeVersion,omitempty"`
+	KnowledgeArchiveSHA256       string `json:"knowledgeArchiveSHA256,omitempty"`
+	KnowledgeEntries             int    `json:"knowledgeEntries,omitempty"`
+	BlueprintFactoryVersion      string `json:"blueprintFactoryVersion,omitempty"`
+	BlueprintSchemaVersion       int    `json:"blueprintSchemaVersion,omitempty"`
+	BlueprintIndexSHA256         string `json:"blueprintIndexSHA256,omitempty"`
+	BlueprintEntries             int    `json:"blueprintEntries,omitempty"`
+	BlueprintKnowledgeEntries    int    `json:"blueprintKnowledgeEntries,omitempty"`
+	BlueprintFixtureEntries      int    `json:"blueprintFixtureEntries,omitempty"`
+	EvalSchemaVersion            int    `json:"evalSchemaVersion,omitempty"`
+	EvalDatasetVersion           string `json:"evalDatasetVersion,omitempty"`
+	EvalGraderVersion            string `json:"evalGraderVersion,omitempty"`
+	EvalDatasetSHA256            string `json:"evalDatasetSHA256,omitempty"`
+	EvalCaseEntries              int    `json:"evalCaseEntries,omitempty"`
+	QualitySchemaVersion         int    `json:"qualitySchemaVersion,omitempty"`
+	QualityReportSHA256          string `json:"qualityReportSHA256,omitempty"`
+	QualitySetupEntries          int    `json:"qualitySetupEntries,omitempty"`
+	QualityStructuralEntries     int    `json:"qualityStructuralEntries,omitempty"`
+	QualitySourceReviewedEntries int    `json:"qualitySourceReviewedEntries,omitempty"`
+	QualityScriptReviewedEntries int    `json:"qualityScriptReviewedEntries,omitempty"`
+	QualityOperationalEntries    int    `json:"qualityOperationalEntries,omitempty"`
+	QualityHomologatedEntries    int    `json:"qualityHomologatedEntries,omitempty"`
+	QualityUnresolvedIssues      int    `json:"qualityUnresolvedIssues,omitempty"`
 }
 
 type runtimeSnapshot struct {
@@ -766,6 +775,7 @@ func runAssistant() error {
 			"blueprintEntries":          service.knowledge.Manifest.BlueprintEntries,
 			"blueprintKnowledgeEntries": service.knowledge.Manifest.BlueprintKnowledgeEntries,
 			"blueprintFixtureEntries":   service.knowledge.Manifest.BlueprintFixtureEntries,
+			"qualitySummary":            service.knowledge.Manifest.QualitySummary,
 			"blueprintHomologation":     service.blueprintHomologation,
 			"promptRegistry": map[string]any{
 				"version":                 assistantPromptRegistryVersion,
@@ -944,6 +954,7 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 		"blueprintKnowledgeEntries": s.knowledge.Manifest.BlueprintKnowledgeEntries,
 		"blueprintFixtureEntries":   s.knowledge.Manifest.BlueprintFixtureEntries,
 		"blueprintHomologation":     s.blueprintHomologation,
+		"qualitySummary":            s.knowledge.Manifest.QualitySummary,
 	})
 	sendSSE(w, "route", route)
 	if inspection != nil {
@@ -1857,7 +1868,8 @@ func knowledgeStatusMarkdown(catalog catalogResponse, state knowledgePackageStat
 		manifest.DocumentEntries < manifest.SetupEntries ||
 		manifest.DocumentTypeEntries["setup"] != manifest.SetupEntries ||
 		manifest.DocumentTypeEntries["infrastructure"] != manifest.InfrastructureEntries ||
-		manifest.DocumentTypeEntries["blueprint"] != manifest.BlueprintKnowledgeEntries {
+		manifest.DocumentTypeEntries["blueprint"] != manifest.BlueprintKnowledgeEntries ||
+		manifest.QualitySummary.SetupEntries != manifest.SetupEntries {
 		return "", errors.New("inventário canônico inconsistente")
 	}
 	missing := catalog.CatalogEntries - manifest.SetupEntries
@@ -1870,7 +1882,7 @@ func knowledgeStatusMarkdown(catalog catalogResponse, state knowledgePackageStat
 		manifest.SetupVersion, manifest.SetupEntries, catalog.CatalogEntries, coverage,
 	)
 	if missing == 0 {
-		answer.WriteString(" A cobertura dedicada do catálogo está **completa**.\n\n")
+		answer.WriteString(" A cobertura estrutural dedicada do catálogo está **completa**. Isso não significa que os 151 setups estejam operacionalmente homologados.\n\n")
 	} else {
 		fmt.Fprintf(&answer, " Restam **%d setups** sem documentação dedicada.\n\n", missing)
 	}
@@ -1885,6 +1897,22 @@ func knowledgeStatusMarkdown(catalog catalogResponse, state knowledgePackageStat
 		&answer,
 		"- Conhecimento **v%s** · dataset de avaliações **v%s** com **%d casos**.\n\n",
 		manifest.KnowledgeVersion, manifest.EvalDatasetVersion, manifest.EvalCaseEntries,
+	)
+	answer.WriteString("## Classificação real\n\n")
+	fmt.Fprintf(
+		&answer,
+		"- **%d estruturais**, **%d com fontes revisadas**, **%d com script revisado**, **%d com evidência operacional** e **%d homologados**.\n",
+		manifest.QualitySummary.MaturityLevels["structural"],
+		manifest.QualitySummary.MaturityLevels["source-reviewed"],
+		manifest.QualitySummary.MaturityLevels["script-reviewed"],
+		manifest.QualitySummary.MaturityLevels["operational-reviewed"],
+		manifest.QualitySummary.MaturityLevels["homologated"],
+	)
+	fmt.Fprintf(
+		&answer,
+		"- **%d fontes oficiais declaradas** e **%d pendências editoriais/operacionais rastreadas**.\n\n",
+		manifest.QualitySummary.OfficialSourceEntries,
+		manifest.QualitySummary.UnresolvedIssueCount,
 	)
 	answer.WriteString("Fonte: manifesto interno versionado e catálogo runtime validados localmente. Nenhuma contagem foi inferida a partir dos resultados do RAG.")
 	return answer.String(), nil
@@ -1925,6 +1953,7 @@ func (a *webApp) streamKnowledgeStatus(w http.ResponseWriter, r *http.Request, q
 		"documentedSetups": state.Manifest.SetupEntries,
 		"catalogEntries":   catalog.CatalogEntries,
 		"knowledgeStale":   state.Stale,
+		"qualitySummary":   state.Manifest.QualitySummary,
 	})
 	sendSSE(w, "route", route)
 	sendSSE(w, "delta", map[string]any{"delta": answer})
@@ -2275,6 +2304,19 @@ func validateReleaseKnowledge(release setupRelease) error {
 	knowledgeHash, err := hex.DecodeString(release.KnowledgeArchiveSHA256)
 	if err != nil || len(knowledgeHash) != sha256.Size {
 		return errors.New("SHA-256 do conhecimento inválido")
+	}
+	hasQualityMetadata := release.QualitySchemaVersion != 0 ||
+		release.QualityReportSHA256 != "" || release.QualitySetupEntries != 0
+	if hasQualityMetadata {
+		qualityHash, hashErr := hex.DecodeString(release.QualityReportSHA256)
+		maturityTotal := release.QualityStructuralEntries +
+			release.QualitySourceReviewedEntries + release.QualityScriptReviewedEntries +
+			release.QualityOperationalEntries + release.QualityHomologatedEntries
+		if release.QualitySchemaVersion != 1 || hashErr != nil || len(qualityHash) != sha256.Size ||
+			release.QualitySetupEntries < 1 || release.QualitySetupEntries > release.KnowledgeEntries ||
+			maturityTotal != release.QualitySetupEntries || release.QualityUnresolvedIssues < 0 {
+			return errors.New("metadados de qualidade inconsistentes")
+		}
 	}
 	hasBlueprintMetadata := release.BlueprintFactoryVersion != "" ||
 		release.BlueprintSchemaVersion != 0 ||

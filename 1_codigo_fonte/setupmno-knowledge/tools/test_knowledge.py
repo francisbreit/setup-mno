@@ -34,6 +34,10 @@ from eval_factory import (
     validate_dataset,
 )
 from knowledge_coverage import build_report, evaluate_baseline
+from knowledge_quality import (
+    build_report as build_quality_report,
+    evaluate_baseline as evaluate_quality_baseline,
+)
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -62,6 +66,25 @@ def run_linter(*arguments: str) -> subprocess.CompletedProcess[str]:
 
 
 class KnowledgeFactoryTests(unittest.TestCase):
+    def test_quality_governance_is_truthful_and_monotonic(self) -> None:
+        report = build_quality_report(ROOT, CATALOG)
+        summary = report["summary"]
+        self.assertEqual(summary["setupEntries"], 151)
+        self.assertEqual(summary["maturityLevels"]["structural"], 151)
+        self.assertEqual(summary["maturityLevels"]["operational-reviewed"], 0)
+        self.assertEqual(summary["homologatedEntries"], 0)
+        self.assertEqual(summary["officialSourceEntries"], 131)
+        self.assertEqual(summary["officialSourceExceptions"], 1)
+        self.assertEqual(summary["internalOnlySourceEntries"], 19)
+        self.assertEqual(summary["unresolvedIssueCount"], 29)
+        baseline = load_json(ROOT / "quality-baseline.json")
+        self.assertEqual(evaluate_quality_baseline(report, baseline), [])
+
+        regressed = copy.deepcopy(report)
+        regressed["summary"]["unresolvedIssueCount"] = 30
+        errors = evaluate_quality_baseline(regressed, baseline)
+        self.assertTrue(any("pendências" in error for error in errors), errors)
+
     def test_catalog_coverage_is_explicit_and_internally_consistent(self) -> None:
         report = build_report(
             CATALOG,

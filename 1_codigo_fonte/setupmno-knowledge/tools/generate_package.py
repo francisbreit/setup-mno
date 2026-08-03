@@ -27,6 +27,10 @@ from eval_factory import (
     validate_dataset,
 )
 from lint_knowledge import load_documents, load_json
+from knowledge_quality import (
+    build_report as build_quality_report,
+    evaluate_baseline as evaluate_quality_baseline,
+)
 
 
 PACKAGE_SCHEMA = 1
@@ -263,6 +267,18 @@ def build_package_files(
             f"({registry.get('setupVersion')} != {setup_version})"
         )
 
+    quality_report = build_quality_report(root, catalog_path)
+    quality_baseline = load_json(root / "quality-baseline.json")
+    quality_errors = evaluate_quality_baseline(quality_report, quality_baseline)
+    if quality_errors:
+        raise ValueError("baseline de qualidade regrediu:\n- " + "\n- ".join(quality_errors))
+    quality_source = load_json(root / "registry" / "quality-report.json")
+    if quality_source != quality_report:
+        raise ValueError(
+            "registry/quality-report.json está desatualizado; execute "
+            "tools/knowledge_quality.py --write-report registry/quality-report.json"
+        )
+
     documents, parse_errors = load_documents(root)
     if parse_errors:
         raise ValueError("; ".join(parse_errors))
@@ -443,7 +459,11 @@ def build_package_files(
         (root / "schema" / "index-v2.schema.json", "schema/index-v2.schema.json"),
         (root / "schema" / "taxonomy.json", "schema/taxonomy.json"),
         (root / "schema" / "eval-dataset.schema.json", "schema/eval-dataset.schema.json"),
+        (root / "schema" / "quality-report.schema.json", "schema/quality-report.schema.json"),
         (root / "registry" / "setups.json", "registry/setups.json"),
+        (root / "registry" / "governance.json", "registry/governance.json"),
+        (root / "registry" / "quality-report.json", "registry/quality-report.json"),
+        (root / "quality-baseline.json", "quality-baseline.json"),
     ):
         add_package_file(files, target, ensure_regular_source(source, root))
 
@@ -502,6 +522,11 @@ def build_package_files(
         "evalCaseEntries": eval_dataset["caseCount"],
         "setupEntries": sum(entry["documentType"] == "setup" for entry in index_entries),
         "indexSHA256": sha256_hex(index_data),
+        "qualitySchemaVersion": quality_report["schemaVersion"],
+        "qualityReportSHA256": sha256_hex(
+            ensure_regular_source(root / "registry" / "quality-report.json", root)
+        ),
+        "qualitySummary": quality_report["summary"],
         **blueprint_summary,
     }
     return files, summary
@@ -580,6 +605,9 @@ def build_manifest(
         "blueprintIndexSHA256": summary["blueprintIndexSHA256"],
         "blueprintKnowledgeEntries": summary["blueprintKnowledgeEntries"],
         "blueprintFixtureEntries": summary["blueprintFixtureEntries"],
+        "qualitySchemaVersion": summary["qualitySchemaVersion"],
+        "qualityReportSHA256": summary["qualityReportSHA256"],
+        "qualitySummary": summary["qualitySummary"],
         "fileEntries": len(files),
         "limits": {
             "maxArchiveBytes": MAX_ARCHIVE_BYTES,

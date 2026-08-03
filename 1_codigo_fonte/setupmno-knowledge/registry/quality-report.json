@@ -1,0 +1,1749 @@
+{
+  "entries": [
+    {
+      "catalogName": "ACTIVEPIECES",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "official-source-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "activepieces",
+      "sourceClassification": "internal-only"
+    },
+    {
+      "catalogName": "ACTUAL BUDGET",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "actual-budget",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "ADGUARDHOME",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "official-source-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "adguardhome",
+      "sourceClassification": "internal-only"
+    },
+    {
+      "catalogName": "AFFINE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "affine",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "APPSMITH",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "official-source-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "appsmith",
+      "sourceClassification": "internal-only"
+    },
+    {
+      "catalogName": "AUTOGEN STUDIO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "autogen-studio",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "BASEROW",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "catalog-description-invalid",
+        "official-source-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "baserow",
+      "sourceClassification": "internal-only"
+    },
+    {
+      "catalogName": "BESZEL",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "official-source-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "beszel",
+      "sourceClassification": "internal-only"
+    },
+    {
+      "catalogName": "BOOKSTACK",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "official-source-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "bookstack",
+      "sourceClassification": "internal-only"
+    },
+    {
+      "catalogName": "BOTPRESS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "botpress",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "BUDIBASE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "official-source-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "budibase",
+      "sourceClassification": "internal-only"
+    },
+    {
+      "catalogName": "CAL.COM",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "calcom",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "CHANGEDETECTION.IO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "changedetection",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "CHATWOOT AI CUSTOMER SERVICE*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "chatwoot-ai-customer-service",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "chatwoot-evolution-rabbitmq",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "chatwoot-evolution-rabbitmq-minio",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "chatwoot-original-evolution-rabbitmq-minio",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "capacity-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "chatwoot-original-unlocked-evolution-rabbitmq-minio",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "CHROMADB",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "official-source-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "chromadb",
+      "sourceClassification": "internal-only"
+    },
+    {
+      "catalogName": "CLICKHOUSE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "clickhouse",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "CODE SERVER",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "official-source-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "code-server",
+      "sourceClassification": "internal-only"
+    },
+    {
+      "catalogName": "COGNEE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "cognee",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "DATABASUS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "databasus",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "DIFY",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "dify",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "DIRECTUS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "official-source-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "directus",
+      "sourceClassification": "internal-only"
+    },
+    {
+      "catalogName": "DISCOURSE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "discourse",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "DOCMOST",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "docmost",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "DOCUMENSO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "documenso",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "DOCUSEAL",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "docuseal",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "DOZZLE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "dozzle",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "DUPLICATI",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "official-source-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "duplicati",
+      "sourceClassification": "internal-only"
+    },
+    {
+      "catalogName": "EVO NEXUS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "evo-nexus",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "EVOAI",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "evoai",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "EVOAI + EVOLUTION 2.0 + MINIO*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "evoai-evolution-minio",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "EVOLUTION 1.0 API PADRÃO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "evolution-api-v1",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "EVOLUTION 2.0 API PADRÃO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "evolution-api-v2",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "EVOLUTION CRM",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "evolution-crm",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "EVOLUTION GO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "evolution-go",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "EXCALIDRAW",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "excalidraw",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "FILEBROWSER",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "filebrowser",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "FIRECRAWL",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "firecrawl",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "FIREFLY III",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "firefly-iii",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "FLOWISE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "flowise",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "FOCALBOARD",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "focalboard",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "FORMBRICKS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "formbricks",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "FRESHRSS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "freshrss",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "GHOST",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "ghost",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "GITEA",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "gitea",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "GITLAB",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "gitlab",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "GLANCE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "glance",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "GLPI",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "glpi",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "GRAFANA/PROMETHEUS MONITOR",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "official-source-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "grafana-prometheus",
+      "sourceClassification": "internal-only"
+    },
+    {
+      "catalogName": "HERMES AGENT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "capacity-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "hermes-agent",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "HEYFORM",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "heyform",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "HOME ASSISTANT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "home-assistant",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "HOPPSCOTCH",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "hoppscotch",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "HUMHUB",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "humhub",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "IMMICH",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "immich",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "INFISICAL",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "infisical",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "IT-TOOLS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "it-tools",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "JELLYFIN",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "jellyfin",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "JITSI MEET",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "jitsi-meet",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "JOPLIN",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "joplin",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "KARAKEEP",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "karakeep",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "KEYCLOAK",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "keycloak",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "KRAYIN CRM",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "krayin-crm",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "LANGFLOW",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "langflow",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "LANGFUSE + MINIO + CLICKHOUSE*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "langfuse-minio-clickhouse",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "LIBRECHAT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "librechat",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "LISTMONK",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "listmonk",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "LITELLM",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "litellm",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "LOBECHAT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "lobechat",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "LOCALAI",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "capacity-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "localai",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "MATOMO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "matomo",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "MATTERMOST",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "mattermost",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "MAUTIC 4 PADRÃO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "mautic-4",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "MAUTIC 4 WHATSAPP MKT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "mautic-4-whatsapp",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "MAUTIC 6 PADRÃO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "mautic-6",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "MAUTIC 6 WHATSAPP MKT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "mautic-6-whatsapp",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "MAUTIC 7 PADRÃO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "mautic-7",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "MAUTIC 7 WHATSAPP MKT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "mautic-7-whatsapp",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "MAYBE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "maybe",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "MEILISEARCH",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "meilisearch",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "MEMGRAPH",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "memgraph",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "MEMOS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "memos",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "METABASE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "metabase",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "MILVUS + ATTU*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "milvus-attu",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "MINIO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "minio",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "MONGODB",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "mongodb",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "MYSQL",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "mysql",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "N8N V1 - SEM FILA (MAIN)",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "official-source-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "n8n-main",
+      "sourceClassification": "internal-only"
+    },
+    {
+      "catalogName": "N8N V1 - FILA (QUEUE)",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "n8n-queue-v1",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "N8N V2 - FILA (QUEUE)",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "n8n-queue-v2",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "n8n-templates",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "NEO4J",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "neo4j",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "NEXTCLOUD",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "official-source-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "nextcloud",
+      "sourceClassification": "internal-only"
+    },
+    {
+      "catalogName": "NGINXPROXYMANAGER",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "nginx-proxy-manager",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "NOCOBASE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "nocobase",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "NOCODB",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "official-source-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "nocodb",
+      "sourceClassification": "internal-only"
+    },
+    {
+      "catalogName": "NTFY",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "ntfy",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "ODOO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "odoo",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "OLLAMA + OPENWEBUI*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "capacity-missing",
+        "official-source-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "ollama-openwebui",
+      "sourceClassification": "internal-only"
+    },
+    {
+      "catalogName": "OPEN WEBUI",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "open-webui",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "OPENCLAW",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "capacity-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "openclaw",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "openclaw-knowledge-stack",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "OPENFANG",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "capacity-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "openfang",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "OPEN PROJECT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "openproject",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "OUTLINE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "capacity-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "outline",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "PAPERCLIP",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "paperclip",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "PAPERLESS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "paperless",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "PENPOT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "penpot",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "PGADMIN4",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "pgadmin4",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "PHOTOPRISM",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "photoprism",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "PHPMYADMIN",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "phpmyadmin",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "PI-HOLE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "pihole",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "PLANE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "capacity-inconsistent"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "plane",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "PLANKA",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "planka",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "POCKETBASE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "pocketbase",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "QDRANT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "official-source-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "qdrant",
+      "sourceClassification": "internal-only"
+    },
+    {
+      "catalogName": "RABBITMQ",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "rabbitmq",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "REACTIVE RESUME",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "reactive-resume",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "REDIS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "official-source-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "redis",
+      "sourceClassification": "internal-only"
+    },
+    {
+      "catalogName": "REDIS COMMANDER",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "redis-commander",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "REDISINSIGHT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "redisinsight",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "ROCKET.CHAT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "rocketchat",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "SEARXNG",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "searxng",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "SETUP MNO CONTROL CENTER",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "setupmno-control",
+      "sourceClassification": "exception-approved"
+    },
+    {
+      "catalogName": "SHLINK",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "shlink",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "SIYUAN",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "siyuan",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "STIRLING PDF",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "stirling-pdf",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "STRAPI",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "strapi",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "SUPERSET",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "superset",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "SYNCTHING",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "syncthing",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "TOOLJET",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "tooljet",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "TRILIUMNEXT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "triliumnext",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "TWENTY CRM",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "twenty-crm",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "TYPEBOT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "typebot",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "TYPEBOT + MINIO*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "official-source-missing"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "typebot-minio",
+      "sourceClassification": "internal-only"
+    },
+    {
+      "catalogName": "UMAMI",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "umami",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "UPTIMEKUMA",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "uptime-kuma",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "VAULTWARDEN",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "vaultwarden",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "VIKUNJA",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "vikunja",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "VLLM",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [
+        "architecture-inconsistent"
+      ],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "vllm",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "WAHA API",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "waha-api",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "WEAVIATE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "weaviate",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "WEKAN",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "wekan",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "WIKI.JS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "wiki-js",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "WINDMILL",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "windmill",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "WOOFED CRM",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "woofed-crm",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "WORDPRESS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "wordpress",
+      "sourceClassification": "official-and-internal"
+    },
+    {
+      "catalogName": "WUZAP",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "wuzap",
+      "sourceClassification": "official-and-internal"
+    }
+  ],
+  "generatedAt": "2026-08-02T00:00:00Z",
+  "knowledgeVersion": "3.11.0",
+  "schemaVersion": 1,
+  "setupVersion": "7.4.0",
+  "summary": {
+    "editorialStatuses": {
+      "deprecated": 0,
+      "draft": 0,
+      "homologated": 0,
+      "outdated": 0,
+      "reviewed": 151
+    },
+    "homologatedEntries": 0,
+    "internalOnlySourceEntries": 19,
+    "issueEntries": 27,
+    "maturityLevels": {
+      "homologated": 0,
+      "operational-reviewed": 0,
+      "script-reviewed": 0,
+      "source-reviewed": 0,
+      "structural": 151
+    },
+    "officialSourceEntries": 131,
+    "officialSourceExceptions": 1,
+    "operationalEvidenceEntries": 0,
+    "setupEntries": 151,
+    "unresolvedIssueCount": 29
+  }
+}

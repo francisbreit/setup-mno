@@ -1,11 +1,12 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.3.1"
+VERSIONSETUP="7.4.0"
 EXPECTED_EVAL_DATASET_VERSION="1.7.0"
 EXPECTED_EVAL_GRADER_VERSION="1.7.0"
 EXPECTED_EVAL_CASE_ENTRIES="815"
 EXPECTED_BLUEPRINT_FACTORY_VERSION="2.1.0"
 EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="0"
+EXPECTED_QUALITY_SCHEMA_VERSION="1"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -305,6 +306,15 @@ eval_dataset_version=$(jq -r '.evalDatasetVersion // empty' "$knowledge_manifest
 eval_grader_version=$(jq -r '.evalGraderVersion // empty' "$knowledge_manifest" 2>/dev/null)
 eval_dataset_sha=$(jq -r '.evalDatasetSHA256 // empty' "$knowledge_manifest" 2>/dev/null)
 eval_case_entries=$(jq -r '.evalCaseEntries // 0' "$knowledge_manifest" 2>/dev/null)
+quality_schema_version=$(jq -r '.qualitySchemaVersion // 0' "$knowledge_manifest" 2>/dev/null)
+quality_report_sha=$(jq -r '.qualityReportSHA256 // empty' "$knowledge_manifest" 2>/dev/null)
+quality_setup_entries=$(jq -r '.qualitySummary.setupEntries // 0' "$knowledge_manifest" 2>/dev/null)
+quality_structural_entries=$(jq -r '.qualitySummary.maturityLevels.structural // -1' "$knowledge_manifest" 2>/dev/null)
+quality_source_reviewed_entries=$(jq -r '.qualitySummary.maturityLevels["source-reviewed"] // -1' "$knowledge_manifest" 2>/dev/null)
+quality_script_reviewed_entries=$(jq -r '.qualitySummary.maturityLevels["script-reviewed"] // -1' "$knowledge_manifest" 2>/dev/null)
+quality_operational_entries=$(jq -r '.qualitySummary.maturityLevels["operational-reviewed"] // -1' "$knowledge_manifest" 2>/dev/null)
+quality_homologated_entries=$(jq -r '.qualitySummary.maturityLevels.homologated // -1' "$knowledge_manifest" 2>/dev/null)
+quality_maturity_total=$((quality_structural_entries + quality_source_reviewed_entries + quality_script_reviewed_entries + quality_operational_entries + quality_homologated_entries))
 knowledge_expected_sha=$(jq -r '.archiveSHA256 // empty' "$knowledge_manifest" 2>/dev/null)
 knowledge_expected_bytes=$(jq -r '.archiveBytes // 0' "$knowledge_manifest" 2>/dev/null)
 knowledge_actual_sha=$(sha256sum "$knowledge_archive" | awk '{print $1}')
@@ -322,6 +332,14 @@ runtime_eval_dataset_version=$(jq -r '.evalDatasetVersion // empty' "$control_pa
 runtime_eval_grader_version=$(jq -r '.evalGraderVersion // empty' "$control_package/release.json" 2>/dev/null)
 runtime_eval_dataset_sha=$(jq -r '.evalDatasetSHA256 // empty' "$control_package/release.json" 2>/dev/null)
 runtime_eval_case_entries=$(jq -r '.evalCaseEntries // 0' "$control_package/release.json" 2>/dev/null)
+runtime_quality_schema_version=$(jq -r '.qualitySchemaVersion // 0' "$control_package/release.json" 2>/dev/null)
+runtime_quality_report_sha=$(jq -r '.qualityReportSHA256 // empty' "$control_package/release.json" 2>/dev/null)
+runtime_quality_setup_entries=$(jq -r '.qualitySetupEntries // 0' "$control_package/release.json" 2>/dev/null)
+runtime_quality_structural_entries=$(jq -r '.qualityStructuralEntries // -1' "$control_package/release.json" 2>/dev/null)
+runtime_quality_source_reviewed_entries=$(jq -r '.qualitySourceReviewedEntries // -1' "$control_package/release.json" 2>/dev/null)
+runtime_quality_script_reviewed_entries=$(jq -r '.qualityScriptReviewedEntries // -1' "$control_package/release.json" 2>/dev/null)
+runtime_quality_operational_entries=$(jq -r '.qualityOperationalEntries // -1' "$control_package/release.json" 2>/dev/null)
+runtime_quality_homologated_entries=$(jq -r '.qualityHomologatedEntries // -1' "$control_package/release.json" 2>/dev/null)
 if [ "$control_schema" != "1" ] ||
    [ "$control_version" != "$VERSIONSETUP" ] ||
    [ "$control_arch" != "amd64" ] ||
@@ -364,6 +382,18 @@ if [ "$control_schema" != "1" ] ||
    [ "$eval_dataset_sha" != "$runtime_eval_dataset_sha" ] ||
    [ "$eval_case_entries" != "$EXPECTED_EVAL_CASE_ENTRIES" ] ||
    [ "$eval_case_entries" != "$runtime_eval_case_entries" ] ||
+   [ "$quality_schema_version" != "$EXPECTED_QUALITY_SCHEMA_VERSION" ] ||
+   [ "$quality_schema_version" != "$runtime_quality_schema_version" ] ||
+   [ "${#quality_report_sha}" -ne 64 ] ||
+   [ "$quality_report_sha" != "$runtime_quality_report_sha" ] ||
+   [ "$quality_setup_entries" != "$runtime_quality_setup_entries" ] ||
+   [ "$quality_setup_entries" != "151" ] ||
+   [ "$quality_maturity_total" != "$quality_setup_entries" ] ||
+   [ "$quality_structural_entries" != "$runtime_quality_structural_entries" ] ||
+   [ "$quality_source_reviewed_entries" != "$runtime_quality_source_reviewed_entries" ] ||
+   [ "$quality_script_reviewed_entries" != "$runtime_quality_script_reviewed_entries" ] ||
+   [ "$quality_operational_entries" != "$runtime_quality_operational_entries" ] ||
+   [ "$quality_homologated_entries" != "$runtime_quality_homologated_entries" ] ||
    [ "$knowledge_expected_sha" != "$knowledge_actual_sha" ] ||
    [ "$knowledge_expected_sha" != "$runtime_knowledge_sha" ] ||
    [ "$knowledge_expected_bytes" != "$knowledge_actual_bytes" ] ||

@@ -16,9 +16,10 @@ regular, versionado e validado por SHA-256, distribuído em `.control-package/`.
   estão em `schema/taxonomy.json`.
 - Setups de cada lote devem existir em `registry/setups.json` e no catálogo
   canônico do Control Center.
-- `draft` identifica conteúdo em construção; `reviewed` identifica conteúdo
-  revisado contra as fontes declaradas; `homologated` exige teste no ambiente
-  de homologação; `deprecated` nunca participa da recuperação normal.
+- `draft` identifica conteúdo em construção; `reviewed` confirma revisão
+  editorial do documento, mas não prova revisão operacional; `homologated`
+  exige teste no ambiente de homologação; `outdated` e `deprecated` nunca
+  participam da recuperação normal.
 - Imagens e portas só podem aparecer quando declaradas no bloco
   `homologation` e verificadas na data informada.
 - Nunca registrar credenciais, tokens, chaves, hostnames ou endereços de
@@ -50,14 +51,42 @@ python3 tools/lint_knowledge.py --root . hashes
 2. Manter o status como `draft` durante a escrita.
 3. Declarar fontes e licença de cada fonte.
 4. Executar o linter e revisar o diff.
-5. Mudar para `reviewed` somente após conferir as fontes.
-6. Mudar para `homologated` somente após teste controlado.
-7. Marcar como `deprecated` quando o conteúdo não representar mais o Setup.
+5. Mudar para `reviewed` somente após conferir a estrutura e as fontes declaradas.
+6. Promover a maturidade separadamente pelos gates de governança.
+7. Mudar para `homologated` somente após teste controlado e evidências completas.
+8. Marcar como `outdated` ou `deprecated` quando o conteúdo não representar mais o Setup.
+
+## Governança e classificação real
+
+Cobertura, estado editorial e maturidade operacional são dimensões diferentes.
+Ter um documento para cada item do catálogo não autoriza declarar que todos os
+setups foram testados. A baseline da Etapa 8.1A classifica os 151 documentos
+atuais como `structural`, com zero revisão operacional e zero homologação.
+
+Os níveis são cumulativos e bloqueantes:
+
+1. `structural`: documento válido, recuperável e ligado ao catálogo;
+2. `source-reviewed`: fonte oficial ou exceção interna justificada;
+3. `script-reviewed`: instalador real conferido contra o documento;
+4. `operational-reviewed`: teste explícito nas arquiteturas declaradas;
+5. `homologated`: status editorial e evidências completas de homologação.
+
+O contrato vive em `registry/governance.json`. O relatório reproduzível fica em
+`registry/quality-report.json`, possui schema próprio e entra no pacote assinado.
+Promoções são recusadas quando faltam fontes, script, arquiteturas, checks,
+imagens, portas ou data de verificação. Pendências conhecidas também bloqueiam
+promoção e não são ocultadas por uma contagem de cobertura.
+
+```bash
+python3 -B tools/knowledge_quality.py \
+  --write-report registry/quality-report.json \
+  --enforce-baseline
+```
 
 ## Cobertura do catálogo
 
-A base atual cobre as 151 entradas do catálogo. Os sete lotes editoriais
-fecharam a cobertura dedicada em 100%; o relatório reproduzível é:
+A base atual possui documento estrutural para as 151 entradas do catálogo. Os
+sete lotes editoriais fecharam essa cobertura em 100%; o relatório reproduzível é:
 
 ```bash
 python3 -B tools/knowledge_coverage.py
@@ -103,8 +132,9 @@ Cada nova entrada deve documentar, com fontes revisadas:
 
 Rascunhos gerados a partir de scripts ou catálogo não contam como cobertura.
 Eles só entram no RAG normal após revisão humana, validação do linter e status
-`reviewed` ou `homologated`. Uma nova ferramenta não deve ser liberada sem o
-documento e os testes correspondentes.
+`reviewed` ou `homologated`. Essa elegibilidade de recuperação não equivale a
+revisão operacional nem homologação. Uma nova ferramenta não deve ser liberada
+sem documento, classificação e testes correspondentes.
 
 ## Validação
 
@@ -122,7 +152,7 @@ python3 tools/lint_knowledge.py \
   --catalog ../setupmno-control/catalog.json \
   resolve \
   --setup-id n8n-main \
-  --setup-version 7.3.1 \
+  --setup-version 7.4.0 \
   --architecture amd64
 ```
 
@@ -135,6 +165,7 @@ Testes de regressão:
 python3 -B tools/test_knowledge.py
 python3 -B tools/test_blueprints.py
 python3 -B tools/knowledge_coverage.py
+python3 -B tools/knowledge_quality.py --enforce-baseline
 ```
 
 ## Dataset e evals
@@ -150,7 +181,7 @@ Para gerar e validar o dataset de forma reproduzível:
 ```bash
 python3 -B tools/eval_factory.py \
   --root . \
-  --setup-version 7.3.1
+  --setup-version 7.4.0
 python3 -B tools/test_knowledge.py
 ```
 
@@ -163,7 +194,7 @@ Validação isolada da fábrica de Blueprints:
 
 ```bash
 python3 -B tools/blueprint_factory.py \
-  --setup-version 7.3.1
+  --setup-version 7.4.0
 ```
 
 Cada Blueprint reside em `blueprints/<blueprintId>/`, com `blueprint.json`
@@ -184,8 +215,8 @@ Geração reproduzível do pacote:
 
 ```bash
 python3 -B tools/generate_package.py \
-  --setup-version 7.3.1 \
-  --control-version 4.11.1
+  --setup-version 7.4.0 \
+  --control-version 4.12.0
 ```
 
 O gerador executa o linter antes do build, inclui somente documentos

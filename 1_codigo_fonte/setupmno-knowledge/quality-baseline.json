@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "baselineRelease": "v7.4.0",
+  "minimumSetupEntries": 151,
+  "minimumOfficialSourceEntries": 131,
+  "minimumSourceReviewedEntries": 0,
+  "minimumScriptReviewedEntries": 0,
+  "minimumOperationalReviewedEntries": 0,
+  "minimumHomologatedEntries": 0,
+  "maximumUnresolvedIssueCount": 29
+}
