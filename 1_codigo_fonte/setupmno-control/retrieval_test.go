@@ -535,6 +535,64 @@ func TestRetrievalPromptRejectsSetupMismatch(t *testing.T) {
 	}
 }
 
+func TestRetrievalPromptAppliesCanonicalMaturityAndBlocksDirectIssue(t *testing.T) {
+	result := retrievalResult{
+		Metrics:       retrievalMetrics{Version: knowledgeRetrieval, Confidence: "high"},
+		ResolvedSetup: "plane",
+		Evidence: []retrievalEvidence{{
+			DocumentID: "catalog:plane", DocumentType: "catalog",
+			Status: "validated", SetupID: "plane",
+			ContentSHA256: strings.Repeat("a", 64),
+			Content:       "PLANE; arquitetura amd64; capacidade declarada no catálogo.",
+		}},
+	}
+	report := knowledgeQualityReport{Entries: []knowledgeQualityEntry{{
+		SetupID: "plane", CatalogName: "PLANE", Maturity: "structural",
+		SourceClassification: "official-and-internal",
+		Issues:               []string{"capacity-inconsistent"},
+	}}}
+	prompt, status := buildRetrievalPrompt(result, retrievalPromptOptions{
+		Quality: report, Question: "Quanta RAM o Plane precisa para rodar?",
+	})
+	if status != "active" || prompt == nil || prompt.Quality == nil {
+		t.Fatalf("governança não chegou ao prompt: status=%s prompt=%#v", status, prompt)
+	}
+	if prompt.Quality.MaturityLabel != "Documentação inicial" ||
+		!prompt.Quality.DefinitiveAnswerBlocked || !prompt.Quality.DeterministicAnswer ||
+		!containsString(prompt.Quality.BlockingIssues, "capacity-inconsistent") {
+		t.Fatalf("bloqueio de qualidade incorreto: %#v", prompt.Quality)
+	}
+	if prompt.Sources[0].Maturity != "structural" ||
+		!containsString(prompt.Sources[0].QualityIssues, "capacity-inconsistent") {
+		t.Fatalf("fonte perdeu metadados editoriais: %#v", prompt.Sources[0])
+	}
+}
+
+func TestKnowledgeMaturityQuestionUsesDeterministicPolicy(t *testing.T) {
+	sources := []retrievalPromptSource{{SetupID: "n8n-main"}}
+	entries := map[string]knowledgeQualityEntry{"n8n-main": {
+		SetupID: "n8n-main", CatalogName: "N8N V1 - SEM FILA (MAIN)",
+		Maturity: "structural", SourceClassification: "internal-only",
+	}}
+	quality := buildRetrievalQualityContext(
+		sources, entries, "O N8N está homologado?",
+	)
+	if quality == nil || !quality.DeterministicAnswer ||
+		quality.DefinitiveAnswerBlocked || quality.MaturityLabel != "Documentação inicial" {
+		t.Fatalf("consulta de maturidade não foi resolvida pela política local: %#v", quality)
+	}
+}
+
+func TestQualityIssueClassifierDoesNotMatchPartialWords(t *testing.T) {
+	blocked := qualityIssuesBlockingQuestion(
+		[]string{"capacity-missing"},
+		"Qual programa devo usar para projetos?",
+	)
+	if len(blocked) != 0 {
+		t.Fatalf("RAM foi encontrada dentro de outra palavra: %#v", blocked)
+	}
+}
+
 func TestGroundingCitationAuditRequiresExistingSources(t *testing.T) {
 	valid := validateGroundingCitations("Compatível [Fonte 1] e seguro [Fonte 2].", 2)
 	if !valid.Grounded || valid.Status != "citation-validated" || valid.CitedSources != 2 {

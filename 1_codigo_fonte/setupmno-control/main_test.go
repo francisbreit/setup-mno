@@ -768,6 +768,29 @@ func TestAssistantUIAdvertisesSpecialistScope(t *testing.T) {
 	}
 }
 
+func TestDeterministicQualityAnswerDoesNotPromoteMaturity(t *testing.T) {
+	answer := buildDeterministicQualityAnswer(retrievalQualityContext{
+		Maturity:                "structural",
+		MaturityLabel:           "Documentação inicial",
+		CatalogNames:            []string{"PLANE"},
+		ClaimPolicy:             knowledgeClaimPolicy("structural"),
+		DefinitiveAnswerBlocked: true,
+		BlockingIssueLabels:     []string{"requisito de capacidade divergente"},
+		IssueLabels:             []string{"requisito de capacidade divergente"},
+	})
+	for _, expected := range []string{
+		"Não posso confirmar", "Documentação inicial",
+		"requisito de capacidade divergente", "Próximo passo seguro",
+	} {
+		if !strings.Contains(answer, expected) {
+			t.Fatalf("resposta determinística perdeu %q: %s", expected, answer)
+		}
+	}
+	if strings.Contains(answer, "está homologado") || strings.Contains(answer, "foi testado") {
+		t.Fatalf("maturidade foi promovida indevidamente: %s", answer)
+	}
+}
+
 func TestValidateProviderFindsOllamaModel(t *testing.T) {
 	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/tags" {

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "baselineRelease": "v7.4.1 (canal beta — lote final)",
+  "baselineRelease": "v7.5.0 (canal beta — lote final)",
   "minimumCoveredEntries": 151,
   "maximumMissingEntries": 0,
   "minimumCoveragePercent": 100.0,

@@ -200,6 +200,7 @@ type knowledgePackageState struct {
 	IndexV2    knowledgeIndexV2
 	Blueprints blueprintIndex
 	Evals      evalDataset
+	Quality    knowledgeQualityReport
 	Files      map[string][]byte
 	Source     string
 	Stale      bool
@@ -707,6 +708,7 @@ func validateKnowledgePackage(
 		IndexV2:    indexV2,
 		Blueprints: blueprintCatalog,
 		Evals:      evalDataset,
+		Quality:    qualityReport,
 		Files:      files,
 	}, nil
 }

@@ -132,29 +132,55 @@ type retrievalInspection struct {
 }
 
 type retrievalPromptSource struct {
-	Reference          string `json:"reference"`
-	DocumentID         string `json:"documentId"`
-	DocumentVersion    string `json:"documentVersion"`
-	DocumentType       string `json:"documentType"`
-	BlueprintID        string `json:"blueprintId,omitempty"`
-	Fictitious         bool   `json:"fictitious"`
-	Deployable         bool   `json:"deployable"`
-	Heading            string `json:"heading"`
-	TargetArchitecture string `json:"targetArchitecture"`
-	SetupID            string `json:"setupId,omitempty"`
-	ContentSHA256      string `json:"contentSHA256"`
-	Content            string `json:"content"`
-	Truncated          bool   `json:"truncated"`
+	Reference            string   `json:"reference"`
+	DocumentID           string   `json:"documentId"`
+	DocumentVersion      string   `json:"documentVersion"`
+	DocumentType         string   `json:"documentType"`
+	BlueprintID          string   `json:"blueprintId,omitempty"`
+	Fictitious           bool     `json:"fictitious"`
+	Deployable           bool     `json:"deployable"`
+	Heading              string   `json:"heading"`
+	TargetArchitecture   string   `json:"targetArchitecture"`
+	SetupID              string   `json:"setupId,omitempty"`
+	Maturity             string   `json:"maturity,omitempty"`
+	MaturityLabel        string   `json:"maturityLabel,omitempty"`
+	SourceClassification string   `json:"sourceClassification,omitempty"`
+	QualityIssues        []string `json:"qualityIssues,omitempty"`
+	ContentSHA256        string   `json:"contentSHA256"`
+	Content              string   `json:"content"`
+	Truncated            bool     `json:"truncated"`
+}
+
+type retrievalQualityContext struct {
+	Active                  bool     `json:"active"`
+	Maturity                string   `json:"maturity"`
+	MaturityLabel           string   `json:"maturityLabel"`
+	SetupIDs                []string `json:"setupIds"`
+	CatalogNames            []string `json:"catalogNames"`
+	SourceClassifications   []string `json:"sourceClassifications"`
+	Issues                  []string `json:"issues"`
+	IssueLabels             []string `json:"issueLabels"`
+	ClaimPolicy             string   `json:"claimPolicy"`
+	DefinitiveAnswerBlocked bool     `json:"definitiveAnswerBlocked"`
+	BlockingIssues          []string `json:"blockingIssues,omitempty"`
+	BlockingIssueLabels     []string `json:"blockingIssueLabels,omitempty"`
+	DeterministicAnswer     bool     `json:"deterministicAnswer"`
+}
+
+type retrievalPromptOptions struct {
+	Quality  knowledgeQualityReport
+	Question string
 }
 
 type retrievalPromptContext struct {
-	Mode             string                  `json:"mode"`
-	RetrievalVersion string                  `json:"retrievalVersion"`
-	KnowledgeVersion string                  `json:"knowledgeVersion"`
-	Confidence       string                  `json:"confidence"`
-	Simulation       bool                    `json:"simulation"`
-	BlueprintIDs     []string                `json:"blueprintIds,omitempty"`
-	Sources          []retrievalPromptSource `json:"sources"`
+	Mode             string                   `json:"mode"`
+	RetrievalVersion string                   `json:"retrievalVersion"`
+	KnowledgeVersion string                   `json:"knowledgeVersion"`
+	Confidence       string                   `json:"confidence"`
+	Simulation       bool                     `json:"simulation"`
+	BlueprintIDs     []string                 `json:"blueprintIds,omitempty"`
+	Quality          *retrievalQualityContext `json:"quality,omitempty"`
+	Sources          []retrievalPromptSource  `json:"sources"`
 }
 
 type retrievalQueryResolution struct {
@@ -833,7 +859,10 @@ func buildRetrievalInspection(
 	}
 }
 
-func buildRetrievalPrompt(result retrievalResult) (*retrievalPromptContext, string) {
+func buildRetrievalPrompt(
+	result retrievalResult,
+	options ...retrievalPromptOptions,
+) (*retrievalPromptContext, string) {
 	if result.Metrics.Fallback {
 		return nil, "legacy-fallback"
 	}
@@ -855,6 +884,14 @@ func buildRetrievalPrompt(result retrievalResult) (*retrievalPromptContext, stri
 		}
 		if !hasCatalogEvidence {
 			return nil, "catalog-evidence-missing"
+		}
+	}
+	qualityEntries := make(map[string]knowledgeQualityEntry)
+	question := ""
+	if len(options) > 0 {
+		question = options[0].Question
+		for _, entry := range options[0].Quality.Entries {
+			qualityEntries[entry.SetupID] = entry
 		}
 	}
 	sources := make([]retrievalPromptSource, 0, retrievalPromptResults)
@@ -901,7 +938,7 @@ func buildRetrievalPrompt(result retrievalResult) (*retrievalPromptContext, stri
 		if truncated {
 			contentRunes = contentRunes[:limit]
 		}
-		sources = append(sources, retrievalPromptSource{
+		source := retrievalPromptSource{
 			Reference:          fmt.Sprintf("Fonte %d", len(sources)+1),
 			DocumentID:         item.DocumentID,
 			DocumentVersion:    item.DocumentVersion,
@@ -915,7 +952,14 @@ func buildRetrievalPrompt(result retrievalResult) (*retrievalPromptContext, stri
 			ContentSHA256:      item.ContentSHA256,
 			Content:            string(contentRunes),
 			Truncated:          truncated,
-		})
+		}
+		if quality, exists := qualityEntries[item.SetupID]; exists {
+			source.Maturity = quality.Maturity
+			source.MaturityLabel = knowledgeMaturityLabel(quality.Maturity)
+			source.SourceClassification = quality.SourceClassification
+			source.QualityIssues = append([]string(nil), quality.Issues...)
+		}
+		sources = append(sources, source)
 		totalRunes += len(contentRunes)
 	}
 	if len(sources) == 0 {
@@ -932,8 +976,156 @@ func buildRetrievalPrompt(result retrievalResult) (*retrievalPromptContext, stri
 		Confidence:       result.Metrics.Confidence,
 		Simulation:       simulation,
 		BlueprintIDs:     sortedStringKeys(blueprintIDs),
+		Quality:          buildRetrievalQualityContext(sources, qualityEntries, question),
 		Sources:          sources,
 	}, "active"
+}
+
+func knowledgeMaturityLabel(value string) string {
+	return map[string]string{
+		"structural":           "Documentação inicial",
+		"source-reviewed":      "Fontes revisadas",
+		"script-reviewed":      "Instalador revisado",
+		"operational-reviewed": "Testado",
+		"homologated":          "Homologado",
+	}[value]
+}
+
+func knowledgeMaturityRank(value string) int {
+	return map[string]int{
+		"structural": 0, "source-reviewed": 1, "script-reviewed": 2,
+		"operational-reviewed": 3, "homologated": 4,
+	}[value]
+}
+
+func knowledgeClaimPolicy(maturity string) string {
+	switch maturity {
+	case "homologated":
+		return "Pode afirmar homologação somente nos limites das evidências canônicas recuperadas."
+	case "operational-reviewed":
+		return "Pode afirmar teste operacional documentado, mas não homologação."
+	case "script-reviewed":
+		return "Pode afirmar revisão do instalador, mas não teste operacional nem homologação."
+	case "source-reviewed":
+		return "Pode afirmar revisão das fontes, mas não revisão do instalador, teste operacional ou homologação."
+	default:
+		return "Trate como documentação inicial. Não afirme teste, funcionamento, compatibilidade operacional, revisão do instalador ou homologação."
+	}
+}
+
+func knowledgeIssueLabel(value string) string {
+	return map[string]string{
+		"architecture-inconsistent":   "arquitetura divergente entre catálogo e instalador",
+		"capacity-inconsistent":       "requisito de capacidade divergente",
+		"capacity-missing":            "requisito de capacidade ausente",
+		"catalog-description-invalid": "descrição do catálogo insuficiente",
+		"official-source-missing":     "fonte oficial ainda não vinculada",
+	}[value]
+}
+
+func buildRetrievalQualityContext(
+	sources []retrievalPromptSource,
+	entries map[string]knowledgeQualityEntry,
+	question string,
+) *retrievalQualityContext {
+	setupIDs := make(map[string]struct{})
+	catalogNames := make(map[string]struct{})
+	classifications := make(map[string]struct{})
+	issues := make(map[string]struct{})
+	worstMaturity := ""
+	worstRank := 99
+	for _, source := range sources {
+		entry, exists := entries[source.SetupID]
+		if !exists || entry.SetupID == "" {
+			continue
+		}
+		setupIDs[entry.SetupID] = struct{}{}
+		catalogNames[entry.CatalogName] = struct{}{}
+		classifications[entry.SourceClassification] = struct{}{}
+		rank := knowledgeMaturityRank(entry.Maturity)
+		if rank < worstRank {
+			worstRank = rank
+			worstMaturity = entry.Maturity
+		}
+		for _, issue := range entry.Issues {
+			issues[issue] = struct{}{}
+		}
+	}
+	if len(setupIDs) == 0 || knowledgeMaturityLabel(worstMaturity) == "" {
+		return nil
+	}
+	issueList := sortedStringKeys(issues)
+	issueLabels := make([]string, 0, len(issueList))
+	for _, issue := range issueList {
+		issueLabels = append(issueLabels, knowledgeIssueLabel(issue))
+	}
+	blocking := qualityIssuesBlockingQuestion(issueList, question)
+	blockingLabels := make([]string, 0, len(blocking))
+	for _, issue := range blocking {
+		blockingLabels = append(blockingLabels, knowledgeIssueLabel(issue))
+	}
+	deterministic := len(blocking) > 0 || questionAsksKnowledgeMaturity(question)
+	return &retrievalQualityContext{
+		Active:                  true,
+		Maturity:                worstMaturity,
+		MaturityLabel:           knowledgeMaturityLabel(worstMaturity),
+		SetupIDs:                sortedStringKeys(setupIDs),
+		CatalogNames:            sortedStringKeys(catalogNames),
+		SourceClassifications:   sortedStringKeys(classifications),
+		Issues:                  issueList,
+		IssueLabels:             issueLabels,
+		ClaimPolicy:             knowledgeClaimPolicy(worstMaturity),
+		DefinitiveAnswerBlocked: len(blocking) > 0,
+		BlockingIssues:          blocking,
+		BlockingIssueLabels:     blockingLabels,
+		DeterministicAnswer:     deterministic,
+	}
+}
+
+func qualityIssuesBlockingQuestion(issues []string, question string) []string {
+	normalized := " " + normalizeRetrievalPhrase(question) + " "
+	containsAny := func(terms ...string) bool {
+		for _, term := range terms {
+			if strings.Contains(normalized, " "+term+" ") {
+				return true
+			}
+		}
+		return false
+	}
+	blocking := make([]string, 0, len(issues))
+	for _, issue := range issues {
+		switch issue {
+		case "architecture-inconsistent":
+			if containsAny("arquitetura", "arm", "arm64", "aarch64", "amd64", "x86", "compativel", "compatibilidade") {
+				blocking = append(blocking, issue)
+			}
+		case "capacity-inconsistent", "capacity-missing":
+			if containsAny("ram", "memoria", "capacidade", "recurso", "recursos", "gb", "cabe", "rodar", "requisito") {
+				blocking = append(blocking, issue)
+			}
+		case "catalog-description-invalid":
+			if containsAny("finalidade", "descricao", "serve", "o que e") {
+				blocking = append(blocking, issue)
+			}
+		case "official-source-missing":
+			if containsAny("fonte", "oficial", "documentacao oficial", "referencia") {
+				blocking = append(blocking, issue)
+			}
+		}
+	}
+	return blocking
+}
+
+func questionAsksKnowledgeMaturity(question string) bool {
+	normalized := normalizeRetrievalPhrase(question)
+	for _, term := range []string{
+		"documentad", "homologad", "testad", "maturidade", "revisad", "evidencia operacional",
+	} {
+		if strings.Contains(normalized, term) {
+			return true
+		}
+	}
+	return false
 }
 
 func optionalString(value *string) string {

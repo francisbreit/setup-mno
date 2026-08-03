@@ -14,8 +14,8 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.4.1` no canal Beta
-- Control Center: `4.12.1`
+- Setup MNO: `7.5.0` no canal Beta
+- Control Center: `4.13.0`
 - Conhecimento canônico: `3.11.0`
 - Catálogo runtime: 151 entradas
 - Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
@@ -2081,6 +2081,45 @@ evidência operacional são respondidas antes de OpenAI, OpenRouter, DeepSeek ou
 Ollama. Testes negativos preservam perguntas operacionais como “Como homologar
 meu setup?” no fluxo normal. A resposta continua derivada exclusivamente do
 manifesto assinado, sem custo de LLM e sem inferência por uma fatia do RAG.
+
+## Etapa 8.1B — Maturidade aplicada a cada resposta
+
+**Status:** implementada na v7.5.0
+**Impacto:** crítico
+**Tipo:** confiabilidade, UX/UI e governança
+**Esforço:** estrutural
+
+O relatório de qualidade deixa de ser apenas uma estatística agregada e passa a
+acompanhar cada fonte de setup selecionada pelo RAG. O Assistente recebe o
+nível editorial, a classificação das fontes e as pendências vinculadas ao
+`setupId`, sem misturar resultados de aplicações diferentes.
+
+O usuário vê um selo simples na própria resposta: `Documentação inicial`,
+`Fontes revisadas`, `Instalador revisado`, `Testado` ou `Homologado`. O modelo
+não pode promover esse nível por inferência. Conteúdo estrutural não autoriza
+afirmar que algo foi testado, funciona operacionalmente, possui compatibilidade
+confirmada ou está homologado.
+
+Pendências que atingem diretamente a pergunta são tratadas antes da LLM. Por
+exemplo, uma consulta de RAM com `capacity-missing` ou
+`capacity-inconsistent`, e uma consulta ARM/x86 com
+`architecture-inconsistent`, recebem uma resposta local determinística e
+inconclusiva. Consultas sobre a própria maturidade também são respondidas
+localmente. Isso impede que conhecimento geral do provedor preencha lacunas da
+base com uma afirmação inventada.
+
+O pacote de conhecimento continua estritamente somente leitura. Não foram
+adicionados socket Docker, shell, mount de host, ação de deploy ou autoridade
+de escrita. Dataset, Evals e Graders permanecem internos; os gates desta etapa
+validam o contrato de qualidade, o bloqueio determinístico, a serialização do
+contexto e a renderização do selo.
+
+### Próxima ação após a 8.1B
+
+Executar a Etapa 8.1C: resolver as 29 pendências reais em lotes priorizados,
+começando por divergências de arquitetura e capacidade. Cada promoção deve
+incluir fonte oficial ou exceção, revisão do script x86/ARM e evidência
+operacional compatível com o nível pretendido.
 
 ## Referências oficiais
 

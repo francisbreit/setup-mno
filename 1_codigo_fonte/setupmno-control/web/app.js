@@ -1054,6 +1054,8 @@ async function streamAssistant(question, history, target, basic, fallbackReason 
         attachAssistantMessageRoute(target, event.data);
       } else if (event.type === "retrieval") {
         renderRetrievalInspection(target, event.data);
+      } else if (event.type === "quality") {
+        renderAnswerQuality(target, event.data);
       } else if (event.type === "blueprint_simulation") {
         renderBlueprintSimulation(target, event.data);
       } else if (event.type === "grounding") {
@@ -1079,6 +1081,31 @@ function clearRetrievalInspection(target) {
 
 function clearBlueprintSimulation(target) {
   target.querySelector(".blueprint-simulation-banner")?.remove();
+}
+
+function renderAnswerQuality(target, quality) {
+  if (!target || quality?.active !== true) return;
+  const header = target.querySelector(".message-route");
+  if (!header) return;
+  let badge = header.querySelector(".message-route-quality");
+  if (!badge) {
+    badge = document.createElement("span");
+    header.append(badge);
+  }
+  const accepted = new Set([
+    "structural", "source-reviewed", "script-reviewed",
+    "operational-reviewed", "homologated"
+  ]);
+  const maturity = accepted.has(quality.maturity) ? quality.maturity : "structural";
+  badge.className = `message-route-chip message-route-quality maturity-${maturity}`;
+  badge.textContent = quality.maturityLabel || "Documentação inicial";
+  badge.hidden = false;
+  const issues = Array.isArray(quality.issueLabels)
+    ? quality.issueLabels.filter(value => typeof value === "string" && value).slice(0, 8)
+    : [];
+  badge.title = issues.length
+    ? `Maturidade da base. Pendências: ${issues.join("; ")}`
+    : "Maturidade da base canônica usada nesta resposta.";
 }
 
 function renderBlueprintSimulation(target, simulation) {
@@ -1422,7 +1449,7 @@ function providerLabel(mode) {
 function addMessage(text, type, pending = false) {
   const row = document.createElement("div");
   row.className = `message ${type === "user" ? "user-message" : "assistant-message"}`;
-  const assistantHeader = `<div class="message-route" aria-live="polite" aria-label="Classificando especialista"><strong class="message-route-specialist">${pending ? "Classificando especialista..." : "MNO Insights"}</strong><span class="message-route-chip message-route-risk" hidden></span><span class="message-route-chip message-route-prompt" hidden></span></div>`;
+  const assistantHeader = `<div class="message-route" aria-live="polite" aria-label="Classificando especialista"><strong class="message-route-specialist">${pending ? "Classificando especialista..." : "MNO Insights"}</strong><span class="message-route-chip message-route-risk" hidden></span><span class="message-route-chip message-route-prompt" hidden></span><span class="message-route-chip message-route-quality" hidden></span></div>`;
   row.innerHTML = `<span class="message-avatar">${type === "user" ? escapeHTML(state.user.slice(0,1).toUpperCase()) : "M"}</span><div>${type === "assistant" ? assistantHeader : `<strong>Você</strong>`}<p class="message-content"></p></div>`;
   const content = row.querySelector(".message-content");
   if (type === "assistant") {

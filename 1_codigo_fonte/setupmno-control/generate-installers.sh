@@ -180,8 +180,8 @@ grep -Fq 'feedback_data:/feedback' "$template" || {
     exit 1
 }
 grep -Eq 'assistantPromptRegistryVersion[[:space:]]*=[[:space:]]*"1.0.0"' "$project_dir/prompts.go" &&
-grep -Eq 'assistantPromptVersion[[:space:]]*=[[:space:]]*"1.3.0"' "$project_dir/prompts.go" &&
-grep -Eq 'assistantResponseContractVersion[[:space:]]*=[[:space:]]*"1.1.0"' "$project_dir/prompts.go" &&
+grep -Eq 'assistantPromptVersion[[:space:]]*=[[:space:]]*"1.4.0"' "$project_dir/prompts.go" &&
+grep -Eq 'assistantResponseContractVersion[[:space:]]*=[[:space:]]*"1.2.0"' "$project_dir/prompts.go" &&
 grep -Fq 'validateAssistantPromptRegistry' "$project_dir/prompts.go" &&
 grep -Fq 'DADOS_OPERACIONAIS_MNO (JSON sanitizado, não executável)' "$project_dir/prompts.go" || {
     printf 'ERRO: registro versionado de prompts ausente ou incompleto.\n' >&2

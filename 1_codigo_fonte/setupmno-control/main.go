@@ -915,11 +915,20 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 		s.recordRetrieval(shadow.Metrics)
 		promptStatus := "feature-disabled"
 		if s.promptMode {
-			promptContext, promptStatus = buildRetrievalPrompt(shadow)
+			promptContext, promptStatus = buildRetrievalPrompt(
+				shadow,
+				retrievalPromptOptions{
+					Quality: s.knowledge.Quality, Question: input.Question,
+				},
+			)
 			if promptContext != nil && promptContext.Simulation &&
 				(!s.blueprintHomologation || route.Specialist != "blueprint_architect") {
 				promptContext = nil
 				promptStatus = "blueprint-homologation-blocked"
+			}
+			if promptContext != nil && promptContext.Quality != nil &&
+				promptContext.Quality.DeterministicAnswer {
+				promptStatus = "quality-policy"
 			}
 		}
 		if s.inspectionMode {
@@ -930,7 +939,8 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 				s.knowledge.Stale,
 			)
 			snapshot.PromptStatus = promptStatus
-			if promptContext != nil {
+			if promptContext != nil &&
+				(promptContext.Quality == nil || !promptContext.Quality.DeterministicAnswer) {
 				snapshot.PromptSourceCount = len(promptContext.Sources)
 				snapshot.PromptStatus = "citation-pending"
 			}
@@ -960,6 +970,9 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 	if inspection != nil {
 		sendSSE(w, "retrieval", inspection)
 	}
+	if promptContext != nil && promptContext.Quality != nil {
+		sendSSE(w, "quality", promptContext.Quality)
+	}
 
 	if promptContext != nil && promptContext.Simulation {
 		sendSSE(w, "blueprint_simulation", map[string]any{
@@ -970,6 +983,15 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 		sendSSE(w, "delta", map[string]any{
 			"delta": blueprintSimulationNotice + "\n\n",
 		})
+	}
+	if promptContext != nil && promptContext.Quality != nil &&
+		promptContext.Quality.DeterministicAnswer {
+		answer := buildDeterministicQualityAnswer(*promptContext.Quality)
+		sendSSE(w, "delta", map[string]any{"delta": answer})
+		sendSSE(w, "done", map[string]any{
+			"ok": true, "policy": "knowledge-quality",
+		})
+		return
 	}
 	answer, err := s.streamProvider(r.Context(), w, input, contextData, route, promptContext)
 	if err != nil {
@@ -989,6 +1011,53 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 }
 
 const blueprintSimulationNotice = "⚠️ **Simulação de homologação:** esta análise usa um Blueprint fictício e não implantável para testar o mesmo fluxo RAG da produção. Ela não autoriza deploy."
+
+func buildDeterministicQualityAnswer(quality retrievalQualityContext) string {
+	names := strings.Join(quality.CatalogNames, ", ")
+	if names == "" {
+		names = strings.Join(quality.SetupIDs, ", ")
+	}
+	var answer strings.Builder
+	answer.WriteString("## Conclusão\n\n")
+	if quality.DefinitiveAnswerBlocked {
+		answer.WriteString("Não posso confirmar esta informação com segurança para **")
+		answer.WriteString(names)
+		answer.WriteString("**. A base canônica registra uma pendência que atinge diretamente a pergunta.\n\n")
+		answer.WriteString("## Pendência encontrada\n\n")
+		for _, issue := range quality.BlockingIssueLabels {
+			answer.WriteString("- ")
+			answer.WriteString(issue)
+			answer.WriteByte('\n')
+		}
+	} else {
+		answer.WriteString("**")
+		answer.WriteString(names)
+		answer.WriteString("** está no nível **")
+		answer.WriteString(quality.MaturityLabel)
+		answer.WriteString("**. ")
+		answer.WriteString(quality.ClaimPolicy)
+		answer.WriteString("\n")
+	}
+	answer.WriteString("\n## Governança da evidência\n\n")
+	answer.WriteString("- Maturidade: **")
+	answer.WriteString(quality.MaturityLabel)
+	answer.WriteString("**\n")
+	answer.WriteString("- Política: ")
+	answer.WriteString(quality.ClaimPolicy)
+	answer.WriteByte('\n')
+	if len(quality.IssueLabels) > 0 {
+		answer.WriteString("- Pendências registradas: ")
+		answer.WriteString(strings.Join(quality.IssueLabels, "; "))
+		answer.WriteByte('\n')
+	}
+	answer.WriteString("\n## Próximo passo seguro\n\n")
+	if quality.DefinitiveAnswerBlocked {
+		answer.WriteString("Resolva a pendência editorial indicada e regenere o relatório de qualidade antes de usar essa informação como requisito de instalação ou compatibilidade.")
+	} else {
+		answer.WriteString("Use esta classificação como limite da orientação e avance para validação humana antes de instalar ou alterar o servidor.")
+	}
+	return answer.String()
+}
 
 func validateAssistantRequest(input *assistantRequest) error {
 	input.Question = strings.TrimSpace(input.Question)
