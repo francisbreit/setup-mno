@@ -1403,6 +1403,7 @@ function updateAssistantRuntime(runtime = {}) {
   const mode = runtime.mode || state.assistantMode || "basic";
   const model = runtime.model || state.assistantModel || "";
   const fallback = Boolean(runtime.fallback);
+  const operationalContextAvailable = runtime.operationalContextAvailable !== false;
   const fallbackReason = runtime.fallbackReason || "";
   const fallbackLabel = fallbackReason === "provider"
     ? "Provedor de IA indisponível"
@@ -1422,6 +1423,12 @@ function updateAssistantRuntime(runtime = {}) {
       : fallback
         ? "Contingência local ativa. O conector será testado novamente na próxima pergunta."
         : "Sem consumo de API ou modelo local.";
+  if (!fallback && assistantModeUsesLLM(mode) && !operationalContextAvailable) {
+    $("assistant-provider").textContent = `${provider} · conhecimento ativo`;
+    $("assistant-model").textContent = model
+      ? `Modelo: ${model} · métricas locais temporariamente indisponíveis`
+      : "Conhecimento canônico ativo · métricas locais temporariamente indisponíveis";
+  }
   if (mode === "catalog") {
     $("assistant-welcome-title").textContent = "Catálogo runtime validado.";
     $("assistant-welcome-text").textContent = "Listagens completas são geradas localmente para garantir todos os setups, sem omissões ou alucinações.";
@@ -1430,10 +1437,18 @@ function updateAssistantRuntime(runtime = {}) {
     $("assistant-welcome-title").textContent = `Olá! O Copiloto MNO está conectado à ${provider}.`;
     $("assistant-welcome-text").textContent = "Sou especializado em Setup MNO e infraestrutura. Envio somente contexto operacional minimizado, sem hostname, credenciais, comandos ou acesso direto ao Docker.";
     $("assistant-privacy").textContent = "A consulta usa uma LLM externa. O Setup envia apenas métricas e dados mínimos necessários para responder.";
+    if (!operationalContextAvailable) {
+      $("assistant-welcome-text").textContent = "A base canônica continua disponível para explicar aplicações, requisitos e integrações. A leitura de métricas deste servidor está temporariamente indisponível.";
+      $("assistant-privacy").textContent = "A resposta usa o conhecimento canônico; nenhuma métrica local foi enviada nesta consulta.";
+    }
   } else if (mode === "ollama") {
     $("assistant-welcome-title").textContent = "Olá! O Copiloto MNO está conectado ao Ollama.";
     $("assistant-welcome-text").textContent = "Sou especializado em Setup MNO e infraestrutura. Posso combinar o catálogo com a leitura segura do ambiente para orientar seus próximos passos.";
     $("assistant-privacy").textContent = "O processamento ocorre no endpoint Ollama configurado, sem acesso da IA ao Docker, shell ou terminal.";
+    if (!operationalContextAvailable) {
+      $("assistant-welcome-text").textContent = "A base canônica continua disponível para explicar aplicações, requisitos e integrações. A leitura de métricas deste servidor está temporariamente indisponível.";
+      $("assistant-privacy").textContent = "O processamento usa o conhecimento canônico no endpoint Ollama configurado; nenhuma métrica local foi enviada nesta consulta.";
+    }
   } else if (fallback) {
     $("assistant-welcome-title").textContent = `${fallbackLabel}.`;
     $("assistant-welcome-text").textContent = "O diagnóstico básico assumiu esta resposta. O Copiloto tentará restabelecer o modo configurado automaticamente na próxima pergunta.";

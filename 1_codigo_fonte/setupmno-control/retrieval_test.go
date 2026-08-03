@@ -550,7 +550,7 @@ func TestRetrievalPromptRejectsSetupMismatch(t *testing.T) {
 	}
 }
 
-func TestRetrievalPromptAppliesCanonicalMaturityAndBlocksDirectIssue(t *testing.T) {
+func TestRetrievalPromptAppliesCanonicalMaturityAndExplainsDirectIssue(t *testing.T) {
 	result := retrievalResult{
 		Metrics:       retrievalMetrics{Version: knowledgeRetrieval, Confidence: "high"},
 		ResolvedSetup: "plane",
@@ -576,11 +576,11 @@ func TestRetrievalPromptAppliesCanonicalMaturityAndBlocksDirectIssue(t *testing.
 		t.Fatalf("governança não chegou ao prompt: status=%s prompt=%#v", status, prompt)
 	}
 	if prompt.Quality.MaturityLabel != "Conhecimento básico" ||
-		!prompt.Quality.DefinitiveAnswerBlocked || !prompt.Quality.DeterministicAnswer ||
+		!prompt.Quality.DefinitiveAnswerBlocked || prompt.Quality.DeterministicAnswer ||
 		!containsString(prompt.Quality.BlockingIssues, "capacity-inconsistent") ||
 		prompt.Quality.InstallationLabel != "Instalador homologado" ||
 		prompt.Quality.IntegrationLabel != "Integrações em expansão" {
-		t.Fatalf("bloqueio de qualidade incorreto: %#v", prompt.Quality)
+		t.Fatalf("política explicativa de qualidade incorreta: %#v", prompt.Quality)
 	}
 	if prompt.Sources[0].Maturity != "structural" ||
 		!containsString(prompt.Sources[0].QualityIssues, "capacity-inconsistent") {

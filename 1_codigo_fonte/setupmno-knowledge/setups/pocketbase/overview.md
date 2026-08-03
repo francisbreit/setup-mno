@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "PocketBase no Setup MNO",
   "setupId": "pocketbase",
-  "setupVersion": "7.5.1",
+  "setupVersion": "7.5.2",
   "architectures": [
     "amd64",
     "arm64"

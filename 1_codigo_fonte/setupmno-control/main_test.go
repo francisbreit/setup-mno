@@ -636,6 +636,72 @@ func TestCollectContextIncludesExactCatalogTotalAndSystem(t *testing.T) {
 	}
 }
 
+func TestAssistantPreservesCanonicalKnowledgeWithoutRuntimeContext(t *testing.T) {
+	state, err := loadKnowledgePackageDirectory("knowledge-package")
+	if err != nil {
+		t.Fatal(err)
+	}
+	retriever, err := newKnowledgeRetriever(state, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	agent := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		writeError(w, http.StatusServiceUnavailable, "estado runtime indisponível")
+	}))
+	defer agent.Close()
+
+	expectedSetupID := ""
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Errorf("payload do provedor inválido: %v", err)
+			return
+		}
+		serialized, _ := json.Marshal(payload)
+		body := string(serialized)
+		if !strings.Contains(body, expectedSetupID) ||
+			!strings.Contains(body, `"operationalContextAvailable":false`) ||
+			!strings.Contains(body, "DADOS_CANONICOS_RAG") {
+			t.Errorf("conhecimento canônico não foi preservado para %s: %s", expectedSetupID, body)
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("event: response.output_text.delta\n"))
+		_, _ = w.Write([]byte(`data: {"type":"response.output_text.delta","delta":"Resposta fundamentada [Fonte 1]."}` + "\n\n"))
+		_, _ = w.Write([]byte("event: response.completed\n"))
+		_, _ = w.Write([]byte(`data: {"type":"response.completed","response":{"output":[]}}` + "\n\n"))
+	}))
+	defer provider.Close()
+
+	service := assistantService{
+		provider: "openai", model: "modelo-teste", baseURL: provider.URL,
+		httpClient: provider.Client(), agentURL: agent.URL, agentToken: "token-teste",
+		agentClient: agent.Client(), knowledge: state, retriever: retriever,
+		shadowMode: true, inspectionMode: true, promptMode: true,
+	}
+	tests := []struct {
+		question string
+		setupID  string
+	}{
+		{"Para que serve o N8N?", "n8n-main"},
+		{"O que é o Baserow?", "baserow"},
+		{"Quanta RAM o Plane precisa para rodar?", "plane"},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.setupID, func(t *testing.T) {
+			expectedSetupID = testCase.setupID
+			requestBody, _ := json.Marshal(assistantRequest{Question: testCase.question})
+			request := httptest.NewRequest(http.MethodPost, "/chat", strings.NewReader(string(requestBody)))
+			response := httptest.NewRecorder()
+			service.handleChat(response, request)
+			if response.Code != http.StatusOK ||
+				!strings.Contains(response.Body.String(), `"operationalContextAvailable":false`) ||
+				!strings.Contains(response.Body.String(), "Resposta fundamentada") {
+				t.Fatalf("contingência de conhecimento falhou: HTTP %d: %s", response.Code, response.Body.String())
+			}
+		})
+	}
+}
+
 func TestValidateAssistantCatalogRejectsMismatch(t *testing.T) {
 	state := setupStateResponse{
 		SetupVersion:   "4.93.2",

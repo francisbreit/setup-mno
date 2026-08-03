@@ -335,28 +335,30 @@ type assistantApp struct {
 }
 
 type assistantContext struct {
-	SetupVersion       string           `json:"setupVersion"`
-	CatalogVersion     string           `json:"catalogVersion"`
-	CatalogSHA256      string           `json:"catalogSHA256"`
-	CatalogEntries     int              `json:"catalogEntries"`
-	CatalogSource      string           `json:"catalogSource"`
-	CatalogStale       bool             `json:"catalogStale"`
-	Architecture       string           `json:"architecture"`
-	OperatingSystem    string           `json:"operatingSystem"`
-	OSVersion          string           `json:"osVersion,omitempty"`
-	OSType             string           `json:"osType"`
-	KernelVersion      string           `json:"kernelVersion"`
-	EngineVersion      string           `json:"engineVersion"`
-	CPUPercent         float64          `json:"cpuPercent"`
-	MemoryPercent      float64          `json:"memoryPercent"`
-	MemoryAvailableGB  float64          `json:"memoryAvailableGB"`
-	DiskPercent        float64          `json:"diskPercent"`
-	Services           int              `json:"services"`
-	DegradedServices   int              `json:"degradedServices"`
-	SwarmNodes         int              `json:"swarmNodes"`
-	InstalledApps      []assistantApp   `json:"installedApps"`
-	RelevantSetupCount int              `json:"relevantSetupCount"`
-	RelevantSetups     []map[string]any `json:"relevantSetups"`
+	OperationalContextAvailable bool             `json:"operationalContextAvailable"`
+	OperationalContextWarning   string           `json:"operationalContextWarning,omitempty"`
+	SetupVersion                string           `json:"setupVersion"`
+	CatalogVersion              string           `json:"catalogVersion"`
+	CatalogSHA256               string           `json:"catalogSHA256"`
+	CatalogEntries              int              `json:"catalogEntries"`
+	CatalogSource               string           `json:"catalogSource"`
+	CatalogStale                bool             `json:"catalogStale"`
+	Architecture                string           `json:"architecture"`
+	OperatingSystem             string           `json:"operatingSystem"`
+	OSVersion                   string           `json:"osVersion,omitempty"`
+	OSType                      string           `json:"osType"`
+	KernelVersion               string           `json:"kernelVersion"`
+	EngineVersion               string           `json:"engineVersion"`
+	CPUPercent                  float64          `json:"cpuPercent"`
+	MemoryPercent               float64          `json:"memoryPercent"`
+	MemoryAvailableGB           float64          `json:"memoryAvailableGB"`
+	DiskPercent                 float64          `json:"diskPercent"`
+	Services                    int              `json:"services"`
+	DegradedServices            int              `json:"degradedServices"`
+	SwarmNodes                  int              `json:"swarmNodes"`
+	InstalledApps               []assistantApp   `json:"installedApps"`
+	RelevantSetupCount          int              `json:"relevantSetupCount"`
+	RelevantSetups              []map[string]any `json:"relevantSetups"`
 }
 
 type assistantService struct {
@@ -893,13 +895,12 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 	if s.retriever != nil {
 		resolution = s.retriever.resolveQuery(input.Question, input.History)
 	}
-	contextData, err := s.collectContext(
+	contextData, contextErr := s.collectContext(
 		r.Context(), resolution.Query, resolution.CatalogName,
 	)
-	if err != nil {
-		log.Printf("Assistente MNO: contexto operacional indisponível: %v", err)
-		writeError(w, http.StatusBadGateway, "contexto operacional indisponível")
-		return
+	if contextErr != nil {
+		log.Printf("Assistente MNO: contexto operacional indisponível; conhecimento canônico preservado: %v", contextErr)
+		contextData = s.knowledgeOnlyContext()
 	}
 	route := routeAssistant(input.Question, resolution, contextData.Architecture)
 	resolution.BlueprintRoute = route.Specialist == "blueprint_architect"
@@ -911,14 +912,18 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 			contextData.SetupVersion,
 			contextData.Architecture,
 		)
-		shadow = s.retriever.attachCatalogEvidence(shadow, contextData)
+		if contextData.OperationalContextAvailable {
+			shadow = s.retriever.attachCatalogEvidence(shadow, contextData)
+		}
 		s.recordRetrieval(shadow.Metrics)
 		promptStatus := "feature-disabled"
 		if s.promptMode {
 			promptContext, promptStatus = buildRetrievalPrompt(
 				shadow,
 				retrievalPromptOptions{
-					Quality: s.knowledge.Quality, Question: input.Question,
+					Quality:                     s.knowledge.Quality,
+					Question:                    input.Question,
+					AllowMissingCatalogEvidence: !contextData.OperationalContextAvailable,
 				},
 			)
 			if promptContext != nil && promptContext.Simulation &&
@@ -953,18 +958,20 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 	sendSSE(w, "meta", map[string]any{
-		"mode":                      s.provider,
-		"model":                     s.model,
-		"knowledgeVersion":          s.knowledge.Manifest.KnowledgeVersion,
-		"knowledgeSource":           s.knowledge.Source,
-		"knowledgeStale":            s.knowledge.Stale,
-		"knowledgeEntries":          s.knowledge.Manifest.DocumentEntries,
-		"blueprintFactoryVersion":   s.knowledge.Manifest.BlueprintFactoryVersion,
-		"blueprintEntries":          s.knowledge.Manifest.BlueprintEntries,
-		"blueprintKnowledgeEntries": s.knowledge.Manifest.BlueprintKnowledgeEntries,
-		"blueprintFixtureEntries":   s.knowledge.Manifest.BlueprintFixtureEntries,
-		"blueprintHomologation":     s.blueprintHomologation,
-		"qualitySummary":            s.knowledge.Manifest.QualitySummary,
+		"mode":                        s.provider,
+		"model":                       s.model,
+		"knowledgeVersion":            s.knowledge.Manifest.KnowledgeVersion,
+		"knowledgeSource":             s.knowledge.Source,
+		"knowledgeStale":              s.knowledge.Stale,
+		"knowledgeEntries":            s.knowledge.Manifest.DocumentEntries,
+		"blueprintFactoryVersion":     s.knowledge.Manifest.BlueprintFactoryVersion,
+		"blueprintEntries":            s.knowledge.Manifest.BlueprintEntries,
+		"blueprintKnowledgeEntries":   s.knowledge.Manifest.BlueprintKnowledgeEntries,
+		"blueprintFixtureEntries":     s.knowledge.Manifest.BlueprintFixtureEntries,
+		"blueprintHomologation":       s.blueprintHomologation,
+		"qualitySummary":              s.knowledge.Manifest.QualitySummary,
+		"operationalContextAvailable": contextData.OperationalContextAvailable,
+		"operationalContextWarning":   contextData.OperationalContextWarning,
 	})
 	sendSSE(w, "route", route)
 	if inspection != nil {
@@ -1158,29 +1165,41 @@ func (s *assistantService) collectContext(
 	}
 	relevantSetups := relevantCatalogItems(catalog.Items, question, exactCatalogName, 12)
 	return assistantContext{
-		SetupVersion:       setupState.SetupVersion,
-		CatalogVersion:     catalog.CatalogVersion,
-		CatalogSHA256:      catalog.CatalogSHA256,
-		CatalogEntries:     catalog.CatalogEntries,
-		CatalogSource:      catalog.Source,
-		CatalogStale:       catalog.Stale,
-		Architecture:       setupState.Architecture,
-		OperatingSystem:    current.OperatingSystem,
-		OSVersion:          current.OSVersion,
-		OSType:             current.OSType,
-		KernelVersion:      current.KernelVersion,
-		EngineVersion:      current.EngineVersion,
-		CPUPercent:         current.Metrics.CPUPercent,
-		MemoryPercent:      current.Metrics.MemoryPercent,
-		MemoryAvailableGB:  round(float64(available) / float64(1<<30)),
-		DiskPercent:        current.Metrics.DiskPercent,
-		Services:           current.Services,
-		DegradedServices:   current.DegradedServices,
-		SwarmNodes:         current.SwarmNodes,
-		InstalledApps:      installed,
-		RelevantSetupCount: len(relevantSetups),
-		RelevantSetups:     relevantSetups,
+		OperationalContextAvailable: true,
+		SetupVersion:                setupState.SetupVersion,
+		CatalogVersion:              catalog.CatalogVersion,
+		CatalogSHA256:               catalog.CatalogSHA256,
+		CatalogEntries:              catalog.CatalogEntries,
+		CatalogSource:               catalog.Source,
+		CatalogStale:                catalog.Stale,
+		Architecture:                setupState.Architecture,
+		OperatingSystem:             current.OperatingSystem,
+		OSVersion:                   current.OSVersion,
+		OSType:                      current.OSType,
+		KernelVersion:               current.KernelVersion,
+		EngineVersion:               current.EngineVersion,
+		CPUPercent:                  current.Metrics.CPUPercent,
+		MemoryPercent:               current.Metrics.MemoryPercent,
+		MemoryAvailableGB:           round(float64(available) / float64(1<<30)),
+		DiskPercent:                 current.Metrics.DiskPercent,
+		Services:                    current.Services,
+		DegradedServices:            current.DegradedServices,
+		SwarmNodes:                  current.SwarmNodes,
+		InstalledApps:               installed,
+		RelevantSetupCount:          len(relevantSetups),
+		RelevantSetups:              relevantSetups,
 	}, nil
+}
+
+func (s *assistantService) knowledgeOnlyContext() assistantContext {
+	return assistantContext{
+		OperationalContextAvailable: false,
+		OperationalContextWarning:   "Métricas e catálogo runtime temporariamente indisponíveis; a resposta usa somente o pacote canônico de conhecimento.",
+		SetupVersion:                s.knowledge.Manifest.SetupVersion,
+		CatalogSource:               "unavailable",
+		CatalogStale:                true,
+		Architecture:                "unknown",
+	}
 }
 
 func validateAssistantCatalog(state setupStateResponse, catalog catalogResponse) error {

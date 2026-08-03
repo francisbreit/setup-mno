@@ -176,8 +176,9 @@ type retrievalQualityContext struct {
 }
 
 type retrievalPromptOptions struct {
-	Quality  knowledgeQualityReport
-	Question string
+	Quality                     knowledgeQualityReport
+	Question                    string
+	AllowMissingCatalogEvidence bool
 }
 
 type retrievalPromptContext struct {
@@ -777,7 +778,9 @@ func (r *knowledgeRetriever) targetArchitectures(
 	case "arm64", "arm", "aarch64":
 		return []string{"arm64"}
 	default:
-		return nil
+		// Sem o estado runtime, consulte as duas pistas canônicas. Isso evita
+		// inventar a arquitetura do servidor e preserva respostas de conhecimento.
+		return []string{"amd64", "arm64"}
 	}
 }
 
@@ -890,7 +893,9 @@ func buildRetrievalPrompt(
 				hasCatalogEvidence = true
 			}
 		}
-		if !hasCatalogEvidence {
+		allowMissingCatalogEvidence := len(options) > 0 &&
+			options[0].AllowMissingCatalogEvidence
+		if !hasCatalogEvidence && !allowMissingCatalogEvidence {
 			return nil, "catalog-evidence-missing"
 		}
 	}
@@ -1106,7 +1111,10 @@ func buildRetrievalQualityContext(
 	for _, issue := range blocking {
 		blockingLabels = append(blockingLabels, knowledgeIssueLabel(issue))
 	}
-	deterministic := len(blocking) > 0 || questionAsksKnowledgeMaturity(question)
+	// Divergências continuam explícitas para o provedor explicar, mas não devem
+	// substituir toda a resposta por uma recusa genérica. Somente perguntas
+	// editoriais recebem resposta determinística local.
+	deterministic := questionAsksKnowledgeMaturity(question)
 	return &retrievalQualityContext{
 		Active:                  true,
 		Maturity:                worstMaturity,
