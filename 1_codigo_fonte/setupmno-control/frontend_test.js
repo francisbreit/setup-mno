@@ -21,7 +21,7 @@ const routeSnapshot = routeMetadata.snapshot({
 assert.ok(Object.isFrozen(routeSnapshot));
 assert.deepEqual(routeSnapshot, {
   specialist: "infrastructure_diagnostician",
-  specialistName: "Diagnóstico de infraestrutura",
+  specialistName: "Mestre de operação e infraestrutura",
   risk: "low",
   riskName: "baixo",
   responseProfile: "technical_diagnosis",
@@ -74,6 +74,11 @@ assert.doesNotMatch(disabledAssistant, /<textarea|<form/);
 assert.match(app, /function assistantModeUsesLLM/);
 assert.match(app, /function renderAssistantAvailability/);
 assert.match(app, /function runLocalDiagnostic/);
+assert.match(html, /id="installation-type"/);
+assert.match(html, /id="setup-plan"/);
+assert.match(app, /Cloudflare Tunnel/);
+assert.match(app, /Tradicional \(Traefik\)/);
+assert.match(app, /chat com LLM é um recurso do plano PRO/);
 assert.match(app, /operationalContextPartial/);
 assert.match(app, /métricas ativas/);
 assert.match(app, /dados ausentes não são inventados/);

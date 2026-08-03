@@ -31,7 +31,7 @@ const (
 	maxBlueprintEntries      = 64
 	maxKnowledgeArchiveBytes = 8 << 20
 	maxKnowledgeManifest     = 1 << 20
-	maxKnowledgeFileBytes    = 2 << 20
+	maxKnowledgeFileBytes    = 3 << 20
 	maxKnowledgeFiles        = 1024
 	maxKnowledgeChunks       = 4096
 	maxKnowledgeChunkRunes   = 2400

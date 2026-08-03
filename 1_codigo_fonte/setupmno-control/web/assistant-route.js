@@ -9,7 +9,7 @@
     integration_architect: "Arquiteto de integrações",
     solution_architect: "Mestre de deploys e soluções",
     setup_specialist: "Especialista em setups",
-    infrastructure_diagnostician: "Diagnóstico de infraestrutura",
+    infrastructure_diagnostician: "Mestre de operação e infraestrutura",
     scope_guard: "Guardião de escopo"
   });
   const risks = Object.freeze({ low: "baixo", medium: "médio", high: "alto" });

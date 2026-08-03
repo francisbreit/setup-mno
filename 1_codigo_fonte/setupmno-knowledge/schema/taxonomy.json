@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "knowledgeVersion": "3.13.0",
+  "knowledgeVersion": "3.14.0",
   "documentTypes": [
     "infrastructure",
     "setup",
@@ -65,7 +65,10 @@
     "vps",
     "wsl2",
     "ecosystem",
-    "solution-patterns"
+    "solution-patterns",
+    "setupmno-platform",
+    "setupmno-operations",
+    "setupmno-exposure"
   ],
   "normalRetrievalStatuses": [
     "reviewed",
@@ -84,6 +87,9 @@
     "vps": ["servidor virtual", "servidor vps"],
     "wsl2": ["wsl", "windows subsystem linux"],
     "ecosystem": ["ecossistema setup mno", "aplicacoes setups blueprints", "ferramentas setups blueprints", "inventario canonico"],
-    "solution-patterns": ["padroes de solucao", "combinacao de ferramentas", "microssistemas", "mestre de deploys"]
+    "solution-patterns": ["padroes de solucao", "combinacao de ferramentas", "microssistemas", "mestre de deploys"],
+    "setupmno-platform": ["arquitetura do setup mno", "plataforma setup mno", "manager e worker", "escala horizontal do swarm"],
+    "setupmno-operations": ["operar setup mno", "comandos ssh", "usar portainer", "manter servidor no ar", "reiniciar servico"],
+    "setupmno-exposure": ["tipo de instalacao", "cloudflare tunnel ou traefik", "publicar aplicacao", "acesso externo"]
   }
 }

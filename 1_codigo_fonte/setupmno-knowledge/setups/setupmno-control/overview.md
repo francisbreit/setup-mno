@@ -2,12 +2,12 @@
 {
   "schemaVersion": 1,
   "documentId": "setup-setupmno-control-overview",
-  "documentVersion": "1.4.0",
-  "contentSHA256": "ce7b3c137b70903e2fd778075fbb33c48b48102a7f4797030be6a433bff41be5",
+  "documentVersion": "1.5.0",
+  "contentSHA256": "086b183d0ec127bb1ef319b8e1ccb09a81c84c7b9ca7c13c571c2d23fadea040",
   "documentType": "setup",
   "title": "Setup MNO Control Center",
   "setupId": "setupmno-control",
-  "setupVersion": "7.6.0",
+  "setupVersion": "7.7.0",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
@@ -61,6 +61,22 @@ Exige infraestrutura-base, domínio, memória mínima do modo escolhido e pacote
 runtime consistente. OpenAI, OpenRouter, DeepSeek e Ollama são opcionais; o
 diagnóstico básico deve permanecer disponível. OpenAI é a seleção inicial do
 instalador quando os requisitos mínimos de memória são atendidos.
+
+## Disponibilidade por plano
+
+O Control Center pode ser instalado uma única vez nos planos pro, free, free1
+e free2. Inventário, métricas, catálogo, terminal autenticado e diagnóstico
+básico local permanecem disponíveis em todos eles.
+
+No plano PRO, o usuário pode conectar OpenAI, OpenRouter, DeepSeek ou Ollama
+quando os requisitos do servidor forem atendidos. Nos planos free, free1 e
+free2, o Assistente com IA fica desativado e o modo BASIC é obrigatório, mesmo
+que exista uma configuração residual de provedor. O instalador não solicita
+chave, não cria stack de LLM e o painel bloqueia o proxy para o conector.
+
+A Visão Geral apresenta separadamente versão do Setup MNO, versão do Control
+Center, tipo de instalação e plano. O tipo de instalação é Cloudflare Tunnel
+ou Tradicional (Traefik), conforme o estado runtime validado.
 
 ## Instalação opcional e única
 

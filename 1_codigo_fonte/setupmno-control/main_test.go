@@ -47,6 +47,49 @@ func TestReadRuntimeSnapshot(t *testing.T) {
 	}
 }
 
+func TestReadRuntimeEnvironment(t *testing.T) {
+	directory := t.TempDir()
+	data := []byte(`{"schemaVersion":1,"plan":"free1","installationType":"CLOUDFLARE_TUNNEL"}`)
+	if err := os.WriteFile(filepath.Join(directory, "environment.json"), data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	environment, err := readRuntimeEnvironment(directory)
+	if err != nil {
+		t.Fatalf("ambiente runtime válido foi recusado: %v", err)
+	}
+	if environment.Plan != "free1" || environment.InstallationType != "CLOUDFLARE_TUNNEL" {
+		t.Fatalf("ambiente runtime inesperado: %#v", environment)
+	}
+}
+
+func TestReadRuntimeEnvironmentRejectsInvalidEntitlement(t *testing.T) {
+	for name, data := range map[string]string{
+		"plano":   `{"schemaVersion":1,"plan":"premium","installationType":"TRADICIONAL"}`,
+		"tipo":    `{"schemaVersion":1,"plan":"pro","installationType":"PUBLICO"}`,
+		"campo":   `{"schemaVersion":1,"plan":"pro","installationType":"TRADICIONAL","token":"segredo"}`,
+		"symlink": `{"schemaVersion":1,"plan":"pro","installationType":"TRADICIONAL"}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			directory := t.TempDir()
+			path := filepath.Join(directory, "environment.json")
+			if name == "symlink" {
+				target := filepath.Join(directory, "target.json")
+				if err := os.WriteFile(target, []byte(data), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(target, path); err != nil {
+					t.Fatal(err)
+				}
+			} else if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := readRuntimeEnvironment(directory); err == nil {
+				t.Fatal("ambiente runtime inválido foi aceito")
+			}
+		})
+	}
+}
+
 func TestTerminalIntentAllowed(t *testing.T) {
 	valid := [][]string{nil, {"installer"}, {"settings"}, {"gateway"}}
 	for _, values := range valid {
@@ -75,6 +118,50 @@ func TestAssistantModeUsesLLM(t *testing.T) {
 	}
 }
 
+func TestRuntimeAllowsLLMOnlyForValidatedProPlan(t *testing.T) {
+	for _, testCase := range []struct {
+		name    string
+		plan    string
+		allowed bool
+		expect  bool
+	}{
+		{name: "pro", plan: "pro", allowed: true, expect: true},
+		{name: "free", plan: "free", allowed: false, expect: false},
+		{name: "free-com-flag-residual", plan: "free", allowed: true, expect: false},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Header.Get("X-SetupMNO-Agent-Token") != "token-teste" {
+					t.Fatal("token do agente ausente")
+				}
+				_ = json.NewEncoder(w).Encode(setupStateResponse{Plan: testCase.plan, LLMAllowed: testCase.allowed})
+			}))
+			defer server.Close()
+			app := webApp{agentURL: server.URL, agentToken: "token-teste", httpClient: server.Client()}
+			if result := app.runtimeAllowsLLM(context.Background()); result != testCase.expect {
+				t.Fatalf("permissão LLM inesperada: %v", result)
+			}
+		})
+	}
+}
+
+func TestAssistantConfigurationForPlan(t *testing.T) {
+	for _, plan := range []string{"free", "free1", "free2", "", "premium"} {
+		mode, model, endpoint := assistantConfigurationForPlan(
+			plan, "openrouter", "openai/gpt-4o-mini", "https://openrouter.ai/api/v1/",
+		)
+		if mode != "basic" || model != "" || endpoint != "" {
+			t.Fatalf("plano %q preservou configuração LLM: %q %q %q", plan, mode, model, endpoint)
+		}
+	}
+	mode, model, endpoint := assistantConfigurationForPlan(
+		" PRO ", " OpenRouter ", " openai/gpt-4o-mini ", "https://openrouter.ai/api/v1/",
+	)
+	if mode != "openrouter" || model != "openai/gpt-4o-mini" || endpoint != "https://openrouter.ai/api/v1" {
+		t.Fatalf("configuração PRO alterada indevidamente: %q %q %q", mode, model, endpoint)
+	}
+}
+
 func TestReadRuntimeSnapshotAcceptsGeneratedKnowledgeManifest(t *testing.T) {
 	directory := filepath.Join("..", "x86", "SetupLowCodeMno", ".control-package")
 	snapshot, err := readRuntimeSnapshot(directory)
@@ -91,9 +178,9 @@ func TestReadRuntimeSnapshotAcceptsGeneratedKnowledgeManifest(t *testing.T) {
 		snapshot.Release.BlueprintFixtureEntries != 0 ||
 		len(snapshot.Release.BlueprintIndexSHA256) != 64 ||
 		snapshot.Release.EvalSchemaVersion != 1 ||
-		snapshot.Release.EvalDatasetVersion != "1.8.0" ||
-		snapshot.Release.EvalGraderVersion != "1.8.0" ||
-		snapshot.Release.EvalCaseEntries != 831 ||
+		snapshot.Release.EvalDatasetVersion != "1.9.0" ||
+		snapshot.Release.EvalGraderVersion != "1.9.0" ||
+		snapshot.Release.EvalCaseEntries != 843 ||
 		len(snapshot.Release.EvalDatasetSHA256) != 64 {
 		t.Fatalf("metadados do conhecimento ausentes: %#v", snapshot.Release)
 	}
@@ -510,7 +597,7 @@ func TestKnowledgeStatusMarkdownUsesManifestInsteadOfRetrievalSlice(t *testing.T
 	}
 	state := knowledgePackageState{Manifest: knowledgeManifest{
 		SetupVersion: "7.2.8", KnowledgeVersion: "3.10.0",
-		EvalDatasetVersion: "1.8.0", EvalCaseEntries: 831,
+		EvalDatasetVersion: "1.9.0", EvalCaseEntries: 843,
 		DocumentEntries: 165, SetupEntries: 151, InfrastructureEntries: 9,
 		BlueprintKnowledgeEntries: 5,
 		DocumentTypeEntries:       map[string]int{"setup": 151, "infrastructure": 9, "blueprint": 5},
@@ -675,7 +762,7 @@ func TestCollectContextPreservesMetricsWhenRuntimeCatalogIsUnavailable(t *testin
 		agentToken:  "token-teste",
 		agentClient: server.Client(),
 		knowledge: knowledgePackageState{Manifest: knowledgeManifest{
-			SetupVersion: "7.6.0",
+			SetupVersion: "7.7.0",
 		}},
 	}
 	contextData, err := service.collectContext(context.Background(), "Qual o uso de RAM?", "")
@@ -688,7 +775,7 @@ func TestCollectContextPreservesMetricsWhenRuntimeCatalogIsUnavailable(t *testin
 		contextData.Services != 12 || contextData.DegradedServices != 1 {
 		t.Fatalf("métricas parciais não foram preservadas: %#v", contextData)
 	}
-	if contextData.SetupVersion != "7.6.0" || contextData.CatalogSource != "unavailable" ||
+	if contextData.SetupVersion != "7.7.0" || contextData.CatalogSource != "unavailable" ||
 		!contextData.CatalogStale || !strings.Contains(contextData.OperationalContextWarning, "catálogo runtime") {
 		t.Fatalf("contingência canônica incorreta: %#v", contextData)
 	}
@@ -1019,9 +1106,9 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 	}
 	if state.Source != "image-read-only" ||
 		state.Stale ||
-		state.Manifest.DocumentEntries != 167 ||
+		state.Manifest.DocumentEntries != 170 ||
 		state.Manifest.SetupEntries != 151 ||
-		state.Manifest.InfrastructureEntries != 11 ||
+		state.Manifest.InfrastructureEntries != 14 ||
 		state.Manifest.BlueprintFactoryVersion != "2.1.0" ||
 		state.Manifest.BlueprintSchemaVersion != 2 ||
 		state.Manifest.BlueprintEntries != 5 ||
@@ -1031,9 +1118,9 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 		state.Manifest.IndexSchemaVersion != 2 ||
 		state.Manifest.RetrievalVersion != "1.3.0" ||
 		state.Manifest.EvalSchemaVersion != 1 ||
-		state.Manifest.EvalDatasetVersion != "1.8.0" ||
-		state.Manifest.EvalGraderVersion != "1.8.0" ||
-		state.Manifest.EvalCaseEntries != 831 ||
+		state.Manifest.EvalDatasetVersion != "1.9.0" ||
+		state.Manifest.EvalGraderVersion != "1.9.0" ||
+		state.Manifest.EvalCaseEntries != 843 ||
 		len(state.Manifest.EvalDatasetSHA256) != 64 ||
 		state.Manifest.ChunkEntries <= state.Manifest.DocumentEntries {
 		t.Fatalf("estado inesperado do conhecimento: %#v", state)

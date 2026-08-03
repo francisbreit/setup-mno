@@ -642,8 +642,16 @@ EOF
 }
 
 configure_provider() {
-    local provider status model base_url provider_secret="" old_secret=""
+    local provider status model base_url provider_secret="" old_secret="" control_plan
     local previous_exists="false" default_model provider_name timestamp height width menu_rows
+    control_plan=$(jq -er \
+        'select(.schemaVersion == 1) | .plan | select(. == "pro" or . == "free" or . == "free1" or . == "free2")' \
+        /root/SetupLowCodeMno/.control/environment.json 2>/dev/null || printf 'free')
+    if [ "$control_plan" != "pro" ]; then
+        msg "O Assistente com IA é exclusivo do plano PRO.\n\nO plano $control_plan mantém o diagnóstico básico local, sem LLM, sem consumo de API e sem criação de stack de Assistente. Uma configuração antiga de provedor não será utilizada."
+        return 0
+    fi
+
     authenticate_admin || return $?
 
     height=$(dialog_height 21)

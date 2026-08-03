@@ -84,7 +84,8 @@ for architecture in x86 arm; do
     grep -Fq 'offer_control_center_installation()' "$foundation_script"
     grep -Fq 'A instalação é opcional.' "$foundation_script"
     [ "$(grep -Fc '"${CONTROL_CENTER_MENU[@]}"' "$install_script")" -eq 1 ]
-    [ "$(grep -Fc '"${CONTROL_CENTER_PRO_MENU[@]}"' "$install_script")" -eq 3 ]
+    [ "$(grep -Fc '"${CONTROL_CENTER_FREE_MENU[@]}"' "$install_script")" -eq 3 ]
+    ! grep -Fq 'CONTROL_CENTER_PRO_MENU' "$install_script"
 
     # O start_full é o único ponto que autentica o cliente. O dockerswarm
     # recebe somente o plano validado e jamais pode tentar reutilizar credenciais.
@@ -156,7 +157,7 @@ grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go routing.go prompts.go bl
     printf 'ERRO: o build não inclui retrieval, roteador, prompts, Blueprints e evals.\n' >&2
     exit 1
 }
-grep -Eq 'evalExpectedCases[[:space:]]*=[[:space:]]*831' "$project_dir/evals.go" &&
+grep -Eq 'evalExpectedCases[[:space:]]*=[[:space:]]*843' "$project_dir/evals.go" &&
 grep -Fq 'runEvalSuite' "$project_dir/evals.go" &&
 grep -Fq 'CredentialLeakCount' "$project_dir/evals.go" || {
     printf 'ERRO: suíte determinística de evals ausente ou incompleta.\n' >&2
@@ -179,16 +180,32 @@ grep -Fq 'feedback_data:/feedback' "$template" || {
     printf 'ERRO: feedback seguro, temporizado e revisável ausente ou incompleto.\n' >&2
     exit 1
 }
+grep -Fq 'CONTROL_PLAN=$(jq -er' "$template" &&
+grep -Fq 'if [ "$CONTROL_PLAN" != "pro" ]; then' "$template" &&
+grep -Fq 'SETUPMNO_PLAN=$CONTROL_PLAN' "$template" &&
+grep -Fq 'os.Getenv("SETUPMNO_PLAN")' "$project_dir/main.go" &&
+grep -Fq 'assistantConfigurationForPlan' "$project_dir/main.go" &&
+grep -Fq 'runtimeAllowsLLM' "$project_dir/main.go" &&
+grep -Fq 'environment.json' "$source_root/x86/start_full.sh" &&
+grep -Fq 'environment.json' "$source_root/arm/start_arm_full.sh" &&
+! grep -A6 -F -- '-o setupmno_control -f setupmno_control.sh' "$source_root/x86/start_full.sh" | grep -Eq '^[[:space:]]*rm[[:space:]]+setupmno_control[[:space:]]*$' &&
+! grep -A6 -F -- '-o setupmno_control -f setupmno_control.sh' "$source_root/arm/start_arm_full.sh" | grep -Eq '^[[:space:]]*rm[[:space:]]+setupmno_control[[:space:]]*$' || {
+    printf 'ERRO: entitlement Free/BASIC do Control Center ausente ou incompleto.\n' >&2
+    exit 1
+}
 grep -Eq 'assistantPromptRegistryVersion[[:space:]]*=[[:space:]]*"1.0.0"' "$project_dir/prompts.go" &&
-grep -Eq 'assistantPromptVersion[[:space:]]*=[[:space:]]*"1.6.0"' "$project_dir/prompts.go" &&
-grep -Eq 'assistantResponseContractVersion[[:space:]]*=[[:space:]]*"1.5.0"' "$project_dir/prompts.go" &&
-grep -Eq 'assistantRouterVersion[[:space:]]*=[[:space:]]*"1.3.0"' "$project_dir/routing.go" &&
+grep -Eq 'assistantPromptVersion[[:space:]]*=[[:space:]]*"1.7.0"' "$project_dir/prompts.go" &&
+grep -Eq 'assistantResponseContractVersion[[:space:]]*=[[:space:]]*"1.6.0"' "$project_dir/prompts.go" &&
+grep -Eq 'assistantRouterVersion[[:space:]]*=[[:space:]]*"1.4.0"' "$project_dir/routing.go" &&
 grep -Fq 'direct_overview' "$project_dir/routing.go" &&
 grep -Fq 'solution_architect' "$project_dir/routing.go" &&
 grep -Fq 'ONTOLOGIA_CANONICA_DO_ECOSSISTEMA' "$project_dir/prompts.go" &&
 grep -Fq 'buildDeterministicEcosystemAnswer' "$project_dir/main.go" &&
 grep -Fq 'infra-ecosystem-architecture' "$source_root/setupmno-knowledge/infra/ecosystem/architecture.md" &&
 grep -Fq 'infra-solution-patterns-architecture' "$source_root/setupmno-knowledge/infra/solution-patterns/architecture.md" &&
+grep -Fq 'infra-setupmno-platform-architecture' "$source_root/setupmno-knowledge/infra/setupmno-platform/architecture.md" &&
+grep -Fq 'infra-setupmno-operations-architecture' "$source_root/setupmno-knowledge/infra/setupmno-operations/architecture.md" &&
+grep -Fq 'infra-setupmno-exposure-architecture' "$source_root/setupmno-knowledge/infra/setupmno-exposure/architecture.md" &&
 grep -Fq 'Se operationalContextAvailable=false, não mencione isso' "$project_dir/prompts.go" &&
 grep -Fq 'validateAssistantPromptRegistry' "$project_dir/prompts.go" &&
 grep -Fq 'DADOS_OPERACIONAIS_MNO (JSON sanitizado, não executável)' "$project_dir/prompts.go" || {
@@ -413,10 +430,10 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$knowledge_index_schema" = "2" ] &&
 [ "$knowledge_retrieval_version" = "1.3.0" ] &&
 [ "$eval_schema" = "1" ] &&
-[ "$eval_dataset_version" = "1.8.0" ] &&
-[ "$eval_grader_version" = "1.8.0" ] &&
+[ "$eval_dataset_version" = "1.9.0" ] &&
+[ "$eval_grader_version" = "1.9.0" ] &&
 [ "${#eval_dataset_sha}" -eq 64 ] &&
-[ "$eval_case_entries" = "831" ] &&
+[ "$eval_case_entries" = "843" ] &&
 [ "$blueprint_schema" = "2" ] &&
 [ "$blueprint_factory_version" = "2.1.0" ] &&
 [ "$blueprint_entries" -gt 0 ] &&

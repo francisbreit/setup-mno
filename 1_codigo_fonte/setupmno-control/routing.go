@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	assistantRouterVersion = "1.3.0"
+	assistantRouterVersion = "1.4.0"
 )
 
 type assistantRoute struct {
@@ -138,7 +138,9 @@ var routeDefinitions = []routeDefinition{
 			"infraestrutura", "servidor", "vps", "docker", "swarm", "linux", "wsl2",
 			"traefik", "cloudflare", "proxy", "rede", "servico", "container",
 			"postgres", "redis", "mysql", "minio", "observabilidade", "monitoramento",
-			"arquitetura",
+			"arquitetura", "portainer", "ssh", "manager", "worker", "node", "task",
+			"replica", "replicas", "escala horizontal", "quorum", "manter no ar",
+			"reiniciar servico", "logs do servico", "tipo de instalacao",
 			"assistente mno", "copiloto", "o que voce pode fazer", "como voce pode ajudar",
 		},
 	},
@@ -146,7 +148,7 @@ var routeDefinitions = []routeDefinition{
 
 var routeDomains = []routeDomainDefinition{
 	{Name: "setup_mno", Terms: []string{"setup mno", "setup", "setups", "catalogo", "instalador"}},
-	{Name: "infrastructure", Terms: []string{"infraestrutura", "servidor", "vps", "linux", "wsl2", "assistente mno", "copiloto"}},
+	{Name: "infrastructure", Terms: []string{"infraestrutura", "servidor", "vps", "linux", "wsl2", "assistente mno", "copiloto", "portainer", "ssh", "manager", "worker"}},
 	{Name: "containers", Terms: []string{"docker", "swarm", "container", "stack", "servico"}},
 	{Name: "architecture", Terms: []string{"arquitetura", "amd64", "x86", "x86 64", "arm", "arm64", "aarch64"}},
 	{Name: "resources", Terms: []string{"capacidade", "memoria", "ram", "cpu", "disco", "armazenamento", "escala"}},

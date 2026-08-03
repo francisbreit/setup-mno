@@ -18,6 +18,8 @@ const state = {
   feedbackRating: "",
   assistantMode: "basic",
   assistantModel: "",
+  setupPlan: "",
+  llmAllowed: false,
   assistantHistory: [],
   assistantRoute: null,
   view: "dashboard",
@@ -506,6 +508,21 @@ function applyReleaseMetadata(data) {
   if (data.controlVersion) {
     state.controlVersion = data.controlVersion;
     $("control-version").textContent = `v${data.controlVersion}`;
+  }
+  if (data.installationType) {
+    $("installation-type").textContent = data.installationType === "CLOUDFLARE_TUNNEL"
+      ? "Cloudflare Tunnel"
+      : "Tradicional (Traefik)";
+  }
+  if (data.plan) {
+    state.setupPlan = data.plan;
+    state.llmAllowed = data.llmAllowed === true;
+    $("setup-plan").textContent = data.plan;
+    if (!state.llmAllowed) {
+      state.assistantMode = "basic";
+      state.assistantModel = "";
+      renderAssistantMode();
+    }
   }
   setCatalogSyncStatus(Boolean(data.stale), data.warning, data);
 }
@@ -1404,12 +1421,17 @@ function renderAssistantAvailability() {
   $("assistant-rag-card").hidden = !enabled;
   if (enabled) return;
   const deferred = state.assistantMode === "later";
+  const planLimited = Boolean(state.setupPlan) && !state.llmAllowed;
   $("assistant-disabled-text").textContent = deferred
     ? "A configuração do conector de IA foi adiada durante a instalação. Nenhuma LLM está conectada e o chat permanecerá desativado até que um provedor seja escolhido."
-    : "O modo Básico foi selecionado. Nenhuma LLM está conectada e, por isso, o campo de conversa permanece desativado.";
+    : planLimited
+      ? `O plano ${state.setupPlan} mantém o Assistente com IA desativado. O diagnóstico básico local continua disponível sem LLM.`
+      : "O modo Básico foi selecionado. Nenhuma LLM está conectada e, por isso, o campo de conversa permanece desativado.";
   $("assistant-disabled-help").textContent = deferred
     ? "Quando desejar ativar o chat, abra Configurações e escolha Alterar Provedor."
-    : "Para habilitar o chat, abra Configurações e escolha Alterar Provedor.";
+    : planLimited
+      ? "O chat com LLM é um recurso do plano PRO. Use o botão abaixo para analisar a saúde do servidor localmente."
+      : "Para habilitar o chat, abra Configurações e escolha Alterar Provedor.";
 }
 
 function updateAssistantRuntime(runtime = {}) {

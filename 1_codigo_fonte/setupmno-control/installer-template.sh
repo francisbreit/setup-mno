@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.14.0"
+CONTROL_VERSION="4.15.0"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -31,6 +31,24 @@ extract_control_bundle() {
 INSTALL_TYPE_FILE="/root/.cloudflared_config/installation_type"
 INSTALL_TYPE="TRADICIONAL"
 [ -f "$INSTALL_TYPE_FILE" ] && INSTALL_TYPE=$(cat "$INSTALL_TYPE_FILE")
+
+CONTROL_ENVIRONMENT_FILE="/root/SetupLowCodeMno/.control/environment.json"
+[ -f "$CONTROL_ENVIRONMENT_FILE" ] && [ ! -L "$CONTROL_ENVIRONMENT_FILE" ] || {
+    printf '%s\n' "Estado de plano do Control Center indisponível." >&2
+    exit 1
+}
+CONTROL_PLAN=$(jq -er \
+    'select(.schemaVersion == 1) | .plan | select(. == "pro" or . == "free" or . == "free1" or . == "free2")' \
+    "$CONTROL_ENVIRONMENT_FILE") || {
+    printf '%s\n' "Estado de plano do Control Center inválido." >&2
+    exit 1
+}
+INSTALL_TYPE=$(jq -er \
+    '.installationType | select(. == "CLOUDFLARE_TUNNEL" or . == "TRADICIONAL")' \
+    "$CONTROL_ENVIRONMENT_FILE") || {
+    printf '%s\n' "Tipo de instalação do Control Center inválido." >&2
+    exit 1
+}
 
 if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     CREDENTIALS_FILE="/root/.cloudflared_config/cloudflare_credentials"
@@ -269,7 +287,9 @@ assistant_model=""
 assistant_base_url=""
 llm_api_key=""
 
-if [ "${mem_total_mb:-0}" -lt 4096 ] || [ "${mem_available_mb:-0}" -lt 1536 ]; then
+if [ "$CONTROL_PLAN" != "pro" ]; then
+    msg "O plano $CONTROL_PLAN inclui o Control Center com diagnóstico básico local.\n\nO Assistente com IA permanece desativado neste plano, mesmo que exista uma configuração antiga de provedor. Nenhuma chave ou stack de LLM será criada."
+elif [ "${mem_total_mb:-0}" -lt 4096 ] || [ "${mem_available_mb:-0}" -lt 1536 ]; then
     msg "O Control Center será instalado com o diagnóstico básico.\n\nMemória total: ${mem_total_mb:-0} MB\nMemória disponível: ${mem_available_mb:-0} MB\n\nO Copiloto com LLM é opcional e foi desativado para proteger este servidor. Você poderá configurá-lo futuramente após ampliar os recursos."
 else
     while true; do
@@ -426,7 +446,7 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
 fi
 
 whiptail --title "CONFIRMAR INSTALAÇÃO" --yesno \
-    "Setup MNO Control Center\n\nDomínio: $url_control\nAdministrador: $usuario_control\nAssistente: $assistant_label\nInstalação: $dns_mode\nDeploy: $([ "$criar_portainer" = "0" ] && echo "Portainer editável" || echo "Docker direto")\nArquiteturas: X86 e ARM\nLimite de memória do Control: $memory_limit\n\nO terminal executará o instalador original e será acessível somente após autenticação." \
+    "Setup MNO Control Center\n\nDomínio: $url_control\nAdministrador: $usuario_control\nPlano: $CONTROL_PLAN\nAssistente: $assistant_label\nInstalação: $dns_mode\nDeploy: $([ "$criar_portainer" = "0" ] && echo "Portainer editável" || echo "Docker direto")\nArquiteturas: X86 e ARM\nLimite de memória do Control: $memory_limit\n\nO terminal executará o instalador original e será acessível somente após autenticação." \
     23 88 || exit 0
 
 install_log="/tmp/${nome_app}-install.log"
@@ -545,11 +565,11 @@ error_file="/tmp/${nome_app}-error.log"
     [ "$knowledge_index_schema" = "2" ] &&
     [ "$knowledge_retrieval_version" = "1.3.0" ] &&
     [ "$eval_schema" = "1" ] &&
-    [ "$eval_dataset_version" = "1.8.0" ] &&
-    [ "$eval_grader_version" = "1.8.0" ] &&
+    [ "$eval_dataset_version" = "1.9.0" ] &&
+    [ "$eval_grader_version" = "1.9.0" ] &&
     [ "${#eval_dataset_sha}" -eq 64 ] &&
     [ "$eval_dataset_sha" = "$release_eval_dataset_sha" ] &&
-    [ "$eval_case_entries" = "831" ] &&
+    [ "$eval_case_entries" = "843" ] &&
     [ "$knowledge_entries" = "$release_knowledge_entries" ] &&
     [ "$knowledge_archive_bytes" = "$actual_knowledge_bytes" ] &&
     [ "$knowledge_archive_bytes" -le $((8 * 1024 * 1024)) ] &&
@@ -586,7 +606,7 @@ error_file="/tmp/${nome_app}-error.log"
     fi
     if ! docker run --rm --entrypoint /setupmno-control \
         "$control_image" evalcheck >>"$install_log" 2>&1; then
-        fail_install 31 "REGRESSÃO DE QUALIDADE DETECTADA" "A suíte canônica de 831 casos não atingiu os gates mínimos desta release."
+        fail_install 31 "REGRESSÃO DE QUALIDADE DETECTADA" "A suíte canônica de 843 casos não atingiu os gates mínimos desta release."
     fi
     fallback_check="$work_dir/knowledge-fallback.json"
     if ! docker run --rm \
@@ -686,6 +706,7 @@ services:
       - SETUPMNO_CONTROL_AGENT_SECRET=$agent_secret
       - SETUPMNO_CONTROL_ADMIN_SECRET=$admin_secret
       - SETUPMNO_CONTROL_ADMIN_USERNAME=$usuario_control
+      - SETUPMNO_CONTROL_PLAN=$CONTROL_PLAN
     networks:
       - interna
     volumes:
@@ -882,6 +903,8 @@ services:
       - ASSISTANT_MODE=$assistant_mode
       - ASSISTANT_MODEL=$assistant_model
       - ASSISTANT_URL=$assistant_internal_url
+      - SETUPMNO_PLAN=$CONTROL_PLAN
+      - SETUPMNO_INSTALL_TYPE=$INSTALL_TYPE
       - FEEDBACK_STORE_PATH=/feedback/feedback.json
       - COOKIE_SECURE=true
     networks:

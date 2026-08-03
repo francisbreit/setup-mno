@@ -14,9 +14,9 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.6.0` no canal Beta
-- Control Center: `4.14.0`
-- Conhecimento canônico: `3.13.0`
+- Setup MNO: `7.7.0` no canal Beta
+- Control Center: `4.15.0`
+- Conhecimento canônico: `3.14.0`
 - Catálogo runtime: 151 entradas
 - Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
 - Blueprints: cinco guias Beta editáveis, consultáveis e baixáveis; ainda não homologados
@@ -2223,7 +2223,7 @@ contexto parcial e métricas indisponíveis. Testes de regressão comprovam que
 uma falha HTTP 503 no catálogo não remove CPU, RAM disponível, disco, serviços
 ou aplicações já recuperadas.
 
-## Evolução v7.6.0 — Mestre de Deploys e Microssistemas
+## Evolução v7.7.0 — Mestre de Deploys e Microssistemas
 
 **Status:** implementado
 **Impacto:** crítico
@@ -2257,6 +2257,28 @@ O retrieval evolui para `1.3.0`, os prompts para `1.6.0`, o roteador para
 `1.3.0` e a suíte Evals para `1.8.0`, com 831 casos. Os novos gates verificam
 semântica, contagens, roteamento por objetivo e recuperação dos documentos
 mestres.
+
+### Complemento operacional da release v7.7.0
+
+O Control Center passa a ser instalável nos planos `free`, `free1`, `free2` e
+`pro`. Nos planos gratuitos, o Assistente permanece obrigatoriamente em modo
+**BASIC**, com diagnóstico local sem LLM; configurações antigas de provedor não
+habilitam o chat e o servidor rejeita o uso do conector. O plano PRO mantém os
+conectores opcionais e todas as regras de isolamento e confirmação humana.
+
+A Visão Geral passa a identificar, separadamente, versão do Setup MNO, versão
+do Control Center, tipo de instalação (`Cloudflare Tunnel` ou `Tradicional
+(Traefik)`) e plano efetivo. Esses dados são derivados de um estado runtime
+validado, promovido atomicamente pelo gatilho de licenciamento, sem inferência
+pela interface.
+
+O conhecimento canônico ganha guias revisados sobre a plataforma Setup MNO,
+operação segura por Portainer e SSH e exposição via Cloudflare/Traefik. O
+Assistente PRO passa a orientar diagnóstico, manutenção e expansão horizontal
+de Swarm com método observar-diagnosticar-agir-validar, mas continua
+consultivo: não recebe shell, socket Docker nem API genérica de escrita. Os
+prompts evoluem para `1.7.0`, o roteador para `1.4.0`, o contrato de resposta
+para `1.6.0` e a suíte Evals para `1.9.0`, com 843 casos.
 
 ## Referências oficiais
 

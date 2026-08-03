@@ -229,16 +229,25 @@ type runtimeSnapshot struct {
 }
 
 type setupStateResponse struct {
-	SchemaVersion  int    `json:"schemaVersion"`
-	SetupVersion   string `json:"setupVersion"`
-	ControlVersion string `json:"controlVersion,omitempty"`
-	CatalogVersion string `json:"catalogVersion"`
-	CatalogSHA256  string `json:"catalogSHA256"`
-	CatalogEntries int    `json:"catalogEntries"`
-	Architecture   string `json:"architecture"`
-	Source         string `json:"source"`
-	Stale          bool   `json:"stale"`
-	Warning        string `json:"warning,omitempty"`
+	SchemaVersion    int    `json:"schemaVersion"`
+	SetupVersion     string `json:"setupVersion"`
+	ControlVersion   string `json:"controlVersion,omitempty"`
+	CatalogVersion   string `json:"catalogVersion"`
+	CatalogSHA256    string `json:"catalogSHA256"`
+	CatalogEntries   int    `json:"catalogEntries"`
+	Architecture     string `json:"architecture"`
+	Source           string `json:"source"`
+	Stale            bool   `json:"stale"`
+	Warning          string `json:"warning,omitempty"`
+	Plan             string `json:"plan,omitempty"`
+	InstallationType string `json:"installationType,omitempty"`
+	LLMAllowed       bool   `json:"llmAllowed"`
+}
+
+type runtimeEnvironment struct {
+	SchemaVersion    int    `json:"schemaVersion"`
+	Plan             string `json:"plan"`
+	InstallationType string `json:"installationType"`
 }
 
 type catalogResponse struct {
@@ -502,6 +511,12 @@ func runWeb() error {
 	if evalReport.Status != "passed" {
 		return errors.New("suíte de evals bloqueou a inicialização do Control Center")
 	}
+	assistantMode, assistantModel, assistantURL := assistantConfigurationForPlan(
+		os.Getenv("SETUPMNO_PLAN"),
+		strings.ToLower(envDefault("ASSISTANT_MODE", "basic")),
+		os.Getenv("ASSISTANT_MODEL"),
+		strings.TrimRight(os.Getenv("ASSISTANT_URL"), "/"),
+	)
 
 	app := &webApp{
 		adminUser:        envDefault("ADMIN_USERNAME", "admin"),
@@ -509,9 +524,9 @@ func runWeb() error {
 		agentToken:       string(agentTokenBytes),
 		agentURL:         strings.TrimRight(envDefault("AGENT_URL", "http://agent:9090"), "/"),
 		terminalURL:      terminalURL,
-		assistantURL:     strings.TrimRight(os.Getenv("ASSISTANT_URL"), "/"),
-		assistantMode:    strings.ToLower(envDefault("ASSISTANT_MODE", "basic")),
-		assistantModel:   os.Getenv("ASSISTANT_MODEL"),
+		assistantURL:     assistantURL,
+		assistantMode:    assistantMode,
+		assistantModel:   assistantModel,
 		version:          controlVersion,
 		cookieSecure:     envDefault("COOKIE_SECURE", "true") != "false",
 		httpClient:       &http.Client{Timeout: 8 * time.Second},
@@ -633,7 +648,16 @@ func runAgent() error {
 			writeError(w, http.StatusServiceUnavailable, "estado do Setup MNO indisponível")
 			return
 		}
-		writeJSON(w, http.StatusOK, stateFromSnapshot(snapshot, "runtime"))
+		environment, err := readRuntimeEnvironment(setupStateDir)
+		if err != nil {
+			writeError(w, http.StatusServiceUnavailable, "plano e tipo de instalação indisponíveis")
+			return
+		}
+		state := stateFromSnapshot(snapshot, "runtime")
+		state.Plan = environment.Plan
+		state.InstallationType = environment.InstallationType
+		state.LLMAllowed = environment.Plan == "pro"
+		writeJSON(w, http.StatusOK, state)
 	}))
 	mux.HandleFunc("GET /catalog", authorize(func(w http.ResponseWriter, _ *http.Request) {
 		snapshot, err := readRuntimeSnapshot(setupStateDir)
@@ -2056,7 +2080,7 @@ func (a *webApp) handleAssistant(w http.ResponseWriter, r *http.Request) {
 		a.streamFullCatalog(w, r, input.Question)
 		return
 	}
-	if input.Basic || a.assistantURL == "" || !assistantModeUsesLLM(a.assistantMode) {
+	if input.Basic || a.assistantURL == "" || !assistantModeUsesLLM(a.assistantMode) || !a.runtimeAllowsLLM(r.Context()) {
 		a.streamBasicAssistant(w, r, input.Question, input.Basic, input.FallbackReason)
 		return
 	}
@@ -2117,6 +2141,21 @@ func (a *webApp) handleAssistant(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	a.addAudit("assistant_analysis", "Consulta assistida via "+a.assistantMode, clientAddress(r))
+}
+
+func (a *webApp) runtimeAllowsLLM(ctx context.Context) bool {
+	var state setupStateResponse
+	if err := a.agentRequest(ctx, "/setup-state", &state); err != nil {
+		return false
+	}
+	return state.Plan == "pro" && state.LLMAllowed
+}
+
+func assistantConfigurationForPlan(plan, mode, model, endpoint string) (string, string, string) {
+	if strings.ToLower(strings.TrimSpace(plan)) != "pro" {
+		return "basic", "", ""
+	}
+	return strings.ToLower(strings.TrimSpace(mode)), strings.TrimSpace(model), strings.TrimRight(strings.TrimSpace(endpoint), "/")
 }
 
 func assistantModeUsesLLM(mode string) bool {
@@ -2581,6 +2620,36 @@ func readRuntimeSnapshot(directory string) (runtimeSnapshot, error) {
 		return runtimeSnapshot{}, errors.New("quantidade do catálogo divergente")
 	}
 	return runtimeSnapshot{Release: release, Items: items}, nil
+}
+
+func readRuntimeEnvironment(directory string) (runtimeEnvironment, error) {
+	data, err := readRegularFile(filepath.Join(directory, "environment.json"), 4<<10)
+	if err != nil {
+		return runtimeEnvironment{}, fmt.Errorf("ambiente runtime: %w", err)
+	}
+	var environment runtimeEnvironment
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&environment); err != nil {
+		return runtimeEnvironment{}, fmt.Errorf("ambiente runtime JSON: %w", err)
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return runtimeEnvironment{}, errors.New("ambiente runtime contém dados adicionais")
+	}
+	if environment.SchemaVersion != 1 {
+		return runtimeEnvironment{}, errors.New("schema do ambiente runtime inválido")
+	}
+	switch environment.Plan {
+	case "pro", "free", "free1", "free2":
+	default:
+		return runtimeEnvironment{}, errors.New("plano runtime inválido")
+	}
+	switch environment.InstallationType {
+	case "CLOUDFLARE_TUNNEL", "TRADICIONAL":
+	default:
+		return runtimeEnvironment{}, errors.New("tipo de instalação runtime inválido")
+	}
+	return environment, nil
 }
 
 func validateReleaseKnowledge(release setupRelease) error {

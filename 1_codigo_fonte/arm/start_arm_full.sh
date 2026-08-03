@@ -1,9 +1,9 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.6.0"
-EXPECTED_EVAL_DATASET_VERSION="1.8.0"
-EXPECTED_EVAL_GRADER_VERSION="1.8.0"
-EXPECTED_EVAL_CASE_ENTRIES="831"
+VERSIONSETUP="7.7.0"
+EXPECTED_EVAL_DATASET_VERSION="1.9.0"
+EXPECTED_EVAL_GRADER_VERSION="1.9.0"
+EXPECTED_EVAL_CASE_ENTRIES="843"
 EXPECTED_BLUEPRINT_FACTORY_VERSION="2.1.0"
 EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="0"
 EXPECTED_QUALITY_SCHEMA_VERSION="2"
@@ -55,6 +55,36 @@ write_trial_state() {
         printf 'PLANO=%q\n' "$plan"
     } >"$temporary_file" || { rm -f "$temporary_file"; return 1; }
     mv -f "$temporary_file" "$trial_file"
+}
+
+write_control_environment() {
+    local control_dir="$1" plan="$2" installation_type="TRADICIONAL"
+    local public_plan temporary_file installation_type_file
+
+    valid_setup_plan "$plan" || return 1
+    case "$plan" in
+        free|free1|free2) public_plan="$plan" ;;
+        *) public_plan="pro" ;;
+    esac
+
+    installation_type_file="/root/.cloudflared_config/installation_type"
+    if [ -f "$installation_type_file" ] && [ ! -L "$installation_type_file" ]; then
+        installation_type=$(head -n 1 "$installation_type_file" | tr -d '\r\n')
+    fi
+    case "$installation_type" in
+        CLOUDFLARE_TUNNEL|TRADICIONAL) ;;
+        *) installation_type="TRADICIONAL" ;;
+    esac
+
+    mkdir -p "$control_dir" || return 1
+    temporary_file=$(mktemp "$control_dir/environment.json.tmp.XXXXXX") || return 1
+    chmod 0644 "$temporary_file" || { rm -f "$temporary_file"; return 1; }
+    jq -n \
+        --arg plan "$public_plan" \
+        --arg installationType "$installation_type" \
+        '{schemaVersion:1,plan:$plan,installationType:$installationType}' \
+        >"$temporary_file" || { rm -f "$temporary_file"; return 1; }
+    mv -f "$temporary_file" "$control_dir/environment.json"
 }
 
 # Função para enviar HTTP POST e validar a resposta
@@ -469,6 +499,11 @@ fi
 
 if ! write_trial_state "$TRIAL_DIR" "$DATAAQ" "$DAYS_TRIAL" "$PLANO"; then
     printf 'Não foi possível persistir de forma segura o plano validado. Nenhuma instalação foi iniciada.\n' >"$control_state_error"
+    exit 41
+fi
+
+if ! write_control_environment "/root/SetupLowCodeMno/.control" "$PLANO"; then
+    printf 'Não foi possível publicar o plano e o tipo de instalação para o Control Center.\n' >"$control_state_error"
     exit 41
 fi
 
@@ -1660,9 +1695,6 @@ fi
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o setupmno_control -f setupmno_control.sh
 rm setupmno_control.sh
 rm setupmno_control.sh.x.c
-if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
-rm setupmno_control
-fi
 
 echo -e "XXX\n99\nINSTALANDO SETUPMNO 7/8 \nXXX"
 
