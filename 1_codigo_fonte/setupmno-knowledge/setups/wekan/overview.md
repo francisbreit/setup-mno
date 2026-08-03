@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Wekan no Setup MNO",
   "setupId": "wekan",
-  "setupVersion": "7.7.3",
+  "setupVersion": "7.7.4",
   "architectures": [
     "amd64",
     "arm64"

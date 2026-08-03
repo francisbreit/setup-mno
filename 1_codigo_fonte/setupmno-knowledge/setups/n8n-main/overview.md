@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "n8n sem fila no Setup MNO",
   "setupId": "n8n-main",
-  "setupVersion": "7.7.3",
+  "setupVersion": "7.7.4",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

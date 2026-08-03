@@ -6,6 +6,15 @@ source_file="$project_dir/configure-control.sh"
 test_dir=$(mktemp -d)
 trap 'rm -rf "$test_dir"' EXIT
 
+extract_named_function() {
+    local name="$1"
+    awk -v name="$name" '
+        $0 ~ "^" name "\\(\\)" { inside=1 }
+        inside { print }
+        inside && /^}/ { exit }
+    ' "$source_file"
+}
+
 function_source=$(awk '
     /^portainer_request_ok\(\)/ { inside=1 }
     /^update_web_assistant\(\)/ { exit }
@@ -161,4 +170,36 @@ assistant_deploy_backend=""
 resolve_stack_manager
 [ "$assistant_deploy_backend" = "docker" ]
 
-printf 'Persistência, atualização, criação e rollback pelo Portainer aprovados.\n'
+eval "$(extract_named_function read_control_plan)"
+eval "$(extract_named_function update_web_assistant)"
+control_environment_file="$test_dir/environment.json"
+web_service="mno-test-web_mno-test-web"
+docker_log="$test_dir/docker-service-update.log"
+docker() {
+    printf '%s\n' "$*" >>"$docker_log"
+}
+wait_service() {
+    [ "$1" = "$web_service" ]
+}
+
+for restricted_plan in free free1 free2; do
+    printf '{"schemaVersion":1,"plan":"%s","installationType":"TRADICIONAL"}\n' \
+        "$restricted_plan" >"$control_environment_file"
+    : >"$docker_log"
+    if update_web_assistant openrouter openai/gpt-5.4 http://assistant:7070; then
+        printf 'ERRO: plano %s ativou o Assistente com IA.\n' "$restricted_plan" >&2
+        exit 1
+    fi
+    [ ! -s "$docker_log" ]
+done
+
+printf '%s\n' '{"schemaVersion":1,"plan":"pro","installationType":"TRADICIONAL"}' \
+    >"$control_environment_file"
+: >"$docker_log"
+update_web_assistant openrouter openai/gpt-5.4 http://assistant:7070
+grep -Fq -- '--env-rm ASSISTANT_MODE --env-add ASSISTANT_MODE=openrouter' "$docker_log"
+grep -Fq -- '--env-rm ASSISTANT_MODEL --env-add ASSISTANT_MODEL=openai/gpt-5.4' "$docker_log"
+grep -Fq -- '--env-rm ASSISTANT_URL --env-add ASSISTANT_URL=http://assistant:7070' "$docker_log"
+grep -Fq -- '--env-rm SETUPMNO_PLAN --env-add SETUPMNO_PLAN=pro' "$docker_log"
+
+printf 'Persistência Portainer e ativação do provedor condicionada ao plano PRO aprovadas.\n'

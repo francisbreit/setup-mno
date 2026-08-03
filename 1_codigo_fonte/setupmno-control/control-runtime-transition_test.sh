@@ -97,7 +97,7 @@ PATH="$test_dir/bin:$PATH"
 for target_plan in free free1 free2 pro; do
     : >"$docker_log"
     reconcile_control_center_plan_services "$target_plan"
-    [ "$(wc -l <"$docker_log")" -eq 3 ]
+    [ "$(wc -l <"$docker_log")" -eq 4 ]
     grep -Fq 'service update --mount-rm /runtime-control --detach=true mnoctrlabc1234-agent_mnoctrlabc1234-agent' "$docker_log"
     grep -Fq 'service update --mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly --force --detach=true mnoctrlabc1234-agent_mnoctrlabc1234-agent' "$docker_log"
     if [ "$target_plan" = "pro" ]; then
@@ -107,6 +107,8 @@ for target_plan in free free1 free2 pro; do
     fi
     grep -Fq "service update --replicas $expected_replicas --detach=true mnoctrlabc1234-assistant_mnoctrlabc1234-assistant" \
         "$docker_log"
+    grep -Fq "service update --env-rm SETUPMNO_PLAN --env-add SETUPMNO_PLAN=$target_plan --detach=true mnoctrlabc1234-web_mnoctrlabc1234-web" \
+        "$docker_log"
 done
 
-printf 'Matriz de planos, caminho runtime estável e remount WSL2 aprovados.\n'
+printf 'Matriz de planos, plano web, caminho runtime estável e remount WSL2 aprovados.\n'

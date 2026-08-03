@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.7.3"
+VERSIONSETUP="7.7.4"
 EXPECTED_EVAL_DATASET_VERSION="1.9.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
 EXPECTED_EVAL_CASE_ENTRIES="843"
@@ -132,6 +132,12 @@ reconcile_control_center_plan_services() {
                 [[ "$service" =~ ^mnoctrl[[:alnum:]]+-assistant_mnoctrl[[:alnum:]]+-assistant$ ]] || continue
                 docker service update --replicas "$assistant_replicas" --detach=true \
                     "$service" >/dev/null 2>&1 || return 1
+                ;;
+            mnoctrl*-web_mnoctrl*-web)
+                [[ "$service" =~ ^mnoctrl[[:alnum:]]+-web_mnoctrl[[:alnum:]]+-web$ ]] || continue
+                docker service update \
+                    --env-rm SETUPMNO_PLAN --env-add "SETUPMNO_PLAN=$plan" \
+                    --detach=true "$service" >/dev/null 2>&1 || return 1
                 ;;
         esac
     done <<<"$services"

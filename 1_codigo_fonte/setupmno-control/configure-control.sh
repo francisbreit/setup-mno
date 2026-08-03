@@ -12,6 +12,7 @@ work_dir=$(mktemp -d)
 operation_log="$work_dir/operation.log"
 assistant_yaml="$work_dir/assistant.yaml"
 terminal_mode="${SETUPMNO_TERMINAL_MODE:-direct}"
+control_environment_file="/root/SetupLowCodeMno/.control/environment.json"
 
 dialog_height() {
     local requested="$1" available
@@ -394,13 +395,22 @@ rollback_assistant_deploy() {
 }
 
 update_web_assistant() {
-    local provider="$1" model="$2" assistant_url="$3"
+    local provider="$1" model="$2" assistant_url="$3" control_plan
+    control_plan=$(read_control_plan) || return 1
+    [ "$control_plan" = "pro" ] || return 1
     docker service update --detach=true \
         --env-rm ASSISTANT_MODE --env-add "ASSISTANT_MODE=$provider" \
         --env-rm ASSISTANT_MODEL --env-add "ASSISTANT_MODEL=$model" \
         --env-rm ASSISTANT_URL --env-add "ASSISTANT_URL=$assistant_url" \
+        --env-rm SETUPMNO_PLAN --env-add "SETUPMNO_PLAN=$control_plan" \
         "$web_service" >>"$operation_log" 2>&1 &&
         wait_service "$web_service"
+}
+
+read_control_plan() {
+    jq -er \
+        'select(.schemaVersion == 1) | .plan | select(. == "pro" or . == "free" or . == "free1" or . == "free2")' \
+        "$control_environment_file" 2>/dev/null
 }
 
 configure_username() {
@@ -644,9 +654,7 @@ EOF
 configure_provider() {
     local provider status model base_url provider_secret="" old_secret="" control_plan
     local previous_exists="false" default_model provider_name timestamp height width menu_rows
-    control_plan=$(jq -er \
-        'select(.schemaVersion == 1) | .plan | select(. == "pro" or . == "free" or . == "free1" or . == "free2")' \
-        /root/SetupLowCodeMno/.control/environment.json 2>/dev/null || printf 'free')
+    control_plan=$(read_control_plan || printf 'free')
     if [ "$control_plan" != "pro" ]; then
         msg "O Assistente com IA é exclusivo do plano PRO.\n\nO plano $control_plan mantém o diagnóstico básico local, sem LLM, sem consumo de API e sem criação de stack de Assistente. Uma configuração antiga de provedor não será utilizada."
         return 0

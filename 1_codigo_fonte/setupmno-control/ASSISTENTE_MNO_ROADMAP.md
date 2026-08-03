@@ -14,7 +14,7 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.7.3` no canal Beta
+- Setup MNO: `7.7.4` no canal Beta
 - Control Center: `4.15.0`
 - Conhecimento canônico: `3.14.0`
 - Catálogo runtime: 151 entradas
@@ -2343,6 +2343,29 @@ adicionado novamente usando o caminho canônico. Isso recupera instalações já
 afetadas e força o Docker Desktop a produzir um bind mount válido. Os gates
 simulam arquivos normais e ocultos, preservação do inode, bloqueio de symlink,
 matriz completa de planos e remount explícito do agente.
+
+## Correção v7.7.4 — Ativação da IA após migração para PRO
+
+**Status:** implementado
+**Impacto:** alto
+**Tipo:** licenciamento e confiabilidade
+**Esforço:** rápido
+
+A migração de `free`, `free1` ou `free2` para `pro` passa a sincronizar também
+o ambiente `SETUPMNO_PLAN` do serviço web existente. Antes desta correção, o
+estado runtime e o agente já reconheciam o PRO, mas o painel reiniciava com o
+plano antigo e convertia corretamente qualquer provedor configurado para o
+diagnóstico básico.
+
+Ao alterar o provedor, o fluxo seguro lê novamente o plano do arquivo canônico
+`environment.json`, recusa a ativação em planos gratuitos e atualiza o serviço
+web com o provedor, modelo, endpoint e plano PRO na mesma operação. A stack do
+Assistente somente é considerada ativa depois do healthcheck e da confirmação
+do painel; falhas preservam a configuração anterior.
+
+Os gates cobrem as 16 transições de plano, a propagação do plano ao serviço
+web, o bloqueio dos três planos gratuitos e a ativação completa de um provedor
+válido no PRO.
 
 ## Referências oficiais
 

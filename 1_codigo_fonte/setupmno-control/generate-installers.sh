@@ -115,8 +115,9 @@ for architecture in x86 arm; do
     grep -Fq 'reconcile_control_center_plan_services "$PLANO"' "$start_script" &&
     grep -Fq -- '--mount-rm /runtime-control' "$start_script" &&
     grep -Fq -- '--mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly' "$start_script" &&
-    grep -Fq 'docker service update --replicas "$assistant_replicas"' "$start_script" || {
-        printf 'ERRO: %s não preserva o caminho runtime ou não renova o mount do agente.\n' \
+    grep -Fq 'docker service update --replicas "$assistant_replicas"' "$start_script" &&
+    grep -Fq -- '--env-rm SETUPMNO_PLAN --env-add "SETUPMNO_PLAN=$plan"' "$start_script" || {
+        printf 'ERRO: %s não preserva o runtime, o mount do agente ou o plano do painel.\n' \
             "$architecture" >&2
         exit 1
     }
@@ -195,6 +196,8 @@ grep -Fq 'feedback_data:/feedback' "$template" || {
 grep -Fq 'CONTROL_PLAN=$(jq -er' "$template" &&
 grep -Fq 'if [ "$CONTROL_PLAN" != "pro" ]; then' "$template" &&
 grep -Fq 'SETUPMNO_PLAN=$CONTROL_PLAN' "$template" &&
+grep -Fq 'control_plan=$(read_control_plan) || return 1' "$project_dir/configure-control.sh" &&
+grep -Fq -- '--env-rm SETUPMNO_PLAN --env-add "SETUPMNO_PLAN=$control_plan"' "$project_dir/configure-control.sh" &&
 grep -Fq 'os.Getenv("SETUPMNO_PLAN")' "$project_dir/main.go" &&
 grep -Fq 'assistantConfigurationForPlan' "$project_dir/main.go" &&
 grep -Fq 'runtimeAllowsLLM' "$project_dir/main.go" &&
