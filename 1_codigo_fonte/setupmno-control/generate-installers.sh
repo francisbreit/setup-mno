@@ -94,6 +94,11 @@ for architecture in x86 arm; do
     grep -Fq 'A instalação é opcional.' "$foundation_script"
     [ "$(grep -Fc '"${CONTROL_CENTER_MENU[@]}"' "$install_script")" -eq 1 ]
     [ "$(grep -Fc '"${CONTROL_CENTER_FREE_MENU[@]}"' "$install_script")" -eq 3 ]
+    [ "$(grep -Fc 'if [ "$CHOICE" != "SETUP MNO CONTROL CENTER" ] &&' "$install_script")" -eq 3 ] || {
+        printf 'ERRO: Control Center continua bloqueado por uma lista de permissão free/free1/free2 em %s.\n' \
+            "$install_script" >&2
+        exit 1
+    }
     ! grep -Fq 'CONTROL_CENTER_PRO_MENU' "$install_script"
 
     # O start_full é o único ponto que autentica o cliente. O dockerswarm

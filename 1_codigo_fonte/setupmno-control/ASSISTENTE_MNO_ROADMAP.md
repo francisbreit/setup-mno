@@ -2448,6 +2448,24 @@ volumes, domínio ou labels do Portainer. O fluxo é idempotente, possui rollbac
 dos serviços já alterados e mantém a opção de instalação oculta quando o painel
 já existe.
 
+## Correção v7.7.9 — Control Center liberado nos planos gratuitos
+
+**Status:** implementado
+**Impacto:** alto
+**Tipo:** licenciamento e UX
+**Esforço:** rápido
+
+O Control Center passa pelo mesmo fluxo permitido nos planos `free`, `free1`,
+`free2` e `pro`. A opção continua visível somente enquanto o painel ainda não
+está instalado, mas deixa de ser rejeitada pelas listas de permissão específicas
+de `free1` e `free2` depois do clique.
+
+A liberação cobre o painel, métricas, catálogo, Blueprints e Terminal Seguro.
+Nos três planos gratuitos, o Assistente MNO permanece obrigatoriamente em modo
+**BASIC**, sem LLM, sem consumo de API e sem stack de provedor ativa. Um gate de
+release verifica simultaneamente presença nos três menus gratuitos, exceção nas
+duas listas restritivas, retenção do binário SHC e bloqueio da LLM fora do PRO.
+
 ## Referências oficiais
 
 - [Building agents — File Search](https://developers.openai.com/tracks/building-agents#file-search)

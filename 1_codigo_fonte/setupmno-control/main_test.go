@@ -1148,7 +1148,7 @@ func TestBlueprintCatalogExposesOnlySafeReadOnlyProjection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("catálogo válido foi recusado: %v", err)
 	}
-	if catalog.Source != "control-image-read-only" ||
+	if catalog.Source != "image-read-only" ||
 		catalog.BlueprintCount != 5 || catalog.ExampleCount != 0 || catalog.BetaCount != 5 ||
 		catalog.HomologatedCount != 0 || catalog.ReviewCount != 0 ||
 		len(catalog.Items) != 5 || len(catalog.IndexSHA256) != 64 {
