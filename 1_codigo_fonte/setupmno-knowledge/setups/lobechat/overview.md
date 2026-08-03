@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "LobeChat no Setup MNO",
   "setupId": "lobechat",
-  "setupVersion": "7.5.0",
+  "setupVersion": "7.5.1",
   "architectures": [
     "amd64",
     "arm64"

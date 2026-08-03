@@ -26,6 +26,7 @@ const (
 	knowledgeSchema          = 1
 	knowledgeIndexSchema     = 2
 	knowledgeRetrieval       = "1.2.0"
+	knowledgeQualitySchema   = 2
 	blueprintSchema          = 2
 	maxBlueprintEntries      = 64
 	maxKnowledgeArchiveBytes = 8 << 20
@@ -93,6 +94,8 @@ type knowledgeManifest struct {
 
 type knowledgeQualitySummary struct {
 	SetupEntries               int            `json:"setupEntries"`
+	InstallationStatuses       map[string]int `json:"installationStatuses"`
+	IntegrationMaturityLevels  map[string]int `json:"integrationMaturityLevels"`
 	EditorialStatuses          map[string]int `json:"editorialStatuses"`
 	MaturityLevels             map[string]int `json:"maturityLevels"`
 	OfficialSourceEntries      int            `json:"officialSourceEntries"`
@@ -113,6 +116,9 @@ type knowledgeQualityEntry struct {
 	ScriptSourceDeclared bool     `json:"scriptSourceDeclared"`
 	OperationalEvidence  bool     `json:"operationalEvidence"`
 	HomologationEvidence bool     `json:"homologationEvidence"`
+	InstallationStatus   string   `json:"installationStatus"`
+	TestedArchitectures  []string `json:"testedArchitectures"`
+	IntegrationMaturity  string   `json:"integrationMaturity"`
 	Issues               []string `json:"issues"`
 }
 
@@ -476,7 +482,7 @@ func validateKnowledgePackage(
 		manifest.EvalGraderVersion != evalGraderVersion ||
 		manifest.BlueprintSchemaVersion != blueprintSchema ||
 		manifest.BlueprintFactoryVersion == "" ||
-		manifest.QualitySchemaVersion != 1 ||
+		manifest.QualitySchemaVersion != knowledgeQualitySchema ||
 		manifest.KnowledgeVersion == "" ||
 		manifest.SetupVersion == "" ||
 		manifest.ControlVersion == "" {
@@ -731,8 +737,13 @@ func validateKnowledgeQualityReport(report knowledgeQualityReport, manifest know
 		"draft": true, "reviewed": true, "homologated": true,
 		"outdated": true, "deprecated": true,
 	}
+	expectedIntegrationMaturity := map[string]bool{
+		"not-mapped": true, "suggested": true, "documented": true, "validated": true,
+	}
 	if len(report.Summary.MaturityLevels) != len(expectedMaturity) ||
-		len(report.Summary.EditorialStatuses) != len(expectedStatuses) {
+		len(report.Summary.EditorialStatuses) != len(expectedStatuses) ||
+		len(report.Summary.InstallationStatuses) != 1 ||
+		len(report.Summary.IntegrationMaturityLevels) != len(expectedIntegrationMaturity) {
 		return errors.New("taxonomia de qualidade incompleta")
 	}
 	maturityTotal := 0
@@ -751,7 +762,17 @@ func validateKnowledgeQualityReport(report knowledgeQualityReport, manifest know
 		}
 		statusTotal += count
 	}
+	integrationTotal := 0
+	for maturity := range expectedIntegrationMaturity {
+		count, exists := report.Summary.IntegrationMaturityLevels[maturity]
+		if !exists || count < 0 {
+			return errors.New("contagem de maturidade de integrações inválida")
+		}
+		integrationTotal += count
+	}
 	if maturityTotal != manifest.SetupEntries || statusTotal != manifest.SetupEntries ||
+		integrationTotal != manifest.SetupEntries ||
+		report.Summary.InstallationStatuses["maintainer-homologated"] != manifest.SetupEntries ||
 		report.Summary.HomologatedEntries != report.Summary.MaturityLevels["homologated"] ||
 		report.Summary.OfficialSourceEntries < 0 ||
 		report.Summary.OfficialSourceExceptions < 0 ||
@@ -770,8 +791,18 @@ func validateKnowledgeQualityReport(report knowledgeQualityReport, manifest know
 	issueCount := 0
 	for _, entry := range report.Entries {
 		if entry.SetupID == "" || entry.CatalogName == "" ||
-			!expectedMaturity[entry.Maturity] || !expectedStatuses[entry.EditorialStatus] {
+			!expectedMaturity[entry.Maturity] || !expectedStatuses[entry.EditorialStatus] ||
+			entry.InstallationStatus != "maintainer-homologated" ||
+			!expectedIntegrationMaturity[entry.IntegrationMaturity] ||
+			len(entry.TestedArchitectures) == 0 {
 			return errors.New("entrada inválida no relatório de qualidade")
+		}
+		architectureSeen := make(map[string]bool, len(entry.TestedArchitectures))
+		for _, architecture := range entry.TestedArchitectures {
+			if (architecture != "amd64" && architecture != "arm64") || architectureSeen[architecture] {
+				return errors.New("arquitetura testada inválida no relatório de qualidade")
+			}
+			architectureSeen[architecture] = true
 		}
 		if entry.SourceClassification != "official-and-internal" &&
 			entry.SourceClassification != "internal-only" &&

@@ -17,7 +17,7 @@ from typing import Any
 from lint_knowledge import load_json, parse_document
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 MATURITY_LEVELS = (
     "structural",
     "source-reviewed",
@@ -26,6 +26,8 @@ MATURITY_LEVELS = (
     "homologated",
 )
 EDITORIAL_STATUSES = {"draft", "reviewed", "homologated", "outdated", "deprecated"}
+INSTALLATION_STATUSES = ("maintainer-homologated",)
+INTEGRATION_MATURITY_LEVELS = ("not-mapped", "suggested", "documented", "validated")
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 CJK_RE = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff]")
 
@@ -60,6 +62,21 @@ def build_report(root: Path, catalog_path: Path) -> dict[str, Any]:
         raise ValueError("registry/governance.json alterou a ordem canônica de maturidade")
     if governance.get("defaultMaturity") != "structural":
         raise ValueError("a maturidade padrão deve permanecer structural")
+    assurance = governance.get("installationAssurance")
+    if not isinstance(assurance, dict) or assurance.get("status") != "maintainer-homologated":
+        raise ValueError("governança deve registrar a homologação dos instaladores pelo mantenedor")
+    if not isinstance(assurance.get("attestedBy"), str) or not assurance["attestedBy"].strip():
+        raise ValueError("governança deve identificar o responsável pela homologação dos instaladores")
+    try:
+        dt.date.fromisoformat(assurance.get("attestedAt"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("data da homologação dos instaladores é inválida") from exc
+    default_integration_maturity = governance.get("defaultIntegrationMaturity")
+    if default_integration_maturity not in INTEGRATION_MATURITY_LEVELS:
+        raise ValueError("maturidade padrão de integrações é inválida")
+    integration_promotions = governance.get("integrationPromotions", {})
+    if not isinstance(integration_promotions, dict):
+        raise ValueError("governance.integrationPromotions deve ser um objeto")
     if governance.get("setupVersion") != registry.get("setupVersion"):
         raise ValueError("governança e registro divergem na versão do Setup")
     if governance.get("knowledgeVersion") != knowledge_version:
@@ -103,9 +120,10 @@ def build_report(root: Path, catalog_path: Path) -> dict[str, Any]:
         raise ValueError("registry/setups.json inválido")
     registry_ids = {entry["setupId"] for entry in registry_entries}
     unknown_promotions = set(promotions) - registry_ids
+    unknown_integration_promotions = set(integration_promotions) - registry_ids
     unknown_exceptions = set(source_exceptions) - registry_ids
     unknown_issues = set(known_issues) - registry_ids
-    if unknown_promotions or unknown_exceptions or unknown_issues:
+    if unknown_promotions or unknown_integration_promotions or unknown_exceptions or unknown_issues:
         raise ValueError("governança referencia setupId desconhecido")
 
     entries: list[dict[str, Any]] = []
@@ -187,6 +205,12 @@ def build_report(root: Path, catalog_path: Path) -> dict[str, Any]:
         if maturity != "structural" and issues:
             raise ValueError(f"{setup_id}: promoção bloqueada por pendências: {', '.join(sorted(issues))}")
 
+        integration_maturity = integration_promotions.get(
+            setup_id, default_integration_maturity
+        )
+        if integration_maturity not in INTEGRATION_MATURITY_LEVELS:
+            raise ValueError(f"maturidade de integração inválida para {setup_id}")
+
         entries.append(
             {
                 "setupId": setup_id,
@@ -197,6 +221,9 @@ def build_report(root: Path, catalog_path: Path) -> dict[str, Any]:
                 "scriptSourceDeclared": script_source,
                 "operationalEvidence": has_operational,
                 "homologationEvidence": has_homologation,
+                "installationStatus": assurance["status"],
+                "testedArchitectures": sorted(registry_entry["architectures"]),
+                "integrationMaturity": integration_maturity,
                 "issues": sorted(issues),
             }
         )
@@ -206,10 +233,16 @@ def build_report(root: Path, catalog_path: Path) -> dict[str, Any]:
         raise ValueError("documentos e registro de setups divergem")
     editorial_counts = Counter(entry["editorialStatus"] for entry in entries)
     maturity_counts = Counter(entry["maturity"] for entry in entries)
+    installation_counts = Counter(entry["installationStatus"] for entry in entries)
+    integration_counts = Counter(entry["integrationMaturity"] for entry in entries)
     for value in EDITORIAL_STATUSES:
         editorial_counts.setdefault(value, 0)
     for value in MATURITY_LEVELS:
         maturity_counts.setdefault(value, 0)
+    for value in INSTALLATION_STATUSES:
+        installation_counts.setdefault(value, 0)
+    for value in INTEGRATION_MATURITY_LEVELS:
+        integration_counts.setdefault(value, 0)
     issue_entries = sum(bool(entry["issues"]) for entry in entries)
     issue_count = sum(len(entry["issues"]) for entry in entries)
     return {
@@ -219,6 +252,8 @@ def build_report(root: Path, catalog_path: Path) -> dict[str, Any]:
         "generatedAt": latest_date + "T00:00:00Z",
         "summary": {
             "setupEntries": len(entries),
+            "installationStatuses": dict(sorted(installation_counts.items())),
+            "integrationMaturityLevels": dict(sorted(integration_counts.items())),
             "editorialStatuses": dict(sorted(editorial_counts.items())),
             "maturityLevels": dict(sorted(maturity_counts.items())),
             "officialSourceEntries": sum(entry["sourceClassification"] == "official-and-internal" for entry in entries),

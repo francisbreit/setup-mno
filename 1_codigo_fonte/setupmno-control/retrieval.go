@@ -146,6 +146,9 @@ type retrievalPromptSource struct {
 	MaturityLabel        string   `json:"maturityLabel,omitempty"`
 	SourceClassification string   `json:"sourceClassification,omitempty"`
 	QualityIssues        []string `json:"qualityIssues,omitempty"`
+	InstallationStatus   string   `json:"installationStatus,omitempty"`
+	TestedArchitectures  []string `json:"testedArchitectures,omitempty"`
+	IntegrationMaturity  string   `json:"integrationMaturity,omitempty"`
 	ContentSHA256        string   `json:"contentSHA256"`
 	Content              string   `json:"content"`
 	Truncated            bool     `json:"truncated"`
@@ -161,6 +164,11 @@ type retrievalQualityContext struct {
 	Issues                  []string `json:"issues"`
 	IssueLabels             []string `json:"issueLabels"`
 	ClaimPolicy             string   `json:"claimPolicy"`
+	InstallationStatus      string   `json:"installationStatus"`
+	InstallationLabel       string   `json:"installationLabel"`
+	TestedArchitectures     []string `json:"testedArchitectures"`
+	IntegrationMaturity     string   `json:"integrationMaturity"`
+	IntegrationLabel        string   `json:"integrationLabel"`
 	DefinitiveAnswerBlocked bool     `json:"definitiveAnswerBlocked"`
 	BlockingIssues          []string `json:"blockingIssues,omitempty"`
 	BlockingIssueLabels     []string `json:"blockingIssueLabels,omitempty"`
@@ -958,6 +966,9 @@ func buildRetrievalPrompt(
 			source.MaturityLabel = knowledgeMaturityLabel(quality.Maturity)
 			source.SourceClassification = quality.SourceClassification
 			source.QualityIssues = append([]string(nil), quality.Issues...)
+			source.InstallationStatus = quality.InstallationStatus
+			source.TestedArchitectures = append([]string(nil), quality.TestedArchitectures...)
+			source.IntegrationMaturity = quality.IntegrationMaturity
 		}
 		sources = append(sources, source)
 		totalRunes += len(contentRunes)
@@ -983,11 +994,11 @@ func buildRetrievalPrompt(
 
 func knowledgeMaturityLabel(value string) string {
 	return map[string]string{
-		"structural":           "Documentação inicial",
-		"source-reviewed":      "Fontes revisadas",
-		"script-reviewed":      "Instalador revisado",
-		"operational-reviewed": "Testado",
-		"homologated":          "Homologado",
+		"structural":           "Conhecimento básico",
+		"source-reviewed":      "Fontes enriquecidas",
+		"script-reviewed":      "Conteúdo técnico revisado",
+		"operational-reviewed": "Guia operacional",
+		"homologated":          "Conhecimento completo",
 	}[value]
 }
 
@@ -1001,16 +1012,32 @@ func knowledgeMaturityRank(value string) int {
 func knowledgeClaimPolicy(maturity string) string {
 	switch maturity {
 	case "homologated":
-		return "Pode afirmar homologação somente nos limites das evidências canônicas recuperadas."
+		return "O conteúdo possui cobertura completa nos limites das evidências canônicas recuperadas."
 	case "operational-reviewed":
-		return "Pode afirmar teste operacional documentado, mas não homologação."
+		return "O conteúdo inclui um guia operacional revisado; detalhes fora das evidências devem ser apresentados como orientação."
 	case "script-reviewed":
-		return "Pode afirmar revisão do instalador, mas não teste operacional nem homologação."
+		return "O conteúdo técnico foi confrontado com o instalador, mas ainda pode não cobrir operação e integrações."
 	case "source-reviewed":
-		return "Pode afirmar revisão das fontes, mas não revisão do instalador, teste operacional ou homologação."
+		return "As fontes do conteúdo foram enriquecidas; detalhes técnicos ainda podem exigir ampliação."
 	default:
-		return "Trate como documentação inicial. Não afirme teste, funcionamento, compatibilidade operacional, revisão do instalador ou homologação."
+		return "Use somente os fatos presentes na base. Não complete lacunas documentais com suposições."
 	}
+}
+
+func installationAssuranceLabel(value string) string {
+	if value == "maintainer-homologated" {
+		return "Instalador homologado"
+	}
+	return "Instalação não classificada"
+}
+
+func integrationMaturityLabel(value string) string {
+	return map[string]string{
+		"not-mapped": "Integrações em expansão",
+		"suggested":  "Combinações sugeridas",
+		"documented": "Integrações documentadas",
+		"validated":  "Integrações validadas",
+	}[value]
 }
 
 func knowledgeIssueLabel(value string) string {
@@ -1032,6 +1059,10 @@ func buildRetrievalQualityContext(
 	catalogNames := make(map[string]struct{})
 	classifications := make(map[string]struct{})
 	issues := make(map[string]struct{})
+	architectures := make(map[string]struct{})
+	installationStatus := ""
+	integrationMaturity := "validated"
+	integrationRank := map[string]int{"not-mapped": 0, "suggested": 1, "documented": 2, "validated": 3}
 	worstMaturity := ""
 	worstRank := 99
 	for _, source := range sources {
@@ -1042,6 +1073,17 @@ func buildRetrievalQualityContext(
 		setupIDs[entry.SetupID] = struct{}{}
 		catalogNames[entry.CatalogName] = struct{}{}
 		classifications[entry.SourceClassification] = struct{}{}
+		if installationStatus == "" {
+			installationStatus = entry.InstallationStatus
+		} else if installationStatus != entry.InstallationStatus {
+			installationStatus = ""
+		}
+		for _, architecture := range entry.TestedArchitectures {
+			architectures[architecture] = struct{}{}
+		}
+		if integrationRank[entry.IntegrationMaturity] < integrationRank[integrationMaturity] {
+			integrationMaturity = entry.IntegrationMaturity
+		}
 		rank := knowledgeMaturityRank(entry.Maturity)
 		if rank < worstRank {
 			worstRank = rank
@@ -1075,6 +1117,11 @@ func buildRetrievalQualityContext(
 		Issues:                  issueList,
 		IssueLabels:             issueLabels,
 		ClaimPolicy:             knowledgeClaimPolicy(worstMaturity),
+		InstallationStatus:      installationStatus,
+		InstallationLabel:       installationAssuranceLabel(installationStatus),
+		TestedArchitectures:     sortedStringKeys(architectures),
+		IntegrationMaturity:     integrationMaturity,
+		IntegrationLabel:        integrationMaturityLabel(integrationMaturity),
 		DefinitiveAnswerBlocked: len(blocking) > 0,
 		BlockingIssues:          blocking,
 		BlockingIssueLabels:     blockingLabels,

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "selectionVersion": "1.8.0",
-  "setupVersion": "7.5.0",
+  "setupVersion": "7.5.1",
   "selectionPolicy": "Lotes 1 a 6 orientados a deploy, IA, integrações, dados, identidade, colaboração, produtividade, atendimento e segurança operacional",
   "setups": [
     {
@@ -107,7 +107,7 @@
       "catalogName": "N8N V1 - SEM FILA (MAIN)",
       "script": "n8nmain.sh",
       "architectures": ["amd64", "arm64"],
-      "aliases": ["n8n main", "n8n sem fila"]
+      "aliases": ["n8n", "n8n main", "n8n sem fila"]
     },
     {
       "setupId": "n8n-queue-v1",

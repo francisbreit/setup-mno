@@ -48,11 +48,34 @@
   }
 
   function render(markdown) {
-    return String(markdown ?? "")
-      .replace(/\r\n?/g, "\n")
-      .split("\n")
-      .map(renderInline)
-      .join("\n");
+    const lines = String(markdown ?? "").replace(/\r\n?/g, "\n").split("\n");
+    const output = [];
+    let listOpen = false;
+    function closeList() {
+      if (!listOpen) return;
+      output.push("</ul>");
+      listOpen = false;
+    }
+    for (const line of lines) {
+      const heading = /^(#{1,3})\s+(.+)$/.exec(line);
+      const listItem = /^\s*(?:[-*•])\s+(.+)$/.exec(line);
+      if (heading) {
+        closeList();
+        const level = Math.min(heading[1].length + 2, 5);
+        output.push(`<h${level}>${renderInline(heading[2])}</h${level}>`);
+      } else if (listItem) {
+        if (!listOpen) {
+          output.push("<ul>");
+          listOpen = true;
+        }
+        output.push(`<li>${renderInline(listItem[1])}</li>`);
+      } else {
+        closeList();
+        output.push(line.trim() ? renderInline(line) : "");
+      }
+    }
+    closeList();
+    return output.join("\n");
   }
 
   global.SetupMNOMarkdown = Object.freeze({ render });

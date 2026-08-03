@@ -263,6 +263,21 @@ func TestContextualSetupReferenceUsesPreviousUserTurn(t *testing.T) {
 	}
 }
 
+func TestGenericN8NResolvesToMainInsteadOfTemplates(t *testing.T) {
+	retriever, _ := testKnowledgeRetriever(t)
+	for _, question := range []string{
+		"Para que serve o N8N?",
+		"Qual é a fonte oficial do N8N?",
+		"O N8N está homologado?",
+	} {
+		resolution := retriever.resolveQuery(question, nil)
+		if resolution.SetupID != "n8n-main" || len(resolution.SetupIDs) != 1 ||
+			resolution.CatalogName != "N8N V1 - SEM FILA (MAIN)" {
+			t.Fatalf("N8N genérico não resolveu a variante principal em %q: %#v", question, resolution)
+		}
+	}
+}
+
 func TestContextualArchitectureQuestionDoesNotRetrieveOtherSetups(t *testing.T) {
 	retriever, state := testKnowledgeRetriever(t)
 	resolution := retriever.resolveQuery(
@@ -549,6 +564,9 @@ func TestRetrievalPromptAppliesCanonicalMaturityAndBlocksDirectIssue(t *testing.
 	report := knowledgeQualityReport{Entries: []knowledgeQualityEntry{{
 		SetupID: "plane", CatalogName: "PLANE", Maturity: "structural",
 		SourceClassification: "official-and-internal",
+		InstallationStatus:   "maintainer-homologated",
+		TestedArchitectures:  []string{"amd64", "arm64"},
+		IntegrationMaturity:  "not-mapped",
 		Issues:               []string{"capacity-inconsistent"},
 	}}}
 	prompt, status := buildRetrievalPrompt(result, retrievalPromptOptions{
@@ -557,9 +575,11 @@ func TestRetrievalPromptAppliesCanonicalMaturityAndBlocksDirectIssue(t *testing.
 	if status != "active" || prompt == nil || prompt.Quality == nil {
 		t.Fatalf("governança não chegou ao prompt: status=%s prompt=%#v", status, prompt)
 	}
-	if prompt.Quality.MaturityLabel != "Documentação inicial" ||
+	if prompt.Quality.MaturityLabel != "Conhecimento básico" ||
 		!prompt.Quality.DefinitiveAnswerBlocked || !prompt.Quality.DeterministicAnswer ||
-		!containsString(prompt.Quality.BlockingIssues, "capacity-inconsistent") {
+		!containsString(prompt.Quality.BlockingIssues, "capacity-inconsistent") ||
+		prompt.Quality.InstallationLabel != "Instalador homologado" ||
+		prompt.Quality.IntegrationLabel != "Integrações em expansão" {
 		t.Fatalf("bloqueio de qualidade incorreto: %#v", prompt.Quality)
 	}
 	if prompt.Sources[0].Maturity != "structural" ||
@@ -573,12 +593,16 @@ func TestKnowledgeMaturityQuestionUsesDeterministicPolicy(t *testing.T) {
 	entries := map[string]knowledgeQualityEntry{"n8n-main": {
 		SetupID: "n8n-main", CatalogName: "N8N V1 - SEM FILA (MAIN)",
 		Maturity: "structural", SourceClassification: "internal-only",
+		InstallationStatus:  "maintainer-homologated",
+		TestedArchitectures: []string{"amd64", "arm64"},
+		IntegrationMaturity: "not-mapped",
 	}}
 	quality := buildRetrievalQualityContext(
 		sources, entries, "O N8N está homologado?",
 	)
 	if quality == nil || !quality.DeterministicAnswer ||
-		quality.DefinitiveAnswerBlocked || quality.MaturityLabel != "Documentação inicial" {
+		quality.DefinitiveAnswerBlocked || quality.MaturityLabel != "Conhecimento básico" ||
+		quality.InstallationStatus != "maintainer-homologated" {
 		t.Fatalf("consulta de maturidade não foi resolvida pela política local: %#v", quality)
 	}
 }

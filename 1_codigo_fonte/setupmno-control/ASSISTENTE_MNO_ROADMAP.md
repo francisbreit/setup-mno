@@ -14,9 +14,9 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.5.0` no canal Beta
-- Control Center: `4.13.0`
-- Conhecimento canônico: `3.11.0`
+- Setup MNO: `7.5.1` no canal Beta
+- Control Center: `4.13.1`
+- Conhecimento canônico: `3.12.0`
 - Catálogo runtime: 151 entradas
 - Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
 - Blueprints: cinco guias Beta editáveis, consultáveis e baixáveis; ainda não homologados
@@ -2120,6 +2120,47 @@ Executar a Etapa 8.1C: resolver as 29 pendências reais em lotes priorizados,
 começando por divergências de arquitetura e capacidade. Cada promoção deve
 incluir fonte oficial ou exceção, revisão do script x86/ARM e evidência
 operacional compatível com o nível pretendido.
+
+## Etapa 8.1B.1 — Garantia do instalador separada do conhecimento
+
+**Status:** implementada na v7.5.1
+**Impacto:** crítico
+**Tipo:** produto, confiabilidade, UX/UI e governança
+**Esforço:** estrutural
+
+A classificação anterior confundia a homologação dos instaladores, realizada
+pelo mantenedor, com a maturidade editorial da base de conhecimento. A release
+passa a representar três dimensões independentes em cada resposta:
+
+- **Instalação:** os 151 instaladores estão homologados pelo mantenedor nas
+  arquiteturas declaradas individualmente no registro canônico;
+- **Conhecimento:** mede a riqueza e a revisão das explicações, fontes, guias de
+  uso, diagnóstico e operação, sem rebaixar a aplicação;
+- **Integrações:** mede separadamente a evolução de combinações sugeridas,
+  documentadas e validadas entre ferramentas.
+
+O schema de qualidade v2 registra `installationStatus`,
+`testedArchitectures` e `integrationMaturity` em cada setup. O Assistente pode
+afirmar que o instalador está homologado mesmo quando um detalhe documental
+estiver em revisão, mas não pode inventar RAM, link oficial, endpoint ou
+integração ausente.
+
+O alias genérico `n8n` passa a resolver deterministicamente para o instalador
+principal sem fila. Variantes Queue v1, Queue v2 e Templates continuam
+selecionáveis por seus nomes específicos, evitando que uma pergunta geral
+sobre n8n seja respondida com a documentação da biblioteca de workflows.
+
+A interface exibe três selos independentes e o renderizador Markdown passa a
+tratar títulos e listas de forma segura. Mensagens internas como “regenere o
+relatório” foram removidas da experiência do cliente; as respostas agora
+oferecem um próximo passo útil no Instalador Seguro ou no suporte.
+
+### Próxima ação após a 8.1B.1
+
+Construir a 8.2 em torno de descoberta orientada a objetivos: mapa de
+capacidades, combinações sugeridas e receitas de integração. A autoridade do
+chat permanece somente leitura até a Etapa 8.5 definir ações estreitas,
+confirmadas, auditáveis e reversíveis.
 
 ## Referências oficiais
 

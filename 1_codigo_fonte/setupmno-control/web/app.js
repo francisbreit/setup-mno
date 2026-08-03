@@ -1087,25 +1087,43 @@ function renderAnswerQuality(target, quality) {
   if (!target || quality?.active !== true) return;
   const header = target.querySelector(".message-route");
   if (!header) return;
-  let badge = header.querySelector(".message-route-quality");
-  if (!badge) {
-    badge = document.createElement("span");
-    header.append(badge);
-  }
+  const ensureBadge = className => {
+    let badge = header.querySelector(`.${className}`);
+    if (!badge) {
+      badge = document.createElement("span");
+      header.append(badge);
+    }
+    return badge;
+  };
+  const installation = ensureBadge("message-route-installation");
+  installation.className = "message-route-chip message-route-installation assurance-homologated";
+  installation.textContent = quality.installationLabel || "Instalador homologado";
+  installation.title = `Testado pelo mantenedor em ${(quality.testedArchitectures || []).join(" e ") || "arquiteturas declaradas"}.`;
+  installation.hidden = false;
+
+  const badge = ensureBadge("message-route-quality");
   const accepted = new Set([
     "structural", "source-reviewed", "script-reviewed",
     "operational-reviewed", "homologated"
   ]);
   const maturity = accepted.has(quality.maturity) ? quality.maturity : "structural";
   badge.className = `message-route-chip message-route-quality maturity-${maturity}`;
-  badge.textContent = quality.maturityLabel || "Documentação inicial";
+  badge.textContent = quality.maturityLabel || "Conhecimento básico";
   badge.hidden = false;
   const issues = Array.isArray(quality.issueLabels)
     ? quality.issueLabels.filter(value => typeof value === "string" && value).slice(0, 8)
     : [];
   badge.title = issues.length
-    ? `Maturidade da base. Pendências: ${issues.join("; ")}`
-    : "Maturidade da base canônica usada nesta resposta.";
+    ? `Maturidade do conhecimento. Pontos em revisão: ${issues.join("; ")}`
+    : "Maturidade do conhecimento canônico usado nesta resposta.";
+
+  const integration = ensureBadge("message-route-integration");
+  const integrationMaturity = ["not-mapped", "suggested", "documented", "validated"]
+    .includes(quality.integrationMaturity) ? quality.integrationMaturity : "not-mapped";
+  integration.className = `message-route-chip message-route-integration integration-${integrationMaturity}`;
+  integration.textContent = quality.integrationLabel || "Integrações em expansão";
+  integration.title = "Maturidade dos guias de combinação e integração desta ferramenta.";
+  integration.hidden = false;
 }
 
 function renderBlueprintSimulation(target, simulation) {

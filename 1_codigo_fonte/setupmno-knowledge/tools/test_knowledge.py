@@ -70,6 +70,10 @@ class KnowledgeFactoryTests(unittest.TestCase):
         report = build_quality_report(ROOT, CATALOG)
         summary = report["summary"]
         self.assertEqual(summary["setupEntries"], 151)
+        self.assertEqual(
+            summary["installationStatuses"]["maintainer-homologated"], 151
+        )
+        self.assertEqual(summary["integrationMaturityLevels"]["not-mapped"], 151)
         self.assertEqual(summary["maturityLevels"]["structural"], 151)
         self.assertEqual(summary["maturityLevels"]["operational-reviewed"], 0)
         self.assertEqual(summary["homologatedEntries"], 0)
@@ -77,6 +81,14 @@ class KnowledgeFactoryTests(unittest.TestCase):
         self.assertEqual(summary["officialSourceExceptions"], 1)
         self.assertEqual(summary["internalOnlySourceEntries"], 19)
         self.assertEqual(summary["unresolvedIssueCount"], 29)
+        self.assertTrue(
+            all(
+                entry["installationStatus"] == "maintainer-homologated"
+                and entry["testedArchitectures"]
+                and entry["integrationMaturity"] == "not-mapped"
+                for entry in report["entries"]
+            )
+        )
         baseline = load_json(ROOT / "quality-baseline.json")
         self.assertEqual(evaluate_quality_baseline(report, baseline), [])
 

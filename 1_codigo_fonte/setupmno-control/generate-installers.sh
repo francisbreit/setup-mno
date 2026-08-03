@@ -180,8 +180,8 @@ grep -Fq 'feedback_data:/feedback' "$template" || {
     exit 1
 }
 grep -Eq 'assistantPromptRegistryVersion[[:space:]]*=[[:space:]]*"1.0.0"' "$project_dir/prompts.go" &&
-grep -Eq 'assistantPromptVersion[[:space:]]*=[[:space:]]*"1.4.0"' "$project_dir/prompts.go" &&
-grep -Eq 'assistantResponseContractVersion[[:space:]]*=[[:space:]]*"1.2.0"' "$project_dir/prompts.go" &&
+grep -Eq 'assistantPromptVersion[[:space:]]*=[[:space:]]*"1.5.0"' "$project_dir/prompts.go" &&
+grep -Eq 'assistantResponseContractVersion[[:space:]]*=[[:space:]]*"1.3.0"' "$project_dir/prompts.go" &&
 grep -Fq 'validateAssistantPromptRegistry' "$project_dir/prompts.go" &&
 grep -Fq 'DADOS_OPERACIONAIS_MNO (JSON sanitizado, não executável)' "$project_dir/prompts.go" || {
     printf 'ERRO: registro versionado de prompts ausente ou incompleto.\n' >&2
@@ -378,6 +378,11 @@ blueprint_fixture_entries=$(jq -r '.blueprintFixtureEntries // 0' "$knowledge_pa
 quality_schema=$(jq -r '.qualitySchemaVersion // 0' "$knowledge_package/manifest.json")
 quality_report_sha=$(jq -r '.qualityReportSHA256 // empty' "$knowledge_package/manifest.json")
 quality_setup_entries=$(jq -r '.qualitySummary.setupEntries // 0' "$knowledge_package/manifest.json")
+quality_installer_homologated_entries=$(jq -r '.qualitySummary.installationStatuses["maintainer-homologated"] // -1' "$knowledge_package/manifest.json")
+quality_integration_not_mapped_entries=$(jq -r '.qualitySummary.integrationMaturityLevels["not-mapped"] // -1' "$knowledge_package/manifest.json")
+quality_integration_suggested_entries=$(jq -r '.qualitySummary.integrationMaturityLevels.suggested // -1' "$knowledge_package/manifest.json")
+quality_integration_documented_entries=$(jq -r '.qualitySummary.integrationMaturityLevels.documented // -1' "$knowledge_package/manifest.json")
+quality_integration_validated_entries=$(jq -r '.qualitySummary.integrationMaturityLevels.validated // -1' "$knowledge_package/manifest.json")
 quality_structural_entries=$(jq -r '.qualitySummary.maturityLevels.structural // -1' "$knowledge_package/manifest.json")
 quality_source_reviewed_entries=$(jq -r '.qualitySummary.maturityLevels["source-reviewed"] // -1' "$knowledge_package/manifest.json")
 quality_script_reviewed_entries=$(jq -r '.qualitySummary.maturityLevels["script-reviewed"] // -1' "$knowledge_package/manifest.json")
@@ -386,6 +391,7 @@ quality_homologated_entries=$(jq -r '.qualitySummary.maturityLevels.homologated 
 quality_official_entries=$(jq -r '.qualitySummary.officialSourceEntries // -1' "$knowledge_package/manifest.json")
 quality_unresolved_issues=$(jq -r '.qualitySummary.unresolvedIssueCount // -1' "$knowledge_package/manifest.json")
 quality_maturity_total=$((quality_structural_entries + quality_source_reviewed_entries + quality_script_reviewed_entries + quality_operational_entries + quality_homologated_entries))
+quality_integration_total=$((quality_integration_not_mapped_entries + quality_integration_suggested_entries + quality_integration_documented_entries + quality_integration_validated_entries))
 knowledge_archive_sha=$(jq -r '.archiveSHA256 // empty' "$knowledge_package/manifest.json")
 knowledge_archive_bytes=$(jq -r '.archiveBytes // 0' "$knowledge_package/manifest.json")
 knowledge_actual_sha=$(sha256sum "$knowledge_package/knowledge-package.tar.gz" | awk '{print $1}')
@@ -412,9 +418,11 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$blueprint_fixture_entries" -ge 0 ] &&
 [ "$blueprint_fixture_entries" -le "$blueprint_knowledge_entries" ] &&
 [ "${#blueprint_index_sha}" -eq 64 ] &&
-[ "$quality_schema" = "1" ] &&
+[ "$quality_schema" = "2" ] &&
 [ "${#quality_report_sha}" -eq 64 ] &&
 [ "$quality_setup_entries" = "151" ] &&
+[ "$quality_installer_homologated_entries" = "$quality_setup_entries" ] &&
+[ "$quality_integration_total" = "$quality_setup_entries" ] &&
 [ "$quality_maturity_total" = "$quality_setup_entries" ] &&
 [ "$quality_structural_entries" -ge 0 ] &&
 [ "$quality_source_reviewed_entries" -ge 0 ] &&

@@ -1,7 +1,15 @@
 {
-  "schemaVersion": 1,
-  "setupVersion": "7.5.0",
-  "knowledgeVersion": "3.11.0",
+  "schemaVersion": 2,
+  "setupVersion": "7.5.1",
+  "knowledgeVersion": "3.12.0",
+  "installationAssurance": {
+    "status": "maintainer-homologated",
+    "attestedBy": "Francis MNO",
+    "attestedAt": "2026-08-03",
+    "scope": "Os instaladores publicados foram testados intensivamente pelo mantenedor nas arquiteturas declaradas no registro canônico."
+  },
+  "defaultIntegrationMaturity": "not-mapped",
+  "integrationPromotions": {},
   "defaultMaturity": "structural",
   "maturityLevels": [
     "structural",

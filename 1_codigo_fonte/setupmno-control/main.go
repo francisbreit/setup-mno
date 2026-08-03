@@ -1018,43 +1018,51 @@ func buildDeterministicQualityAnswer(quality retrievalQualityContext) string {
 		names = strings.Join(quality.SetupIDs, ", ")
 	}
 	var answer strings.Builder
-	answer.WriteString("## Conclusão\n\n")
+	answer.WriteString("**Conclusão**\n\n")
+	answer.WriteString("A instalação de **")
+	answer.WriteString(names)
+	answer.WriteString("** pelo Setup MNO está **homologada pelo mantenedor**")
+	if len(quality.TestedArchitectures) > 0 {
+		answer.WriteString(" para **")
+		answer.WriteString(strings.Join(quality.TestedArchitectures, " e "))
+		answer.WriteString("**")
+	}
+	answer.WriteString(". Essa garantia do instalador é independente do nível de detalhe da documentação.\n\n")
 	if quality.DefinitiveAnswerBlocked {
-		answer.WriteString("Não posso confirmar esta informação com segurança para **")
-		answer.WriteString(names)
-		answer.WriteString("**. A base canônica registra uma pendência que atinge diretamente a pergunta.\n\n")
-		answer.WriteString("## Pendência encontrada\n\n")
+		answer.WriteString("Não consigo confirmar com segurança **o detalhe específico da pergunta**, porque a base de conhecimento registra uma informação ausente ou divergente. Isso não invalida o instalador.\n\n")
+		answer.WriteString("**Ponto que precisa de confirmação**\n\n")
 		for _, issue := range quality.BlockingIssueLabels {
-			answer.WriteString("- ")
+			answer.WriteString("• ")
 			answer.WriteString(issue)
 			answer.WriteByte('\n')
 		}
 	} else {
-		answer.WriteString("**")
-		answer.WriteString(names)
-		answer.WriteString("** está no nível **")
+		answer.WriteString("O conteúdo disponível está no nível **")
 		answer.WriteString(quality.MaturityLabel)
 		answer.WriteString("**. ")
 		answer.WriteString(quality.ClaimPolicy)
 		answer.WriteString("\n")
 	}
-	answer.WriteString("\n## Governança da evidência\n\n")
-	answer.WriteString("- Maturidade: **")
+	answer.WriteString("\n**Situação das três camadas**\n\n")
+	answer.WriteString("• Instalação: **")
+	answer.WriteString(quality.InstallationLabel)
+	answer.WriteString("**\n")
+	answer.WriteString("• Conhecimento: **")
 	answer.WriteString(quality.MaturityLabel)
 	answer.WriteString("**\n")
-	answer.WriteString("- Política: ")
-	answer.WriteString(quality.ClaimPolicy)
-	answer.WriteByte('\n')
+	answer.WriteString("• Integrações: **")
+	answer.WriteString(quality.IntegrationLabel)
+	answer.WriteString("**\n")
 	if len(quality.IssueLabels) > 0 {
-		answer.WriteString("- Pendências registradas: ")
+		answer.WriteString("• Pontos documentais em revisão: ")
 		answer.WriteString(strings.Join(quality.IssueLabels, "; "))
 		answer.WriteByte('\n')
 	}
-	answer.WriteString("\n## Próximo passo seguro\n\n")
+	answer.WriteString("\n**Próximo passo**\n\n")
 	if quality.DefinitiveAnswerBlocked {
-		answer.WriteString("Resolva a pendência editorial indicada e regenere o relatório de qualidade antes de usar essa informação como requisito de instalação ou compatibilidade.")
+		answer.WriteString("Você pode usar o Instalador Seguro para o deploy homologado. Para decidir capacidade, arquitetura ou configuração com base no detalhe divergente, consulte a indicação exibida no catálogo ou peça ao suporte a confirmação específica.")
 	} else {
-		answer.WriteString("Use esta classificação como limite da orientação e avance para validação humana antes de instalar ou alterar o servidor.")
+		answer.WriteString("Se quiser instalar, abra o Instalador Seguro. Se quiser combinar esta ferramenta com outras, descreva o objetivo para receber uma sugestão consultiva de arquitetura.")
 	}
 	return answer.String()
 }
@@ -1938,7 +1946,12 @@ func knowledgeStatusMarkdown(catalog catalogResponse, state knowledgePackageStat
 		manifest.DocumentTypeEntries["setup"] != manifest.SetupEntries ||
 		manifest.DocumentTypeEntries["infrastructure"] != manifest.InfrastructureEntries ||
 		manifest.DocumentTypeEntries["blueprint"] != manifest.BlueprintKnowledgeEntries ||
-		manifest.QualitySummary.SetupEntries != manifest.SetupEntries {
+		manifest.QualitySummary.SetupEntries != manifest.SetupEntries ||
+		manifest.QualitySummary.InstallationStatuses["maintainer-homologated"] != manifest.SetupEntries ||
+		manifest.QualitySummary.IntegrationMaturityLevels["not-mapped"]+
+			manifest.QualitySummary.IntegrationMaturityLevels["suggested"]+
+			manifest.QualitySummary.IntegrationMaturityLevels["documented"]+
+			manifest.QualitySummary.IntegrationMaturityLevels["validated"] != manifest.SetupEntries {
 		return "", errors.New("inventário canônico inconsistente")
 	}
 	missing := catalog.CatalogEntries - manifest.SetupEntries
@@ -1951,7 +1964,7 @@ func knowledgeStatusMarkdown(catalog catalogResponse, state knowledgePackageStat
 		manifest.SetupVersion, manifest.SetupEntries, catalog.CatalogEntries, coverage,
 	)
 	if missing == 0 {
-		answer.WriteString(" A cobertura estrutural dedicada do catálogo está **completa**. Isso não significa que os 151 setups estejam operacionalmente homologados.\n\n")
+		answer.WriteString(" A cobertura estrutural dedicada do catálogo está **completa**.\n\n")
 	} else {
 		fmt.Fprintf(&answer, " Restam **%d setups** sem documentação dedicada.\n\n", missing)
 	}
@@ -1967,10 +1980,16 @@ func knowledgeStatusMarkdown(catalog catalogResponse, state knowledgePackageStat
 		"- Conhecimento **v%s** · dataset de avaliações **v%s** com **%d casos**.\n\n",
 		manifest.KnowledgeVersion, manifest.EvalDatasetVersion, manifest.EvalCaseEntries,
 	)
-	answer.WriteString("## Classificação real\n\n")
+	answer.WriteString("## Instalação homologada\n\n")
 	fmt.Fprintf(
 		&answer,
-		"- **%d estruturais**, **%d com fontes revisadas**, **%d com script revisado**, **%d com evidência operacional** e **%d homologados**.\n",
+		"- **%d instaladores homologados pelo mantenedor**, com cobertura por arquitetura registrada individualmente no catálogo.\n\n",
+		manifest.QualitySummary.InstallationStatuses["maintainer-homologated"],
+	)
+	answer.WriteString("## Maturidade do conhecimento\n\n")
+	fmt.Fprintf(
+		&answer,
+		"- **%d com conhecimento básico**, **%d com fontes enriquecidas**, **%d com conteúdo técnico revisado**, **%d com guia operacional** e **%d com conhecimento completo**.\n",
 		manifest.QualitySummary.MaturityLevels["structural"],
 		manifest.QualitySummary.MaturityLevels["source-reviewed"],
 		manifest.QualitySummary.MaturityLevels["script-reviewed"],
@@ -1979,9 +1998,18 @@ func knowledgeStatusMarkdown(catalog catalogResponse, state knowledgePackageStat
 	)
 	fmt.Fprintf(
 		&answer,
-		"- **%d fontes oficiais declaradas** e **%d pendências editoriais/operacionais rastreadas**.\n\n",
+		"- **%d fontes oficiais declaradas** e **%d pendências documentais rastreadas**.\n\n",
 		manifest.QualitySummary.OfficialSourceEntries,
 		manifest.QualitySummary.UnresolvedIssueCount,
+	)
+	answer.WriteString("## Maturidade das integrações\n\n")
+	fmt.Fprintf(
+		&answer,
+		"- **%d setups com integrações ainda em mapeamento**, %d com combinações sugeridas, %d com integrações documentadas e %d com integrações validadas.\n\n",
+		manifest.QualitySummary.IntegrationMaturityLevels["not-mapped"],
+		manifest.QualitySummary.IntegrationMaturityLevels["suggested"],
+		manifest.QualitySummary.IntegrationMaturityLevels["documented"],
+		manifest.QualitySummary.IntegrationMaturityLevels["validated"],
 	)
 	answer.WriteString("Fonte: manifesto interno versionado e catálogo runtime validados localmente. Nenhuma contagem foi inferida a partir dos resultados do RAG.")
 	return answer.String(), nil

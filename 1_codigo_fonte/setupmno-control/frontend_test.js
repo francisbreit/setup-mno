@@ -41,6 +41,7 @@ assert.equal(
   render("1. N8N\n2. STRAPI"),
   "1. N8N\n2. STRAPI"
 );
+assert.match(render("## Conclusão\n\n- Instalador homologado"), /<h4>Conclusão<\/h4>[\s\S]*<li>Instalador homologado<\/li>/);
 
 const malicious = render('**seguro** <img src=x onerror="alert(1)"> <script>alert(2)</script>');
 assert.match(malicious, /<strong>seguro<\/strong>/);
@@ -98,8 +99,14 @@ assert.match(app, /event\.type === "retrieval"/);
 assert.match(app, /event\.type === "quality"/);
 assert.match(app, /renderAnswerQuality/);
 assert.match(app, /message-route-quality/);
+assert.match(app, /message-route-installation/);
+assert.match(app, /message-route-integration/);
+assert.match(app, /Instalador homologado/);
+assert.match(app, /Integrações em expansão/);
 assert.match(styles, /maturity-structural/);
 assert.match(styles, /maturity-homologated/);
+assert.match(styles, /assurance-homologated/);
+assert.match(styles, /integration-not-mapped/);
 assert.match(app, /event\.type === "grounding"/);
 assert.match(app, /event\.type === "blueprint_simulation"/);
 assert.match(app, /renderBlueprintSimulation/);

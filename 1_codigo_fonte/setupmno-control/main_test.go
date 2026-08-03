@@ -515,7 +515,11 @@ func TestKnowledgeStatusMarkdownUsesManifestInsteadOfRetrievalSlice(t *testing.T
 		BlueprintKnowledgeEntries: 5,
 		DocumentTypeEntries:       map[string]int{"setup": 151, "infrastructure": 9, "blueprint": 5},
 		QualitySummary: knowledgeQualitySummary{
-			SetupEntries: 151,
+			SetupEntries:         151,
+			InstallationStatuses: map[string]int{"maintainer-homologated": 151},
+			IntegrationMaturityLevels: map[string]int{
+				"not-mapped": 151, "suggested": 0, "documented": 0, "validated": 0,
+			},
 			MaturityLevels: map[string]int{
 				"structural": 151, "source-reviewed": 0, "script-reviewed": 0,
 				"operational-reviewed": 0, "homologated": 0,
@@ -530,7 +534,8 @@ func TestKnowledgeStatusMarkdownUsesManifestInsteadOfRetrievalSlice(t *testing.T
 	}
 	for _, expected := range []string{
 		"151 dos 151 setups", "100.00%", "cobertura estrutural dedicada do catálogo está **completa**",
-		"165 documentos canônicos", "151 estruturais", "0 com evidência operacional",
+		"165 documentos canônicos", "151 instaladores homologados pelo mantenedor",
+		"151 com conhecimento básico", "151 setups com integrações ainda em mapeamento",
 		"131 fontes oficiais declaradas", "29 pendências", "manifesto interno versionado",
 	} {
 		if !strings.Contains(answer, expected) {
@@ -771,23 +776,28 @@ func TestAssistantUIAdvertisesSpecialistScope(t *testing.T) {
 func TestDeterministicQualityAnswerDoesNotPromoteMaturity(t *testing.T) {
 	answer := buildDeterministicQualityAnswer(retrievalQualityContext{
 		Maturity:                "structural",
-		MaturityLabel:           "Documentação inicial",
+		MaturityLabel:           "Conhecimento básico",
 		CatalogNames:            []string{"PLANE"},
 		ClaimPolicy:             knowledgeClaimPolicy("structural"),
+		InstallationStatus:      "maintainer-homologated",
+		InstallationLabel:       "Instalador homologado",
+		TestedArchitectures:     []string{"amd64", "arm64"},
+		IntegrationMaturity:     "not-mapped",
+		IntegrationLabel:        "Integrações em expansão",
 		DefinitiveAnswerBlocked: true,
 		BlockingIssueLabels:     []string{"requisito de capacidade divergente"},
 		IssueLabels:             []string{"requisito de capacidade divergente"},
 	})
 	for _, expected := range []string{
-		"Não posso confirmar", "Documentação inicial",
-		"requisito de capacidade divergente", "Próximo passo seguro",
+		"não consigo confirmar", "Conhecimento básico", "homologada pelo mantenedor",
+		"requisito de capacidade divergente", "Próximo passo",
 	} {
-		if !strings.Contains(answer, expected) {
+		if !strings.Contains(strings.ToLower(answer), strings.ToLower(expected)) {
 			t.Fatalf("resposta determinística perdeu %q: %s", expected, answer)
 		}
 	}
-	if strings.Contains(answer, "está homologado") || strings.Contains(answer, "foi testado") {
-		t.Fatalf("maturidade foi promovida indevidamente: %s", answer)
+	if strings.Contains(answer, "conhecimento homologado") || strings.Contains(answer, "integração validada") {
+		t.Fatalf("conteúdo ou integração foi promovido indevidamente: %s", answer)
 	}
 }
 
