@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.7.1"
+VERSIONSETUP="7.7.2"
 EXPECTED_EVAL_DATASET_VERSION="1.9.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
 EXPECTED_EVAL_CASE_ENTRIES="843"
@@ -139,14 +139,28 @@ activate_preserved_control_runtime() {
     CONTROL_RUNTIME_HOLD=""
 }
 
-refresh_control_center_runtime_agent() {
-    local services service
+reconcile_control_center_plan_services() {
+    local plan="$1" services service assistant_replicas
 
+    valid_setup_plan "$plan" || return 1
+    case "$plan" in
+        free|free1|free2) assistant_replicas="0" ;;
+        *) assistant_replicas="1" ;;
+    esac
     command -v docker >/dev/null 2>&1 || return 0
     services=$(docker service ls --format '{{.Name}}' 2>/dev/null) || return 1
     while IFS= read -r service; do
-        [[ "$service" =~ ^mnoctrl[[:alnum:]]+-agent_mnoctrl[[:alnum:]]+-agent$ ]] || continue
-        docker service update --force --detach=true "$service" >/dev/null 2>&1 || return 1
+        case "$service" in
+            mnoctrl*-agent_mnoctrl*-agent)
+                [[ "$service" =~ ^mnoctrl[[:alnum:]]+-agent_mnoctrl[[:alnum:]]+-agent$ ]] || continue
+                docker service update --force --detach=true "$service" >/dev/null 2>&1 || return 1
+                ;;
+            mnoctrl*-assistant_mnoctrl*-assistant)
+                [[ "$service" =~ ^mnoctrl[[:alnum:]]+-assistant_mnoctrl[[:alnum:]]+-assistant$ ]] || continue
+                docker service update --replicas "$assistant_replicas" --detach=true \
+                    "$service" >/dev/null 2>&1 || return 1
+                ;;
+        esac
     done <<<"$services"
 }
 
@@ -577,8 +591,8 @@ if ! write_control_environment "/root/SetupLowCodeMno/.control" "$PLANO"; then
     printf 'Não foi possível publicar o plano e o tipo de instalação para o Control Center.\n' >"$control_state_error"
     exit 41
 fi
-if ! refresh_control_center_runtime_agent; then
-    printf 'O plano foi atualizado, mas o agente existente do Control Center não pôde renovar a leitura do estado runtime.\n' >"$control_state_error"
+if ! reconcile_control_center_plan_services "$PLANO"; then
+    printf 'O plano foi atualizado, mas os serviços existentes do Control Center não puderam ser reconciliados com o novo acesso.\n' >"$control_state_error"
     exit 41
 fi
 

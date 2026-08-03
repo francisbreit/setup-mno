@@ -14,7 +14,7 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.7.1` no canal Beta
+- Setup MNO: `7.7.2` no canal Beta
 - Control Center: `4.15.0`
 - Conhecimento canônico: `3.14.0`
 - Catálogo runtime: 151 entradas
@@ -2299,6 +2299,28 @@ fluxo cobre explicitamente `free`, `free1` e `free2` migrando para `pro`; o
 arquivo `environment.json` passa a declarar `plan: pro` e a Visão Geral deixa
 de permanecer em “verificando”. Em caso de falha anterior à promoção, o estado
 preservado é restaurado sem apagar o runtime válido.
+
+## Correção v7.7.2 — Upgrade e downgrade completos de plano
+
+**Status:** implementado
+**Impacto:** alto
+**Tipo:** licenciamento, segurança e eficiência de recursos
+**Esforço:** moderado
+
+A reconciliação do Control Center torna-se bidirecional entre `free`, `free1`,
+`free2` e `pro`. O estado runtime sempre publica o plano autenticado mais
+recente e o agente é renovado para refletir a mudança na Visão Geral sem
+recriar as stacks do painel.
+
+Quando um usuário PRO migra para qualquer plano gratuito, uma stack de
+Assistente LLM preexistente é mantida, junto de sua configuração e Docker
+Secret, porém escalada para zero réplicas. Isso impede consumo de memória e uso
+do provedor enquanto o backend continua bloqueando o chat por plano. Ao voltar
+ao PRO, a mesma stack é reativada com uma réplica, sem exigir nova chave.
+
+O gate de release passa a testar as 16 combinações entre os quatro planos,
+preservação do inode runtime, rollback, paralisação da LLM nos planos gratuitos
+e reativação no PRO.
 
 ## Referências oficiais
 

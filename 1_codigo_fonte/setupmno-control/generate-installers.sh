@@ -111,7 +111,8 @@ for architecture in x86 arm; do
     fi
     grep -Fq 'preserve_control_runtime' "$start_script" &&
     grep -Fq 'activate_preserved_control_runtime "$control_target"' "$start_script" &&
-    grep -Fq 'refresh_control_center_runtime_agent' "$start_script" || {
+    grep -Fq 'reconcile_control_center_plan_services "$PLANO"' "$start_script" &&
+    grep -Fq 'docker service update --replicas "$assistant_replicas"' "$start_script" || {
         printf 'ERRO: %s não preserva ou não renova o runtime do Control Center durante reinstalações.\n' \
             "$architecture" >&2
         exit 1
