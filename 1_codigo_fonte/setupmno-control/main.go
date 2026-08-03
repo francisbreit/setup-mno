@@ -492,17 +492,9 @@ func runWeb() error {
 	if err != nil {
 		return fmt.Errorf("catálogo de Blueprints inválido: %w", err)
 	}
-	blueprintBundles := make(map[string]blueprintBundleDownload, len(blueprintKnowledge.Blueprints.Entries))
-	for _, entry := range blueprintKnowledge.Blueprints.Entries {
-		data, ok := blueprintKnowledge.Files[entry.BundlePath]
-		if !ok {
-			return fmt.Errorf("bundle do Blueprint %s indisponível", entry.BlueprintID)
-		}
-		blueprintBundles[entry.BlueprintID] = blueprintBundleDownload{
-			Filename: entry.BlueprintID + "-v" + entry.BlueprintVersion + ".zip",
-			SHA256:   entry.BundleSHA256,
-			Data:     append([]byte(nil), data...),
-		}
+	blueprintBundles, err := blueprintBundlesFromKnowledge(blueprintKnowledge)
+	if err != nil {
+		return fmt.Errorf("bundles de Blueprints indisponíveis: %w", err)
 	}
 	evalReport, err := runEvalSuite(blueprintKnowledge, controlVersion)
 	if err != nil {
@@ -666,6 +658,47 @@ func runAgent() error {
 			return
 		}
 		writeJSON(w, http.StatusOK, catalogFromSnapshot(snapshot, "runtime"))
+	}))
+	mux.HandleFunc("GET /blueprints", authorize(func(w http.ResponseWriter, _ *http.Request) {
+		knowledge, err := loadRuntimeBlueprintKnowledge(setupStateDir)
+		if err != nil {
+			writeError(w, http.StatusServiceUnavailable, "índice runtime de Blueprints indisponível")
+			return
+		}
+		catalog, err := blueprintCatalogFromKnowledge(knowledge)
+		if err != nil {
+			writeError(w, http.StatusServiceUnavailable, "índice runtime de Blueprints inválido")
+			return
+		}
+		writeJSON(w, http.StatusOK, catalog)
+	}))
+	mux.HandleFunc("GET /blueprints/{blueprintId}/download", authorize(func(w http.ResponseWriter, r *http.Request) {
+		blueprintID := r.PathValue("blueprintId")
+		if !validBlueprintID(blueprintID) {
+			writeError(w, http.StatusNotFound, "Blueprint não encontrado")
+			return
+		}
+		knowledge, err := loadRuntimeBlueprintKnowledge(setupStateDir)
+		if err != nil {
+			writeError(w, http.StatusServiceUnavailable, "bundle runtime de Blueprint indisponível")
+			return
+		}
+		bundles, err := blueprintBundlesFromKnowledge(knowledge)
+		if err != nil {
+			writeError(w, http.StatusServiceUnavailable, "bundle runtime de Blueprint inválido")
+			return
+		}
+		bundle, ok := bundles[blueprintID]
+		if !ok {
+			writeError(w, http.StatusNotFound, "Blueprint não encontrado")
+			return
+		}
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Content-Type", "application/zip")
+		w.Header().Set("Content-Disposition", `attachment; filename="`+bundle.Filename+`"`)
+		w.Header().Set("X-Content-SHA256", bundle.SHA256)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(bundle.Data)
 	}))
 
 	server := &http.Server{
@@ -1962,14 +1995,30 @@ func (a *webApp) handleCatalog(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *webApp) handleBlueprints(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, a.blueprints)
+	catalog, err := a.runtimeBlueprintCatalog(r.Context())
+	if err == nil {
+		writeJSON(w, http.StatusOK, catalog)
+		return
+	}
+	fallback := a.blueprints
+	fallback.Source = "control-image-fallback"
+	a.addAudit("blueprint_fallback", "Índice runtime de Blueprints indisponível; contingência ativada", clientAddress(r))
+	writeJSON(w, http.StatusOK, fallback)
 }
 
 func (a *webApp) handleBlueprintDownload(w http.ResponseWriter, r *http.Request) {
 	blueprintID := r.PathValue("blueprintId")
-	bundle, ok := a.blueprintBundles[blueprintID]
-	if !ok {
+	if !validBlueprintID(blueprintID) {
 		writeError(w, http.StatusNotFound, "Blueprint não encontrado")
+		return
+	}
+	bundle, status, err := a.agentBlueprintDownload(r.Context(), blueprintID)
+	if err != nil {
+		if status == http.StatusNotFound {
+			writeError(w, http.StatusNotFound, "Blueprint não encontrado")
+			return
+		}
+		writeError(w, http.StatusServiceUnavailable, "bundle runtime de Blueprint indisponível")
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
@@ -2001,7 +2050,7 @@ func blueprintCatalogFromKnowledge(state knowledgePackageState) (blueprintCatalo
 		SetupVersion:     index.SetupVersion,
 		KnowledgeVersion: state.Manifest.KnowledgeVersion,
 		IndexSHA256:      state.Manifest.BlueprintIndexSHA256,
-		Source:           "control-image-read-only",
+		Source:           state.Source,
 		BlueprintCount:   index.BlueprintCount,
 		ExampleCount:     index.Statuses["example"],
 		BetaCount:        index.Statuses["reviewed"],
@@ -2050,6 +2099,54 @@ func blueprintCatalogFromKnowledge(state knowledgePackageState) (blueprintCatalo
 		})
 	}
 	return response, nil
+}
+
+func blueprintBundlesFromKnowledge(state knowledgePackageState) (map[string]blueprintBundleDownload, error) {
+	bundles := make(map[string]blueprintBundleDownload, len(state.Blueprints.Entries))
+	for _, entry := range state.Blueprints.Entries {
+		data, ok := state.Files[entry.BundlePath]
+		if !ok || int64(len(data)) != entry.BundleBytes || sha256String(data) != entry.BundleSHA256 {
+			return nil, fmt.Errorf("bundle do Blueprint %s inválido", entry.BlueprintID)
+		}
+		bundles[entry.BlueprintID] = blueprintBundleDownload{
+			Filename: entry.BlueprintID + "-v" + entry.BlueprintVersion + ".zip",
+			SHA256:   entry.BundleSHA256,
+			Data:     append([]byte(nil), data...),
+		}
+	}
+	return bundles, nil
+}
+
+func loadRuntimeBlueprintKnowledge(setupStateDir string) (knowledgePackageState, error) {
+	snapshot, err := readRuntimeSnapshot(setupStateDir)
+	if err != nil {
+		return knowledgePackageState{}, err
+	}
+	state, err := loadKnowledgePackageDirectory(filepath.Join(setupStateDir, "knowledge-package"))
+	if err != nil {
+		return knowledgePackageState{}, err
+	}
+	if state.Manifest.SetupVersion != snapshot.Release.SetupVersion ||
+		state.Manifest.ArchiveSHA256 != snapshot.Release.KnowledgeArchiveSHA256 ||
+		state.Manifest.BlueprintIndexSHA256 != snapshot.Release.BlueprintIndexSHA256 {
+		return knowledgePackageState{}, errors.New("pacote de Blueprints diverge do manifesto runtime")
+	}
+	state.Source = "runtime-read-only"
+	state.Stale = false
+	return state, nil
+}
+
+func validBlueprintID(value string) bool {
+	if len(value) < 3 || len(value) > 128 {
+		return false
+	}
+	for _, character := range value {
+		if (character < 'a' || character > 'z') &&
+			(character < '0' || character > '9') && character != '-' {
+			return false
+		}
+	}
+	return true
 }
 
 func (a *webApp) handleAudit(w http.ResponseWriter, _ *http.Request) {
@@ -2564,6 +2661,58 @@ func (a *webApp) agentRequest(ctx context.Context, endpoint string, target any) 
 		return fmt.Errorf("agente retornou HTTP %d", resp.StatusCode)
 	}
 	return json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(target)
+}
+
+func (a *webApp) runtimeBlueprintCatalog(ctx context.Context) (blueprintCatalogResponse, error) {
+	var catalog blueprintCatalogResponse
+	if err := a.agentRequest(ctx, "/blueprints", &catalog); err != nil {
+		return blueprintCatalogResponse{}, err
+	}
+	if catalog.Source != "runtime-read-only" || catalog.SetupVersion == "" ||
+		catalog.BlueprintCount <= 0 || catalog.BlueprintCount != len(catalog.Items) {
+		return blueprintCatalogResponse{}, errors.New("índice runtime de Blueprints inconsistente")
+	}
+	return catalog, nil
+}
+
+func (a *webApp) agentBlueprintDownload(
+	ctx context.Context,
+	blueprintID string,
+) (blueprintBundleDownload, int, error) {
+	if !validBlueprintID(blueprintID) {
+		return blueprintBundleDownload{}, http.StatusNotFound, errors.New("identificador inválido")
+	}
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		a.agentURL+"/blueprints/"+url.PathEscape(blueprintID)+"/download",
+		nil,
+	)
+	if err != nil {
+		return blueprintBundleDownload{}, 0, err
+	}
+	req.Header.Set("X-SetupMNO-Agent-Token", a.agentToken)
+	resp, err := a.httpClient.Do(req)
+	if err != nil {
+		return blueprintBundleDownload{}, 0, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return blueprintBundleDownload{}, resp.StatusCode, fmt.Errorf("agente retornou HTTP %d", resp.StatusCode)
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxKnowledgeFileBytes+1))
+	if err != nil || len(data) == 0 || int64(len(data)) > maxKnowledgeFileBytes {
+		return blueprintBundleDownload{}, resp.StatusCode, errors.New("bundle fora do limite")
+	}
+	expectedSHA := strings.TrimSpace(resp.Header.Get("X-Content-SHA256"))
+	if len(expectedSHA) != 64 || sha256String(data) != expectedSHA {
+		return blueprintBundleDownload{}, resp.StatusCode, errors.New("hash do bundle divergente")
+	}
+	return blueprintBundleDownload{
+		Filename: blueprintID + ".zip",
+		SHA256:   expectedSHA,
+		Data:     data,
+	}, resp.StatusCode, nil
 }
 
 func readRuntimeSnapshot(directory string) (runtimeSnapshot, error) {

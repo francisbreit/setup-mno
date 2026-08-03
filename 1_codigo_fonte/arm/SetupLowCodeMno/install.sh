@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="7.7.7"
+VERSIONSETUP="7.7.8"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -281,10 +281,24 @@ ensure_control_center_runtime_access() {
     control_center_agent_has_runtime_mount "$service"
 }
 
-if control_center_installed && ! ensure_control_center_runtime_access; then
-    whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
-        "O Control Center existente foi preservado, mas o acesso somente leitura ao catálogo runtime não pôde ser confirmado.\n\nNenhuma segunda instalação foi criada. Reinstale o Setup MNO ou consulte o suporte antes de usar Catálogo, Blueprints ou Assistente." \
-        16 82
+reconcile_control_center_release() {
+    [ -x /root/SetupLowCodeMno/setupmno_control ] || return 1
+    /root/SetupLowCodeMno/setupmno_control --reconcile-existing
+}
+
+if control_center_installed; then
+    if ! reconcile_control_center_release; then
+        whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
+            "A instalação existente foi preservada, mas o Control Center não pôde ser sincronizado com esta versão do Setup MNO.\n\nNenhuma segunda instalação foi criada. Consulte o log informado na tela anterior antes de usar Catálogo, Blueprints ou Assistente." \
+            16 84
+        exit 42
+    fi
+    if ! ensure_control_center_runtime_access; then
+        whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
+            "O Control Center foi preservado, mas o acesso somente leitura ao catálogo runtime não pôde ser confirmado.\n\nNenhuma segunda instalação foi criada. Reinstale o Setup MNO ou consulte o suporte antes de usar Catálogo, Blueprints ou Assistente." \
+            16 82
+        exit 42
+    fi
 fi
 
 # --- SAIR ---

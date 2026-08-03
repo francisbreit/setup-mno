@@ -1183,14 +1183,26 @@ func TestBlueprintCatalogExposesOnlySafeReadOnlyProjection(t *testing.T) {
 
 func TestBlueprintDownloadServesOnlyValidatedBundleMap(t *testing.T) {
 	payload := []byte("PK\x03\x04blueprint-beta")
+	token := "agent-test-token"
+	agent := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-SetupMNO-Agent-Token") != token {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if r.URL.Path != "/blueprints/blueprint-001/download" {
+			http.Error(w, "missing", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("X-Content-SHA256", sha256String(payload))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(payload)
+	}))
+	defer agent.Close()
 	app := &webApp{
-		blueprintBundles: map[string]blueprintBundleDownload{
-			"blueprint-001": {
-				Filename: "blueprint-001-v0.3.0.zip",
-				SHA256:   strings.Repeat("a", 64),
-				Data:     payload,
-			},
-		},
+		agentURL:   agent.URL,
+		agentToken: token,
+		httpClient: agent.Client(),
+		audit:      make([]auditEvent, 0),
 	}
 
 	request := httptest.NewRequest(http.MethodGet, "/api/blueprints/blueprint-001/download", nil)
@@ -1202,7 +1214,7 @@ func TestBlueprintDownloadServesOnlyValidatedBundleMap(t *testing.T) {
 	}
 	if response.Header().Get("Content-Type") != "application/zip" ||
 		response.Header().Get("Cache-Control") != "no-store" ||
-		response.Header().Get("X-Content-SHA256") != strings.Repeat("a", 64) {
+		response.Header().Get("X-Content-SHA256") != sha256String(payload) {
 		t.Fatalf("headers de segurança ausentes: %#v", response.Header())
 	}
 

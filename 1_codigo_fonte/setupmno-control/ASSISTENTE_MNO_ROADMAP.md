@@ -14,8 +14,8 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.7.7` no canal Beta
-- Control Center: `4.15.1`
+- Setup MNO: `7.7.8` no canal Beta
+- Control Center: `4.15.2`
 - Conhecimento canônico: `3.14.0`
 - Catálogo runtime: 151 entradas
 - Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
@@ -2421,6 +2421,32 @@ Os gates cobrem as 16 transições de plano, agente moderno saudável sem
 restart, agente legado sem mount, agente parado que exige recuperação, falha
 de leitura antes de qualquer mutação, redução da LLM nos planos gratuitos e
 reativação no PRO.
+
+## Correção v7.7.8 — Blueprints runtime e sincronização automática
+
+**Status:** implementado
+**Impacto:** crítico
+**Tipo:** confiabilidade, UX e manutenção
+**Esforço:** estrutural
+
+O catálogo de Blueprints deixa de depender do índice incorporado à imagem web.
+O agente expõe dois endpoints fixos, autenticados e somente leitura para o
+índice e os bundles do pacote promovido em `.control/knowledge-package`. Cada
+leitura valida manifesto, versão do Setup, SHA-256 do arquivo, SHA-256 do
+índice e tamanho antes de devolver dados. O painel não recebe mount do host e
+continua sem Docker socket.
+
+Listagem, recomendação contextual e download consultam o mesmo índice runtime.
+Se o agente ficar temporariamente indisponível, somente a listagem pode exibir
+o fallback embutido marcado como contingência; recomendação e download não
+misturam versões nem inventam compatibilidade.
+
+Ao reinstalar pelo bootstrap oficial, um Control Center antigo é reconciliado
+automaticamente para `4.15.2`. A atualização troca imagens nos serviços
+existentes, sem `docker stack deploy`, sem novo serviço e sem recriar secrets,
+volumes, domínio ou labels do Portainer. O fluxo é idempotente, possui rollback
+dos serviços já alterados e mantém a opção de instalação oculta quando o painel
+já existe.
 
 ## Referências oficiais
 

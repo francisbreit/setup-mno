@@ -90,8 +90,13 @@ func (a *webApp) handleBlueprintRecommendation(w http.ResponseWriter, r *http.Re
 		writeError(w, http.StatusServiceUnavailable, "capacidade runtime indisponível para recomendação")
 		return
 	}
+	blueprints, err := a.runtimeBlueprintCatalog(r.Context())
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, "índice runtime de Blueprints indisponível para recomendação")
+		return
+	}
 	if state.Stale || state.Source != "runtime" ||
-		state.SetupVersion != a.blueprints.SetupVersion ||
+		state.SetupVersion != blueprints.SetupVersion ||
 		(state.Architecture != "amd64" && state.Architecture != "arm64") ||
 		normalizeBlueprintArchitecture(current.Architecture) != state.Architecture ||
 		current.Metrics.MemoryTotal == 0 || current.Metrics.MemoryUsed > current.Metrics.MemoryTotal {
@@ -107,7 +112,7 @@ func (a *webApp) handleBlueprintRecommendation(w http.ResponseWriter, r *http.Re
 		MemoryAvailableGB: float64(available) / float64(1<<30),
 		Source:            "runtime-read-only",
 	}
-	result, err := recommendBlueprints(a.blueprints, input.Objective, context)
+	result, err := recommendBlueprints(blueprints, input.Objective, context)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, err.Error())
 		return

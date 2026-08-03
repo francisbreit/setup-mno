@@ -83,7 +83,10 @@ for architecture in x86 arm; do
     bash -n "$start_script"
     grep -Fq 'control_center_installed()' "$install_script"
     grep -Fq 'ensure_control_center_runtime_access()' "$install_script"
-    grep -Fq 'if control_center_installed && ! ensure_control_center_runtime_access; then' "$install_script"
+    grep -Fq 'reconcile_control_center_release()' "$install_script"
+    grep -Fq 'setupmno_control --reconcile-existing' "$install_script"
+    grep -Fq 'if control_center_installed; then' "$install_script"
+    grep -Fq 'if ! ensure_control_center_runtime_access; then' "$install_script"
     grep -Fq 'control_center_agent_has_runtime_mount "$service" && return 0' "$install_script"
     ! grep -Fq 'ATUALIZAR CONTROL CENTER' "$install_script"
     grep -Fq 'control_center_installed()' "$foundation_script"
@@ -147,6 +150,24 @@ grep -Fq 'HEALTHCHECK_URL=http://127.0.0.1:9090/health' "$template" || {
     printf 'ERRO: healthcheck interno do agente não configurado.\n' >&2
     exit 1
 }
+grep -Fq 'GET /blueprints", authorize' "$project_dir/main.go" &&
+grep -Fq 'GET /blueprints/{blueprintId}/download", authorize' "$project_dir/main.go" &&
+grep -Fq 'loadRuntimeBlueprintKnowledge(setupStateDir)' "$project_dir/main.go" &&
+grep -Fq 'a.runtimeBlueprintCatalog(r.Context())' "$project_dir/blueprint_recommendation.go" || {
+    printf 'ERRO: Blueprints não são servidos pelo agente runtime validado.\n' >&2
+    exit 1
+}
+for install_script in \
+    "$source_root/x86/SetupLowCodeMno/install.sh" \
+    "$source_root/arm/SetupLowCodeMno/install.sh"; do
+    grep -Fq 'reconcile_control_center_release()' "$install_script" &&
+    grep -Fq 'setupmno_control --reconcile-existing' "$install_script" &&
+    grep -Fq 'if control_center_installed; then' "$install_script" || {
+        printf 'ERRO: reconciliação automática do Control Center ausente em %s.\n' \
+            "$install_script" >&2
+        exit 1
+    }
+done
 grep -Fq 'http://127.0.0.1:7681/terminal/' "$template" || {
     printf 'ERRO: healthcheck interno do terminal não configurado.\n' >&2
     exit 1
@@ -533,7 +554,7 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
     cd "$project_dir"
     tar -cf - \
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
-        terminal-menu.sh configure-control.sh \
+        terminal-menu.sh configure-control.sh control-upgrade.sh \
         main.go knowledge.go retrieval.go routing.go prompts.go \
         blueprint_recommendation.go evals.go provider_evals.go feedback.go web |
         gzip -9n >"$bundle"
@@ -554,6 +575,11 @@ if ! tar -tzf "$bundle" | grep -Fx 'feedback.go' >/dev/null; then
     printf 'ERRO: bundle de fontes sem o feedback sanitizado.\n' >&2
     exit 1
 fi
+if ! tar -tzf "$bundle" | grep -Fx 'control-upgrade.sh' >/dev/null; then
+    printf 'ERRO: bundle de fontes sem o reconciliador in-place do Control Center.\n' >&2
+    exit 1
+fi
+"$project_dir/control-upgrade_test.sh" >/dev/null
 if tar -tzf "$bundle" | grep -q '^knowledge-package/'; then
     printf 'ERRO: arquivos compactados não podem ser incorporados ao Base64 protegido pelo SHC.\n' >&2
     exit 1
