@@ -67,6 +67,7 @@ grep -Fq 'if ! check_cloudflare_route "$route_check"; then' "$template" || {
 }
 bash "$project_dir/installer-template_test.sh"
 bash "$project_dir/configure-control_test.sh"
+bash "$project_dir/control-runtime-transition_test.sh"
 
 for architecture in x86 arm; do
     install_script="$source_root/$architecture/SetupLowCodeMno/install.sh"
@@ -108,6 +109,13 @@ for architecture in x86 arm; do
         printf 'ERRO: gravação incremental do plano detectada em %s.\n' "$architecture" >&2
         exit 1
     fi
+    grep -Fq 'preserve_control_runtime' "$start_script" &&
+    grep -Fq 'activate_preserved_control_runtime "$control_target"' "$start_script" &&
+    grep -Fq 'refresh_control_center_runtime_agent' "$start_script" || {
+        printf 'ERRO: %s não preserva ou não renova o runtime do Control Center durante reinstalações.\n' \
+            "$architecture" >&2
+        exit 1
+    }
 done
 
 grep -Fq -- '- /root/SetupLowCodeMno/.control:/runtime-control:ro' "$template" || {

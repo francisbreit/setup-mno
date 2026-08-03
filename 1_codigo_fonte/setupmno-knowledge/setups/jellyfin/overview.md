@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Jellyfin no Setup MNO",
   "setupId": "jellyfin",
-  "setupVersion": "7.7.0",
+  "setupVersion": "7.7.1",
   "architectures": [
     "amd64",
     "arm64"

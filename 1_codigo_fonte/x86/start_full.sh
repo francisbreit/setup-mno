@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.7.0"
+VERSIONSETUP="7.7.1"
 EXPECTED_EVAL_DATASET_VERSION="1.9.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
 EXPECTED_EVAL_CASE_ENTRIES="843"
@@ -85,6 +85,69 @@ write_control_environment() {
         '{schemaVersion:1,plan:$plan,installationType:$installationType}' \
         >"$temporary_file" || { rm -f "$temporary_file"; return 1; }
     mv -f "$temporary_file" "$control_dir/environment.json"
+}
+
+CONTROL_RUNTIME_HOLD=""
+
+preserve_control_runtime() {
+    local live_dir="${1:-/root/SetupLowCodeMno/.control}"
+    local hold_root="${2:-/root}"
+    local hold_dir
+
+    if [ ! -e "$live_dir" ] && [ ! -L "$live_dir" ]; then
+        return 0
+    fi
+    [ -d "$live_dir" ] && [ ! -L "$live_dir" ] || return 1
+
+    hold_dir=$(mktemp -d "$hold_root/.setupmno-control-runtime.XXXXXX") || return 1
+    chmod 0700 "$hold_dir" || { rmdir "$hold_dir"; return 1; }
+    if ! mv "$live_dir" "$hold_dir/.control"; then
+        rmdir "$hold_dir" 2>/dev/null || true
+        return 1
+    fi
+    CONTROL_RUNTIME_HOLD="$hold_dir"
+}
+
+restore_control_runtime() {
+    local live_dir="${1:-/root/SetupLowCodeMno/.control}"
+
+    [ -n "$CONTROL_RUNTIME_HOLD" ] || return 0
+    [ -d "$CONTROL_RUNTIME_HOLD/.control" ] &&
+        [ ! -L "$CONTROL_RUNTIME_HOLD/.control" ] || return 1
+    mkdir -p "$(dirname "$live_dir")" || return 1
+    rm -rf "$live_dir"
+    mv "$CONTROL_RUNTIME_HOLD/.control" "$live_dir" || return 1
+    rmdir "$CONTROL_RUNTIME_HOLD" 2>/dev/null || true
+    CONTROL_RUNTIME_HOLD=""
+}
+
+activate_preserved_control_runtime() {
+    local live_dir="${1:-/root/SetupLowCodeMno/.control}"
+
+    if [ -z "$CONTROL_RUNTIME_HOLD" ]; then
+        mkdir -p "$live_dir"
+        return $?
+    fi
+    [ -d "$CONTROL_RUNTIME_HOLD/.control" ] &&
+        [ ! -L "$CONTROL_RUNTIME_HOLD/.control" ] || return 1
+    if [ -e "$live_dir" ] || [ -L "$live_dir" ]; then
+        return 1
+    fi
+    mkdir -p "$(dirname "$live_dir")" || return 1
+    mv "$CONTROL_RUNTIME_HOLD/.control" "$live_dir" || return 1
+    rmdir "$CONTROL_RUNTIME_HOLD" 2>/dev/null || return 1
+    CONTROL_RUNTIME_HOLD=""
+}
+
+refresh_control_center_runtime_agent() {
+    local services service
+
+    command -v docker >/dev/null 2>&1 || return 0
+    services=$(docker service ls --format '{{.Name}}' 2>/dev/null) || return 1
+    while IFS= read -r service; do
+        [[ "$service" =~ ^mnoctrl[[:alnum:]]+-agent_mnoctrl[[:alnum:]]+-agent$ ]] || continue
+        docker service update --force --detach=true "$service" >/dev/null 2>&1 || return 1
+    done <<<"$services"
 }
 
 # Função para enviar HTTP POST e validar a resposta
@@ -228,6 +291,11 @@ chmod +x setup-mno  >/dev/null 2>&1
 
 cd /
 cd
+if ! preserve_control_runtime; then
+    printf 'Não foi possível preservar o estado runtime atual do Control Center. A reinstalação foi interrompida sem remover o estado existente.\n' >"$control_state_error"
+    exit 41
+fi
+trap 'restore_control_runtime >/dev/null 2>&1 || true' EXIT
 sudo rm -r SetupLowCodeMno >/dev/null 2>&1
 apt-get install sudo -y >/dev/null 2>&1
 sudo apt-get update -y >/dev/null 2>&1
@@ -435,7 +503,10 @@ if [ "$control_schema" != "1" ] ||
         "$VERSIONSETUP" >"$control_state_error"
     exit 41
 fi
-mkdir -p "$control_target"
+if ! activate_preserved_control_runtime "$control_target"; then
+    printf 'Não foi possível reativar com segurança o estado runtime preservado do Control Center.\n' >"$control_state_error"
+    exit 41
+fi
 mkdir -p "$control_target/knowledge-package"
 install -m 0644 "$control_package/catalog.json" "$control_target/catalog.json.tmp"
 install -m 0644 "$control_package/release.json" "$control_target/release.json.tmp"
@@ -491,6 +562,10 @@ fi
 
 if ! write_control_environment "/root/SetupLowCodeMno/.control" "$PLANO"; then
     printf 'Não foi possível publicar o plano e o tipo de instalação para o Control Center.\n' >"$control_state_error"
+    exit 41
+fi
+if ! refresh_control_center_runtime_agent; then
+    printf 'O plano foi atualizado, mas o agente existente do Control Center não pôde renovar a leitura do estado runtime.\n' >"$control_state_error"
     exit 41
 fi
 

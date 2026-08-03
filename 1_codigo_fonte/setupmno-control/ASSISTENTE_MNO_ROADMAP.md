@@ -14,7 +14,7 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.7.0` no canal Beta
+- Setup MNO: `7.7.1` no canal Beta
 - Control Center: `4.15.0`
 - Conhecimento canônico: `3.14.0`
 - Catálogo runtime: 151 entradas
@@ -2279,6 +2279,26 @@ de Swarm com método observar-diagnosticar-agir-validar, mas continua
 consultivo: não recebe shell, socket Docker nem API genérica de escrita. Os
 prompts evoluem para `1.7.0`, o roteador para `1.4.0`, o contrato de resposta
 para `1.6.0` e a suíte Evals para `1.9.0`, com 843 casos.
+
+## Correção v7.7.1 — Transição de planos com runtime contínuo
+
+**Status:** implementado
+**Impacto:** alto
+**Tipo:** confiabilidade, licenciamento e UX/UI
+**Esforço:** moderado
+
+A reinstalação autenticada preserva o diretório runtime já montado pelo agente
+do Control Center enquanto substitui o restante de `SetupLowCodeMno`. O mesmo
+inode volta ao caminho canônico antes da promoção atômica do novo catálogo,
+manifesto e estado de ambiente, evitando que o container permaneça ligado ao
+diretório removido.
+
+Depois da publicação, um agente existente recebe uma renovação direcionada do
+serviço para recuperar também instalações afetadas por versões anteriores. O
+fluxo cobre explicitamente `free`, `free1` e `free2` migrando para `pro`; o
+arquivo `environment.json` passa a declarar `plan: pro` e a Visão Geral deixa
+de permanecer em “verificando”. Em caso de falha anterior à promoção, o estado
+preservado é restaurado sem apagar o runtime válido.
 
 ## Referências oficiais
 
