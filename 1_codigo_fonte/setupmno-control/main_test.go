@@ -659,8 +659,9 @@ func TestAssistantPreservesCanonicalKnowledgeWithoutRuntimeContext(t *testing.T)
 		}
 		serialized, _ := json.Marshal(payload)
 		body := string(serialized)
+		instructions, _ := payload["instructions"].(string)
 		if !strings.Contains(body, expectedSetupID) ||
-			!strings.Contains(body, `"operationalContextAvailable":false`) ||
+			!strings.Contains(instructions, `"operationalContextAvailable":false`) ||
 			!strings.Contains(body, "DADOS_CANONICOS_RAG") {
 			t.Errorf("conhecimento canônico não foi preservado para %s: %s", expectedSetupID, body)
 		}
@@ -691,6 +692,7 @@ func TestAssistantPreservesCanonicalKnowledgeWithoutRuntimeContext(t *testing.T)
 			expectedSetupID = testCase.setupID
 			requestBody, _ := json.Marshal(assistantRequest{Question: testCase.question})
 			request := httptest.NewRequest(http.MethodPost, "/chat", strings.NewReader(string(requestBody)))
+			request.Header.Set("Content-Type", "application/json")
 			response := httptest.NewRecorder()
 			service.handleChat(response, request)
 			if response.Code != http.StatusOK ||

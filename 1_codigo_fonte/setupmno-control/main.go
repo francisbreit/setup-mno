@@ -2441,7 +2441,7 @@ func validateReleaseKnowledge(release setupRelease) error {
 		maturityTotal := release.QualityStructuralEntries +
 			release.QualitySourceReviewedEntries + release.QualityScriptReviewedEntries +
 			release.QualityOperationalEntries + release.QualityHomologatedEntries
-		if release.QualitySchemaVersion != 1 || hashErr != nil || len(qualityHash) != sha256.Size ||
+		if (release.QualitySchemaVersion != 1 && release.QualitySchemaVersion != 2) || hashErr != nil || len(qualityHash) != sha256.Size ||
 			release.QualitySetupEntries < 1 || release.QualitySetupEntries > release.KnowledgeEntries ||
 			maturityTotal != release.QualitySetupEntries || release.QualityUnresolvedIssues < 0 {
 			return errors.New("metadados de qualidade inconsistentes")

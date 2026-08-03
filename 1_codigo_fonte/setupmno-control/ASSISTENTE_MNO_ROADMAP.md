@@ -14,8 +14,8 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.5.3` no canal Beta
-- Control Center: `4.13.3`
+- Setup MNO: `7.5.4` no canal Beta
+- Control Center: `4.13.4`
 - Conhecimento canônico: `3.12.0`
 - Catálogo runtime: 151 entradas
 - Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
@@ -2181,6 +2181,24 @@ limite de saída de explicações diretas. Se as métricas do servidor estiverem
 indisponíveis, o estado permanece silencioso em perguntas conceituais, porque
 isso não impede a consulta ao conhecimento canônico. Perguntas que dependem do
 servidor continuam declarando a limitação sem inventar capacidade.
+
+## Ajuste v7.5.4 — Contenção horizontal do Control Center
+
+**Status:** implementado
+**Impacto:** alto
+**Tipo:** UX/UI e confiabilidade
+**Esforço:** rápido
+
+O shell autenticado passa a limitar explicitamente a largura da página, do
+workspace, do cabeçalho e de cada view. No desktop, a área útil usa exatamente
+a largura da janela menos a sidebar; abaixo de 900 px, volta a ocupar 100% do
+viewport sem margem residual. Elementos flex e grid recebem `min-width: 0` para
+que conteúdo interno não amplie o documento nem desloque a navegação para fora
+da tela.
+
+O fallback `overflow-x: hidden` é mantido para navegadores antigos e
+`overflow-x: clip` impede rolagem horizontal nos navegadores atuais. Um gate de
+frontend verifica as regras de contenção para evitar regressão em novas telas.
 
 ## Referências oficiais
 
