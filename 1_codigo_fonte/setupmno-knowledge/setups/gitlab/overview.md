@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "GitLab no Setup MNO",
   "setupId": "gitlab",
-  "setupVersion": "7.4.0",
+  "setupVersion": "7.4.1",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

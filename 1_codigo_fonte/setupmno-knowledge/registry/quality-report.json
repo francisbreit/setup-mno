@@ -1721,7 +1721,7 @@
   "generatedAt": "2026-08-02T00:00:00Z",
   "knowledgeVersion": "3.11.0",
   "schemaVersion": 1,
-  "setupVersion": "7.4.0",
+  "setupVersion": "7.4.1",
   "summary": {
     "editorialStatuses": {
       "deprecated": 0,

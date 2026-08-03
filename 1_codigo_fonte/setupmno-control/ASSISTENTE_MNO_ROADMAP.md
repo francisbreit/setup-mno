@@ -14,8 +14,8 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.4.0` no canal Beta
-- Control Center: `4.12.0`
+- Setup MNO: `7.4.1` no canal Beta
+- Control Center: `4.12.1`
 - Conhecimento canônico: `3.11.0`
 - Catálogo runtime: 151 entradas
 - Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
@@ -2066,6 +2066,21 @@ promoção futura deverá reduzir ou manter a quantidade de pendências e nunca
 reduzir a contagem já alcançada nos níveis superiores. RAG semântico e
 fine-tuning continuam condicionados a evidência mensurável, como definido na
 Etapa 8 original.
+
+### Correção de roteamento v7.4.1
+
+A homologação da Etapa 8.1A revelou que a frase natural “Quantos setups estão
+documentados e quantos estão homologados?” não era interceptada pelo inventário
+local porque o classificador exigia a expressão contígua “setups documentados”.
+O conector enviava a pergunta à LLM, que recebia documentos RAG, mas não o
+resumo agregado do manifesto de governança.
+
+A correção separa assunto, estado de governança e intenção de contagem. Assim,
+variações com “estão documentados”, “estão homologados”, maturidade, revisão ou
+evidência operacional são respondidas antes de OpenAI, OpenRouter, DeepSeek ou
+Ollama. Testes negativos preservam perguntas operacionais como “Como homologar
+meu setup?” no fluxo normal. A resposta continua derivada exclusivamente do
+manifesto assinado, sem custo de LLM e sem inferência por uma fatia do RAG.
 
 ## Referências oficiais
 

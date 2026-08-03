@@ -434,17 +434,27 @@ func isKnowledgeStatusQuestion(question string) bool {
 	if normalized == "" {
 		return false
 	}
-	mentionsKnowledge := anyPhraseContained(normalized, []string{
+	mentionsExplicitKnowledge := anyPhraseContained(normalized, []string{
 		"base de conhecimento", "conhecimento canonico", "conhecimento documentado",
 		"aplicacoes documentadas", "aplicacao documentada", "setups documentados",
 		"setup documentado", "ferramentas documentadas", "ferramenta documentada",
 		"documentacao canonica", "cobertura da base",
 	})
+	mentionsCatalogSubject := anyPhraseContained(normalized, []string{
+		"setup", "setups", "aplicacao", "aplicacoes", "ferramenta", "ferramentas",
+		"catalogo", "documentacao",
+	})
+	mentionsGovernanceState := anyPhraseContained(normalized, []string{
+		"documentado", "documentados", "documentada", "documentadas",
+		"homologado", "homologados", "homologada", "homologadas",
+		"maturidade", "revisao operacional", "evidencia operacional",
+	})
 	requestsStatus := anyPhraseContained(normalized, []string{
 		"quantas", "quantos", "quanto", "total", "cobertura", "faltam", "pendentes",
-		"estado", "status", "versao",
+		"estado", "status", "versao", "quais",
 	})
-	return mentionsKnowledge && requestsStatus
+	return requestsStatus && (mentionsExplicitKnowledge ||
+		(mentionsCatalogSubject && mentionsGovernanceState))
 }
 
 func reflectRouteValues(current []string, expected []string) bool {

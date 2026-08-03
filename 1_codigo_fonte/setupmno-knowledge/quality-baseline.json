@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "baselineRelease": "v7.4.0",
+  "baselineRelease": "v7.4.1",
   "minimumSetupEntries": 151,
   "minimumOfficialSourceEntries": 131,
   "minimumSourceReviewedEntries": 0,

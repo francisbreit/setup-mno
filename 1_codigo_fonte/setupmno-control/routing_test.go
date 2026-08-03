@@ -26,6 +26,7 @@ func TestAssistantRouterSelectsSpecialistsDeterministically(t *testing.T) {
 		{"explicit api integration", "Como conectar o WAHA ao n8n via API?", retrievalQueryResolution{SetupIDs: []string{"waha-api", "n8n-main"}, Contextualized: true}, "integration_design", "integration_architect"},
 		{"infrastructure", "Analise a saúde do meu servidor Docker", retrievalQueryResolution{}, "infrastructure_diagnosis", "infrastructure_diagnostician"},
 		{"knowledge", "Quantas aplicações você possui documentadas em sua base de conhecimento?", retrievalQueryResolution{}, "knowledge_status", "setup_specialist"},
+		{"knowledge natural wording", "Quantos setups estão documentados e quantos estão homologados?", retrievalQueryResolution{}, "knowledge_status", "setup_specialist"},
 		{"scope", "Qual é a capital do Brasil?", retrievalQueryResolution{}, "scope_redirect", "scope_guard"},
 	}
 	for _, test := range tests {
@@ -42,6 +43,33 @@ func TestAssistantRouterSelectsSpecialistsDeterministically(t *testing.T) {
 				t.Fatalf("contrato produzido é inválido: %v", err)
 			}
 		})
+	}
+}
+
+func TestKnowledgeStatusQuestionRecognizesGovernanceWithoutFalsePositives(t *testing.T) {
+	positive := []string{
+		"Quantos setups estão documentados e quantos estão homologados?",
+		"Quais aplicações estão homologadas?",
+		"Qual o total de ferramentas documentadas?",
+		"Qual é o status de maturidade do catálogo?",
+		"Quantos setups possuem evidência operacional?",
+	}
+	for _, question := range positive {
+		if !isKnowledgeStatusQuestion(question) {
+			t.Fatalf("consulta de inventário não reconhecida: %q", question)
+		}
+	}
+
+	negative := []string{
+		"Como homologar meu setup?",
+		"Quero instalar um setup homologado.",
+		"Como documentar uma aplicação nova?",
+		"Qual versão do n8n devo instalar?",
+	}
+	for _, question := range negative {
+		if isKnowledgeStatusQuestion(question) {
+			t.Fatalf("consulta operacional confundida com inventário: %q", question)
+		}
 	}
 }
 
