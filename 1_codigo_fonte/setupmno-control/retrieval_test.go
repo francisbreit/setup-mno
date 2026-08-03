@@ -198,6 +198,30 @@ func TestShadowRetrievalResolvesInfrastructureSynonym(t *testing.T) {
 	}
 }
 
+func TestRetrievalFindsEcosystemOntologyAndSolutionPatterns(t *testing.T) {
+	retriever, state := testKnowledgeRetriever(t)
+	tests := []struct {
+		question   string
+		documentID string
+	}{
+		{"Qual a diferença entre aplicações, setups, Blueprints e microssistemas?", "infra-ecosystem-architecture"},
+		{"Sugira ferramentas para montar um microsistema de automação de negócios", "infra-solution-patterns-architecture"},
+	}
+	for _, test := range tests {
+		result := retriever.retrieve(test.question, state.Manifest.SetupVersion, "amd64")
+		found := false
+		for _, evidence := range result.Evidence {
+			if evidence.DocumentID == test.documentID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("documento mestre não recuperado para %q: %#v", test.question, result.Evidence)
+		}
+	}
+}
+
 func TestShadowRetrievalKeepsArchitectureLanesSeparated(t *testing.T) {
 	retriever, state := testKnowledgeRetriever(t)
 	result := retriever.retrieve(

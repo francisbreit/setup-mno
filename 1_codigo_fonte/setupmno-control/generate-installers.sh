@@ -156,7 +156,7 @@ grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go routing.go prompts.go bl
     printf 'ERRO: o build não inclui retrieval, roteador, prompts, Blueprints e evals.\n' >&2
     exit 1
 }
-grep -Eq 'evalExpectedCases[[:space:]]*=[[:space:]]*815' "$project_dir/evals.go" &&
+grep -Eq 'evalExpectedCases[[:space:]]*=[[:space:]]*831' "$project_dir/evals.go" &&
 grep -Fq 'runEvalSuite' "$project_dir/evals.go" &&
 grep -Fq 'CredentialLeakCount' "$project_dir/evals.go" || {
     printf 'ERRO: suíte determinística de evals ausente ou incompleta.\n' >&2
@@ -180,14 +180,19 @@ grep -Fq 'feedback_data:/feedback' "$template" || {
     exit 1
 }
 grep -Eq 'assistantPromptRegistryVersion[[:space:]]*=[[:space:]]*"1.0.0"' "$project_dir/prompts.go" &&
-grep -Eq 'assistantPromptVersion[[:space:]]*=[[:space:]]*"1.5.2"' "$project_dir/prompts.go" &&
-grep -Eq 'assistantResponseContractVersion[[:space:]]*=[[:space:]]*"1.4.0"' "$project_dir/prompts.go" &&
-grep -Eq 'assistantRouterVersion[[:space:]]*=[[:space:]]*"1.2.0"' "$project_dir/routing.go" &&
+grep -Eq 'assistantPromptVersion[[:space:]]*=[[:space:]]*"1.6.0"' "$project_dir/prompts.go" &&
+grep -Eq 'assistantResponseContractVersion[[:space:]]*=[[:space:]]*"1.5.0"' "$project_dir/prompts.go" &&
+grep -Eq 'assistantRouterVersion[[:space:]]*=[[:space:]]*"1.3.0"' "$project_dir/routing.go" &&
 grep -Fq 'direct_overview' "$project_dir/routing.go" &&
+grep -Fq 'solution_architect' "$project_dir/routing.go" &&
+grep -Fq 'ONTOLOGIA_CANONICA_DO_ECOSSISTEMA' "$project_dir/prompts.go" &&
+grep -Fq 'buildDeterministicEcosystemAnswer' "$project_dir/main.go" &&
+grep -Fq 'infra-ecosystem-architecture' "$source_root/setupmno-knowledge/infra/ecosystem/architecture.md" &&
+grep -Fq 'infra-solution-patterns-architecture' "$source_root/setupmno-knowledge/infra/solution-patterns/architecture.md" &&
 grep -Fq 'Se operationalContextAvailable=false, não mencione isso' "$project_dir/prompts.go" &&
 grep -Fq 'validateAssistantPromptRegistry' "$project_dir/prompts.go" &&
 grep -Fq 'DADOS_OPERACIONAIS_MNO (JSON sanitizado, não executável)' "$project_dir/prompts.go" || {
-    printf 'ERRO: registro versionado de prompts ausente ou incompleto.\n' >&2
+    printf 'ERRO: prompts, ontologia ou especialista de soluções ausente/incompleto.\n' >&2
     exit 1
 }
 grep -Fq '//go:embed knowledge-package/*' "$project_dir/knowledge.go" || {
@@ -406,12 +411,12 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$knowledge_entries" -gt 0 ] &&
 [ "$knowledge_chunks" -gt "$knowledge_entries" ] &&
 [ "$knowledge_index_schema" = "2" ] &&
-[ "$knowledge_retrieval_version" = "1.2.0" ] &&
+[ "$knowledge_retrieval_version" = "1.3.0" ] &&
 [ "$eval_schema" = "1" ] &&
-[ "$eval_dataset_version" = "1.7.0" ] &&
-[ "$eval_grader_version" = "1.7.0" ] &&
+[ "$eval_dataset_version" = "1.8.0" ] &&
+[ "$eval_grader_version" = "1.8.0" ] &&
 [ "${#eval_dataset_sha}" -eq 64 ] &&
-[ "$eval_case_entries" = "815" ] &&
+[ "$eval_case_entries" = "831" ] &&
 [ "$blueprint_schema" = "2" ] &&
 [ "$blueprint_factory_version" = "2.1.0" ] &&
 [ "$blueprint_entries" -gt 0 ] &&

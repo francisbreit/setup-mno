@@ -9,7 +9,7 @@ func TestAssistantPromptRegistryIsCompleteAndVersioned(t *testing.T) {
 	if err := validateAssistantPromptRegistry(); err != nil {
 		t.Fatalf("registro de prompts inválido: %v", err)
 	}
-	if len(assistantPromptDefinitions) != 8 {
+	if len(assistantPromptDefinitions) != 9 {
 		t.Fatalf("quantidade inesperada de especialistas: %d", len(assistantPromptDefinitions))
 	}
 	for _, definition := range assistantPromptDefinitions {
@@ -55,6 +55,8 @@ func TestAssistantTrustedPrefixIsDeterministicAndExcludesDynamicContext(t *testi
 		"CONTRATO_ADAPTATIVO_DA_RESPOSTA", "resposta em camadas",
 		"exemplo positivo", "exemplo negativo proibido", "exemplo de recusa segura",
 		"fixture fictícia de Blueprint", "simulation=true",
+		"ONTOLOGIA_CANONICA_DO_ECOSSISTEMA", "canonicalSetupEntries",
+		"blueprintEntries", "applicationInventoryStatus=not-normalized",
 	} {
 		if !strings.Contains(first, expected) {
 			t.Fatalf("bloco obrigatório ausente do prefixo: %s", expected)
@@ -108,7 +110,8 @@ func TestAssistantRoutePinsPromptRegistryAndDigest(t *testing.T) {
 	for _, question := range []string{
 		"Revise o hardening", "O serviço está falhando", "Tenho RAM suficiente?",
 		"Recomende um Blueprint", "Como integrar por API?", "Explique este setup",
-		"Analise o servidor", "Qual é a capital do Brasil?",
+		"Sugira ferramentas para montar um microsistema", "Analise o servidor",
+		"Qual é a capital do Brasil?",
 	} {
 		route := routeAssistant(question, retrievalQueryResolution{}, "amd64")
 		if route.PromptRegistryVersion != assistantPromptRegistryVersion ||
@@ -118,6 +121,26 @@ func TestAssistantRoutePinsPromptRegistryAndDigest(t *testing.T) {
 		}
 		if err := validateAssistantRoute(route); err != nil {
 			t.Fatalf("rota inválida para %q: %v", question, err)
+		}
+	}
+}
+
+func TestSolutionArchitectPromptStartsFromPainAndDoesNotInventIntegrations(t *testing.T) {
+	route := routeAssistant(
+		"Quais ferramentas usar para montar um microsistema de atendimento?",
+		retrievalQueryResolution{},
+		"amd64",
+	)
+	prompt, err := assistantTrustedPrefix(route)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		"Transformar uma dor ou objetivo", "decompor a dor em capacidades",
+		"Aplicações e setups candidatos", "Sugestão arquitetural não equivale a integração homologada",
+	} {
+		if !strings.Contains(prompt, expected) {
+			t.Fatalf("contrato do Mestre de Deploys incompleto: %q", expected)
 		}
 	}
 }

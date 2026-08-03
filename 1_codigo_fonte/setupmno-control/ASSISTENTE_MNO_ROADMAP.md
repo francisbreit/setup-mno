@@ -14,9 +14,9 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.5.5` no canal Beta
-- Control Center: `4.13.5`
-- Conhecimento canônico: `3.12.0`
+- Setup MNO: `7.6.0` no canal Beta
+- Control Center: `4.14.0`
+- Conhecimento canônico: `3.13.0`
 - Catálogo runtime: 151 entradas
 - Cobertura canônica dedicada: 151 de 151 entradas (`100%`)
 - Blueprints: cinco guias Beta editáveis, consultáveis e baixáveis; ainda não homologados
@@ -2222,6 +2222,41 @@ A interface diferencia três estados: contexto completo, métricas ativas com
 contexto parcial e métricas indisponíveis. Testes de regressão comprovam que
 uma falha HTTP 503 no catálogo não remove CPU, RAM disponível, disco, serviços
 ou aplicações já recuperadas.
+
+## Evolução v7.6.0 — Mestre de Deploys e Microssistemas
+
+**Status:** implementado
+**Impacto:** crítico
+**Tipo:** produto, conhecimento, IA e confiabilidade
+**Esforço:** estrutural
+
+O Assistente passa a usar uma ontologia canônica que separa aplicações,
+setups, Blueprints e microssistemas. Contagens são tipadas e transmitidas
+separadamente: 151 representa setups instaláveis; cinco representa Blueprints;
+aplicações únicas permanecem sem contagem até existir um registro normalizado
+de produtos, variantes e componentes de combos.
+
+Perguntas de inventário recebem resposta determinística local e não dependem da
+disciplina do modelo externo. O sistema impede regressões como “151
+Blueprints” e explica a origem de cada número. O contexto também identifica os
+setups por tipo de apresentação, sem tratar essa classificação como total de
+produtos únicos.
+
+Um novo especialista, **Mestre de Deploys e Soluções**, transforma dores em
+capacidades, aplicações candidatas, setups instaláveis e Blueprint aplicável.
+Quando não existe Blueprint, a combinação é rotulada como arquitetura sugerida
+e não como integração homologada.
+
+A base canônica recebe dois documentos revisados: ontologia e inventários do
+ecossistema; padrões de deploy e microssistemas orientados a objetivos. Eles
+incluem método de descoberta, arquitetura incremental e padrões iniciais para
+automação, atendimento, marketing, ferramentas internas, RAG, observabilidade,
+projetos, documentação, CRM e servidores pequenos.
+
+O retrieval evolui para `1.3.0`, os prompts para `1.6.0`, o roteador para
+`1.3.0` e a suíte Evals para `1.8.0`, com 831 casos. Os novos gates verificam
+semântica, contagens, roteamento por objetivo e recuperação dos documentos
+mestres.
 
 ## Referências oficiais
 

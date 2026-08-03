@@ -91,9 +91,9 @@ func TestReadRuntimeSnapshotAcceptsGeneratedKnowledgeManifest(t *testing.T) {
 		snapshot.Release.BlueprintFixtureEntries != 0 ||
 		len(snapshot.Release.BlueprintIndexSHA256) != 64 ||
 		snapshot.Release.EvalSchemaVersion != 1 ||
-		snapshot.Release.EvalDatasetVersion != "1.7.0" ||
-		snapshot.Release.EvalGraderVersion != "1.7.0" ||
-		snapshot.Release.EvalCaseEntries != 815 ||
+		snapshot.Release.EvalDatasetVersion != "1.8.0" ||
+		snapshot.Release.EvalGraderVersion != "1.8.0" ||
+		snapshot.Release.EvalCaseEntries != 831 ||
 		len(snapshot.Release.EvalDatasetSHA256) != 64 {
 		t.Fatalf("metadados do conhecimento ausentes: %#v", snapshot.Release)
 	}
@@ -510,7 +510,7 @@ func TestKnowledgeStatusMarkdownUsesManifestInsteadOfRetrievalSlice(t *testing.T
 	}
 	state := knowledgePackageState{Manifest: knowledgeManifest{
 		SetupVersion: "7.2.8", KnowledgeVersion: "3.10.0",
-		EvalDatasetVersion: "1.7.0", EvalCaseEntries: 815,
+		EvalDatasetVersion: "1.8.0", EvalCaseEntries: 831,
 		DocumentEntries: 165, SetupEntries: 151, InfrastructureEntries: 9,
 		BlueprintKnowledgeEntries: 5,
 		DocumentTypeEntries:       map[string]int{"setup": 151, "infrastructure": 9, "blueprint": 5},
@@ -675,7 +675,7 @@ func TestCollectContextPreservesMetricsWhenRuntimeCatalogIsUnavailable(t *testin
 		agentToken:  "token-teste",
 		agentClient: server.Client(),
 		knowledge: knowledgePackageState{Manifest: knowledgeManifest{
-			SetupVersion: "7.5.5",
+			SetupVersion: "7.6.0",
 		}},
 	}
 	contextData, err := service.collectContext(context.Background(), "Qual o uso de RAM?", "")
@@ -688,7 +688,7 @@ func TestCollectContextPreservesMetricsWhenRuntimeCatalogIsUnavailable(t *testin
 		contextData.Services != 12 || contextData.DegradedServices != 1 {
 		t.Fatalf("métricas parciais não foram preservadas: %#v", contextData)
 	}
-	if contextData.SetupVersion != "7.5.5" || contextData.CatalogSource != "unavailable" ||
+	if contextData.SetupVersion != "7.6.0" || contextData.CatalogSource != "unavailable" ||
 		!contextData.CatalogStale || !strings.Contains(contextData.OperationalContextWarning, "catálogo runtime") {
 		t.Fatalf("contingência canônica incorreta: %#v", contextData)
 	}
@@ -697,6 +697,65 @@ func TestCollectContextPreservesMetricsWhenRuntimeCatalogIsUnavailable(t *testin
 	}
 	if assistantCatalogContextAvailable(contextData) {
 		t.Fatal("catálogo indisponível foi tratado como evidência runtime validada")
+	}
+}
+
+func TestEcosystemInventoryNeverCountsSetupsAsBlueprintsOrApplications(t *testing.T) {
+	contextData := assistantContext{
+		CanonicalSetupEntries:       151,
+		BlueprintEntries:            5,
+		BlueprintBetaEntries:        5,
+		BlueprintHomologatedEntries: 0,
+		ApplicationInventoryStatus:  "not-normalized",
+		SetupTypeEntries: map[string]int{
+			"Individual": 110, "Combo": 11, "Utilitário": 15, "Banco de Dados": 15,
+		},
+	}
+	blueprints, ok := buildDeterministicEcosystemAnswer(
+		"Quantos blueprints tem no Setup MNO?", contextData,
+	)
+	if !ok || !strings.Contains(blueprints, "**5 Blueprints**") ||
+		!strings.Contains(blueprints, "**151 setups**") ||
+		strings.Contains(blueprints, "possui atualmente **151 Blueprints**") {
+		t.Fatalf("inventário de Blueprints incorreto: %s", blueprints)
+	}
+	applications, ok := buildDeterministicEcosystemAnswer(
+		"Quantas aplicações existem no catálogo?", contextData,
+	)
+	if !ok || !strings.Contains(applications, "não publica uma contagem canônica") ||
+		!strings.Contains(applications, "**151 setups instaláveis**") ||
+		strings.Contains(applications, "151 aplicações") {
+		t.Fatalf("inventário de aplicações inventou total: %s", applications)
+	}
+	taxonomy, ok := buildDeterministicEcosystemAnswer(
+		"Qual a diferença entre aplicação, setup e Blueprint?", contextData,
+	)
+	for _, expected := range []string{"Aplicação ou ferramenta", "Setup:", "Blueprint:", "Microssistema:"} {
+		if !ok || !strings.Contains(taxonomy, expected) {
+			t.Fatalf("ontologia incompleta %q: %s", expected, taxonomy)
+		}
+	}
+}
+
+func TestAssistantContextCarriesTypedCanonicalInventories(t *testing.T) {
+	service := assistantService{knowledge: knowledgePackageState{
+		Manifest: knowledgeManifest{
+			DocumentEntries: 167, SetupEntries: 151, InfrastructureEntries: 11,
+			BlueprintEntries: 5,
+		},
+		Blueprints: blueprintIndex{Statuses: map[string]int{"reviewed": 5, "homologated": 0}},
+	}}
+	contextData := service.attachKnowledgeInventory(assistantContext{}, []json.RawMessage{
+		json.RawMessage(`{"type":"Individual"}`),
+		json.RawMessage(`{"type":"Individual"}`),
+		json.RawMessage(`{"type":"Combo"}`),
+	})
+	if contextData.KnowledgeDocumentEntries != 167 || contextData.CanonicalSetupEntries != 151 ||
+		contextData.InfrastructureEntries != 11 || contextData.BlueprintEntries != 5 ||
+		contextData.BlueprintBetaEntries != 5 || contextData.BlueprintHomologatedEntries != 0 ||
+		contextData.SetupTypeEntries["Individual"] != 2 || contextData.SetupTypeEntries["Combo"] != 1 ||
+		contextData.ApplicationInventoryStatus != "not-normalized" {
+		t.Fatalf("inventários tipados incompletos: %#v", contextData)
 	}
 }
 
@@ -803,7 +862,7 @@ func TestStreamProviderUsesResponsesAPIAndForwardsDeltas(t *testing.T) {
 		}
 		instructions, _ := payload["instructions"].(string)
 		if !strings.Contains(instructions, `"catalogEntries":151`) ||
-			!strings.Contains(instructions, "Nunca use o tamanho de relevantSetups como total") {
+			!strings.Contains(instructions, "relevantSetups é apenas um recorte") {
 			t.Errorf("instruções não distinguem total e recorte: %s", instructions)
 		}
 		if !strings.Contains(instructions, "Seu escopo principal e exclusivo é o ecossistema Setup MNO") ||
@@ -960,9 +1019,9 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 	}
 	if state.Source != "image-read-only" ||
 		state.Stale ||
-		state.Manifest.DocumentEntries != 165 ||
+		state.Manifest.DocumentEntries != 167 ||
 		state.Manifest.SetupEntries != 151 ||
-		state.Manifest.InfrastructureEntries != 9 ||
+		state.Manifest.InfrastructureEntries != 11 ||
 		state.Manifest.BlueprintFactoryVersion != "2.1.0" ||
 		state.Manifest.BlueprintSchemaVersion != 2 ||
 		state.Manifest.BlueprintEntries != 5 ||
@@ -970,11 +1029,11 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 		state.Manifest.BlueprintKnowledgeEntries != 5 ||
 		state.Manifest.BlueprintFixtureEntries != 0 ||
 		state.Manifest.IndexSchemaVersion != 2 ||
-		state.Manifest.RetrievalVersion != "1.2.0" ||
+		state.Manifest.RetrievalVersion != "1.3.0" ||
 		state.Manifest.EvalSchemaVersion != 1 ||
-		state.Manifest.EvalDatasetVersion != "1.7.0" ||
-		state.Manifest.EvalGraderVersion != "1.7.0" ||
-		state.Manifest.EvalCaseEntries != 815 ||
+		state.Manifest.EvalDatasetVersion != "1.8.0" ||
+		state.Manifest.EvalGraderVersion != "1.8.0" ||
+		state.Manifest.EvalCaseEntries != 831 ||
 		len(state.Manifest.EvalDatasetSHA256) != 64 ||
 		state.Manifest.ChunkEntries <= state.Manifest.DocumentEntries {
 		t.Fatalf("estado inesperado do conhecimento: %#v", state)

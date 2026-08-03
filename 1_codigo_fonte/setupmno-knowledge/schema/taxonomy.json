@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "knowledgeVersion": "3.12.0",
+  "knowledgeVersion": "3.13.0",
   "documentTypes": [
     "infrastructure",
     "setup",
@@ -63,7 +63,9 @@
     "backup",
     "security",
     "vps",
-    "wsl2"
+    "wsl2",
+    "ecosystem",
+    "solution-patterns"
   ],
   "normalRetrievalStatuses": [
     "reviewed",
@@ -80,6 +82,8 @@
     "security": ["seguranca", "hardening"],
     "traefik": ["proxy traefik", "proxy reverso"],
     "vps": ["servidor virtual", "servidor vps"],
-    "wsl2": ["wsl", "windows subsystem linux"]
+    "wsl2": ["wsl", "windows subsystem linux"],
+    "ecosystem": ["ecossistema setup mno", "aplicacoes setups blueprints", "ferramentas setups blueprints", "inventario canonico"],
+    "solution-patterns": ["padroes de solucao", "combinacao de ferramentas", "microssistemas", "mestre de deploys"]
   }
 }

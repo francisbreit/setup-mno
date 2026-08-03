@@ -152,7 +152,7 @@ python3 tools/lint_knowledge.py \
   --catalog ../setupmno-control/catalog.json \
   resolve \
   --setup-id n8n-main \
-  --setup-version 7.5.5 \
+  --setup-version 7.6.0 \
   --architecture amd64
 ```
 
@@ -170,7 +170,7 @@ python3 -B tools/knowledge_quality.py --enforce-baseline
 
 ## Dataset e evals
 
-`evals/dataset.json` é um artefato canônico revisado, com 815 casos e schema
+`evals/dataset.json` é um artefato canônico revisado, com 831 casos e schema
 estrito em `schema/eval-dataset.schema.json`. Ele contém perguntas e respostas
 de referência, portanto entra somente no pacote interno de conhecimento e
 nunca é devolvido pela API do painel. A interface recebe apenas métricas
@@ -181,7 +181,7 @@ Para gerar e validar o dataset de forma reproduzível:
 ```bash
 python3 -B tools/eval_factory.py \
   --root . \
-  --setup-version 7.5.5
+  --setup-version 7.6.0
 python3 -B tools/test_knowledge.py
 ```
 
@@ -194,7 +194,7 @@ Validação isolada da fábrica de Blueprints:
 
 ```bash
 python3 -B tools/blueprint_factory.py \
-  --setup-version 7.5.5
+  --setup-version 7.6.0
 ```
 
 Cada Blueprint reside em `blueprints/<blueprintId>/`, com `blueprint.json`
@@ -215,8 +215,8 @@ Geração reproduzível do pacote:
 
 ```bash
 python3 -B tools/generate_package.py \
-  --setup-version 7.5.5 \
-  --control-version 4.12.0
+  --setup-version 7.6.0 \
+  --control-version 4.14.0
 ```
 
 O gerador executa o linter antes do build, inclui somente documentos
@@ -229,6 +229,18 @@ compactado usa ordem, permissões, proprietário e timestamps determinísticos.
 Aliases de setups pertencem a `registry/setups.json`. Sinônimos de
 infraestrutura e arquitetura pertencem a `schema/taxonomy.json`; o linter
 bloqueia valores vazios, duplicados, ambíguos ou com alvo desconhecido.
+
+## Ontologia e orientação por objetivos
+
+`infra/ecosystem/architecture.md` define aplicações, setups, Blueprints e
+microssistemas, inclusive a autoridade de cada contagem. O Assistente nunca
+deve usar o total de setups como total de aplicações únicas ou Blueprints.
+
+`infra/solution-patterns/architecture.md` registra o método do Mestre de
+Deploys: partir da dor, decompor capacidades, selecionar aplicações, mapear
+setups, procurar Blueprint e planejar validação e rollback. Os padrões de
+composição são sugestões arquiteturais até que suas integrações possuam
+evidência específica de homologação.
 
 ## Estrutura
 

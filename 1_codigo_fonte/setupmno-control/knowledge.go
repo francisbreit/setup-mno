@@ -25,7 +25,7 @@ import (
 const (
 	knowledgeSchema          = 1
 	knowledgeIndexSchema     = 2
-	knowledgeRetrieval       = "1.2.0"
+	knowledgeRetrieval       = "1.3.0"
 	knowledgeQualitySchema   = 2
 	blueprintSchema          = 2
 	maxBlueprintEntries      = 64

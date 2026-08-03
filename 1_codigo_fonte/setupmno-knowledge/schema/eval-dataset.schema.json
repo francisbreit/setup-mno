@@ -23,11 +23,11 @@
       }
     },
     "updatedAt": {"type": "string", "format": "date"},
-    "caseCount": {"const": 815},
+    "caseCount": {"const": 831},
     "cases": {
       "type": "array",
-      "minItems": 815,
-      "maxItems": 815,
+      "minItems": 831,
+      "maxItems": 831,
       "items": {"$ref": "#/$defs/case"}
     }
   },

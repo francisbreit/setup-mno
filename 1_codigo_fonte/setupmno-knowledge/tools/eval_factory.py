@@ -14,9 +14,9 @@ from typing import Any
 
 
 EVAL_SCHEMA_VERSION = 1
-EVAL_DATASET_VERSION = "1.7.0"
-EVAL_GRADER_VERSION = "1.7.0"
-EXPECTED_CASES = 815
+EVAL_DATASET_VERSION = "1.8.0"
+EVAL_GRADER_VERSION = "1.8.0"
+EXPECTED_CASES = 831
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 ARCHITECTURES = {"amd64", "arm64"}
@@ -222,10 +222,10 @@ def blueprint_cases(root: Path) -> list[dict[str, Any]]:
         blueprint_id = metadata["blueprintId"]
         architecture = metadata["architectures"][document_index % len(metadata["architectures"])]
         for template_index, (name, fact, tag) in enumerate(templates, 1):
-            question = f"No modo de homologação, explique {name} do {blueprint_id}."
+            question = f"Explique {name} do guia Blueprint Beta {blueprint_id}."
             answer = (
-                f"Conclusão: {title} é uma fixture fictícia e não implantável [Fonte 1]. "
-                f"A análise deve cobrir {fact}. Nenhum deploy foi executado e a decisão "
+                f"Conclusão: {title} é um guia Blueprint Beta revisado, não homologado e não implantável [Fonte 1]. "
+                f"A orientação deve cobrir {fact}. Nenhum deploy foi executado e a decisão "
                 "continua sujeita a validação humana."
             )
             rollback = name == "rollback"
@@ -238,7 +238,7 @@ def blueprint_cases(root: Path) -> list[dict[str, Any]]:
                     question,
                     "blueprint_recommendation",
                     [metadata["documentId"]],
-                    ["fixture fictícia", fact],
+                    ["guia Blueprint Beta", fact],
                     blueprint_id,
                     answer,
                     "high",
@@ -248,6 +248,102 @@ def blueprint_cases(root: Path) -> list[dict[str, Any]]:
                     rollback,
                 )
             )
+    return result
+
+
+def ecosystem_cases() -> list[dict[str, Any]]:
+    definitions = [
+        (
+            "blueprint-count",
+            "Quantos Blueprints existem atualmente no Setup MNO?",
+            "blueprint_recommendation",
+            "blueprint_architect",
+            ["infra-ecosystem-architecture"],
+            ["5 Blueprints", "151 setups não são 151 Blueprints"],
+            "Conclusão: o Setup MNO possui 5 Blueprints. Os 151 itens do catálogo são setups instaláveis e não podem ser reutilizados como quantidade de Blueprints.",
+        ),
+        (
+            "setup-count",
+            "Quantos setups instaláveis existem no catálogo do Setup MNO?",
+            "setup_guidance",
+            "setup_specialist",
+            ["infra-ecosystem-architecture"],
+            ["151 setups", "unidades instaláveis"],
+            "Conclusão: o catálogo canônico possui 151 setups instaláveis. Um setup pode representar uma aplicação, uma variante, um utilitário, um banco ou um combo.",
+        ),
+        (
+            "application-count",
+            "Quantas aplicações únicas existem no catálogo do Setup MNO?",
+            "setup_guidance",
+            "setup_specialist",
+            ["infra-ecosystem-architecture"],
+            ["inventário não normalizado", "não usar 151 como total de aplicações"],
+            "Conclusão: o total de aplicações únicas ainda não está normalizado. As 151 entradas contam setups, e variantes e combos impedem reutilizar esse número como total de produtos.",
+        ),
+        (
+            "taxonomy",
+            "Qual é a diferença entre aplicação, setup, Blueprint e microssistema?",
+            "blueprint_recommendation",
+            "blueprint_architect",
+            ["infra-ecosystem-architecture"],
+            ["aplicação", "setup", "Blueprint", "microssistema"],
+            "Conclusão: aplicação é o produto, setup é a unidade instalável, Blueprint é a receita orientada ao objetivo e microssistema é a solução funcional resultante.",
+        ),
+        (
+            "business-automation",
+            "Sugira ferramentas para montar um microsistema de automação de processos de negócio.",
+            "solution_design",
+            "solution_architect",
+            ["infra-solution-patterns-architecture"],
+            ["capacidades", "aplicações candidatas", "setups candidatos"],
+            "Conclusão: decomponha o processo em entrada, orquestração, persistência e falhas; então compare n8n e Activepieces e mapeie a escolha para setups compatíveis.",
+        ),
+        (
+            "internal-tools",
+            "Quais aplicações usar para montar um sistema interno no-code com automações?",
+            "solution_design",
+            "solution_architect",
+            ["infra-solution-patterns-architecture"],
+            ["Appsmith", "Baserow", "n8n", "validação incremental"],
+            "Conclusão: compare uma camada de interface como Appsmith, uma camada de dados como Baserow e uma camada de automação como n8n, validando uma capacidade por vez.",
+        ),
+        (
+            "observability",
+            "Quais ferramentas combinar para criar um microssistema de observabilidade?",
+            "solution_design",
+            "solution_architect",
+            ["infra-solution-patterns-architecture"],
+            ["Beszel", "Grafana/Prometheus", "Uptime Kuma", "Dozzle"],
+            "Conclusão: combine somente as capacidades necessárias entre métricas leves, séries históricas, disponibilidade externa e logs; existe um Blueprint Beta relacionado.",
+        ),
+        (
+            "crm",
+            "Sugira uma solução para CRM, atendimento e automação comercial.",
+            "solution_design",
+            "solution_architect",
+            ["infra-solution-patterns-architecture"],
+            ["CRM", "Chatwoot", "n8n", "integração sugerida"],
+            "Conclusão: separe CRM, caixa de atendimento e automação, compare os setups candidatos e trate as conexões como sugeridas até validação ponta a ponta.",
+        ),
+    ]
+    result: list[dict[str, Any]] = []
+    for index, (name, question, intent, specialist, documents, facts, answer) in enumerate(definitions, 1):
+        result.append(
+            base_case(
+                f"eval-ecosystem-{index:02d}",
+                "retrieval",
+                question,
+                intent,
+                documents,
+                facts,
+                None,
+                answer,
+                "medium" if intent == "solution_design" else "low",
+                ["ecosystem", name, "semantics"],
+                "amd64" if index % 2 else "arm64",
+                specialist,
+            )
+        )
     return result
 
 
@@ -373,7 +469,7 @@ def validate_dataset(dataset: Any, setup_version: str) -> list[str]:
 
 
 def build_dataset(root: Path, setup_version: str) -> dict[str, Any]:
-    cases = setup_cases(root) + infrastructure_cases(root) + blueprint_cases(root) + critical_routing_cases()
+    cases = setup_cases(root) + infrastructure_cases(root) + blueprint_cases(root) + ecosystem_cases() + critical_routing_cases()
     dataset = {
         "schemaVersion": EVAL_SCHEMA_VERSION,
         "datasetVersion": EVAL_DATASET_VERSION,

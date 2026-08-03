@@ -20,6 +20,7 @@ func TestAssistantRouterSelectsSpecialistsDeterministically(t *testing.T) {
 		{"capacity", "Posso instalar esta aplicação com 4 GB de RAM?", retrievalQueryResolution{}, "capacity_planning", "capacity_planner"},
 		{"blueprint", "Crie uma recomendação de Blueprint para atendimento", retrievalQueryResolution{}, "blueprint_recommendation", "blueprint_architect"},
 		{"integration", "Como integrar n8n com PostgreSQL por webhook?", retrievalQueryResolution{SetupIDs: []string{"n8n-main"}}, "integration_design", "integration_architect"},
+		{"solution", "Quais ferramentas usar para montar um microsistema de atendimento?", retrievalQueryResolution{}, "solution_design", "solution_architect"},
 		{"setup", "Este setup funciona em ARM?", retrievalQueryResolution{SetupID: "n8n-main", SetupIDs: []string{"n8n-main"}, Contextualized: true}, "setup_guidance", "setup_specialist"},
 		{"canonical api name", "O que é WAHA API no Setup MNO?", retrievalQueryResolution{SetupID: "waha-api", SetupIDs: []string{"waha-api"}, Contextualized: true}, "setup_guidance", "setup_specialist"},
 		{"integration first setup", "O que é Evolution API v2 no Setup MNO?", retrievalQueryResolution{SetupID: "evolution-api-v2", SetupIDs: []string{"evolution-api-v2"}, Contextualized: true}, "integration_design", "integration_architect"},
@@ -43,6 +44,20 @@ func TestAssistantRouterSelectsSpecialistsDeterministically(t *testing.T) {
 				t.Fatalf("contrato produzido é inválido: %v", err)
 			}
 		})
+	}
+}
+
+func TestSolutionArchitectSeparatesObjectiveApplicationsSetupsAndBlueprints(t *testing.T) {
+	route := routeAssistant(
+		"Sugira ferramentas para montar um sistema interno de vendas",
+		retrievalQueryResolution{},
+		"amd64",
+	)
+	if route.Intent != "solution_design" || route.Specialist != "solution_architect" ||
+		route.ResponseProfile != "guided_architecture" ||
+		!containsString(route.RequiredEvidence, "ecosystem_taxonomy") ||
+		!containsString(route.RequiredEvidence, "solution_patterns") {
+		t.Fatalf("dor do usuário não chegou ao Mestre de Deploys: %#v", route)
 	}
 }
 

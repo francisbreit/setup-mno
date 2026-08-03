@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	assistantRouterVersion = "1.2.0"
+	assistantRouterVersion = "1.3.0"
 )
 
 type assistantRoute struct {
@@ -88,7 +88,7 @@ var routeDefinitions = []routeDefinition{
 		RequiredEvidence: []string{"blueprint", "resources", "dependencies", "security_controls", "rollback"},
 		Signal:           "keyword_blueprint",
 		Terms: []string{
-			"blueprint", "arquitetura completa", "solucao completa", "stack recomendada",
+			"blueprint", "blueprints", "quantos blueprints", "arquitetura completa", "solucao completa", "stack recomendada",
 			"projeto de infraestrutura", "desenhe a solucao", "monte uma arquitetura",
 		},
 	},
@@ -99,6 +99,26 @@ var routeDefinitions = []routeDefinition{
 		Terms: []string{
 			"integrar", "integracao", "conectar", "webhook", "via api", "pela api", "por api", "evolution api", "rabbitmq",
 			"mensageria", "fluxo entre", "comunicar", "sincronizar", "sso", "oauth",
+		},
+	},
+	{
+		Intent: "solution_design", Specialist: "solution_architect", RiskLevel: "medium",
+		RequiredEvidence: []string{"ecosystem_taxonomy", "solution_patterns", "catalog_entry", "setup_documentation", "blueprint", "resources", "dependencies"},
+		Signal:           "keyword_solution_design",
+		Terms: []string{
+			"sugira uma solucao", "sugira aplicacoes", "sugira ferramentas",
+			"quais aplicacoes usar", "quais ferramentas usar", "ferramentas combinar",
+			"combinar ferramentas", "combinacao de ferramentas", "montar um sistema",
+			"montar um microsistema", "criar um microsistema", "resolver minha dor",
+			"arquitetura orientada a objetivo", "ecossistema para meu negocio",
+		},
+	},
+	{
+		Intent: "infrastructure_diagnosis", Specialist: "infrastructure_diagnostician", RiskLevel: "low",
+		RequiredEvidence: []string{"infrastructure_documentation", "risks", "rollback"},
+		Signal:           "keyword_infrastructure",
+		Terms: []string{
+			"rollback devo planejar antes de alterar",
 		},
 	},
 	{
@@ -137,6 +157,7 @@ var routeDomains = []routeDomainDefinition{
 	{Name: "security", Terms: []string{"seguranca", "hardening", "firewall", "secret", "credencial", "permissao", "backup"}},
 	{Name: "integration", Terms: []string{"integracao", "integrar", "via api", "pela api", "por api", "evolution api", "webhook", "fila", "rabbitmq", "oauth"}},
 	{Name: "blueprints", Terms: []string{"blueprint", "solucao completa", "arquitetura completa"}},
+	{Name: "solutions", Terms: []string{"microssistema", "resolver minha dor", "sugira ferramentas", "combinar ferramentas", "montar um sistema"}},
 }
 
 var routeDestructiveTerms = []string{
@@ -161,7 +182,7 @@ var allowedRouteDomains = map[string]bool{
 	"resources": true, "network": true, "data": true, "automation": true,
 	"observability": true, "security": true, "integration": true,
 	"blueprints": true, "out_of_scope": true,
-	"knowledge": true,
+	"knowledge": true, "solutions": true,
 }
 
 var allowedRouteEvidence = map[string]bool{
@@ -170,7 +191,8 @@ var allowedRouteEvidence = map[string]bool{
 	"resources": true, "setup_requirements": true, "architecture": true,
 	"blueprint": true, "dependencies": true, "network": true,
 	"catalog_entry": true, "infrastructure_documentation": true,
-	"knowledge_manifest": true,
+	"knowledge_manifest": true, "ecosystem_taxonomy": true,
+	"solution_patterns": true,
 }
 
 var allowedRouteSignals = map[string]bool{
@@ -178,7 +200,7 @@ var allowedRouteSignals = map[string]bool{
 	"keyword_capacity": true, "keyword_blueprint": true,
 	"keyword_integration": true, "keyword_setup": true,
 	"keyword_infrastructure": true, "domain_infrastructure": true,
-	"keyword_knowledge_status": true,
+	"keyword_knowledge_status": true, "keyword_solution_design": true,
 	"no_domain_signal":         true,
 	"canonical_setup_detected": true, "destructive_action_language": true,
 	"conversation_context_resolved": true, "route_validation_fallback": true,
@@ -279,7 +301,7 @@ func responseProfileForRoute(question string, intent string) string {
 		return "catalog_inventory"
 	case "capacity_planning", "troubleshooting", "infrastructure_diagnosis":
 		return "technical_diagnosis"
-	case "integration_design", "blueprint_recommendation":
+	case "integration_design", "blueprint_recommendation", "solution_design":
 		return "guided_architecture"
 	case "security_review":
 		return "risk_review"
@@ -302,7 +324,7 @@ func selectRouteDefinition(question string, setups []string) (routeDefinition, b
 	}
 	priority := []string{
 		"troubleshooting", "capacity_planning", "blueprint_recommendation",
-		"security_review", "integration_design", "infrastructure_diagnosis",
+		"security_review", "integration_design", "solution_design", "infrastructure_diagnosis",
 		"setup_guidance",
 	}
 	if len(setups) > 0 {
@@ -418,6 +440,7 @@ func validateAssistantRoute(route assistantRoute) error {
 		"capacity_planning":        "capacity_planner",
 		"blueprint_recommendation": "blueprint_architect",
 		"integration_design":       "integration_architect",
+		"solution_design":          "solution_architect",
 		"setup_guidance":           "setup_specialist",
 		"knowledge_status":         "setup_specialist",
 		"infrastructure_diagnosis": "infrastructure_diagnostician",

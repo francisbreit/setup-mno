@@ -8,7 +8,7 @@
   "status": "reviewed",
   "fictitious": false,
   "deployable": false,
-  "setupVersion": "7.5.5",
+  "setupVersion": "7.6.0",
   "updatedAt": "2026-08-02",
   "architectures": ["amd64", "arm64"],
   "risk": "high",

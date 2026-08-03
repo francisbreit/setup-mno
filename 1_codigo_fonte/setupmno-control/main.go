@@ -337,6 +337,14 @@ type assistantApp struct {
 type assistantContext struct {
 	OperationalContextAvailable bool             `json:"operationalContextAvailable"`
 	OperationalContextWarning   string           `json:"operationalContextWarning,omitempty"`
+	KnowledgeDocumentEntries    int              `json:"knowledgeDocumentEntries"`
+	CanonicalSetupEntries       int              `json:"canonicalSetupEntries"`
+	InfrastructureEntries       int              `json:"infrastructureEntries"`
+	BlueprintEntries            int              `json:"blueprintEntries"`
+	BlueprintBetaEntries        int              `json:"blueprintBetaEntries"`
+	BlueprintHomologatedEntries int              `json:"blueprintHomologatedEntries"`
+	SetupTypeEntries            map[string]int   `json:"setupTypeEntries,omitempty"`
+	ApplicationInventoryStatus  string           `json:"applicationInventoryStatus"`
 	SetupVersion                string           `json:"setupVersion"`
 	CatalogVersion              string           `json:"catalogVersion"`
 	CatalogSHA256               string           `json:"catalogSHA256"`
@@ -904,6 +912,7 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 	}
 	route := routeAssistant(input.Question, resolution, contextData.Architecture)
 	resolution.BlueprintRoute = route.Specialist == "blueprint_architect"
+	resolution.SolutionRoute = route.Specialist == "solution_architect"
 	var inspection *retrievalInspection
 	var promptContext *retrievalPromptContext
 	if s.shadowMode && s.retriever != nil {
@@ -1000,6 +1009,13 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	if answer, ok := buildDeterministicEcosystemAnswer(input.Question, contextData); ok {
+		sendSSE(w, "delta", map[string]any{"delta": answer})
+		sendSSE(w, "done", map[string]any{
+			"ok": true, "policy": "ecosystem-inventory",
+		})
+		return
+	}
 	answer, err := s.streamProvider(r.Context(), w, input, contextData, route, promptContext)
 	if err != nil {
 		sendSSE(w, "error", map[string]any{
@@ -1015,6 +1031,88 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 		))
 	}
 	sendSSE(w, "done", map[string]any{"ok": true})
+}
+
+func ecosystemInventoryQuestion(question string) string {
+	normalized := normalizeRetrievalPhrase(question)
+	if normalized == "" {
+		return ""
+	}
+	requestsCount := anyPhraseContained(normalized, []string{
+		"quantos", "quantas", "quanto", "quanta", "total", "numero de", "quantidade de",
+	})
+	if requestsCount && anyPhraseContained(normalized, []string{"blueprint", "blueprints"}) {
+		return "blueprints"
+	}
+	if requestsCount && anyPhraseContained(normalized, []string{"setup", "setups"}) &&
+		!anyPhraseContained(normalized, []string{"documentado", "documentados", "homologado", "homologados", "cobertura"}) {
+		return "setups"
+	}
+	if requestsCount && anyPhraseContained(normalized, []string{"aplicacao", "aplicacoes", "ferramenta", "ferramentas"}) &&
+		!anyPhraseContained(normalized, []string{"documentada", "documentadas", "documentado", "documentados", "homologada", "homologadas"}) {
+		if anyPhraseContained(normalized, []string{"instalada", "instaladas", "instalado", "instalados", "no servidor", "em execucao"}) {
+			return "installed-applications"
+		}
+		return "applications"
+	}
+	if anyPhraseContained(normalized, []string{
+		"diferenca entre aplicacao", "diferenca entre ferramenta", "diferenca entre setup",
+		"aplicacao setup e blueprint", "ferramenta setup e blueprint",
+		"o que e blueprint", "o que sao blueprints", "o que e um blueprint",
+		"o que e setup no setup mno", "o que sao setups no setup mno",
+	}) {
+		return "taxonomy"
+	}
+	return ""
+}
+
+func buildDeterministicEcosystemAnswer(question string, contextData assistantContext) (string, bool) {
+	subject := ecosystemInventoryQuestion(question)
+	if subject == "" {
+		return "", false
+	}
+	var answer strings.Builder
+	answer.WriteString("**Conclusão**\n\n")
+	switch subject {
+	case "blueprints":
+		fmt.Fprintf(&answer, "O Setup MNO possui atualmente **%d Blueprints**: **%d guias Beta** e **%d homologados**. ",
+			contextData.BlueprintEntries, contextData.BlueprintBetaEntries, contextData.BlueprintHomologatedEntries)
+		answer.WriteString("Eles são plantas baixas ou receitas digitais orientadas a um objetivo e não devem ser confundidos com os setups do catálogo.\n\n")
+		answer.WriteString("**Diferença importante**\n\n")
+		fmt.Fprintf(&answer, "Os **%d setups** são entradas instaláveis; não representam %d Blueprints. Um Blueprint pode combinar vários setups, configurações, integrações, validações, materiais e rollback em uma sequência guiada.\n\n",
+			contextData.CanonicalSetupEntries, contextData.CanonicalSetupEntries)
+		answer.WriteString("Você pode abrir a área **Blueprints** para visualizar os guias atuais e o passo a passo de cada um.")
+	case "setups":
+		fmt.Fprintf(&answer, "O catálogo canônico possui **%d setups instaláveis**. Um setup é uma entrada do instalador e pode representar uma aplicação individual, um utilitário, um banco de dados ou um combo com vários componentes.\n\n",
+			contextData.CanonicalSetupEntries)
+		if len(contextData.SetupTypeEntries) > 0 {
+			answer.WriteString("**Tipos registrados no catálogo**\n\n")
+			for _, kind := range []string{"Individual", "Combo", "Utilitário", "Banco de Dados"} {
+				if count := contextData.SetupTypeEntries[kind]; count > 0 {
+					fmt.Fprintf(&answer, "- **%s:** %d\n", kind, count)
+				}
+			}
+			answer.WriteByte('\n')
+		}
+		fmt.Fprintf(&answer, "Blueprints são outro inventário: existem **%d**, e cada um pode orquestrar vários setups para entregar um sistema com finalidade definida.", contextData.BlueprintEntries)
+	case "installed-applications":
+		fmt.Fprintf(&answer, "O estado observado registra **%d aplicações ou stacks instaladas** acessíveis ao agente neste servidor. Esse número descreve o ambiente em execução e não o catálogo de %d setups disponíveis.\n\n",
+			len(contextData.InstalledApps), contextData.CanonicalSetupEntries)
+		answer.WriteString("Uma aplicação instalada pode possuir vários serviços Docker; por isso aplicações, serviços e containers também são contagens diferentes.")
+	case "applications":
+		answer.WriteString("O Setup MNO ainda não publica uma contagem canônica de **aplicações únicas**. O catálogo registra setups, e uma mesma aplicação pode aparecer em variantes ou combos diferentes; somar as entradas produziria um número incorreto.\n\n")
+		fmt.Fprintf(&answer, "O que pode ser afirmado com exatidão hoje é: **%d setups instaláveis** e **%d Blueprints**. A futura normalização do registro de aplicações permitirá contar produtos únicos sem duplicar variantes e componentes de combos.",
+			contextData.CanonicalSetupEntries, contextData.BlueprintEntries)
+	case "taxonomy":
+		answer.WriteString("No Setup MNO, **aplicação**, **setup** e **Blueprint** são conceitos diferentes e complementares.\n\n")
+		answer.WriteString("- **Aplicação ou ferramenta:** produto de software que entrega uma capacidade, como automação, CRM, banco de dados ou observabilidade.\n")
+		answer.WriteString("- **Setup:** unidade instalável do catálogo. Pode instalar uma aplicação, uma variante específica, um utilitário ou um combo de aplicações e dependências.\n")
+		answer.WriteString("- **Blueprint:** planta baixa ou receita digital orientada a um resultado. Combina setups, ordem de instalação, configurações, integrações, validações, materiais e rollback.\n")
+		answer.WriteString("- **Microssistema:** solução funcional resultante da aplicação de um Blueprint ou de uma arquitetura guiada, criada para resolver uma dor concreta.\n\n")
+		fmt.Fprintf(&answer, "O inventário atual contém **%d setups** e **%d Blueprints**. Eles nunca devem ser somados ou tratados como a mesma coisa.",
+			contextData.CanonicalSetupEntries, contextData.BlueprintEntries)
+	}
+	return answer.String(), true
 }
 
 const blueprintSimulationNotice = "⚠️ **Simulação de homologação:** esta análise usa um Blueprint fictício e não implantável para testar o mesmo fluxo RAG da produção. Ela não autoriza deploy."
@@ -1225,18 +1323,42 @@ func (s *assistantService) collectContext(
 		contextData.RelevantSetupCount = len(relevantSetups)
 		contextData.RelevantSetups = relevantSetups
 	}
-	return contextData, nil
+	return s.attachKnowledgeInventory(contextData, catalog.Items), nil
 }
 
 func (s *assistantService) knowledgeOnlyContext() assistantContext {
-	return assistantContext{
+	return s.attachKnowledgeInventory(assistantContext{
 		OperationalContextAvailable: false,
 		OperationalContextWarning:   "Métricas e catálogo runtime temporariamente indisponíveis; a resposta usa somente o pacote canônico de conhecimento.",
 		SetupVersion:                s.knowledge.Manifest.SetupVersion,
 		CatalogSource:               "unavailable",
 		CatalogStale:                true,
 		Architecture:                "unknown",
+	}, nil)
+}
+
+func (s *assistantService) attachKnowledgeInventory(contextData assistantContext, catalogItems []json.RawMessage) assistantContext {
+	contextData.KnowledgeDocumentEntries = s.knowledge.Manifest.DocumentEntries
+	contextData.CanonicalSetupEntries = s.knowledge.Manifest.SetupEntries
+	contextData.InfrastructureEntries = s.knowledge.Manifest.InfrastructureEntries
+	contextData.BlueprintEntries = s.knowledge.Manifest.BlueprintEntries
+	contextData.BlueprintBetaEntries = s.knowledge.Blueprints.Statuses["reviewed"]
+	contextData.BlueprintHomologatedEntries = s.knowledge.Blueprints.Statuses["homologated"]
+	contextData.ApplicationInventoryStatus = "not-normalized"
+	if len(catalogItems) == 0 {
+		return contextData
 	}
+	typeEntries := make(map[string]int)
+	for _, raw := range catalogItems {
+		var item struct {
+			Type string `json:"type"`
+		}
+		if json.Unmarshal(raw, &item) == nil && strings.TrimSpace(item.Type) != "" {
+			typeEntries[strings.TrimSpace(item.Type)]++
+		}
+	}
+	contextData.SetupTypeEntries = typeEntries
+	return contextData
 }
 
 func validateAssistantCatalog(state setupStateResponse, catalog catalogResponse) error {

@@ -10,9 +10,9 @@ import (
 
 const (
 	evalSchemaVersion  = 1
-	evalDatasetVersion = "1.7.0"
-	evalGraderVersion  = "1.7.0"
-	evalExpectedCases  = 815
+	evalDatasetVersion = "1.8.0"
+	evalGraderVersion  = "1.8.0"
+	evalExpectedCases  = 831
 )
 
 type evalReview struct {
@@ -198,6 +198,7 @@ func runEvalSuite(state knowledgePackageState, controlVersion string) (evalRepor
 			resolution.BlueprintRoute = true
 		}
 		route := routeAssistant(item.Question, resolution, item.Architecture)
+		resolution.SolutionRoute = route.Specialist == "solution_architect"
 		if route.Intent == item.IntentionExpected && route.Specialist == item.SpecialistExpected {
 			routePass++
 		}

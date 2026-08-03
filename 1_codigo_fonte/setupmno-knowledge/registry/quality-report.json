@@ -2609,9 +2609,9 @@
     }
   ],
   "generatedAt": "2026-08-02T00:00:00Z",
-  "knowledgeVersion": "3.12.0",
+  "knowledgeVersion": "3.13.0",
   "schemaVersion": 2,
-  "setupVersion": "7.5.5",
+  "setupVersion": "7.6.0",
   "summary": {
     "editorialStatuses": {
       "deprecated": 0,

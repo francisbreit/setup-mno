@@ -7,6 +7,7 @@
     capacity_planner: "Planejador de capacidade",
     blueprint_architect: "Arquiteto de Blueprints",
     integration_architect: "Arquiteto de integrações",
+    solution_architect: "Mestre de deploys e soluções",
     setup_specialist: "Especialista em setups",
     infrastructure_diagnostician: "Diagnóstico de infraestrutura",
     scope_guard: "Guardião de escopo"

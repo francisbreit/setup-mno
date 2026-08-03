@@ -85,6 +85,7 @@ assert.match(app, /event\.type === "route"/);
 assert.match(app, /updateAssistantRoute/);
 assert.match(routeSource, /Revisor de segurança/);
 assert.match(routeSource, /Arquiteto de Blueprints/);
+assert.match(routeSource, /Mestre de deploys e soluções/);
 assert.match(routeSource, /Guardião de escopo/);
 assert.match(app, /route\.promptRegistryVersion/);
 assert.match(app, /route\.promptVersion/);

@@ -201,6 +201,7 @@ type retrievalQueryResolution struct {
 	BlueprintIDs   []string
 	Contextualized bool
 	BlueprintRoute bool
+	SolutionRoute  bool
 }
 
 type groundingAudit struct {
@@ -309,8 +310,12 @@ func (r *knowledgeRetriever) retrieve(
 	setupVersion string,
 	runtimeArchitecture string,
 ) retrievalResult {
+	resolution := r.resolveQuery(question, nil)
+	route := routeAssistant(question, resolution, runtimeArchitecture)
+	resolution.BlueprintRoute = route.Specialist == "blueprint_architect"
+	resolution.SolutionRoute = route.Specialist == "solution_architect"
 	return r.retrieveResolved(
-		r.resolveQuery(question, nil),
+		resolution,
 		setupVersion,
 		runtimeArchitecture,
 	)
@@ -462,6 +467,9 @@ func (r *knowledgeRetriever) retrieveResolved(
 			metrics.FilterType += "+homologation"
 		}
 	}
+	if resolution.SolutionRoute {
+		metrics.FilterType += "+solution"
+	}
 	if len(terms) == 0 || len(architectures) == 0 {
 		metrics.DurationMS = elapsedMilliseconds(started)
 		return retrievalResult{
@@ -485,7 +493,7 @@ func (r *knowledgeRetriever) retrieveResolved(
 	for _, architecture := range architectures {
 		candidates := r.rankLane(
 			terms, resolution.Query, setupVersion, architecture, setupID, exactSetup,
-			resolution.BlueprintRoute, resolution.BlueprintID,
+			resolution.BlueprintRoute, resolution.BlueprintID, resolution.SolutionRoute,
 		)
 		candidateCount += min(len(candidates), r.config.MaxCandidates)
 		added := 0
@@ -644,6 +652,7 @@ func (r *knowledgeRetriever) rankLane(
 	filterSetup bool,
 	blueprintRoute bool,
 	blueprintID string,
+	solutionRoute bool,
 ) []scoredChunk {
 	allowedStatuses := make(map[string]struct{}, len(r.index.NormalRetrievalStatuses))
 	for _, status := range r.index.NormalRetrievalStatuses {
@@ -668,7 +677,7 @@ func (r *knowledgeRetriever) rankLane(
 			}
 		} else if chunk.BlueprintID != nil || chunk.Fictitious || chunk.Deployable {
 			continue
-		} else if blueprintID != "" {
+		} else if blueprintRoute && blueprintID != "" {
 			continue
 		}
 		if filterSetup && (chunk.SetupID == nil || *chunk.SetupID != setupID) {
@@ -698,6 +707,14 @@ func (r *knowledgeRetriever) rankLane(
 		exactAlias := anyPhraseContained(question, chunk.Aliases)
 		if exactAlias {
 			score += retrievalFieldWeights["aliases"]
+		}
+		if solutionRoute {
+			switch chunk.DocumentID {
+			case "infra-solution-patterns-architecture":
+				score += 100
+			case "infra-ecosystem-architecture":
+				score += 50
+			}
 		}
 		if score <= 0 {
 			continue

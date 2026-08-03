@@ -130,7 +130,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
         self.assertEqual(dataset["caseCount"], EXPECTED_CASES)
         self.assertEqual(
             sum(case["evaluationType"] == "retrieval" for case in dataset["cases"]),
-            811,
+            827,
         )
         self.assertTrue(
             all("password" not in json.dumps(case).lower() for case in dataset["cases"])
@@ -140,7 +140,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
         result = run_linter()
         self.assertEqual(result.returncode, 0, result.stderr)
         report = json.loads(result.stdout)
-        self.assertEqual(report["documents"], 165)
+        self.assertEqual(report["documents"], 167)
         self.assertEqual(report["setups"], 151)
         self.assertEqual(report["types"]["blueprint"], 5)
 
@@ -285,7 +285,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
                     self.assertEqual(index["chunkCount"], len(index["chunks"]))
                     self.assertGreater(index["chunkCount"], 29)
                     self.assertEqual(legacy_index["schemaVersion"], 1)
-                    self.assertEqual(len(legacy_index["entries"]), 165)
+                    self.assertEqual(len(legacy_index["entries"]), 167)
                     blueprint_index = json.load(
                         package.extractfile("blueprints/index.json")
                     )
@@ -340,9 +340,9 @@ class KnowledgeFactoryTests(unittest.TestCase):
                         )
             self.assertEqual(archives[0], archives[1])
             self.assertEqual(manifests[0], manifests[1])
-            self.assertEqual(manifests[0]["documentEntries"], 165)
+            self.assertEqual(manifests[0]["documentEntries"], 167)
             self.assertEqual(manifests[0]["setupEntries"], 151)
-            self.assertEqual(manifests[0]["infrastructureEntries"], 9)
+            self.assertEqual(manifests[0]["infrastructureEntries"], 11)
             self.assertEqual(manifests[0]["blueprintFactoryVersion"], "2.1.0")
             self.assertEqual(manifests[0]["blueprintSchemaVersion"], 2)
             self.assertEqual(manifests[0]["blueprintEntries"], 5)
