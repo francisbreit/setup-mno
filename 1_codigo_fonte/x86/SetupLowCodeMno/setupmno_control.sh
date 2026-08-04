@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.15.2"
+CONTROL_VERSION="4.15.3"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -798,6 +798,9 @@ services:
       - "1"
       - /usr/local/bin/setupmno-terminal-menu
     environment:
+      - LANG=C.UTF-8
+      - LC_ALL=C.UTF-8
+      - TERM=xterm-256color
       - ADMIN_PASSWORD_FILE=/run/secrets/admin_password
       - SETUPMNO_CONTROL_PREFIX=$nome_app
       - SETUPMNO_CONTROL_IMAGE=$control_image

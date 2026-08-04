@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "File Browser no Setup MNO",
   "setupId": "filebrowser",
-  "setupVersion": "7.7.13",
+  "setupVersion": "7.7.14",
   "architectures": [
     "amd64",
     "arm64"

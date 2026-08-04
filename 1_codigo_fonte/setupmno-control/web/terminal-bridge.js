@@ -121,6 +121,31 @@
     return true;
   }
 
+  function terminalHasFocus(target) {
+    const activeElement = document.activeElement;
+    return Boolean(
+      target?.closest?.("#terminal-container") ||
+      activeElement?.closest?.("#terminal-container") ||
+      activeElement?.classList?.contains("xterm-helper-textarea")
+    );
+  }
+
+  function enableDesktopPaste() {
+    document.addEventListener("paste", event => {
+      // A barra touch continua restrita às intenções fixas. No desktop, a
+      // colagem é equivalente à digitação do usuário no terminal autenticado.
+      if (touchLayout() || !terminalHasFocus(event.target)) return;
+      const pastedText = event.clipboardData?.getData("text/plain");
+      if (!pastedText || pastedText.length > 16384) return;
+      const activeTerminal = terminal();
+      if (!activeTerminal) return;
+      event.preventDefault();
+      activeTerminal.focus();
+      activeTerminal.input(pastedText.replace(/\r\n/g, "\n").replace(/\r/g, "\n"), true);
+      scheduleFit();
+    });
+  }
+
   function updateStatus(ready, label = "") {
     const status = document.getElementById("setupmno-terminal-touch-status");
     if (!status) return;
@@ -290,6 +315,7 @@
 
   mountStyles();
   mountTouchbar();
+  enableDesktopPaste();
   scheduleFit();
 
   let attempts = 0;

@@ -361,8 +361,14 @@ grep -Fq 'window.visualViewport?.addEventListener("resize", scheduleFit' "$proje
 grep -Fq 'new ResizeObserver(scheduleFit)' "$project_dir/web/terminal-bridge.js" &&
 grep -Fq 'observer.observe(terminalContainer)' "$project_dir/web/terminal-bridge.js" &&
 grep -Fq 'overflow-x: hidden !important' "$project_dir/web/terminal-bridge.js" &&
-grep -Fq 'background: "#000000"' "$project_dir/web/terminal-bridge.js" || {
-    printf 'ERRO: ponte móvel do terminal sem reflow ou tema preto de alto contraste.\n' >&2
+grep -Fq 'background: "#000000"' "$project_dir/web/terminal-bridge.js" &&
+grep -Fq 'function enableDesktopPaste()' "$project_dir/web/terminal-bridge.js" &&
+grep -Fq 'event.clipboardData?.getData("text/plain")' "$project_dir/web/terminal-bridge.js" &&
+grep -Fq 'pastedText.length > 16384' "$project_dir/web/terminal-bridge.js" &&
+grep -Fq 'if (touchLayout() || !terminalHasFocus(event.target)) return;' "$project_dir/web/terminal-bridge.js" &&
+grep -Fq 'LANG=C.UTF-8' "$project_dir/terminal.Dockerfile" &&
+grep -Fq 'LC_ALL=C.UTF-8' "$template" || {
+    printf 'ERRO: terminal sem locale UTF-8 ou colagem desktop segura.\n' >&2
     exit 1
 }
 grep -Fq 'target: admin_password' "$template" || {
