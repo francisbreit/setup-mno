@@ -353,7 +353,7 @@ cat > $nome_app.yaml << EOL
 version: "3.7"
 services:
   $nome_app:
-    image: devlikeapro/waha:gows
+    image: devlikeapro/waha:gows-arm
     command: node ./dist/main.js
     hostname: $nome_app
     networks:
