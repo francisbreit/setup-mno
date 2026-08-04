@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.7.12"
+VERSIONSETUP="7.7.13"
 EXPECTED_EVAL_DATASET_VERSION="1.9.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
 EXPECTED_EVAL_CASE_ENTRIES="843"
@@ -58,7 +58,7 @@ write_trial_state() {
 }
 
 write_control_environment() {
-    local control_dir="$1" plan="$2" installation_type="TRADICIONAL"
+    local control_dir="$1" plan="$2" installation_type
     local public_plan temporary_file installation_type_file
 
     valid_setup_plan "$plan" || return 1
@@ -67,13 +67,18 @@ write_control_environment() {
         *) public_plan="pro" ;;
     esac
 
+    # Uma reinstalação preserva este estado legado. Ele é a fonte de verdade
+    # para o painel enquanto o dockerswarm ainda não receber uma nova escolha.
     installation_type_file="/root/.cloudflared_config/installation_type"
-    if [ -f "$installation_type_file" ] && [ ! -L "$installation_type_file" ]; then
+    if [ -e "$installation_type_file" ] || [ -L "$installation_type_file" ]; then
+        [ -f "$installation_type_file" ] && [ ! -L "$installation_type_file" ] || return 1
         installation_type=$(head -n 1 "$installation_type_file" | tr -d '\r\n')
+    else
+        installation_type="TRADICIONAL"
     fi
     case "$installation_type" in
         CLOUDFLARE_TUNNEL|TRADICIONAL) ;;
-        *) installation_type="TRADICIONAL" ;;
+        *) return 1 ;;
     esac
 
     mkdir -p "$control_dir" || return 1
