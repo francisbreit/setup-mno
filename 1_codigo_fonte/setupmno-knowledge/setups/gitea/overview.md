@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Gitea no Setup MNO",
   "setupId": "gitea",
-  "setupVersion": "7.7.14",
+  "setupVersion": "7.7.15",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

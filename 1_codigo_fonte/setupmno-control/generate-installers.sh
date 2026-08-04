@@ -363,6 +363,8 @@ grep -Fq 'observer.observe(terminalContainer)' "$project_dir/web/terminal-bridge
 grep -Fq 'overflow-x: hidden !important' "$project_dir/web/terminal-bridge.js" &&
 grep -Fq 'background: "#000000"' "$project_dir/web/terminal-bridge.js" &&
 grep -Fq 'function enableDesktopPaste()' "$project_dir/web/terminal-bridge.js" &&
+grep -Fq 'function mountDesktopPasteHint()' "$project_dir/web/terminal-bridge.js" &&
+grep -Fq 'Para colar no terminal: Ctrl+Shift+V' "$project_dir/web/terminal-bridge.js" &&
 grep -Fq 'event.clipboardData?.getData("text/plain")' "$project_dir/web/terminal-bridge.js" &&
 grep -Fq 'pastedText.length > 16384' "$project_dir/web/terminal-bridge.js" &&
 grep -Fq 'if (touchLayout() || !terminalHasFocus(event.target)) return;' "$project_dir/web/terminal-bridge.js" &&

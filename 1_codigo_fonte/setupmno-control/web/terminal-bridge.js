@@ -190,6 +190,22 @@
         touch-action: pan-y;
         background: #000 !important;
       }
+      #setupmno-terminal-desktop-paste-hint {
+        position: fixed;
+        z-index: 2147483646;
+        right: 14px;
+        bottom: 12px;
+        max-width: calc(100vw - 28px);
+        padding: 7px 10px;
+        border: 1px solid rgba(255,255,255,.18);
+        border-radius: 8px;
+        color: #dce3ed;
+        background: rgba(16,20,27,.88);
+        box-shadow: 0 4px 18px rgba(0,0,0,.35);
+        font: 700 12px system-ui, sans-serif;
+        letter-spacing: .01em;
+        pointer-events: none;
+      }
       body.setupmno-touch-terminal {
         --setupmno-touchbar-height: calc(54px + env(safe-area-inset-top));
       }
@@ -313,8 +329,17 @@
     document.body.classList.add("setupmno-touch-terminal");
   }
 
+  function mountDesktopPasteHint() {
+    if (touchLayout()) return;
+    const hint = document.createElement("div");
+    hint.id = "setupmno-terminal-desktop-paste-hint";
+    hint.textContent = "Para colar no terminal: Ctrl+Shift+V";
+    document.body.append(hint);
+  }
+
   mountStyles();
   mountTouchbar();
+  mountDesktopPasteHint();
   enableDesktopPaste();
   scheduleFit();
 
