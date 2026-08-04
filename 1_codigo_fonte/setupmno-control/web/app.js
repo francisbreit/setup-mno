@@ -216,6 +216,7 @@ function setAuthenticated(session) {
   $("settings-username").textContent = state.user;
   $("control-version").textContent = `v${state.controlVersion}`;
   $("setup-version").textContent = "verificando";
+  applyTerminalAccessState();
   renderAssistantMode();
   $("login-view").classList.add("hidden");
   $("app-view").classList.remove("hidden");
@@ -522,6 +523,7 @@ function applyReleaseMetadata(data) {
       ? "Cloudflare Tunnel"
       : "Tradicional (Traefik)";
   }
+  applyTerminalAccessState();
   if (data.plan) {
     state.setupPlan = data.plan;
     state.llmAllowed = data.llmAllowed === true;
@@ -533,6 +535,21 @@ function applyReleaseMetadata(data) {
     }
   }
   setCatalogSyncStatus(Boolean(data.stale), data.warning, data);
+}
+
+function terminalAccessAllowed() {
+  return state.setupState?.installationType === "CLOUDFLARE_TUNNEL";
+}
+
+function applyTerminalAccessState() {
+  const allowed = terminalAccessAllowed();
+  const note = "Recurso disponível apenas quando é usado Cloudflare Tunnel.";
+  document.querySelectorAll('[data-action="terminal"], [data-action="settings"], [data-action="gateway"]').forEach(button => {
+    button.disabled = !allowed;
+    button.classList.toggle("terminal-locked", !allowed);
+    button.title = allowed ? "" : note;
+  });
+  $("terminal-access-notice").hidden = allowed;
 }
 
 function setCatalogSyncStatus(stale, warning = "", data = {}) {
@@ -656,6 +673,7 @@ function renderCatalog() {
       <div class="catalog-facts"><span><b>RAM</b> ${escapeHTML(item.ramLabel || "N/I")}</span><span><b>Arquitetura</b> ${item.arch === "x86-arm" ? "X86 + ARM" : "X86"}</span></div>
       <button class="light-button" data-action="terminal">Abrir no instalador <b>→</b></button>
     </article>`).join("") : `<div class="empty-state">Nenhum setup corresponde aos filtros selecionados.</div>`;
+  applyTerminalAccessState();
 }
 
 function renderBlueprintSyncStatus() {
@@ -886,6 +904,7 @@ function openBlueprint(blueprintId) {
       <div><span><small>Autor</small><strong>${escapeHTML(item.author)}</strong></span><span><small>Risco</small><strong>${escapeHTML(blueprintRiskLabel(item.risk))}</strong></span><span><small>Gates editoriais</small><strong>${escapeHTML(editorial.passedGates ?? 0)} de ${escapeHTML(editorial.totalGates ?? 0)}</strong></span><span><small>SHA-256 do ZIP</small><code>${escapeHTML(item.bundleSHA256)}</code></span></div>
       <ul>${gates.map(gate => `<li>${gate.passed ? "✓" : "○"} ${escapeHTML(gate.title)}</li>`).join("")}</ul>
     </details>`;
+  applyTerminalAccessState();
   dialog.showModal();
 }
 
@@ -1793,6 +1812,10 @@ function navigate(view) {
 function openTerminal(intent = "installer") {
   intent = typeof intent === "string" ? intent : "installer";
   if (!["installer", "settings", "gateway"].includes(intent)) intent = "gateway";
+  if (!terminalAccessAllowed()) {
+    showAlert("🔒 Recurso disponível apenas quando é usado Cloudflare Tunnel.");
+    return;
+  }
   pendingTerminalIntent = intent;
   const dialog = $("terminal-reauth-dialog");
   $("terminal-reauth-error").textContent = "";

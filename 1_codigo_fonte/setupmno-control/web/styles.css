@@ -452,6 +452,7 @@ nav { width: 100%; min-width: 0; display: grid; gap: 5px; }
 .terminal-lights { display: flex; gap: 5px; }.terminal-lights i { width: 8px; height: 8px; border-radius: 50%; background: #ff5e70; }.terminal-lights i:nth-child(2) { background: var(--yellow); }.terminal-lights i:nth-child(3) { background: var(--green); }
 .terminal-warning { min-height: 39px; display: flex; align-items: center; gap: 8px; box-sizing: border-box; padding: 9px 18px; color: #f5c451; background: #0d100d; font-size: 9px; line-height: 1.45; }
 .terminal-dialog iframe { display: block; width: 100%; min-width: 0; height: 100%; min-height: 0; border: 0; color-scheme: dark; background: #000; }
+.terminal-access-notice { margin: 12px 0 0; color: #f5c451; font-size: 9px; font-weight: 800; }.terminal-locked { position: relative; cursor: not-allowed !important; opacity: .58; }.terminal-locked::after { content: "🔒"; margin-left: 8px; font-size: 11px; }.terminal-locked:disabled { pointer-events: auto; }
 .terminal-reauth-dialog { width: min(460px,calc(100% - 30px)); padding: 0; border: 1px solid var(--line-strong); border-radius: 17px; color: var(--text); background: #0d1117; box-shadow: 0 30px 100px rgba(0,0,0,.72); }
 .terminal-reauth-dialog::backdrop { background: rgba(0,0,0,.76); backdrop-filter: blur(7px); }
 .terminal-reauth-dialog form { padding: 22px; }.terminal-reauth-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }.terminal-reauth-head h2 { margin: 3px 0 0; font-size: 20px; }

@@ -1903,6 +1903,11 @@ func (a *webApp) handleLogin(w http.ResponseWriter, r *http.Request) {
 // Terminal Seguro. The password is checked locally against the same Docker
 // Secret used at login and is never passed to the terminal service.
 func (a *webApp) handleTerminalReauth(w http.ResponseWriter, r *http.Request) {
+	if !a.terminalAccessAllowed(r.Context()) {
+		a.addAudit("terminal_blocked_installation_type", "Terminal Seguro bloqueado: requer Cloudflare Tunnel", clientAddress(r))
+		writeError(w, http.StatusForbidden, "recurso disponível apenas quando é usado Cloudflare Tunnel")
+		return
+	}
 	address := clientAddress(r)
 	if wait := a.loginBlocked(address); wait > 0 {
 		w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
@@ -2600,12 +2605,24 @@ func (a *webApp) terminalProxy() http.Handler {
 			writeError(w, http.StatusBadRequest, "intenção do Terminal Seguro inválida")
 			return
 		}
+		if !a.terminalAccessAllowed(r.Context()) {
+			writeError(w, http.StatusForbidden, "recurso disponível apenas quando é usado Cloudflare Tunnel")
+			return
+		}
 		if !a.terminalAuthorized(r) {
 			writeError(w, http.StatusForbidden, "confirme a senha administrativa antes de abrir o Terminal Seguro")
 			return
 		}
 		proxy.ServeHTTP(w, r)
 	})
+}
+
+func (a *webApp) terminalAccessAllowed(ctx context.Context) bool {
+	var state setupStateResponse
+	if err := a.agentRequest(ctx, "/setup-state", &state); err != nil {
+		return false
+	}
+	return state.InstallationType == "CLOUDFLARE_TUNNEL"
 }
 
 func (a *webApp) terminalAuthorized(r *http.Request) bool {

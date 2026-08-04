@@ -349,12 +349,15 @@ grep -Fq 'terminalIntentAllowed' "$project_dir/main.go" &&
 grep -Fq 'POST /api/terminal/reauth' "$project_dir/main.go" &&
 grep -Fq 'handleTerminalReauth' "$project_dir/main.go" &&
 grep -Fq 'TerminalUntil' "$project_dir/main.go" &&
+grep -Fq 'terminalAccessAllowed' "$project_dir/main.go" &&
 grep -Fq '"installer", "settings", "gateway"' "$project_dir/main.go" || {
     printf 'ERRO: proxy web não valida as intenções fixas do Terminal Seguro.\n' >&2
     exit 1
 }
 grep -Fq 'arg: intent' "$project_dir/web/app.js" &&
 grep -Fq 'function confirmTerminalAccess' "$project_dir/web/app.js" &&
+grep -Fq 'function applyTerminalAccessState' "$project_dir/web/app.js" &&
+grep -Fq 'Recurso disponível apenas quando é usado Cloudflare Tunnel.' "$project_dir/web/app.js" &&
 grep -Fq '"/api/terminal/reauth"' "$project_dir/web/app.js" &&
 grep -Fq 'id="terminal-reauth-dialog"' "$project_dir/web/index.html" &&
 grep -Fq 'rendererType: "dom"' "$project_dir/web/app.js" &&
