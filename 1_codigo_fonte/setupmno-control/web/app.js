@@ -30,6 +30,7 @@ const state = {
 const $ = id => document.getElementById(id);
 const fmt = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
 let terminalLoadSequence = 0;
+let pendingTerminalIntent = "";
 const titles = {
   dashboard: ["Infraestrutura em tempo real", "Visão geral"],
   installed: ["Inventário do Docker Swarm", "Aplicações instaladas"],
@@ -85,6 +86,13 @@ function bindEvents() {
   $("terminal-dialog").addEventListener("cancel", event => {
     event.preventDefault();
     closeTerminal();
+  });
+  $("terminal-reauth-form").addEventListener("submit", confirmTerminalAccess);
+  $("terminal-reauth-close").addEventListener("click", closeTerminalReauth);
+  $("terminal-reauth-cancel").addEventListener("click", closeTerminalReauth);
+  $("terminal-reauth-dialog").addEventListener("cancel", event => {
+    event.preventDefault();
+    closeTerminalReauth();
   });
   window.addEventListener("resize", syncTerminalDialogViewport, { passive: true });
   window.addEventListener("orientationchange", syncTerminalDialogViewport, { passive: true });
@@ -1785,6 +1793,51 @@ function navigate(view) {
 function openTerminal(intent = "installer") {
   intent = typeof intent === "string" ? intent : "installer";
   if (!["installer", "settings", "gateway"].includes(intent)) intent = "gateway";
+  pendingTerminalIntent = intent;
+  const dialog = $("terminal-reauth-dialog");
+  $("terminal-reauth-error").textContent = "";
+  $("terminal-reauth-password").value = "";
+  if (!dialog.open) dialog.showModal();
+  window.requestAnimationFrame(() => $("terminal-reauth-password").focus());
+}
+
+async function confirmTerminalAccess(event) {
+  event.preventDefault();
+  const passwordInput = $("terminal-reauth-password");
+  const submit = $("terminal-reauth-submit");
+  const password = passwordInput.value;
+  if (!password) {
+    $("terminal-reauth-error").textContent = "Informe sua senha administrativa.";
+    passwordInput.focus();
+    return;
+  }
+  submit.disabled = true;
+  $("terminal-reauth-error").textContent = "";
+  try {
+    await api("/api/terminal/reauth", { method: "POST", body: JSON.stringify({ password }) });
+    passwordInput.value = "";
+    const intent = pendingTerminalIntent || "installer";
+    pendingTerminalIntent = "";
+    $("terminal-reauth-dialog").close();
+    openAuthorizedTerminal(intent);
+  } catch (error) {
+    passwordInput.value = "";
+    $("terminal-reauth-error").textContent = error.message;
+    passwordInput.focus();
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+function closeTerminalReauth() {
+  pendingTerminalIntent = "";
+  $("terminal-reauth-password").value = "";
+  $("terminal-reauth-error").textContent = "";
+  const dialog = $("terminal-reauth-dialog");
+  if (dialog.open) dialog.close();
+}
+
+function openAuthorizedTerminal(intent) {
   const dialog = $("terminal-dialog");
   const mobile = window.matchMedia("(max-width: 650px), (pointer: coarse)").matches;
   const presentation = {
@@ -1875,7 +1928,7 @@ async function api(endpoint, options = {}) {
   if (options.body) headers["Content-Type"] = "application/json";
   if (state.csrf && options.method && options.method !== "GET") headers["X-CSRF-Token"] = state.csrf;
   const response = await fetch(endpoint, { credentials: "same-origin", ...options, headers });
-  if (response.status === 401 && endpoint !== "/api/login") {
+  if (response.status === 401 && endpoint !== "/api/login" && endpoint !== "/api/terminal/reauth") {
     state.csrf = "";
     showLogin();
   }

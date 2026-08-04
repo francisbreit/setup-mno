@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Memgraph no Setup MNO",
   "setupId": "memgraph",
-  "setupVersion": "7.7.16",
+  "setupVersion": "7.7.17",
   "architectures": [
     "amd64",
     "arm64"

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#070a0f">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=4.15.5">
+  <link rel="stylesheet" href="/styles.css?v=4.15.6">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -426,6 +426,24 @@
     <iframe id="terminal-frame" title="Terminal seguro do Setup MNO" sandbox="allow-scripts allow-forms allow-same-origin"></iframe>
   </dialog>
 
+  <dialog id="terminal-reauth-dialog" class="terminal-reauth-dialog" aria-labelledby="terminal-reauth-title">
+    <form id="terminal-reauth-form" method="dialog">
+      <div class="terminal-reauth-head">
+        <div><p class="eyebrow">Confirmação obrigatória</p><h2 id="terminal-reauth-title">Confirmar acesso ao Terminal Seguro</h2></div>
+        <button id="terminal-reauth-close" class="icon-button" type="button" aria-label="Cancelar confirmação">×</button>
+      </div>
+      <p>Digite novamente sua senha administrativa para abrir o instalador. Ela é validada no servidor e não é registrada.</p>
+      <label>Senha administrativa
+        <input id="terminal-reauth-password" type="password" autocomplete="current-password" maxlength="4096" required>
+      </label>
+      <p id="terminal-reauth-error" class="terminal-reauth-error" role="alert"></p>
+      <div class="terminal-reauth-actions">
+        <button id="terminal-reauth-cancel" class="ghost-button" type="button">Cancelar</button>
+        <button id="terminal-reauth-submit" class="primary-button" type="submit"><span>Confirmar e abrir</span> <b>→</b></button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="feedback-dialog" class="feedback-dialog" aria-labelledby="feedback-dialog-title">
     <form id="feedback-form" method="dialog">
       <div class="feedback-dialog-head">
@@ -455,8 +473,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=4.15.5" defer></script>
-  <script src="/assistant-route.js?v=4.15.5" defer></script>
-  <script src="/app.js?v=4.15.5" defer></script>
+  <script src="/markdown.js?v=4.15.6" defer></script>
+  <script src="/assistant-route.js?v=4.15.6" defer></script>
+  <script src="/app.js?v=4.15.6" defer></script>
 </body>
 </html>

@@ -46,10 +46,11 @@ const (
 var embeddedFiles embed.FS
 
 type session struct {
-	User     string
-	CSRF     string
-	Expires  time.Time
-	LastSeen time.Time
+	User          string
+	CSRF          string
+	Expires       time.Time
+	LastSeen      time.Time
+	TerminalUntil time.Time
 }
 
 type auditEvent struct {
@@ -539,6 +540,7 @@ func runWeb() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", app.handleHealth)
 	mux.HandleFunc("POST /api/login", app.handleLogin)
+	mux.Handle("POST /api/terminal/reauth", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleTerminalReauth))))
 	mux.Handle("GET /api/session", app.requireAuth(http.HandlerFunc(app.handleSession)))
 	mux.Handle("POST /api/logout", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleLogout))))
 	mux.Handle("GET /api/overview", app.requireAuth(http.HandlerFunc(app.handleOverview)))
@@ -1897,6 +1899,59 @@ func (a *webApp) handleLogin(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleTerminalReauth creates a short-lived authorization only for the
+// Terminal Seguro. The password is checked locally against the same Docker
+// Secret used at login and is never passed to the terminal service.
+func (a *webApp) handleTerminalReauth(w http.ResponseWriter, r *http.Request) {
+	address := clientAddress(r)
+	if wait := a.loginBlocked(address); wait > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
+		writeError(w, http.StatusTooManyRequests, "muitas tentativas; aguarde antes de tentar novamente")
+		return
+	}
+
+	var input struct {
+		Password string `json:"password"`
+	}
+	if err := decodeJSON(w, r, &input, 4096); err != nil {
+		return
+	}
+	candidate := pbkdf2SHA256([]byte(input.Password), a.passwordSalt, 310000, 32)
+	input.Password = ""
+	passOK := subtle.ConstantTimeCompare(candidate, a.passwordHash) == 1
+	zero(candidate)
+	if !passOK {
+		a.recordLoginFailure(address)
+		a.addAudit("terminal_reauth_failed", "Confirmação do Terminal Seguro recusada", address)
+		time.Sleep(350 * time.Millisecond)
+		writeError(w, http.StatusUnauthorized, "senha administrativa inválida")
+		return
+	}
+
+	cookie, err := r.Cookie(sessionCookie)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "sessão expirada")
+		return
+	}
+	now := time.Now()
+	a.sessionMu.Lock()
+	s, ok := a.sessions[cookie.Value]
+	if ok {
+		s.TerminalUntil = now.Add(2 * time.Minute)
+	}
+	a.sessionMu.Unlock()
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "sessão expirada")
+		return
+	}
+	a.clearLoginFailures(address)
+	a.addAudit("terminal_reauth_success", "Terminal Seguro autorizado por 2 minutos", address)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"authorized": true,
+		"expiresAt":  now.Add(2 * time.Minute).UTC(),
+	})
+}
+
 func (a *webApp) handleSession(w http.ResponseWriter, r *http.Request) {
 	s := sessionFromContext(r.Context())
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -2545,8 +2600,31 @@ func (a *webApp) terminalProxy() http.Handler {
 			writeError(w, http.StatusBadRequest, "intenção do Terminal Seguro inválida")
 			return
 		}
+		if !a.terminalAuthorized(r) {
+			writeError(w, http.StatusForbidden, "confirme a senha administrativa antes de abrir o Terminal Seguro")
+			return
+		}
 		proxy.ServeHTTP(w, r)
 	})
+}
+
+func (a *webApp) terminalAuthorized(r *http.Request) bool {
+	cookie, err := r.Cookie(sessionCookie)
+	if err != nil {
+		return false
+	}
+	now := time.Now()
+	a.sessionMu.Lock()
+	defer a.sessionMu.Unlock()
+	s, ok := a.sessions[cookie.Value]
+	if !ok {
+		return false
+	}
+	if now.After(s.TerminalUntil) {
+		s.TerminalUntil = time.Time{}
+		return false
+	}
+	return true
 }
 
 func terminalIntentAllowed(values []string) bool {
