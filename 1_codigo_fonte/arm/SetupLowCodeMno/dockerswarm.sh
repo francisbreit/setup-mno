@@ -61,7 +61,7 @@ offer_control_center_installation() {
         "Deseja instalar agora o Setup MNO Control Center?\n\nEle adiciona uma interface web para acompanhar o servidor, consultar o catálogo, visualizar Blueprints, usar o Assistente MNO e abrir o Instalador Seguro.\n\nA instalação é opcional. Se escolher NÃO, o Setup MNO continuará funcionando normalmente e você poderá instalar o Control Center depois pelo menu principal." \
         20 82; then
         clear
-        "$installer"
+        SETUPMNO_INSTALLATION_TYPE="$INSTALL_CHOICE" "$installer"
         status=$?
         if [ "$status" -ne 0 ]; then
             whiptail --title "CONTROL CENTER NÃO INSTALADO" --msgbox \
@@ -185,50 +185,19 @@ if [ "$IS_WSL" -eq 1 ]; then
     # Se for WSL2, força Cloudflare Tunnel e avisa o usuário
     whiptail --title "AMBIENTE LOCAL DETECTADO" --msgbox "⚠️ AMBIENTE WINDOWS/MAC (WSL2) DETECTADO!\n\nPara garantir que suas automações funcionem perfeitamente na sua máquina local e consigam furar o bloqueio do seu roteador de internet, o modo TRADICIONAL foi desabilitado.\n\nA instalação prosseguirá obrigatoriamente usando CLOUDFLARE TUNNEL." 15 70
     INSTALL_CHOICE="CLOUDFLARE_TUNNEL"
-    
-    # Trava de segurança: Cloudflare Tunnel exige plano PRO
-    if [ "$PLANO" == "free" ]; then
-        whiptail --title "ACESSO NEGADO" --msgbox "ERRO: A instalação local (WSL2) exige o uso do Cloudflare Tunnel, que está disponível apenas no Plano PRO ou superior.\n\nPor favor, faça o upgrade do seu plano ou utilize uma VPS em nuvem para usar a versão Gratuita." 12 70
-        exit 1
-    fi
 else
     # Se for VPS na Nuvem, exibe o menu normal
-    if [ "$PLANO" != "free" ]; then
-        INSTALL_CHOICE=$(
+    INSTALL_CHOICE=$(
         whiptail --title "TIPO DE INSTALAÇÃO" --menu "Escolha o tipo de configuração do proxy reverso:" 15 70 3 \
             "TRADICIONAL" "Apenas Traefik (Menos Seguro)" \
             "CLOUDFLARE_TUNNEL" "Cloudflare Tunnel + Traefik (Mais Seguro)" \
             "SAIR" "Abortar a instalação" 3>&2 2>&1 1>&3
         )
-    else
-        INSTALL_CHOICE=$(
-        whiptail --title "TIPO DE INSTALAÇÃO" --menu "Escolha o tipo de configuração do proxy reverso:" 15 70 3 \
-            "TRADICIONAL" "Apenas Traefik (Menos Seguro)" \
-            "CLOUDFLARE_TUNNEL" "APENAS NO PLANO PRO" \
-            "SAIR" "Abortar a instalação" 3>&2 2>&1 1>&3
-        )
-    fi
 fi
 
 if [ $? -ne 0 ]; then
     exit 1
 fi
-if [[ ("$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL") && ("$PLANO" == "free") ]]; then
-
-
- whiptail --msgbox "A Opção de Instalação com Cloudflare Tunnel está disponível apenas no Plano PRO\nDigite ENTER para voltar." 10 70
- {
-  tput reset 2>/dev/null         # Reinicia o terminal de forma segura
-  exec 0</dev/tty 1>/dev/tty 2>&1 # Força redirecionamentos explícitos
-  sleep 0.01                     # Pausa microscópica para sincronia
-  clear                          # Limpeza final antes do whiptail
-} || true
- cd
- cd SetupLowCodeMno
- ./dockerswarm
-
-fi
-
 if [ "$INSTALL_CHOICE" = "SAIR" ]; then
 
     clear
@@ -293,7 +262,7 @@ mkdir -p "/root/.cloudflared_config"
 echo "$INSTALL_CHOICE" > "$INSTALL_TYPE_FILE"
 
 # Se for Cloudflare Tunnel, coletar credenciais
-if [[ ("$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL") && ("$PLANO" != "free") ]]; then
+if [[ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ]]; then
     # Coletar credenciais do Cloudflare
     while true; do
         CLOUDFLARE_API_TOKEN=$(whiptail --title "Cloudflare API Token" --inputbox "Digite seu Cloudflare API Token (com permissões: Cloudflare Tunnel Edit / Account: Read e, se for criar registros DNS via API, Zone.DNS Edit):" 12 80 3>&1 1>&2 2>&3)
@@ -601,7 +570,7 @@ clear
 
 while true; do
     # Exibe as informações formatadas com mais espaço na tela
-    if [[ ("$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL") && ("$PLANO" != "free") ]]; then
+    if [[ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ]]; then
         whiptail --title "Dados Fornecidos" \
         --msgbox "TIPO DE INSTALAÇÃO: CLOUDFLARE TUNNEL\n\nDados Preenchidos:\n\n1) Dominio Portainer: $dominio\n2) Usuário do Portainer: $usuariopt\n3) Senha do Portainer: $senhapt\n4) Seu Email: $mail\n5) Senha do Postgres: $postgres_senha\n\nDados Cloudflare:\n- Account ID: ${CLOUDFLARE_ACCOUNT_ID:0:8}...\n- Zone ID: ${CLOUDFLARE_ZONE_ID:0:8}...\n- Tunnel ID: $TUNNEL_ID\n\nConfira e Tecle Enter para continuar. Na próxima etapa você poderá confirmar os dados ou corrigir, se necessário." \
         --fb 22 80
@@ -655,7 +624,7 @@ clear
 # Função para verificar o domínio
 
 
-    if [[ ("$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL") && ("$PLANO" != "free") ]]; then
+    if [[ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ]]; then
 
       # 1. Obtendo Tunnel_token
    echo -e "XXX\n1\nOBTENDO TUNNEL_TOKEN\nXXX"
@@ -1441,7 +1410,7 @@ fi
 
 
 ## VERIFICAÇÃO ESPECÍFICA PARA CLOUDFLARE TUNNEL
-if [[ ("$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL") && ("$PLANO" != "free") ]]; then
+if [[ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ]]; then
     echo -e "XXX\n63\nAGUARDANDO CLOUDFLARE TUNNEL FICAR ATIVO\nXXX"
 
     # Verificação mais robusta do estado dos serviços

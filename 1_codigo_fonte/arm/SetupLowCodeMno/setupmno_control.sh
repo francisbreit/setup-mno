@@ -31,6 +31,16 @@ extract_control_bundle() {
 INSTALL_TYPE_FILE="/root/.cloudflared_config/installation_type"
 INSTALL_TYPE="TRADICIONAL"
 [ -f "$INSTALL_TYPE_FILE" ] && INSTALL_TYPE=$(cat "$INSTALL_TYPE_FILE")
+REQUESTED_INSTALL_TYPE="${SETUPMNO_INSTALLATION_TYPE:-}"
+if [ -n "$REQUESTED_INSTALL_TYPE" ]; then
+    case "$REQUESTED_INSTALL_TYPE" in
+        CLOUDFLARE_TUNNEL|TRADICIONAL) INSTALL_TYPE="$REQUESTED_INSTALL_TYPE" ;;
+        *)
+            printf '%s\n' "Tipo de instalação recebido do Setup MNO é inválido." >&2
+            exit 1
+            ;;
+    esac
+fi
 
 CONTROL_ENVIRONMENT_FILE="/root/SetupLowCodeMno/.control/environment.json"
 [ -f "$CONTROL_ENVIRONMENT_FILE" ] && [ ! -L "$CONTROL_ENVIRONMENT_FILE" ] || {
@@ -43,12 +53,14 @@ CONTROL_PLAN=$(jq -er \
     printf '%s\n' "Estado de plano do Control Center inválido." >&2
     exit 1
 }
-INSTALL_TYPE=$(jq -er \
-    '.installationType | select(. == "CLOUDFLARE_TUNNEL" or . == "TRADICIONAL")' \
-    "$CONTROL_ENVIRONMENT_FILE") || {
-    printf '%s\n' "Tipo de instalação do Control Center inválido." >&2
-    exit 1
-}
+if [ -z "$REQUESTED_INSTALL_TYPE" ]; then
+    INSTALL_TYPE=$(jq -er \
+        '.installationType | select(. == "CLOUDFLARE_TUNNEL" or . == "TRADICIONAL")' \
+        "$CONTROL_ENVIRONMENT_FILE") || {
+        printf '%s\n' "Tipo de instalação do Control Center inválido." >&2
+        exit 1
+    }
+fi
 
 if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     CREDENTIALS_FILE="/root/.cloudflared_config/cloudflare_credentials"

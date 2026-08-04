@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "BookStack no Setup MNO",
   "setupId": "bookstack",
-  "setupVersion": "7.7.9",
+  "setupVersion": "7.7.10",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

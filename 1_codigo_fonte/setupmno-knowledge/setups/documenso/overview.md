@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Documenso no Setup MNO",
   "setupId": "documenso",
-  "setupVersion": "7.7.9",
+  "setupVersion": "7.7.10",
   "architectures": [
     "amd64",
     "arm64"
