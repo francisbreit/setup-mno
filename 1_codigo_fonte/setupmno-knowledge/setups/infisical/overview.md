@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Infisical no Setup MNO",
   "setupId": "infisical",
-  "setupVersion": "7.7.11",
+  "setupVersion": "7.7.12",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

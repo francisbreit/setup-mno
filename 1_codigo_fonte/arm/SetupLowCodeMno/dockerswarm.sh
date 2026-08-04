@@ -126,6 +126,25 @@ valid_setup_plan() {
     esac
 }
 
+sync_control_center_installation_type() {
+    local environment_file="/root/SetupLowCodeMno/.control/environment.json"
+    local temporary_file
+
+    [ -f "$environment_file" ] && [ ! -L "$environment_file" ] || return 1
+    temporary_file=$(mktemp "${environment_file}.tmp.XXXXXX") || return 1
+    chmod 0644 "$temporary_file" || { rm -f "$temporary_file"; return 1; }
+    jq --arg installation_type "$INSTALL_CHOICE" \
+        'if .schemaVersion == 1 and (.plan == "pro" or .plan == "free" or .plan == "free1" or .plan == "free2")
+         then .installationType = $installation_type
+         else error("estado runtime inválido")
+         end' \
+        "$environment_file" >"$temporary_file" || {
+            rm -f "$temporary_file"
+            return 1
+        }
+    mv -f "$temporary_file" "$environment_file"
+}
+
 valid_setup_date() {
     local value="$1" formatted
     [[ "$value" =~ ^[0-9]{2}/[0-9]{2}/[0-9]{4}$ ]] || return 1
@@ -260,6 +279,11 @@ fi
 # Registrar tipo de instalação
 mkdir -p "/root/.cloudflared_config"
 echo "$INSTALL_CHOICE" > "$INSTALL_TYPE_FILE"
+if ! sync_control_center_installation_type; then
+    whiptail --title "TIPO DE INSTALAÇÃO NÃO SINCRONIZADO" --msgbox \
+        "Não foi possível registrar o tipo escolhido no estado do Control Center. A instalação foi interrompida para evitar uma configuração divergente." 12 78
+    exit 41
+fi
 
 # Se for Cloudflare Tunnel, coletar credenciais
 if [[ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ]]; then
