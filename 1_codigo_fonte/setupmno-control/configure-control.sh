@@ -14,6 +14,31 @@ assistant_yaml="$work_dir/assistant.yaml"
 terminal_mode="${SETUPMNO_TERMINAL_MODE:-direct}"
 control_environment_file="/root/SetupLowCodeMno/.control/environment.json"
 
+# Tema exclusivo das Configurações Seguras. O instalador e os scripts das
+# aplicações preservam seus próprios temas; aqui o item em foco é sempre
+# preto sobre branco para permanecer visível no terminal de fundo preto.
+export NEWT_COLORS='
+root=white,black
+border=lightgray,black
+title=yellow,black
+roottext=white,black
+window=white,black
+shadow=black,black
+textbox=white,black
+acttextbox=black,white
+entry=white,black
+disentry=gray,black
+button=white,black
+actbutton=black,white
+compactbutton=white,black
+listbox=white,black
+actlistbox=black,white
+actsellistbox=black,white
+checkbox=white,black
+actcheckbox=black,white
+helpline=lightgray,black
+'
+
 dialog_height() {
     local requested="$1" available
     available=$(tput lines 2>/dev/null || printf '24')

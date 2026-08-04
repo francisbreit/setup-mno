@@ -205,6 +205,7 @@
         font: 700 12px system-ui, sans-serif;
         letter-spacing: .01em;
         pointer-events: none;
+        white-space: pre-line;
       }
       body.setupmno-touch-terminal {
         --setupmno-touchbar-height: calc(54px + env(safe-area-inset-top));
@@ -333,7 +334,7 @@
     if (touchLayout()) return;
     const hint = document.createElement("div");
     hint.id = "setupmno-terminal-desktop-paste-hint";
-    hint.textContent = "Para colar no terminal: Ctrl+Shift+V";
+    hint.textContent = "Para colar no terminal: Ctrl+Shift+V\nPara navegar no terminal: Use teclas para cima e para baixo, TAB e Enter";
     document.body.append(hint);
   }
 

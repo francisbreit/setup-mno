@@ -365,12 +365,19 @@ grep -Fq 'background: "#000000"' "$project_dir/web/terminal-bridge.js" &&
 grep -Fq 'function enableDesktopPaste()' "$project_dir/web/terminal-bridge.js" &&
 grep -Fq 'function mountDesktopPasteHint()' "$project_dir/web/terminal-bridge.js" &&
 grep -Fq 'Para colar no terminal: Ctrl+Shift+V' "$project_dir/web/terminal-bridge.js" &&
+grep -Fq 'Para navegar no terminal: Use teclas para cima e para baixo, TAB e Enter' "$project_dir/web/terminal-bridge.js" &&
 grep -Fq 'event.clipboardData?.getData("text/plain")' "$project_dir/web/terminal-bridge.js" &&
 grep -Fq 'pastedText.length > 16384' "$project_dir/web/terminal-bridge.js" &&
 grep -Fq 'if (touchLayout() || !terminalHasFocus(event.target)) return;' "$project_dir/web/terminal-bridge.js" &&
 grep -Fq 'LANG=C.UTF-8' "$project_dir/terminal.Dockerfile" &&
 grep -Fq 'LC_ALL=C.UTF-8' "$template" || {
     printf 'ERRO: terminal sem locale UTF-8 ou colagem desktop segura.\n' >&2
+    exit 1
+}
+grep -Fq 'actbutton=black,white' "$project_dir/configure-control.sh" &&
+grep -Fq 'actlistbox=black,white' "$project_dir/configure-control.sh" &&
+grep -Fq 'actsellistbox=black,white' "$project_dir/configure-control.sh" || {
+    printf 'ERRO: Configurações Seguras sem destaque branco para o item selecionado.\n' >&2
     exit 1
 }
 grep -Fq 'target: admin_password' "$template" || {
