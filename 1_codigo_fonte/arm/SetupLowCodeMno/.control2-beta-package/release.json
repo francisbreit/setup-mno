@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "setupVersion": "7.7.21",
+  "setupVersion": "7.7.22",
   "controlVersion": "4.15.7",
   "architecture": "arm64",
   "catalogSHA256": "0b70cd493205e7171d83e90517eecffde540ecc8f79ff40d255ef4ea052eadf3",

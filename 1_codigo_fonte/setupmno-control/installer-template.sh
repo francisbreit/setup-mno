@@ -1313,7 +1313,7 @@ EOL
     expected_services+=("${web_stack}_${web_service}")
     for service_name in "${expected_services[@]}"; do
         ready="false"
-        for _ in $(seq 1 30); do
+        for _ in $(seq 1 100); do
             replicas=$(docker service ls --filter "name=$service_name" \
                 --format '{{.Replicas}}' 2>>"$install_log" | head -n1)
             if [ "$replicas" = "1/1" ]; then
