@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Redis Commander no Setup MNO",
   "setupId": "redis-commander",
-  "setupVersion": "7.7.20",
+  "setupVersion": "7.7.21",
   "architectures": [
     "amd64",
     "arm64"

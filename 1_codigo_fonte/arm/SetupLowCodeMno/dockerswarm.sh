@@ -51,11 +51,30 @@ essential_services_ready() {
     done
 }
 
+wait_for_portainer_ready() {
+    local attempt replicas
+    for attempt in $(seq 1 30); do
+        replicas=$(docker service ls --filter "name=portainer" --format '{{.Replicas}}' 2>/dev/null | head -n1)
+        if [[ "$replicas" =~ ^[1-9][0-9]*/[1-9][0-9]*$ ]]; then
+            return 0
+        fi
+        sleep 2
+    done
+    return 1
+}
+
 offer_control_center_installation() {
     local installer="/root/SetupLowCodeMno/setupmno_control" status
     [ -x "$installer" ] || return 0
     essential_services_ready || return 0
     control_center_installed && return 0
+
+    if ! wait_for_portainer_ready; then
+        whiptail --title "CONTROL CENTER ADIADO" --msgbox \
+            "O Portainer ainda não ficou saudável após 60 segundos.\n\nO Control Center não será iniciado nesta etapa. Execute-o depois pelo menu principal, quando o Portainer estiver operacional." \
+            14 82
+        return 0
+    fi
 
     if whiptail --title "SETUP MNO CONTROL CENTER (OPCIONAL)" --yesno \
         "Deseja instalar agora o Setup MNO Control Center?\n\nEle adiciona uma interface web para acompanhar o servidor, consultar o catálogo, visualizar Blueprints, usar o Assistente MNO e abrir o Instalador Seguro.\n\nA instalação é opcional. Se escolher NÃO, o Setup MNO continuará funcionando normalmente e você poderá instalar o Control Center depois pelo menu principal." \
