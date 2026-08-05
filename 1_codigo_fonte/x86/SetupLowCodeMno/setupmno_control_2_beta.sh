@@ -1049,7 +1049,7 @@ services:
         - healthcheck
       interval: 30s
       timeout: 5s
-      retries: 3
+      retries: 5
       start_period: 10s
     deploy:
       mode: replicated
