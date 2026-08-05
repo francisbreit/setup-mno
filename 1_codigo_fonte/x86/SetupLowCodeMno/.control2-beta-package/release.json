@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "setupVersion": "7.7.19",
+  "controlVersion": "4.15.7",
+  "architecture": "amd64",
+  "catalogSHA256": "0b70cd493205e7171d83e90517eecffde540ecc8f79ff40d255ef4ea052eadf3",
+  "catalogEntries": 151,
+  "controlSourceSHA256": "6d0cfe54647d9527ae83a2a1ac4caf0b5d6ecb96ce466d8b7d846293ed6a19e6",
+  "controlSourceBytes": 144685
+}

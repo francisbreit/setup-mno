@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Firefly III no Setup MNO",
   "setupId": "firefly-iii",
-  "setupVersion": "7.7.18",
+  "setupVersion": "7.7.19",
   "architectures": [
     "amd64",
     "arm64"
