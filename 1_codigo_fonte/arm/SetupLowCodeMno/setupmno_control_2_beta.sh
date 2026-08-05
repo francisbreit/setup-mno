@@ -905,8 +905,8 @@ services:
         - healthcheck
       interval: 30s
       timeout: 5s
-      retries: 3
-      start_period: 10s
+      retries: 5
+      start_period: 60s
     deploy:
       mode: replicated
       replicas: 1
