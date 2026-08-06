@@ -365,24 +365,6 @@ function msg() {
                 whiptail --title "PARTE INICIAL: INSTALAÇÃO OBRIGATÓRIA DO DOCKER SWARM + ESSENCIAIS (TRAEFIK, PORTAINER, POSTGRES, PGBOUNCER E REDIS)" --msgbox "$msg" --fb 10 70;
         }
 
-validate_traditional_dns() {
-    local hostname="$1" attempts="${2:-1}" public_ip resolved_ips
-    public_ip=$(curl -fsS --max-time 10 https://api.ipify.org 2>/dev/null || true)
-    if [ -z "$public_ip" ]; then
-        msg "Não foi possível descobrir o IP público deste servidor. Verifique a conectividade e tente novamente."
-        return 1
-    fi
-    for _ in $(seq 1 "$attempts"); do
-        resolved_ips=$(getent ahostsv4 "$hostname" 2>/dev/null | awk '{print $1}' | sort -u)
-        if [ -n "$resolved_ips" ] && grep -Fqx "$public_ip" <<<"$resolved_ips"; then
-            return 0
-        fi
-        [ "$attempts" -gt 1 ] && sleep 5
-    done
-    msg "O domínio $hostname ainda não aponta para este servidor.\n\nIP público esperado: $public_ip\nIPs resolvidos: ${resolved_ips:-nenhum}\n\nCorrija o registro DNS e execute o instalador novamente."
-    return 1
-}
-
   while true; do
 CHOICE=$(
 whiptail --title "PARTE INICIAL: INSTALAÇÃO OBRIGATÓRIA DO DOCKER SWARM + ESSENCIAIS (TRAEFIK, PORTAINER, POSTGRES, PGBOUNCER E REDIS)" --menu "Use setas para navegar, Enter para selecionar e TAB para navegar\nINSTALAR: Instala o Docker Swarm e Apps essenciais\nGERADOR DE REGISTROS DE DNS: Gera aponstamentos DNS e exporta para um arquivo\nATENÇÃO: Antes de instalar, crie registros DNS p/ o Portainer. Use o nosso GERADOR DE REGISTROS DE DNS. Apontamentos:\nRECORD A: Dê um nome para seu servidor (exemplo: manager1.seudominio.com.br) e aponte para o IP do seu servidor\nRECORD CNAME: Crie um subdominio para o Portainer (exemplo: painel.seudominio.com.br) a aponte para o nome do servidor criado (exemplo: manager1.seudominio.com.br) " 20 70 3 \
@@ -460,25 +442,15 @@ case $CHOICE in
 esac
 done
 
-service_is_ready() {
-    local name="$1"
-    local replicas
-    replicas=$(docker service ls --filter "name=$name" --format '{{.Replicas}}' 2>/dev/null | head -n1)
-    [[ "$replicas" =~ ^[1-9][0-9]*/[1-9][0-9]*$ ]]
-}
-
 if command -v docker > /dev/null 2>&1; then
 network_id_agent_network=$(docker network ls --filter name=agent_network --format "{{.ID}}")
 network_id_externa=$(docker network ls --filter name=externa --format "{{.ID}}")
 network_id_interna=$(docker network ls --filter name=interna --format "{{.ID}}")
 traefik_container=$(docker ps -qf name=traefik)
-# Serviços essenciais só são considerados instalados quando o serviço Swarm está
-# realmente rodando com réplica ativa. Um container órfão/parado não basta para
-# suprimir a instalação.
-if service_is_ready portainer; then portainer_container="portainer"; else portainer_container=""; fi
-if service_is_ready postgres; then postgres_container="postgres"; else postgres_container=""; fi
-if service_is_ready redis; then redis_container="redis"; else redis_container=""; fi
-if service_is_ready pgbouncer; then pgbouncer_container="pgbouncer"; else pgbouncer_container=""; fi
+portainer_container=$(docker ps -qf name=portainer)
+postgres_container=$(docker ps -qf name=postgres)
+redis_container=$(docker ps -qf name=redis)
+pgbouncer_container=$(docker ps -qf name=pgbouncer)
 
 else
 network_id_agent_network=""
@@ -743,12 +715,16 @@ EOL
         # Verificação tradicional (com IP)
 
 if [ "$criar_dns" = "1" ]; then
-   ip_servidor=$(curl -fsS --max-time 10 https://api.ipify.org 2>/dev/null || true)
+   ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
     echo -e "XXX\n3\nVERIFICANDO SUBDOMÍNIO: $dominio \nXXX"
    sleep 3
-    if ! validate_traditional_dns "$dominio" 12; then
+    # Verifica apenas se o domínio está apontando para o IP correto
+    dns_ip=$(timeout 10 nslookup $dominio | grep "Address" | tail -n1 | awk '{print $2}')
+    if [[ "$dns_ip" != "$ip_servidor" ]]; then
         echo -e "XXX\n10\nERRO: SUBDOMÍNIO NÃO APONTA PARA O IP DO SERVIDOR ($ip_servidor) \nXXX"
-        sleep 2
+    sleep 3
+        echo -e "XXX\n18\nERRO: REGISTROS DNS NÃO ENCONTRADOS \nXXX"
+        sleep 3
         exit 1
     fi
 
@@ -886,25 +862,28 @@ sleep 5
 
 max_attempts=3
 attempt=0
-swarm_state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null)
 
-if [ "$swarm_state" = "active" ]; then
-    echo -e "XXX\n32\nSWARM JÁ ATIVO - OK \nXXX"
-else
-    while [ $attempt -le $max_attempts ]; do
-        sudo docker swarm init --advertise-addr $ip > /dev/null 2>&1
-        swarm_state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null)
-        if [ $? -eq 0 ] || [ "$swarm_state" = "active" ]; then
-            echo -e "XXX\n32\nINICIANDO SWARM - OK \nXXX"
-            break
-        else
-            echo -e "XXX\n35\nINICIANDO SWARM - ERRO \nXXX"
-            sleep 2
-            echo -e "XXX\n35\nERRO: TENTATIVA $attempt de $max_attempts  \nXXX"
-            attempt=$((attempt + 1))
-            sleep 3
-        fi
-    done
+while [ $attempt -le $max_attempts ]; do
+   sudo docker swarm init --advertise-addr $ip > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        echo -e "XXX\n32\nINICIANDO SWARM - OK \nXXX"
+        break
+    else
+        echo -e "XXX\n35\nINICIANDO SWARM - ERRO \nXXX"
+        sleep 2
+        echo -e "XXX\n35\nERRO: TENTATIVA $attempt de $max_attempts  \nXXX"
+        attempt=$((attempt + 1))
+        sleep 3
+    fi
+done
+
+if [ $attempt -gt $max_attempts ]; then
+   echo -e "XXX\n35\nERRO: NÃO FOI POSSÍVEL INICIAR O SWARM APÓS $max_attempts TENTATIVAS \nXXX"
+   sleep 3
+   echo -e "XXX\n36\nERRO: FORMATE O VPS\nXXX"
+   sleep 3
+   echo -e "XXX\n37\nERRO: USE VPS VAZIA\nXXX"
+   sleep 4
 fi
 
 docker network create --driver=overlay agent_network >/dev/null 2>&1
@@ -983,7 +962,7 @@ services:
                 - "traefik.enable=true"
                 - "traefik.http.middlewares.redirect-https.redirectscheme.scheme=https"
                 - "traefik.http.middlewares.redirect-https.redirectscheme.permanent=true"
-                - "traefik.http.routers.http-catchall.rule=HostRegexp(\`{host:.+}\`)"
+                - "traefik.http.routers.http-catchall.rule=hostregexp(\`{host:.+}\`)"
                 - "traefik.http.routers.http-catchall.entrypoints=web"
                 - "traefik.http.routers.http-catchall.middlewares=redirect-https@docker"
                 - "traefik.http.routers.http-catchall.priority=1"
@@ -1049,7 +1028,7 @@ services:
                 - "traefik.enable=true"
                 - "traefik.http.middlewares.redirect-https.redirectscheme.scheme=https"
                 - "traefik.http.middlewares.redirect-https.redirectscheme.permanent=true"
-                - "traefik.http.routers.http-catchall.rule=HostRegexp(\`{host:.+}\`)"
+                - "traefik.http.routers.http-catchall.rule=hostregexp(\`{host:.+}\`)"
                 - "traefik.http.routers.http-catchall.entrypoints=web"
                 - "traefik.http.routers.http-catchall.middlewares=redirect-https@docker"
                 - "traefik.http.routers.http-catchall.priority=1"
@@ -1353,12 +1332,6 @@ else
   exit 1
 fi
 
-echo -e "XXX\n59\nAGUARDANDO PROPAGAÇÃO DNS PARA O TRAEFIK... \nXXX"
-if ! validate_traditional_dns "$dominio" 12; then
-  echo -e "XXX\n59\nERRO: DNS AINDA NÃO RESOLVE PARA O SERVIDOR \nXXX"
-  exit 1
-fi
-
 
 
 fi
@@ -1518,7 +1491,7 @@ wait_for_portainer() {
     local attempt=1
 
     while [ $attempt -le $max_attempts ]; do
-        STATUS=$(curl -sk --connect-timeout 10 --max-time 15 -o /dev/null -w "%{http_code}" "$PORTAINER_URL/status" 2>/dev/null)
+        STATUS=$(curl -sS --connect-timeout 10 --max-time 15 -o /dev/null -w "%{http_code}" "$PORTAINER_URL/status")
 
         if [ "$STATUS" -eq 200 ]; then
             echo -e "XXX\n65\nPORTAINER INICIALIZADO COM SUCESSO \nXXX"
@@ -1537,34 +1510,11 @@ wait_for_portainer() {
 
     return 0
 }
-
-wait_for_trusted_portainer_certificate() {
-    [ "$INSTALL_CHOICE" = "TRADICIONAL" ] || return 0
-    echo -e "XXX\n65\nAGUARDANDO CERTIFICADO LET'S ENCRYPT DO PORTAINER \nXXX"
-    local max_attempts=60
-    local attempt=1
-    local status
-    while [ "$attempt" -le "$max_attempts" ]; do
-        status=$(curl -sS --connect-timeout 10 --max-time 15 -o /dev/null \
-            -w "%{http_code}" "$PORTAINER_URL/status" 2>/dev/null || true)
-        if [ "$status" = "200" ]; then
-            echo -e "XXX\n66\nCERTIFICADO LET'S ENCRYPT CONFIRMADO \nXXX"
-            return 0
-        fi
-        echo -e "XXX\n65\nTENTATIVA $attempt/$max_attempts - CERTIFICADO ACME AINDA NÃO DISPONÍVEL (HTTP: ${status:-000}) \nXXX"
-        sleep 5
-        attempt=$((attempt + 1))
-    done
-    whiptail --title "CERTIFICADO TLS NÃO CONFIRMADO" --msgbox \
-        "O Portainer respondeu, mas o Traefik ainda não apresentou um certificado confiável após 5 minutos.\n\nVerifique se o DNS resolve para o IP público, se as portas 80/443 estão liberadas e se o firewall do provedor permite o desafio HTTP-01 do Let's Encrypt. Execute o instalador novamente após corrigir o DNS/firewall." \
-        18 84
-    return 1
-}
 sleep 12
 # Função para verificar se o usuário administrador já existe
 check_admin_user() {
     echo -e "XXX\n66\nVERIFICANDO USUÁRIO ADMIN \nXXX"
-    RESPONSE=$(curl -sk -o /dev/null -w "%{http_code}" -X GET "$PORTAINER_URL/users" 2>/dev/null)
+    RESPONSE=$(curl -sS -o /dev/null -w "%{http_code}" -X GET "$PORTAINER_URL/users")
     if [ "$RESPONSE" -eq 401 ]; then
         echo -e "XXX\n67\nUSUÁRIO ADMIN AINDA NÃO CONFIGURADO \nXXX"
         return 1
@@ -1580,9 +1530,9 @@ check_admin_user() {
 # Função para criar o usuário admin
 create_admin_user() {
     echo -e "XXX\n69\nCRIANDO USUÁRIO ADMIN NO PORTAINER... \nXXX"
-    RESPONSE=$(curl -sk -X POST "$PORTAINER_URL/users/admin/init" \
+    RESPONSE=$(curl -sS -X POST "$PORTAINER_URL/users/admin/init" \
         -H "Content-Type: application/json" \
-        -d "{\"Username\": \"$usuariopt\", \"Password\": \"$senhapt\"}" 2>/dev/null)
+        -d "{\"Username\": \"$usuariopt\", \"Password\": \"$senhapt\"}")
 
     # Verificar se a criação foi bem-sucedida
     if echo "$RESPONSE" | grep -q '"Username":"'"$usuariopt"'"'; then
@@ -1594,9 +1544,6 @@ create_admin_user() {
 
 # Executar as funções
 wait_for_portainer
-if ! wait_for_trusted_portainer_certificate; then
-    exit 1
-fi
 if ! check_admin_user; then
     create_admin_user
 fi

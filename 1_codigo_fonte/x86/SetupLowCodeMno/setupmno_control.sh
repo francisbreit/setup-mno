@@ -570,40 +570,8 @@ error_file="/tmp/${nome_app}-error.log"
         exit "$code"
     }
 
-    validate_traditional_dns() {
-        local hostname="$1" public_ip resolved_ips
-        public_ip=$(curl -fsS --max-time 10 https://api.ipify.org 2>>"$install_log" || true)
-        [ -n "$public_ip" ] ||
-            fail_install 23 "IP PÚBLICO INDISPONÍVEL" "Não foi possível descobrir o IP público para validar o DNS de $hostname."
-        for _ in $(seq 1 12); do
-            resolved_ips=$(getent ahostsv4 "$hostname" 2>/dev/null | awk '{print $1}' | sort -u)
-            if [ -n "$resolved_ips" ] && grep -Fqx "$public_ip" <<<"$resolved_ips"; then
-                echo "DNS confirmado: $hostname -> $public_ip" >>"$install_log"
-                return 0
-            fi
-            sleep 5
-        done
-        fail_install 24 "DNS TRADICIONAL NÃO CONFIRMADO" \
-            "O domínio $hostname não resolve para este servidor. IP esperado: $public_ip; IPs resolvidos: ${resolved_ips:-nenhum}. Corrija o DNS antes de publicar o Control Center."
-    }
-
-    wait_for_trusted_https() {
-        local hostname="$1" path="$2" status
-        for _ in $(seq 1 60); do
-            status=$(curl -sS --connect-timeout 10 --max-time 15 -o /dev/null -w '%{http_code}' \
-                "https://$hostname$path" 2>>"$install_log" || true)
-            if [ "$status" = "200" ]; then
-                echo "TLS confiável confirmado: https://$hostname$path" >>"$install_log"
-                return 0
-            fi
-            sleep 5
-        done
-        fail_install 97 "CERTIFICADO TLS NÃO CONFIRMADO" \
-            "O endereço https://$hostname não apresentou um certificado confiável após 5 minutos (último HTTP: ${status:-000}). O Traefik pode estar usando o certificado padrão; verifique DNS, portas 80/443 e ACME."
-    }
-
     echo -e "XXX\n4\nVALIDANDO AMBIENTE... \nXXX"
-    for required_command in docker curl jq tar openssl getent; do
+    for required_command in docker curl jq tar openssl; do
         command -v "$required_command" >/dev/null 2>&1 ||
             fail_install 10 "DEPENDÊNCIA NÃO ENCONTRADA" "O comando obrigatório '$required_command' não está instalado."
     done
@@ -637,9 +605,6 @@ error_file="/tmp/${nome_app}-error.log"
     if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] &&
        { [ -z "$CLOUDFLARE_ACCOUNT_ID" ] || [ -z "$TUNNEL_ID" ]; }; then
         fail_install 17 "DADOS DO TUNNEL INVÁLIDOS" "Account ID ou Tunnel ID não encontrado."
-    fi
-    if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "1" ]; then
-        validate_traditional_dns "$url_control"
     fi
 
     echo -e "XXX\n10\nEXTRAINDO O CONTROL CENTER... \nXXX"
@@ -1185,9 +1150,6 @@ EOL
             fail_install 62 "ERRO AO CONFIGURAR DNS" "Cloudflare recusou o CNAME: ${dns_error:-resposta inválida da API}."
         fi
         echo "DNS confirmado: $url_control -> $dns_content" >>"$install_log"
-        if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
-            validate_traditional_dns "$url_control"
-        fi
     fi
 
     if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
@@ -1375,10 +1337,6 @@ EOL
         fi
         echo "Serviço confirmado: $service_name com 1/1 réplica." >>"$install_log"
     done
-
-    if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
-        wait_for_trusted_https "$url_control" "/health"
-    fi
 
     echo -e "XXX\n100\nCONTROL CENTER INSTALADO COM SUCESSO\nXXX"
 } 2>>"$install_log" | whiptail --title "SETUP MNO CONTROL CENTER" --gauge \
