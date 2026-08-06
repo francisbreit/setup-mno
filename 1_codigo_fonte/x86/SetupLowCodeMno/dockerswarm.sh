@@ -1498,7 +1498,7 @@ wait_for_portainer() {
     local attempt=1
 
     while [ $attempt -le $max_attempts ]; do
-        STATUS=$(curl -sS --connect-timeout 10 --max-time 15 -o /dev/null -w "%{http_code}" "$PORTAINER_URL/status")
+        STATUS=$(curl -sk --connect-timeout 10 --max-time 15 -o /dev/null -w "%{http_code}" "$PORTAINER_URL/status" 2>/dev/null)
 
         if [ "$STATUS" -eq 200 ]; then
             echo -e "XXX\n65\nPORTAINER INICIALIZADO COM SUCESSO \nXXX"
@@ -1521,7 +1521,7 @@ sleep 12
 # Função para verificar se o usuário administrador já existe
 check_admin_user() {
     echo -e "XXX\n66\nVERIFICANDO USUÁRIO ADMIN \nXXX"
-    RESPONSE=$(curl -sS -o /dev/null -w "%{http_code}" -X GET "$PORTAINER_URL/users")
+    RESPONSE=$(curl -sk -o /dev/null -w "%{http_code}" -X GET "$PORTAINER_URL/users" 2>/dev/null)
     if [ "$RESPONSE" -eq 401 ]; then
         echo -e "XXX\n67\nUSUÁRIO ADMIN AINDA NÃO CONFIGURADO \nXXX"
         return 1
@@ -1537,9 +1537,9 @@ check_admin_user() {
 # Função para criar o usuário admin
 create_admin_user() {
     echo -e "XXX\n69\nCRIANDO USUÁRIO ADMIN NO PORTAINER... \nXXX"
-    RESPONSE=$(curl -sS -X POST "$PORTAINER_URL/users/admin/init" \
+    RESPONSE=$(curl -sk -X POST "$PORTAINER_URL/users/admin/init" \
         -H "Content-Type: application/json" \
-        -d "{\"Username\": \"$usuariopt\", \"Password\": \"$senhapt\"}")
+        -d "{\"Username\": \"$usuariopt\", \"Password\": \"$senhapt\"}" 2>/dev/null)
 
     # Verificar se a criação foi bem-sucedida
     if echo "$RESPONSE" | grep -q '"Username":"'"$usuariopt"'"'; then
