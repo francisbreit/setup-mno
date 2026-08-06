@@ -442,15 +442,25 @@ case $CHOICE in
 esac
 done
 
+service_is_ready() {
+    local name="$1"
+    local replicas
+    replicas=$(docker service ls --filter "name=$name" --format '{{.Replicas}}' 2>/dev/null | head -n1)
+    [[ "$replicas" =~ ^[1-9][0-9]*/[1-9][0-9]*$ ]]
+}
+
 if command -v docker > /dev/null 2>&1; then
 network_id_agent_network=$(docker network ls --filter name=agent_network --format "{{.ID}}")
 network_id_externa=$(docker network ls --filter name=externa --format "{{.ID}}")
 network_id_interna=$(docker network ls --filter name=interna --format "{{.ID}}")
 traefik_container=$(docker ps -qf name=traefik)
-portainer_container=$(docker ps -qf name=portainer)
-postgres_container=$(docker ps -qf name=postgres)
-redis_container=$(docker ps -qf name=redis)
-pgbouncer_container=$(docker ps -qf name=pgbouncer)
+# Serviços essenciais só são considerados instalados quando o serviço Swarm está
+# realmente rodando com réplica ativa. Um container órfão/parado não basta para
+# suprimir a instalação.
+if service_is_ready portainer; then portainer_container="portainer"; else portainer_container=""; fi
+if service_is_ready postgres; then postgres_container="postgres"; else postgres_container=""; fi
+if service_is_ready redis; then redis_container="redis"; else redis_container=""; fi
+if service_is_ready pgbouncer; then pgbouncer_container="pgbouncer"; else pgbouncer_container=""; fi
 
 else
 network_id_agent_network=""
@@ -862,28 +872,25 @@ sleep 5
 
 max_attempts=3
 attempt=0
+swarm_state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null)
 
-while [ $attempt -le $max_attempts ]; do
-   sudo docker swarm init --advertise-addr $ip > /dev/null 2>&1
-    if [ $? -eq 0 ]; then
-        echo -e "XXX\n32\nINICIANDO SWARM - OK \nXXX"
-        break
-    else
-        echo -e "XXX\n35\nINICIANDO SWARM - ERRO \nXXX"
-        sleep 2
-        echo -e "XXX\n35\nERRO: TENTATIVA $attempt de $max_attempts  \nXXX"
-        attempt=$((attempt + 1))
-        sleep 3
-    fi
-done
-
-if [ $attempt -gt $max_attempts ]; then
-   echo -e "XXX\n35\nERRO: NÃO FOI POSSÍVEL INICIAR O SWARM APÓS $max_attempts TENTATIVAS \nXXX"
-   sleep 3
-   echo -e "XXX\n36\nERRO: FORMATE O VPS\nXXX"
-   sleep 3
-   echo -e "XXX\n37\nERRO: USE VPS VAZIA\nXXX"
-   sleep 4
+if [ "$swarm_state" = "active" ]; then
+    echo -e "XXX\n32\nSWARM JÁ ATIVO - OK \nXXX"
+else
+    while [ $attempt -le $max_attempts ]; do
+        sudo docker swarm init --advertise-addr $ip > /dev/null 2>&1
+        swarm_state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null)
+        if [ $? -eq 0 ] || [ "$swarm_state" = "active" ]; then
+            echo -e "XXX\n32\nINICIANDO SWARM - OK \nXXX"
+            break
+        else
+            echo -e "XXX\n35\nINICIANDO SWARM - ERRO \nXXX"
+            sleep 2
+            echo -e "XXX\n35\nERRO: TENTATIVA $attempt de $max_attempts  \nXXX"
+            attempt=$((attempt + 1))
+            sleep 3
+        fi
+    done
 fi
 
 docker network create --driver=overlay agent_network >/dev/null 2>&1
