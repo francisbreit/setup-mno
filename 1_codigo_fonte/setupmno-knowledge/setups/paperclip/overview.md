@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Paperclip no Setup MNO",
   "setupId": "paperclip",
-  "setupVersion": "7.7.25",
+  "setupVersion": "7.7.26",
   "architectures": [
     "amd64"
   ],
