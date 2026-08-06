@@ -366,18 +366,21 @@ function msg() {
         }
 
 validate_traditional_dns() {
-    local hostname="$1" public_ip resolved_ips
+    local hostname="$1" attempts="${2:-1}" public_ip resolved_ips
     public_ip=$(curl -fsS --max-time 10 https://api.ipify.org 2>/dev/null || true)
     if [ -z "$public_ip" ]; then
         msg "Não foi possível descobrir o IP público deste servidor. Verifique a conectividade e tente novamente."
         return 1
     fi
-    resolved_ips=$(getent ahostsv4 "$hostname" 2>/dev/null | awk '{print $1}' | sort -u)
-    if [ -z "$resolved_ips" ] || ! grep -Fqx "$public_ip" <<<"$resolved_ips"; then
-        msg "O domínio $hostname ainda não aponta para este servidor.\n\nIP público esperado: $public_ip\nIPs resolvidos: ${resolved_ips:-nenhum}\n\nCorrija o registro DNS e execute o instalador novamente. O Traefik não será publicado com certificado fallback."
-        return 1
-    fi
-    return 0
+    for _ in $(seq 1 "$attempts"); do
+        resolved_ips=$(getent ahostsv4 "$hostname" 2>/dev/null | awk '{print $1}' | sort -u)
+        if [ -n "$resolved_ips" ] && grep -Fqx "$public_ip" <<<"$resolved_ips"; then
+            return 0
+        fi
+        [ "$attempts" -gt 1 ] && sleep 5
+    done
+    msg "O domínio $hostname ainda não aponta para este servidor.\n\nIP público esperado: $public_ip\nIPs resolvidos: ${resolved_ips:-nenhum}\n\nCorrija o registro DNS e execute o instalador novamente."
+    return 1
 }
 
   while true; do
@@ -743,7 +746,7 @@ if [ "$criar_dns" = "1" ]; then
    ip_servidor=$(curl -fsS --max-time 10 https://api.ipify.org 2>/dev/null || true)
     echo -e "XXX\n3\nVERIFICANDO SUBDOMÍNIO: $dominio \nXXX"
    sleep 3
-    if ! validate_traditional_dns "$dominio"; then
+    if ! validate_traditional_dns "$dominio" 12; then
         echo -e "XXX\n10\nERRO: SUBDOMÍNIO NÃO APONTA PARA O IP DO SERVIDOR ($ip_servidor) \nXXX"
         sleep 2
         exit 1
@@ -1350,6 +1353,12 @@ else
   exit 1
 fi
 
+echo -e "XXX\n59\nAGUARDANDO PROPAGAÇÃO DNS PARA O TRAEFIK... \nXXX"
+if ! validate_traditional_dns "$dominio" 12; then
+  echo -e "XXX\n59\nERRO: DNS AINDA NÃO RESOLVE PARA O SERVIDOR \nXXX"
+  exit 1
+fi
+
 
 
 fi
@@ -1528,6 +1537,29 @@ wait_for_portainer() {
 
     return 0
 }
+
+wait_for_trusted_portainer_certificate() {
+    [ "$INSTALL_CHOICE" = "TRADICIONAL" ] || return 0
+    echo -e "XXX\n65\nAGUARDANDO CERTIFICADO LET'S ENCRYPT DO PORTAINER \nXXX"
+    local max_attempts=60
+    local attempt=1
+    local status
+    while [ "$attempt" -le "$max_attempts" ]; do
+        status=$(curl -sS --connect-timeout 10 --max-time 15 -o /dev/null \
+            -w "%{http_code}" "$PORTAINER_URL/status" 2>/dev/null || true)
+        if [ "$status" = "200" ]; then
+            echo -e "XXX\n66\nCERTIFICADO LET'S ENCRYPT CONFIRMADO \nXXX"
+            return 0
+        fi
+        echo -e "XXX\n65\nTENTATIVA $attempt/$max_attempts - CERTIFICADO ACME AINDA NÃO DISPONÍVEL (HTTP: ${status:-000}) \nXXX"
+        sleep 5
+        attempt=$((attempt + 1))
+    done
+    whiptail --title "CERTIFICADO TLS NÃO CONFIRMADO" --msgbox \
+        "O Portainer respondeu, mas o Traefik ainda não apresentou um certificado confiável após 5 minutos.\n\nVerifique se o DNS resolve para o IP público, se as portas 80/443 estão liberadas e se o firewall do provedor permite o desafio HTTP-01 do Let's Encrypt. Execute o instalador novamente após corrigir o DNS/firewall." \
+        18 84
+    return 1
+}
 sleep 12
 # Função para verificar se o usuário administrador já existe
 check_admin_user() {
@@ -1562,6 +1594,9 @@ create_admin_user() {
 
 # Executar as funções
 wait_for_portainer
+if ! wait_for_trusted_portainer_certificate; then
+    exit 1
+fi
 if ! check_admin_user; then
     create_admin_user
 fi
