@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.7.23"
+VERSIONSETUP="7.7.24"
 EXPECTED_EVAL_DATASET_VERSION="1.9.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
 EXPECTED_EVAL_CASE_ENTRIES="843"
@@ -1817,10 +1817,6 @@ fi
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o setupmno_control -f setupmno_control.sh
 rm setupmno_control.sh
 rm setupmno_control.sh.x.c
-shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o setupmno_control_2_beta -f setupmno_control_2_beta.sh
-rm setupmno_control_2_beta.sh
-rm setupmno_control_2_beta.sh.x.c
-
 echo -e "XXX\n99\nINSTALANDO SETUPMNO 7/8 \nXXX"
 
 

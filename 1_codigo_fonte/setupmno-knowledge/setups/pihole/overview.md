@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Pi-hole no Setup MNO",
   "setupId": "pihole",
-  "setupVersion": "7.7.23",
+  "setupVersion": "7.7.24",
   "architectures": [
     "amd64",
     "arm64"

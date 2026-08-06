@@ -5,7 +5,7 @@
 #########################################################
 
 clear
-VERSIONSETUP="7.7.23"
+VERSIONSETUP="7.7.24"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -188,11 +188,6 @@ run_app() {
             "Já existe um Setup MNO Control Center neste servidor.\n\nSomente uma instalação é permitida por servidor." 12 72
         return 0
     fi
-    if [ "$script" = "setupmno_control_2_beta" ] && control_center_beta_installed; then
-        whiptail --title "SETUP MNO CONTROL CENTER 2 BETA" --msgbox \
-            "Já existe um Setup MNO Control Center 2 Beta neste servidor.\n\nSomente uma instalação Beta é permitida por servidor." 12 76
-        return 0
-    fi
     clear
     cd && cd SetupLowCodeMno && ./"$script"
 }
@@ -253,12 +248,6 @@ control_center_installed() {
     command -v docker >/dev/null 2>&1 || return 1
     docker service ls --format '{{.Name}}' 2>/dev/null |
         grep -Eq '^mnoctrl[[:alnum:]]+-(web|agent|terminal|assistant)_'
-}
-
-control_center_beta_installed() {
-    command -v docker >/dev/null 2>&1 || return 1
-    docker service ls --format '{{.Name}}' 2>/dev/null |
-        grep -Eq '^mnoctrl2[[:alnum:]]+-(web|agent|terminal|assistant)_'
 }
 
 control_center_agent_has_runtime_mount() {
@@ -347,15 +336,9 @@ while true; do
 
 CONTROL_CENTER_MENU=()
 CONTROL_CENTER_FREE_MENU=()
-CONTROL_CENTER_BETA_MENU=()
-CONTROL_CENTER_BETA_FREE_MENU=()
 if ! control_center_installed; then
     CONTROL_CENTER_MENU=("SETUP MNO CONTROL CENTER" "")
     CONTROL_CENTER_FREE_MENU=("SETUP MNO CONTROL CENTER" "")
-fi
-if ! control_center_beta_installed; then
-    CONTROL_CENTER_BETA_MENU=("SETUP MNO CONTROL CENTER 2 BETA" "")
-    CONTROL_CENTER_BETA_FREE_MENU=("SETUP MNO CONTROL CENTER 2 BETA" "")
 fi
 
 if [[ ! "$PLANO" = *free* ]]; then
@@ -477,7 +460,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "ROCKET.CHAT" "" \
     "SEARXNG" "" \
     "${CONTROL_CENTER_MENU[@]}" \
-    "${CONTROL_CENTER_BETA_MENU[@]}" \
     "SYNCTHING" "" \
     "SHLINK" "" \
     "SIYUAN" "" \
@@ -649,7 +631,6 @@ case "$CHOICE" in
             "REDISINSIGHT")                                          run_app redisinsight ;;
             "SEARXNG")                                               run_app searxng ;;
             "SETUP MNO CONTROL CENTER")                              run_app setupmno_control ;;
-            "SETUP MNO CONTROL CENTER 2 BETA")                     run_app setupmno_control_2_beta ;;
             "SYNCTHING")                                             run_app syncthing ;;
             "SHLINK")                                                run_app shlink ;;
             "SIYUAN")                                                run_app siyuan ;;
@@ -716,7 +697,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "REDIS COMMANDER" "" \
     "REDISINSIGHT" "" \
     "${CONTROL_CENTER_FREE_MENU[@]}" \
-    "${CONTROL_CENTER_BETA_FREE_MENU[@]}" \
     "SHLINK" "" \
     "STRAPI" "" \
     "STIRLING PDF" "" \
@@ -842,7 +822,7 @@ case "$CHOICE" in
             whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
-        if [ "$CHOICE" != "SETUP MNO CONTROL CENTER" ] && [ "$CHOICE" != "SETUP MNO CONTROL CENTER 2 BETA" ] && [[ ("$CHOICE" == "AFFINE") || ("$CHOICE" == "APPSMITH") || ("$CHOICE" == "AUTOGEN STUDIO") || ("$CHOICE" == "BASEROW") || ("$CHOICE" == "BOTPRESS") || ("$CHOICE" == "CAL.COM") || ("$CHOICE" == "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "DOCUMENSO") || ("$CHOICE" == "DOCUSEAL") || ("$CHOICE" == "DOZZLE") || ("$CHOICE" == "EVOAI + EVOLUTION 2.0 + MINIO*") || ("$CHOICE" == "IMMICH") || ("$CHOICE" == "HOME ASSISTANT") || ("$CHOICE" == "HOPPSCOTCH") || ("$CHOICE" == "HUMHUB") || ("$CHOICE" == "KRAYIN CRM") || ("$CHOICE" == "LANGFUSE + MINIO + CLICKHOUSE*") || ("$CHOICE" == "LITELLM") || ("$CHOICE" == "MAUTIC 4 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 6 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 7 WHATSAPP MKT") || ("$CHOICE" == "MATOMO") || ("$CHOICE" == "NEXTCLOUD") || ("$CHOICE" == "OPEN PROJECT") || ("$CHOICE" == "TWENTY CRM") || ("$CHOICE" == "TYPEBOT + MINIO*") || ("$CHOICE" == "OPENCLAW") || ("$CHOICE" == "DISCOURSE") || ("$CHOICE" == "GHOST") || ("$CHOICE" == "GLANCE") || ("$CHOICE" == "IT-TOOLS") || ("$CHOICE" == "COGNEE") || ("$CHOICE" == "MEMGRAPH") || ("$CHOICE" == "NEO4J") || ("$CHOICE" == "OPENFANG") || ("$CHOICE" == "PAPERCLIP") || ("$CHOICE" == "SEARXNG") || ("$CHOICE" == "SYNCTHING") || ("$CHOICE" == "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*") || ("$CHOICE" == "HERMES AGENT") || ("$CHOICE" == "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOT AI CUSTOMER SERVICE*") || ("\$CHOICE" == "DIFY") || ("\$CHOICE" == "CHANGEDETECTION.IO") ]]; then
+        if [ "$CHOICE" != "SETUP MNO CONTROL CENTER" ] && [[ ("$CHOICE" == "AFFINE") || ("$CHOICE" == "APPSMITH") || ("$CHOICE" == "AUTOGEN STUDIO") || ("$CHOICE" == "BASEROW") || ("$CHOICE" == "BOTPRESS") || ("$CHOICE" == "CAL.COM") || ("$CHOICE" == "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "DOCUMENSO") || ("$CHOICE" == "DOCUSEAL") || ("$CHOICE" == "DOZZLE") || ("$CHOICE" == "EVOAI + EVOLUTION 2.0 + MINIO*") || ("$CHOICE" == "IMMICH") || ("$CHOICE" == "HOME ASSISTANT") || ("$CHOICE" == "HOPPSCOTCH") || ("$CHOICE" == "HUMHUB") || ("$CHOICE" == "KRAYIN CRM") || ("$CHOICE" == "LANGFUSE + MINIO + CLICKHOUSE*") || ("$CHOICE" == "LITELLM") || ("$CHOICE" == "MAUTIC 4 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 6 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 7 WHATSAPP MKT") || ("$CHOICE" == "MATOMO") || ("$CHOICE" == "NEXTCLOUD") || ("$CHOICE" == "OPEN PROJECT") || ("$CHOICE" == "TWENTY CRM") || ("$CHOICE" == "TYPEBOT + MINIO*") || ("$CHOICE" == "OPENCLAW") || ("$CHOICE" == "DISCOURSE") || ("$CHOICE" == "GHOST") || ("$CHOICE" == "GLANCE") || ("$CHOICE" == "IT-TOOLS") || ("$CHOICE" == "COGNEE") || ("$CHOICE" == "MEMGRAPH") || ("$CHOICE" == "NEO4J") || ("$CHOICE" == "OPENFANG") || ("$CHOICE" == "PAPERCLIP") || ("$CHOICE" == "SEARXNG") || ("$CHOICE" == "SYNCTHING") || ("$CHOICE" == "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*") || ("$CHOICE" == "HERMES AGENT") || ("$CHOICE" == "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOT AI CUSTOMER SERVICE*") || ("\$CHOICE" == "DIFY") || ("\$CHOICE" == "CHANGEDETECTION.IO") ]]; then
             whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
@@ -972,7 +952,6 @@ case "$CHOICE" in
             "REDISINSIGHT")                                          run_app redisinsight ;;
             "SEARXNG")                                               run_app searxng ;;
             "SETUP MNO CONTROL CENTER")                              run_app setupmno_control ;;
-            "SETUP MNO CONTROL CENTER 2 BETA")                     run_app setupmno_control_2_beta ;;
             "SYNCTHING")                                             run_app syncthing ;;
             "SHLINK")                                                run_app shlink ;;
             "SIYUAN")                                                run_app siyuan ;;
@@ -1016,7 +995,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "PGADMIN4" "" \
     "REDIS" "" \
     "${CONTROL_CENTER_FREE_MENU[@]}" \
-    "${CONTROL_CENTER_BETA_FREE_MENU[@]}" \
     "WAHA API" "" \
     "─────────────────────────" "" \
     "ACTIVEPIECES" "PRO" \
@@ -1157,7 +1135,7 @@ case "$CHOICE" in
             whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
-        if [ "$CHOICE" != "SETUP MNO CONTROL CENTER" ] && [ "$CHOICE" != "SETUP MNO CONTROL CENTER 2 BETA" ] && [[ ("$CHOICE" != "DATABASUS") && ("$CHOICE" != "EVOLUTION 2.0 API PADRÃO") && ("$CHOICE" != "N8N V1 - SEM FILA (MAIN)") && ("$CHOICE" != "N8N V1 - FILA (QUEUE)") && ("$CHOICE" != "N8N V2 - FILA (QUEUE)") && ("$CHOICE" != "PGADMIN4") && ("$CHOICE" != "MINIO") && ("$CHOICE" != "REDIS") && ("$CHOICE" != "EVOLUTION CRM") && ("$CHOICE" != "EVOLUTION GO") && ("$CHOICE" != "EVO NEXUS") && ("$CHOICE" != "WAHA API") ]]; then
+        if [ "$CHOICE" != "SETUP MNO CONTROL CENTER" ] && [[ ("$CHOICE" != "DATABASUS") && ("$CHOICE" != "EVOLUTION 2.0 API PADRÃO") && ("$CHOICE" != "N8N V1 - SEM FILA (MAIN)") && ("$CHOICE" != "N8N V1 - FILA (QUEUE)") && ("$CHOICE" != "N8N V2 - FILA (QUEUE)") && ("$CHOICE" != "PGADMIN4") && ("$CHOICE" != "MINIO") && ("$CHOICE" != "REDIS") && ("$CHOICE" != "EVOLUTION CRM") && ("$CHOICE" != "EVOLUTION GO") && ("$CHOICE" != "EVO NEXUS") && ("$CHOICE" != "WAHA API") ]]; then
             whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free1.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
@@ -1287,7 +1265,6 @@ case "$CHOICE" in
             "REDISINSIGHT")                                          run_app redisinsight ;;
             "SEARXNG")                                               run_app searxng ;;
             "SETUP MNO CONTROL CENTER")                              run_app setupmno_control ;;
-            "SETUP MNO CONTROL CENTER 2 BETA")                     run_app setupmno_control_2_beta ;;
             "SYNCTHING")                                             run_app syncthing ;;
             "SHLINK")                                                run_app shlink ;;
             "SIYUAN")                                                run_app siyuan ;;
@@ -1331,7 +1308,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "PGADMIN4" "" \
     "REDIS" "" \
     "${CONTROL_CENTER_FREE_MENU[@]}" \
-    "${CONTROL_CENTER_BETA_FREE_MENU[@]}" \
     "WAHA API" "" \
     "─────────────────────────" "" \
     "ACTIVEPIECES" "PRO" \
@@ -1472,7 +1448,7 @@ case "$CHOICE" in
             whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
-        if [ "$CHOICE" != "SETUP MNO CONTROL CENTER" ] && [ "$CHOICE" != "SETUP MNO CONTROL CENTER 2 BETA" ] && [[ ("$CHOICE" != "OPENCLAW") && ("$CHOICE" != "EVOLUTION 2.0 API PADRÃO") && ("$CHOICE" != "N8N V1 - SEM FILA (MAIN)") && ("$CHOICE" != "N8N V1 - FILA (QUEUE)") && ("$CHOICE" != "N8N V2 - FILA (QUEUE)") && ("$CHOICE" != "PGADMIN4") && ("$CHOICE" != "MINIO") && ("$CHOICE" != "REDIS") && ("$CHOICE" != "EVOLUTION CRM") && ("$CHOICE" != "EVOLUTION GO") && ("$CHOICE" != "EVO NEXUS") && ("$CHOICE" != "WAHA API") ]]; then
+        if [ "$CHOICE" != "SETUP MNO CONTROL CENTER" ] && [[ ("$CHOICE" != "OPENCLAW") && ("$CHOICE" != "EVOLUTION 2.0 API PADRÃO") && ("$CHOICE" != "N8N V1 - SEM FILA (MAIN)") && ("$CHOICE" != "N8N V1 - FILA (QUEUE)") && ("$CHOICE" != "N8N V2 - FILA (QUEUE)") && ("$CHOICE" != "PGADMIN4") && ("$CHOICE" != "MINIO") && ("$CHOICE" != "REDIS") && ("$CHOICE" != "EVOLUTION CRM") && ("$CHOICE" != "EVOLUTION GO") && ("$CHOICE" != "EVO NEXUS") && ("$CHOICE" != "WAHA API") ]]; then
             whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free2.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
@@ -1602,7 +1578,6 @@ case "$CHOICE" in
             "REDISINSIGHT")                                          run_app redisinsight ;;
             "SEARXNG")                                               run_app searxng ;;
             "SETUP MNO CONTROL CENTER")                              run_app setupmno_control ;;
-            "SETUP MNO CONTROL CENTER 2 BETA")                     run_app setupmno_control_2_beta ;;
             "SYNCTHING")                                             run_app syncthing ;;
             "SHLINK")                                                run_app shlink ;;
             "SIYUAN")                                                run_app siyuan ;;

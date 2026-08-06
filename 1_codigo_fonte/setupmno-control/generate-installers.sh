@@ -697,8 +697,6 @@ count_pro_menu() {
                 name != "DELETAR APPS/STACKS" &&
                 name != "GERADOR DE REGISTROS DNS" &&
                 name != "ESSENCIAIS EDITÁVEIS NO PORTAINER" &&
-                name != "SETUP MNO CONTROL CENTER 2 BETA" &&
-                name != "${CONTROL_CENTER_BETA_MENU[@]}" &&
                 name != "SAIR" &&
                 name !~ /^─+$/) count++
         }
