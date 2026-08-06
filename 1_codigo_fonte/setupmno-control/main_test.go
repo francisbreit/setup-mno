@@ -554,7 +554,7 @@ func TestStreamFullCatalogUsesValidatedRuntimeCatalog(t *testing.T) {
 		agentURL:   agent.URL,
 		agentToken: "token-teste",
 		httpClient: agent.Client(),
-		audit:      make([]auditEvent, 0, 2),
+		audit:      auditState{AnchorHash: auditZeroHash, Events: make([]auditEvent, 0, 2)},
 	}
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, "/api/assistant", nil)
@@ -1202,7 +1202,7 @@ func TestBlueprintDownloadServesOnlyValidatedBundleMap(t *testing.T) {
 		agentURL:   agent.URL,
 		agentToken: token,
 		httpClient: agent.Client(),
-		audit:      make([]auditEvent, 0),
+		audit:      auditState{AnchorHash: auditZeroHash, Events: make([]auditEvent, 0)},
 	}
 
 	request := httptest.NewRequest(http.MethodGet, "/api/blueprints/blueprint-001/download", nil)

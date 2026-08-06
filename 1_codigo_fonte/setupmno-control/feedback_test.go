@@ -21,7 +21,7 @@ func newFeedbackTestApp(t *testing.T) *webApp {
 	return &webApp{
 		version: "4.2.0", feedback: state,
 		feedbackTokens: make(map[string]feedbackTokenRecord),
-		audit:          make([]auditEvent, 0, 8),
+		audit:          auditState{AnchorHash: auditZeroHash, Events: make([]auditEvent, 0, 8)},
 	}
 }
 

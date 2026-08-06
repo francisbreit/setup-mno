@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "LiteLLM no Setup MNO",
   "setupId": "litellm",
-  "setupVersion": "7.7.22",
+  "setupVersion": "7.7.23",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

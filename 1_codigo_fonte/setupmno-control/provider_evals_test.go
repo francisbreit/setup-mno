@@ -155,7 +155,7 @@ func TestProviderEvalHumanReviewIsCompleteAndSingleUse(t *testing.T) {
 				},
 			},
 		},
-		audit: make([]auditEvent, 0, 4),
+		audit: auditState{AnchorHash: auditZeroHash, Events: make([]auditEvent, 0, 4)},
 	}
 	input := providerEvalReviewRequest{RunID: "run"}
 	for index := 1; index <= providerEvalCaseCount; index++ {

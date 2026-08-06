@@ -3,8 +3,8 @@
 Painel web oficial do Setup MNO. O projeto é compilado localmente durante a
 instalação e executado em três stacks obrigatórias e uma quarta opcional:
 
-- `web`: autenticação, interface responsiva, catálogo, auditoria, feedback
-  estruturado e proxy do terminal;
+- `web`: autenticação, interface responsiva, catálogo, auditoria durável,
+  feedback estruturado e proxy do terminal;
 - `agent`: inventário somente leitura do Docker Swarm, métricas do host e leitura
   validada do manifesto e catálogo runtime;
 - `terminal`: menu seguro para o instalador original e a Central de
@@ -244,6 +244,22 @@ servidor. As respostas são exibidas com `textContent`, exigem aprovação ou
 reprovação humana em todos os quatro casos e não são persistidas pelo servidor;
 somente as contagens finais entram na auditoria. Essa revisão mede a aderência
 do modelo e não autoriza deploy, alteração de Swarm ou qualquer ação real.
+
+## Auditoria durável
+
+Os eventos de segurança ficam em um volume Docker dedicado, separado de
+feedback e acessível somente ao serviço web. Cada registro possui sequência,
+ator, ação, recurso, resultado, endereço de origem, versão do Control Center e
+uma cadeia SHA-256 ligada ao evento anterior. A gravação usa arquivo temporário,
+`fsync` e `rename` atômico; symlinks, JSON inválido, datas futuras, quebras na
+sequência ou hashes divergentes bloqueiam a inicialização em vez de ocultar uma
+trilha potencialmente adulterada.
+
+A API autenticada pagina no máximo 100 eventos por chamada. A interface mostra
+o estado da cadeia, a retenção de 90 dias e eventos anteriores sob demanda. A
+trilha retém no máximo 2.000 eventos e preserva a âncora criptográfica quando
+remove eventos expirados. Senhas, tokens, prompts completos, respostas de IA e
+secrets nunca são gravados.
 
 ## Feedback privado do Assistente
 

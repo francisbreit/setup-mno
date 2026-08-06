@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Duplicati no Setup MNO",
   "setupId": "duplicati",
-  "setupVersion": "7.7.22",
+  "setupVersion": "7.7.23",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

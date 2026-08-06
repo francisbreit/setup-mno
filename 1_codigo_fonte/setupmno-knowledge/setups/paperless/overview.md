@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Paperless-ngx no Setup MNO",
   "setupId": "paperless",
-  "setupVersion": "7.7.22",
+  "setupVersion": "7.7.23",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

@@ -16,6 +16,8 @@ const state = {
   providerEvalCooldown: false,
   feedbackTarget: null,
   feedbackRating: "",
+  auditEvents: [],
+  auditNextBefore: 0,
   assistantMode: "basic",
   assistantModel: "",
   setupPlan: "",
@@ -137,6 +139,7 @@ function bindEvents() {
     if (button.dataset.feedbackAction === "delete") deleteFeedbackRecord(button.dataset.feedbackId);
     else reviewFeedbackRecord(button.dataset.feedbackId, button.dataset.feedbackAction);
   });
+  $("audit-load-more").addEventListener("click", () => loadAudit(state.auditNextBefore, true));
   document.querySelector(".prompt-chips").addEventListener("click", event => {
     if (event.target.tagName !== "BUTTON") return;
     $("assistant-input").value = event.target.textContent;
@@ -201,6 +204,8 @@ function setAuthenticated(session) {
   state.providerEvalCooldown = false;
   state.feedbackTarget = null;
   state.feedbackRating = "";
+  state.auditEvents = [];
+  state.auditNextBefore = 0;
   $("assistant-quality-card").classList.remove("passed", "failed");
   $("assistant-quality-title").textContent = "Verificando qualidade";
   $("assistant-quality-summary").textContent = "Conferindo os testes automatizados desta release.";
@@ -1689,16 +1694,29 @@ async function submitAssistantFeedback(event) {
   }
 }
 
-async function loadAudit() {
+async function loadAudit(before = 0, append = false) {
   try {
-    const [data, feedback] = await Promise.all([api("/api/audit"), api("/api/feedback")]);
-    $("audit-list").innerHTML = data.events.length ? data.events.map(event => `
+    const auditPath = before ? `/api/audit?limit=50&before=${encodeURIComponent(before)}` : "/api/audit?limit=50";
+    const [data, feedback] = await Promise.all([api(auditPath), api("/api/feedback")]);
+    const events = Array.isArray(data.events) ? data.events : [];
+    state.auditEvents = append ? [...state.auditEvents, ...events] : events;
+    state.auditNextBefore = Number(data.pagination?.nextBefore) || 0;
+    const integrity = data.integrity || {};
+    const verified = integrity.status === "verified" && integrity.persistenceStatus === "healthy";
+    $("audit-integrity").classList.toggle("warning", !verified);
+    $("audit-integrity").textContent = verified ? "✓ Íntegra" : "! Atenção";
+    $("audit-policy").textContent = verified
+      ? `Cadeia local verificada · retenção máxima: ${Number(integrity.retentionDays) || 0} dias · ${Number(integrity.retainedEvents) || 0} eventos retidos.`
+      : "A persistência ou a integridade da auditoria exige verificação administrativa antes de novas operações.";
+    $("audit-list").innerHTML = state.auditEvents.length ? state.auditEvents.map(event => `
       <div class="audit-row">
         <span>${new Date(event.time).toLocaleString("pt-BR")}</span>
         <strong>${escapeHTML(event.action)}</strong>
+        <small>${escapeHTML(event.actor || "admin")} · ${escapeHTML(event.outcome || "success")}</small>
         <span>${escapeHTML(event.detail)}</span>
         <span>${escapeHTML(event.address)}</span>
-      </div>`).join("") : `<div class="empty-state">Nenhum evento nesta sessão.</div>`;
+      </div>`).join("") : `<div class="empty-state">Nenhum evento retido na trilha local.</div>`;
+    $("audit-load-more").hidden = !data.pagination?.hasMore;
     renderFeedbackReview(feedback);
   } catch (error) {
     showAlert(error.message);

@@ -53,13 +53,6 @@ type session struct {
 	TerminalUntil time.Time
 }
 
-type auditEvent struct {
-	Time    time.Time `json:"time"`
-	Action  string    `json:"action"`
-	Detail  string    `json:"detail"`
-	Address string    `json:"address"`
-}
-
 type loginWindow struct {
 	Attempts int
 	ResetAt  time.Time
@@ -89,7 +82,7 @@ type webApp struct {
 	loginMu   sync.Mutex
 	logins    map[string]*loginWindow
 	auditMu   sync.Mutex
-	audit     []auditEvent
+	audit     auditState
 
 	providerEvalMu      sync.Mutex
 	providerEvalRunning bool
@@ -478,6 +471,10 @@ func runWeb() error {
 	if err != nil {
 		return fmt.Errorf("fila de feedback indisponível: %w", err)
 	}
+	audit, err := loadAuditState(envDefault("AUDIT_STORE_PATH", "/audit/audit.json"))
+	if err != nil {
+		return fmt.Errorf("trilha de auditoria indisponível ou íntegra não confirmada: %w", err)
+	}
 	blueprintKnowledge, err := loadEmbeddedKnowledgePackage()
 	if err != nil {
 		return fmt.Errorf("catálogo de Blueprints indisponível: %w", err)
@@ -526,7 +523,7 @@ func runWeb() error {
 		assistantClient:  &http.Client{Timeout: 2 * time.Minute},
 		sessions:         make(map[string]*session),
 		logins:           make(map[string]*loginWindow),
-		audit:            make([]auditEvent, 0, 200),
+		audit:            audit,
 		blueprints:       blueprints,
 		blueprintBundles: blueprintBundles,
 		evals:            evalReport,
@@ -2209,15 +2206,41 @@ func validBlueprintID(value string) bool {
 	return true
 }
 
-func (a *webApp) handleAudit(w http.ResponseWriter, _ *http.Request) {
-	a.auditMu.Lock()
-	events := make([]auditEvent, len(a.audit))
-	copy(events, a.audit)
-	a.auditMu.Unlock()
-	for i, j := 0, len(events)-1; i < j; i, j = i+1, j-1 {
-		events[i], events[j] = events[j], events[i]
+func (a *webApp) handleAudit(w http.ResponseWriter, r *http.Request) {
+	limit := 50
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 1 || parsed > 100 {
+			writeError(w, http.StatusBadRequest, "limite de auditoria inválido")
+			return
+		}
+		limit = parsed
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"events": events})
+	var before uint64
+	if raw := r.URL.Query().Get("before"); raw != "" {
+		parsed, err := strconv.ParseUint(raw, 10, 64)
+		if err != nil || parsed == 0 {
+			writeError(w, http.StatusBadRequest, "cursor de auditoria inválido")
+			return
+		}
+		before = parsed
+	}
+	a.auditMu.Lock()
+	events, pagination := auditPage(a.audit.Events, before, limit)
+	integrity := auditIntegrity{
+		Status: "verified", PolicyVersion: auditPolicyVersion,
+		AnchorSequence: a.audit.AnchorSequence, RetainedEvents: len(a.audit.Events),
+		RetentionDays: int(auditRetention / (24 * time.Hour)), ChainHead: auditChainHead(a.audit),
+		PersistenceStatus: "healthy",
+	}
+	if a.audit.LastError != "" {
+		integrity.Status = "degraded"
+		integrity.PersistenceStatus = "unavailable"
+	}
+	a.auditMu.Unlock()
+	writeJSON(w, http.StatusOK, map[string]any{
+		"events": events, "pagination": pagination, "integrity": integrity,
+	})
 }
 
 func (a *webApp) handleAssistant(w http.ResponseWriter, r *http.Request) {
@@ -3107,15 +3130,25 @@ func (a *webApp) clearLoginFailures(address string) {
 func (a *webApp) addAudit(action, detail, address string) {
 	a.auditMu.Lock()
 	defer a.auditMu.Unlock()
-	a.audit = append(a.audit, auditEvent{
-		Time:    time.Now().UTC(),
-		Action:  action,
-		Detail:  detail,
-		Address: address,
-	})
-	if len(a.audit) > 200 {
-		a.audit = append([]auditEvent(nil), a.audit[len(a.audit)-200:]...)
+	previous := a.audit
+	previous.Events = append([]auditEvent(nil), a.audit.Events...)
+	controlVersion := a.version
+	if !validSemanticVersion(controlVersion) {
+		controlVersion = "0.0.0"
 	}
+	appendAuditEvent(&a.audit, auditEvent{
+		Time: time.Now().UTC().Format(time.RFC3339), Actor: inferAuditActor(action), Action: action,
+		Resource: inferAuditResource(action), Outcome: inferAuditOutcome(action), Detail: detail,
+		Address: address, ControlVersion: controlVersion,
+	})
+	pruneAuditState(&a.audit, time.Now().UTC())
+	if err := saveAuditState(a.audit); err != nil {
+		a.audit = previous
+		a.audit.LastError = "persistência local indisponível"
+		log.Printf("Control Center: evento de auditoria não persistido: %v", err)
+		return
+	}
+	a.audit.LastError = ""
 }
 
 func (a *webApp) sessionJanitor() {
@@ -3144,6 +3177,17 @@ func (a *webApp) sessionJanitor() {
 			}
 		}
 		a.feedbackMu.Unlock()
+
+		a.auditMu.Lock()
+		if pruneAuditState(&a.audit, now.UTC()) {
+			if err := saveAuditState(a.audit); err != nil {
+				a.audit.LastError = "persistência local indisponível"
+				log.Printf("Control Center: retenção da auditoria não pôde ser persistida: %v", err)
+			} else {
+				a.audit.LastError = ""
+			}
+		}
+		a.auditMu.Unlock()
 	}
 }
 

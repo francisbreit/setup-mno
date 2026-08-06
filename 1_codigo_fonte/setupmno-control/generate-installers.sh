@@ -203,7 +203,7 @@ grep -Fq 'COPY --from=builder /src/knowledge-package /knowledge-package' \
     printf 'ERRO: a imagem final não contém o pacote de conhecimento somente leitura.\n' >&2
     exit 1
 }
-grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go provider_evals.go feedback.go ./' \
+grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go ./' \
     "$project_dir/Dockerfile" || {
     printf 'ERRO: o build não inclui retrieval, roteador, prompts, Blueprints e evals.\n' >&2
     exit 1
@@ -229,6 +229,15 @@ grep -Fq 'feedbackRetention' "$project_dir/feedback.go" &&
 grep -Fq 'humanReviewRequired": true' "$project_dir/feedback.go" &&
 grep -Fq 'feedback_data:/feedback' "$template" || {
     printf 'ERRO: feedback seguro, temporizado e revisável ausente ou incompleto.\n' >&2
+    exit 1
+}
+grep -Fq 'AUDIT_STORE_PATH=/audit/audit.json' "$template" &&
+grep -Fq 'audit_data:/audit' "$template" &&
+grep -Fq 'auditPolicyVersion' "$project_dir/audit.go" &&
+grep -Fq 'saveAuditState' "$project_dir/audit.go" &&
+grep -Fq 'auditEventHash' "$project_dir/audit.go" &&
+grep -Fq 'auditPage' "$project_dir/audit.go" || {
+    printf 'ERRO: auditoria durável, íntegra e paginada ausente ou incompleta.\n' >&2
     exit 1
 }
 grep -Fq 'CONTROL_PLAN=$(jq -er' "$template" &&
@@ -585,7 +594,7 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
         terminal-menu.sh configure-control.sh control-upgrade.sh \
         main.go knowledge.go retrieval.go routing.go prompts.go \
-        blueprint_recommendation.go evals.go provider_evals.go feedback.go web |
+        blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go web |
         gzip -9n >"$bundle"
 )
 if ! tar -tzf "$bundle" | grep -Fx 'blueprint_recommendation.go' >/dev/null; then
@@ -602,6 +611,10 @@ if ! tar -tzf "$bundle" | grep -Fx 'provider_evals.go' >/dev/null; then
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'feedback.go' >/dev/null; then
     printf 'ERRO: bundle de fontes sem o feedback sanitizado.\n' >&2
+    exit 1
+fi
+if ! tar -tzf "$bundle" | grep -Fx 'audit.go' >/dev/null; then
+    printf 'ERRO: bundle de fontes sem a auditoria durável.\n' >&2
     exit 1
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'control-upgrade.sh' >/dev/null; then
