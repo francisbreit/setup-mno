@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Activepieces no Setup MNO",
   "setupId": "activepieces",
-  "setupVersion": "7.7.29",
+  "setupVersion": "7.7.30",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
