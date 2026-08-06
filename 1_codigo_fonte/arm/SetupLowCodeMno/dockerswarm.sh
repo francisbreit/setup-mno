@@ -980,7 +980,7 @@ services:
                 - "traefik.enable=true"
                 - "traefik.http.middlewares.redirect-https.redirectscheme.scheme=https"
                 - "traefik.http.middlewares.redirect-https.redirectscheme.permanent=true"
-                - "traefik.http.routers.http-catchall.rule=HostRegexp(\`{host:.+}\`)"
+                - "traefik.http.routers.http-catchall.rule=hostregexp(\`{host:.+}\`)"
                 - "traefik.http.routers.http-catchall.entrypoints=web"
                 - "traefik.http.routers.http-catchall.middlewares=redirect-https@docker"
                 - "traefik.http.routers.http-catchall.priority=1"
@@ -1427,7 +1427,6 @@ cat >> portainer.yaml << EOL
         - "traefik.http.routers.portainer.rule=Host(\`$dominio\`)"
         - "traefik.http.routers.portainer.entrypoints=websecure"
         - "traefik.http.routers.portainer.priority=1"
-        - "traefik.http.routers.portainer.tls=true"
         - "traefik.http.routers.portainer.tls.certresolver=letsencryptresolver"
         - "traefik.http.routers.portainer.service=portainer"
         - "traefik.http.services.portainer.loadbalancer.server.port=9000"
@@ -1506,20 +1505,18 @@ PORTAINER_URL="https://$dominio/api"
 wait_for_portainer() {
     echo -e "XXX\n64\nAGUARDANDO PORTAINER INICIALIZAR \nXXX"
 
-    local max_attempts=60
+    local max_attempts=30
     local attempt=1
-    local -a tls_args=()
-    [ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ] && tls_args=(-k)
 
     while [ $attempt -le $max_attempts ]; do
-        STATUS=$(curl "${tls_args[@]}" -sS --connect-timeout 10 --max-time 15 -o /dev/null -w "%{http_code}" "$PORTAINER_URL/status" 2>/dev/null || true)
+        STATUS=$(curl -sk --connect-timeout 10 --max-time 15 -o /dev/null -w "%{http_code}" "$PORTAINER_URL/status" 2>/dev/null)
 
         if [ "$STATUS" -eq 200 ]; then
             echo -e "XXX\n65\nPORTAINER INICIALIZADO COM SUCESSO \nXXX"
             break
         fi
 
-        echo -e "XXX\n64\nTENTATIVA $attempt/$max_attempts - STATUS: $STATUS (aguardando certificado TLS confiável) \nXXX"
+        echo -e "XXX\n64\nTENTATIVA $attempt/$max_attempts - STATUS: $STATUS \nXXX"
         sleep 5
         attempt=$((attempt + 1))
     done
@@ -1535,7 +1532,7 @@ sleep 12
 # Função para verificar se o usuário administrador já existe
 check_admin_user() {
     echo -e "XXX\n66\nVERIFICANDO USUÁRIO ADMIN \nXXX"
-    RESPONSE=$(curl "${PORTAINER_TLS_ARGS[@]}" -sS -o /dev/null -w "%{http_code}" -X GET "$PORTAINER_URL/users" 2>/dev/null || true)
+    RESPONSE=$(curl -sk -o /dev/null -w "%{http_code}" -X GET "$PORTAINER_URL/users" 2>/dev/null)
     if [ "$RESPONSE" -eq 401 ]; then
         echo -e "XXX\n67\nUSUÁRIO ADMIN AINDA NÃO CONFIGURADO \nXXX"
         return 1
@@ -1551,7 +1548,7 @@ check_admin_user() {
 # Função para criar o usuário admin
 create_admin_user() {
     echo -e "XXX\n69\nCRIANDO USUÁRIO ADMIN NO PORTAINER... \nXXX"
-    RESPONSE=$(curl "${PORTAINER_TLS_ARGS[@]}" -sS -X POST "$PORTAINER_URL/users/admin/init" \
+    RESPONSE=$(curl -sk -X POST "$PORTAINER_URL/users/admin/init" \
         -H "Content-Type: application/json" \
         -d "{\"Username\": \"$usuariopt\", \"Password\": \"$senhapt\"}" 2>/dev/null)
 
@@ -1564,15 +1561,7 @@ create_admin_user() {
 }
 
 # Executar as funções
-if ! wait_for_portainer; then
-    whiptail --title "PORTAINER NÃO DISPONÍVEL" --msgbox \
-        "O Portainer não respondeu com um certificado TLS confiável após 5 minutos.\n\nO Traefik pode estar usando o certificado padrão porque o DNS ainda não aponta para este servidor ou as portas 80/443 estão bloqueadas. Corrija o DNS/firewall e execute o instalador novamente." \
-        16 82
-    exit 1
-fi
-
-declare -a PORTAINER_TLS_ARGS=()
-[ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ] && PORTAINER_TLS_ARGS=(-k)
+wait_for_portainer
 if ! check_admin_user; then
     create_admin_user
 fi
