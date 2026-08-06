@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Hermes Agent no Setup MNO",
   "setupId": "hermes-agent",
-  "setupVersion": "7.7.24",
+  "setupVersion": "7.7.25",
   "architectures": [
     "amd64",
     "arm64"

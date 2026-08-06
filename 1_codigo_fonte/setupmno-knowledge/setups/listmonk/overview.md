@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "listmonk no Setup MNO",
   "setupId": "listmonk",
-  "setupVersion": "7.7.24",
+  "setupVersion": "7.7.25",
   "architectures": [
     "amd64",
     "arm64"
