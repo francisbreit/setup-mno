@@ -365,6 +365,21 @@ function msg() {
                 whiptail --title "PARTE INICIAL: INSTALAÇÃO OBRIGATÓRIA DO DOCKER SWARM + ESSENCIAIS (TRAEFIK, PORTAINER, POSTGRES, PGBOUNCER E REDIS)" --msgbox "$msg" --fb 10 70;
         }
 
+validate_traditional_dns() {
+    local hostname="$1" public_ip resolved_ips
+    public_ip=$(curl -fsS --max-time 10 https://api.ipify.org 2>/dev/null || true)
+    if [ -z "$public_ip" ]; then
+        msg "Não foi possível descobrir o IP público deste servidor. Verifique a conectividade e tente novamente."
+        return 1
+    fi
+    resolved_ips=$(getent ahostsv4 "$hostname" 2>/dev/null | awk '{print $1}' | sort -u)
+    if [ -z "$resolved_ips" ] || ! grep -Fqx "$public_ip" <<<"$resolved_ips"; then
+        msg "O domínio $hostname ainda não aponta para este servidor.\n\nIP público esperado: $public_ip\nIPs resolvidos: ${resolved_ips:-nenhum}\n\nCorrija o registro DNS e execute o instalador novamente. O Traefik não será publicado com certificado fallback."
+        return 1
+    fi
+    return 0
+}
+
   while true; do
 CHOICE=$(
 whiptail --title "PARTE INICIAL: INSTALAÇÃO OBRIGATÓRIA DO DOCKER SWARM + ESSENCIAIS (TRAEFIK, PORTAINER, POSTGRES, PGBOUNCER E REDIS)" --menu "Use setas para navegar, Enter para selecionar e TAB para navegar\nINSTALAR: Instala o Docker Swarm e Apps essenciais\nGERADOR DE REGISTROS DE DNS: Gera aponstamentos DNS e exporta para um arquivo\nATENÇÃO: Antes de instalar, crie registros DNS p/ o Portainer. Use o nosso GERADOR DE REGISTROS DE DNS. Apontamentos:\nRECORD A: Dê um nome para seu servidor (exemplo: manager1.seudominio.com.br) e aponte para o IP do seu servidor\nRECORD CNAME: Crie um subdominio para o Portainer (exemplo: painel.seudominio.com.br) a aponte para o nome do servidor criado (exemplo: manager1.seudominio.com.br) " 20 70 3 \
@@ -725,16 +740,12 @@ EOL
         # Verificação tradicional (com IP)
 
 if [ "$criar_dns" = "1" ]; then
-   ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
+   ip_servidor=$(curl -fsS --max-time 10 https://api.ipify.org 2>/dev/null || true)
     echo -e "XXX\n3\nVERIFICANDO SUBDOMÍNIO: $dominio \nXXX"
    sleep 3
-    # Verifica apenas se o domínio está apontando para o IP correto
-    dns_ip=$(timeout 10 nslookup $dominio | grep "Address" | tail -n1 | awk '{print $2}')
-    if [[ "$dns_ip" != "$ip_servidor" ]]; then
+    if ! validate_traditional_dns "$dominio"; then
         echo -e "XXX\n10\nERRO: SUBDOMÍNIO NÃO APONTA PARA O IP DO SERVIDOR ($ip_servidor) \nXXX"
-    sleep 3
-        echo -e "XXX\n18\nERRO: REGISTROS DNS NÃO ENCONTRADOS \nXXX"
-        sleep 3
+        sleep 2
         exit 1
     fi
 
@@ -969,7 +980,7 @@ services:
                 - "traefik.enable=true"
                 - "traefik.http.middlewares.redirect-https.redirectscheme.scheme=https"
                 - "traefik.http.middlewares.redirect-https.redirectscheme.permanent=true"
-                - "traefik.http.routers.http-catchall.rule=hostregexp(\`{host:.+}\`)"
+                - "traefik.http.routers.http-catchall.rule=HostRegexp(\`{host:.+}\`)"
                 - "traefik.http.routers.http-catchall.entrypoints=web"
                 - "traefik.http.routers.http-catchall.middlewares=redirect-https@docker"
                 - "traefik.http.routers.http-catchall.priority=1"
@@ -1416,6 +1427,7 @@ cat >> portainer.yaml << EOL
         - "traefik.http.routers.portainer.rule=Host(\`$dominio\`)"
         - "traefik.http.routers.portainer.entrypoints=websecure"
         - "traefik.http.routers.portainer.priority=1"
+        - "traefik.http.routers.portainer.tls=true"
         - "traefik.http.routers.portainer.tls.certresolver=letsencryptresolver"
         - "traefik.http.routers.portainer.service=portainer"
         - "traefik.http.services.portainer.loadbalancer.server.port=9000"
@@ -1494,18 +1506,20 @@ PORTAINER_URL="https://$dominio/api"
 wait_for_portainer() {
     echo -e "XXX\n64\nAGUARDANDO PORTAINER INICIALIZAR \nXXX"
 
-    local max_attempts=30
+    local max_attempts=60
     local attempt=1
+    local -a tls_args=()
+    [ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ] && tls_args=(-k)
 
     while [ $attempt -le $max_attempts ]; do
-        STATUS=$(curl -sk --connect-timeout 10 --max-time 15 -o /dev/null -w "%{http_code}" "$PORTAINER_URL/status" 2>/dev/null)
+        STATUS=$(curl "${tls_args[@]}" -sS --connect-timeout 10 --max-time 15 -o /dev/null -w "%{http_code}" "$PORTAINER_URL/status" 2>/dev/null || true)
 
         if [ "$STATUS" -eq 200 ]; then
             echo -e "XXX\n65\nPORTAINER INICIALIZADO COM SUCESSO \nXXX"
             break
         fi
 
-        echo -e "XXX\n64\nTENTATIVA $attempt/$max_attempts - STATUS: $STATUS \nXXX"
+        echo -e "XXX\n64\nTENTATIVA $attempt/$max_attempts - STATUS: $STATUS (aguardando certificado TLS confiável) \nXXX"
         sleep 5
         attempt=$((attempt + 1))
     done
@@ -1521,7 +1535,7 @@ sleep 12
 # Função para verificar se o usuário administrador já existe
 check_admin_user() {
     echo -e "XXX\n66\nVERIFICANDO USUÁRIO ADMIN \nXXX"
-    RESPONSE=$(curl -sk -o /dev/null -w "%{http_code}" -X GET "$PORTAINER_URL/users" 2>/dev/null)
+    RESPONSE=$(curl "${PORTAINER_TLS_ARGS[@]}" -sS -o /dev/null -w "%{http_code}" -X GET "$PORTAINER_URL/users" 2>/dev/null || true)
     if [ "$RESPONSE" -eq 401 ]; then
         echo -e "XXX\n67\nUSUÁRIO ADMIN AINDA NÃO CONFIGURADO \nXXX"
         return 1
@@ -1537,7 +1551,7 @@ check_admin_user() {
 # Função para criar o usuário admin
 create_admin_user() {
     echo -e "XXX\n69\nCRIANDO USUÁRIO ADMIN NO PORTAINER... \nXXX"
-    RESPONSE=$(curl -sk -X POST "$PORTAINER_URL/users/admin/init" \
+    RESPONSE=$(curl "${PORTAINER_TLS_ARGS[@]}" -sS -X POST "$PORTAINER_URL/users/admin/init" \
         -H "Content-Type: application/json" \
         -d "{\"Username\": \"$usuariopt\", \"Password\": \"$senhapt\"}" 2>/dev/null)
 
@@ -1550,7 +1564,15 @@ create_admin_user() {
 }
 
 # Executar as funções
-wait_for_portainer
+if ! wait_for_portainer; then
+    whiptail --title "PORTAINER NÃO DISPONÍVEL" --msgbox \
+        "O Portainer não respondeu com um certificado TLS confiável após 5 minutos.\n\nO Traefik pode estar usando o certificado padrão porque o DNS ainda não aponta para este servidor ou as portas 80/443 estão bloqueadas. Corrija o DNS/firewall e execute o instalador novamente." \
+        16 82
+    exit 1
+fi
+
+declare -a PORTAINER_TLS_ARGS=()
+[ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ] && PORTAINER_TLS_ARGS=(-k)
 if ! check_admin_user; then
     create_admin_user
 fi
