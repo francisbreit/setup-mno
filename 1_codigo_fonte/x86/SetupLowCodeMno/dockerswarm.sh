@@ -1491,9 +1491,13 @@ wait_for_portainer() {
     local attempt=1
 
     while [ $attempt -le $max_attempts ]; do
-        STATUS=$(curl -sS --connect-timeout 10 --max-time 15 -o /dev/null -w "%{http_code}" "$PORTAINER_URL/status")
+        # Durante a emissão/propagação inicial do certificado ACME, o Traefik
+        # pode apresentar temporariamente o certificado padrão. O -k evita que
+        # essa etapa interrompa toda a instalação antes do Let's Encrypt concluir.
+        STATUS=$(curl -sk --connect-timeout 10 --max-time 15 -o /dev/null -w "%{http_code}" "$PORTAINER_URL/status" || true)
+        STATUS=${STATUS:-000}
 
-        if [ "$STATUS" -eq 200 ]; then
+        if [ "$STATUS" = "200" ]; then
             echo -e "XXX\n65\nPORTAINER INICIALIZADO COM SUCESSO \nXXX"
             break
         fi
@@ -1503,7 +1507,7 @@ wait_for_portainer() {
         attempt=$((attempt + 1))
     done
 
-    if [ "$STATUS" -ne 200 ]; then
+    if [ "$STATUS" != "200" ]; then
         echo -e "XXX\n65\nERRO: PORTAINER NÃO RESPONDEU APÓS $max_attempts TENTATIVAS \nXXX"
         return 1
     fi
@@ -1514,7 +1518,8 @@ sleep 12
 # Função para verificar se o usuário administrador já existe
 check_admin_user() {
     echo -e "XXX\n66\nVERIFICANDO USUÁRIO ADMIN \nXXX"
-    RESPONSE=$(curl -sS -o /dev/null -w "%{http_code}" -X GET "$PORTAINER_URL/users")
+    RESPONSE=$(curl -sk -o /dev/null -w "%{http_code}" -X GET "$PORTAINER_URL/users" || true)
+    RESPONSE=${RESPONSE:-000}
     if [ "$RESPONSE" -eq 401 ]; then
         echo -e "XXX\n67\nUSUÁRIO ADMIN AINDA NÃO CONFIGURADO \nXXX"
         return 1
@@ -1530,7 +1535,7 @@ check_admin_user() {
 # Função para criar o usuário admin
 create_admin_user() {
     echo -e "XXX\n69\nCRIANDO USUÁRIO ADMIN NO PORTAINER... \nXXX"
-    RESPONSE=$(curl -sS -X POST "$PORTAINER_URL/users/admin/init" \
+    RESPONSE=$(curl -sk -X POST "$PORTAINER_URL/users/admin/init" \
         -H "Content-Type: application/json" \
         -d "{\"Username\": \"$usuariopt\", \"Password\": \"$senhapt\"}")
 
@@ -1542,8 +1547,12 @@ create_admin_user() {
     fi
 }
 
-# Executar as funções
-wait_for_portainer
+# Executar as funções. Não continue para as demais ferramentas se o
+# Portainer realmente não estiver acessível após todas as tentativas.
+if ! wait_for_portainer; then
+    echo -e "XXX\n65\nERRO: PORTAINER INDISPONÍVEL. VERIFIQUE DNS, PORTAS 80/443 E LOGS DO TRAEFIK. \nXXX"
+    exit 1
+fi
 if ! check_admin_user; then
     create_admin_user
 fi
@@ -1873,7 +1882,11 @@ else
 fi
 }|whiptail --title "SETUP MNO - FERRAMENTAS ESSENCIAIS" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
 
-offer_control_center_installation
+# O Control Center deve ser oferecido apenas na instalação tradicional e
+# antes da mensagem final que solicita o reinício do servidor.
+if [[ "$INSTALL_CHOICE" = "TRADICIONAL" ]]; then
+    offer_control_center_installation
+fi
 
 if [[ "$INSTALL_CHOICE" = "TRADICIONAL" && "$criar_dns" == "0" ]] ; then
 {
