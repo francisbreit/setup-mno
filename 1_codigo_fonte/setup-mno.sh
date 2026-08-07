@@ -721,6 +721,30 @@ execute_with_spinner "sudo apt-get install whiptail -y" "Instalando dependência
 execute_with_spinner "sudo apt-get install jq -y" "Instalando dependências 7 de 7...."
 
 
+#########################################################
+# INÍCIO DO CÓDIGO ADICIONADO - INSTALAÇÃO DO TMUX
+#########################################################
+
+execute_with_spinner "sudo apt-get install tmux -y" "Instalando TMUX para proteção da sessão..."
+
+# Confirma se o TMUX foi realmente instalado.
+# O install.sh apenas utiliza o TMUX; a instalação fica centralizada aqui.
+if ! command -v tmux >/dev/null 2>&1; then
+    echo -e "${vermelho}❌ ERRO: Não foi possível instalar o TMUX.${reset}"
+    echo -e "${amarelo}A instalação do Setup MNO será interrompida para evitar continuar sem a proteção de sessão.${reset}"
+    sleep 4
+    exit 1
+fi
+
+echo -e "${verde}✅ TMUX instalado e disponível: $(tmux -V)${reset}"
+sleep 1
+
+#########################################################
+# FIM DO CÓDIGO ADICIONADO - INSTALAÇÃO DO TMUX
+#########################################################
+
+
+
 
 clear
 
