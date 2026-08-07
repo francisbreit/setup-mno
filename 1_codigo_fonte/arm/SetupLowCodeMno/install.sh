@@ -413,10 +413,8 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MEILISEARCH" "" \
     "MILVUS + ATTU*" "" \
     "MEMOS" "" \
-    "MAUTIC 4 PADRÃO" "" \
     "MAUTIC 6 PADRÃO" "" \
     "MAUTIC 7 PADRÃO" "" \
-    "MAUTIC 4 WHATSAPP MKT" "" \
     "MAUTIC 6 WHATSAPP MKT" "" \
     "MAUTIC 7 WHATSAPP MKT" "" \
     "MEMGRAPH" "" \
@@ -769,8 +767,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MEILISEARCH" "PRO" \
     "MILVUS + ATTU*" "PRO" \
     "MEMOS" "PRO" \
-    "MAUTIC 4 PADRÃO" "PRO" \
-    "MAUTIC 4 WHATSAPP MKT" "PRO" \
     "MAUTIC 6 WHATSAPP MKT" "PRO" \
     "MAUTIC 7 WHATSAPP MKT" "PRO" \
     "MEMGRAPH" "PRO" \
@@ -1057,10 +1053,8 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MEILISEARCH" "PRO" \
     "MILVUS + ATTU*" "PRO" \
     "MEMOS" "PRO" \
-    "MAUTIC 4 PADRÃO" "PRO" \
     "MAUTIC 6 PADRÃO" "PRO" \
     "MAUTIC 7 PADRÃO" "PRO" \
-    "MAUTIC 4 WHATSAPP MKT" "PRO" \
     "MAUTIC 6 WHATSAPP MKT" "PRO" \
     "MAUTIC 7 WHATSAPP MKT" "PRO" \
     "MEMGRAPH" "PRO" \
@@ -1371,10 +1365,8 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MEILISEARCH" "PRO" \
     "MILVUS + ATTU*" "PRO" \
     "MEMOS" "PRO" \
-    "MAUTIC 4 PADRÃO" "PRO" \
     "MAUTIC 6 PADRÃO" "PRO" \
     "MAUTIC 7 PADRÃO" "PRO" \
-    "MAUTIC 4 WHATSAPP MKT" "PRO" \
     "MAUTIC 6 WHATSAPP MKT" "PRO" \
     "MAUTIC 7 WHATSAPP MKT" "PRO" \
     "MEMGRAPH" "PRO" \

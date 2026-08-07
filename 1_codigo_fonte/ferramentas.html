@@ -20,7 +20,7 @@
   </style>
 </head>
 <body>
-<header><div class="eyebrow">Setup MNO - Catálogo de Setups (Deploys / Instalações) - Versão PRO</div><h1>Guia completo de todos os setups disponíveis</h1><p class="lead">Veja aqui os setups disponíveis, usando vários tipos de filtros.</p><div class="catalog-meta" id="catalog-meta"><p>Versão 7.7.24 | Atualizado em Agosto/2026</p><p>Total de Setups (Deploys / Instalações): 151</p><p>Total de Setups Arquitetura X86: 151</p><p>Total de Setups Arquitetura ARM: 136</p></div></header>
+<header><div class="eyebrow">Setup MNO - Catálogo de Setups (Deploys / Instalações) - Versão PRO</div><h1>Guia completo de todos os setups disponíveis</h1><p class="lead">Veja aqui os setups disponíveis, usando vários tipos de filtros.</p><div class="catalog-meta" id="catalog-meta"><p>Versão 7.7.24 | Atualizado em Agosto/2026</p><p>Total de Setups (Deploys / Instalações): 151</p><p>Total de Setups Arquitetura X86: 151</p><p>Total de Setups Arquitetura ARM: 134</p></div></header>
   <main>
     <section class="panel" aria-label="Filtros do catálogo">
       <div class="toolbar">
@@ -43,6 +43,8 @@
     STATIC_CATALOG.push({"name":"GLANCE","cats":"Dashboard, Produtividade, Monitoramento, Feeds","desc":"Dashboard self-hosted altamente personalizável que reúne pesquisas, favoritos, feeds, notícias, releases, mercados e monitoramento de serviços em uma única página.","ram":0.25,"ramLabel":"~256MB","arch":"x86-arm","stars":36047,"type":"Utilitário","search":"glance dashboard produtividade monitoramento feeds favoritos notícias releases mercados serviços self-hosted"});
     STATIC_CATALOG.push({"name":"HOPPSCOTCH","cats":"Desenvolvimento, APIs, Testes, Colaboração","desc":"Ecossistema open-source para desenvolver, testar e documentar APIs REST, GraphQL e WebSocket, com workspaces colaborativos e painel administrativo.","ram":2,"ramLabel":"~2GB","arch":"x86-arm","stars":79300,"type":"Individual","search":"hoppscotch desenvolvimento APIs testes colaboração REST GraphQL WebSocket alternativa Postman Insomnia self-hosted"});
     STATIC_CATALOG.push({"name":"SETUP MNO CONTROL CENTER","cats":"DevOps, Deploy, Monitoramento, Administração","desc":"Painel web oficial do Setup MNO com inventário do Docker Swarm, métricas do servidor, catálogo completo, diagnóstico assistido e acesso autenticado ao instalador original.","ram":0.5,"ramLabel":"~512MB","arch":"x86-arm","stars":0,"type":"Utilitário","search":"setup mno control center painel web devops deploy monitoramento servidor docker swarm instalador remoto"});
+    // Mautic 4 usa imagens x86-only; manter o catálogo público alinhado ao catálogo canônico.
+    STATIC_CATALOG.filter(tool=>tool.name==='MAUTIC 4 PADRÃO'||tool.name==='MAUTIC 4 WHATSAPP MKT').forEach(tool=>tool.arch='x86');
     const state={tools:STATIC_CATALOG,theme:localStorage.getItem('mno-theme')||'dark'};
     const $=id=>document.getElementById(id), controls=['search','category','type','ram','arch','popularity','sort'].map($);
     document.documentElement.dataset.theme=state.theme;

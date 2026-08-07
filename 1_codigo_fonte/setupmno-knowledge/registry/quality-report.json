@@ -1302,7 +1302,9 @@
       "homologationEvidence": false,
       "installationStatus": "maintainer-homologated",
       "integrationMaturity": "not-mapped",
-      "issues": [],
+      "issues": [
+        "architecture-inconsistent"
+      ],
       "maturity": "structural",
       "operationalEvidence": false,
       "scriptSourceDeclared": true,
@@ -1319,7 +1321,9 @@
       "homologationEvidence": false,
       "installationStatus": "maintainer-homologated",
       "integrationMaturity": "not-mapped",
-      "issues": [],
+      "issues": [
+        "architecture-inconsistent"
+      ],
       "maturity": "structural",
       "operationalEvidence": false,
       "scriptSourceDeclared": true,
@@ -2631,7 +2635,7 @@
       "validated": 0
     },
     "internalOnlySourceEntries": 19,
-    "issueEntries": 27,
+    "issueEntries": 29,
     "maturityLevels": {
       "homologated": 0,
       "operational-reviewed": 0,
@@ -2643,6 +2647,6 @@
     "officialSourceExceptions": 1,
     "operationalEvidenceEntries": 0,
     "setupEntries": 151,
-    "unresolvedIssueCount": 29
+    "unresolvedIssueCount": 31
   }
 }
