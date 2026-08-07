@@ -4,20 +4,19 @@
 #########################################################
 
 #########################################################
-# PROTEÇÃO DA SESSÃO DE INSTALAÇÃO CONTRA QUEDA DE SSH
+# PROTEÇÃO DA SESSÃO CONTRA QUEDA DE SSH - TMUX
 #
-# O install.sh é relançado automaticamente dentro de uma
-# sessão tmux persistente. Se a conexão SSH cair, todos os
-# processos filhos (dockerswarm, instaladores de apps etc.)
-# continuam executando no servidor.
+# Compatível com:
+# - Debian 11/12/13
+# - Ubuntu
+# - WSL2 / Docker Desktop
 #
-# IMPORTANTE:
-# Este bloco NÃO reabre /dev/tty. O tmux precisa herdar os
-# descritores originais do terminal para evitar:
-# "open terminal failed: can't use /dev/tty"
+# Não reabre /dev/tty neste bloco.
+# A sessão nova nasce anexada ao terminal atual.
 #########################################################
 
 SETUP_MNO_TMUX_SESSION="setup-mno"
+SETUP_MNO_TMUX_LOG="/tmp/setup-mno-tmux.log"
 
 #########################################################
 # CORES PADRÃO DO SETUP MNO
@@ -57,10 +56,105 @@ setup_mno_tmux_msgbox() {
     local mensagem="$2"
 
     if command -v whiptail >/dev/null 2>&1 && [ -t 0 ] && [ -t 1 ]; then
-        whiptail --title "$titulo" --msgbox "$mensagem" 14 76 2>/dev/null || true
+        whiptail --title "$titulo" --msgbox "$mensagem" 18 82 2>/dev/null || true
     else
         printf '\n%s\n%s\n\n' "$titulo" "$mensagem" >&2
     fi
+}
+
+#########################################################
+# ESPERA APT/DPKG FICAREM LIVRES
+#########################################################
+
+setup_mno_wait_for_apt() {
+    local tentativa=0
+    local max_tentativas=60
+
+    while [ "$tentativa" -lt "$max_tentativas" ]; do
+
+        # Em Debian/Ubuntu recém-iniciados podem existir processos
+        # automáticos usando apt/dpkg.
+        if ! pgrep -x apt >/dev/null 2>&1 &&
+           ! pgrep -x apt-get >/dev/null 2>&1 &&
+           ! pgrep -x dpkg >/dev/null 2>&1 &&
+           ! pgrep -x unattended-upgr >/dev/null 2>&1; then
+            return 0
+        fi
+
+        tentativa=$((tentativa + 1))
+
+        setup_mno_tmux_infobox \
+            "SETUP MNO - PREPARANDO SERVIDOR" \
+            "O gerenciador de pacotes está sendo utilizado pelo sistema.\n\nAguardando liberação do APT/DPKG...\n\nTentativa: ${tentativa}/${max_tentativas}"
+
+        sleep 2
+    done
+
+    return 1
+}
+
+#########################################################
+# INSTALA TMUX EM DEBIAN / UBUNTU
+#########################################################
+
+setup_mno_install_tmux_apt() {
+    export DEBIAN_FRONTEND=noninteractive
+
+    setup_mno_wait_for_apt || {
+        printf '%s\n' "Timeout aguardando APT/DPKG." >>"$SETUP_MNO_TMUX_LOG"
+        return 1
+    }
+
+    # Primeiro tenta instalar sem fazer update.
+    # Em imagens de VPS com índices válidos isso é mais rápido.
+    if apt-get \
+        -o DPkg::Lock::Timeout=120 \
+        -o Acquire::Retries=3 \
+        install -y tmux >>"$SETUP_MNO_TMUX_LOG" 2>&1; then
+
+        command -v tmux >/dev/null 2>&1 && return 0
+    fi
+
+    setup_mno_tmux_infobox \
+        "SETUP MNO - PROTEÇÃO DA SESSÃO" \
+        "Atualizando a lista de pacotes para instalar o TMUX...\n\nAguarde..."
+
+    setup_mno_wait_for_apt || return 1
+
+    # Atualiza índices com retries de rede.
+    apt-get \
+        -o DPkg::Lock::Timeout=120 \
+        -o Acquire::Retries=5 \
+        -o Acquire::http::Timeout=30 \
+        -o Acquire::https::Timeout=30 \
+        update >>"$SETUP_MNO_TMUX_LOG" 2>&1 || true
+
+    setup_mno_wait_for_apt || return 1
+
+    # Tenta reparar configuração de pacotes interrompida.
+    dpkg --configure -a >>"$SETUP_MNO_TMUX_LOG" 2>&1 || true
+
+    setup_mno_wait_for_apt || return 1
+
+    # Segunda tentativa.
+    if apt-get \
+        -o DPkg::Lock::Timeout=120 \
+        -o Acquire::Retries=5 \
+        install -y tmux >>"$SETUP_MNO_TMUX_LOG" 2>&1; then
+
+        command -v tmux >/dev/null 2>&1 && return 0
+    fi
+
+    # Pequena espera e última tentativa.
+    sleep 3
+    setup_mno_wait_for_apt || return 1
+
+    apt-get \
+        -o DPkg::Lock::Timeout=120 \
+        -o Acquire::Retries=5 \
+        install -y tmux >>"$SETUP_MNO_TMUX_LOG" 2>&1 || return 1
+
+    command -v tmux >/dev/null 2>&1
 }
 
 #########################################################
@@ -68,40 +162,60 @@ setup_mno_tmux_msgbox() {
 #########################################################
 
 setup_mno_install_tmux() {
+
     command -v tmux >/dev/null 2>&1 && return 0
+
+    : >"$SETUP_MNO_TMUX_LOG" 2>/dev/null || true
 
     setup_mno_tmux_infobox \
         "SETUP MNO - PROTEÇÃO DA SESSÃO" \
         "Preparando proteção contra queda da conexão SSH...\n\nInstalando o TMUX. Aguarde..."
 
     if command -v apt-get >/dev/null 2>&1; then
-        export DEBIAN_FRONTEND=noninteractive
-        apt-get update -y >/dev/null 2>&1 || return 1
-        apt-get install -y tmux >/dev/null 2>&1 || return 1
+        setup_mno_install_tmux_apt || return 1
 
     elif command -v dnf >/dev/null 2>&1; then
-        dnf install -y tmux >/dev/null 2>&1 || return 1
+        dnf install -y tmux >>"$SETUP_MNO_TMUX_LOG" 2>&1 || return 1
 
     elif command -v yum >/dev/null 2>&1; then
-        yum install -y tmux >/dev/null 2>&1 || return 1
+        yum install -y tmux >>"$SETUP_MNO_TMUX_LOG" 2>&1 || return 1
 
     elif command -v zypper >/dev/null 2>&1; then
-        zypper --non-interactive install tmux >/dev/null 2>&1 || return 1
+        zypper --non-interactive install tmux >>"$SETUP_MNO_TMUX_LOG" 2>&1 || return 1
 
     elif command -v pacman >/dev/null 2>&1; then
-        pacman -Sy --noconfirm tmux >/dev/null 2>&1 || return 1
+        pacman -Sy --noconfirm tmux >>"$SETUP_MNO_TMUX_LOG" 2>&1 || return 1
 
     elif command -v apk >/dev/null 2>&1; then
-        apk add --no-cache tmux >/dev/null 2>&1 || return 1
+        apk add --no-cache tmux >>"$SETUP_MNO_TMUX_LOG" 2>&1 || return 1
 
     elif command -v microdnf >/dev/null 2>&1; then
-        microdnf install -y tmux >/dev/null 2>&1 || return 1
+        microdnf install -y tmux >>"$SETUP_MNO_TMUX_LOG" 2>&1 || return 1
 
     else
+        printf '%s\n' "Nenhum gerenciador de pacotes suportado foi encontrado." >>"$SETUP_MNO_TMUX_LOG"
         return 1
     fi
 
     command -v tmux >/dev/null 2>&1
+}
+
+#########################################################
+# RESUMO DO ERRO DE INSTALAÇÃO DO TMUX
+#########################################################
+
+setup_mno_tmux_error_details() {
+    local detalhe
+
+    detalhe=$(tail -n 8 "$SETUP_MNO_TMUX_LOG" 2>/dev/null |
+        sed 's/[[:cntrl:]]//g' |
+        cut -c1-100)
+
+    if [ -z "$detalhe" ]; then
+        detalhe="Nenhum detalhe adicional foi registrado."
+    fi
+
+    printf '%s\n' "$detalhe"
 }
 
 #########################################################
@@ -118,6 +232,7 @@ setup_mno_resolve_script_path() {
 
     if command -v readlink >/dev/null 2>&1; then
         resolved=$(readlink -f -- "$script_path" 2>/dev/null || true)
+
         if [ -n "$resolved" ]; then
             printf '%s\n' "$resolved"
             return 0
@@ -135,109 +250,76 @@ setup_mno_resolve_script_path() {
 }
 
 #########################################################
-# ANEXA A UMA SESSÃO TMUX EXISTENTE
-#########################################################
-
-setup_mno_attach_tmux() {
-    local status
-
-    clear
-    setup_mno_tmux_infobox \
-        "SETUP MNO - SESSÃO PROTEGIDA" \
-        "Sessão de instalação encontrada.\n\nReconectando automaticamente..."
-
-    sleep 0.3
-
-    # Não usamos /dev/tty aqui. O tmux recebe diretamente os
-    # descritores do terminal SSH que iniciou este script.
-    tmux attach-session -d -t "$SETUP_MNO_TMUX_SESSION"
-    status=$?
-
-    return "$status"
-}
-
-#########################################################
 # INICIALIZA / RECONECTA À SESSÃO PROTEGIDA
 #########################################################
+
+# Se TERM vier vazio/dumb em algum terminal remoto, usa um valor
+# compatível com tmux e Windows Terminal.
+if [ -z "${TERM:-}" ] || [ "${TERM:-}" = "dumb" ]; then
+    export TERM="xterm-256color"
+fi
 
 # Só tenta usar tmux quando:
 # 1) ainda NÃO estamos dentro do tmux;
 # 2) stdin e stdout são terminais;
-# 3) o comando tty confirma um terminal válido.
+# 3) existe um TTY válido.
 #
-# Se o install estiver sendo executado sem TTY real, ele
-# simplesmente continua normalmente sem tentar o tmux.
+# NÃO fazemos redirecionamento para /dev/tty neste bloco.
 
 if [ -z "${TMUX:-}" ] && [ -t 0 ] && [ -t 1 ] && tty -s 2>/dev/null; then
 
     if setup_mno_install_tmux; then
 
         #################################################
-        # REENTRA EM UMA INSTALAÇÃO QUE JÁ ESTÁ ATIVA
+        # SESSÃO EXISTENTE: RECONECTA AUTOMATICAMENTE
         #################################################
 
         if tmux has-session -t "$SETUP_MNO_TMUX_SESSION" 2>/dev/null; then
 
-            if setup_mno_attach_tmux; then
-                # A sessão terminou normalmente ou o usuário fez detach.
-                # Não executa o install uma segunda vez fora do tmux.
-                exit 0
-            fi
+            clear
 
-            setup_mno_tmux_msgbox \
-                "SETUP MNO - ERRO DE RECONEXÃO" \
-                "Não foi possível anexar o terminal à sessão TMUX existente.\n\nA instalação continua preservada na sessão '$SETUP_MNO_TMUX_SESSION'.\n\nAbra uma nova conexão SSH com terminal interativo e execute novamente: setup-mno"
+            setup_mno_tmux_infobox \
+                "SETUP MNO - SESSÃO PROTEGIDA" \
+                "Sessão de instalação encontrada.\n\nReconectando automaticamente..."
 
-            exit 1
+            sleep 0.3
+
+            # Desconecta eventual cliente antigo e assume a sessão.
+            exec tmux attach-session -d -t "$SETUP_MNO_TMUX_SESSION"
         fi
 
         #################################################
-        # CRIA NOVA SESSÃO PROTEGIDA
+        # NOVA SESSÃO: CRIA JÁ ANEXADA AO TERMINAL
         #################################################
 
         SETUP_MNO_INSTALL_SCRIPT=$(setup_mno_resolve_script_path)
 
-        # A sessão é criada primeiro em modo detached. Isso evita que
-        # o processo de criação dependa de uma reabertura de /dev/tty.
-        if tmux new-session -d \
+        clear
+
+        # Não existe tela explicativa nem pausa para OK.
+        # Não usamos new-session -d na primeira execução.
+        exec tmux new-session \
             -s "$SETUP_MNO_TMUX_SESSION" \
-            "exec bash \"$SETUP_MNO_INSTALL_SCRIPT\""; then
+            "exec bash \"$SETUP_MNO_INSTALL_SCRIPT\""
 
-            sleep 0.3
+        #################################################
+        # SÓ CHEGA AQUI SE O TMUX NÃO CONSEGUIR INICIAR
+        #################################################
 
-            if tmux has-session -t "$SETUP_MNO_TMUX_SESSION" 2>/dev/null; then
+        status=$?
 
-                # Sem tela explicativa e sem pausa para OK:
-                # entra imediatamente no install protegido.
-                if setup_mno_attach_tmux; then
-                    exit 0
-                fi
-
-                # Se a sessão acabou enquanto tentávamos anexar, podemos
-                # continuar sem criar uma segunda instalação concorrente.
-                if tmux has-session -t "$SETUP_MNO_TMUX_SESSION" 2>/dev/null; then
-                    setup_mno_tmux_msgbox \
-                        "SETUP MNO - ERRO DE TERMINAL" \
-                        "A sessão protegida foi criada, mas este terminal não conseguiu anexá-la.\n\nA instalação permanece ativa na sessão '$SETUP_MNO_TMUX_SESSION'.\n\nAbra uma nova conexão SSH com terminal interativo e execute novamente: setup-mno"
-                    exit 1
-                fi
-            fi
-
-            # A sessão fechou imediatamente: segue normalmente, sem tmux.
-            setup_mno_tmux_msgbox \
-                "SETUP MNO - AVISO" \
-                "A sessão TMUX não permaneceu ativa.\n\nO Setup MNO continuará normalmente, porém sem proteção contra queda da conexão SSH."
-
-        else
-            setup_mno_tmux_msgbox \
-                "SETUP MNO - AVISO" \
-                "Não foi possível criar a sessão TMUX.\n\nO Setup MNO continuará normalmente, porém sem proteção contra queda da conexão SSH."
-        fi
-
-    else
         setup_mno_tmux_msgbox \
             "SETUP MNO - AVISO" \
-            "Não foi possível instalar ou iniciar o TMUX.\n\nO Setup MNO continuará normalmente, porém sem proteção contra queda da conexão SSH."
+            "O TMUX foi instalado, mas não foi possível iniciar a sessão protegida.\n\nCódigo de retorno: $status\n\nO Setup MNO continuará normalmente, porém sem proteção contra queda da conexão SSH."
+
+    else
+
+        TMUX_ERRO=$(setup_mno_tmux_error_details)
+
+        setup_mno_tmux_msgbox \
+            "SETUP MNO - AVISO" \
+            "Não foi possível instalar o TMUX automaticamente.\n\nO Setup MNO continuará normalmente, porém sem proteção contra queda da conexão SSH.\n\nÚltimos detalhes:\n${TMUX_ERRO}\n\nLog completo: ${SETUP_MNO_TMUX_LOG}"
+
     fi
 fi
 
