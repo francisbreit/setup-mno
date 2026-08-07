@@ -7,95 +7,149 @@
 #########################################################
 # PROTEÇÃO DA SESSÃO DE INSTALAÇÃO CONTRA QUEDA DE SSH
 #
-# O install.sh é relançado automaticamente dentro de uma
-# sessão tmux persistente. Se a conexão SSH cair, todos os
-# processos filhos (dockerswarm, instaladores de apps etc.)
-# continuam executando no servidor.
+# IMPORTANTE:
+# - O TMUX já é instalado pelo pré-instalador.
+# - Este arquivo é compilado/criptografado com SHC.
+# - Portanto, o install deve ser executado diretamente
+#   dentro do TMUX e NUNCA através de "bash install".
+#
+# Se a conexão SSH cair, a sessão TMUX permanece ativa
+# e todos os processos filhos continuam executando.
 #########################################################
 
 SETUP_MNO_TMUX_SESSION="setup-mno"
 
-setup_mno_install_tmux() {
-    command -v tmux >/dev/null 2>&1 && return 0
-
-    echo "Instalando proteção de sessão remota (tmux)..."
-
-    if command -v apt-get >/dev/null 2>&1; then
-        export DEBIAN_FRONTEND=noninteractive
-        apt-get update -y >/dev/null 2>&1 || return 1
-        apt-get install -y tmux >/dev/null 2>&1 || return 1
-
-    elif command -v dnf >/dev/null 2>&1; then
-        dnf install -y tmux >/dev/null 2>&1 || return 1
-
-    elif command -v yum >/dev/null 2>&1; then
-        yum install -y tmux >/dev/null 2>&1 || return 1
-
-    elif command -v zypper >/dev/null 2>&1; then
-        zypper --non-interactive install tmux >/dev/null 2>&1 || return 1
-
-    elif command -v pacman >/dev/null 2>&1; then
-        pacman -Sy --noconfirm tmux >/dev/null 2>&1 || return 1
-
-    elif command -v apk >/dev/null 2>&1; then
-        apk add --no-cache tmux >/dev/null 2>&1 || return 1
-
-    elif command -v microdnf >/dev/null 2>&1; then
-        microdnf install -y tmux >/dev/null 2>&1 || return 1
-
-    else
-        return 1
-    fi
-
-    command -v tmux >/dev/null 2>&1
-}
+#########################################################
+# DESCOBRE O CAMINHO REAL DO EXECUTÁVEL ATUAL
+#########################################################
 
 setup_mno_resolve_script_path() {
-    local script_path="$0"
 
+    local script_path="$0"
+    local resolved
+
+    # Caso tenha sido chamado apenas pelo nome do comando
     if [[ "$script_path" != */* ]]; then
         script_path=$(command -v -- "$script_path" 2>/dev/null || printf '%s' "$script_path")
     fi
 
+    # Tenta obter caminho absoluto real
     if command -v readlink >/dev/null 2>&1; then
-        local resolved
+
         resolved=$(readlink -f -- "$script_path" 2>/dev/null || true)
+
         if [ -n "$resolved" ]; then
             printf '%s\n' "$resolved"
             return 0
         fi
     fi
 
+    # Fallback
     case "$script_path" in
-        /*) printf '%s\n' "$script_path" ;;
-        *)  printf '%s/%s\n' "$(pwd -P)" "$script_path" ;;
+
+        /*)
+            printf '%s\n' "$script_path"
+            ;;
+
+        *)
+            printf '%s/%s\n' "$(pwd -P)" "$script_path"
+            ;;
+
     esac
 }
 
-# Só cria/anexa tmux quando existe um terminal interativo e ainda
-# não estamos dentro de uma sessão tmux. Isso evita recursão.
-if [ -z "${TMUX:-}" ] && [ -t 0 ]; then
-    if setup_mno_install_tmux; then
+#########################################################
+# INICIALIZA / RECONECTA À SESSÃO TMUX
+#########################################################
+
+# Só executa esta parte quando:
+#
+# 1) ainda NÃO estamos dentro do TMUX
+# 2) stdin é um terminal
+# 3) stdout é um terminal
+#
+# Quando o install for relançado dentro do TMUX,
+# a variável TMUX estará definida e este bloco será
+# automaticamente ignorado, evitando recursão.
+
+if [ -z "${TMUX:-}" ] && [ -t 0 ] && [ -t 1 ]; then
+
+    #####################################################
+    # VERIFICA SE O TMUX ESTÁ DISPONÍVEL
+    #####################################################
+
+    if command -v tmux >/dev/null 2>&1; then
+
+        #################################################
+        # JÁ EXISTE UMA SESSÃO SETUP-MNO
+        #################################################
+
         if tmux has-session -t "$SETUP_MNO_TMUX_SESSION" 2>/dev/null; then
 
-            exec tmux attach-session -t "$SETUP_MNO_TMUX_SESSION"
+            # Reconecta à instalação existente.
+            #
+            # O parâmetro -d desconecta uma sessão SSH antiga
+            # eventualmente presa e conecta o terminal atual.
+
+            tmux attach-session -d -t "$SETUP_MNO_TMUX_SESSION"
+
+            TMUX_STATUS=$?
+
+            # Encerra somente esta instância externa do install.
+            # O controle retorna ao processo que chamou o install.
+            exit "$TMUX_STATUS"
         fi
+
+        #################################################
+        # NÃO EXISTE SESSÃO: CRIA UMA NOVA
+        #################################################
 
         SETUP_MNO_INSTALL_SCRIPT=$(setup_mno_resolve_script_path)
 
-
-        # Substitui apenas esta instância externa do install pelo cliente
-        # tmux. Dentro do tmux, TMUX estará definido e o script seguirá
-        # normalmente sem criar outra sessão.
-        exec tmux new-session -s "$SETUP_MNO_TMUX_SESSION" bash "$SETUP_MNO_INSTALL_SCRIPT"
-    else
         clear
-        echo "AVISO: não foi possível instalar ou iniciar o tmux."
-        echo "O Setup MNO continuará normalmente, porém sem proteção"
-        echo "contra queda da sessão SSH."
+
+        #################################################
+        # IMPORTANTE PARA SHC
+        #
+        # NÃO USAR:
+        #
+        # bash "$SETUP_MNO_INSTALL_SCRIPT"
+        #
+        # O arquivo gerado pelo SHC é um executável binário.
+        # Ele deve ser executado diretamente.
+        #################################################
+
+        tmux new-session \
+            -s "$SETUP_MNO_TMUX_SESSION" \
+            "exec \"$SETUP_MNO_INSTALL_SCRIPT\""
+
+        TMUX_STATUS=$?
+
+        # Quando a sessão TMUX terminar ou for desconectada,
+        # não continua executando uma segunda cópia do install
+        # fora do TMUX.
+        exit "$TMUX_STATUS"
+
+    else
+
+        #################################################
+        # FALLBACK
+        #
+        # O pré-instalador deveria ter instalado o TMUX.
+        # Se por algum motivo ele não existir, não abortamos
+        # o Setup MNO. A instalação continua sem proteção.
+        #################################################
+
+        clear
+
+        echo "AVISO: TMUX não encontrado."
+        echo "O Setup MNO continuará normalmente, porém sem"
+        echo "proteção contra queda da conexão SSH."
         echo
+
         sleep 3
     fi
+
 fi
 
 #########################################################
