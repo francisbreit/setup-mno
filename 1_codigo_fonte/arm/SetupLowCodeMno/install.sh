@@ -177,7 +177,6 @@ fi
 if [[ ("$traefik_container" == "") || ("$portainer_container" == "") || ("$postgres_container" == "") || ("$redis_container" == "") || ("$pgbouncer_container" == "") || ("$network_id_agent_network" == "") || ("$network_id_externa" == "") || ("$network_id_interna" == "") ]]; then
     clear
     cd && cd SetupLowCodeMno && ./dockerswarm
-    exit 0
 fi
 
 # --- DISPATCH DINÂMICO (substitui 240+ case blocks) ---

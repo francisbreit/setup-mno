@@ -1895,7 +1895,7 @@ if [ "$INSTALL_CHOICE" = "TRADICIONAL" ]; then
 
     if [[ "$dns_ip" != "$ip_servidor" ]]; then
         whiptail --title "Mensagem" --msgbox "Não foi possivel acessar o dominio do Portainer ($dominio). A instalação foi cancelada. Por favor, verifique se os apontamentos DNS estão corretos e propagados! Pressione ENTER para sair. Digite setup-mno e enter sempre que quiser iniciar o instalador." 20 78
-        $SHELL
+        exit 1
     else
     offer_control_center_installation
     exit 0
@@ -1904,7 +1904,7 @@ else
     # Para Cloudflare Tunnel, apenas verificar se o domínio resolve
     if ! nslookup "$dominio" >/dev/null 2>&1; then
         whiptail --title "Mensagem" --msgbox "Não foi possivel resolver o dominio do Portainer ($dominio). Verifique se o domínio está configurado no Cloudflare. Pressione ENTER para sair." 20 78
-        $SHELL
+        exit 1
     else
     offer_control_center_installation
         exit 0
