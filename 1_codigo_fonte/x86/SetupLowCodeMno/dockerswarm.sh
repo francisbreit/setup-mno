@@ -682,7 +682,7 @@ if [[ ${TUNNEL_TOKEN} == ey* ]]; then
 else
   echo -e "XXX\n3\nERRO AO TENTAR OBTER O TUNNEL TOKEN\nXXX"
   sleep 3
-  return 1
+  exit 1
 fi
 
     # Salvar credenciais iniciais (serão atualizadas com id/token após criar tunnel via API)
@@ -1884,40 +1884,8 @@ fi
 
 # O Control Center deve ser oferecido apenas na instalação tradicional e
 # antes da mensagem final que solicita o reinício do servidor.
-if [[ "$INSTALL_CHOICE" = "TRADICIONAL" ]]; then
+
     offer_control_center_installation
-fi
-
-if [[ "$INSTALL_CHOICE" = "TRADICIONAL" && "$criar_dns" == "0" ]] ; then
-{
-  tput reset 2>/dev/null
-  exec 0</dev/tty 1>/dev/tty 2>&1
-  sleep 0.01
-  clear
-} || true
-clear
-whiptail --title "INSTALAÇÃO CONCLUÍDA" --msgbox "
-INSTALAÇÃO DAS FERRAMENTAS ESSENCIAIS CONCLUÍDA!
-O SERVIDOR PRECISA SER REINICIADO. DIGITE ENTER PARA REINICIAR
-PARA USAR O SETUP MNO NOVAMENTE SIGA AS INSTRUÇÕES ABAIXO
-
-⚠️  INSTRUÇÕES
-🚀 1 - AGUARDE 2-3 MINUTOS APÓS O REINÍCIO
-🚀 2 - ACESSE ESTE SERVIDOR VIA SSH NOVAMENTE
-🚀 3 - DIGITE 'setup-mno' E TECLE ENTER
-📡 CANAIS DE SUPORTE:
-   ● WhatsApp: +55 (11) 96816-2690
-   ● Email: francisbreit@gmail.com
-   ● GitHub: github.com/francisbreit
-
-📡 DIGITE ENTER PARA REINICIAR:
-" 20 70
-reboot
-else
-    cd /root/SetupLowCodeMno
-    sleep 5
-    ./install
-fi
 
 
 # Verificação final de DNS
