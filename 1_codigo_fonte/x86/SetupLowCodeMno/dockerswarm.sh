@@ -1885,7 +1885,7 @@ fi
 # O Control Center deve ser oferecido apenas na instalação tradicional e
 # antes da mensagem final que solicita o reinício do servidor.
 
-    offer_control_center_installation
+   # offer_control_center_installation
 
 
 # Verificação final de DNS
@@ -1897,6 +1897,7 @@ if [ "$INSTALL_CHOICE" = "TRADICIONAL" ]; then
         whiptail --title "Mensagem" --msgbox "Não foi possivel acessar o dominio do Portainer ($dominio). A instalação foi cancelada. Por favor, verifique se os apontamentos DNS estão corretos e propagados! Pressione ENTER para sair. Digite setup-mno e enter sempre que quiser iniciar o instalador." 20 78
         $SHELL
     else
+    offer_control_center_installation
     exit 0
     fi
 else
@@ -1905,6 +1906,7 @@ else
         whiptail --title "Mensagem" --msgbox "Não foi possivel resolver o dominio do Portainer ($dominio). Verifique se o domínio está configurado no Cloudflare. Pressione ENTER para sair." 20 78
         $SHELL
     else
+    offer_control_center_installation
         exit 0
     fi
 fi
