@@ -90,6 +90,123 @@ offer_control_center_installation() {
     fi
 }
 
+
+# Validação preventiva das credenciais Cloudflare.
+# Em caso de credencial inválida, a instalação NÃO avança para as operações
+# de DNS/Tunnel; o questionário de credenciais é apresentado novamente.
+CLOUDFLARE_VALIDATION_ERROR=""
+
+validate_cloudflare_api_token() {
+    local api_token="$1" response
+
+    CLOUDFLARE_VALIDATION_ERROR=""
+    response=$(curl -sS --connect-timeout 10 --max-time 20 \
+        "https://api.cloudflare.com/client/v4/user/tokens/verify" \
+        -H "Authorization: Bearer ${api_token}" \
+        -H "Content-Type: application/json" 2>/dev/null) || {
+        CLOUDFLARE_VALIDATION_ERROR="Não foi possível conectar à API da Cloudflare para validar o API Token."
+        return 1
+    }
+
+    if ! printf '%s' "$response" | jq -e \
+        '.success == true and .result.status == "active"' >/dev/null 2>&1; then
+        CLOUDFLARE_VALIDATION_ERROR="API Token inválido, expirado, desativado ou sem acesso à API da Cloudflare."
+        return 1
+    fi
+
+    return 0
+}
+
+validate_cloudflare_zone_dns() {
+    local api_token="$1" zone_id="$2" expected_account_id="${3:-}"
+    local response
+
+    response=$(curl -sS --connect-timeout 10 --max-time 20 \
+        "https://api.cloudflare.com/client/v4/zones/${zone_id}" \
+        -H "Authorization: Bearer ${api_token}" \
+        -H "Content-Type: application/json" 2>/dev/null) || {
+        CLOUDFLARE_VALIDATION_ERROR="Não foi possível conectar à API da Cloudflare para validar o Zone ID."
+        return 1
+    }
+
+    if ! printf '%s' "$response" | jq -e --arg zone_id "$zone_id" \
+        '.success == true and .result.id == $zone_id' >/dev/null 2>&1; then
+        CLOUDFLARE_VALIDATION_ERROR="Zone ID inválido ou o API Token não possui acesso a essa zona."
+        return 1
+    fi
+
+    if [ -n "$expected_account_id" ] && \
+       ! printf '%s' "$response" | jq -e --arg account_id "$expected_account_id" \
+            '.result.account.id == $account_id' >/dev/null 2>&1; then
+        CLOUDFLARE_VALIDATION_ERROR="O Zone ID informado não pertence ao Account ID informado."
+        return 1
+    fi
+
+    response=$(curl -sS --connect-timeout 10 --max-time 20 \
+        "https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records?per_page=5" \
+        -H "Authorization: Bearer ${api_token}" \
+        -H "Content-Type: application/json" 2>/dev/null) || {
+        CLOUDFLARE_VALIDATION_ERROR="Não foi possível validar a permissão de DNS para a zona informada."
+        return 1
+    }
+
+    if ! printf '%s' "$response" | jq -e '.success == true' >/dev/null 2>&1; then
+        CLOUDFLARE_VALIDATION_ERROR="O API Token não possui permissão suficiente de DNS para o Zone ID informado. Verifique a permissão Zone.DNS Edit."
+        return 1
+    fi
+
+    return 0
+}
+
+validate_cloudflare_tunnel_credentials() {
+    local api_token="$1" account_id="$2" zone_id="$3" tunnel_id="$4"
+    local response
+
+    validate_cloudflare_api_token "$api_token" || return 1
+    validate_cloudflare_zone_dns "$api_token" "$zone_id" "$account_id" || return 1
+
+    response=$(curl -sS --connect-timeout 10 --max-time 20 \
+        "https://api.cloudflare.com/client/v4/accounts/${account_id}/cfd_tunnel/${tunnel_id}" \
+        -H "Authorization: Bearer ${api_token}" \
+        -H "Content-Type: application/json" 2>/dev/null) || {
+        CLOUDFLARE_VALIDATION_ERROR="Não foi possível conectar à API da Cloudflare para validar Account ID e Tunnel ID."
+        return 1
+    }
+
+    if ! printf '%s' "$response" | jq -e --arg tunnel_id "$tunnel_id" \
+        '.success == true and .result.id == $tunnel_id' >/dev/null 2>&1; then
+        CLOUDFLARE_VALIDATION_ERROR="Account ID ou Tunnel ID inválido, ou o API Token não possui acesso ao Tunnel informado."
+        return 1
+    fi
+
+    # Valida também a permissão necessária para obter o token do Tunnel.
+    # Essa é a mesma operação utilizada mais adiante na instalação.
+    response=$(curl -sS --connect-timeout 10 --max-time 20 \
+        "https://api.cloudflare.com/client/v4/accounts/${account_id}/cfd_tunnel/${tunnel_id}/token" \
+        -H "Authorization: Bearer ${api_token}" \
+        -H "Content-Type: application/json" 2>/dev/null) || {
+        CLOUDFLARE_VALIDATION_ERROR="Não foi possível validar a permissão de acesso ao token do Cloudflare Tunnel."
+        return 1
+    }
+
+    if ! printf '%s' "$response" | jq -e \
+        '.success == true and (.result | type == "string") and (.result | startswith("ey"))' >/dev/null 2>&1; then
+        CLOUDFLARE_VALIDATION_ERROR="As credenciais do Tunnel não permitem obter o Tunnel Token. Verifique API Token, Account ID, Tunnel ID e a permissão Cloudflare Tunnel Edit."
+        return 1
+    fi
+
+    return 0
+}
+
+validate_cloudflare_traditional_credentials() {
+    local api_token="$1" zone_id="$2"
+
+    validate_cloudflare_api_token "$api_token" || return 1
+    validate_cloudflare_zone_dns "$api_token" "$zone_id" || return 1
+    return 0
+}
+
+
 #
 # FIM DE LOADING
 #
@@ -304,58 +421,77 @@ if ! sync_control_center_installation_type; then
     exit 41
 fi
 
-# Se for Cloudflare Tunnel, coletar credenciais
+# Se for Cloudflare Tunnel, coletar e VALIDAR credenciais antes de prosseguir
 if [[ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ]]; then
-    # Coletar credenciais do Cloudflare
     while true; do
-        CLOUDFLARE_API_TOKEN=$(whiptail --title "Cloudflare API Token" --inputbox "Digite seu Cloudflare API Token (com permissões: Cloudflare Tunnel Edit / Account: Read e, se for criar registros DNS via API, Zone.DNS Edit):" 12 80 3>&1 1>&2 2>&3)
-        if [ $? -ne 0 ]; then
-            exit 1
-        fi
-        if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-            whiptail --msgbox "O Cloudflare API Token é obrigatório para configuração do Tunnel." 10 70
-        else
-            break
-        fi
-    done
-
-    while true; do
-        CLOUDFLARE_ACCOUNT_ID=$(whiptail --title "Cloudflare Account ID" --inputbox "Digite seu Cloudflare Account ID (encontre em: Cloudflare Dashboard > Overview > Account ID):" 12 80 3>&1 1>&2 2>&3)
-        if [ $? -ne 0 ]; then
-            exit 1
-        fi
-        if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            whiptail --msgbox "O Cloudflare Account ID é obrigatório." 10 70
-        else
-            break
-        fi
-    done
-
-    while true; do
-        CLOUDFLARE_ZONE_ID=$(whiptail --title "Cloudflare Zone ID" --inputbox "Digite seu Cloudflare Zone ID (encontre em: Cloudflare Dashboard > Seu site > Overview > Zone ID):" 12 80 3>&1 1>&2 2>&3)
-        if [ $? -ne 0 ]; then
-            exit 1
-        fi
-        if [ -z "$CLOUDFLARE_ZONE_ID" ]; then
-            whiptail --msgbox "O Cloudflare Zone ID é obrigatório." 10 70
-        else
-            break
-        fi
-    done
+        # Início do questionário Cloudflare Tunnel. Qualquer falha de validação
+        # retorna para este ponto e solicita novamente TODAS as credenciais.
+        while true; do
+            CLOUDFLARE_API_TOKEN=$(whiptail --title "Cloudflare API Token" --inputbox "Digite seu Cloudflare API Token (com permissões: Cloudflare Tunnel Edit / Account: Read e, se for criar registros DNS via API, Zone.DNS Edit):" 12 80 3>&1 1>&2 2>&3)
+            if [ $? -ne 0 ]; then
+                exit 1
+            fi
+            if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+                whiptail --msgbox "O Cloudflare API Token é obrigatório para configuração do Tunnel." 10 70
+            else
+                break
+            fi
+        done
 
         while true; do
-        TUNNEL_ID=$(whiptail --title "Tunnel ID" --inputbox "Digite Tunnel ID (encontre em: Cloudflare Dashboard > Seu site > Overview > Tunnel ID):" 12 80 3>&1 1>&2 2>&3)
-        if [ $? -ne 0 ]; then
-            exit 1
-        fi
-        if [ -z "$TUNNEL_ID" ]; then
-            whiptail --msgbox "O Tunnel ID é obrigatório." 10 70
-        else
+            CLOUDFLARE_ACCOUNT_ID=$(whiptail --title "Cloudflare Account ID" --inputbox "Digite seu Cloudflare Account ID (encontre em: Cloudflare Dashboard > Overview > Account ID):" 12 80 3>&1 1>&2 2>&3)
+            if [ $? -ne 0 ]; then
+                exit 1
+            fi
+            if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+                whiptail --msgbox "O Cloudflare Account ID é obrigatório." 10 70
+            else
+                break
+            fi
+        done
+
+        while true; do
+            CLOUDFLARE_ZONE_ID=$(whiptail --title "Cloudflare Zone ID" --inputbox "Digite seu Cloudflare Zone ID (encontre em: Cloudflare Dashboard > Seu site > Overview > Zone ID):" 12 80 3>&1 1>&2 2>&3)
+            if [ $? -ne 0 ]; then
+                exit 1
+            fi
+            if [ -z "$CLOUDFLARE_ZONE_ID" ]; then
+                whiptail --msgbox "O Cloudflare Zone ID é obrigatório." 10 70
+            else
+                break
+            fi
+        done
+
+        while true; do
+            TUNNEL_ID=$(whiptail --title "Tunnel ID" --inputbox "Digite Tunnel ID (encontre em: Cloudflare Dashboard > Seu site > Overview > Tunnel ID):" 12 80 3>&1 1>&2 2>&3)
+            if [ $? -ne 0 ]; then
+                exit 1
+            fi
+            if [ -z "$TUNNEL_ID" ]; then
+                whiptail --msgbox "O Tunnel ID é obrigatório." 10 70
+            else
+                break
+            fi
+        done
+
+        if validate_cloudflare_tunnel_credentials \
+            "$CLOUDFLARE_API_TOKEN" \
+            "$CLOUDFLARE_ACCOUNT_ID" \
+            "$CLOUDFLARE_ZONE_ID" \
+            "$TUNNEL_ID"; then
+
+            whiptail --title "CREDENCIAIS CLOUDFLARE VÁLIDAS" --msgbox \
+                "API Token, Account ID, Zone ID e Tunnel ID validados com sucesso pela API da Cloudflare.\n\nA instalação poderá continuar com segurança." \
+                12 76
             break
         fi
+
+        whiptail --title "CREDENCIAIS CLOUDFLARE INVÁLIDAS" --msgbox \
+            "${CLOUDFLARE_VALIDATION_ERROR}\n\nNenhuma configuração foi aplicada. O questionário de credenciais será reiniciado para que você possa corrigir os dados." \
+            16 78
     done
 
-    whiptail --msgbox "Credenciais iniciais do Cloudflare salvas! A rota do Tunnel será criada automaticamente durante a instalação (via API).\n\nTecle ENTER para continuar." 10 70
+    whiptail --msgbox "Credenciais iniciais do Cloudflare validadas! A rota do Tunnel será criada automaticamente durante a instalação (via API).\n\nTecle ENTER para continuar." 10 70
 fi
 
 # FIM DA ESCOLHA DO TIPO DE INSTALAÇÃO
@@ -572,30 +708,47 @@ if [ "$criar_dns" = "0" ]; then
         done
 
 
- # Coletar credenciais do Cloudflare
+ # Coletar e VALIDAR credenciais do Cloudflare
     while true; do
-        CLOUDFLARE_API_TOKEN2=$(whiptail --title "Cloudflare API Token" --inputbox "Digite seu Cloudflare API Token (com permissões: Cloudflare Tunnel Edit / Account: Read e, se for criar registros DNS via API, Zone.DNS Edit):" 12 80 3>&1 1>&2 2>&3)
-        if [ $? -ne 0 ]; then
-            exit 1
-        fi
-        if [ -z "$CLOUDFLARE_API_TOKEN2" ]; then
-            whiptail --msgbox "O Cloudflare API Token é obrigatório para configuração do Tunnel." 10 70
-        else
+        # Início do questionário Cloudflare do modo TRADICIONAL.
+        # Qualquer falha retorna para este ponto e solicita novamente os dados.
+        while true; do
+            CLOUDFLARE_API_TOKEN2=$(whiptail --title "Cloudflare API Token" --inputbox "Digite seu Cloudflare API Token (com permissões para Zone.DNS Edit):" 12 80 3>&1 1>&2 2>&3)
+            if [ $? -ne 0 ]; then
+                exit 1
+            fi
+            if [ -z "$CLOUDFLARE_API_TOKEN2" ]; then
+                whiptail --msgbox "O Cloudflare API Token é obrigatório para criar os registros DNS automaticamente." 10 70
+            else
+                break
+            fi
+        done
+
+        while true; do
+            CLOUDFLARE_ZONE_ID2=$(whiptail --title "Cloudflare Zone ID" --inputbox "Digite seu Cloudflare Zone ID (encontre em: Cloudflare Dashboard > Seu site > Overview > Zone ID):" 12 80 3>&1 1>&2 2>&3)
+            if [ $? -ne 0 ]; then
+                exit 1
+            fi
+            if [ -z "$CLOUDFLARE_ZONE_ID2" ]; then
+                whiptail --msgbox "O Cloudflare Zone ID é obrigatório." 10 70
+            else
+                break
+            fi
+        done
+
+        if validate_cloudflare_traditional_credentials \
+            "$CLOUDFLARE_API_TOKEN2" \
+            "$CLOUDFLARE_ZONE_ID2"; then
+
+            whiptail --title "CREDENCIAIS CLOUDFLARE VÁLIDAS" --msgbox \
+                "API Token e Zone ID validados com sucesso pela API da Cloudflare.\n\nA criação automática dos registros DNS poderá continuar com segurança." \
+                12 76
             break
         fi
-    done
 
-
-    while true; do
-        CLOUDFLARE_ZONE_ID2=$(whiptail --title "Cloudflare Zone ID" --inputbox "Digite seu Cloudflare Zone ID (encontre em: Cloudflare Dashboard > Seu site > Overview > Zone ID):" 12 80 3>&1 1>&2 2>&3)
-        if [ $? -ne 0 ]; then
-            exit 1
-        fi
-        if [ -z "$CLOUDFLARE_ZONE_ID2" ]; then
-            whiptail --msgbox "O Cloudflare Zone ID é obrigatório." 10 70
-        else
-            break
-        fi
+        whiptail --title "CREDENCIAIS CLOUDFLARE INVÁLIDAS" --msgbox \
+            "${CLOUDFLARE_VALIDATION_ERROR}\n\nNenhuma configuração DNS foi aplicada. O questionário de credenciais será reiniciado para que você possa corrigir os dados." \
+            16 78
     done
 
 fi
@@ -1437,7 +1590,7 @@ wait_interval=60
 elapsed_time=0
 
 while [ $elapsed_time -lt $max_wait_time ]; do
-        CONTAINER_ID=$(docker ps -qf name=portainer)
+        CONTAINER_ID=$(docker ps --filter "name=portainer_portainer" --format "{{.ID}}" | head -n1)
         if [ -n "$CONTAINER_ID" ]; then
                 break
         fi
@@ -1450,6 +1603,25 @@ if [ -z "$CONTAINER_ID" ]; then
         exit 1
 fi
 
+# No modo TRADICIONAL, após o container real do Portainer estar em execução,
+# força a recriação dos serviços Portainer e Traefik. Isso garante que o
+# Traefik releia o serviço/labels do Portainer e reinicie o ciclo do HTTPS/ACME.
+if [[ "$INSTALL_CHOICE" = "TRADICIONAL" ]]; then
+    echo -e "XXX\n62\nPORTAINER ATIVO - REINICIANDO PORTAINER E TRAEFIK \nXXX"
+
+    if ! docker service update --force portainer_portainer >/dev/null 2>&1; then
+        echo -e "XXX\n62\nERRO AO REINICIAR O SERVIÇO PORTAINER \nXXX"
+        exit 1
+    fi
+
+    if ! docker service update --force traefik_traefik >/dev/null 2>&1; then
+        echo -e "XXX\n62\nERRO AO REINICIAR O SERVIÇO TRAEFIK \nXXX"
+        exit 1
+    fi
+
+    # Dá tempo para os dois serviços recriarem as tasks antes da checagem HTTPS.
+    sleep 8
+fi
 
 
 ## VERIFICAÇÃO ESPECÍFICA PARA CLOUDFLARE TUNNEL
