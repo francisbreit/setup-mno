@@ -184,7 +184,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.7.34"
+VERSIONSETUP="7.7.35"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -461,8 +461,8 @@ fi
 
 if ! setup_validate_initial_state; then
     SETUP_INITIAL_STATE_REPORT=$(printf ' • %s\n' "${SETUP_INITIAL_STATE_ISSUES[@]}")
-    whiptail --title "INSTALAÇÃO INICIAL INCOMPLETA" --msgbox \
-        "O menu de aplicações foi bloqueado porque a preparação inicial do servidor não terminou.\n\nItens ausentes ou inválidos:\n${SETUP_INITIAL_STATE_REPORT}\nO instalador obrigatório será aberto novamente. Conclua todas as etapas do Docker Swarm, credenciais, Portainer e serviços essenciais." \
+    whiptail --title "INSTALAÇÃO INICIAL SERÁ INICIADA" --msgbox \
+        "O menu de aplicações ainda não existe porque a preparação inicial do servidor precisa ser realizada.\n\nSerão criados os itens a seguir (pressione enter para iniciar a instalação):\n${SETUP_INITIAL_STATE_REPORT}\nO instalador obrigatório será aberto novamente. Conclua todas as etapas do Docker Swarm, credenciais, Portainer e serviços essenciais." \
         24 82
     clear
     cd /root/SetupLowCodeMno || exit 42

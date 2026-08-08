@@ -80,12 +80,22 @@ offer_control_center_installation() {
         "Deseja instalar agora o Setup MNO Control Center?\n\nEle adiciona uma interface web para acompanhar o servidor, consultar o catálogo, visualizar Blueprints, usar o Assistente MNO e abrir o Instalador Seguro.\n\nA instalação é opcional. Se escolher NÃO, o Setup MNO continuará funcionando normalmente e você poderá instalar o Control Center depois pelo menu principal." \
         20 82; then
         clear
-        SETUPMNO_INSTALLATION_TYPE="$INSTALL_CHOICE" "$installer"
+        SETUPMNO_CONTROL_PARENT_CONFIRMED=1 \
+            SETUPMNO_INSTALLATION_TYPE="$INSTALL_CHOICE" \
+            "$installer"
         status=$?
-        if [ "$status" -ne 0 ]; then
+        if [ "$status" -eq 130 ]; then
+            whiptail --title "CONTROL CENTER ADIADO" --msgbox \
+                "A instalação do Control Center foi cancelada durante o preenchimento dos dados.\n\nNenhum sucesso foi presumido. Você poderá iniciar novamente pelo menu principal." \
+                14 78
+        elif [ "$status" -ne 0 ]; then
             whiptail --title "CONTROL CENTER NÃO INSTALADO" --msgbox \
                 "A instalação opcional do Control Center não foi concluída.\n\nAs ferramentas essenciais do Setup MNO permanecem instaladas. Você poderá tentar novamente pelo menu principal." \
                 14 78
+        elif ! control_center_installed; then
+            whiptail --title "CONTROL CENTER NÃO INSTALADO" --msgbox \
+                "O instalador terminou sem erro, mas os serviços do Control Center não foram encontrados.\n\nNenhum sucesso foi presumido. Você poderá tentar novamente pelo menu principal." \
+                15 78
         fi
     fi
 }

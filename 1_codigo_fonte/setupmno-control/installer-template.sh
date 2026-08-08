@@ -339,13 +339,15 @@ check_cloudflare_route() {
     fi
 }
 
-whiptail --title "SETUP MNO CONTROL CENTER" --yesno \
-    "Instalar o painel web oficial do Setup MNO?\n\nO Control Center mostra aplicações instaladas, saúde do Docker Swarm, CPU, RAM, disco, catálogo de setups, auditoria, diagnóstico local e acesso autenticado ao instalador original." \
-    16 82 || exit 0
+if [ "${SETUPMNO_CONTROL_PARENT_CONFIRMED:-0}" != "1" ]; then
+    whiptail --title "SETUP MNO CONTROL CENTER" --yesno \
+        "Instalar o painel web oficial do Setup MNO?\n\nO Control Center mostra aplicações instaladas, saúde do Docker Swarm, CPU, RAM, disco, catálogo de setups, auditoria, diagnóstico local e acesso autenticado ao instalador original." \
+        16 82 || exit 130
+fi
 
 while true; do
     if ! url_control=$(ask_required "1/5 — Domínio do painel (ex.: setup.seudominio.com):"); then
-        exit 0
+        exit 130
     fi
     if [[ "$url_control" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] &&
        [[ "$url_control" == *.* ]]; then
@@ -373,7 +375,7 @@ fi
 
 while true; do
     if ! usuario_control=$(ask_required "2/5 — Usuário administrador do painel:"); then
-        exit 0
+        exit 130
     fi
     if [[ "$usuario_control" =~ ^[A-Za-z0-9_.-]{3,40}$ ]]; then
         break
@@ -382,7 +384,7 @@ while true; do
 done
 
 if ! senha_control=$(ask_password); then
-    exit 0
+    exit 130
 fi
 
 mem_total_mb=$(awk '/MemTotal:/ {print int($2/1024)}' /proc/meminfo)
@@ -409,7 +411,7 @@ else
             "LATER" "Configurar o conector de IA futuramente" \
             3>&1 1>&2 2>&3)
         assistant_status=$?
-        [ "$assistant_status" -ne 0 ] && exit 0
+        [ "$assistant_status" -ne 0 ] && exit 130
         case "$assistant_choice" in
             BASIC)
                 assistant_mode="basic"
@@ -421,12 +423,12 @@ else
                 ;;
             OPENAI)
                 if ! llm_api_key=$(ask_llm_key "OpenAI"); then
-                    exit 0
+                    exit 130
                 fi
                 if ! assistant_model=$(ask_with_default \
                     "Modelo OpenAI para o Copiloto:\n\nO padrão equilibra qualidade, latência e custo. Você pode informar outro modelo compatível com a Responses API." \
                     "gpt-5.6-terra"); then
-                    exit 0
+                    exit 130
                 fi
                 assistant_mode="openai"
                 assistant_base_url="https://api.openai.com/v1"
@@ -434,12 +436,12 @@ else
                 ;;
             OPENROUTER)
                 if ! llm_api_key=$(ask_llm_key "OpenRouter"); then
-                    exit 0
+                    exit 130
                 fi
                 if ! assistant_model=$(ask_with_default \
                     "Modelo OpenRouter para o Copiloto:\n\nInforme o identificador exato no formato provedor/modelo." \
                     "openai/gpt-5.4"); then
-                    exit 0
+                    exit 130
                 fi
                 assistant_mode="openrouter"
                 assistant_base_url="https://openrouter.ai/api/v1"
@@ -447,12 +449,12 @@ else
                 ;;
             DEEPSEEK)
                 if ! llm_api_key=$(ask_llm_key "DeepSeek"); then
-                    exit 0
+                    exit 130
                 fi
                 if ! assistant_model=$(ask_with_default \
                     "Modelo DeepSeek para o Copiloto:\n\nVocê pode informar outro identificador aceito atualmente pelo provedor." \
                     "deepseek-v4-flash"); then
-                    exit 0
+                    exit 130
                 fi
                 assistant_mode="deepseek"
                 assistant_base_url="https://api.deepseek.com"
@@ -465,7 +467,7 @@ else
                 fi
                 if ! assistant_base_url=$(ask_required \
                     "Endpoint do Ollama já instalado (ex.: https://apiollama.seudominio.com):"); then
-                    exit 0
+                    exit 130
                 fi
                 assistant_base_url="${assistant_base_url%/}"
                 if [[ ! "$assistant_base_url" =~ ^https?://[^[:space:]]+$ ]]; then
@@ -474,7 +476,7 @@ else
                 fi
                 if ! assistant_model=$(ask_required \
                     "Nome exato do modelo já baixado no Ollama (ex.: qwen3:8b):"); then
-                    exit 0
+                    exit 130
                 fi
                 assistant_mode="ollama"
                 break
@@ -486,7 +488,7 @@ fi
 while true; do
     if ! criar_portainer=$(ask_required \
         "5/5 — Criar Stack no Portainer?\n\n0 = editável no Portainer\n1 = direto no Docker"); then
-        exit 0
+        exit 130
     fi
     [[ "$criar_portainer" =~ ^[01]$ ]] && break
     msg "Digite somente 0 ou 1."
@@ -552,7 +554,7 @@ fi
 
 whiptail --title "CONFIRMAR INSTALAÇÃO" --yesno \
     "Setup MNO Control Center\n\nDomínio: $url_control\nAdministrador: $usuario_control\nPlano: $CONTROL_PLAN\nAssistente: $assistant_label\nInstalação: $dns_mode\nDeploy: $([ "$criar_portainer" = "0" ] && echo "Portainer editável" || echo "Docker direto")\nArquiteturas: X86 e ARM\nLimite de memória do Control: $memory_limit\n\nO terminal executará o instalador original e será acessível somente após autenticação." \
-    23 88 || exit 0
+    23 88 || exit 130
 
 install_log="/tmp/${nome_app}-install.log"
 error_file="/tmp/${nome_app}-error.log"

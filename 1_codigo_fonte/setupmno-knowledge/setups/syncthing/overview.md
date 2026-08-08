@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Syncthing no Setup MNO",
   "setupId": "syncthing",
-  "setupVersion": "7.7.34",
+  "setupVersion": "7.7.35",
   "architectures": [
     "amd64",
     "arm64"

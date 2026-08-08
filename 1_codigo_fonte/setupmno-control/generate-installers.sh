@@ -92,6 +92,8 @@ for architecture in x86 arm; do
     grep -Fq 'control_center_installed()' "$foundation_script"
     grep -Fq 'offer_control_center_installation()' "$foundation_script"
     grep -Fq 'A instalação é opcional.' "$foundation_script"
+    grep -Fq 'SETUPMNO_CONTROL_PARENT_CONFIRMED=1' "$foundation_script"
+    grep -Fq 'elif ! control_center_installed; then' "$foundation_script"
     [ "$(grep -Fc '"${CONTROL_CENTER_MENU[@]}"' "$install_script")" -eq 1 ]
     [ "$(grep -Fc '"${CONTROL_CENTER_FREE_MENU[@]}"' "$install_script")" -eq 3 ]
     [ "$(grep -Fc 'if [ "$CHOICE" != "SETUP MNO CONTROL CENTER" ] &&' "$install_script")" -eq 3 ] || {
