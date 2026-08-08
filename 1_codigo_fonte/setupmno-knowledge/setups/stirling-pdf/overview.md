@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Stirling PDF no Setup MNO",
   "setupId": "stirling-pdf",
-  "setupVersion": "7.7.36",
+  "setupVersion": "7.7.37",
   "architectures": [
     "amd64",
     "arm64"

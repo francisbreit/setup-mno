@@ -361,6 +361,13 @@ if [[ ("$clickhouse_container" == "") ]]; then
     nome_app3=$nome_principal3$sufixo_app3
 fi
 
+# Serviços de stacks diferentes devem conversar pelo nome Swarm completo
+# (stack_serviço). O apelido curto do Compose não é um contrato confiável
+# entre stacks e pode deixar dependências 1/1 inalcançáveis pelo provisionador
+# do Langfuse.
+minio_service="${minio_service:-${nome_app2}_${nome_app2}}"
+clickhouse_service="${clickhouse_service:-${nome_app3}_${nome_app3}}"
+
 if [ "$minio_container" == "" ] && [ "$clickhouse_container" == "" ]; then
     {
         tput reset 2>/dev/null
@@ -550,7 +557,7 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     echo -e "XXX\n15\nATUALIZANDO CONFIGURAÇÃO DO TUNNEL... \nXXX"
 
     # Configuração do novo serviço para o Minio
-    NEW_SERVICE="http://${nome_app2}:9001"
+    NEW_SERVICE="http://${minio_service}:9001"
     
     # Arquivos temporários
     TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
@@ -751,7 +758,7 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     echo -e "XXX\n15\nATUALIZANDO CONFIGURAÇÃO DO TUNNEL... \nXXX"
 
     # Configuração do novo serviço para o Minio
-    NEW_SERVICE="http://${nome_app2}:9000"
+    NEW_SERVICE="http://${minio_service}:9000"
     
     # Arquivos temporários
     TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
@@ -1063,7 +1070,7 @@ fi
 
 
 
-if [[ ("$minio_container" == "") ]]; then
+if [[ ("$clickhouse_container" == "") ]]; then
 
 #VERIFICANDO CONFIGURAÇÃO Clickhouse
 
@@ -1155,7 +1162,7 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     echo -e "XXX\n35\nATUALIZANDO CONFIGURAÇÃO DO TUNNEL... \nXXX"
 
     # Configuração do novo serviço para o Rabbitmq
-    NEW_SERVICE="http://${nome_app3}:8123"
+    NEW_SERVICE="http://${clickhouse_service}:8123"
     
     # Arquivos temporários
     TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
@@ -1630,7 +1637,7 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     echo -e "XXX\n35\nATUALIZANDO CONFIGURAÇÃO DO TUNNEL... \nXXX"
 
     # Configuração do novo serviço para o Baserow
-    NEW_SERVICE="http://${nome_app}:3000"
+    NEW_SERVICE="http://${nome_app}_${nome_app}:3000"
     
     # Arquivos temporários
     TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
@@ -1779,7 +1786,9 @@ while [ "$elapsed_time" -lt "$max_wait_time" ]; do
     if [[ -n "$minio_container" ]]; then
         CONTAINER_ID="$minio_container"
     else
-        CONTAINER_ID=$(docker ps --filter "name=$nome_app2" --format '{{.ID}}' | head -n1)
+        CONTAINER_ID=$(docker ps \
+            --filter "label=com.docker.swarm.service.name=$minio_service" \
+            --format '{{.ID}}' | head -n1)
     fi
     [ -n "$CONTAINER_ID" ] && break
     sleep "$wait_interval"
@@ -1867,7 +1876,7 @@ if ! docker service create --quiet \
             sleep 2
         done
         exit 67
-    ' sh "$nome_app2" "$bucket_name" >> "$LANGFUSE_INSTALL_LOG" 2>&1; then
+    ' sh "$minio_service" "$bucket_name" >> "$LANGFUSE_INSTALL_LOG" 2>&1; then
     langfuse_fail 67 "Não foi possível iniciar a validação interna e o provisionamento seguro do MinIO."
 fi
 
@@ -1902,7 +1911,9 @@ clickhouse_ready=0
 clickhouse_max_attempts=30
 for tentativa in $(seq 1 "$clickhouse_max_attempts"); do
     echo -e "XXX\n82\nVALIDANDO CLICKHOUSE: tentativa ${tentativa}/${clickhouse_max_attempts} (timeout de 8s por tentativa)\nXXX"
-    clickhouse_container=$(docker ps --filter "name=$nome_app3" --format '{{.ID}}' | head -n1)
+    clickhouse_container=$(docker ps \
+        --filter "label=com.docker.swarm.service.name=$clickhouse_service" \
+        --format '{{.ID}}' | head -n1)
     if [[ -n "$clickhouse_container" ]] && \
         timeout --signal=TERM --kill-after=2s 8s \
         docker exec "$clickhouse_container" sh -c \
@@ -1994,8 +2005,8 @@ services:
       - DATABASE_URL=postgresql://postgres:$postgres_password@postgres:5432/$nome_app
 
       ## Dados do ClickHouse
-      - CLICKHOUSE_MIGRATION_URL=clickhouse://$nome_app3:9000
-      - CLICKHOUSE_URL=http://$nome_app3:8123
+      - CLICKHOUSE_MIGRATION_URL=clickhouse://$clickhouse_service:9000
+      - CLICKHOUSE_URL=http://$clickhouse_service:8123
       - CLICKHOUSE_USER=$USUARIO_CLICKHOUSE
       - CLICKHOUSE_PASSWORD=$SENHA_CLICKHOUSE
       - CLICKHOUSE_CLUSTER_ENABLED=false
@@ -2084,8 +2095,8 @@ cat >> $nome_app.yaml << EOL
       - DATABASE_URL=postgresql://postgres:$postgres_password@postgres:5432/$nome_app
 
       ## Dados do ClickHouse
-      - CLICKHOUSE_MIGRATION_URL=clickhouse://$nome_app3:9000
-      - CLICKHOUSE_URL=http://$nome_app3:8123
+      - CLICKHOUSE_MIGRATION_URL=clickhouse://$clickhouse_service:9000
+      - CLICKHOUSE_URL=http://$clickhouse_service:8123
       - CLICKHOUSE_USER=$USUARIO_CLICKHOUSE
       - CLICKHOUSE_PASSWORD=$SENHA_CLICKHOUSE
       - CLICKHOUSE_CLUSTER_ENABLED=false

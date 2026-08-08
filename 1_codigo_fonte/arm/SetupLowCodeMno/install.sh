@@ -18,7 +18,7 @@
 #########################################################
 
 SETUP_MNO_TMUX_SESSION="setup-mno"
-SETUP_MNO_TMUX_LIFECYCLE="2"
+SETUP_MNO_TMUX_LIFECYCLE="3"
 
 #########################################################
 # DESCOBRE O CAMINHO REAL DO EXECUTÁVEL ATUAL
@@ -184,7 +184,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.7.36"
+VERSIONSETUP="7.7.37"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -469,8 +469,15 @@ if ! setup_validate_initial_state; then
     ./dockerswarm
     DOCKERSWARM_STATUS=$?
 
-    # Nunca continua para o menu com variáveis ou estado coletados antes do
-    # reparo. Uma nova execução do Setup MNO revalida tudo desde o início.
+    # O dockerswarm coleta muitas variáveis e pode instalar opcionalmente o
+    # Control Center. Em caso de sucesso, substitua este processo por uma nova
+    # execução limpa do install: o estado inicial é revalidado e o usuário
+    # retorna ao menu sem abandonar a sessão TMUX.
+    if [ "$DOCKERSWARM_STATUS" -eq 0 ]; then
+        SETUP_MNO_INSTALL_SCRIPT=$(setup_mno_resolve_script_path)
+        exec "$SETUP_MNO_INSTALL_SCRIPT"
+        exit 42
+    fi
     exit "$DOCKERSWARM_STATUS"
 fi
 
@@ -487,14 +494,10 @@ run_app() {
     cd && cd SetupLowCodeMno && ./"$script"
     app_status=$?
 
-    # Cada operação deve começar com variáveis novas. Ao retornar do script
-    # selecionado, encerramos o install dentro do tmux; o wrapper criado acima
-    # elimina a sessão. Se o SSH cair durante a operação, este ponto ainda não
-    # foi alcançado e a sessão permanece disponível para reconexão.
-    if [ -n "${TMUX:-}" ]; then
-        exit "$app_status"
-    fi
-
+    # O setup selecionado executa em um processo filho: suas variáveis não
+    # contaminam o install. Ao terminar, retorne ao loop principal. A sessão
+    # TMUX continua protegendo o menu atual e será eliminada pelo wrapper
+    # somente quando o usuário realmente sair do Setup MNO.
     return "$app_status"
 }
 
