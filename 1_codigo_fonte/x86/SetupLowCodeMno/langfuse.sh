@@ -275,6 +275,41 @@ fi
 nome_principal="langfuse"  #nome do app
 sufixo_app=$(date | md5sum | head -c7)
 nome_app=$nome_principal$sufixo_app
+PORTAINER_DIAG_LOG="/tmp/${nome_app}-portainer.log"
+
+# Registra somente metadados técnicos. Respostas, tokens, usuários e senhas
+# nunca são gravados no diagnóstico.
+portainer_log_failure() {
+    local stage="$1"
+    local curl_exit="${2:-desconhecido}"
+    local http_code="${3:-desconhecido}"
+    local response_bytes="${4:-0}"
+
+    umask 077
+    printf '%s stage=%s curl_exit=%s http=%s response_bytes=%s\n' \
+        "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+        "$stage" "$curl_exit" "$http_code" "$response_bytes" \
+        >> "$PORTAINER_DIAG_LOG"
+}
+
+portainer_api_curl() {
+    curl --connect-timeout 10 --max-time 30 "$@"
+    local curl_exit=$?
+    if [ "$curl_exit" -ne 0 ]; then
+        portainer_log_failure "${PORTAINER_DIAG_STAGE:-portainer_api}" "$curl_exit" "000" "0"
+    fi
+    return "$curl_exit"
+}
+
+portainer_upload_curl() {
+    curl --connect-timeout 10 --max-time 90 "$@"
+    local curl_exit=$?
+    if [ "$curl_exit" -ne 0 ]; then
+        portainer_log_failure "${PORTAINER_DIAG_STAGE:-portainer_upload}" "$curl_exit" "000" "0"
+    fi
+    return "$curl_exit"
+}
+
 postgres_password=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml)
 container_id=$(docker ps --filter name=postgres --format '{{.ID}}' | head -n1)
 if [[ -z "$container_id" ]] || ! docker exec "$container_id" \
@@ -897,12 +932,14 @@ EOL
 
         get_auth_token() {
             echo -e "XXX\n39\nAUTENTICANDO NO PORTAINER... 3/4  \nXXX"
-            RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
+            PORTAINER_DIAG_STAGE="minio_auth"
+            RESPONSE=$(portainer_api_curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
                 -H "Content-Type: application/json" \
                 -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
-            TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
+            TOKEN=$(echo "$RESPONSE" | jq -r '.jwt' 2>/dev/null)
             if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-                echo -e "XXX\n40\nFALHA NA AUTENTICAÇÃO.. 3/4  \nXXX"
+                portainer_log_failure "minio_auth_invalid_response" "0" "nao_validado" "$(printf '%s' "$RESPONSE" | wc -c)"
+                echo -e "XXX\n40\nFALHA NA AUTENTICAÇÃO. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
                 sleep 5
                 echo -e "XXX\n41\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
                 docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
@@ -914,11 +951,13 @@ EOL
 
         get_endpoint_id() {
             echo -e "XXX\n43\n[INFO] OBTENDO ENDPOINTID 3/4  \nXXX"
-            RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
+            PORTAINER_DIAG_STAGE="minio_endpoints"
+            RESPONSE=$(portainer_api_curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
                 -H "Authorization: Bearer $TOKEN")
-            ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
+            ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id' 2>/dev/null)
             if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
-                echo -e "XXX\n44\n[ERRO] ENDPOINTID NÃO ENCONTRADO 3/4  \nXXX"
+                portainer_log_failure "minio_endpoints_invalid_response" "0" "nao_validado" "$(printf '%s' "$RESPONSE" | wc -c)"
+                echo -e "XXX\n44\n[ERRO] ENDPOINTID NÃO ENCONTRADO. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
                 docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
                 exit 1
             fi
@@ -927,11 +966,13 @@ EOL
 
         get_swarm_id() {
             echo -e "XXX\n46\n[INFO] OBTENDO SWARMID  3/4  \nXXX"
-            RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
+            PORTAINER_DIAG_STAGE="minio_swarm"
+            RESPONSE=$(portainer_api_curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
                 -H "Authorization: Bearer $TOKEN")
-            SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
+            SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID' 2>/dev/null)
             if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
-                echo -e "XXX\n47\n[ERRO] SWARMID NÃO ENCONTRADO 3/4  \nXXX"
+                portainer_log_failure "minio_swarm_invalid_response" "0" "nao_validado" "$(printf '%s' "$RESPONSE" | wc -c)"
+                echo -e "XXX\n47\n[ERRO] SWARMID NÃO ENCONTRADO. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
                 docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
                 exit 1
             fi
@@ -950,7 +991,8 @@ EOL
             response_output=$(mktemp)
             erro_output=$(mktemp)
 
-            http_code=$(curl -s -o "$response_output" -w "%{http_code}"  -X POST \
+            PORTAINER_DIAG_STAGE="minio_create"
+            http_code=$(portainer_upload_curl -sS -o "$response_output" -w "%{http_code}" -X POST \
                 -H "Authorization: Bearer $TOKEN" \
                 -F "Name=$STACK_NAME" \
                 -F "file=@$STACK_FILE_PATH" \
@@ -961,8 +1003,9 @@ EOL
             response=$(cat "$response_output")
             rm -f "$response_output" "$erro_output"
 
-            if [ "$http_code" -ne 200 ]; then
-                echo -e "XXX\n56\n[ERRO] ERRO AO CRIAR STACK 3/4  \nXXX"
+            if [ "$http_code" != "200" ]; then
+                portainer_log_failure "minio_create_http" "0" "${http_code:-000}" "$(printf '%s' "$response" | wc -c)"
+                echo -e "XXX\n56\n[ERRO] ERRO AO CRIAR STACK. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
                 docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
                 exit 1
             fi
@@ -1329,13 +1372,15 @@ fi
 get_auth_token() {
     #echo "[INFO] Autenticando no Portainer..."
     echo -e "XXX\n77\nAUTENTICANDO NO PORTAINER... 3/4  \nXXX"
-    RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
+    PORTAINER_DIAG_STAGE="clickhouse_auth"
+    RESPONSE=$(portainer_api_curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
         -H "Content-Type: application/json" \
         -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
-    TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
+    TOKEN=$(echo "$RESPONSE" | jq -r '.jwt' 2>/dev/null)
     if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
         # echo "[ERRO] Falha na autenticação."
-        echo -e "XXX\n77\nFALHA NA AUTENTICAÇÃO.. 3/4  \nXXX"
+        portainer_log_failure "clickhouse_auth_invalid_response" "0" "nao_validado" "$(printf '%s' "$RESPONSE" | wc -c)"
+        echo -e "XXX\n77\nFALHA NA AUTENTICAÇÃO. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
 sleep 5
 echo -e "XXX\n78\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
 docker stack deploy --prune --resolve-image always -c $nome_app3.yaml $nome_app3 >/dev/null 2>&1
@@ -1350,12 +1395,14 @@ sleep 5
 get_endpoint_id() {
    # echo "[INFO] Obtendo EndpointID..."
     echo -e "XXX\n80\n[INFO] OBTENDO ENDPOINTID 3/4  \nXXX"
-    RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
+    PORTAINER_DIAG_STAGE="clickhouse_endpoints"
+    RESPONSE=$(portainer_api_curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
         -H "Authorization: Bearer $TOKEN")
-    ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
+    ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id' 2>/dev/null)
     if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
         # echo "[ERRO] EndpointID não encontrado! Resposta: $RESPONSE"
-        echo -e "XXX\n81\n[ERRO] ENDPOINTID NÃO ENCONTRADO 3/4  \nXXX"
+        portainer_log_failure "clickhouse_endpoints_invalid_response" "0" "nao_validado" "$(printf '%s' "$RESPONSE" | wc -c)"
+        echo -e "XXX\n81\n[ERRO] ENDPOINTID NÃO ENCONTRADO. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
         docker stack deploy --prune --resolve-image always -c $nome_app3.yaml $nome_app3 >/dev/null 2>&1
         exit 1
     fi
@@ -1367,12 +1414,14 @@ get_endpoint_id() {
 get_swarm_id() {
    # echo "[INFO] Obtendo SwarmID..."
     echo -e "XXX\n83\n[INFO] OBTENDO SWARMID  3/4  \nXXX"
-    RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
+    PORTAINER_DIAG_STAGE="clickhouse_swarm"
+    RESPONSE=$(portainer_api_curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
         -H "Authorization: Bearer $TOKEN")
-    SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
+    SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID' 2>/dev/null)
     if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
         #echo "[ERRO] SwarmID não encontrado! Resposta: $RESPONSE"
-        echo -e "XXX\n84\n[ERRO] SWARMID NÃO ENCONTRADO 3/4  \nXXX"
+        portainer_log_failure "clickhouse_swarm_invalid_response" "0" "nao_validado" "$(printf '%s' "$RESPONSE" | wc -c)"
+        echo -e "XXX\n84\n[ERRO] SWARMID NÃO ENCONTRADO. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
         docker stack deploy --prune --resolve-image always -c $nome_app3.yaml $nome_app3 >/dev/null 2>&1
         exit 1
     fi
@@ -1396,7 +1445,8 @@ create_stack() {
     response_output=$(mktemp)
     erro_output=$(mktemp)
 
-    http_code=$(curl -s -o "$response_output" -w "%{http_code}"  -X POST \
+    PORTAINER_DIAG_STAGE="clickhouse_create"
+    http_code=$(portainer_upload_curl -sS -o "$response_output" -w "%{http_code}" -X POST \
         -H "Authorization: Bearer $TOKEN" \
         -F "Name=$STACK_NAME" \
         -F "file=@$STACK_FILE_PATH" \
@@ -1410,9 +1460,10 @@ create_stack() {
    # echo "[DEBUG] Resposta da criação da stack: $response"
    # echo "[DEBUG] Código HTTP: $http_code"
 
-    if [ "$http_code" -ne 200 ]; then
+    if [ "$http_code" != "200" ]; then
        # echo "[ERRO] Erro ao criar a stack. Código HTTP: $http_code. Resposta: $response"
-        echo -e "XXX\n89\n[ERRO] ERRO AO CRIAR STACK 3/4  \nXXX"
+        portainer_log_failure "clickhouse_create_http" "0" "${http_code:-000}" "$(printf '%s' "$response" | wc -c)"
+        echo -e "XXX\n89\n[ERRO] ERRO AO CRIAR STACK. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
         docker stack deploy --prune --resolve-image always -c $nome_app3.yaml $nome_app3 >/dev/null 2>&1
         exit 1
     fi
@@ -1697,6 +1748,8 @@ wait_interval=5
 elapsed_time=0
 
 while [ $elapsed_time -lt $max_wait_time ]; do
+	remaining_time=$((max_wait_time - elapsed_time))
+	echo -e "XXX\n75\nAGUARDANDO SERVIÇO MINIO: ${elapsed_time}s decorridos, limite ${max_wait_time}s (${remaining_time}s restantes)\nXXX"
 	if [[ -n "$minio_container" ]]; then
 		CONTAINER_ID="$minio_container"
 	else
@@ -1720,12 +1773,12 @@ if ! command -v mc &> /dev/null; then
 ARCH=$(uname -m)
 
 if [[ "$ARCH" == "x86_64" ]]; then
-    if ! wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc; then
+	    if ! wget -q --timeout=20 --tries=2 https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc; then
         whiptail --title "Erro" --msgbox "Não foi possível baixar o MinIO Client para x86_64." 10 60
         exit 1
     fi
 elif [[ "$ARCH" == "aarch64" ]] || [[ "$ARCH" == "armv7l" ]]; then
-    if ! wget -q https://dl.min.io/client/mc/release/linux-arm64/mc -O /usr/local/bin/mc; then
+	    if ! wget -q --timeout=20 --tries=2 https://dl.min.io/client/mc/release/linux-arm64/mc -O /usr/local/bin/mc; then
         whiptail --title "Erro" --msgbox "Não foi possível baixar o MinIO Client para ARM64." 10 60
         exit 1
     fi
@@ -1745,13 +1798,16 @@ fi
 # Aguardar o endpoint S3 responder. O teste é bloqueante para impedir que o
 # Langfuse seja implantado com bucket ou credenciais vazias.
 minio_ready=0
-for tentativa in $(seq 1 60); do
-    if mc alias set minio "https://$MINIO_PUBLIC_URL" "$MINIO_USER" "$MINIO_PASSWORD" \
+minio_max_attempts=30
+for tentativa in $(seq 1 "$minio_max_attempts"); do
+    echo -e "XXX\n75\nVALIDANDO MINIO/S3: tentativa ${tentativa}/${minio_max_attempts} (timeout de 8s por tentativa)\nXXX"
+    if timeout --signal=TERM --kill-after=2s 8s \
+        mc alias set minio "https://$MINIO_PUBLIC_URL" "$MINIO_USER" "$MINIO_PASSWORD" \
         --api S3v4 >/dev/null 2>&1; then
         minio_ready=1
         break
     fi
-    sleep 5
+    sleep 2
 done
 
 if [[ "$minio_ready" -ne 1 ]]; then
@@ -1761,7 +1817,8 @@ fi
 
 # Criar bucket e credenciais
 bucket_name="$nome_app"
-if ! mc mb --ignore-existing "minio/$bucket_name" >/dev/null 2>&1; then
+if ! timeout --signal=TERM --kill-after=2s 20s \
+    mc mb --ignore-existing "minio/$bucket_name" >/dev/null 2>&1; then
     whiptail --title "Erro" --msgbox "Não foi possível criar o bucket privado do Langfuse no MinIO." 10 70
     exit 1
 fi
@@ -1772,7 +1829,8 @@ create_service_account() {
     access_key="${nome_app}$(openssl rand -hex 4)"
     secret_key=$(openssl rand -hex 20)
 
-    if ! credentials=$(mc admin user svcacct add minio "$MINIO_USER" \
+    if ! credentials=$(timeout --signal=TERM --kill-after=2s 20s \
+        mc admin user svcacct add minio "$MINIO_USER" \
         --access-key "$access_key" \
         --secret-key "$secret_key" \
         --json 2>/dev/null); then
@@ -1794,15 +1852,19 @@ fi
 # Langfuse. O comando antigo usava -it, ignorava as credenciais e prosseguia
 # mesmo após falhar, deixando as migrations em loop.
 clickhouse_ready=0
-for tentativa in $(seq 1 60); do
+clickhouse_max_attempts=30
+for tentativa in $(seq 1 "$clickhouse_max_attempts"); do
+    echo -e "XXX\n82\nVALIDANDO CLICKHOUSE: tentativa ${tentativa}/${clickhouse_max_attempts} (timeout de 8s por tentativa)\nXXX"
     clickhouse_container=$(docker ps --filter "name=$nome_app3" --format '{{.ID}}' | head -n1)
-    if [[ -n "$clickhouse_container" ]] && docker exec "$clickhouse_container" sh -c \
+    if [[ -n "$clickhouse_container" ]] && \
+        timeout --signal=TERM --kill-after=2s 8s \
+        docker exec "$clickhouse_container" sh -c \
         'clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --query "SELECT 1"' \
         >/dev/null 2>&1; then
         clickhouse_ready=1
         break
     fi
-    sleep 5
+    sleep 2
 done
 
 if [[ "$clickhouse_ready" -ne 1 ]]; then
@@ -1810,9 +1872,10 @@ if [[ "$clickhouse_ready" -ne 1 ]]; then
     exit 1
 fi
 
-clickhouse_version=$(docker exec "$clickhouse_container" sh -c \
+clickhouse_version=$(timeout --signal=TERM --kill-after=2s 15s \
+    docker exec "$clickhouse_container" sh -c \
     'clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --query "SELECT version()"' \
-    2>/dev/null)
+    2>/dev/null || true)
 clickhouse_major=${clickhouse_version%%.*}
 clickhouse_minor=${clickhouse_version#*.}
 clickhouse_minor=${clickhouse_minor%%.*}
@@ -1822,7 +1885,8 @@ if [[ ! "$clickhouse_major" =~ ^[0-9]+$ ]] || [[ ! "$clickhouse_minor" =~ ^[0-9]
     exit 1
 fi
 
-if ! docker exec "$clickhouse_container" sh -c \
+if ! timeout --signal=TERM --kill-after=2s 15s \
+    docker exec "$clickhouse_container" sh -c \
     'clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --query "$1"' \
     sh "CREATE DATABASE IF NOT EXISTS \`$nome_app\`" >/dev/null 2>&1; then
     whiptail --title "Erro" --msgbox "Não foi possível criar o banco do Langfuse no ClickHouse. A instalação foi interrompida." 10 70
@@ -2093,13 +2157,15 @@ fi
 get_auth_token() {
     #echo "[INFO] Autenticando no Portainer..."
     echo -e "XXX\n77\nAUTENTICANDO NO PORTAINER... 3/4  \nXXX"
-    RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
+    PORTAINER_DIAG_STAGE="langfuse_auth"
+    RESPONSE=$(portainer_api_curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
         -H "Content-Type: application/json" \
         -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
-    TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
+    TOKEN=$(echo "$RESPONSE" | jq -r '.jwt' 2>/dev/null)
     if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
         # echo "[ERRO] Falha na autenticação."
-        echo -e "XXX\n77\nFALHA NA AUTENTICAÇÃO.. 3/4  \nXXX"
+        portainer_log_failure "langfuse_auth_invalid_response" "0" "nao_validado" "$(printf '%s' "$RESPONSE" | wc -c)"
+        echo -e "XXX\n77\nFALHA NA AUTENTICAÇÃO. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
 sleep 5
 echo -e "XXX\n78\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
 docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
@@ -2114,12 +2180,14 @@ sleep 5
 get_endpoint_id() {
    # echo "[INFO] Obtendo EndpointID..."
     echo -e "XXX\n80\n[INFO] OBTENDO ENDPOINTID 3/4  \nXXX"
-    RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
+    PORTAINER_DIAG_STAGE="langfuse_endpoints"
+    RESPONSE=$(portainer_api_curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
         -H "Authorization: Bearer $TOKEN")
-    ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
+    ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id' 2>/dev/null)
     if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
         # echo "[ERRO] EndpointID não encontrado! Resposta: $RESPONSE"
-        echo -e "XXX\n81\n[ERRO] ENDPOINTID NÃO ENCONTRADO 3/4  \nXXX"
+        portainer_log_failure "langfuse_endpoints_invalid_response" "0" "nao_validado" "$(printf '%s' "$RESPONSE" | wc -c)"
+        echo -e "XXX\n81\n[ERRO] ENDPOINTID NÃO ENCONTRADO. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
         docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
         exit 1
     fi
@@ -2131,12 +2199,14 @@ get_endpoint_id() {
 get_swarm_id() {
    # echo "[INFO] Obtendo SwarmID..."
     echo -e "XXX\n83\n[INFO] OBTENDO SWARMID  3/4  \nXXX"
-    RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
+    PORTAINER_DIAG_STAGE="langfuse_swarm"
+    RESPONSE=$(portainer_api_curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
         -H "Authorization: Bearer $TOKEN")
-    SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
+    SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID' 2>/dev/null)
     if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
         #echo "[ERRO] SwarmID não encontrado! Resposta: $RESPONSE"
-        echo -e "XXX\n84\n[ERRO] SWARMID NÃO ENCONTRADO 3/4  \nXXX"
+        portainer_log_failure "langfuse_swarm_invalid_response" "0" "nao_validado" "$(printf '%s' "$RESPONSE" | wc -c)"
+        echo -e "XXX\n84\n[ERRO] SWARMID NÃO ENCONTRADO. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
         docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
         exit 1
     fi
@@ -2160,7 +2230,8 @@ create_stack() {
     response_output=$(mktemp)
     erro_output=$(mktemp)
 
-    http_code=$(curl -s -o "$response_output" -w "%{http_code}"  -X POST \
+    PORTAINER_DIAG_STAGE="langfuse_create"
+    http_code=$(portainer_upload_curl -sS -o "$response_output" -w "%{http_code}" -X POST \
         -H "Authorization: Bearer $TOKEN" \
         -F "Name=$STACK_NAME" \
         -F "file=@$STACK_FILE_PATH" \
@@ -2174,9 +2245,10 @@ create_stack() {
    # echo "[DEBUG] Resposta da criação da stack: $response"
    # echo "[DEBUG] Código HTTP: $http_code"
 
-    if [ "$http_code" -ne 200 ]; then
+    if [ "$http_code" != "200" ]; then
        # echo "[ERRO] Erro ao criar a stack. Código HTTP: $http_code. Resposta: $response"
-        echo -e "XXX\n89\n[ERRO] ERRO AO CRIAR STACK 3/4  \nXXX"
+        portainer_log_failure "langfuse_create_http" "0" "${http_code:-000}" "$(printf '%s' "$response" | wc -c)"
+        echo -e "XXX\n89\n[ERRO] ERRO AO CRIAR STACK. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
         docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
         exit 1
     fi

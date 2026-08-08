@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Umami no Setup MNO",
   "setupId": "umami",
-  "setupVersion": "7.7.32",
+  "setupVersion": "7.7.33",
   "architectures": [
     "amd64",
     "arm64"
