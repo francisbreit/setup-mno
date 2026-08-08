@@ -184,7 +184,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.7.33"
+VERSIONSETUP="7.7.34"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -225,10 +225,11 @@ actcheckbox=white,green
 
 # --- VERIFICAR TIPO DE INSTALAÇÃO ---
 INSTALL_TYPE_FILE="/root/.cloudflared_config/installation_type"
-if [ -f "$INSTALL_TYPE_FILE" ]; then
-    INSTALL_TYPE=$(cat "$INSTALL_TYPE_FILE")
+INSTALL_TYPE=""
+if [ -f "$INSTALL_TYPE_FILE" ] && [ ! -L "$INSTALL_TYPE_FILE" ]; then
+    INSTALL_TYPE=$(head -n1 "$INSTALL_TYPE_FILE")
 else
-    INSTALL_TYPE="TRADICIONAL"
+    INSTALL_TYPE=""
 fi
 
 # --- LOADING BAR ---
@@ -311,6 +312,109 @@ if [ "$PLANO" = "free1" ]; then
 fi
 
 # --- DOCKER CHECKS ---
+SETUP_INITIAL_STATE_ISSUES=()
+
+setup_add_initial_issue() {
+    SETUP_INITIAL_STATE_ISSUES+=("$1")
+}
+
+setup_regular_nonempty_file() {
+    local file="$1"
+    [ -f "$file" ] && [ ! -L "$file" ] &&
+        [ "$(stat -c '%s' "$file" 2>/dev/null || printf '0')" -gt 0 ] &&
+        [ "$(stat -c '%s' "$file" 2>/dev/null || printf '0')" -le 2097152 ]
+}
+
+setup_require_file() {
+    local file="$1" label="$2"
+    setup_regular_nonempty_file "$file" || setup_add_initial_issue "$label"
+}
+
+setup_file_has_assignment() {
+    local file="$1" key="$2"
+    grep -Eq "^${key}=.+$" "$file" 2>/dev/null
+}
+
+setup_validate_initial_state() {
+    local credential_file traditional_dns
+    SETUP_INITIAL_STATE_ISSUES=()
+
+    case "$INSTALL_TYPE" in
+        CLOUDFLARE_TUNNEL|TRADICIONAL) ;;
+        *) setup_add_initial_issue "tipo de instalação ausente ou inválido" ;;
+    esac
+
+    setup_require_file "/root/traefik.yaml" "arquivo /root/traefik.yaml"
+    setup_require_file "/root/portainer.yaml" "arquivo /root/portainer.yaml"
+    setup_require_file "/root/postgres.yaml" "arquivo /root/postgres.yaml"
+    setup_require_file "/root/redis.yaml" "arquivo /root/redis.yaml"
+    setup_require_file "/root/pgbouncer.yaml" "arquivo /root/pgbouncer.yaml"
+    setup_require_file "/etc/pgbouncer/pgbouncer.ini" "configuração /etc/pgbouncer/pgbouncer.ini"
+    setup_require_file "/etc/pgbouncer/userlist.txt" "credenciais /etc/pgbouncer/userlist.txt"
+
+    if [ ! -d "/root/dados_portainer" ] || [ -L "/root/dados_portainer" ]; then
+        setup_add_initial_issue "pasta /root/dados_portainer"
+    fi
+    if setup_regular_nonempty_file "/root/dados_portainer/dados_portainer"; then
+        grep -Eq '^Dominio do portainer:[[:space:]]*[^[:space:]].*$' \
+            /root/dados_portainer/dados_portainer 2>/dev/null ||
+            setup_add_initial_issue "domínio salvo do Portainer"
+        grep -Eq '^Usuario:[[:space:]]*[^[:space:]].*$' \
+            /root/dados_portainer/dados_portainer 2>/dev/null ||
+            setup_add_initial_issue "usuário salvo do Portainer"
+        grep -Eq '^Senha:[[:space:]]*[^[:space:]].*$' \
+            /root/dados_portainer/dados_portainer 2>/dev/null ||
+            setup_add_initial_issue "senha salva do Portainer"
+    else
+        setup_add_initial_issue "arquivo /root/dados_portainer/dados_portainer"
+    fi
+
+    if setup_regular_nonempty_file "/root/postgres.yaml"; then
+        grep -Eq '^[[:space:]]*-[[:space:]]*POSTGRES_PASSWORD=.+$' /root/postgres.yaml 2>/dev/null ||
+            setup_add_initial_issue "senha do PostgreSQL em /root/postgres.yaml"
+    fi
+
+    if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+        credential_file="/root/.cloudflared_config/cloudflare_credentials"
+        setup_require_file "$credential_file" "credenciais /root/.cloudflared_config/cloudflare_credentials"
+        setup_require_file "/root/cloudflared.yaml" "arquivo /root/cloudflared.yaml"
+        if setup_regular_nonempty_file "$credential_file"; then
+            for key in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_ZONE_ID TUNNEL_ID TUNNEL_TOKEN; do
+                setup_file_has_assignment "$credential_file" "$key" ||
+                    setup_add_initial_issue "campo $key nas credenciais Cloudflare"
+            done
+        fi
+        [ -n "$cloudflared_container" ] || setup_add_initial_issue "serviço Cloudflare Tunnel ativo"
+    elif [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
+        credential_file="/root/.tradicional_config/tradicional_credentials"
+        setup_require_file "$credential_file" "credenciais /root/.tradicional_config/tradicional_credentials"
+        if setup_regular_nonempty_file "$credential_file"; then
+            traditional_dns=$(sed -n 's/^criar_dns=//p' "$credential_file" | head -n1)
+            case "$traditional_dns" in
+                1) ;;
+                0)
+                    for key in nome_servidor CLOUDFLARE_API_TOKEN CLOUDFLARE_ZONE_ID; do
+                        setup_file_has_assignment "$credential_file" "$key" ||
+                            setup_add_initial_issue "campo $key nas credenciais tradicionais"
+                    done
+                    ;;
+                *) setup_add_initial_issue "opção criar_dns nas credenciais tradicionais" ;;
+            esac
+        fi
+    fi
+
+    [ -n "$traefik_container" ] || setup_add_initial_issue "serviço Traefik ativo"
+    [ -n "$portainer_container" ] || setup_add_initial_issue "serviço Portainer ativo"
+    [ -n "$postgres_container" ] || setup_add_initial_issue "serviço PostgreSQL ativo"
+    [ -n "$redis_container" ] || setup_add_initial_issue "serviço Redis ativo"
+    [ -n "$pgbouncer_container" ] || setup_add_initial_issue "serviço PgBouncer ativo"
+    [ -n "$network_id_agent_network" ] || setup_add_initial_issue "rede agent_network"
+    [ -n "$network_id_externa" ] || setup_add_initial_issue "rede externa"
+    [ -n "$network_id_interna" ] || setup_add_initial_issue "rede interna"
+
+    [ "${#SETUP_INITIAL_STATE_ISSUES[@]}" -eq 0 ]
+}
+
 if command -v docker > /dev/null 2>&1; then
     network_id_agent_network=$(docker network ls --filter name=agent_network --format "{{.ID}}")
     network_id_externa=$(docker network ls --filter name=externa --format "{{.ID}}")
@@ -320,6 +424,7 @@ if command -v docker > /dev/null 2>&1; then
     postgres_container=$(docker ps -qf name=postgres)
     redis_container=$(docker ps -qf name=redis)
     pgbouncer_container=$(docker ps -qf name=pgbouncer)
+    cloudflared_container=$(docker ps -qf name=cloudflared)
     langfuse_container=$(docker ps -qf name=langfuse)
     dify_container=$(docker ps -qf name=dify)
     mysql_container=$(docker ps -qf name=mysql)
@@ -340,6 +445,7 @@ else
     postgres_container=""
     redis_container=""
     pgbouncer_container=""
+    cloudflared_container=""
     langfuse_container=""
     dify_container=""
     mysql_container=""
@@ -353,9 +459,19 @@ else
     calcom_container=""
 fi
 
-if [[ ("$traefik_container" == "") || ("$portainer_container" == "") || ("$postgres_container" == "") || ("$redis_container" == "") || ("$pgbouncer_container" == "") || ("$network_id_agent_network" == "") || ("$network_id_externa" == "") || ("$network_id_interna" == "") ]]; then
+if ! setup_validate_initial_state; then
+    SETUP_INITIAL_STATE_REPORT=$(printf ' • %s\n' "${SETUP_INITIAL_STATE_ISSUES[@]}")
+    whiptail --title "INSTALAÇÃO INICIAL INCOMPLETA" --msgbox \
+        "O menu de aplicações foi bloqueado porque a preparação inicial do servidor não terminou.\n\nItens ausentes ou inválidos:\n${SETUP_INITIAL_STATE_REPORT}\nO instalador obrigatório será aberto novamente. Conclua todas as etapas do Docker Swarm, credenciais, Portainer e serviços essenciais." \
+        24 82
     clear
-    cd && cd SetupLowCodeMno && ./dockerswarm
+    cd /root/SetupLowCodeMno || exit 42
+    ./dockerswarm
+    DOCKERSWARM_STATUS=$?
+
+    # Nunca continua para o menu com variáveis ou estado coletados antes do
+    # reparo. Uma nova execução do Setup MNO revalida tudo desde o início.
+    exit "$DOCKERSWARM_STATUS"
 fi
 
 # --- DISPATCH DINÂMICO (substitui 240+ case blocks) ---
