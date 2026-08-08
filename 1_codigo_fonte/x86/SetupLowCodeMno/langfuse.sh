@@ -88,8 +88,20 @@ case $CHOICE in
 esac
 done
 
-minio_container=$(docker ps -qf "name=minio")
-clickhouse_container=$(docker ps -qf "name=clickhouse")
+minio_container=$(docker ps --filter "name=minio" --format '{{.ID}}' | head -n1)
+clickhouse_container=$(docker ps --filter "name=clickhouse" --format '{{.ID}}' | head -n1)
+
+# Ao reutilizar um ClickHouse existente, recupere o alias DNS real do serviço
+# no Swarm. Sem isso, nome_app3 fica vazio e o Langfuse recebe URLs inválidas.
+if [[ -n "$clickhouse_container" ]]; then
+    clickhouse_service=$(docker inspect "$clickhouse_container" \
+        --format '{{ index .Config.Labels "com.docker.swarm.service.name" }}' 2>/dev/null)
+    if [[ -z "$clickhouse_service" ]]; then
+        whiptail --title "Erro" --msgbox "O ClickHouse encontrado não pertence a um serviço Docker Swarm válido. A instalação foi interrompida para evitar uma configuração inconsistente." 12 70
+        exit 1
+    fi
+    nome_app3="${clickhouse_service#*_}"
+fi
 
 sleep 2
 
@@ -264,8 +276,13 @@ nome_principal="langfuse"  #nome do app
 sufixo_app=$(date | md5sum | head -c7)
 nome_app=$nome_principal$sufixo_app
 postgres_password=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml)
-container_id=$(docker ps -qf name=postgres)
-docker exec -it $container_id psql -U postgres -d postgres -c "CREATE  DATABASE $nome_app;" 
+container_id=$(docker ps --filter name=postgres --format '{{.ID}}' | head -n1)
+if [[ -z "$container_id" ]] || ! docker exec "$container_id" \
+    psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
+    -c "CREATE DATABASE $nome_app;" >/dev/null 2>&1; then
+    whiptail --title "Erro" --msgbox "Não foi possível criar o banco PostgreSQL do Langfuse. A instalação foi interrompida sem implantar a aplicação." 12 70
+    exit 1
+fi
 
 if [[ ("$minio_container" == "") ]]; then
     nome_principal2="minio"
@@ -1207,7 +1224,7 @@ cat > $nome_app3.yaml << EOL
 version: "3.7"
 services:
   $nome_app3:
-    image: clickhouse/clickhouse-server:23.8.8.20-alpine
+    image: clickhouse/clickhouse-server:25.12
 
     volumes:
       - $nome_app3-data:/var/lib/clickhouse
@@ -1226,6 +1243,13 @@ services:
       - CLICKHOUSE_DB=default
       - CLICKHOUSE_USER=$user_clickhouse
       - CLICKHOUSE_PASSWORD=$pass_clickhouse
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8123/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
 
     deploy:
       mode: replicated
@@ -1667,29 +1691,28 @@ clear
 
 ###### checa se minio está rodando
 
-max_wait_time=800  #ajuste do tempo mximo de espera
-
-wait_interval=60
+max_wait_time=300
+wait_interval=5
 
 elapsed_time=0
 
 while [ $elapsed_time -lt $max_wait_time ]; do
-	CONTAINER_ID=$(docker ps -qf name=$nome_app2)
+	if [[ -n "$minio_container" ]]; then
+		CONTAINER_ID="$minio_container"
+	else
+		CONTAINER_ID=$(docker ps --filter "name=$nome_app2" --format '{{.ID}}' | head -n1)
+	fi
 	if [ -n "$CONTAINER_ID" ]; then
 		break
 	fi
 	sleep $wait_interval
-	elapsed_time=$((elaapsed_time + wait_interval))
+	elapsed_time=$((elapsed_time + wait_interval))
 done
 
 if [ -z "$CONTAINER_ID" ]; then
     whiptail --title "Erro" --msgbox "O container do Minio não foi encontrado após $max_wait_time segundos" 10 60
-    exit 0
+    exit 1
 fi
-
-
-# aguarda 60 segundos
-sleep 60
 
 # Instalar mc (Minio Client) e jq se necessário
 if ! command -v mc &> /dev/null; then
@@ -1697,12 +1720,18 @@ if ! command -v mc &> /dev/null; then
 ARCH=$(uname -m)
 
 if [[ "$ARCH" == "x86_64" ]]; then
-    wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc >/dev/null 2>&1
+    if ! wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc; then
+        whiptail --title "Erro" --msgbox "Não foi possível baixar o MinIO Client para x86_64." 10 60
+        exit 1
+    fi
 elif [[ "$ARCH" == "aarch64" ]] || [[ "$ARCH" == "armv7l" ]]; then
-    wget https://dl.min.io/client/mc/release/linux-arm64/mc -O /usr/local/bin/mc >/dev/null 2>&1
+    if ! wget -q https://dl.min.io/client/mc/release/linux-arm64/mc -O /usr/local/bin/mc; then
+        whiptail --title "Erro" --msgbox "Não foi possível baixar o MinIO Client para ARM64." 10 60
+        exit 1
+    fi
 else
-    whiptail --title "Erro" --msgbox "Arquitetura não suportada: $ARCHs" 10 60
-    exit 0
+    whiptail --title "Erro" --msgbox "Arquitetura não suportada pelo MinIO Client: $ARCH" 10 60
+    exit 1
 fi
 
 # Tornar executável
@@ -1713,50 +1742,94 @@ if ! command -v jq &> /dev/null; then
     apt-get install -y jq >/dev/null 2>&1
 fi
 
-# Configurar alias para o Minio
+# Aguardar o endpoint S3 responder. O teste é bloqueante para impedir que o
+# Langfuse seja implantado com bucket ou credenciais vazias.
+minio_ready=0
+for tentativa in $(seq 1 60); do
+    if mc alias set minio "https://$MINIO_PUBLIC_URL" "$MINIO_USER" "$MINIO_PASSWORD" \
+        --api S3v4 >/dev/null 2>&1; then
+        minio_ready=1
+        break
+    fi
+    sleep 5
+done
 
-mc alias set minio https://$MINIO_PUBLIC_URL $MINIO_USER $MINIO_PASSWORD --api S3v4
+if [[ "$minio_ready" -ne 1 ]]; then
+    whiptail --title "Erro" --msgbox "O MinIO não ficou pronto após 5 minutos. A instalação foi interrompida antes de criar o stack do Langfuse." 12 70
+    exit 1
+fi
 
 # Criar bucket e credenciais
 bucket_name="$nome_app"
-mc mb minio/$bucket_name || true
-#mc anonymous set public minio/$bucket_name
-mc anonymous set public minio/$bucket_name || true
+if ! mc mb --ignore-existing "minio/$bucket_name" >/dev/null 2>&1; then
+    whiptail --title "Erro" --msgbox "Não foi possível criar o bucket privado do Langfuse no MinIO." 10 70
+    exit 1
+fi
 
 ###########
 ###########
 create_service_account() {
-    local bucket=$1
-    local app_name=$2
-    
-    
-    # Criar service account
-    credentials=$(mc admin user svcacct add minio "$MINIO_USER" \
-        --access-key "$ACCESS_KEY" \
-        --secret-key "$SECRET_KEY" \
-        --json 2>&1)
-        
+    access_key="${nome_app}$(openssl rand -hex 4)"
+    secret_key=$(openssl rand -hex 20)
 
-    if [[ -z "$access_key" || -z "$secret_key" ]]; then
-    # Extrair chaves com validação rigorosa
-    access_key=$(echo "$credentials" | jq -r '.accessKey')
-    secret_key=$(echo "$credentials" | jq -r '.secretKey')
+    if ! credentials=$(mc admin user svcacct add minio "$MINIO_USER" \
+        --access-key "$access_key" \
+        --secret-key "$secret_key" \
+        --json 2>/dev/null); then
+        return 1
     fi
 
+    access_key=$(echo "$credentials" | jq -r '.accessKey // empty')
+    secret_key=$(echo "$credentials" | jq -r '.secretKey // empty')
+    [[ -n "$access_key" && -n "$secret_key" ]]
 }
 
 # Chamar a função
-create_service_account "$bucket_name" "$nome_app"
-
-docker exec -it "$(docker ps --filter 'name=clickhouse' -q)" clickhouse-client -q "CREATE DATABASE $nome_app;" > /dev/null 2>&1
-if [ $? -eq 0 ]; then
-    echo -e "XXX\n75\nBANCO $nome_app CRIADO \nXXX"
-   sleep 5
-else
-    echo -e "XXX\n75\nERRO AO CRIAR O BANCO $nome_app \nXXX"
-   sleep 5
-
+if ! create_service_account; then
+    whiptail --title "Erro" --msgbox "Não foi possível criar as credenciais privadas do Langfuse no MinIO." 10 70
+    exit 1
 fi
+
+# O ClickHouse precisa estar pronto e autenticado antes do primeiro boot do
+# Langfuse. O comando antigo usava -it, ignorava as credenciais e prosseguia
+# mesmo após falhar, deixando as migrations em loop.
+clickhouse_ready=0
+for tentativa in $(seq 1 60); do
+    clickhouse_container=$(docker ps --filter "name=$nome_app3" --format '{{.ID}}' | head -n1)
+    if [[ -n "$clickhouse_container" ]] && docker exec "$clickhouse_container" sh -c \
+        'clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --query "SELECT 1"' \
+        >/dev/null 2>&1; then
+        clickhouse_ready=1
+        break
+    fi
+    sleep 5
+done
+
+if [[ "$clickhouse_ready" -ne 1 ]]; then
+    whiptail --title "Erro" --msgbox "O ClickHouse não ficou pronto ou rejeitou as credenciais após 5 minutos. A instalação foi interrompida antes do stack do Langfuse." 12 70
+    exit 1
+fi
+
+clickhouse_version=$(docker exec "$clickhouse_container" sh -c \
+    'clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --query "SELECT version()"' \
+    2>/dev/null)
+clickhouse_major=${clickhouse_version%%.*}
+clickhouse_minor=${clickhouse_version#*.}
+clickhouse_minor=${clickhouse_minor%%.*}
+if [[ ! "$clickhouse_major" =~ ^[0-9]+$ ]] || [[ ! "$clickhouse_minor" =~ ^[0-9]+$ ]] || \
+   (( clickhouse_major < 25 || (clickhouse_major == 25 && clickhouse_minor < 12) )); then
+    whiptail --title "Erro" --msgbox "O Langfuse 4 exige ClickHouse 25.12 ou superior, mas foi encontrada a versão ${clickhouse_version:-desconhecida}. Atualize o ClickHouse antes de instalar o Langfuse." 12 70
+    exit 1
+fi
+
+if ! docker exec "$clickhouse_container" sh -c \
+    'clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --query "$1"' \
+    sh "CREATE DATABASE IF NOT EXISTS \`$nome_app\`" >/dev/null 2>&1; then
+    whiptail --title "Erro" --msgbox "Não foi possível criar o banco do Langfuse no ClickHouse. A instalação foi interrompida." 10 70
+    exit 1
+fi
+
+echo -e "XXX\n75\nBANCO $nome_app CRIADO E VALIDADO \nXXX"
 
 ## Criando key Aleatória 64caracteres
 key_encryption=$(openssl rand -hex 32)
@@ -1775,7 +1848,7 @@ services:
 
 
   $nome_app:
-    image: langfuse/langfuse:latest
+    image: langfuse/langfuse:4
 
     networks:
       - externa
@@ -1836,6 +1909,7 @@ services:
 
       ## Node
       - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=1536
 
     deploy:
       mode: replicated
@@ -1846,7 +1920,7 @@ services:
       resources:
           limits:
             cpus: '1'
-            memory: 1024M
+            memory: 2048M
 EOL
 # Adicionar as labels apenas se for instalação tradicional
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
@@ -1864,7 +1938,7 @@ fi
 cat >> $nome_app.yaml << EOL
 
   $nome_app-worker:
-    image: langfuse/langfuse-worker:latest
+    image: langfuse/langfuse-worker:4
 
     networks: 
       - externa
@@ -1925,6 +1999,7 @@ cat >> $nome_app.yaml << EOL
 
       ## Node
       - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=1536
 
     deploy:
       mode: replicated
@@ -1935,15 +2010,17 @@ cat >> $nome_app.yaml << EOL
       resources:
           limits:
             cpus: '1'
-            memory: 1024M
+            memory: 2048M
 
 
   $nome_app-redis:
-    image: redis:latest  ## Versão do Redis
+    image: redis:7
     command: [
         "redis-server",
         "--appendonly",
         "yes",
+        "--maxmemory-policy",
+        "noeviction",
         "--port",
         "6379"
       ]

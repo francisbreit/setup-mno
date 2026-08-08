@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "ntfy no Setup MNO",
   "setupId": "ntfy",
-  "setupVersion": "7.7.24",
+  "setupVersion": "7.7.31",
   "architectures": [
     "amd64",
     "arm64"

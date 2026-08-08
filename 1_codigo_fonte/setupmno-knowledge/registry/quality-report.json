@@ -1302,17 +1302,14 @@
       "homologationEvidence": false,
       "installationStatus": "maintainer-homologated",
       "integrationMaturity": "not-mapped",
-      "issues": [
-        "architecture-inconsistent"
-      ],
+      "issues": [],
       "maturity": "structural",
       "operationalEvidence": false,
       "scriptSourceDeclared": true,
       "setupId": "mautic-4",
       "sourceClassification": "official-and-internal",
       "testedArchitectures": [
-        "amd64",
-        "arm64"
+        "amd64"
       ]
     },
     {
@@ -1321,17 +1318,14 @@
       "homologationEvidence": false,
       "installationStatus": "maintainer-homologated",
       "integrationMaturity": "not-mapped",
-      "issues": [
-        "architecture-inconsistent"
-      ],
+      "issues": [],
       "maturity": "structural",
       "operationalEvidence": false,
       "scriptSourceDeclared": true,
       "setupId": "mautic-4-whatsapp",
       "sourceClassification": "official-and-internal",
       "testedArchitectures": [
-        "amd64",
-        "arm64"
+        "amd64"
       ]
     },
     {
@@ -2612,10 +2606,10 @@
       ]
     }
   ],
-  "generatedAt": "2026-08-02T00:00:00Z",
+  "generatedAt": "2026-08-08T00:00:00Z",
   "knowledgeVersion": "3.14.0",
   "schemaVersion": 2,
-  "setupVersion": "7.7.24",
+  "setupVersion": "7.7.31",
   "summary": {
     "editorialStatuses": {
       "deprecated": 0,
@@ -2635,7 +2629,7 @@
       "validated": 0
     },
     "internalOnlySourceEntries": 19,
-    "issueEntries": 29,
+    "issueEntries": 27,
     "maturityLevels": {
       "homologated": 0,
       "operational-reviewed": 0,
@@ -2647,6 +2641,6 @@
     "officialSourceExceptions": 1,
     "operationalEvidenceEntries": 0,
     "setupEntries": 151,
-    "unresolvedIssueCount": 31
+    "unresolvedIssueCount": 29
   }
 }
