@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Budibase no Setup MNO",
   "setupId": "budibase",
-  "setupVersion": "7.7.35",
+  "setupVersion": "7.7.36",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Outline no Setup MNO",
   "setupId": "outline",
-  "setupVersion": "7.7.35",
+  "setupVersion": "7.7.36",
   "architectures": [
     "amd64",
     "arm64"

@@ -1,4 +1,5 @@
 #!/usr/bin/bash
+set -o pipefail
 #########################################################
 # # cloudflare tunnel - records automáticos
 #    LOADING
@@ -90,6 +91,18 @@ done
 
 minio_container=$(docker ps --filter "name=minio" --format '{{.ID}}' | head -n1)
 clickhouse_container=$(docker ps --filter "name=clickhouse" --format '{{.ID}}' | head -n1)
+
+# Ao reutilizar um MinIO existente, recupere o alias DNS real do serviço para
+# que a validação interna não dependa da URL pública nem de propagação DNS.
+if [[ -n "$minio_container" ]]; then
+    minio_service=$(docker inspect "$minio_container" \
+        --format '{{ index .Config.Labels "com.docker.swarm.service.name" }}' 2>/dev/null)
+    if [[ -z "$minio_service" ]]; then
+        whiptail --title "Erro" --msgbox "O MinIO encontrado não pertence a um serviço Docker Swarm válido. A instalação foi interrompida para evitar uma configuração inconsistente." 12 70
+        exit 1
+    fi
+    nome_app2="${minio_service#*_}"
+fi
 
 # Ao reutilizar um ClickHouse existente, recupere o alias DNS real do serviço
 # no Swarm. Sem isso, nome_app3 fica vazio e o Langfuse recebe URLs inválidas.
@@ -310,14 +323,27 @@ portainer_upload_curl() {
     return "$curl_exit"
 }
 
+LANGFUSE_INSTALL_LOG="/tmp/${nome_app}-install.log"
+LANGFUSE_ERROR_FILE="/tmp/${nome_app}-error.log"
+: > "$LANGFUSE_INSTALL_LOG"
+: > "$LANGFUSE_ERROR_FILE"
+
+langfuse_fail() {
+    local code="$1" message="$2"
+    umask 077
+    printf '%s\n' "$message" > "$LANGFUSE_ERROR_FILE"
+    printf '%s ERROR code=%s message=%s\n' \
+        "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" "$code" "$message" \
+        >> "$LANGFUSE_INSTALL_LOG"
+    echo -e "XXX\n100\nERRO: INSTALAÇÃO DO LANGFUSE INTERROMPIDA\nXXX"
+    exit "$code"
+}
+
 postgres_password=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml)
-container_id=$(docker ps --filter name=postgres --format '{{.ID}}' | head -n1)
-if [[ -z "$container_id" ]] || ! docker exec "$container_id" \
-    psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
-    -c "CREATE DATABASE $nome_app;" >/dev/null 2>&1; then
-    whiptail --title "Erro" --msgbox "Não foi possível criar o banco PostgreSQL do Langfuse. A instalação foi interrompida sem implantar a aplicação." 12 70
+[ -n "$postgres_password" ] || {
+    whiptail --title "Erro" --msgbox "A senha do PostgreSQL não foi encontrada em /root/postgres.yaml. A instalação foi interrompida antes de criar recursos do Langfuse." 12 70
     exit 1
-fi
+}
 
 if [[ ("$minio_container" == "") ]]; then
     nome_principal2="minio"
@@ -1740,113 +1766,134 @@ cd
 cd
 clear
 
-###### checa se minio está rodando
+###### valida o MinIO pela rede interna do Swarm
 
 max_wait_time=300
 wait_interval=5
-
 elapsed_time=0
+CONTAINER_ID=""
 
-while [ $elapsed_time -lt $max_wait_time ]; do
-	remaining_time=$((max_wait_time - elapsed_time))
-	echo -e "XXX\n75\nAGUARDANDO SERVIÇO MINIO: ${elapsed_time}s decorridos, limite ${max_wait_time}s (${remaining_time}s restantes)\nXXX"
-	if [[ -n "$minio_container" ]]; then
-		CONTAINER_ID="$minio_container"
-	else
-		CONTAINER_ID=$(docker ps --filter "name=$nome_app2" --format '{{.ID}}' | head -n1)
-	fi
-	if [ -n "$CONTAINER_ID" ]; then
-		break
-	fi
-	sleep $wait_interval
-	elapsed_time=$((elapsed_time + wait_interval))
+while [ "$elapsed_time" -lt "$max_wait_time" ]; do
+    remaining_time=$((max_wait_time - elapsed_time))
+    echo -e "XXX\n75\nAGUARDANDO SERVIÇO MINIO: ${elapsed_time}s decorridos, limite ${max_wait_time}s (${remaining_time}s restantes)\nXXX"
+    if [[ -n "$minio_container" ]]; then
+        CONTAINER_ID="$minio_container"
+    else
+        CONTAINER_ID=$(docker ps --filter "name=$nome_app2" --format '{{.ID}}' | head -n1)
+    fi
+    [ -n "$CONTAINER_ID" ] && break
+    sleep "$wait_interval"
+    elapsed_time=$((elapsed_time + wait_interval))
 done
 
 if [ -z "$CONTAINER_ID" ]; then
-    whiptail --title "Erro" --msgbox "O container do Minio não foi encontrado após $max_wait_time segundos" 10 60
-    exit 1
+    langfuse_fail 61 "O serviço MinIO não criou um container em até ${max_wait_time} segundos. O Langfuse não foi implantado."
 fi
 
-# Instalar mc (Minio Client) e jq se necessário
-if ! command -v mc &> /dev/null; then
-# Instalar versão adequada à sua arquitetura
-ARCH=$(uname -m)
-
-if [[ "$ARCH" == "x86_64" ]]; then
-	    if ! wget -q --timeout=20 --tries=2 https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc; then
-        whiptail --title "Erro" --msgbox "Não foi possível baixar o MinIO Client para x86_64." 10 60
-        exit 1
-    fi
-elif [[ "$ARCH" == "aarch64" ]] || [[ "$ARCH" == "armv7l" ]]; then
-	    if ! wget -q --timeout=20 --tries=2 https://dl.min.io/client/mc/release/linux-arm64/mc -O /usr/local/bin/mc; then
-        whiptail --title "Erro" --msgbox "Não foi possível baixar o MinIO Client para ARM64." 10 60
-        exit 1
-    fi
-else
-    whiptail --title "Erro" --msgbox "Arquitetura não suportada pelo MinIO Client: $ARCH" 10 60
-    exit 1
-fi
-
-# Tornar executável
-chmod +x /usr/local/bin/mc
-fi
-
-if ! command -v jq &> /dev/null; then
-    apt-get install -y jq >/dev/null 2>&1
-fi
-
-# Aguardar o endpoint S3 responder. O teste é bloqueante para impedir que o
-# Langfuse seja implantado com bucket ou credenciais vazias.
-minio_ready=0
-minio_max_attempts=30
-for tentativa in $(seq 1 "$minio_max_attempts"); do
-    echo -e "XXX\n75\nVALIDANDO MINIO/S3: tentativa ${tentativa}/${minio_max_attempts} (timeout de 8s por tentativa)\nXXX"
-    if timeout --signal=TERM --kill-after=2s 8s \
-        mc alias set minio "https://$MINIO_PUBLIC_URL" "$MINIO_USER" "$MINIO_PASSWORD" \
-        --api S3v4 >/dev/null 2>&1; then
-        minio_ready=1
-        break
-    fi
-    sleep 2
-done
-
-if [[ "$minio_ready" -ne 1 ]]; then
-    whiptail --title "Erro" --msgbox "O MinIO não ficou pronto após 5 minutos. A instalação foi interrompida antes de criar o stack do Langfuse." 12 70
-    exit 1
-fi
-
-# Criar bucket e credenciais
+MINIO_MC_IMAGE="minio/mc@sha256:7e3efb09c22c0882fbf341b9d99f61f94ae6c4c20a06f2f1a2b20ea8993d8952"
+minio_mc_service="${nome_app}-mc-internal"
+minio_root_user_secret="${nome_app}-mc-root-user"
+minio_root_password_secret="${nome_app}-mc-root-password"
+minio_access_key_secret="${nome_app}-mc-access-key"
+minio_secret_key_secret="${nome_app}-mc-secret-key"
 bucket_name="$nome_app"
-if ! timeout --signal=TERM --kill-after=2s 20s \
-    mc mb --ignore-existing "minio/$bucket_name" >/dev/null 2>&1; then
-    whiptail --title "Erro" --msgbox "Não foi possível criar o bucket privado do Langfuse no MinIO." 10 70
-    exit 1
-fi
+access_key="${nome_app}$(openssl rand -hex 4)"
+secret_key=$(openssl rand -hex 20)
 
-###########
-###########
-create_service_account() {
-    access_key="${nome_app}$(openssl rand -hex 4)"
-    secret_key=$(openssl rand -hex 20)
-
-    if ! credentials=$(timeout --signal=TERM --kill-after=2s 20s \
-        mc admin user svcacct add minio "$MINIO_USER" \
-        --access-key "$access_key" \
-        --secret-key "$secret_key" \
-        --json 2>/dev/null); then
-        return 1
-    fi
-
-    access_key=$(echo "$credentials" | jq -r '.accessKey // empty')
-    secret_key=$(echo "$credentials" | jq -r '.secretKey // empty')
-    [[ -n "$access_key" && -n "$secret_key" ]]
+cleanup_minio_mc_resources() {
+    local attempt
+    docker service rm "$minio_mc_service" >/dev/null 2>&1 || true
+    for attempt in $(seq 1 20); do
+        docker service inspect "$minio_mc_service" >/dev/null 2>&1 || break
+        sleep 1
+    done
+    docker secret rm \
+        "$minio_root_user_secret" \
+        "$minio_root_password_secret" \
+        "$minio_access_key_secret" \
+        "$minio_secret_key_secret" >/dev/null 2>&1 || true
 }
 
-# Chamar a função
-if ! create_service_account; then
-    whiptail --title "Erro" --msgbox "Não foi possível criar as credenciais privadas do Langfuse no MinIO." 10 70
-    exit 1
+cleanup_minio_mc_resources
+trap cleanup_minio_mc_resources EXIT
+
+echo -e "XXX\n75\nPREPARANDO CLIENTE MINIO INTERNO (X86/ARM)\nXXX"
+if ! docker image inspect "$MINIO_MC_IMAGE" >/dev/null 2>&1; then
+    if ! timeout --signal=TERM --kill-after=5s 180s \
+        docker pull "$MINIO_MC_IMAGE" >> "$LANGFUSE_INSTALL_LOG" 2>&1; then
+        langfuse_fail 62 "Não foi possível obter a imagem fixada do MinIO Client. Verifique a conexão do servidor e tente novamente."
+    fi
 fi
+
+printf '%s' "$MINIO_USER" | docker secret create "$minio_root_user_secret" - \
+    >> "$LANGFUSE_INSTALL_LOG" 2>&1 ||
+    langfuse_fail 63 "Não foi possível proteger o usuário interno do MinIO como Docker Secret."
+printf '%s' "$MINIO_PASSWORD" | docker secret create "$minio_root_password_secret" - \
+    >> "$LANGFUSE_INSTALL_LOG" 2>&1 ||
+    langfuse_fail 64 "Não foi possível proteger a senha interna do MinIO como Docker Secret."
+printf '%s' "$access_key" | docker secret create "$minio_access_key_secret" - \
+    >> "$LANGFUSE_INSTALL_LOG" 2>&1 ||
+    langfuse_fail 65 "Não foi possível proteger a chave S3 do Langfuse como Docker Secret temporário."
+printf '%s' "$secret_key" | docker secret create "$minio_secret_key_secret" - \
+    >> "$LANGFUSE_INSTALL_LOG" 2>&1 ||
+    langfuse_fail 66 "Não foi possível proteger o segredo S3 do Langfuse como Docker Secret temporário."
+
+if ! docker service create --quiet \
+    --name "$minio_mc_service" \
+    --network interna \
+    --constraint 'node.role==manager' \
+    --restart-condition none \
+    --secret "source=$minio_root_user_secret,target=minio_root_user" \
+    --secret "source=$minio_root_password_secret,target=minio_root_password" \
+    --secret "source=$minio_access_key_secret,target=langfuse_access_key" \
+    --secret "source=$minio_secret_key_secret,target=langfuse_secret_key" \
+    --entrypoint /bin/sh \
+    "$MINIO_MC_IMAGE" -c '
+        set -eu
+        root_user=$(cat /run/secrets/minio_root_user)
+        root_password=$(cat /run/secrets/minio_root_password)
+        access_key=$(cat /run/secrets/langfuse_access_key)
+        secret_key=$(cat /run/secrets/langfuse_secret_key)
+        attempt=1
+        while [ "$attempt" -le 30 ]; do
+            if mc --config-dir /tmp/mc alias set minio "http://$1:9000" "$root_user" "$root_password" --api S3v4 >/dev/null 2>&1 &&
+               mc --config-dir /tmp/mc ready --quiet minio >/dev/null 2>&1; then
+                mc --config-dir /tmp/mc mb --ignore-existing "minio/$2" >/dev/null
+                mc --config-dir /tmp/mc admin user svcacct add minio "$root_user" \
+                    --access-key "$access_key" --secret-key "$secret_key" --json >/dev/null
+                exit 0
+            fi
+            attempt=$((attempt + 1))
+            sleep 2
+        done
+        exit 67
+    ' sh "$nome_app2" "$bucket_name" >> "$LANGFUSE_INSTALL_LOG" 2>&1; then
+    langfuse_fail 67 "Não foi possível iniciar a validação interna e o provisionamento seguro do MinIO."
+fi
+
+minio_mc_ready=0
+for tentativa in $(seq 1 60); do
+    echo -e "XXX\n75\nVALIDANDO MINIO INTERNAMENTE: tentativa ${tentativa}/60\nXXX"
+    minio_mc_state=$(docker service ps "$minio_mc_service" --no-trunc \
+        --format '{{.CurrentState}}' 2>> "$LANGFUSE_INSTALL_LOG" | head -n1)
+    case "$minio_mc_state" in
+        Complete*) minio_mc_ready=1; break ;;
+        Failed*|Rejected*|Shutdown*) break ;;
+    esac
+    sleep 5
+done
+
+if [ "$minio_mc_ready" -ne 1 ]; then
+    docker service ps "$minio_mc_service" --no-trunc \
+        --format 'Estado: {{.CurrentState}} | Erro: {{.Error}}' \
+        >> "$LANGFUSE_INSTALL_LOG" 2>&1 || true
+    docker service logs "$minio_mc_service" \
+        >> "$LANGFUSE_INSTALL_LOG" 2>&1 || true
+    langfuse_fail 68 "O MinIO não ficou pronto pela rede interna ou recusou a criação segura do bucket/credenciais. Consulte o log informado."
+fi
+
+cleanup_minio_mc_resources
+trap - EXIT
 
 # O ClickHouse precisa estar pronto e autenticado antes do primeiro boot do
 # Langfuse. O comando antigo usava -it, ignorava as credenciais e prosseguia
@@ -1868,8 +1915,7 @@ for tentativa in $(seq 1 "$clickhouse_max_attempts"); do
 done
 
 if [[ "$clickhouse_ready" -ne 1 ]]; then
-    whiptail --title "Erro" --msgbox "O ClickHouse não ficou pronto ou rejeitou as credenciais após 5 minutos. A instalação foi interrompida antes do stack do Langfuse." 12 70
-    exit 1
+    langfuse_fail 69 "O ClickHouse não ficou pronto ou rejeitou as credenciais. A stack do Langfuse não foi criada."
 fi
 
 clickhouse_version=$(timeout --signal=TERM --kill-after=2s 15s \
@@ -1881,16 +1927,30 @@ clickhouse_minor=${clickhouse_version#*.}
 clickhouse_minor=${clickhouse_minor%%.*}
 if [[ ! "$clickhouse_major" =~ ^[0-9]+$ ]] || [[ ! "$clickhouse_minor" =~ ^[0-9]+$ ]] || \
    (( clickhouse_major < 25 || (clickhouse_major == 25 && clickhouse_minor < 12) )); then
-    whiptail --title "Erro" --msgbox "O Langfuse 4 exige ClickHouse 25.12 ou superior, mas foi encontrada a versão ${clickhouse_version:-desconhecida}. Atualize o ClickHouse antes de instalar o Langfuse." 12 70
-    exit 1
+    langfuse_fail 70 "O Langfuse 4 exige ClickHouse 25.12 ou superior; versão encontrada: ${clickhouse_version:-desconhecida}."
+fi
+
+container_id=$(docker ps --filter name=postgres --format '{{.ID}}' | head -n1)
+if [[ -z "$container_id" ]]; then
+    langfuse_fail 71 "O serviço PostgreSQL não possui um container ativo."
+fi
+
+# Uma tentativa anterior pode ter criado o banco e falhado antes do deploy da
+# stack. Reutilize esse banco em vez de transformar a recuperação em erro.
+postgres_database_exists=$(docker exec "$container_id" \
+    psql -U postgres -d postgres -tAc \
+    "SELECT 1 FROM pg_database WHERE datname = '$nome_app';" 2>/dev/null)
+if [[ "$postgres_database_exists" != "1" ]] && ! docker exec "$container_id" \
+    psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
+    -c "CREATE DATABASE $nome_app;" >/dev/null 2>&1; then
+    langfuse_fail 71 "Não foi possível criar ou reutilizar o banco PostgreSQL do Langfuse após validar MinIO e ClickHouse."
 fi
 
 if ! timeout --signal=TERM --kill-after=2s 15s \
     docker exec "$clickhouse_container" sh -c \
-    'clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --query "$1"' \
-    sh "CREATE DATABASE IF NOT EXISTS \`$nome_app\`" >/dev/null 2>&1; then
-    whiptail --title "Erro" --msgbox "Não foi possível criar o banco do Langfuse no ClickHouse. A instalação foi interrompida." 10 70
-    exit 1
+        'clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --query "$1"' \
+        sh "CREATE DATABASE IF NOT EXISTS \`$nome_app\`" >/dev/null 2>&1; then
+    langfuse_fail 72 "Não foi possível criar o banco do Langfuse no ClickHouse."
 fi
 
 echo -e "XXX\n75\nBANCO $nome_app CRIADO E VALIDADO \nXXX"
@@ -2271,7 +2331,10 @@ create_stack || exit 1
 elif [[ "$criar_portainer" == "1" ]]; then
     # A stack será criada diretamente no Docker
     echo "Criando a stack diretamente no Docker (não editável no Portainer)."
-    docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
+    if ! docker stack deploy --prune --resolve-image always \
+        -c "$nome_app.yaml" "$nome_app" >> "$LANGFUSE_INSTALL_LOG" 2>&1; then
+        langfuse_fail 73 "O Docker Swarm recusou a criação da stack principal do Langfuse."
+    fi
 else
     # Caso inesperado (não deve ocorrer devido à validação anterior no while loop)
    # echo "Erro: valor inesperado para criar_portainer. Encerrando..."
@@ -2284,6 +2347,48 @@ sleep 5
     exit 1
 fi
 
+validate_langfuse_stack() {
+    local attempt service replicas all_ready progress
+    local -a required_services=(
+        "${nome_app}_${nome_app}"
+        "${nome_app}_${nome_app}-worker"
+        "${nome_app}_${nome_app}-redis"
+    )
+
+    [ -s "/root/${nome_app}.yaml" ] ||
+        langfuse_fail 74 "A YAML principal do Langfuse não foi criada em /root/${nome_app}.yaml."
+    docker stack ls --format '{{.Name}}' | grep -Fxq "$nome_app" ||
+        langfuse_fail 75 "A stack $nome_app não foi encontrada no Docker Swarm após o deploy."
+
+    for attempt in $(seq 1 60); do
+        all_ready=1
+        for service in "${required_services[@]}"; do
+            replicas=$(docker service ls --format '{{.Name}} {{.Replicas}}' |
+                awk -v expected="$service" '$1 == expected { print $2; exit }')
+            [ "$replicas" = "1/1" ] || all_ready=0
+        done
+        if [ "$all_ready" -eq 1 ]; then
+            return 0
+        fi
+        progress=$((93 + (attempt * 6 / 60)))
+        echo -e "XXX\n${progress}\nAGUARDANDO LANGFUSE WEB, WORKER E REDIS: tentativa ${attempt}/60\nXXX"
+        sleep 5
+    done
+
+    {
+        echo "Serviços esperados da stack $nome_app não atingiram 1/1:"
+        for service in "${required_services[@]}"; do
+            docker service ls --filter "name=$service" \
+                --format 'Serviço: {{.Name}} | Réplicas: {{.Replicas}} | Imagem: {{.Image}}'
+            docker service ps "$service" --no-trunc \
+                --format 'Estado: {{.CurrentState}} | Erro: {{.Error}}' | head -n 8
+        done
+    } >> "$LANGFUSE_INSTALL_LOG" 2>&1
+    langfuse_fail 76 "A stack foi criada, mas Langfuse web, worker e Redis não atingiram 1/1 em cinco minutos."
+}
+
+validate_langfuse_stack
+
 
 echo -e "XXX\n93\nFINALIZANDO BUILD DO LANGFUSE 4/4  \nXXX"
 
@@ -2293,7 +2398,26 @@ echo -e "XXX\n100\nFINALIZANDO BUILD DO LANGFUSE 4/4 - CONCLUIDO  \nXXX"
 
 sleep 3
 
-}|whiptail --title "LANGFUSE + MINIO + CLICKHOUSE - PROGRESSO DA INSTALAÇÃO" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
+} 2>> "$LANGFUSE_INSTALL_LOG" | whiptail --title "LANGFUSE + MINIO + CLICKHOUSE - PROGRESSO DA INSTALAÇÃO" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
+langfuse_install_status=${PIPESTATUS[0]}
+
+if [ "$langfuse_install_status" -ne 0 ]; then
+    error_detail=$(cat "$LANGFUSE_ERROR_FILE" 2>/dev/null)
+    [ -n "$error_detail" ] || error_detail=$(tail -n 30 "$LANGFUSE_INSTALL_LOG" 2>/dev/null)
+    [ -n "$error_detail" ] || error_detail="Falha não identificada durante o fluxo protegido de instalação."
+    whiptail --title "ERRO NA INSTALAÇÃO DO LANGFUSE" --scrolltext --msgbox \
+        "A instalação foi interrompida sem declarar falso sucesso.\n\n$error_detail\n\nLog completo: $LANGFUSE_INSTALL_LOG" \
+        22 90
+    exit "$langfuse_install_status"
+fi
+
+if [ ! -s "/root/${nome_app}.yaml" ] ||
+   ! docker stack ls --format '{{.Name}}' | grep -Fxq "$nome_app"; then
+    whiptail --title "ERRO NA INSTALAÇÃO DO LANGFUSE" --msgbox \
+        "A pós-condição externa detectou que a YAML ou a stack principal do Langfuse está ausente.\n\nNenhum sucesso será informado.\nLog: $LANGFUSE_INSTALL_LOG" \
+        16 84
+    exit 77
+fi
 
 # FIM DE INSTALANDO O LANGFUSE
 #
@@ -2325,8 +2449,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
         if ! nslookup "$domain" >/dev/null 2>&1; then
             ((failed_domains++))
         elif ! nslookup "$domain" | grep -q "${TUNNEL_ID}.cfargotunnel.com"; then
-            # Não contar como falha imediatamente - DNS pode estar em propagação
-            :
+            ((failed_domains++))
         else
             # Domínio configurado corretamente
             :
