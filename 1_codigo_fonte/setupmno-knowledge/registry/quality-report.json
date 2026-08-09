@@ -2606,10 +2606,10 @@
       ]
     }
   ],
-  "generatedAt": "2026-08-08T00:00:00Z",
+  "generatedAt": "2026-08-09T00:00:00Z",
   "knowledgeVersion": "3.14.0",
   "schemaVersion": 2,
-  "setupVersion": "7.7.42",
+  "setupVersion": "7.7.43",
   "summary": {
     "editorialStatuses": {
       "deprecated": 0,

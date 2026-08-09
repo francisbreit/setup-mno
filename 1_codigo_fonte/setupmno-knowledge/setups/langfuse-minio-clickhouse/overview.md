@@ -2,29 +2,29 @@
 {
   "schemaVersion": 1,
   "documentId": "setup-langfuse-minio-clickhouse-overview",
-  "documentVersion": "1.2.0",
-  "contentSHA256": "7a09a87903edb8ce5389db3220327c318ec9e85eafd506fef693f49b7fd8d9c5",
+  "documentVersion": "1.3.0",
+  "contentSHA256": "3c2046d427d6b03d3d2671fd015bc2d00602034b9e4c1f0270ebcb5e7255d91a",
   "documentType": "setup",
   "title": "Langfuse com MinIO e ClickHouse no Setup MNO",
   "setupId": "langfuse-minio-clickhouse",
-  "setupVersion": "7.7.42",
+  "setupVersion": "7.7.43",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
-  "updatedAt": "2026-08-08",
+  "updatedAt": "2026-08-09",
   "sourceType": "setup-mno",
   "risk": "high",
   "language": "pt-BR",
   "tags": ["langfuse", "observabilidade-ia", "clickhouse", "minio", "tracing"],
   "sources": [
-    {"sourceId":"langfuse-installer","title":"Instalador Langfuse, MinIO e ClickHouse","sourceType":"setup-mno","location":"x86/SetupLowCodeMno/langfuse.sh","license":"project-internal","verifiedAt":"2026-08-08"},
+    {"sourceId":"langfuse-installer","title":"Instalador Langfuse, MinIO e ClickHouse","sourceType":"setup-mno","location":"x86/SetupLowCodeMno/langfuse.sh","license":"project-internal","verifiedAt":"2026-08-09"},
     {"sourceId":"langfuse-compose","title":"Docker Compose oficial do Langfuse","sourceType":"official-documentation","location":"https://github.com/langfuse/langfuse/blob/main/docker-compose.yml","license":"documentation-reference","verifiedAt":"2026-08-08"},
     {"sourceId":"langfuse-blobstorage","title":"Blob storage self-hosted do Langfuse","sourceType":"official-documentation","location":"https://langfuse.com/self-hosting/deployment/infrastructure/blobstorage","license":"documentation-reference","verifiedAt":"2026-08-08"},
     {"sourceId":"langfuse-clickhouse","title":"ClickHouse self-hosted do Langfuse","sourceType":"official-documentation","location":"https://langfuse.com/self-hosting/deployment/infrastructure/clickhouse","license":"documentation-reference","verifiedAt":"2026-08-08"},
     {"sourceId":"langfuse-health","title":"Health e readiness endpoints do Langfuse","sourceType":"official-documentation","location":"https://langfuse.com/self-hosting/configuration/health-readiness-endpoints","license":"documentation-reference","verifiedAt":"2026-08-08"},
     {"sourceId":"langfuse-scaling","title":"Requisitos e escala do Langfuse","sourceType":"official-documentation","location":"https://langfuse.com/self-hosting/configuration/scaling","license":"documentation-reference","verifiedAt":"2026-08-08"}
   ],
-  "homologation": {"verifiedAt":"2026-08-08","verifiedPorts":[3000,3030,5432,6379,8123,9000],"verifiedImages":["clickhouse/clickhouse-server:25.12","langfuse/langfuse-worker:4","langfuse/langfuse:4","pgvector/pgvector:pg16","quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z","redis:7-alpine"]}
+  "homologation": {"verifiedAt":"2026-08-09","verifiedPorts":[3000,3030,5432,6379,8123,9000],"verifiedImages":["clickhouse/clickhouse-server:25.12","langfuse/langfuse-worker:4","langfuse/langfuse:4","pgvector/pgvector:pg16","quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z","redis:7-alpine"]}
 }
 ---
 # Langfuse com MinIO e ClickHouse no Setup MNO
@@ -73,6 +73,12 @@ MinIO usa Docker Secrets e é removido ao concluir. Os YAMLs persistentes ainda
 contêm credenciais operacionais e exigem permissão restrita e backup protegido.
 Feche o cadastro público depois de criar os administradores necessários.
 
+A access key da service account possui exatamente 20 caracteres alfanuméricos,
+limite aceito pela imagem MinIO fixada. O instalador valida esse tamanho antes
+de criar os Secrets e novamente dentro do provisionador. Falhas registram apenas
+o estágio, nunca a chave, e acionam a remoção limitada ao serviço e aos Secrets
+temporários daquela tentativa.
+
 ## Primeiro acesso e integrações
 
 Depois da instalação, acesse a URL do Langfuse, crie organização e projeto e
@@ -101,6 +107,12 @@ da service account com política limitada ao bucket, persistência após reiníc
 recuperação das dependências. As imagens declaradas possuem manifests amd64 e
 arm64; a lógica ARM é espelhada, mas o smoke test de runtime ocorreu em amd64.
 
+Em 9 de agosto de 2026, uma falha real foi reproduzida com a chave antiga de 23
+caracteres: o MinIO recusou a service account e a stack principal não chegou a
+ser criada. A chave corrigida de 20 caracteres foi aceita no mesmo ambiente
+isolado. O gate validou 32 gerações no fonte e após compilação SHC, além de CRUD
+no bucket permitido e bloqueio de acesso a outro bucket.
+
 ## Diagnóstico
 
 Consulte primeiro o log seguro indicado pelo instalador e o estado das quatro
@@ -109,6 +121,12 @@ worker em `/api/health`. Erro S3 `invalid hostname` indica alias com underscore;
 falha de migração com abort do Node indica memória insuficiente. Confirme ainda
 Redis saudável, ClickHouse 25.12 ou superior e acesso ao bucket privado. Nunca
 envie prompts, respostas, chaves ou conteúdo de clientes ao Assistente.
+
+Se apenas MinIO e ClickHouse aparecerem no Portainer, procure o serviço
+temporário `<langfuse>-mc-internal`. Estado `Failed` antes da criação dos bancos
+indica falha no provisionamento S3. Releases anteriores à correção podem deixar
+esse serviço e quatro Secrets temporários; confirme o sufixo exato da tentativa
+antes de qualquer limpeza e nunca remova volumes ou dependências compartilhadas.
 
 ## Riscos e limites
 

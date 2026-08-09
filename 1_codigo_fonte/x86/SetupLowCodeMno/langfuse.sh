@@ -1,6 +1,24 @@
 #!/usr/bin/bash
 set -o pipefail
 umask 077
+
+langfuse_generate_minio_access_key() {
+    local generated_key
+
+    generated_key="lf$(openssl rand -hex 9)" || return 1
+    [[ "$generated_key" =~ ^[a-zA-Z0-9]{20}$ ]] || return 1
+    printf '%s' "$generated_key"
+}
+
+# Gate não interativo executado também no binário protegido pelo SHC.
+if [ "${SETUPMNO_LANGFUSE_ACCESS_KEY_SMOKE_TEST:-0}" = "1" ]; then
+    for _langfuse_key_attempt in $(seq 1 32); do
+        _langfuse_test_key=$(langfuse_generate_minio_access_key) || exit 81
+        [ "${#_langfuse_test_key}" -eq 20 ] || exit 82
+    done
+    exit 0
+fi
+
 #########################################################
 # # cloudflare tunnel - records automáticos
 #    LOADING
@@ -1934,17 +1952,20 @@ minio_root_password_secret="${nome_app}-mc-root-password"
 minio_access_key_secret="${nome_app}-mc-access-key"
 minio_secret_key_secret="${nome_app}-mc-secret-key"
 bucket_name="$nome_app"
-access_key="${nome_app}$(openssl rand -hex 4)"
+access_key=$(langfuse_generate_minio_access_key) ||
+    langfuse_fail 65 "Não foi possível gerar uma chave S3 compatível com o limite do MinIO."
 secret_key=$(openssl rand -hex 20)
 
 cleanup_minio_mc_resources() {
     local attempt
-    docker service rm "$minio_mc_service" >/dev/null 2>&1 || true
+    timeout --signal=TERM --kill-after=2s 20s \
+        docker service rm "$minio_mc_service" >/dev/null 2>&1 || true
     for attempt in $(seq 1 20); do
-        docker service inspect "$minio_mc_service" >/dev/null 2>&1 || break
+        timeout --signal=TERM --kill-after=2s 5s \
+            docker service inspect "$minio_mc_service" >/dev/null 2>&1 || break
         sleep 1
     done
-    docker secret rm \
+    timeout --signal=TERM --kill-after=2s 20s docker secret rm \
         "$minio_root_user_secret" \
         "$minio_root_password_secret" \
         "$minio_access_key_secret" \
@@ -1991,6 +2012,10 @@ if ! docker service create --quiet \
         root_password=$(cat /run/secrets/minio_root_password)
         access_key=$(cat /run/secrets/langfuse_access_key)
         secret_key=$(cat /run/secrets/langfuse_secret_key)
+        if [ "${#access_key}" -lt 3 ] || [ "${#access_key}" -gt 20 ]; then
+            echo "stage=minio_service_account status=invalid_access_key_length" >&2
+            exit 68
+        fi
         attempt=1
         while [ "$attempt" -le 30 ]; do
             if mc --config-dir /tmp/mc alias set minio "http://$1:9000" "$root_user" "$root_password" --api S3v4 >/dev/null 2>&1 &&
@@ -1998,9 +2023,12 @@ if ! docker service create --quiet \
                 mc --config-dir /tmp/mc mb --ignore-existing "minio/$2" >/dev/null
                 policy_file=/tmp/langfuse-bucket-policy.json
                 printf "{\\\"Version\\\":\\\"2012-10-17\\\",\\\"Statement\\\":[{\\\"Effect\\\":\\\"Allow\\\",\\\"Action\\\":[\\\"s3:ListBucket\\\",\\\"s3:GetBucketLocation\\\"],\\\"Resource\\\":[\\\"arn:aws:s3:::%s\\\"]},{\\\"Effect\\\":\\\"Allow\\\",\\\"Action\\\":[\\\"s3:GetObject\\\",\\\"s3:PutObject\\\",\\\"s3:DeleteObject\\\",\\\"s3:AbortMultipartUpload\\\",\\\"s3:ListMultipartUploadParts\\\"],\\\"Resource\\\":[\\\"arn:aws:s3:::%s/*\\\"]}]}" "$2" "$2" > "$policy_file"
-                mc --config-dir /tmp/mc admin user svcacct add minio "$root_user" \
+                if ! mc --config-dir /tmp/mc admin user svcacct add minio "$root_user" \
                     --access-key "$access_key" --secret-key "$secret_key" \
-                    --policy "$policy_file" --json >/dev/null
+                    --policy "$policy_file" --json >/dev/null 2>&1; then
+                    echo "stage=minio_service_account status=create_failed" >&2
+                    exit 68
+                fi
                 exit 0
             fi
             attempt=$((attempt + 1))
@@ -2014,7 +2042,8 @@ fi
 minio_mc_ready=0
 for tentativa in $(seq 1 60); do
     echo -e "XXX\n75\nVALIDANDO MINIO INTERNAMENTE: tentativa ${tentativa}/60\nXXX"
-    minio_mc_state=$(docker service ps "$minio_mc_service" --no-trunc \
+    minio_mc_state=$(timeout --signal=TERM --kill-after=2s 10s \
+        docker service ps "$minio_mc_service" --no-trunc \
         --format '{{.CurrentState}}' 2>> "$LANGFUSE_INSTALL_LOG" | head -n1)
     case "$minio_mc_state" in
         Complete*) minio_mc_ready=1; break ;;
@@ -2024,11 +2053,15 @@ for tentativa in $(seq 1 60); do
 done
 
 if [ "$minio_mc_ready" -ne 1 ]; then
-    docker service ps "$minio_mc_service" --no-trunc \
+    timeout --signal=TERM --kill-after=2s 15s \
+        docker service ps "$minio_mc_service" --no-trunc \
         --format 'Estado: {{.CurrentState}} | Erro: {{.Error}}' \
         >> "$LANGFUSE_INSTALL_LOG" 2>&1 || true
-    docker service logs "$minio_mc_service" \
+    timeout --signal=TERM --kill-after=2s 15s \
+        docker service logs --raw --tail 100 "$minio_mc_service" \
         >> "$LANGFUSE_INSTALL_LOG" 2>&1 || true
+    cleanup_minio_mc_resources
+    trap - EXIT
     langfuse_fail 68 "O MinIO não ficou pronto pela rede interna ou recusou a criação segura do bucket/credenciais. Consulte o log informado."
 fi
 
