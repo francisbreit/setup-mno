@@ -50,6 +50,49 @@ Ao trabalhar neste modo, entregue recomendações ou implementações classifica
 - **Esforço:** rápido, moderado ou estrutural.
 - **Evidência:** teste local, documentação oficial, métrica pública ou inferência claramente identificada.
 
+### 4. MODO VALIDAÇÃO E HOMOLOGAÇÃO DE APLICAÇÕES (LABORATÓRIO WSL2)
+Ative este modo quando o usuário disser **“Modo Homologação”**, **“Modo Validação e Homologação”** ou pedir explicitamente para homologar uma aplicação. O objetivo é instalar, atualizar, testar, diagnosticar e corrigir aplicações em um laboratório isolado no WSL2 + Docker Desktop, produzindo evidências reproduzíveis antes de qualquer release.
+
+#### Autoridade no laboratório
+- A ativação autoriza pesquisa em documentação oficial, diagnósticos do host e do Docker, criação e edição de arquivos temporários e criação, atualização, reinício e remoção de recursos Docker pertencentes exclusivamente à execução de homologação.
+- A IA pode administrar autonomamente stacks, serviços, containers, redes, volumes, configs, secrets, imagens e arquivos temporários criados pelo próprio teste, sem solicitar nova confirmação para cada operação.
+- Essa autonomia não alcança recursos preexistentes, dados do usuário, a instalação de referência em `/root/SetupLowCodeMno`, rotas DNS/Cloudflare reais nem arquivos fora do escopo declarado do teste.
+- Alterações no código vivo em `1_codigo_fonte/` exigem pedido explícito de implementação e seguem integralmente o **MODO WORKFLOW DE PRODUÇÃO**, incluindo espelhamento, gates, commits, empacotamento e release.
+
+#### Identidade e isolamento obrigatórios
+- Cada execução deve possuir um identificador exclusivo no formato `setupmno-hml-<aplicacao>-<datahora-curta>`.
+- Todos os nomes criados pelo teste devem começar com esse identificador, incluindo stacks, serviços auxiliares, volumes, redes, configs, secrets e diretórios.
+- Arquivos de trabalho devem permanecer em `/tmp/setupmno-homologacao/<identificador>/`; nunca copie protótipos para `/root/SetupLowCodeMno`.
+- Antes da primeira mutação, registre internamente o inventário exato dos recursos que serão criados. Ao encerrar, remova somente os itens presentes nesse inventário e confirme a limpeza.
+- Nunca reutilize volumes, bancos, secrets, configs, redes ou nomes pertencentes à instalação existente. Dependências como Redis, PostgreSQL, RabbitMQ e MinIO devem ser exclusivas do teste, salvo quando o objetivo declarado for validar uma integração compartilhada em ambiente descartável.
+
+#### Acesso privilegiado e credenciais
+- O acesso privilegiado ao WSL2 pode ser obtido com `sudo su -` quando necessário para uma homologação autorizada.
+- A credencial de elevação é fornecida pelo usuário somente durante a sessão. **Nunca grave, imprima, versione, repita em relatórios ou inclua a senha em argumentos, pipes, arquivos, variáveis persistentes ou logs.**
+- Prefira mecanismos de entrada interativa que não exponham a credencial. Interrompa a operação se a única alternativa disponível exigir persistir ou revelar o segredo.
+
+#### Gates antes de criar recursos
+1. Confirmar versão estável atual, estado do Git, arquitetura, memória, disco, Docker e estado do Swarm.
+2. Inventariar em modo read-only stacks, serviços, containers, redes, volumes, configs, secrets e portas existentes para impedir colisões.
+3. Validar a imagem, tag, licença, arquiteturas, portas reais, entrypoint, healthcheck e requisitos usando documentação oficial e inspeção da imagem.
+4. Executar `./2_empacotador/verificar_portas.sh <porta>` antes de qualquer publicação no host. Prefira rede interna sem porta publicada.
+5. Definir critérios objetivos de sucesso, estratégia de coleta de logs, limite de tempo e procedimento de rollback antes do deploy.
+
+#### Ciclo de homologação
+1. Criar os arquivos temporários e recursos isolados com o identificador da execução.
+2. Fazer deploy em Docker Swarm com nomes exclusivos e limites de CPU/memória compatíveis com o host.
+3. Validar pull da imagem, convergência, réplicas, healthchecks, portas internas reais, logs sem segredos, persistência, reinício e atualização.
+4. Testar o fluxo funcional mínimo da aplicação e, quando aplicável, compatibilidade x86/ARM e comportamento no WSL2.
+5. Corrigir o protótipo isolado e repetir os testes até aprovação ou diagnóstico conclusivo.
+6. Remover somente os recursos inventariados da execução e verificar que nenhum volume, rede, config, secret, stack ou arquivo temporário ficou órfão.
+7. Entregar evidências, versões e hashes testados, consumo observado, limitações, riscos, rollback e recomendação de implementação no código vivo.
+
+#### Limites destrutivos permanentes
+- Nunca use comandos destrutivos com alvos amplos, curingas não resolvidos, `/`, `~`, diretório raiz do workspace ou variáveis de caminho não validadas.
+- Antes de remover qualquer recurso, resolva e confira seu nome literal e confirme que ele contém o identificador da execução atual.
+- Recursos preexistentes só podem ser alterados ou removidos mediante autorização nova, específica e com o alvo exato indicado pelo usuário.
+- Se houver dúvida sobre a propriedade de um recurso, trate-o como preexistente e imutável.
+
 ## CONTEXTO DOS AMBIENTES DO SETUP MNO
 
 ### Projeto de construção
