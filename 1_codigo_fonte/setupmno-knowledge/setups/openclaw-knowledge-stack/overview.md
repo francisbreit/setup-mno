@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "OpenClaw + Qdrant + Neo4j + Cognee + SearXNG no Setup MNO",
   "setupId": "openclaw-knowledge-stack",
-  "setupVersion": "7.7.49",
+  "setupVersion": "7.7.50",
   "architectures": [
     "amd64",
     "arm64"

@@ -217,7 +217,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.7.49"
+VERSIONSETUP="7.7.50"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -393,7 +393,7 @@ fi
 
 # --- DISPATCH DINÂMICO (substitui 240+ case blocks) ---
 run_app() {
-    local script="$1"
+    local script="$1" status
     if [ "$script" = "setupmno_control" ] && control_center_installed; then
         whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
             "Já existe um Setup MNO Control Center neste servidor.\n\nSomente uma instalação é permitida por servidor." 12 72
@@ -401,6 +401,15 @@ run_app() {
     fi
     clear
     cd && cd SetupLowCodeMno && ./"$script"
+    status=$?
+
+    # O Control Center é executado como processo filho. Ao concluir, cancelar ou
+    # falhar, preserve o laço atual do menu em vez de substituir o processo SHC.
+    if [ "$script" = "setupmno_control" ]; then
+        cd /root/SetupLowCodeMno 2>/dev/null || true
+        clear
+        return "$status"
+    fi
 
     # Todos os fluxos de saída retornam a uma instância limpa do binário SHC
     # dentro da mesma sessão tmux. Nunca invoque install.sh nem use bash aqui.
@@ -463,6 +472,33 @@ control_center_installed() {
     command -v docker >/dev/null 2>&1 || return 1
     docker service ls --format '{{.Name}}' 2>/dev/null |
         grep -Eq '^mnoctrl[[:alnum:]]+-(web|agent|terminal|assistant)_'
+}
+
+control_center_mfa_configured() {
+    local service services_count service_environment
+    service=$(docker service ls --format '{{.Name}}' 2>/dev/null |
+        grep -E '^mnoctrl[[:alnum:]]+-web_mnoctrl[[:alnum:]]+-web$')
+    services_count=$(printf '%s\n' "$service" | sed '/^$/d' | wc -l)
+    [ "$services_count" -eq 1 ] || return 1
+    service_environment=$(docker service inspect --format \
+        '{{range .Spec.TaskTemplate.ContainerSpec.Env}}{{println .}}{{end}}' \
+        "$service" 2>/dev/null) || return 1
+    grep -Fxq 'SETUPMNO_INSTALL_TYPE=TRADICIONAL' <<<"$service_environment" && return 0
+    grep -Fxq 'ACCESS_MFA_REQUIRED=true' <<<"$service_environment"
+}
+
+configure_control_center_mfa() {
+    if [ ! -x /root/SetupLowCodeMno/setupmno_control ]; then
+        whiptail --title "CONFIGURAR MFA CONTROL CENTER" --msgbox \
+            "O binário protegido setupmno_control não foi encontrado. Reinstale ou atualize o Setup MNO e tente novamente." \
+            13 80
+        return 0
+    fi
+    clear
+    /root/SetupLowCodeMno/setupmno_control --configure-access-mfa || true
+    cd /root/SetupLowCodeMno 2>/dev/null || true
+    clear
+    return 0
 }
 
 control_center_agent_has_runtime_mount() {
@@ -551,9 +587,12 @@ while true; do
 
 CONTROL_CENTER_MENU=()
 CONTROL_CENTER_FREE_MENU=()
+CONTROL_CENTER_MFA_MENU=()
 if ! control_center_installed; then
     CONTROL_CENTER_MENU=("SETUP MNO CONTROL CENTER" "")
     CONTROL_CENTER_FREE_MENU=("SETUP MNO CONTROL CENTER" "")
+elif ! control_center_mfa_configured; then
+    CONTROL_CENTER_MFA_MENU=("CONFIGURAR MFA CONTROL CENTER" "")
 fi
 
 if [[ ! "$PLANO" = *free* ]]; then
@@ -694,6 +733,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WIKI.JS" "" \
     "WUZAP" "" \
     "WEKAN" "" \
+    "${CONTROL_CENTER_MFA_MENU[@]}" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
     "GERADOR DE REGISTROS DNS" "" \
@@ -705,6 +745,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
 
 case "$CHOICE" in
     "STRAPI") run_app strap ;;
+    "CONFIGURAR MFA CONTROL CENTER") configure_control_center_mfa ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
     "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;
@@ -1012,6 +1053,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WEAVIATE" "PRO" \
     "WINDMILL" "PRO" \
     "WIKI.JS" "PRO" \
+    "${CONTROL_CENTER_MFA_MENU[@]}" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
     "GERADOR DE REGISTROS DNS" "" \
@@ -1023,6 +1065,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
 
 case "$CHOICE" in
     "STRAPI") run_app strap ;;
+    "CONFIGURAR MFA CONTROL CENTER") configure_control_center_mfa ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
     "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;
@@ -1323,6 +1366,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WIKI.JS" "PRO" \
     "WUZAP" "PRO" \
     "WEKAN" "PRO" \
+    "${CONTROL_CENTER_MFA_MENU[@]}" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
     "GERADOR DE REGISTROS DNS" "" \
@@ -1334,6 +1378,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
 
 case "$CHOICE" in
     "STRAPI") run_app strap ;;
+    "CONFIGURAR MFA CONTROL CENTER") configure_control_center_mfa ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
     "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;
@@ -1634,6 +1679,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "WIKI.JS" "PRO" \
     "WUZAP" "PRO" \
     "WEKAN" "PRO" \
+    "${CONTROL_CENTER_MFA_MENU[@]}" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
     "GERADOR DE REGISTROS DNS" "" \
@@ -1645,6 +1691,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
 
 case "$CHOICE" in
     "STRAPI") run_app strap ;;
+    "CONFIGURAR MFA CONTROL CENTER") configure_control_center_mfa ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
     "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;

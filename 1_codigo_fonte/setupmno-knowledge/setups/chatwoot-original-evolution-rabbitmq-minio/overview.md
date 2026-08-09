@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Chatwoot Original com Evolution, RabbitMQ e MinIO no Setup MNO",
   "setupId": "chatwoot-original-evolution-rabbitmq-minio",
-  "setupVersion": "7.7.49",
+  "setupVersion": "7.7.50",
   "architectures": [
     "amd64",
     "arm64"

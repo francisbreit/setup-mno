@@ -47,7 +47,9 @@ for migration_function in \
     build_cloudflare_access_payload \
     control_service_env_value \
     rollback_existing_access_migration \
-    prepare_existing_access_migration; do
+    prepare_existing_access_migration \
+    build_existing_access_policy_payload \
+    configure_existing_access_mfa; do
     migration_source=$(awk -v name="$migration_function" '
         $0 ~ "^" name "\\(\\)" { inside=1 }
         inside { print }
@@ -62,6 +64,7 @@ done
 
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
+CONTROL_VERSION="test"
 CLOUDFLARE_API_TOKEN="test-token-not-secret"
 CLOUDFLARE_ACCOUNT_ID="test-account"
 TUNNEL_ID="test-tunnel"
@@ -140,6 +143,24 @@ case "$MOCK_CURL_MODE" in
             *) printf '%s\n' '{"success":true,"result":{"config":{"ingress":[]}}}' ;;
         esac
         ;;
+    mfa_upgrade)
+        case "$url" in
+            */access/organizations)
+                printf '%s\n' '{"success":true,"result":{"auth_domain":"setupmno.cloudflareaccess.com","mfa_config":{"allowed_authenticators":["totp","security_key"]}}}'
+                ;;
+            */access/apps/11111111-2222-3333-4444-555555555555/policies/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee)
+                [ "$method" = "PUT" ] || exit 94
+                printf '%s\n' '{"success":true,"result":{"id":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee","mfa_config":{"mfa_disabled":false}}}'
+                ;;
+            */access/apps/11111111-2222-3333-4444-555555555555)
+                printf '%s\n' '{"success":true,"result":{"id":"11111111-2222-3333-4444-555555555555","aud":"setupmno-test-audience","policies":[{"id":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee","name":"Setup MNO - identidade autorizada sem MFA extra","decision":"allow","precedence":1,"include":[{"email":{"email":"admin@example.com"}}],"exclude":[],"require":[],"mfa_config":{"mfa_disabled":true}}]}}'
+                ;;
+            */access/apps*)
+                printf '%s\n' '{"success":true,"result":[{"id":"11111111-2222-3333-4444-555555555555","aud":"setupmno-test-audience"}]}'
+                ;;
+            *) exit 95 ;;
+        esac
+        ;;
     existing_access)
         case "$url" in
             */access/organizations)
@@ -171,7 +192,8 @@ if [ "${1:-}" = "service" ] && [ "${2:-}" = "inspect" ]; then
                 'ACCESS_JWT_REQUIRED=true' \
                 'ACCESS_TEAM_DOMAIN=https://setupmno.cloudflareaccess.com' \
                 'ACCESS_POLICY_AUD=setupmno-test-audience' \
-                'ACCESS_ALLOWED_EMAIL=admin@example.com'
+                'ACCESS_ALLOWED_EMAIL=admin@example.com' \
+                'ACCESS_MFA_REQUIRED=false'
             ;;
         partial)
             printf '%s\n' 'ACCESS_JWT_REQUIRED=true'
@@ -277,6 +299,10 @@ export MOCK_WHIPTAIL_CHOICE="SEM_MFA"
 choose_cloudflare_access_security
 [ "$access_mfa_enabled" = "false" ]
 show_cloudflare_access_guide
+choose_source=$(awk '/^choose_cloudflare_access_security\(\)/,/^}/' "$template")
+collect_source=$(awk '/^collect_cloudflare_access_email\(\)/,/^}/' "$template")
+! grep -Fq -- '--yesno' <<<"$choose_source"
+! grep -Fq -- '--yesno' <<<"$collect_source"
 
 export MOCK_CURL_MODE="existing_access"
 : >"$message_capture"
@@ -314,5 +340,20 @@ if prepare_existing_access_migration \
     exit 1
 fi
 grep -Fq 'metadados Cloudflare Access parciais ou inconsistentes' "$message_capture"
+
+export MOCK_CURL_MODE="mfa_upgrade" MOCK_ACCESS_STATE="ready" MOCK_CONTROL_CENTER="installed"
+: >"$message_capture"
+: >"$MOCK_DOCKER_LOG"
+configure_existing_access_mfa
+grep -Fq -- '--env-rm ACCESS_MFA_REQUIRED --env-add ACCESS_MFA_REQUIRED=true' "$MOCK_DOCKER_LOG"
+grep -Fq 'MFA ATIVADO COM SUCESSO' "$message_capture"
+
+application_fixture="$test_dir/application-fixture.json"
+policy_fixture="$test_dir/policy-fixture.json"
+printf '%s\n' '{"result":{"policies":[{"id":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee","name":"Setup MNO","decision":"allow","include":[{"email":{"email":"admin@example.com"}}]}]}}' >"$application_fixture"
+build_existing_access_policy_payload "$application_fixture" "$policy_fixture" \
+    "admin@example.com" true
+jq -e '.mfa_config.mfa_disabled == false and .include[0].email.email == "admin@example.com"' \
+    "$policy_fixture" >/dev/null
 
 printf 'Progresso, timeout, Access e MFA do Cloudflare aprovados.\n'

@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.15.10"
+CONTROL_VERSION="4.15.11"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -114,12 +114,8 @@ choose_cloudflare_access_security() {
                 return 0
                 ;;
             SEM_MFA)
-                if whiptail --title "CONTINUAR SEM MFA EXTRA?" --yesno \
-                    "O domínio ainda será protegido pelo Cloudflare Access e pelo e-mail exato, além da senha do painel e da confirmação do terminal.\n\nSem MFA independente, a proteção contra comprometimento da conta de e-mail ou do provedor de identidade será menor.\n\nDeseja continuar assim?" \
-                    17 88 1>&2; then
-                    access_mfa_enabled="false"
-                    return 0
-                fi
+                access_mfa_enabled="false"
+                return 0
                 ;;
             INSTRUCOES)
                 show_cloudflare_access_guide
@@ -138,12 +134,8 @@ collect_cloudflare_access_email() {
         email=$(printf '%s' "$email" | tr '[:upper:]' '[:lower:]')
         if [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] &&
            [ "${#email}" -le 254 ]; then
-            if whiptail --title "CONFIRMAR IDENTIDADE" --yesno \
-                "E-mail autorizado:\n\n$email\n\nVocê confirma que controla esta conta e conseguirá receber códigos ou entrar pelo provedor de identidade configurado no Cloudflare?" \
-                15 86 1>&2; then
-                printf '%s' "$email"
-                return 0
-            fi
+            printf '%s' "$email"
+            return 0
         else
             msg "Informe um endereço de e-mail válido. Nenhuma política foi criada."
         fi
@@ -218,6 +210,7 @@ rollback_existing_access_migration() {
             --env-rm ACCESS_TEAM_DOMAIN \
             --env-rm ACCESS_POLICY_AUD \
             --env-rm ACCESS_ALLOWED_EMAIL \
+            --env-rm ACCESS_MFA_REQUIRED \
             "$web_service" >>"$log_file" 2>&1 || true
     fi
     if [ -s "$original_tunnel" ]; then
@@ -408,6 +401,7 @@ prepare_existing_access_migration() {
         --env-add "ACCESS_TEAM_DOMAIN=https://$auth_domain" \
         --env-add "ACCESS_POLICY_AUD=$aud" \
         --env-add "ACCESS_ALLOWED_EMAIL=$email" \
+        --env-add "ACCESS_MFA_REQUIRED=$access_mfa_enabled" \
         "$web_service" >>"$log_file" 2>&1; then
         rollback_existing_access_migration "$state_file" "$log_file"
         msg "O serviço existente recusou os metadados Access. Rota e política anteriores foram restauradas."
@@ -507,6 +501,223 @@ reconcile_existing_control_center() {
     return 0
 }
 
+build_existing_access_policy_payload() {
+    local application_file="$1" output_file="$2" email="$3" enable_mfa="$4"
+    jq --arg email "$email" --argjson enableMfa "$enable_mfa" '
+        [.result.policies[]? |
+          select(any(.include[]?; .email.email? == $email))] as $matches
+        | if ($matches | length) != 1 then
+            error("a política exata do Setup MNO não foi identificada")
+          else
+            $matches[0] as $policy
+            | {
+                name:$policy.name,
+                decision:$policy.decision,
+                precedence:($policy.precedence // 1),
+                include:$policy.include,
+                exclude:($policy.exclude // []),
+                require:($policy.require // []),
+                mfa_config:(if $enableMfa then {
+                  mfa_disabled:false,
+                  session_duration:"0m",
+                  allowed_authenticators:["totp","biometrics","security_key"]
+                } else {mfa_disabled:true} end)
+              }
+          end
+    ' "$application_file" >"$output_file"
+}
+
+configure_existing_access_mfa() {
+    local work_dir log_file web_service service_count access_required team_domain aud email
+    local organization_file applications_file application_file policy_payload rollback_payload response_file
+    local auth_domain app_count app_id policy_count policy_id current_mfa_disabled current_mfa_enabled
+    local action rollback_response
+
+    if [ "$INSTALL_TYPE" != "CLOUDFLARE_TUNNEL" ]; then
+        msg "O MFA independente desta opção pertence ao Cloudflare Access.\n\nEste Control Center usa acesso tradicional, portanto nenhuma alteração foi realizada."
+        return 0
+    fi
+    if [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ] || [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+        msg "As credenciais do Cloudflare não estão disponíveis. Execute novamente a configuração do ambiente para recuperar o token com Access: Apps and Policies Write e Access: Organizations Read."
+        return 1
+    fi
+
+    service_count=$(docker service ls --format '{{.Name}}' 2>/dev/null |
+        grep -Ec '^mnoctrl[[:alnum:]]+-web_mnoctrl[[:alnum:]]+-web$')
+    [ "$service_count" -eq 1 ] || {
+        msg "Não foi possível identificar com segurança um único serviço web do Control Center. Nenhuma política foi alterada."
+        return 1
+    }
+    web_service=$(docker service ls --format '{{.Name}}' 2>/dev/null |
+        grep -E '^mnoctrl[[:alnum:]]+-web_mnoctrl[[:alnum:]]+-web$')
+    access_required=$(control_service_env_value "$web_service" ACCESS_JWT_REQUIRED)
+    team_domain=$(control_service_env_value "$web_service" ACCESS_TEAM_DOMAIN)
+    aud=$(control_service_env_value "$web_service" ACCESS_POLICY_AUD)
+    email=$(control_service_env_value "$web_service" ACCESS_ALLOWED_EMAIL)
+    if [ "$access_required" != "true" ] ||
+       [[ ! "$team_domain" =~ ^https://[A-Za-z0-9-]+\.cloudflareaccess\.com$ ]] ||
+       [ "${#aud}" -lt 16 ] || [ "${#aud}" -gt 128 ] ||
+       [[ ! "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+        msg "A instalação não possui metadados Cloudflare Access completos e válidos. Por segurança, nenhuma política foi alterada."
+        return 1
+    fi
+
+    work_dir=$(mktemp -d) || return 1
+    log_file="/tmp/setupmno-control-mfa-${CONTROL_VERSION}.log"
+    organization_file="$work_dir/organization.json"
+    applications_file="$work_dir/applications.json"
+    application_file="$work_dir/application.json"
+    policy_payload="$work_dir/policy-mfa.json"
+    rollback_payload="$work_dir/policy-rollback.json"
+    response_file="$work_dir/policy-response.json"
+    : >"$log_file"
+
+    while true; do
+        if ! curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/organizations" \
+            >"$organization_file" 2>>"$log_file"; then
+            rm -rf -- "$work_dir"
+            msg "A Cloudflare não respondeu durante a validação do MFA. Nenhuma política foi alterada.\n\nLog: $log_file"
+            return 1
+        fi
+        if [ "$(jq -r '.success // false' "$organization_file")" != "true" ]; then
+            rm -rf -- "$work_dir"
+            msg "A Cloudflare recusou a consulta da organização. Confirme a permissão Access: Organizations Read. Nenhuma política foi alterada.\n\nLog: $log_file"
+            return 1
+        fi
+        auth_domain=$(jq -r '.result.auth_domain // empty' "$organization_file")
+        if [ "$team_domain" != "https://$auth_domain" ]; then
+            rm -rf -- "$work_dir"
+            msg "O domínio de autenticação retornado pela Cloudflare diverge do Control Center instalado. Nenhuma política foi alterada."
+            return 1
+        fi
+        if [ "$(jq -r '(.result.mfa_config.allowed_authenticators // []) | length' "$organization_file")" -gt 0 ]; then
+            break
+        fi
+        action=$(whiptail --title "MFA AINDA NÃO ESTÁ PRONTO" --default-item "INSTRUCOES" --menu \
+            "O Zero Trust ainda não possui autenticadores MFA independentes habilitados. Nada foi alterado.\n\nEscolha como continuar:" \
+            18 94 3 \
+            "INSTRUCOES" "Ver o passo a passo e voltar para testar novamente" \
+            "TENTAR" "Consultar novamente após configurar o Cloudflare" \
+            "CANCELAR" "Voltar ao menu inicial sem alterar nada" \
+            3>&1 1>&2 2>&3) || action="CANCELAR"
+        case "$action" in
+            INSTRUCOES) show_cloudflare_access_guide ;;
+            TENTAR) ;;
+            CANCELAR)
+                rm -rf -- "$work_dir"
+                return 0
+                ;;
+        esac
+    done
+
+    if ! curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+        "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps?per_page=100" \
+        >"$applications_file" 2>>"$log_file" ||
+       [ "$(jq -r '.success // false' "$applications_file")" != "true" ]; then
+        rm -rf -- "$work_dir"
+        msg "Não foi possível localizar a aplicação Access do Control Center. Confirme a permissão Access: Apps and Policies Write. Nenhuma política foi alterada.\n\nLog: $log_file"
+        return 1
+    fi
+    app_count=$(jq -r --arg aud "$aud" '[.result[]? | select(.aud == $aud)] | length' "$applications_file")
+    app_id=$(jq -r --arg aud "$aud" '[.result[]? | select(.aud == $aud)][0].id // empty' "$applications_file")
+    if [ "$app_count" -ne 1 ] || [[ ! "$app_id" =~ ^[A-Fa-f0-9-]{32,36}$ ]]; then
+        rm -rf -- "$work_dir"
+        msg "A aplicação Access associada ao Control Center não foi identificada de forma única. Nenhuma política foi alterada."
+        return 1
+    fi
+    if ! curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+        "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$app_id" \
+        >"$application_file" 2>>"$log_file" ||
+       [ "$(jq -r '.success // false' "$application_file")" != "true" ]; then
+        rm -rf -- "$work_dir"
+        msg "A política Access atual não pôde ser consultada. Nenhuma alteração foi realizada.\n\nLog: $log_file"
+        return 1
+    fi
+    policy_count=$(jq -r --arg email "$email" \
+        '[.result.policies[]? | select(any(.include[]?; .email.email? == $email))] | length' \
+        "$application_file")
+    policy_id=$(jq -r --arg email "$email" \
+        '[.result.policies[]? | select(any(.include[]?; .email.email? == $email))][0].id // empty' \
+        "$application_file")
+    if [ "$policy_count" -ne 1 ] || [[ ! "$policy_id" =~ ^[A-Fa-f0-9-]{32,36}$ ]]; then
+        rm -rf -- "$work_dir"
+        msg "A política do e-mail autorizado não foi identificada de forma única. Nenhuma alteração foi realizada."
+        return 1
+    fi
+    current_mfa_disabled=$(jq -r --arg email "$email" \
+        'if [.result.policies[]? | select(any(.include[]?; .email.email? == $email))][0].mfa_config.mfa_disabled == false then "false" else "true" end' \
+        "$application_file")
+    if [ "$current_mfa_disabled" = "false" ]; then
+        if [ -n "$(control_service_env_value "$web_service" ACCESS_MFA_REQUIRED)" ]; then
+            docker service update --detach=true --env-rm ACCESS_MFA_REQUIRED \
+                --env-add ACCESS_MFA_REQUIRED=true "$web_service" >>"$log_file" 2>&1 || true
+        else
+            docker service update --detach=true --env-add ACCESS_MFA_REQUIRED=true \
+                "$web_service" >>"$log_file" 2>&1 || true
+        fi
+        rm -rf -- "$work_dir"
+        msg "O MFA independente já está ativo para $email.\n\nCadastre ou gerencie o autenticador em:\n${team_domain}/AddMfaDevice"
+        return 0
+    fi
+    if ! whiptail --title "ATIVAR MFA NO CONTROL CENTER?" --yesno \
+        "A política de $email passará a exigir aplicativo autenticador, biometria ou chave de segurança.\n\nDepois, cadastre o dispositivo em:\n${team_domain}/AddMfaDevice\n\nDeseja ativar agora?" \
+        17 92 1>&2; then
+        rm -rf -- "$work_dir"
+        return 0
+    fi
+    build_existing_access_policy_payload "$application_file" "$policy_payload" "$email" true || {
+        rm -rf -- "$work_dir"
+        msg "Não foi possível preparar a política MFA com segurança. Nenhuma alteração foi realizada."
+        return 1
+    }
+    build_existing_access_policy_payload "$application_file" "$rollback_payload" "$email" false || {
+        rm -rf -- "$work_dir"
+        msg "Não foi possível preparar o rollback da política MFA. Nenhuma alteração foi realizada."
+        return 1
+    }
+    if ! curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
+        -X PUT \
+        "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$app_id/policies/$policy_id" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+        --data-binary @"$policy_payload" >"$response_file" 2>>"$log_file" ||
+       [ "$(jq -r '.success // false' "$response_file")" != "true" ] ||
+       [ "$(jq -r 'if .result.mfa_config.mfa_disabled == false then "false" else "true" end' "$response_file")" != "false" ]; then
+        rm -rf -- "$work_dir"
+        msg "A Cloudflare recusou a ativação do MFA. A política anterior foi preservada.\n\nLog: $log_file"
+        return 1
+    fi
+    if [ -n "$(control_service_env_value "$web_service" ACCESS_MFA_REQUIRED)" ]; then
+        current_mfa_enabled="--env-rm"
+        if ! docker service update --detach=true --env-rm ACCESS_MFA_REQUIRED \
+            --env-add ACCESS_MFA_REQUIRED=true "$web_service" >>"$log_file" 2>&1; then
+            current_mfa_enabled="failed"
+        fi
+    elif ! docker service update --detach=true --env-add ACCESS_MFA_REQUIRED=true \
+        "$web_service" >>"$log_file" 2>&1; then
+        current_mfa_enabled="failed"
+    else
+        current_mfa_enabled="added"
+    fi
+    if [ "$current_mfa_enabled" = "failed" ]; then
+        rollback_response="$work_dir/rollback-response.json"
+        curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
+            -X PUT \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$app_id/policies/$policy_id" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+            --data-binary @"$rollback_payload" >"$rollback_response" 2>>"$log_file" || true
+        rm -rf -- "$work_dir"
+        msg "O Control Center não conseguiu registrar o novo estado. A política anterior foi restaurada.\n\nLog: $log_file"
+        return 1
+    fi
+    rm -rf -- "$work_dir"
+    msg "MFA ATIVADO COM SUCESSO!\n\nE-mail protegido: $email\n\nPróximo passo:\n1. Abra ${team_domain}/AddMfaDevice\n2. Entre com o mesmo e-mail\n3. Cadastre o aplicativo autenticador, biometria ou chave\n4. Volte e abra o Control Center"
+    return 0
+}
+
 command -v flock >/dev/null 2>&1 || {
     msg "A trava de instalação segura (flock) não está disponível. Nenhuma alteração foi realizada."
     exit 1
@@ -521,10 +732,16 @@ flock -n 9 || {
 }
 
 if control_center_installed; then
-    if [ "${1:-}" = "--reconcile-existing" ]; then
-        reconcile_existing_control_center
-        exit $?
-    fi
+    case "${1:-}" in
+        --reconcile-existing)
+            reconcile_existing_control_center
+            exit $?
+            ;;
+        --configure-access-mfa)
+            configure_existing_access_mfa
+            exit $?
+            ;;
+    esac
     msg "Já existe um Setup MNO Control Center neste servidor.\n\nPor segurança, somente uma instalação é permitida por servidor. A instalação atual foi preservada."
     exit 0
 fi
@@ -1266,7 +1483,9 @@ error_file="/tmp/${nome_app}-error.log"
     fi
 
     access_jwt_required="false"
+    access_mfa_required="false"
     if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+        access_mfa_required="$access_mfa_enabled"
         if [ "$access_mfa_enabled" = "true" ]; then
             echo -e "XXX\n49\nCRIANDO CLOUDFLARE ACCESS COM MFA... \nXXX"
         else
@@ -1567,6 +1786,7 @@ services:
       - ACCESS_TEAM_DOMAIN=$access_team_domain
       - ACCESS_POLICY_AUD=$access_app_aud
       - ACCESS_ALLOWED_EMAIL=$access_email
+      - ACCESS_MFA_REQUIRED=$access_mfa_required
     networks:
       - externa
       - interna

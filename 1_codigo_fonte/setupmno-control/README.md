@@ -32,6 +32,14 @@ chave de segurança habilitados, o instalador não encerra abruptamente: oferece
 instruções, nova tentativa, continuação consciente sem MFA ou cancelamento sem
 criar recursos.
 
+O fluxo sem MFA não acrescenta confirmações intermediárias: a escolha e o
+e-mail aparecem juntos na confirmação final da instalação. Enquanto uma
+instalação por Tunnel não estiver marcada com MFA ativo, o menu principal exibe
+`CONFIGURAR MFA CONTROL CENTER`. A ação consulta a aplicação pelo `aud`, altera
+somente a política do e-mail exato, mantém rollback da política anterior e volta
+ao mesmo menu do instalador. A opção desaparece depois da ativação e não é
+exibida em instalações tradicionais, nas quais Cloudflare Access não se aplica.
+
 A identidade é validada três vezes: pelo Access na borda, pelo `cloudflared`
 antes do origin e pelo backend. A validação local aceita somente RS256, busca as
 chaves públicas oficiais com cache e rotação, e confere `kid`, assinatura,
