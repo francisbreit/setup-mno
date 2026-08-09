@@ -706,13 +706,13 @@
   {
     "name": "LANGFUSE + MINIO + CLICKHOUSE*",
     "cats": "IA, Observabilidade, Analytics",
-    "desc": "Stack completa de observabilidade para IA: Langfuse para tracing + ClickHouse para analytics + MinIO para storage.",
-    "ram": 6,
-    "ramLabel": "~6GB (8GB recomendado)",
+    "desc": "Observabilidade de IA homologada com Langfuse 4, ClickHouse 25.12, MinIO e Redis dedicado; inclui tracing OTLP e storage S3 privado.",
+    "ram": 8,
+    "ramLabel": "~8GB mínimo prático",
     "arch": "x86-arm",
     "stars": 0,
     "type": "Combo",
-    "search": "langfuse + minio + clickhouse* ia, observabilidade, analytics stack completa de observabilidade para ia: langfuse para tracing + clickhouse para analytics + minio para storage."
+    "search": "langfuse + minio + clickhouse* ia, observabilidade, analytics, tracing otlp, redis dedicado, storage s3 privado"
   },
   {
     "name": "LIBRECHAT",

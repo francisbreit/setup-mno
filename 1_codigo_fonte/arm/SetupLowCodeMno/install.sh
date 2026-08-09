@@ -184,7 +184,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.7.40"
+VERSIONSETUP="7.7.41"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -758,7 +758,7 @@ case "$CHOICE" in
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "KARAKEEP")                                              run_app karakeep ;;
             "LANGFLOW")                                              run_app langflow ;;
-            "LANGFUSE + MINIO + CLICKHOUSE*")                       warn_heavy "Langfuse + MinIO + ClickHouse" "6GB" && run_app langfuse ;;
+            "LANGFUSE + MINIO + CLICKHOUSE*")                       warn_heavy "Langfuse + MinIO + ClickHouse" "8GB" && run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
             "LOCALAI")                                                run_app localai ;;
             "LIBRECHAT")                                             run_app librechat ;;
@@ -1077,7 +1077,7 @@ case "$CHOICE" in
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "KARAKEEP")                                              run_app karakeep ;;
             "LANGFLOW")                                              run_app langflow ;;
-            "LANGFUSE + MINIO + CLICKHOUSE*")                       warn_heavy "Langfuse + MinIO + ClickHouse" "6GB" && run_app langfuse ;;
+            "LANGFUSE + MINIO + CLICKHOUSE*")                       warn_heavy "Langfuse + MinIO + ClickHouse" "8GB" && run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
             "LOCALAI")                                                run_app localai ;;
             "LIBRECHAT")                                             run_app librechat ;;
@@ -1388,7 +1388,7 @@ case "$CHOICE" in
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "KARAKEEP")                                              run_app karakeep ;;
             "LANGFLOW")                                              run_app langflow ;;
-            "LANGFUSE + MINIO + CLICKHOUSE*")                       warn_heavy "Langfuse + MinIO + ClickHouse" "6GB" && run_app langfuse ;;
+            "LANGFUSE + MINIO + CLICKHOUSE*")                       warn_heavy "Langfuse + MinIO + ClickHouse" "8GB" && run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
             "LOCALAI")                                                run_app localai ;;
             "LIBRECHAT")                                             run_app librechat ;;
@@ -1699,7 +1699,7 @@ case "$CHOICE" in
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "KARAKEEP")                                              run_app karakeep ;;
             "LANGFLOW")                                              run_app langflow ;;
-            "LANGFUSE + MINIO + CLICKHOUSE*")                       warn_heavy "Langfuse + MinIO + ClickHouse" "6GB" && run_app langfuse ;;
+            "LANGFUSE + MINIO + CLICKHOUSE*")                       warn_heavy "Langfuse + MinIO + ClickHouse" "8GB" && run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
             "LOCALAI")                                                run_app localai ;;
             "LIBRECHAT")                                             run_app librechat ;;

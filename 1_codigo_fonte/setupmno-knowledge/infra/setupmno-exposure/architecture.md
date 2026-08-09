@@ -7,7 +7,7 @@
   "documentType": "infrastructure",
   "title": "Publicação de serviços por Cloudflare Tunnel ou Traefik",
   "topicId": "setupmno-exposure",
-  "setupVersion": "7.7.40",
+  "setupVersion": "7.7.41",
   "architectures": ["amd64", "arm64"],
   "category": "networking",
   "status": "reviewed",

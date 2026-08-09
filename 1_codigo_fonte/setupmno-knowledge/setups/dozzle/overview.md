@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Dozzle no Setup MNO",
   "setupId": "dozzle",
-  "setupVersion": "7.7.40",
+  "setupVersion": "7.7.41",
   "architectures": [
     "amd64",
     "arm64"

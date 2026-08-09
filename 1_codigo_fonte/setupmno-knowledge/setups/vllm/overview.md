@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "vLLM no Setup MNO",
   "setupId": "vllm",
-  "setupVersion": "7.7.40",
+  "setupVersion": "7.7.41",
   "architectures": ["amd64"],
   "category": "overview",
   "status": "reviewed",

@@ -1,4 +1,6 @@
 #!/usr/bin/bash
+set -o pipefail
+umask 077
 #########################################################
 # # cloudflare tunnel - records automáticos
 #    LOADING
@@ -64,7 +66,7 @@ fi
 
 function msg() {
 		msg=$1
-		whiptail --title "INSTALAÇÃO DO LANGFUSE + MINIO + CLICKHOUSE: FERRAMENTA DE CHATBOTS" --msgbox "$msg" --fb 10 70;
+		whiptail --title "INSTALAÇÃO DO LANGFUSE + MINIO + CLICKHOUSE: OBSERVABILIDADE DE IA" --msgbox "$msg" --fb 10 70 1>&2
 	}
 
   while true; do
@@ -90,6 +92,18 @@ done
 
 minio_container=$(docker ps --filter "name=minio" --format '{{.ID}}' | head -n1)
 clickhouse_container=$(docker ps --filter "name=clickhouse" --format '{{.ID}}' | head -n1)
+
+# Ao reutilizar um MinIO existente, recupere o alias DNS real do serviço para
+# que a validação interna não dependa da URL pública nem de propagação DNS.
+if [[ -n "$minio_container" ]]; then
+    minio_service=$(docker inspect "$minio_container" \
+        --format '{{ index .Config.Labels "com.docker.swarm.service.name" }}' 2>/dev/null)
+    if [[ -z "$minio_service" ]]; then
+        whiptail --title "Erro" --msgbox "O MinIO encontrado não pertence a um serviço Docker Swarm válido. A instalação foi interrompida para evitar uma configuração inconsistente." 12 70
+        exit 1
+    fi
+    nome_app2="${minio_service#*_}"
+fi
 
 # Ao reutilizar um ClickHouse existente, recupere o alias DNS real do serviço
 # no Swarm. Sem isso, nome_app3 fica vazio e o Langfuse recebe URLs inválidas.
@@ -154,7 +168,7 @@ if [[ ("$minio_container" == "") ]]; then
     done
 
     while true ; do
-        senhaminio=$(whiptail --title "Senha do Minio" --inputbox "Crie sua Senha do Minio (ex: senha de acesso. Use uma senha de 8 a 16 dígitos, sem caracteres especiais):" --fb 12 60 3>&1 1>&2 2>&3) 
+        senhaminio=$(whiptail --title "Senha do Minio" --passwordbox "Crie sua Senha do Minio (use de 8 a 16 caracteres alfanuméricos):" --fb 12 60 3>&1 1>&2 2>&3)
         saida=$?
         if [[ $saida -eq '0' ]]; then
             if [[ (-z $senhaminio) || ("$senhaminio" =~ [^a-zA-Z0-9]) || (${#senhaminio} -lt 8) || (${#senhaminio} -gt 16) ]]; then 
@@ -164,7 +178,7 @@ if [[ ("$minio_container" == "") ]]; then
                 break
             fi
         else
-            echo "$senhaminio"; echo "Saindo..."; exit 0
+            echo "Saindo..."; exit 0
         fi
     done
 
@@ -211,11 +225,11 @@ if [[ ("$clickhouse_container" == "") ]]; then
 	done
 
      while true ; do
-		pass_clickhouse=$(whiptail --title "3/3 - Senha do CLICKHOUSE" --inputbox "Digite a senha do CLICKHOUSE (MAXIMO 16 DIG - APENAS LETRAS E NUMEROS):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
+		pass_clickhouse=$(whiptail --title "3/3 - Senha do CLICKHOUSE" --passwordbox "Digite a senha do CLICKHOUSE (máximo 16 caracteres alfanuméricos):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
 		if [[ $saida -eq '0' ]] ; then
 		if [[ (-z $pass_clickhouse) || ("$pass_clickhouse" =~ [^a-zA-Z0-9]) || (${#pass_clickhouse} -gt 16) ]] ; then msg "Digite a senha do CLICKHOUSE, sem caracteres especiais e até 16 digitos para poder continuar" ; continue ; else break; fi
     else
-			echo $pass_clickhouse ; echo "saindo..."  &  exit 0 ;
+			echo "saindo..."; exit 0
 		fi
 	done
 
@@ -275,14 +289,151 @@ fi
 nome_principal="langfuse"  #nome do app
 sufixo_app=$(date | md5sum | head -c7)
 nome_app=$nome_principal$sufixo_app
+PORTAINER_DIAG_LOG="/tmp/${nome_app}-portainer.log"
+
+# Registra somente metadados técnicos. Respostas, tokens, usuários e senhas
+# nunca são gravados no diagnóstico.
+portainer_log_failure() {
+    local stage="$1"
+    local curl_exit="${2:-desconhecido}"
+    local http_code="${3:-desconhecido}"
+    local response_bytes="${4:-0}"
+
+    umask 077
+    printf '%s stage=%s curl_exit=%s http=%s response_bytes=%s\n' \
+        "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+        "$stage" "$curl_exit" "$http_code" "$response_bytes" \
+        >> "$PORTAINER_DIAG_LOG"
+}
+
+portainer_api_curl() {
+    curl --connect-timeout 10 --max-time 30 "$@"
+    local curl_exit=$?
+    if [ "$curl_exit" -ne 0 ]; then
+        portainer_log_failure "${PORTAINER_DIAG_STAGE:-portainer_api}" "$curl_exit" "000" "0"
+    fi
+    return "$curl_exit"
+}
+
+portainer_upload_curl() {
+    curl --connect-timeout 10 --max-time 90 "$@"
+    local curl_exit=$?
+    if [ "$curl_exit" -ne 0 ]; then
+        portainer_log_failure "${PORTAINER_DIAG_STAGE:-portainer_upload}" "$curl_exit" "000" "0"
+    fi
+    return "$curl_exit"
+}
+
+LANGFUSE_INSTALL_LOG="/tmp/${nome_app}-install.log"
+LANGFUSE_ERROR_FILE="/tmp/${nome_app}-error.log"
+: > "$LANGFUSE_INSTALL_LOG"
+: > "$LANGFUSE_ERROR_FILE"
+
+langfuse_fail() {
+    local code="$1" message="$2"
+    umask 077
+    printf '%s\n' "$message" > "$LANGFUSE_ERROR_FILE"
+    printf '%s ERROR code=%s message=%s\n' \
+        "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" "$code" "$message" \
+        >> "$LANGFUSE_INSTALL_LOG"
+    echo -e "XXX\n100\nERRO: INSTALAÇÃO DO LANGFUSE INTERROMPIDA\nXXX"
+    exit "$code"
+}
+
+deploy_stack_checked() {
+    local stack_name="$1" stack_file="$2" failure_code="$3"
+    local dados_file response token endpoint_id swarm_id response_file http_code
+
+    if [[ "$criar_portainer" == "1" ]]; then
+        docker stack deploy --prune --resolve-image always \
+            -c "$stack_file" "$stack_name" >> "$LANGFUSE_INSTALL_LOG" 2>&1 ||
+            langfuse_fail "$failure_code" "O Docker Swarm recusou a stack $stack_name."
+        return 0
+    fi
+
+    dados_file="$HOME/dados_portainer/dados_portainer"
+    [[ -f "$dados_file" ]] ||
+        langfuse_fail "$failure_code" "A criação editável foi solicitada, mas os dados do Portainer não foram encontrados."
+    command -v jq >/dev/null 2>&1 ||
+        langfuse_fail "$failure_code" "O utilitário jq é obrigatório para autenticação segura no Portainer."
+
+    PORTAINER_URL=$(grep "Dominio do portainer:" "$dados_file" | cut -d':' -f2 | xargs)
+    ADMIN_USERNAME=$(grep "Usuario:" "$dados_file" | cut -d':' -f2 | xargs)
+    ADMIN_PASSWORD=$(grep "Senha:" "$dados_file" | cut -d':' -f2 | xargs)
+    [[ -n "$PORTAINER_URL" && -n "$ADMIN_USERNAME" && -n "$ADMIN_PASSWORD" ]] ||
+        langfuse_fail "$failure_code" "Os dados do Portainer estão incompletos."
+
+    PORTAINER_DIAG_STAGE="${stack_name}_auth"
+    response=$(portainer_api_curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
+        -H "Content-Type: application/json" \
+        -d "$(jq -cn --arg username "$ADMIN_USERNAME" --arg password "$ADMIN_PASSWORD" \
+            '{username:$username,password:$password}')") ||
+        langfuse_fail "$failure_code" "Falha de comunicação ao autenticar no Portainer."
+    token=$(printf '%s' "$response" | jq -r '.jwt // empty')
+    [[ -n "$token" ]] || langfuse_fail "$failure_code" "O Portainer rejeitou a autenticação."
+
+    PORTAINER_DIAG_STAGE="${stack_name}_endpoint"
+    response=$(portainer_api_curl -sS "https://$PORTAINER_URL/api/endpoints" \
+        -H "Authorization: Bearer $token") ||
+        langfuse_fail "$failure_code" "Falha ao consultar o endpoint do Portainer."
+    endpoint_id=$(printf '%s' "$response" | jq -r '.[0].Id // empty')
+    [[ -n "$endpoint_id" ]] || langfuse_fail "$failure_code" "Endpoint do Portainer não encontrado."
+
+    PORTAINER_DIAG_STAGE="${stack_name}_swarm"
+    response=$(portainer_api_curl -sS \
+        "https://$PORTAINER_URL/api/endpoints/$endpoint_id/docker/swarm" \
+        -H "Authorization: Bearer $token") ||
+        langfuse_fail "$failure_code" "Falha ao consultar o Swarm pelo Portainer."
+    swarm_id=$(printf '%s' "$response" | jq -r '.ID // empty')
+    [[ -n "$swarm_id" ]] || langfuse_fail "$failure_code" "Swarm ID não encontrado no Portainer."
+
+    response_file=$(mktemp)
+    PORTAINER_DIAG_STAGE="${stack_name}_create"
+    http_code=$(portainer_upload_curl -sS -o "$response_file" -w '%{http_code}' -X POST \
+        -H "Authorization: Bearer $token" \
+        -F "Name=$stack_name" \
+        -F "file=@$stack_file" \
+        -F "SwarmID=$swarm_id" \
+        -F "endpointId=$endpoint_id" \
+        "https://$PORTAINER_URL/api/stacks/create/swarm/file") || true
+    rm -f "$response_file"
+    [[ "$http_code" == "200" || "$http_code" == "201" ]] ||
+        langfuse_fail "$failure_code" "O Portainer recusou a criação da stack $stack_name (HTTP ${http_code:-000})."
+}
+
+wait_service_healthy() {
+    local service_name="$1" label="$2" failure_code="$3"
+    local attempt replicas container_id health_state task_error
+
+    for attempt in $(seq 1 60); do
+        replicas=$(docker service ls --filter "name=$service_name" \
+            --format '{{.Name}} {{.Replicas}}' | awk -v expected="$service_name" '$1 == expected {print $2; exit}')
+        container_id=$(docker ps \
+            --filter "label=com.docker.swarm.service.name=$service_name" \
+            --format '{{.ID}}' | head -n1)
+        health_state=""
+        if [[ -n "$container_id" ]]; then
+            health_state=$(docker inspect "$container_id" \
+                --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}running{{end}}' 2>/dev/null)
+        fi
+        if [[ "$replicas" == "1/1" && ( "$health_state" == "healthy" || "$health_state" == "running" ) ]]; then
+            return 0
+        fi
+        echo -e "XXX\n90\nAGUARDANDO $label: tentativa ${attempt}/60\nXXX"
+        sleep 5
+    done
+
+    task_error=$(docker service ps "$service_name" --no-trunc \
+        --format 'Estado: {{.CurrentState}} | Erro: {{.Error}}' | head -n 8)
+    printf '%s\n' "$task_error" >> "$LANGFUSE_INSTALL_LOG"
+    langfuse_fail "$failure_code" "$label não atingiu estado saudável em cinco minutos."
+}
+
 postgres_password=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml)
-container_id=$(docker ps --filter name=postgres --format '{{.ID}}' | head -n1)
-if [[ -z "$container_id" ]] || ! docker exec "$container_id" \
-    psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
-    -c "CREATE DATABASE $nome_app;" >/dev/null 2>&1; then
-    whiptail --title "Erro" --msgbox "Não foi possível criar o banco PostgreSQL do Langfuse. A instalação foi interrompida sem implantar a aplicação." 12 70
+[ -n "$postgres_password" ] || {
+    whiptail --title "Erro" --msgbox "A senha do PostgreSQL não foi encontrada em /root/postgres.yaml. A instalação foi interrompida antes de criar recursos do Langfuse." 12 70
     exit 1
-fi
+}
 
 if [[ ("$minio_container" == "") ]]; then
     nome_principal2="minio"
@@ -300,6 +451,20 @@ if [[ ("$clickhouse_container" == "") ]]; then
     nome_app3=$nome_principal3$sufixo_app3
 fi
 
+# Os nomes completos do Swarm são usados apenas para localizar containers.
+# Endpoints HTTP/S3 usam aliases explícitos sem underscore: o AWS SDK rejeita
+# nomes como stack_servico com "Invalid Request (invalid hostname)".
+minio_service="${minio_service:-${nome_app2}_${nome_app2}}"
+clickhouse_service="${clickhouse_service:-${nome_app3}_${nome_app3}}"
+minio_internal_host="$nome_app2"
+clickhouse_internal_host="$nome_app3"
+
+if [[ ! "$minio_internal_host" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]] ||
+   [[ ! "$clickhouse_internal_host" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]]; then
+    whiptail --title "Erro" --msgbox "Os aliases internos do MinIO ou ClickHouse são inválidos. A instalação foi interrompida antes do deploy." 12 74 1>&2
+    exit 1
+fi
+
 if [ "$minio_container" == "" ] && [ "$clickhouse_container" == "" ]; then
     {
         tput reset 2>/dev/null
@@ -309,7 +474,7 @@ if [ "$minio_container" == "" ] && [ "$clickhouse_container" == "" ]; then
     } || true
 
     whiptail --title "Dados Fornecidos" \
-    --msgbox "TIPO DE INSTALAÇÃO: $INSTALL_TYPE\n\nDados Preenchidos:\n\n1) Link do Painel Minio: $painel\n2) Link Público Minio: $publico\n3) Usuário do Minio: $usuariominio\n4) Senha do Minio: $senhaminio\n5) URL do Clickhouse: $url_clickhouse\n6) Usuário do Clickhouse: $user_clickhouse\n7) Senha do Clickhouse: $pass_clickhouse\n8) URL Langfuse: $url_langfuse\n9) Criar Stack no Portainer: $([ "$criar_portainer" == "0" ] && echo "0 (Editável)" || echo "1 (Não editável)")\n\nConfira e Tecle Enter para continuar. Na próxima etapa você poderá confirmar os dados ou corrigir, se necessário." \
+    --msgbox "TIPO DE INSTALAÇÃO: $INSTALL_TYPE\n\nDados Preenchidos:\n\n1) Link do Painel Minio: $painel\n2) Link Público Minio: $publico\n3) Usuário do Minio: $usuariominio\n4) Senha do Minio: [PROTEGIDA]\n5) URL do Clickhouse: $url_clickhouse\n6) Usuário do Clickhouse: $user_clickhouse\n7) Senha do Clickhouse: [PROTEGIDA]\n8) URL Langfuse: $url_langfuse\n9) Criar Stack no Portainer: $([ "$criar_portainer" == "0" ] && echo "0 (Editável)" || echo "1 (Não editável)")\n\nConfira e Tecle Enter para continuar. Na próxima etapa você poderá confirmar os dados ou corrigir, se necessário." \
     --fb 22 80
 
 fi
@@ -323,7 +488,7 @@ if [ "$minio_container" == "" ] && [ "$clickhouse_container" != "" ]; then
     } || true
 
     whiptail --title "Dados Fornecidos" \
-    --msgbox "TIPO DE INSTALAÇÃO: $INSTALL_TYPE\n\nDados Preenchidos:\n\n1) Link do Painel Minio: $painel\n2) Link Público Minio: $publico\n3) Usuário do Minio: $usuariominio\n4) Senha do Minio: $senhaminio\n5) URL Langfuse: $url_langfuse\n6) Criar Stack no Portainer: $([ "$criar_portainer" == "0" ] && echo "0 (Editável)" || echo "1 (Não editável)")\n\nConfira e Tecle Enter para continuar. Na próxima etapa você poderá confirmar os dados ou corrigir, se necessário." \
+    --msgbox "TIPO DE INSTALAÇÃO: $INSTALL_TYPE\n\nDados Preenchidos:\n\n1) Link do Painel Minio: $painel\n2) Link Público Minio: $publico\n3) Usuário do Minio: $usuariominio\n4) Senha do Minio: [PROTEGIDA]\n5) URL Langfuse: $url_langfuse\n6) Criar Stack no Portainer: $([ "$criar_portainer" == "0" ] && echo "0 (Editável)" || echo "1 (Não editável)")\n\nConfira e Tecle Enter para continuar. Na próxima etapa você poderá confirmar os dados ou corrigir, se necessário." \
     --fb 22 80
 
 fi
@@ -337,7 +502,7 @@ if [ "$minio_container" != "" ] && [ "$clickhouse_container" = "" ]; then
     } || true
 
     whiptail --title "Dados Fornecidos" \
-    --msgbox "TIPO DE INSTALAÇÃO: $INSTALL_TYPE\n\nDados Preenchidos:\n\n1) URL do Clickhouse: $url_clickhouse\n2) Usuário do Clickhouse: $user_clickhouse\n3) Senha do Clickhouse: $pass_clickhouse\n4) URL Langfuse: $url_langfuse\n5) Criar Stack no Portainer: $([ "$criar_portainer" == "0" ] && echo "0 (Editável)" || echo "1 (Não editável)")\n\nConfira e Tecle Enter para continuar. Na próxima etapa você poderá confirmar os dados ou corrigir, se necessário." \
+    --msgbox "TIPO DE INSTALAÇÃO: $INSTALL_TYPE\n\nDados Preenchidos:\n\n1) URL do Clickhouse: $url_clickhouse\n2) Usuário do Clickhouse: $user_clickhouse\n3) Senha do Clickhouse: [PROTEGIDA]\n4) URL Langfuse: $url_langfuse\n5) Criar Stack no Portainer: $([ "$criar_portainer" == "0" ] && echo "0 (Editável)" || echo "1 (Não editável)")\n\nConfira e Tecle Enter para continuar. Na próxima etapa você poderá confirmar os dados ou corrigir, se necessário." \
     --fb 22 80
 
 fi
@@ -489,7 +654,7 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     echo -e "XXX\n15\nATUALIZANDO CONFIGURAÇÃO DO TUNNEL... \nXXX"
 
     # Configuração do novo serviço para o Minio
-    NEW_SERVICE="http://${nome_app2}:9001"
+    NEW_SERVICE="http://${minio_internal_host}:9001"
     
     # Arquivos temporários
     TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
@@ -690,7 +855,7 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     echo -e "XXX\n15\nATUALIZANDO CONFIGURAÇÃO DO TUNNEL... \nXXX"
 
     # Configuração do novo serviço para o Minio
-    NEW_SERVICE="http://${nome_app2}:9000"
+    NEW_SERVICE="http://${minio_internal_host}:9000"
     
     # Arquivos temporários
     TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
@@ -828,9 +993,11 @@ services:
   $nome_app2:
     image: quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z
     command: server /data --console-address ":9001"
-    networks: 
-      - interna
-      - externa
+    networks:
+      interna:
+        aliases:
+          - $minio_internal_host
+      externa:
     volumes:
       - $nome_app2-data:/data
     environment:
@@ -838,6 +1005,12 @@ services:
       - MINIO_ROOT_PASSWORD=$senhaminio
       - MINIO_BROWSER_REDIRECT_URL=https://$painel
       - MINIO_SERVER_URL=https://$publico
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
     deploy:
       mode: replicated
       replicas: 1
@@ -877,6 +1050,11 @@ networks:
     external: true
 EOL
 
+    if ! docker volume inspect "$nome_app2-data" >/dev/null 2>&1 &&
+       ! docker volume create "$nome_app2-data" >> "$LANGFUSE_INSTALL_LOG" 2>&1; then
+        langfuse_fail 31 "Não foi possível criar o volume persistente do MinIO."
+    fi
+
     if [[ "$criar_portainer" == "0" ]]; then
         echo -e "XXX\n33\nCRIANDO STACK NO PORTAINER 3/4  \nXXX"
         # Configurações para criação via Portainer
@@ -897,12 +1075,14 @@ EOL
 
         get_auth_token() {
             echo -e "XXX\n39\nAUTENTICANDO NO PORTAINER... 3/4  \nXXX"
-            RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
+            PORTAINER_DIAG_STAGE="minio_auth"
+            RESPONSE=$(portainer_api_curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
                 -H "Content-Type: application/json" \
                 -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
-            TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
+            TOKEN=$(echo "$RESPONSE" | jq -r '.jwt' 2>/dev/null)
             if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-                echo -e "XXX\n40\nFALHA NA AUTENTICAÇÃO.. 3/4  \nXXX"
+                portainer_log_failure "minio_auth_invalid_response" "0" "nao_validado" "$(printf '%s' "$RESPONSE" | wc -c)"
+                echo -e "XXX\n40\nFALHA NA AUTENTICAÇÃO. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
                 sleep 5
                 echo -e "XXX\n41\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
                 docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
@@ -914,11 +1094,13 @@ EOL
 
         get_endpoint_id() {
             echo -e "XXX\n43\n[INFO] OBTENDO ENDPOINTID 3/4  \nXXX"
-            RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
+            PORTAINER_DIAG_STAGE="minio_endpoints"
+            RESPONSE=$(portainer_api_curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
                 -H "Authorization: Bearer $TOKEN")
-            ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
+            ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id' 2>/dev/null)
             if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
-                echo -e "XXX\n44\n[ERRO] ENDPOINTID NÃO ENCONTRADO 3/4  \nXXX"
+                portainer_log_failure "minio_endpoints_invalid_response" "0" "nao_validado" "$(printf '%s' "$RESPONSE" | wc -c)"
+                echo -e "XXX\n44\n[ERRO] ENDPOINTID NÃO ENCONTRADO. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
                 docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
                 exit 1
             fi
@@ -927,11 +1109,13 @@ EOL
 
         get_swarm_id() {
             echo -e "XXX\n46\n[INFO] OBTENDO SWARMID  3/4  \nXXX"
-            RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
+            PORTAINER_DIAG_STAGE="minio_swarm"
+            RESPONSE=$(portainer_api_curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
                 -H "Authorization: Bearer $TOKEN")
-            SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
+            SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID' 2>/dev/null)
             if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
-                echo -e "XXX\n47\n[ERRO] SWARMID NÃO ENCONTRADO 3/4  \nXXX"
+                portainer_log_failure "minio_swarm_invalid_response" "0" "nao_validado" "$(printf '%s' "$RESPONSE" | wc -c)"
+                echo -e "XXX\n47\n[ERRO] SWARMID NÃO ENCONTRADO. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
                 docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
                 exit 1
             fi
@@ -950,7 +1134,8 @@ EOL
             response_output=$(mktemp)
             erro_output=$(mktemp)
 
-            http_code=$(curl -s -o "$response_output" -w "%{http_code}"  -X POST \
+            PORTAINER_DIAG_STAGE="minio_create"
+            http_code=$(portainer_upload_curl -sS -o "$response_output" -w "%{http_code}" -X POST \
                 -H "Authorization: Bearer $TOKEN" \
                 -F "Name=$STACK_NAME" \
                 -F "file=@$STACK_FILE_PATH" \
@@ -961,8 +1146,9 @@ EOL
             response=$(cat "$response_output")
             rm -f "$response_output" "$erro_output"
 
-            if [ "$http_code" -ne 200 ]; then
-                echo -e "XXX\n56\n[ERRO] ERRO AO CRIAR STACK 3/4  \nXXX"
+            if [ "$http_code" != "200" ]; then
+                portainer_log_failure "minio_create_http" "0" "${http_code:-000}" "$(printf '%s' "$response" | wc -c)"
+                echo -e "XXX\n56\n[ERRO] ERRO AO CRIAR STACK. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
                 docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
                 exit 1
             fi
@@ -977,7 +1163,9 @@ EOL
 
     elif [[ "$criar_portainer" == "1" ]]; then
         echo "Criando a stack diretamente no Docker (não editável no Portainer)."
-        docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
+        docker stack deploy --prune --resolve-image always \
+            -c "$nome_app2.yaml" "$nome_app2" >> "$LANGFUSE_INSTALL_LOG" 2>&1 ||
+            langfuse_fail 33 "O Docker Swarm recusou a stack do MinIO."
     else
         echo -e "XXX\n58\n[ERRO] ERRO INESPERADO PARA CRIAR STACK NO PORTAINER 3/4  \nXXX"
         sleep 5
@@ -986,6 +1174,7 @@ EOL
         sleep 5
         exit 1
     fi
+        wait_service_healthy "$minio_service" "MinIO" 34
         echo -e "XXX\n60\nFINALIZANDO BUILD DO MINIO 4/4  \nXXX"
         sleep 2
         echo -e "XXX\n61\nFINALIZANDO BUILD DO MINIO 4/4 - CONCLUÍDO  \nXXX"
@@ -994,7 +1183,7 @@ fi
 
 
 
-if [[ ("$minio_container" == "") ]]; then
+if [[ ("$clickhouse_container" == "") ]]; then
 
 #VERIFICANDO CONFIGURAÇÃO Clickhouse
 
@@ -1086,7 +1275,7 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     echo -e "XXX\n35\nATUALIZANDO CONFIGURAÇÃO DO TUNNEL... \nXXX"
 
     # Configuração do novo serviço para o Rabbitmq
-    NEW_SERVICE="http://${nome_app3}:8123"
+    NEW_SERVICE="http://${clickhouse_internal_host}:8123"
     
     # Arquivos temporários
     TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
@@ -1225,14 +1414,17 @@ version: "3.7"
 services:
   $nome_app3:
     image: clickhouse/clickhouse-server:25.12
+    user: "101:101"
 
     volumes:
       - $nome_app3-data:/var/lib/clickhouse
       - $nome_app3-log:/var/log/clickhouse-server
 
-    networks: 
-      - externa
-      - interna
+    networks:
+      externa:
+      interna:
+        aliases:
+          - $clickhouse_internal_host
 
     #ports:
     #  - "8124:8123"
@@ -1243,6 +1435,7 @@ services:
       - CLICKHOUSE_DB=default
       - CLICKHOUSE_USER=$user_clickhouse
       - CLICKHOUSE_PASSWORD=$pass_clickhouse
+      - TZ=UTC
 
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8123/ping || exit 1"]
@@ -1291,6 +1484,13 @@ networks:
 
 EOL
 
+for clickhouse_volume in "$nome_app3-data" "$nome_app3-log"; do
+    if ! docker volume inspect "$clickhouse_volume" >/dev/null 2>&1 &&
+       ! docker volume create "$clickhouse_volume" >> "$LANGFUSE_INSTALL_LOG" 2>&1; then
+        langfuse_fail 32 "Não foi possível criar o volume persistente $clickhouse_volume."
+    fi
+done
+
 #docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
 
 
@@ -1329,13 +1529,15 @@ fi
 get_auth_token() {
     #echo "[INFO] Autenticando no Portainer..."
     echo -e "XXX\n77\nAUTENTICANDO NO PORTAINER... 3/4  \nXXX"
-    RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
+    PORTAINER_DIAG_STAGE="clickhouse_auth"
+    RESPONSE=$(portainer_api_curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
         -H "Content-Type: application/json" \
         -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
-    TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
+    TOKEN=$(echo "$RESPONSE" | jq -r '.jwt' 2>/dev/null)
     if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
         # echo "[ERRO] Falha na autenticação."
-        echo -e "XXX\n77\nFALHA NA AUTENTICAÇÃO.. 3/4  \nXXX"
+        portainer_log_failure "clickhouse_auth_invalid_response" "0" "nao_validado" "$(printf '%s' "$RESPONSE" | wc -c)"
+        echo -e "XXX\n77\nFALHA NA AUTENTICAÇÃO. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
 sleep 5
 echo -e "XXX\n78\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
 docker stack deploy --prune --resolve-image always -c $nome_app3.yaml $nome_app3 >/dev/null 2>&1
@@ -1350,12 +1552,14 @@ sleep 5
 get_endpoint_id() {
    # echo "[INFO] Obtendo EndpointID..."
     echo -e "XXX\n80\n[INFO] OBTENDO ENDPOINTID 3/4  \nXXX"
-    RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
+    PORTAINER_DIAG_STAGE="clickhouse_endpoints"
+    RESPONSE=$(portainer_api_curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
         -H "Authorization: Bearer $TOKEN")
-    ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
+    ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id' 2>/dev/null)
     if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
         # echo "[ERRO] EndpointID não encontrado! Resposta: $RESPONSE"
-        echo -e "XXX\n81\n[ERRO] ENDPOINTID NÃO ENCONTRADO 3/4  \nXXX"
+        portainer_log_failure "clickhouse_endpoints_invalid_response" "0" "nao_validado" "$(printf '%s' "$RESPONSE" | wc -c)"
+        echo -e "XXX\n81\n[ERRO] ENDPOINTID NÃO ENCONTRADO. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
         docker stack deploy --prune --resolve-image always -c $nome_app3.yaml $nome_app3 >/dev/null 2>&1
         exit 1
     fi
@@ -1367,12 +1571,14 @@ get_endpoint_id() {
 get_swarm_id() {
    # echo "[INFO] Obtendo SwarmID..."
     echo -e "XXX\n83\n[INFO] OBTENDO SWARMID  3/4  \nXXX"
-    RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
+    PORTAINER_DIAG_STAGE="clickhouse_swarm"
+    RESPONSE=$(portainer_api_curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
         -H "Authorization: Bearer $TOKEN")
-    SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
+    SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID' 2>/dev/null)
     if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
         #echo "[ERRO] SwarmID não encontrado! Resposta: $RESPONSE"
-        echo -e "XXX\n84\n[ERRO] SWARMID NÃO ENCONTRADO 3/4  \nXXX"
+        portainer_log_failure "clickhouse_swarm_invalid_response" "0" "nao_validado" "$(printf '%s' "$RESPONSE" | wc -c)"
+        echo -e "XXX\n84\n[ERRO] SWARMID NÃO ENCONTRADO. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
         docker stack deploy --prune --resolve-image always -c $nome_app3.yaml $nome_app3 >/dev/null 2>&1
         exit 1
     fi
@@ -1396,7 +1602,8 @@ create_stack() {
     response_output=$(mktemp)
     erro_output=$(mktemp)
 
-    http_code=$(curl -s -o "$response_output" -w "%{http_code}"  -X POST \
+    PORTAINER_DIAG_STAGE="clickhouse_create"
+    http_code=$(portainer_upload_curl -sS -o "$response_output" -w "%{http_code}" -X POST \
         -H "Authorization: Bearer $TOKEN" \
         -F "Name=$STACK_NAME" \
         -F "file=@$STACK_FILE_PATH" \
@@ -1410,9 +1617,10 @@ create_stack() {
    # echo "[DEBUG] Resposta da criação da stack: $response"
    # echo "[DEBUG] Código HTTP: $http_code"
 
-    if [ "$http_code" -ne 200 ]; then
+    if [ "$http_code" != "200" ]; then
        # echo "[ERRO] Erro ao criar a stack. Código HTTP: $http_code. Resposta: $response"
-        echo -e "XXX\n89\n[ERRO] ERRO AO CRIAR STACK 3/4  \nXXX"
+        portainer_log_failure "clickhouse_create_http" "0" "${http_code:-000}" "$(printf '%s' "$response" | wc -c)"
+        echo -e "XXX\n89\n[ERRO] ERRO AO CRIAR STACK. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
         docker stack deploy --prune --resolve-image always -c $nome_app3.yaml $nome_app3 >/dev/null 2>&1
         exit 1
     fi
@@ -1435,7 +1643,9 @@ create_stack || exit 1
 elif [[ "$criar_portainer" == "1" ]]; then
     # A stack será criada diretamente no Docker
     echo -e "XXX\n91\nCRIANDO STACK NO PORTAINER 3/4  \nXXX"
-    docker stack deploy --prune --resolve-image always -c $nome_app3.yaml $nome_app3 >/dev/null 2>&1
+    docker stack deploy --prune --resolve-image always \
+        -c "$nome_app3.yaml" "$nome_app3" >> "$LANGFUSE_INSTALL_LOG" 2>&1 ||
+        langfuse_fail 35 "O Docker Swarm recusou a stack do ClickHouse."
 else
     # Caso inesperado (não deve ocorrer devido à validação anterior no while loop)
    # echo "Erro: valor inesperado para criar_portainer. Encerrando..."
@@ -1448,6 +1658,7 @@ sleep 5
     exit 1
 fi
 
+wait_service_healthy "$clickhouse_service" "ClickHouse" 36
 
 echo -e "XXX\n90\nAGUARDANDO SERVIÇOS INICIALIZAREM... \nXXX"
 sleep 15
@@ -1689,147 +1900,266 @@ cd
 cd
 clear
 
-###### checa se minio está rodando
+###### valida o MinIO pela rede interna do Swarm
 
 max_wait_time=300
 wait_interval=5
-
 elapsed_time=0
+CONTAINER_ID=""
 
-while [ $elapsed_time -lt $max_wait_time ]; do
-	if [[ -n "$minio_container" ]]; then
-		CONTAINER_ID="$minio_container"
-	else
-		CONTAINER_ID=$(docker ps --filter "name=$nome_app2" --format '{{.ID}}' | head -n1)
-	fi
-	if [ -n "$CONTAINER_ID" ]; then
-		break
-	fi
-	sleep $wait_interval
-	elapsed_time=$((elapsed_time + wait_interval))
+while [ "$elapsed_time" -lt "$max_wait_time" ]; do
+    remaining_time=$((max_wait_time - elapsed_time))
+    echo -e "XXX\n75\nAGUARDANDO SERVIÇO MINIO: ${elapsed_time}s decorridos, limite ${max_wait_time}s (${remaining_time}s restantes)\nXXX"
+    if [[ -n "$minio_container" ]]; then
+        CONTAINER_ID="$minio_container"
+    else
+        CONTAINER_ID=$(docker ps \
+            --filter "label=com.docker.swarm.service.name=$minio_service" \
+            --format '{{.ID}}' | head -n1)
+    fi
+    [ -n "$CONTAINER_ID" ] && break
+    sleep "$wait_interval"
+    elapsed_time=$((elapsed_time + wait_interval))
 done
 
 if [ -z "$CONTAINER_ID" ]; then
-    whiptail --title "Erro" --msgbox "O container do Minio não foi encontrado após $max_wait_time segundos" 10 60
-    exit 1
+    langfuse_fail 61 "O serviço MinIO não criou um container em até ${max_wait_time} segundos. O Langfuse não foi implantado."
 fi
 
-# Instalar mc (Minio Client) e jq se necessário
-if ! command -v mc &> /dev/null; then
-# Instalar versão adequada à sua arquitetura
-ARCH=$(uname -m)
+# A mesma imagem validada do servidor contém o binário mc e é multiarch.
+MINIO_MC_IMAGE="quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z"
+minio_mc_service="${nome_app}-mc-internal"
+minio_root_user_secret="${nome_app}-mc-root-user"
+minio_root_password_secret="${nome_app}-mc-root-password"
+minio_access_key_secret="${nome_app}-mc-access-key"
+minio_secret_key_secret="${nome_app}-mc-secret-key"
+bucket_name="$nome_app"
+access_key="${nome_app}$(openssl rand -hex 4)"
+secret_key=$(openssl rand -hex 20)
 
-if [[ "$ARCH" == "x86_64" ]]; then
-    if ! wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc; then
-        whiptail --title "Erro" --msgbox "Não foi possível baixar o MinIO Client para x86_64." 10 60
-        exit 1
+cleanup_minio_mc_resources() {
+    local attempt
+    docker service rm "$minio_mc_service" >/dev/null 2>&1 || true
+    for attempt in $(seq 1 20); do
+        docker service inspect "$minio_mc_service" >/dev/null 2>&1 || break
+        sleep 1
+    done
+    docker secret rm \
+        "$minio_root_user_secret" \
+        "$minio_root_password_secret" \
+        "$minio_access_key_secret" \
+        "$minio_secret_key_secret" >/dev/null 2>&1 || true
+}
+
+cleanup_minio_mc_resources
+trap cleanup_minio_mc_resources EXIT
+
+echo -e "XXX\n75\nPREPARANDO CLIENTE MINIO INTERNO (X86/ARM)\nXXX"
+if ! docker image inspect "$MINIO_MC_IMAGE" >/dev/null 2>&1; then
+    if ! timeout --signal=TERM --kill-after=5s 180s \
+        docker pull "$MINIO_MC_IMAGE" >> "$LANGFUSE_INSTALL_LOG" 2>&1; then
+        langfuse_fail 62 "Não foi possível obter a imagem fixada do MinIO Client. Verifique a conexão do servidor e tente novamente."
     fi
-elif [[ "$ARCH" == "aarch64" ]] || [[ "$ARCH" == "armv7l" ]]; then
-    if ! wget -q https://dl.min.io/client/mc/release/linux-arm64/mc -O /usr/local/bin/mc; then
-        whiptail --title "Erro" --msgbox "Não foi possível baixar o MinIO Client para ARM64." 10 60
-        exit 1
-    fi
-else
-    whiptail --title "Erro" --msgbox "Arquitetura não suportada pelo MinIO Client: $ARCH" 10 60
-    exit 1
 fi
 
-# Tornar executável
-chmod +x /usr/local/bin/mc
+printf '%s' "$MINIO_USER" | docker secret create "$minio_root_user_secret" - \
+    >> "$LANGFUSE_INSTALL_LOG" 2>&1 ||
+    langfuse_fail 63 "Não foi possível proteger o usuário interno do MinIO como Docker Secret."
+printf '%s' "$MINIO_PASSWORD" | docker secret create "$minio_root_password_secret" - \
+    >> "$LANGFUSE_INSTALL_LOG" 2>&1 ||
+    langfuse_fail 64 "Não foi possível proteger a senha interna do MinIO como Docker Secret."
+printf '%s' "$access_key" | docker secret create "$minio_access_key_secret" - \
+    >> "$LANGFUSE_INSTALL_LOG" 2>&1 ||
+    langfuse_fail 65 "Não foi possível proteger a chave S3 do Langfuse como Docker Secret temporário."
+printf '%s' "$secret_key" | docker secret create "$minio_secret_key_secret" - \
+    >> "$LANGFUSE_INSTALL_LOG" 2>&1 ||
+    langfuse_fail 66 "Não foi possível proteger o segredo S3 do Langfuse como Docker Secret temporário."
+
+if ! docker service create --quiet \
+    --name "$minio_mc_service" \
+    --network interna \
+    --constraint 'node.role==manager' \
+    --restart-condition none \
+    --secret "source=$minio_root_user_secret,target=minio_root_user" \
+    --secret "source=$minio_root_password_secret,target=minio_root_password" \
+    --secret "source=$minio_access_key_secret,target=langfuse_access_key" \
+    --secret "source=$minio_secret_key_secret,target=langfuse_secret_key" \
+    --entrypoint /bin/sh \
+    "$MINIO_MC_IMAGE" -c '
+        set -eu
+        root_user=$(cat /run/secrets/minio_root_user)
+        root_password=$(cat /run/secrets/minio_root_password)
+        access_key=$(cat /run/secrets/langfuse_access_key)
+        secret_key=$(cat /run/secrets/langfuse_secret_key)
+        attempt=1
+        while [ "$attempt" -le 30 ]; do
+            if mc --config-dir /tmp/mc alias set minio "http://$1:9000" "$root_user" "$root_password" --api S3v4 >/dev/null 2>&1 &&
+               mc --config-dir /tmp/mc ready --quiet minio >/dev/null 2>&1; then
+                mc --config-dir /tmp/mc mb --ignore-existing "minio/$2" >/dev/null
+                policy_file=/tmp/langfuse-bucket-policy.json
+                printf "{\\\"Version\\\":\\\"2012-10-17\\\",\\\"Statement\\\":[{\\\"Effect\\\":\\\"Allow\\\",\\\"Action\\\":[\\\"s3:ListBucket\\\",\\\"s3:GetBucketLocation\\\"],\\\"Resource\\\":[\\\"arn:aws:s3:::%s\\\"]},{\\\"Effect\\\":\\\"Allow\\\",\\\"Action\\\":[\\\"s3:GetObject\\\",\\\"s3:PutObject\\\",\\\"s3:DeleteObject\\\",\\\"s3:AbortMultipartUpload\\\",\\\"s3:ListMultipartUploadParts\\\"],\\\"Resource\\\":[\\\"arn:aws:s3:::%s/*\\\"]}]}" "$2" "$2" > "$policy_file"
+                mc --config-dir /tmp/mc admin user svcacct add minio "$root_user" \
+                    --access-key "$access_key" --secret-key "$secret_key" \
+                    --policy "$policy_file" --json >/dev/null
+                exit 0
+            fi
+            attempt=$((attempt + 1))
+            sleep 2
+        done
+        exit 67
+    ' sh "$minio_internal_host" "$bucket_name" >> "$LANGFUSE_INSTALL_LOG" 2>&1; then
+    langfuse_fail 67 "Não foi possível iniciar a validação interna e o provisionamento seguro do MinIO."
 fi
 
-if ! command -v jq &> /dev/null; then
-    apt-get install -y jq >/dev/null 2>&1
-fi
-
-# Aguardar o endpoint S3 responder. O teste é bloqueante para impedir que o
-# Langfuse seja implantado com bucket ou credenciais vazias.
-minio_ready=0
+minio_mc_ready=0
 for tentativa in $(seq 1 60); do
-    if mc alias set minio "https://$MINIO_PUBLIC_URL" "$MINIO_USER" "$MINIO_PASSWORD" \
-        --api S3v4 >/dev/null 2>&1; then
-        minio_ready=1
-        break
-    fi
+    echo -e "XXX\n75\nVALIDANDO MINIO INTERNAMENTE: tentativa ${tentativa}/60\nXXX"
+    minio_mc_state=$(docker service ps "$minio_mc_service" --no-trunc \
+        --format '{{.CurrentState}}' 2>> "$LANGFUSE_INSTALL_LOG" | head -n1)
+    case "$minio_mc_state" in
+        Complete*) minio_mc_ready=1; break ;;
+        Failed*|Rejected*|Shutdown*) break ;;
+    esac
     sleep 5
 done
 
-if [[ "$minio_ready" -ne 1 ]]; then
-    whiptail --title "Erro" --msgbox "O MinIO não ficou pronto após 5 minutos. A instalação foi interrompida antes de criar o stack do Langfuse." 12 70
-    exit 1
+if [ "$minio_mc_ready" -ne 1 ]; then
+    docker service ps "$minio_mc_service" --no-trunc \
+        --format 'Estado: {{.CurrentState}} | Erro: {{.Error}}' \
+        >> "$LANGFUSE_INSTALL_LOG" 2>&1 || true
+    docker service logs "$minio_mc_service" \
+        >> "$LANGFUSE_INSTALL_LOG" 2>&1 || true
+    langfuse_fail 68 "O MinIO não ficou pronto pela rede interna ou recusou a criação segura do bucket/credenciais. Consulte o log informado."
 fi
 
-# Criar bucket e credenciais
-bucket_name="$nome_app"
-if ! mc mb --ignore-existing "minio/$bucket_name" >/dev/null 2>&1; then
-    whiptail --title "Erro" --msgbox "Não foi possível criar o bucket privado do Langfuse no MinIO." 10 70
-    exit 1
-fi
-
-###########
-###########
-create_service_account() {
-    access_key="${nome_app}$(openssl rand -hex 4)"
-    secret_key=$(openssl rand -hex 20)
-
-    if ! credentials=$(mc admin user svcacct add minio "$MINIO_USER" \
-        --access-key "$access_key" \
-        --secret-key "$secret_key" \
-        --json 2>/dev/null); then
-        return 1
-    fi
-
-    access_key=$(echo "$credentials" | jq -r '.accessKey // empty')
-    secret_key=$(echo "$credentials" | jq -r '.secretKey // empty')
-    [[ -n "$access_key" && -n "$secret_key" ]]
-}
-
-# Chamar a função
-if ! create_service_account; then
-    whiptail --title "Erro" --msgbox "Não foi possível criar as credenciais privadas do Langfuse no MinIO." 10 70
-    exit 1
-fi
+cleanup_minio_mc_resources
+trap - EXIT
 
 # O ClickHouse precisa estar pronto e autenticado antes do primeiro boot do
 # Langfuse. O comando antigo usava -it, ignorava as credenciais e prosseguia
 # mesmo após falhar, deixando as migrations em loop.
 clickhouse_ready=0
-for tentativa in $(seq 1 60); do
-    clickhouse_container=$(docker ps --filter "name=$nome_app3" --format '{{.ID}}' | head -n1)
-    if [[ -n "$clickhouse_container" ]] && docker exec "$clickhouse_container" sh -c \
+clickhouse_max_attempts=30
+for tentativa in $(seq 1 "$clickhouse_max_attempts"); do
+    echo -e "XXX\n82\nVALIDANDO CLICKHOUSE: tentativa ${tentativa}/${clickhouse_max_attempts} (timeout de 8s por tentativa)\nXXX"
+    clickhouse_container=$(docker ps \
+        --filter "label=com.docker.swarm.service.name=$clickhouse_service" \
+        --format '{{.ID}}' | head -n1)
+    if [[ -n "$clickhouse_container" ]] && \
+        timeout --signal=TERM --kill-after=2s 8s \
+        docker exec "$clickhouse_container" sh -c \
         'clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --query "SELECT 1"' \
         >/dev/null 2>&1; then
         clickhouse_ready=1
         break
     fi
-    sleep 5
+    sleep 2
 done
 
 if [[ "$clickhouse_ready" -ne 1 ]]; then
-    whiptail --title "Erro" --msgbox "O ClickHouse não ficou pronto ou rejeitou as credenciais após 5 minutos. A instalação foi interrompida antes do stack do Langfuse." 12 70
-    exit 1
+    langfuse_fail 69 "O ClickHouse não ficou pronto ou rejeitou as credenciais. A stack do Langfuse não foi criada."
 fi
 
-clickhouse_version=$(docker exec "$clickhouse_container" sh -c \
+clickhouse_version=$(timeout --signal=TERM --kill-after=2s 15s \
+    docker exec "$clickhouse_container" sh -c \
     'clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --query "SELECT version()"' \
-    2>/dev/null)
+    2>/dev/null || true)
 clickhouse_major=${clickhouse_version%%.*}
 clickhouse_minor=${clickhouse_version#*.}
 clickhouse_minor=${clickhouse_minor%%.*}
 if [[ ! "$clickhouse_major" =~ ^[0-9]+$ ]] || [[ ! "$clickhouse_minor" =~ ^[0-9]+$ ]] || \
    (( clickhouse_major < 25 || (clickhouse_major == 25 && clickhouse_minor < 12) )); then
-    whiptail --title "Erro" --msgbox "O Langfuse 4 exige ClickHouse 25.12 ou superior, mas foi encontrada a versão ${clickhouse_version:-desconhecida}. Atualize o ClickHouse antes de instalar o Langfuse." 12 70
-    exit 1
+    langfuse_fail 70 "O Langfuse 4 exige ClickHouse 25.12 ou superior; versão encontrada: ${clickhouse_version:-desconhecida}."
 fi
 
-if ! docker exec "$clickhouse_container" sh -c \
-    'clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --query "$1"' \
-    sh "CREATE DATABASE IF NOT EXISTS \`$nome_app\`" >/dev/null 2>&1; then
-    whiptail --title "Erro" --msgbox "Não foi possível criar o banco do Langfuse no ClickHouse. A instalação foi interrompida." 10 70
-    exit 1
+container_id=$(docker ps --filter name=postgres --format '{{.ID}}' | head -n1)
+if [[ -z "$container_id" ]]; then
+    langfuse_fail 71 "O serviço PostgreSQL não possui um container ativo."
+fi
+
+# Uma tentativa anterior pode ter criado o banco e falhado antes do deploy da
+# stack. Reutilize esse banco em vez de transformar a recuperação em erro.
+postgres_database_exists=$(docker exec "$container_id" \
+    psql -U postgres -d postgres -tAc \
+    "SELECT 1 FROM pg_database WHERE datname = '$nome_app';" 2>/dev/null)
+if [[ "$postgres_database_exists" != "1" ]] && ! docker exec "$container_id" \
+    psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
+    -c "CREATE DATABASE $nome_app;" >/dev/null 2>&1; then
+    langfuse_fail 71 "Não foi possível criar ou reutilizar o banco PostgreSQL do Langfuse após validar MinIO e ClickHouse."
+fi
+
+if ! timeout --signal=TERM --kill-after=2s 15s \
+    docker exec "$clickhouse_container" sh -c \
+        'clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --query "$1"' \
+        sh "CREATE DATABASE IF NOT EXISTS \`$nome_app\`" >/dev/null 2>&1; then
+    langfuse_fail 72 "Não foi possível criar o banco do Langfuse no ClickHouse."
 fi
 
 echo -e "XXX\n75\nBANCO $nome_app CRIADO E VALIDADO \nXXX"
+
+# Redis dedicado em stack separada. Para BullMQ/Langfuse a política oficial é
+# noeviction; descartar chaves silenciosamente corromperia filas de ingestão.
+redis_stack_name="${nome_app}-redis"
+redis_service_name="${redis_stack_name}_${nome_app}-redis"
+redis_internal_host="${nome_app}-redis"
+redis_volume="${nome_app}-redis-data"
+redis_password=$(openssl rand -hex 24)
+redis_yaml="/root/${redis_stack_name}.yaml"
+
+if ! docker volume inspect "$redis_volume" >/dev/null 2>&1 &&
+   ! docker volume create "$redis_volume" >> "$LANGFUSE_INSTALL_LOG" 2>&1; then
+    langfuse_fail 73 "Não foi possível criar o volume persistente do Redis dedicado."
+fi
+
+cat > "$redis_yaml" <<EOL
+version: "3.7"
+services:
+  $nome_app-redis:
+    image: redis:7-alpine
+    command:
+      - redis-server
+      - --requirepass
+      - $redis_password
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - noeviction
+    networks:
+      interna:
+        aliases:
+          - $redis_internal_host
+    volumes:
+      - $redis_volume:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a '$redis_password' ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 384M
+volumes:
+  $redis_volume:
+    external: true
+    name: $redis_volume
+networks:
+  interna:
+    external: true
+EOL
+
+echo -e "XXX\n84\nCRIANDO REDIS DEDICADO EM STACK SEPARADA\nXXX"
+deploy_stack_checked "$redis_stack_name" "$redis_yaml" 74
+wait_service_healthy "$redis_service_name" "Redis dedicado do Langfuse" 75
 
 ## Criando key Aleatória 64caracteres
 key_encryption=$(openssl rand -hex 32)
@@ -1851,8 +2181,10 @@ services:
     image: langfuse/langfuse:4
 
     networks:
-      - externa
-      - interna  
+      externa:
+      interna:
+        aliases:
+          - $nome_app
 
     environment:
       ## Url do Langfuse
@@ -1870,8 +2202,8 @@ services:
       - DATABASE_URL=postgresql://postgres:$postgres_password@postgres:5432/$nome_app
 
       ## Dados do ClickHouse
-      - CLICKHOUSE_MIGRATION_URL=clickhouse://$nome_app3:9000
-      - CLICKHOUSE_URL=http://$nome_app3:8123
+      - CLICKHOUSE_MIGRATION_URL=clickhouse://$clickhouse_internal_host:9000
+      - CLICKHOUSE_URL=http://$clickhouse_internal_host:8123
       - CLICKHOUSE_USER=$USUARIO_CLICKHOUSE
       - CLICKHOUSE_PASSWORD=$SENHA_CLICKHOUSE
       - CLICKHOUSE_CLUSTER_ENABLED=false
@@ -1879,11 +2211,11 @@ services:
 
 
      ## Dados Redis
-      - REDIS_CONNECTION_STRING=redis://$nome_app-redis:6379
+      - REDIS_CONNECTION_STRING=redis://:$redis_password@$redis_internal_host:6379
 
 
       ## Dados do S3 - Eventos
-      - LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=https://$MINIO_PUBLIC_URL
+      - LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://$minio_internal_host:9000
       - LANGFUSE_S3_EVENT_UPLOAD_BUCKET=$nome_app
       - LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID=$access_key
       - LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY=$secret_key
@@ -1901,6 +2233,17 @@ services:
       - LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE=true
       - LANGFUSE_S3_MEDIA_UPLOAD_PREFIX=media/
 
+      ## Exportações em lote usam o endpoint interno; downloads web continuam
+      ## assinados pelo endpoint público acima.
+      - LANGFUSE_S3_BATCH_EXPORT_ENABLED=true
+      - LANGFUSE_S3_BATCH_EXPORT_ENDPOINT=http://$minio_internal_host:9000
+      - LANGFUSE_S3_BATCH_EXPORT_BUCKET=$nome_app
+      - LANGFUSE_S3_BATCH_EXPORT_ACCESS_KEY_ID=$access_key
+      - LANGFUSE_S3_BATCH_EXPORT_SECRET_ACCESS_KEY=$secret_key
+      - LANGFUSE_S3_BATCH_EXPORT_REGION=auto
+      - LANGFUSE_S3_BATCH_EXPORT_FORCE_PATH_STYLE=true
+      - LANGFUSE_S3_BATCH_EXPORT_PREFIX=exports/
+
       ## Ativar Telemetria
       - TELEMETRY_ENABLED=false
 
@@ -1910,6 +2253,14 @@ services:
       ## Node
       - NODE_ENV=production
       - NODE_OPTIONS=--max-old-space-size=1536
+      - TZ=UTC
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider 'http://127.0.0.1:3000/api/public/health?failIfDatabaseUnavailable=true' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
 
     deploy:
       mode: replicated
@@ -1940,9 +2291,11 @@ cat >> $nome_app.yaml << EOL
   $nome_app-worker:
     image: langfuse/langfuse-worker:4
 
-    networks: 
-      - externa
-      - interna
+    networks:
+      externa:
+      interna:
+        aliases:
+          - $nome_app-worker
 
     environment:
       ## Url do Langfuse
@@ -1960,8 +2313,8 @@ cat >> $nome_app.yaml << EOL
       - DATABASE_URL=postgresql://postgres:$postgres_password@postgres:5432/$nome_app
 
       ## Dados do ClickHouse
-      - CLICKHOUSE_MIGRATION_URL=clickhouse://$nome_app3:9000
-      - CLICKHOUSE_URL=http://$nome_app3:8123
+      - CLICKHOUSE_MIGRATION_URL=clickhouse://$clickhouse_internal_host:9000
+      - CLICKHOUSE_URL=http://$clickhouse_internal_host:8123
       - CLICKHOUSE_USER=$USUARIO_CLICKHOUSE
       - CLICKHOUSE_PASSWORD=$SENHA_CLICKHOUSE
       - CLICKHOUSE_CLUSTER_ENABLED=false
@@ -1969,11 +2322,11 @@ cat >> $nome_app.yaml << EOL
 
 
      ## Dados Redis
-      - REDIS_CONNECTION_STRING=redis://$nome_app-redis:6379
+      - REDIS_CONNECTION_STRING=redis://:$redis_password@$redis_internal_host:6379
 
 
       ## Dados do S3 - Eventos
-      - LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=https://$MINIO_PUBLIC_URL
+      - LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://$minio_internal_host:9000
       - LANGFUSE_S3_EVENT_UPLOAD_BUCKET=$nome_app
       - LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID=$access_key
       - LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY=$secret_key
@@ -1983,13 +2336,22 @@ cat >> $nome_app.yaml << EOL
 
 
       ## Dados do S3 - Medias
-      - LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT=https://$MINIO_PUBLIC_URL
+      - LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT=http://$minio_internal_host:9000
       - LANGFUSE_S3_MEDIA_UPLOAD_BUCKET=$nome_app
       - LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID=$access_key
       - LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY=$secret_key
       - LANGFUSE_S3_MEDIA_UPLOAD_REGION=auto
       - LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE=true
       - LANGFUSE_S3_MEDIA_UPLOAD_PREFIX=media/
+
+      - LANGFUSE_S3_BATCH_EXPORT_ENABLED=true
+      - LANGFUSE_S3_BATCH_EXPORT_ENDPOINT=http://$minio_internal_host:9000
+      - LANGFUSE_S3_BATCH_EXPORT_BUCKET=$nome_app
+      - LANGFUSE_S3_BATCH_EXPORT_ACCESS_KEY_ID=$access_key
+      - LANGFUSE_S3_BATCH_EXPORT_SECRET_ACCESS_KEY=$secret_key
+      - LANGFUSE_S3_BATCH_EXPORT_REGION=auto
+      - LANGFUSE_S3_BATCH_EXPORT_FORCE_PATH_STYLE=true
+      - LANGFUSE_S3_BATCH_EXPORT_PREFIX=exports/
 
       ## Ativar Telemetria
       - TELEMETRY_ENABLED=false
@@ -2000,6 +2362,14 @@ cat >> $nome_app.yaml << EOL
       ## Node
       - NODE_ENV=production
       - NODE_OPTIONS=--max-old-space-size=1536
+      - TZ=UTC
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3030/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
 
     deploy:
       mode: replicated
@@ -2011,46 +2381,6 @@ cat >> $nome_app.yaml << EOL
           limits:
             cpus: '1'
             memory: 2048M
-
-
-  $nome_app-redis:
-    image: redis:7
-    command: [
-        "redis-server",
-        "--appendonly",
-        "yes",
-        "--maxmemory-policy",
-        "noeviction",
-        "--port",
-        "6379"
-      ]
-
-    volumes:
-      - $nome_app-redis:/data
-
-    networks: 
-      - interna
-
-    ## Descomente as linhas abaixo para uso externo
-    #ports:
-    #  - 6379:6379
-
-    deploy:
-      placement:
-        constraints:
-          - node.role == manager
-      resources:
-        limits:
-          cpus: "1"
-          memory: 1024M
-
-
-volumes:
-   $nome_app-redis:
-    external: true
-    name: $nome_app-redis
-
-
 networks:
   interna:
     external: true
@@ -2093,13 +2423,15 @@ fi
 get_auth_token() {
     #echo "[INFO] Autenticando no Portainer..."
     echo -e "XXX\n77\nAUTENTICANDO NO PORTAINER... 3/4  \nXXX"
-    RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
+    PORTAINER_DIAG_STAGE="langfuse_auth"
+    RESPONSE=$(portainer_api_curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
         -H "Content-Type: application/json" \
         -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
-    TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
+    TOKEN=$(echo "$RESPONSE" | jq -r '.jwt' 2>/dev/null)
     if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
         # echo "[ERRO] Falha na autenticação."
-        echo -e "XXX\n77\nFALHA NA AUTENTICAÇÃO.. 3/4  \nXXX"
+        portainer_log_failure "langfuse_auth_invalid_response" "0" "nao_validado" "$(printf '%s' "$RESPONSE" | wc -c)"
+        echo -e "XXX\n77\nFALHA NA AUTENTICAÇÃO. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
 sleep 5
 echo -e "XXX\n78\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
 docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
@@ -2114,12 +2446,14 @@ sleep 5
 get_endpoint_id() {
    # echo "[INFO] Obtendo EndpointID..."
     echo -e "XXX\n80\n[INFO] OBTENDO ENDPOINTID 3/4  \nXXX"
-    RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
+    PORTAINER_DIAG_STAGE="langfuse_endpoints"
+    RESPONSE=$(portainer_api_curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
         -H "Authorization: Bearer $TOKEN")
-    ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
+    ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id' 2>/dev/null)
     if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
         # echo "[ERRO] EndpointID não encontrado! Resposta: $RESPONSE"
-        echo -e "XXX\n81\n[ERRO] ENDPOINTID NÃO ENCONTRADO 3/4  \nXXX"
+        portainer_log_failure "langfuse_endpoints_invalid_response" "0" "nao_validado" "$(printf '%s' "$RESPONSE" | wc -c)"
+        echo -e "XXX\n81\n[ERRO] ENDPOINTID NÃO ENCONTRADO. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
         docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
         exit 1
     fi
@@ -2131,12 +2465,14 @@ get_endpoint_id() {
 get_swarm_id() {
    # echo "[INFO] Obtendo SwarmID..."
     echo -e "XXX\n83\n[INFO] OBTENDO SWARMID  3/4  \nXXX"
-    RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
+    PORTAINER_DIAG_STAGE="langfuse_swarm"
+    RESPONSE=$(portainer_api_curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
         -H "Authorization: Bearer $TOKEN")
-    SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
+    SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID' 2>/dev/null)
     if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
         #echo "[ERRO] SwarmID não encontrado! Resposta: $RESPONSE"
-        echo -e "XXX\n84\n[ERRO] SWARMID NÃO ENCONTRADO 3/4  \nXXX"
+        portainer_log_failure "langfuse_swarm_invalid_response" "0" "nao_validado" "$(printf '%s' "$RESPONSE" | wc -c)"
+        echo -e "XXX\n84\n[ERRO] SWARMID NÃO ENCONTRADO. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
         docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
         exit 1
     fi
@@ -2160,7 +2496,8 @@ create_stack() {
     response_output=$(mktemp)
     erro_output=$(mktemp)
 
-    http_code=$(curl -s -o "$response_output" -w "%{http_code}"  -X POST \
+    PORTAINER_DIAG_STAGE="langfuse_create"
+    http_code=$(portainer_upload_curl -sS -o "$response_output" -w "%{http_code}" -X POST \
         -H "Authorization: Bearer $TOKEN" \
         -F "Name=$STACK_NAME" \
         -F "file=@$STACK_FILE_PATH" \
@@ -2174,9 +2511,10 @@ create_stack() {
    # echo "[DEBUG] Resposta da criação da stack: $response"
    # echo "[DEBUG] Código HTTP: $http_code"
 
-    if [ "$http_code" -ne 200 ]; then
+    if [ "$http_code" != "200" ]; then
        # echo "[ERRO] Erro ao criar a stack. Código HTTP: $http_code. Resposta: $response"
-        echo -e "XXX\n89\n[ERRO] ERRO AO CRIAR STACK 3/4  \nXXX"
+        portainer_log_failure "langfuse_create_http" "0" "${http_code:-000}" "$(printf '%s' "$response" | wc -c)"
+        echo -e "XXX\n89\n[ERRO] ERRO AO CRIAR STACK. LOG: $PORTAINER_DIAG_LOG 3/4  \nXXX"
         docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
         exit 1
     fi
@@ -2199,7 +2537,10 @@ create_stack || exit 1
 elif [[ "$criar_portainer" == "1" ]]; then
     # A stack será criada diretamente no Docker
     echo "Criando a stack diretamente no Docker (não editável no Portainer)."
-    docker stack deploy --prune --resolve-image always -c $nome_app.yaml $nome_app >/dev/null 2>&1
+    if ! docker stack deploy --prune --resolve-image always \
+        -c "$nome_app.yaml" "$nome_app" >> "$LANGFUSE_INSTALL_LOG" 2>&1; then
+        langfuse_fail 73 "O Docker Swarm recusou a criação da stack principal do Langfuse."
+    fi
 else
     # Caso inesperado (não deve ocorrer devido à validação anterior no while loop)
    # echo "Erro: valor inesperado para criar_portainer. Encerrando..."
@@ -2212,6 +2553,17 @@ sleep 5
     exit 1
 fi
 
+validate_langfuse_stack() {
+    [ -s "/root/${nome_app}.yaml" ] ||
+        langfuse_fail 74 "A YAML principal do Langfuse não foi criada em /root/${nome_app}.yaml."
+    docker stack ls --format '{{.Name}}' | grep -Fxq "$nome_app" ||
+        langfuse_fail 75 "A stack $nome_app não foi encontrada no Docker Swarm após o deploy."
+    wait_service_healthy "${nome_app}_${nome_app}" "Langfuse Web" 76
+    wait_service_healthy "${nome_app}_${nome_app}-worker" "Langfuse Worker" 77
+}
+
+validate_langfuse_stack
+
 
 echo -e "XXX\n93\nFINALIZANDO BUILD DO LANGFUSE 4/4  \nXXX"
 
@@ -2221,7 +2573,26 @@ echo -e "XXX\n100\nFINALIZANDO BUILD DO LANGFUSE 4/4 - CONCLUIDO  \nXXX"
 
 sleep 3
 
-}|whiptail --title "LANGFUSE + MINIO + CLICKHOUSE - PROGRESSO DA INSTALAÇÃO" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
+} 2>> "$LANGFUSE_INSTALL_LOG" | whiptail --title "LANGFUSE + MINIO + CLICKHOUSE - PROGRESSO DA INSTALAÇÃO" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
+langfuse_install_status=${PIPESTATUS[0]}
+
+if [ "$langfuse_install_status" -ne 0 ]; then
+    error_detail=$(cat "$LANGFUSE_ERROR_FILE" 2>/dev/null)
+    [ -n "$error_detail" ] || error_detail=$(tail -n 30 "$LANGFUSE_INSTALL_LOG" 2>/dev/null)
+    [ -n "$error_detail" ] || error_detail="Falha não identificada durante o fluxo protegido de instalação."
+    whiptail --title "ERRO NA INSTALAÇÃO DO LANGFUSE" --scrolltext --msgbox \
+        "A instalação foi interrompida sem declarar falso sucesso.\n\n$error_detail\n\nLog completo: $LANGFUSE_INSTALL_LOG" \
+        22 90
+    exit "$langfuse_install_status"
+fi
+
+if [ ! -s "/root/${nome_app}.yaml" ] ||
+   ! docker stack ls --format '{{.Name}}' | grep -Fxq "$nome_app"; then
+    whiptail --title "ERRO NA INSTALAÇÃO DO LANGFUSE" --msgbox \
+        "A pós-condição externa detectou que a YAML ou a stack principal do Langfuse está ausente.\n\nNenhum sucesso será informado.\nLog: $LANGFUSE_INSTALL_LOG" \
+        16 84
+    exit 77
+fi
 
 # FIM DE INSTALANDO O LANGFUSE
 #
@@ -2253,8 +2624,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
         if ! nslookup "$domain" >/dev/null 2>&1; then
             ((failed_domains++))
         elif ! nslookup "$domain" | grep -q "${TUNNEL_ID}.cfargotunnel.com"; then
-            # Não contar como falha imediatamente - DNS pode estar em propagação
-            :
+            ((failed_domains++))
         else
             # Domínio configurado corretamente
             :
