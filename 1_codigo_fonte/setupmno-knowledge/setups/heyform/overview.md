@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "HeyForm no Setup MNO",
   "setupId": "heyform",
-  "setupVersion": "7.7.48",
+  "setupVersion": "7.7.49",
   "architectures": [
     "amd64",
     "arm64"

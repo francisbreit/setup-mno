@@ -342,6 +342,11 @@ grep -Fq 'ACCESS_POLICY_AUD=$access_app_aud' "$template" &&
 grep -Fq 'prepare_existing_access_migration' "$template" &&
 grep -Fq 'rollback_existing_access_migration' "$template" &&
 grep -Fq 'metadados Cloudflare Access parciais ou inconsistentes' "$template" &&
+grep -Fq 'choose_cloudflare_access_security' "$template" &&
+grep -Fq 'build_cloudflare_access_payload' "$template" &&
+grep -Fq 'Access sem segundo fator extra' "$template" &&
+grep -Fq 'AddMfaDevice' "$template" &&
+grep -Fq 'mfa_disabled:true' "$template" &&
 grep -Fq 'mfa_disabled:false' "$template" &&
 grep -Fq 'session_duration:"0m"' "$template" &&
 grep -Fq 'access:{required:true,teamName:$team,audTag:[$aud]}' "$template" &&

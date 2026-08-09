@@ -22,11 +22,15 @@ painel.
 
 Em instalações por Cloudflare Tunnel, o domínio do Control Center é publicado
 somente depois da criação de um aplicativo Cloudflare Access com política para
-um e-mail exato e MFA independente em todo login. O token usado pelo Setup
+um e-mail exato. O assistente recomenda MFA independente, explica como habilitar
+e cadastrar o autenticador e também oferece instalação sem o segundo fator
+extra para ambientes ainda não preparados. O token usado pelo Setup
 precisa das permissões `Access: Apps and Policies Write` e
 `Access: Organizations Read`, além das permissões já usadas pelo Tunnel e DNS.
-Se o Zero Trust não possuir TOTP, biometria ou chave de segurança habilitados,
-a instalação para antes de criar stacks, DNS ou políticas incompletas.
+Se o usuário escolher MFA e o Zero Trust ainda não possuir TOTP, biometria ou
+chave de segurança habilitados, o instalador não encerra abruptamente: oferece
+instruções, nova tentativa, continuação consciente sem MFA ou cancelamento sem
+criar recursos.
 
 A identidade é validada três vezes: pelo Access na borda, pelo `cloudflared`
 antes do origin e pelo backend. A validação local aceita somente RS256, busca as
@@ -43,7 +47,8 @@ oferece continuidade. O limite absoluto continua em oito horas.
 
 O ttyd é apenas a janela de uma sessão tmux dedicada. Fechar o modal, perder a
 rede ou expirar a sessão desconecta o navegador, mas não encerra pulls, uploads
-ou instaladores em execução. Depois de passar novamente pelo Access/MFA, login
+ou instaladores em execução. Depois de passar novamente pelo Access, pelo MFA
+quando habilitado, pelo login
 local e confirmação do Terminal Seguro, o usuário retoma a mesma sessão tmux.
 O limite de um cliente simultâneo permanece ativo.
 

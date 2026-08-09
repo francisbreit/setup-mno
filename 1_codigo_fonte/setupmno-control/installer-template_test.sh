@@ -40,7 +40,14 @@ access_function_source=$(awk '
 }
 eval "$access_function_source"
 
-for migration_function in control_service_env_value rollback_existing_access_migration prepare_existing_access_migration; do
+for migration_function in \
+    show_cloudflare_access_guide \
+    choose_cloudflare_access_security \
+    collect_cloudflare_access_email \
+    build_cloudflare_access_payload \
+    control_service_env_value \
+    rollback_existing_access_migration \
+    prepare_existing_access_migration; do
     migration_source=$(awk -v name="$migration_function" '
         $0 ~ "^" name "\\(\\)" { inside=1 }
         inside { print }
@@ -66,6 +73,10 @@ msg() {
     printf '%s' "$1" >"$message_capture"
 }
 
+ask_required() {
+    printf '%s' 'admin@example.com'
+}
+
 mkdir -p "$test_dir/bin"
 cat >"$test_dir/bin/whiptail" <<'EOF'
 #!/usr/bin/bash
@@ -75,6 +86,13 @@ if [[ " $* " == *" --gauge "* ]]; then
 fi
 if [[ " $* " == *" --inputbox "* ]]; then
     printf '%s' 'admin@example.com' >&2
+    exit 0
+fi
+if [[ " $* " == *" --menu "* ]]; then
+    printf '%s' "${MOCK_WHIPTAIL_CHOICE:-MFA}" >&2
+    exit 0
+fi
+if [[ "$*" == *"--yesno"* ]] || [[ "$*" == *"--msgbox"* ]]; then
     exit 0
 fi
 exit 90
@@ -215,6 +233,7 @@ grep -Fq 'resposta inválida' "$message_capture"
 export MOCK_CURL_MODE="success"
 : >"$message_capture"
 url_control="control.example.com"
+access_mfa_enabled="true"
 organization_output="$test_dir/organization.json"
 applications_output="$test_dir/applications.json"
 check_cloudflare_access "$organization_output" "$applications_output"
@@ -227,8 +246,37 @@ export MOCK_CURL_MODE="mfa_missing"
 if check_cloudflare_access "$organization_output" "$applications_output"; then
     printf 'ERRO: organização sem MFA foi aceita.\n' >&2
     exit 1
+else
+    [ "$?" -eq 42 ] || {
+        printf 'ERRO: ausência de MFA não retornou o diagnóstico esperado.\n' >&2
+        exit 1
+    }
 fi
-grep -Fq 'autenticadores habilitados' "$message_capture"
+access_mfa_enabled="false"
+check_cloudflare_access "$organization_output" "$applications_output"
+
+mfa_payload="$test_dir/access-mfa.json"
+simple_payload="$test_dir/access-simple.json"
+build_cloudflare_access_payload "$mfa_payload" "Control" \
+    "control.example.com" "admin@example.com" true
+build_cloudflare_access_payload "$simple_payload" "Control" \
+    "control.example.com" "admin@example.com" false
+jq -e '.mfa_config.mfa_disabled == false and
+       .policies[0].mfa_config.mfa_disabled == false and
+       .policies[0].include[0].email.email == "admin@example.com"' \
+    "$mfa_payload" >/dev/null
+jq -e '.mfa_config.mfa_disabled == true and
+       .policies[0].mfa_config.mfa_disabled == true and
+       (.policies[0].name | contains("sem MFA extra"))' \
+    "$simple_payload" >/dev/null
+
+export MOCK_WHIPTAIL_CHOICE="MFA"
+choose_cloudflare_access_security
+[ "$access_mfa_enabled" = "true" ]
+export MOCK_WHIPTAIL_CHOICE="SEM_MFA"
+choose_cloudflare_access_security
+[ "$access_mfa_enabled" = "false" ]
+show_cloudflare_access_guide
 
 export MOCK_CURL_MODE="existing_access"
 : >"$message_capture"
@@ -239,6 +287,7 @@ fi
 grep -Fq 'Já existe um aplicativo Cloudflare Access' "$message_capture"
 
 export MOCK_CURL_MODE="success" MOCK_ACCESS_STATE="missing"
+export MOCK_WHIPTAIL_CHOICE="MFA"
 export MOCK_DOCKER_LOG="$test_dir/docker.log"
 : >"$MOCK_DOCKER_LOG"
 INSTALL_TYPE="CLOUDFLARE_TUNNEL"

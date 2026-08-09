@@ -238,7 +238,7 @@ function setAuthenticated(session) {
   state.assistantModel = session.assistantModel || "";
   state.assistantHistory = [];
   $("current-user").textContent = state.user;
-	$("access-identity").textContent = session.accessEmail ? `MFA · ${session.accessEmail}` : "Administrador";
+	$("access-identity").textContent = session.accessEmail ? `Access · ${session.accessEmail}` : "Administrador";
   $("hero-user").textContent = state.user;
   $("user-initial").textContent = state.user.slice(0, 1).toUpperCase();
   $("settings-username").textContent = state.user;
