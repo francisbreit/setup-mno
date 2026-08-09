@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Karakeep no Setup MNO",
   "setupId": "karakeep",
-  "setupVersion": "7.7.46",
+  "setupVersion": "7.7.47",
   "architectures": [
     "amd64",
     "arm64"

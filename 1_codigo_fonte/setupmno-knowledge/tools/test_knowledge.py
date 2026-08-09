@@ -114,6 +114,26 @@ class KnowledgeFactoryTests(unittest.TestCase):
                 )
                 self.assertIn('-e "SELECT 1"', x86_script)
                 self.assertIn("for attempt in $(seq 1 181); do", x86_script)
+                self.assertIn(
+                    'local progress_mode="${2:-silent}"',
+                    x86_script,
+                )
+                self.assertIn(
+                    'printf \'XXX\\n100\\nMySQL 8.0 pronto.',
+                    x86_script,
+                )
+                self.assertIn(
+                    'exec 9> >(whiptail --title "INICIALIZANDO MYSQL 8.0"',
+                    x86_script,
+                )
+                self.assertIn(
+                    'setupmno_mysql80_wait_ready "$yaml_file" progress >&9',
+                    x86_script,
+                )
+                self.assertIn(
+                    "O banco está iniciando. Aguarde; este processo pode levar alguns minutos.",
+                    x86_script,
+                )
                 self.assertEqual(
                     x86_script.count(
                         "setupmno_mysql80_require_ready /root/mysql.yaml"

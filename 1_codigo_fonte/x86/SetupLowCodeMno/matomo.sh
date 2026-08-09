@@ -7,11 +7,16 @@ setupmno_mysql80_service_exists() {
 
 setupmno_mysql80_wait_ready() {
     local yaml_file="${1:-/root/mysql.yaml}"
+    local progress_mode="${2:-silent}"
     local service_name="${SETUPMNO_MYSQL80_SERVICE_NAME:-mysql_mysql}"
-    local attempt probe
+    local attempt probe percent elapsed progress_message
 
     MYSQL80_CONTAINER_ID=""
     MYSQL80_ROOT_PASSWORD=""
+
+    if [ "$progress_mode" = "progress" ]; then
+        printf 'XXX\n3\nPreparando a validação do MySQL 8.0...\nXXX\n'
+    fi
 
     [ -s "$yaml_file" ] || return 65
     MYSQL80_ROOT_PASSWORD=$(sed -n 's/^[[:space:]]*-[[:space:]]*MYSQL_ROOT_PASSWORD=//p' "$yaml_file" | head -n1)
@@ -25,8 +30,26 @@ setupmno_mysql80_wait_ready() {
             probe=$(docker exec "$MYSQL80_CONTAINER_ID" sh -c \
                 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot --batch --skip-column-names -e "SELECT 1"' \
                 2>/dev/null) || probe=""
-            [ "$probe" = "1" ] && return 0
+            if [ "$probe" = "1" ]; then
+                if [ "$progress_mode" = "progress" ]; then
+                    printf 'XXX\n100\nMySQL 8.0 pronto. Continuando a instalação...\nXXX\n'
+                    sleep 1
+                fi
+                return 0
+            fi
         fi
+
+        if [ "$progress_mode" = "progress" ]; then
+            percent=$((10 + (attempt * 85 / 181)))
+            elapsed=$(((attempt - 1) * 5))
+            if [ -n "$MYSQL80_CONTAINER_ID" ]; then
+                progress_message="MySQL 8.0 iniciou. Aguardando aceitar conexões autenticadas... (${elapsed}s)"
+            else
+                progress_message="Aguardando o serviço MySQL 8.0 iniciar... (${elapsed}s de até 900s)"
+            fi
+            printf 'XXX\n%s\n%s\nXXX\n' "$percent" "$progress_message"
+        fi
+
         [ "$attempt" -lt 181 ] && sleep 5
     done
 
@@ -35,10 +58,20 @@ setupmno_mysql80_wait_ready() {
 
 setupmno_mysql80_require_ready() {
     local yaml_file="${1:-/root/mysql.yaml}"
-    local status message
+    local status message gauge_pid
 
-    setupmno_mysql80_wait_ready "$yaml_file" && return 0
+    exec 9> >(whiptail --title "INICIALIZANDO MYSQL 8.0" --gauge \
+        "O banco está iniciando. Aguarde; este processo pode levar alguns minutos." \
+        8 76 0)
+    gauge_pid=$!
+
+    setupmno_mysql80_wait_ready "$yaml_file" progress >&9
     status=$?
+
+    exec 9>&-
+    [ -n "$gauge_pid" ] && wait "$gauge_pid" 2>/dev/null || true
+
+    [ "$status" -eq 0 ] && return 0
 
     case "$status" in
         65) message="O arquivo de configuração do MySQL 8.0 não foi encontrado." ;;

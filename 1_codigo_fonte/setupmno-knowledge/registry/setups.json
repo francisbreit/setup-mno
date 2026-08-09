@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "selectionVersion": "1.9.0",
-  "setupVersion": "7.7.46",
+  "setupVersion": "7.7.47",
   "selectionPolicy": "Lotes 1 a 6 orientados a deploy, IA, integrações, dados, identidade, colaboração, produtividade, atendimento e segurança operacional",
   "setups": [
     {

@@ -2,12 +2,12 @@
 {
   "schemaVersion": 1,
   "documentId": "setup-mysql-overview",
-  "documentVersion": "1.1.0",
-  "contentSHA256": "231ef2824b1ecc6ef7d26a22c80fe4ab24b342d9fb7db1184749017f4839eab8",
+  "documentVersion": "1.2.0",
+  "contentSHA256": "1fd9869ffc661eb781dbaafc6fb20c5a9c98fe035d86b43db5d845e985d046a8",
   "documentType": "setup",
   "title": "MySQL baseado em Percona Server no Setup MNO",
   "setupId": "mysql",
-  "setupVersion": "7.7.46",
+  "setupVersion": "7.7.47",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
@@ -44,6 +44,11 @@ a credencial já gerada e aguardam por até 15 minutos uma consulta autenticada
 `SELECT 1`. Só depois criam o banco de forma idempotente e continuam o deploy.
 Isso evita confundir MySQL 8.0 com `mysql84` e impede que a mera existência do
 container seja tratada como banco pronto.
+
+Durante essa espera, o Whiptail mantém uma barra de progresso visível e informa
+se o instalador ainda aguarda o serviço, a autenticação ou se o banco já está
+pronto. O gauge encerra antes da criação do schema e preserva no shell principal
+o container e a credencial recuperados pelo gate.
 
 ## Pré-requisitos
 
