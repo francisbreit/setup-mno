@@ -1309,7 +1309,8 @@
       "setupId": "mautic-4",
       "sourceClassification": "official-and-internal",
       "testedArchitectures": [
-        "amd64"
+        "amd64",
+        "arm64"
       ]
     },
     {
@@ -1325,7 +1326,8 @@
       "setupId": "mautic-4-whatsapp",
       "sourceClassification": "official-and-internal",
       "testedArchitectures": [
-        "amd64"
+        "amd64",
+        "arm64"
       ]
     },
     {
@@ -2606,10 +2608,10 @@
       ]
     }
   ],
-  "generatedAt": "2026-08-08T00:00:00Z",
+  "generatedAt": "2026-08-02T00:00:00Z",
   "knowledgeVersion": "3.14.0",
   "schemaVersion": 2,
-  "setupVersion": "7.7.37",
+  "setupVersion": "7.7.38",
   "summary": {
     "editorialStatuses": {
       "deprecated": 0,

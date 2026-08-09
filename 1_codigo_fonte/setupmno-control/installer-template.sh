@@ -339,15 +339,13 @@ check_cloudflare_route() {
     fi
 }
 
-if [ "${SETUPMNO_CONTROL_PARENT_CONFIRMED:-0}" != "1" ]; then
-    whiptail --title "SETUP MNO CONTROL CENTER" --yesno \
-        "Instalar o painel web oficial do Setup MNO?\n\nO Control Center mostra aplicações instaladas, saúde do Docker Swarm, CPU, RAM, disco, catálogo de setups, auditoria, diagnóstico local e acesso autenticado ao instalador original." \
-        16 82 || exit 130
-fi
+whiptail --title "SETUP MNO CONTROL CENTER" --yesno \
+    "Instalar o painel web oficial do Setup MNO?\n\nO Control Center mostra aplicações instaladas, saúde do Docker Swarm, CPU, RAM, disco, catálogo de setups, auditoria, diagnóstico local e acesso autenticado ao instalador original." \
+    16 82 || exit 0
 
 while true; do
     if ! url_control=$(ask_required "1/5 — Domínio do painel (ex.: setup.seudominio.com):"); then
-        exit 130
+        exit 0
     fi
     if [[ "$url_control" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] &&
        [[ "$url_control" == *.* ]]; then
@@ -375,7 +373,7 @@ fi
 
 while true; do
     if ! usuario_control=$(ask_required "2/5 — Usuário administrador do painel:"); then
-        exit 130
+        exit 0
     fi
     if [[ "$usuario_control" =~ ^[A-Za-z0-9_.-]{3,40}$ ]]; then
         break
@@ -384,7 +382,7 @@ while true; do
 done
 
 if ! senha_control=$(ask_password); then
-    exit 130
+    exit 0
 fi
 
 mem_total_mb=$(awk '/MemTotal:/ {print int($2/1024)}' /proc/meminfo)
@@ -411,7 +409,7 @@ else
             "LATER" "Configurar o conector de IA futuramente" \
             3>&1 1>&2 2>&3)
         assistant_status=$?
-        [ "$assistant_status" -ne 0 ] && exit 130
+        [ "$assistant_status" -ne 0 ] && exit 0
         case "$assistant_choice" in
             BASIC)
                 assistant_mode="basic"
@@ -423,12 +421,12 @@ else
                 ;;
             OPENAI)
                 if ! llm_api_key=$(ask_llm_key "OpenAI"); then
-                    exit 130
+                    exit 0
                 fi
                 if ! assistant_model=$(ask_with_default \
                     "Modelo OpenAI para o Copiloto:\n\nO padrão equilibra qualidade, latência e custo. Você pode informar outro modelo compatível com a Responses API." \
                     "gpt-5.6-terra"); then
-                    exit 130
+                    exit 0
                 fi
                 assistant_mode="openai"
                 assistant_base_url="https://api.openai.com/v1"
@@ -436,12 +434,12 @@ else
                 ;;
             OPENROUTER)
                 if ! llm_api_key=$(ask_llm_key "OpenRouter"); then
-                    exit 130
+                    exit 0
                 fi
                 if ! assistant_model=$(ask_with_default \
                     "Modelo OpenRouter para o Copiloto:\n\nInforme o identificador exato no formato provedor/modelo." \
                     "openai/gpt-5.4"); then
-                    exit 130
+                    exit 0
                 fi
                 assistant_mode="openrouter"
                 assistant_base_url="https://openrouter.ai/api/v1"
@@ -449,12 +447,12 @@ else
                 ;;
             DEEPSEEK)
                 if ! llm_api_key=$(ask_llm_key "DeepSeek"); then
-                    exit 130
+                    exit 0
                 fi
                 if ! assistant_model=$(ask_with_default \
                     "Modelo DeepSeek para o Copiloto:\n\nVocê pode informar outro identificador aceito atualmente pelo provedor." \
                     "deepseek-v4-flash"); then
-                    exit 130
+                    exit 0
                 fi
                 assistant_mode="deepseek"
                 assistant_base_url="https://api.deepseek.com"
@@ -467,7 +465,7 @@ else
                 fi
                 if ! assistant_base_url=$(ask_required \
                     "Endpoint do Ollama já instalado (ex.: https://apiollama.seudominio.com):"); then
-                    exit 130
+                    exit 0
                 fi
                 assistant_base_url="${assistant_base_url%/}"
                 if [[ ! "$assistant_base_url" =~ ^https?://[^[:space:]]+$ ]]; then
@@ -476,7 +474,7 @@ else
                 fi
                 if ! assistant_model=$(ask_required \
                     "Nome exato do modelo já baixado no Ollama (ex.: qwen3:8b):"); then
-                    exit 130
+                    exit 0
                 fi
                 assistant_mode="ollama"
                 break
@@ -488,7 +486,7 @@ fi
 while true; do
     if ! criar_portainer=$(ask_required \
         "5/5 — Criar Stack no Portainer?\n\n0 = editável no Portainer\n1 = direto no Docker"); then
-        exit 130
+        exit 0
     fi
     [[ "$criar_portainer" =~ ^[01]$ ]] && break
     msg "Digite somente 0 ou 1."
@@ -554,7 +552,7 @@ fi
 
 whiptail --title "CONFIRMAR INSTALAÇÃO" --yesno \
     "Setup MNO Control Center\n\nDomínio: $url_control\nAdministrador: $usuario_control\nPlano: $CONTROL_PLAN\nAssistente: $assistant_label\nInstalação: $dns_mode\nDeploy: $([ "$criar_portainer" = "0" ] && echo "Portainer editável" || echo "Docker direto")\nArquiteturas: X86 e ARM\nLimite de memória do Control: $memory_limit\n\nO terminal executará o instalador original e será acessível somente após autenticação." \
-    23 88 || exit 130
+    23 88 || exit 0
 
 install_log="/tmp/${nome_app}-install.log"
 error_file="/tmp/${nome_app}-error.log"
@@ -572,8 +570,40 @@ error_file="/tmp/${nome_app}-error.log"
         exit "$code"
     }
 
+    validate_traditional_dns() {
+        local hostname="$1" public_ip resolved_ips
+        public_ip=$(curl -fsS --max-time 10 https://api.ipify.org 2>>"$install_log" || true)
+        [ -n "$public_ip" ] ||
+            fail_install 23 "IP PÚBLICO INDISPONÍVEL" "Não foi possível descobrir o IP público para validar o DNS de $hostname."
+        for _ in $(seq 1 12); do
+            resolved_ips=$(getent ahostsv4 "$hostname" 2>/dev/null | awk '{print $1}' | sort -u)
+            if [ -n "$resolved_ips" ] && grep -Fqx "$public_ip" <<<"$resolved_ips"; then
+                echo "DNS confirmado: $hostname -> $public_ip" >>"$install_log"
+                return 0
+            fi
+            sleep 5
+        done
+        fail_install 24 "DNS TRADICIONAL NÃO CONFIRMADO" \
+            "O domínio $hostname não resolve para este servidor. IP esperado: $public_ip; IPs resolvidos: ${resolved_ips:-nenhum}. Corrija o DNS antes de publicar o Control Center."
+    }
+
+    wait_for_trusted_https() {
+        local hostname="$1" path="$2" status
+        for _ in $(seq 1 60); do
+            status=$(curl -sS --connect-timeout 10 --max-time 15 -o /dev/null -w '%{http_code}' \
+                "https://$hostname$path" 2>>"$install_log" || true)
+            if [ "$status" = "200" ]; then
+                echo "TLS confiável confirmado: https://$hostname$path" >>"$install_log"
+                return 0
+            fi
+            sleep 5
+        done
+        fail_install 97 "CERTIFICADO TLS NÃO CONFIRMADO" \
+            "O endereço https://$hostname não apresentou um certificado confiável após 5 minutos (último HTTP: ${status:-000}). O Traefik pode estar usando o certificado padrão; verifique DNS, portas 80/443 e ACME."
+    }
+
     echo -e "XXX\n4\nVALIDANDO AMBIENTE... \nXXX"
-    for required_command in docker curl jq tar openssl; do
+    for required_command in docker curl jq tar openssl getent; do
         command -v "$required_command" >/dev/null 2>&1 ||
             fail_install 10 "DEPENDÊNCIA NÃO ENCONTRADA" "O comando obrigatório '$required_command' não está instalado."
     done
@@ -607,6 +637,9 @@ error_file="/tmp/${nome_app}-error.log"
     if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] &&
        { [ -z "$CLOUDFLARE_ACCOUNT_ID" ] || [ -z "$TUNNEL_ID" ]; }; then
         fail_install 17 "DADOS DO TUNNEL INVÁLIDOS" "Account ID ou Tunnel ID não encontrado."
+    fi
+    if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "1" ]; then
+        validate_traditional_dns "$url_control"
     fi
 
     echo -e "XXX\n10\nEXTRAINDO O CONTROL CENTER... \nXXX"
@@ -1152,6 +1185,9 @@ EOL
             fail_install 62 "ERRO AO CONFIGURAR DNS" "Cloudflare recusou o CNAME: ${dns_error:-resposta inválida da API}."
         fi
         echo "DNS confirmado: $url_control -> $dns_content" >>"$install_log"
+        if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
+            validate_traditional_dns "$url_control"
+        fi
     fi
 
     if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
@@ -1339,6 +1375,10 @@ EOL
         fi
         echo "Serviço confirmado: $service_name com 1/1 réplica." >>"$install_log"
     done
+
+    if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
+        wait_for_trusted_https "$url_control" "/health"
+    fi
 
     echo -e "XXX\n100\nCONTROL CENTER INSTALADO COM SUCESSO\nXXX"
 } 2>>"$install_log" | whiptail --title "SETUP MNO CONTROL CENTER" --gauge \

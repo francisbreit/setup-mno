@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "LocalAI no Setup MNO",
   "setupId": "localai",
-  "setupVersion": "7.7.37",
+  "setupVersion": "7.7.38",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

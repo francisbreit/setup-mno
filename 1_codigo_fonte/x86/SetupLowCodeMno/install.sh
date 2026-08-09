@@ -4,187 +4,8 @@
 # Menu explícito + dispatch dinâmico
 #########################################################
 
-#########################################################
-# PROTEÇÃO DA SESSÃO DE INSTALAÇÃO CONTRA QUEDA DE SSH
-#
-# IMPORTANTE:
-# - O TMUX já é instalado pelo pré-instalador.
-# - Este arquivo é compilado/criptografado com SHC.
-# - Portanto, o install deve ser executado diretamente
-#   dentro do TMUX e NUNCA através de "bash install".
-#
-# Se a conexão SSH cair, a sessão TMUX permanece ativa
-# e todos os processos filhos continuam executando.
-#########################################################
-
-SETUP_MNO_TMUX_SESSION="setup-mno"
-SETUP_MNO_TMUX_LIFECYCLE="3"
-
-#########################################################
-# DESCOBRE O CAMINHO REAL DO EXECUTÁVEL ATUAL
-#########################################################
-
-setup_mno_resolve_script_path() {
-
-    local script_path="$0"
-    local resolved
-
-    # Caso tenha sido chamado apenas pelo nome do comando
-    if [[ "$script_path" != */* ]]; then
-        script_path=$(command -v -- "$script_path" 2>/dev/null || printf '%s' "$script_path")
-    fi
-
-    # Tenta obter caminho absoluto real
-    if command -v readlink >/dev/null 2>&1; then
-
-        resolved=$(readlink -f -- "$script_path" 2>/dev/null || true)
-
-        if [ -n "$resolved" ]; then
-            printf '%s\n' "$resolved"
-            return 0
-        fi
-    fi
-
-    # Fallback
-    case "$script_path" in
-
-        /*)
-            printf '%s\n' "$script_path"
-            ;;
-
-        *)
-            printf '%s/%s\n' "$(pwd -P)" "$script_path"
-            ;;
-
-    esac
-}
-
-#########################################################
-# INICIALIZA / RECONECTA À SESSÃO TMUX
-#########################################################
-
-# Só executa esta parte quando:
-#
-# 1) ainda NÃO estamos dentro do TMUX
-# 2) stdin é um terminal
-# 3) stdout é um terminal
-#
-# Quando o install for relançado dentro do TMUX,
-# a variável TMUX estará definida e este bloco será
-# automaticamente ignorado, evitando recursão.
-
-if [ -z "${TMUX:-}" ] && [ -t 0 ] && [ -t 1 ]; then
-
-    #####################################################
-    # VERIFICA SE O TMUX ESTÁ DISPONÍVEL
-    #####################################################
-
-    if command -v tmux >/dev/null 2>&1; then
-
-        #################################################
-        # JÁ EXISTE UMA SESSÃO SETUP-MNO
-        #################################################
-
-        if tmux has-session -t "$SETUP_MNO_TMUX_SESSION" 2>/dev/null; then
-
-            SETUP_MNO_EXISTING_LIFECYCLE=$(tmux show-options -v \
-                -t "$SETUP_MNO_TMUX_SESSION" \
-                @setup_mno_lifecycle 2>/dev/null || true)
-
-            # Sessões criadas por versões antigas não possuem controle de
-            # ciclo de vida e podem conservar variáveis de outra instalação.
-            # Elas são removidas uma única vez durante a migração.
-            if [ "$SETUP_MNO_EXISTING_LIFECYCLE" != "$SETUP_MNO_TMUX_LIFECYCLE" ]; then
-                tmux kill-session -t "$SETUP_MNO_TMUX_SESSION" >/dev/null 2>&1 || true
-            else
-
-                # Reconecta à instalação ainda em andamento.
-                #
-                # O parâmetro -d desconecta uma sessão SSH antiga
-                # eventualmente presa e conecta o terminal atual.
-
-                tmux attach-session -d -t "$SETUP_MNO_TMUX_SESSION"
-
-                TMUX_STATUS=$?
-
-                # Encerra somente esta instância externa do install.
-                # O controle retorna ao processo que chamou o install.
-                exit "$TMUX_STATUS"
-            fi
-        fi
-
-        #################################################
-        # NÃO EXISTE SESSÃO: CRIA UMA NOVA
-        #################################################
-
-        SETUP_MNO_INSTALL_SCRIPT=$(setup_mno_resolve_script_path)
-
-        clear
-
-        #################################################
-        # IMPORTANTE PARA SHC
-        #
-        # NÃO USAR:
-        #
-        # bash "$SETUP_MNO_INSTALL_SCRIPT"
-        #
-        # O arquivo gerado pelo SHC é um executável binário.
-        # Ele deve ser executado diretamente.
-        #################################################
-
-        # O wrapper aguarda o binário SHC terminar e então remove somente a
-        # sessão do Setup MNO. Uma queda de SSH apenas desanexa o cliente e
-        # não alcança esta limpeza enquanto a instalação estiver em curso.
-        tmux new-session -d \
-            -s "$SETUP_MNO_TMUX_SESSION" \
-            "\"$SETUP_MNO_INSTALL_SCRIPT\"; setup_mno_status=\$?; tmux kill-session -t \"$SETUP_MNO_TMUX_SESSION\" >/dev/null 2>&1 || true; exit \$setup_mno_status"
-
-        TMUX_STATUS=$?
-
-        if [ "$TMUX_STATUS" -ne 0 ]; then
-            exit "$TMUX_STATUS"
-        fi
-
-        tmux set-option -t "$SETUP_MNO_TMUX_SESSION" \
-            @setup_mno_lifecycle "$SETUP_MNO_TMUX_LIFECYCLE"
-
-        tmux attach-session -t "$SETUP_MNO_TMUX_SESSION"
-
-        TMUX_STATUS=$?
-
-        # Quando a sessão TMUX terminar ou for desconectada,
-        # não continua executando uma segunda cópia do install
-        # fora do TMUX.
-        exit "$TMUX_STATUS"
-
-    else
-
-        #################################################
-        # FALLBACK
-        #
-        # O pré-instalador deveria ter instalado o TMUX.
-        # Se por algum motivo ele não existir, não abortamos
-        # o Setup MNO. A instalação continua sem proteção.
-        #################################################
-
-        clear
-
-        echo "AVISO: TMUX não encontrado."
-        echo "O Setup MNO continuará normalmente, porém sem"
-        echo "proteção contra queda da conexão SSH."
-        echo
-
-        sleep 3
-    fi
-
-fi
-
-#########################################################
-# FIM DA PROTEÇÃO TMUX
-#########################################################
-
 clear
-VERSIONSETUP="7.7.37"
+VERSIONSETUP="7.7.38"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -225,11 +46,10 @@ actcheckbox=white,green
 
 # --- VERIFICAR TIPO DE INSTALAÇÃO ---
 INSTALL_TYPE_FILE="/root/.cloudflared_config/installation_type"
-INSTALL_TYPE=""
-if [ -f "$INSTALL_TYPE_FILE" ] && [ ! -L "$INSTALL_TYPE_FILE" ]; then
-    INSTALL_TYPE=$(head -n1 "$INSTALL_TYPE_FILE")
+if [ -f "$INSTALL_TYPE_FILE" ]; then
+    INSTALL_TYPE=$(cat "$INSTALL_TYPE_FILE")
 else
-    INSTALL_TYPE=""
+    INSTALL_TYPE="TRADICIONAL"
 fi
 
 # --- LOADING BAR ---
@@ -312,109 +132,6 @@ if [ "$PLANO" = "free1" ]; then
 fi
 
 # --- DOCKER CHECKS ---
-SETUP_INITIAL_STATE_ISSUES=()
-
-setup_add_initial_issue() {
-    SETUP_INITIAL_STATE_ISSUES+=("$1")
-}
-
-setup_regular_nonempty_file() {
-    local file="$1"
-    [ -f "$file" ] && [ ! -L "$file" ] &&
-        [ "$(stat -c '%s' "$file" 2>/dev/null || printf '0')" -gt 0 ] &&
-        [ "$(stat -c '%s' "$file" 2>/dev/null || printf '0')" -le 2097152 ]
-}
-
-setup_require_file() {
-    local file="$1" label="$2"
-    setup_regular_nonempty_file "$file" || setup_add_initial_issue "$label"
-}
-
-setup_file_has_assignment() {
-    local file="$1" key="$2"
-    grep -Eq "^${key}=.+$" "$file" 2>/dev/null
-}
-
-setup_validate_initial_state() {
-    local credential_file traditional_dns
-    SETUP_INITIAL_STATE_ISSUES=()
-
-    case "$INSTALL_TYPE" in
-        CLOUDFLARE_TUNNEL|TRADICIONAL) ;;
-        *) setup_add_initial_issue "tipo de instalação ausente ou inválido" ;;
-    esac
-
-    setup_require_file "/root/traefik.yaml" "arquivo /root/traefik.yaml"
-    setup_require_file "/root/portainer.yaml" "arquivo /root/portainer.yaml"
-    setup_require_file "/root/postgres.yaml" "arquivo /root/postgres.yaml"
-    setup_require_file "/root/redis.yaml" "arquivo /root/redis.yaml"
-    setup_require_file "/root/pgbouncer.yaml" "arquivo /root/pgbouncer.yaml"
-    setup_require_file "/etc/pgbouncer/pgbouncer.ini" "configuração /etc/pgbouncer/pgbouncer.ini"
-    setup_require_file "/etc/pgbouncer/userlist.txt" "credenciais /etc/pgbouncer/userlist.txt"
-
-    if [ ! -d "/root/dados_portainer" ] || [ -L "/root/dados_portainer" ]; then
-        setup_add_initial_issue "pasta /root/dados_portainer"
-    fi
-    if setup_regular_nonempty_file "/root/dados_portainer/dados_portainer"; then
-        grep -Eq '^Dominio do portainer:[[:space:]]*[^[:space:]].*$' \
-            /root/dados_portainer/dados_portainer 2>/dev/null ||
-            setup_add_initial_issue "domínio salvo do Portainer"
-        grep -Eq '^Usuario:[[:space:]]*[^[:space:]].*$' \
-            /root/dados_portainer/dados_portainer 2>/dev/null ||
-            setup_add_initial_issue "usuário salvo do Portainer"
-        grep -Eq '^Senha:[[:space:]]*[^[:space:]].*$' \
-            /root/dados_portainer/dados_portainer 2>/dev/null ||
-            setup_add_initial_issue "senha salva do Portainer"
-    else
-        setup_add_initial_issue "arquivo /root/dados_portainer/dados_portainer"
-    fi
-
-    if setup_regular_nonempty_file "/root/postgres.yaml"; then
-        grep -Eq '^[[:space:]]*-[[:space:]]*POSTGRES_PASSWORD=.+$' /root/postgres.yaml 2>/dev/null ||
-            setup_add_initial_issue "senha do PostgreSQL em /root/postgres.yaml"
-    fi
-
-    if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-        credential_file="/root/.cloudflared_config/cloudflare_credentials"
-        setup_require_file "$credential_file" "credenciais /root/.cloudflared_config/cloudflare_credentials"
-        setup_require_file "/root/cloudflared.yaml" "arquivo /root/cloudflared.yaml"
-        if setup_regular_nonempty_file "$credential_file"; then
-            for key in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_ZONE_ID TUNNEL_ID TUNNEL_TOKEN; do
-                setup_file_has_assignment "$credential_file" "$key" ||
-                    setup_add_initial_issue "campo $key nas credenciais Cloudflare"
-            done
-        fi
-        [ -n "$cloudflared_container" ] || setup_add_initial_issue "serviço Cloudflare Tunnel ativo"
-    elif [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
-        credential_file="/root/.tradicional_config/tradicional_credentials"
-        setup_require_file "$credential_file" "credenciais /root/.tradicional_config/tradicional_credentials"
-        if setup_regular_nonempty_file "$credential_file"; then
-            traditional_dns=$(sed -n 's/^criar_dns=//p' "$credential_file" | head -n1)
-            case "$traditional_dns" in
-                1) ;;
-                0)
-                    for key in nome_servidor CLOUDFLARE_API_TOKEN CLOUDFLARE_ZONE_ID; do
-                        setup_file_has_assignment "$credential_file" "$key" ||
-                            setup_add_initial_issue "campo $key nas credenciais tradicionais"
-                    done
-                    ;;
-                *) setup_add_initial_issue "opção criar_dns nas credenciais tradicionais" ;;
-            esac
-        fi
-    fi
-
-    [ -n "$traefik_container" ] || setup_add_initial_issue "serviço Traefik ativo"
-    [ -n "$portainer_container" ] || setup_add_initial_issue "serviço Portainer ativo"
-    [ -n "$postgres_container" ] || setup_add_initial_issue "serviço PostgreSQL ativo"
-    [ -n "$redis_container" ] || setup_add_initial_issue "serviço Redis ativo"
-    [ -n "$pgbouncer_container" ] || setup_add_initial_issue "serviço PgBouncer ativo"
-    [ -n "$network_id_agent_network" ] || setup_add_initial_issue "rede agent_network"
-    [ -n "$network_id_externa" ] || setup_add_initial_issue "rede externa"
-    [ -n "$network_id_interna" ] || setup_add_initial_issue "rede interna"
-
-    [ "${#SETUP_INITIAL_STATE_ISSUES[@]}" -eq 0 ]
-}
-
 if command -v docker > /dev/null 2>&1; then
     network_id_agent_network=$(docker network ls --filter name=agent_network --format "{{.ID}}")
     network_id_externa=$(docker network ls --filter name=externa --format "{{.ID}}")
@@ -424,7 +141,6 @@ if command -v docker > /dev/null 2>&1; then
     postgres_container=$(docker ps -qf name=postgres)
     redis_container=$(docker ps -qf name=redis)
     pgbouncer_container=$(docker ps -qf name=pgbouncer)
-    cloudflared_container=$(docker ps -qf name=cloudflared)
     langfuse_container=$(docker ps -qf name=langfuse)
     dify_container=$(docker ps -qf name=dify)
     mysql_container=$(docker ps -qf name=mysql)
@@ -445,7 +161,6 @@ else
     postgres_container=""
     redis_container=""
     pgbouncer_container=""
-    cloudflared_container=""
     langfuse_container=""
     dify_container=""
     mysql_container=""
@@ -459,32 +174,15 @@ else
     calcom_container=""
 fi
 
-if ! setup_validate_initial_state; then
-    SETUP_INITIAL_STATE_REPORT=$(printf ' • %s\n' "${SETUP_INITIAL_STATE_ISSUES[@]}")
-    whiptail --title "INSTALAÇÃO INICIAL SERÁ INICIADA" --msgbox \
-        "O menu de aplicações ainda não existe porque a preparação inicial do servidor precisa ser realizada.\n\nSerão criados os itens a seguir (pressione enter para iniciar a instalação):\n${SETUP_INITIAL_STATE_REPORT}\nO instalador obrigatório será aberto novamente. Conclua todas as etapas do Docker Swarm, credenciais, Portainer e serviços essenciais." \
-        24 82
+if [[ ("$traefik_container" == "") || ("$portainer_container" == "") || ("$postgres_container" == "") || ("$redis_container" == "") || ("$pgbouncer_container" == "") || ("$network_id_agent_network" == "") || ("$network_id_externa" == "") || ("$network_id_interna" == "") ]]; then
     clear
-    cd /root/SetupLowCodeMno || exit 42
-    ./dockerswarm
-    DOCKERSWARM_STATUS=$?
-
-    # O dockerswarm coleta muitas variáveis e pode instalar opcionalmente o
-    # Control Center. Em caso de sucesso, substitua este processo por uma nova
-    # execução limpa do install: o estado inicial é revalidado e o usuário
-    # retorna ao menu sem abandonar a sessão TMUX.
-    if [ "$DOCKERSWARM_STATUS" -eq 0 ]; then
-        SETUP_MNO_INSTALL_SCRIPT=$(setup_mno_resolve_script_path)
-        exec "$SETUP_MNO_INSTALL_SCRIPT"
-        exit 42
-    fi
-    exit "$DOCKERSWARM_STATUS"
+    cd && cd SetupLowCodeMno && ./dockerswarm
+    exit 0
 fi
 
 # --- DISPATCH DINÂMICO (substitui 240+ case blocks) ---
 run_app() {
     local script="$1"
-    local app_status
     if [ "$script" = "setupmno_control" ] && control_center_installed; then
         whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
             "Já existe um Setup MNO Control Center neste servidor.\n\nSomente uma instalação é permitida por servidor." 12 72
@@ -492,13 +190,6 @@ run_app() {
     fi
     clear
     cd && cd SetupLowCodeMno && ./"$script"
-    app_status=$?
-
-    # O setup selecionado executa em um processo filho: suas variáveis não
-    # contaminam o install. Ao terminar, retorne ao loop principal. A sessão
-    # TMUX continua protegendo o menu atual e será eliminada pelo wrapper
-    # somente quando o usuário realmente sair do Setup MNO.
-    return "$app_status"
 }
 
 warn_heavy() {
@@ -894,7 +585,7 @@ case "$CHOICE" in
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "KARAKEEP")                                              run_app karakeep ;;
             "LANGFLOW")                                              run_app langflow ;;
-            "LANGFUSE + MINIO + CLICKHOUSE*")                       warn_heavy "Langfuse + MinIO + ClickHouse" "6GB" && run_app langfuse ;;
+            "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
             "LOCALAI")                                                run_app localai ;;
             "LIBRECHAT")                                             run_app librechat ;;
@@ -1230,7 +921,7 @@ case "$CHOICE" in
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "KARAKEEP")                                              run_app karakeep ;;
             "LANGFLOW")                                              run_app langflow ;;
-            "LANGFUSE + MINIO + CLICKHOUSE*")                       warn_heavy "Langfuse + MinIO + ClickHouse" "6GB" && run_app langfuse ;;
+            "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
             "LOCALAI")                                                run_app localai ;;
             "LIBRECHAT")                                             run_app librechat ;;
@@ -1558,7 +1249,7 @@ case "$CHOICE" in
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "KARAKEEP")                                              run_app karakeep ;;
             "LANGFLOW")                                              run_app langflow ;;
-            "LANGFUSE + MINIO + CLICKHOUSE*")                       warn_heavy "Langfuse + MinIO + ClickHouse" "6GB" && run_app langfuse ;;
+            "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
             "LOCALAI")                                                run_app localai ;;
             "LIBRECHAT")                                             run_app librechat ;;
@@ -1886,7 +1577,7 @@ case "$CHOICE" in
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "KARAKEEP")                                              run_app karakeep ;;
             "LANGFLOW")                                              run_app langflow ;;
-            "LANGFUSE + MINIO + CLICKHOUSE*")                       warn_heavy "Langfuse + MinIO + ClickHouse" "6GB" && run_app langfuse ;;
+            "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
             "LOCALAI")                                                run_app localai ;;
             "LIBRECHAT")                                             run_app librechat ;;

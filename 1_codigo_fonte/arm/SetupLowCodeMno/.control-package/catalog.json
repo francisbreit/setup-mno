@@ -707,8 +707,8 @@
     "name": "LANGFUSE + MINIO + CLICKHOUSE*",
     "cats": "IA, Observabilidade, Analytics",
     "desc": "Stack completa de observabilidade para IA: Langfuse para tracing + ClickHouse para analytics + MinIO para storage.",
-    "ram": 6,
-    "ramLabel": "~6GB (8GB recomendado)",
+    "ram": 4,
+    "ramLabel": "~4GB",
     "arch": "x86-arm",
     "stars": 0,
     "type": "Combo",
@@ -841,7 +841,7 @@
     "desc": "Plataforma de automação de marketing open-source. Email marketing, landing pages, scoring de leads.",
     "ram": 5,
     "ramLabel": "~5GB",
-    "arch": "x86",
+    "arch": "x86-arm",
     "stars": 7000,
     "type": "Individual",
     "search": "mautic 4 padrão automação, marketing, crm plataforma de automação de marketing open-source. email marketing, landing pages, scoring de leads."
@@ -874,7 +874,7 @@
     "desc": "Plataforma de automação de marketing open-source. Email marketing, landing pages, scoring de leads.",
     "ram": 5,
     "ramLabel": "~5GB",
-    "arch": "x86",
+    "arch": "x86-arm",
     "stars": 7000,
     "type": "Individual",
     "search": "mautic 4 whatsapp mkt automação, marketing, crm plataforma de automação de marketing open-source. email marketing, landing pages, scoring de leads."

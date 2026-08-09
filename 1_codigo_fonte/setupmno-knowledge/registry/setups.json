@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "selectionVersion": "1.9.0",
-  "setupVersion": "7.7.37",
+  "setupVersion": "7.7.38",
   "selectionPolicy": "Lotes 1 a 6 orientados a deploy, IA, integrações, dados, identidade, colaboração, produtividade, atendimento e segurança operacional",
   "setups": [
     {
@@ -1124,7 +1124,8 @@
       "catalogName": "MAUTIC 4 PADRÃO",
       "script": "mauticpadrao.sh",
       "architectures": [
-        "amd64"
+        "amd64",
+        "arm64"
       ],
       "aliases": [
         "mautic 4 padrao",
@@ -1136,7 +1137,8 @@
       "catalogName": "MAUTIC 4 WHATSAPP MKT",
       "script": "mautic4whatsmkt.sh",
       "architectures": [
-        "amd64"
+        "amd64",
+        "arm64"
       ],
       "aliases": [
         "mautic 4 whatsapp",

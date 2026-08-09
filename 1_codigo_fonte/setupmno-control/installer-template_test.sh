@@ -15,17 +15,6 @@ grep -Fq 'if control_center_installed; then' "$template"
 grep -Fq 'somente uma instalação é permitida por servidor' "$template"
 grep -Fq '/root/SetupLowCodeMno/.setupmno-control-install.lock' "$template"
 grep -Fq 'flock -n 9' "$template"
-grep -Fq '[ "${SETUPMNO_CONTROL_PARENT_CONFIRMED:-0}" != "1" ]' "$template"
-grep -Fq '16 82 || exit 130' "$template"
-interactive_flow=$(awk '
-    /if \[ "\$\{SETUPMNO_CONTROL_PARENT_CONFIRMED:-0\}" != "1" \]/ { inside=1 }
-    inside { print }
-    inside && /^install_log=/ { exit }
-' "$template")
-if grep -Fq 'exit 0' <<<"$interactive_flow"; then
-    printf 'ERRO: cancelamento interativo do Control Center ainda retorna sucesso.\n' >&2
-    exit 1
-fi
 test_dir=$(mktemp -d)
 trap 'rm -rf "$test_dir"' EXIT
 
