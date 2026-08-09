@@ -18,7 +18,7 @@
 #########################################################
 
 SETUP_MNO_TMUX_SESSION="setup-mno"
-SETUP_MNO_TMUX_LIFECYCLE="2"
+SETUP_MNO_TMUX_LIFECYCLE="3"
 
 #########################################################
 # DESCOBRE O CAMINHO REAL DO EXECUTÁVEL ATUAL
@@ -58,6 +58,39 @@ setup_mno_resolve_script_path() {
 
     esac
 }
+
+#########################################################
+# RETORNA AO BINÁRIO SHC SEM ENCERRAR A SESSÃO TMUX
+#########################################################
+
+setup_mno_return_to_installer() {
+    local install_binary="${1:-/root/SetupLowCodeMno/install}"
+    local install_dir
+
+    if [ ! -x "$install_binary" ]; then
+        whiptail --title "ERRO AO RETORNAR AO SETUP MNO" --msgbox \
+            "O binário $install_binary não foi encontrado ou não possui permissão de execução.\n\nA sessão foi preservada, mas o menu não pode ser reaberto." \
+            14 78 1>&2
+        return 127
+    fi
+
+    install_dir=$(dirname -- "$install_binary") || return 127
+    clear
+    cd "$install_dir" || return 127
+
+    # O runtime é compilado pelo SHC: execute o binário diretamente.
+    exec "$install_binary"
+
+    whiptail --title "ERRO AO RETORNAR AO SETUP MNO" --msgbox \
+        "Não foi possível executar novamente o binário $install_binary." \
+        12 76 1>&2
+    return 127
+}
+
+# Gate não interativo usado para validar o comportamento também após o SHC.
+if [ "${SETUPMNO_INSTALL_RETURN_SMOKE_TEST:-0}" = "1" ]; then
+    setup_mno_return_to_installer /usr/bin/true
+fi
 
 #########################################################
 # INICIALIZA / RECONECTA À SESSÃO TMUX
@@ -184,7 +217,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.7.41"
+VERSIONSETUP="7.7.42"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -361,7 +394,6 @@ fi
 # --- DISPATCH DINÂMICO (substitui 240+ case blocks) ---
 run_app() {
     local script="$1"
-    local app_status
     if [ "$script" = "setupmno_control" ] && control_center_installed; then
         whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
             "Já existe um Setup MNO Control Center neste servidor.\n\nSomente uma instalação é permitida por servidor." 12 72
@@ -369,17 +401,10 @@ run_app() {
     fi
     clear
     cd && cd SetupLowCodeMno && ./"$script"
-    app_status=$?
 
-    # Cada operação deve começar com variáveis novas. Ao retornar do script
-    # selecionado, encerramos o install dentro do tmux; o wrapper criado acima
-    # elimina a sessão. Se o SSH cair durante a operação, este ponto ainda não
-    # foi alcançado e a sessão permanece disponível para reconexão.
-    if [ -n "${TMUX:-}" ]; then
-        exit "$app_status"
-    fi
-
-    return "$app_status"
+    # Todos os fluxos de saída retornam a uma instância limpa do binário SHC
+    # dentro da mesma sessão tmux. Nunca invoque install.sh nem use bash aqui.
+    setup_mno_return_to_installer
 }
 
 warn_heavy() {

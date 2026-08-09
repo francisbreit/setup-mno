@@ -2,24 +2,25 @@
 {
   "schemaVersion": 1,
   "documentId": "infra-setupmno-operations-architecture",
-  "documentVersion": "1.0.0",
-  "contentSHA256": "656b35851fccb94cd2c16d6c8207163068b87aa8e01903e92ec87b2da9a6d27b",
+  "documentVersion": "1.1.0",
+  "contentSHA256": "fe267e661ae33f6c9177ce93ed2cbad9e79e3740bc6f87a8960a90e93e91381f",
   "documentType": "infrastructure",
   "title": "Operação segura do Setup MNO por Portainer e SSH",
   "topicId": "setupmno-operations",
-  "setupVersion": "7.7.41",
+  "setupVersion": "7.7.42",
   "architectures": ["amd64", "arm64"],
   "category": "operations",
   "status": "reviewed",
-  "updatedAt": "2026-08-03",
+  "updatedAt": "2026-08-08",
   "sourceType": "setup-mno",
   "risk": "high",
   "language": "pt-BR",
-  "tags": ["operacao", "portainer", "ssh", "diagnostico", "servicos", "logs", "rollback"],
+  "tags": ["operacao", "portainer", "ssh", "diagnostico", "servicos", "logs", "rollback", "tmux", "shc"],
   "sources": [
     {"sourceId":"restart-service","title":"Fluxo autorizado de reinício de serviços","sourceType":"setup-mno","location":"x86/SetupLowCodeMno/restartservice.sh","license":"project-internal","verifiedAt":"2026-08-03"},
     {"sourceId":"uninstall-flow","title":"Fluxo autorizado de remoção","sourceType":"setup-mno","location":"x86/SetupLowCodeMno/uninstall.sh","license":"project-internal","verifiedAt":"2026-08-03"},
-    {"sourceId":"control-readme","title":"Arquitetura do Control Center","sourceType":"setup-mno","location":"setupmno-control/README.md","license":"project-internal","verifiedAt":"2026-08-03"}
+    {"sourceId":"control-readme","title":"Arquitetura do Control Center","sourceType":"setup-mno","location":"setupmno-control/README.md","license":"project-internal","verifiedAt":"2026-08-03"},
+    {"sourceId":"setup-installer","title":"Ciclo do instalador SHC em tmux","sourceType":"setup-mno","location":"x86/SetupLowCodeMno/install.sh","license":"project-internal","verifiedAt":"2026-08-08"}
   ],
   "homologation": {"verifiedAt": null, "verifiedPorts": [], "verifiedImages": []}
 }
@@ -35,6 +36,20 @@ operam o Swarm por Portainer ou por uma sessão SSH própria.
 
 Observar antes de alterar, preservar evidências, separar fato de hipótese,
 usar a menor ação reversível e validar o fluxo de negócio depois da mudança.
+
+## Ciclo do Instalador Seguro
+
+O runtime do menu é o binário SHC `/root/SetupLowCodeMno/install`; o arquivo
+`install.sh` existe apenas no projeto de construção. Aplicações e utilitários
+são processos filhos do menu. Quando qualquer um deles termina, com sucesso,
+cancelamento ou erro, o dispatcher usa `exec` diretamente no binário `install`.
+Isso reabre um ambiente limpo dentro da mesma sessão tmux, sem passar o binário
+ao Bash e sem encerrar a sessão entre aplicações.
+
+A opção explícita **SAIR** continua encerrando o instalador e permite que o
+wrapper finalize somente a sessão tmux do Setup MNO. O ciclo de vida da sessão
+é versionado para descartar sessões antigas que ainda possuam semântica de
+saída incompatível.
 
 ## Método de diagnóstico
 
@@ -169,6 +184,11 @@ antes da atualização.
 Confirme réplicas estáveis, healthcheck, ausência do erro recorrente nos logs,
 acesso interno e externo e o fluxo principal da aplicação. Registre a condição
 anterior e a condição recuperada.
+
+Para o menu, valide também que o retorno após uma aplicação executa diretamente
+o binário `install`, preserva a variável `TMUX` e reabre o Whiptail. O gate deve
+passar no fonte e no binário compilado pelo SHC; referências executáveis a
+`install.sh` são falha bloqueante.
 
 ## Riscos e limites
 

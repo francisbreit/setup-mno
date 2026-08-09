@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "phpMyAdmin no Setup MNO",
   "setupId": "phpmyadmin",
-  "setupVersion": "7.7.41",
+  "setupVersion": "7.7.42",
   "architectures": [
     "amd64",
     "arm64"

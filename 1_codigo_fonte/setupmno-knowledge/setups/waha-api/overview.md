@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "WAHA API no Setup MNO",
   "setupId": "waha-api",
-  "setupVersion": "7.7.41",
+  "setupVersion": "7.7.42",
   "architectures": [
     "amd64",
     "arm64"

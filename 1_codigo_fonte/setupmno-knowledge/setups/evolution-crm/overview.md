@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Evolution CRM no Setup MNO",
   "setupId": "evolution-crm",
-  "setupVersion": "7.7.41",
+  "setupVersion": "7.7.42",
   "architectures": [
     "amd64",
     "arm64"

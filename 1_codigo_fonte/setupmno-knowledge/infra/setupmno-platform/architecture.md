@@ -7,7 +7,7 @@
   "documentType": "infrastructure",
   "title": "Arquitetura operacional da plataforma Setup MNO",
   "topicId": "setupmno-platform",
-  "setupVersion": "7.7.41",
+  "setupVersion": "7.7.42",
   "architectures": ["amd64", "arm64"],
   "category": "architecture",
   "status": "reviewed",
