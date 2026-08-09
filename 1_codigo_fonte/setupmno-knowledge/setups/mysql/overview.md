@@ -2,22 +2,22 @@
 {
   "schemaVersion": 1,
   "documentId": "setup-mysql-overview",
-  "documentVersion": "1.0.0",
-  "contentSHA256": "15629437f53f69db1393def99732e1b5027dd9cedd2a9aa5c8ecdbce343751c5",
+  "documentVersion": "1.1.0",
+  "contentSHA256": "231ef2824b1ecc6ef7d26a22c80fe4ab24b342d9fb7db1184749017f4839eab8",
   "documentType": "setup",
   "title": "MySQL baseado em Percona Server no Setup MNO",
   "setupId": "mysql",
-  "setupVersion": "7.7.45",
+  "setupVersion": "7.7.46",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
-  "updatedAt": "2026-08-01",
+  "updatedAt": "2026-08-09",
   "sourceType": "setup-mno",
   "risk": "high",
   "language": "pt-BR",
   "tags": ["mysql", "percona-server", "sql", "banco-de-dados", "xtrabackup"],
   "sources": [
-    {"sourceId":"mysql-installer","title":"Instalador MySQL","sourceType":"setup-mno","location":"x86/SetupLowCodeMno/mysql.sh","license":"project-internal","verifiedAt":"2026-08-01"},
+    {"sourceId":"mysql-installer","title":"Instalador MySQL","sourceType":"setup-mno","location":"x86/SetupLowCodeMno/mysql.sh","license":"project-internal","verifiedAt":"2026-08-09"},
     {"sourceId":"percona-upgrade","title":"Upgrade oficial do Percona Server 8.0","sourceType":"official-documentation","location":"https://docs.percona.com/percona-server/8.0/upgrade-percona-repos.html","license":"documentation-reference","verifiedAt":"2026-08-01"},
     {"sourceId":"percona-xtrabackup","title":"Percona XtraBackup 8.0 em Docker","sourceType":"official-documentation","location":"https://docs.percona.com/percona-xtrabackup/8.0/docker.html","license":"documentation-reference","verifiedAt":"2026-08-01"}
   ],
@@ -34,10 +34,16 @@ essa diferença deve ser considerada em suporte, plugins, backup e atualização
 
 ## Arquitetura no Setup MNO
 
-O instalador cria um serviço único da série 8.0 do Percona Server, volume de dados
-e conexão apenas pelas redes Docker. Define root password, UTF-8, pacote máximo
-e opções legadas de autenticação, além de esvaziar o SQL mode. Não publica 3306,
-não cria banco ou usuário de aplicação e não possui healthcheck.
+O instalador cria um serviço compartilhado da série 8.0 do Percona Server,
+volume de dados e conexão apenas pelas redes Docker. Define root password,
+UTF-8, pacote máximo e opções legadas de autenticação, além de esvaziar o SQL
+mode. Não publica 3306 e não cria usuário de aplicação.
+
+Os instaladores consumidores verificam o serviço exato `mysql_mysql`, recuperam
+a credencial já gerada e aguardam por até 15 minutos uma consulta autenticada
+`SELECT 1`. Só depois criam o banco de forma idempotente e continuam o deploy.
+Isso evita confundir MySQL 8.0 com `mysql84` e impede que a mera existência do
+container seja tratada como banco pronto.
 
 ## Pré-requisitos
 
@@ -47,10 +53,11 @@ usuário e privilégios por aplicação antes de integrá-la.
 
 ## Fluxo seguro
 
-O Instalador Seguro coleta a senha root e modo Portainer ou Docker. Depois da
-subida, crie usuários de menor privilégio e não compartilhe root. Revise a
-necessidade de `mysql_native_password` e SQL mode vazio; ambos reduzem controles
-modernos e podem mascarar erros de dados.
+O Instalador Seguro coleta a senha root e modo Portainer ou Docker. A validação
+de readiness usa a credencial dentro do container, sem colocá-la nos argumentos
+de `docker exec`. Depois da subida, crie usuários de menor privilégio e não
+compartilhe root. Revise a necessidade de `mysql_native_password` e SQL mode
+vazio; ambos reduzem controles modernos e podem mascarar erros de dados.
 
 ## Primeiro acesso e integrações
 
@@ -68,8 +75,9 @@ de atualizar.
 ## Validação
 
 Confirme saúde, autenticação, privilégios, persistência, charset, SQL mode,
-backup, restauração e ausência de porta publicada. Teste uma transação e o erro
-esperado para usuário sem permissão.
+backup, restauração e ausência de porta publicada. Simule inicialização lenta,
+confirme que nenhum banco é criado antes de `SELECT 1`, repita a criação para
+validar idempotência e reinicie o serviço para provar persistência.
 
 ## Riscos e limites
 

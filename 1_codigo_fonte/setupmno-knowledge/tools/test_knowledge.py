@@ -66,6 +66,73 @@ def run_linter(*arguments: str) -> subprocess.CompletedProcess[str]:
 
 
 class KnowledgeFactoryTests(unittest.TestCase):
+    def test_mysql80_consumers_wait_for_authenticated_readiness(self) -> None:
+        mysql80_scripts = (
+            "bookstack",
+            "easyappointments",
+            "ghost",
+            "glpi",
+            "humhub",
+            "krayincrm",
+            "matomo",
+            "mautic4whatsmkt",
+            "mautic5padrao",
+            "mautic5whatsmkt",
+            "mautic6padrao",
+            "mautic6whatsmkt",
+            "mauticpadrao",
+            "mysql",
+            "wordpress",
+            "yourl",
+        )
+        discovered = {
+            path.stem
+            for path in (SOURCE_ROOT / "x86" / "SetupLowCodeMno").glob("*.sh")
+            if "image: percona/percona-server:8.0"
+            in path.read_text(encoding="utf-8")
+        }
+        self.assertEqual(discovered, set(mysql80_scripts))
+
+        for script_name in mysql80_scripts:
+            with self.subTest(script=script_name):
+                x86_script = (
+                    SOURCE_ROOT / "x86" / "SetupLowCodeMno" / f"{script_name}.sh"
+                ).read_text(encoding="utf-8")
+                arm_script = (
+                    SOURCE_ROOT / "arm" / "SetupLowCodeMno" / f"{script_name}.sh"
+                ).read_text(encoding="utf-8")
+
+                self.assertEqual(x86_script, arm_script)
+                self.assertEqual(
+                    x86_script.count("setupmno_mysql80_wait_ready() {"),
+                    1,
+                )
+                self.assertIn("docker service inspect mysql_mysql", x86_script)
+                self.assertIn(
+                    'label=com.docker.swarm.service.name=$service_name',
+                    x86_script,
+                )
+                self.assertIn('-e "SELECT 1"', x86_script)
+                self.assertIn("for attempt in $(seq 1 181); do", x86_script)
+                self.assertEqual(
+                    x86_script.count(
+                        "setupmno_mysql80_require_ready /root/mysql.yaml"
+                    ),
+                    1,
+                )
+                self.assertNotIn(
+                    'grep -q "^mysql$")',
+                    x86_script,
+                )
+                self.assertNotIn("docker ps -qf name=mysql", x86_script)
+                self.assertNotIn("docker exec -e MYSQL_PWD=", x86_script)
+
+                if script_name != "mysql":
+                    self.assertIn(
+                        'setupmno_mysql80_create_database "',
+                        x86_script,
+                    )
+
     def test_langfuse_waits_for_portainer_and_binds_health_endpoints(self) -> None:
         x86_script = (
             SOURCE_ROOT / "x86" / "SetupLowCodeMno" / "langfuse.sh"

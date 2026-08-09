@@ -1,4 +1,71 @@
 #!/usr/bin/bash
+
+# Aguarda o MySQL 8.0 compartilhado aceitar uma consulta autenticada.
+setupmno_mysql80_service_exists() {
+    docker service inspect mysql_mysql >/dev/null 2>&1
+}
+
+setupmno_mysql80_wait_ready() {
+    local yaml_file="${1:-/root/mysql.yaml}"
+    local service_name="${SETUPMNO_MYSQL80_SERVICE_NAME:-mysql_mysql}"
+    local attempt probe
+
+    MYSQL80_CONTAINER_ID=""
+    MYSQL80_ROOT_PASSWORD=""
+
+    [ -s "$yaml_file" ] || return 65
+    MYSQL80_ROOT_PASSWORD=$(sed -n 's/^[[:space:]]*-[[:space:]]*MYSQL_ROOT_PASSWORD=//p' "$yaml_file" | head -n1)
+    [ -n "$MYSQL80_ROOT_PASSWORD" ] || return 66
+
+    for attempt in $(seq 1 181); do
+        MYSQL80_CONTAINER_ID=$(docker ps \
+            --filter "label=com.docker.swarm.service.name=$service_name" \
+            --format '{{.ID}}' | head -n1)
+        if [ -n "$MYSQL80_CONTAINER_ID" ]; then
+            probe=$(docker exec "$MYSQL80_CONTAINER_ID" sh -c \
+                'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot --batch --skip-column-names -e "SELECT 1"' \
+                2>/dev/null) || probe=""
+            [ "$probe" = "1" ] && return 0
+        fi
+        [ "$attempt" -lt 181 ] && sleep 5
+    done
+
+    return 67
+}
+
+setupmno_mysql80_require_ready() {
+    local yaml_file="${1:-/root/mysql.yaml}"
+    local status message
+
+    setupmno_mysql80_wait_ready "$yaml_file" && return 0
+    status=$?
+
+    case "$status" in
+        65) message="O arquivo de configuração do MySQL 8.0 não foi encontrado." ;;
+        66) message="A senha do MySQL 8.0 não pôde ser recuperada com segurança." ;;
+        *)  message="O MySQL 8.0 não aceitou conexão autenticada em até 15 minutos." ;;
+    esac
+
+    whiptail --title "ERRO MYSQL 8.0" --msgbox \
+        "$message\n\nA instalação foi interrompida antes de criar ou usar o banco." \
+        13 76 1>&2
+    return "$status"
+}
+
+setupmno_mysql80_create_database() {
+    local database_name="$1"
+    local query
+
+    [[ "$database_name" =~ ^[A-Za-z0-9_]+$ ]] || return 68
+    [ -n "$MYSQL80_CONTAINER_ID" ] || return 69
+    [ -n "$MYSQL80_ROOT_PASSWORD" ] || return 70
+
+    query="CREATE DATABASE IF NOT EXISTS \`$database_name\`;"
+    docker exec "$MYSQL80_CONTAINER_ID" sh -c \
+        'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot -e "$1"' \
+        setupmno-mysql "$query" >/dev/null 2>&1
+}
+
 #########################################################
 # # cloudflare tunnel - records automáticos
 #    LOADING
@@ -126,7 +193,10 @@ done
 nome_principal="mautic"  #nome do app
 sufixo_app=$(date | md5sum | head -c7)
 nome_app=$nome_principal$sufixo_app
-mysql_container=$(docker ps --format "{{.Names}}" | grep -q "^mysql$")
+mysql_container=""
+if setupmno_mysql80_service_exists; then
+    mysql_container="mysql_mysql"
+fi
 
 if [[ ("$mysql_container" == "") ]]; then
  senha_mysql=$(openssl rand -hex 8)
@@ -354,6 +424,14 @@ fi
 fi
 
 
+setupmno_mysql80_require_ready /root/mysql.yaml || exit 1
+if ! setupmno_mysql80_create_database "$nome_app"; then
+    whiptail --title "ERRO MYSQL 8.0" --msgbox \
+        "Não foi possível criar o banco $nome_app. A instalação foi interrompida." \
+        11 76 1>&2
+    exit 1
+fi
+
 #CRIAÇÃO DE BANCO MYSQL INICIO
 
 {
@@ -399,7 +477,7 @@ elapsed_time=0
 container_id2=""
 
 while [ $elapsed_time -lt $max_wait_time ]; do
-    container_id2=$(docker ps -q -f "label=com.docker.stack.namespace=mysql")
+    container_id2="$MYSQL80_CONTAINER_ID"
     if [ -n "$container_id2" ]; then
         break
     fi
@@ -416,7 +494,7 @@ fi
 echo -e "XXX\n24\nCONTAINER MYSQL ENCONTRADO\nXXX"
 
 # Extrair senha do MySQL
-senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml)
+senha_mysql="$MYSQL80_ROOT_PASSWORD"
 
 if [ -z "$senha_mysql" ]; then
     echo -e "XXX\n25\nERRO: Senha MySQL não encontrada\nXXX"
@@ -427,7 +505,7 @@ fi
 echo -e "XXX\n26\nCRIANDO BANCO: $nome_app\nXXX"
 
 # Criar banco de dados (versão mais segura)
- if docker exec -i $container_id2 bash -c "MYSQL_PWD=\"$senha_mysql\" mysql -u root -e \"CREATE DATABASE $nome_app;\"" >/dev/null 2>&1; then
+ if setupmno_mysql80_create_database "$nome_app"; then
     echo -e "XXX\n27\nBANCO $nome_app CRIADO COM SUCESSO\nXXX"
     sleep 5
 else
