@@ -20,28 +20,28 @@ painel.
 
 ## Barreira P0 de identidade e continuidade
 
-Em instalações por Cloudflare Tunnel, o domínio do Control Center é publicado
-somente depois da criação de um aplicativo Cloudflare Access com política para
-um e-mail exato. O assistente recomenda MFA independente, explica como habilitar
-e cadastrar o autenticador e também oferece instalação sem o segundo fator
-extra para ambientes ainda não preparados. O token usado pelo Setup
-precisa das permissões `Access: Apps and Policies Write` e
-`Access: Organizations Read`, além das permissões já usadas pelo Tunnel e DNS.
-Se o usuário escolher MFA e o Zero Trust ainda não possuir TOTP, biometria ou
-chave de segurança habilitados, o instalador não encerra abruptamente: oferece
-instruções, nova tentativa, continuação consciente sem MFA ou cancelamento sem
-criar recursos.
+Em instalações por Cloudflare Tunnel, o usuário escolhe entre dois modos
+independentes. O **modo original** mantém o Tunnel direto, o login local do
+painel e o Terminal Remoto das versões anteriores; ele não cria aplicação,
+política, identidade por e-mail ou validação JWT do Cloudflare Access. O modo
+**MFA** adiciona uma aplicação Access para um e-mail exato e exige TOTP,
+biometria ou chave de segurança. As permissões `Access: Apps and Policies
+Write` e `Access: Organizations Read` só são necessárias para ativar essa
+camada opcional.
 
-O fluxo sem MFA não acrescenta confirmações intermediárias: a escolha e o
-e-mail aparecem juntos na confirmação final da instalação. Enquanto uma
-instalação por Tunnel não estiver marcada com MFA ativo, o menu principal exibe
-`CONFIGURAR MFA CONTROL CENTER`. A ação consulta a aplicação pelo `aud`, altera
-somente a política do e-mail exato, mantém rollback da política anterior e volta
-ao mesmo menu do instalador. A opção desaparece depois da ativação e não é
-exibida em instalações tradicionais, nas quais Cloudflare Access não se aplica.
+Enquanto uma instalação Tunnel estiver no modo original, o menu principal
+exibe `CONFIGURAR MFA CONTROL CENTER`. A ativação posterior preserva o acesso
+atual até aplicação, rota e serviço estarem prontos, possui rollback e volta ao
+mesmo menu. A opção desaparece depois da ativação e não é exibida em instalações
+tradicionais. Instalações criadas pelas versões 7.7.49/7.7.50 com a marca
+explícita `ACCESS_MFA_REQUIRED=false` são normalizadas para o modo original:
+somente a aplicação identificada pelo `aud` e pela rota exata é removida.
 
-A identidade é validada três vezes: pelo Access na borda, pelo `cloudflared`
-antes do origin e pelo backend. A validação local aceita somente RS256, busca as
+Falhas de sincronização do Control Center são apresentadas como aviso e nunca
+mais encerram o instalador geral; o menu de aplicações continua disponível.
+
+Quando o MFA está ativo, a identidade é validada três vezes: pelo Access na
+borda, pelo `cloudflared` antes do origin e pelo backend. A validação local aceita somente RS256, busca as
 chaves públicas oficiais com cache e rotação, e confere `kid`, assinatura,
 emissor, audiência, `exp`, `nbf`, `iat`, assunto e e-mail autorizado. A sessão
 local fica vinculada ao mesmo assunto e e-mail do Access, impedindo que um

@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.15.11"
+CONTROL_VERSION="4.15.12"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -92,7 +92,7 @@ msg() {
 show_cloudflare_access_guide() {
     local team_hint="${access_team_name:-SEU-TIME}"
     whiptail --title "GUIA RÁPIDO — CLOUDFLARE ACCESS" --scrolltext --msgbox \
-        "IMPORTANTE: o Setup MNO não cria uma conta de e-mail. Ele cria automaticamente uma política que permite somente o endereço informado. Use um e-mail real, cuja caixa de entrada ou conta Cloudflare você controla.\n\nCAMINHO MAIS SIMPLES PARA LOGIN POR CÓDIGO NO E-MAIL\n1. Abra dash.cloudflare.com e entre em Zero Trust.\n2. Acesse Integrations > Identity providers.\n3. Se One-time PIN não estiver listado, clique em Add new identity provider > One-time PIN e salve.\n\nPARA USAR MFA INDEPENDENTE — RECOMENDADO\n4. Acesse Access controls > Access settings.\n5. Em Allow multi-factor authentication (MFA), habilite o MFA independente.\n6. Permita pelo menos Authenticator application (TOTP) e salve.\n7. Depois da instalação, abra:\n   https://${team_hint}.cloudflareaccess.com/AddMfaDevice\n8. Entre com o mesmo e-mail autorizado, escolha Authenticator application e leia o QR Code com Google Authenticator, Microsoft Authenticator ou Authy.\n\nSe não quiser preparar isso agora, escolha Access sem MFA extra. Você poderá ativar MFA posteriormente no painel Zero Trust.\n\nPermissões do token usadas pelo instalador:\n• Access: Apps and Policies Write\n• Access: Organizations Read\n• além das permissões já usadas pelo Tunnel e DNS." \
+        "IMPORTANTE: o MFA é opcional. Se você escolher o MODO ORIGINAL, o Setup MNO manterá o Cloudflare Tunnel direto, o login local do painel e o Terminal Remoto exatamente como antes, sem criar aplicação ou política Cloudflare Access. A opção CONFIGURAR MFA CONTROL CENTER continuará disponível no menu.\n\nPARA ATIVAR MFA INDEPENDENTE — RECOMENDADO\n1. Abra dash.cloudflare.com e entre em Zero Trust.\n2. Acesse Access controls > Access settings.\n3. Em Allow multi-factor authentication (MFA), habilite o MFA independente.\n4. Permita pelo menos Authenticator application (TOTP) e salve.\n5. Quando o Setup MNO solicitar, informe um e-mail real que você controla.\n6. Depois da ativação, abra:\n   https://${team_hint}.cloudflareaccess.com/AddMfaDevice\n7. Entre com o mesmo e-mail e leia o QR Code com Google Authenticator, Microsoft Authenticator ou Authy.\n\nPermissões do token usadas somente ao ativar o MFA:\n• Access: Apps and Policies Write\n• Access: Organizations Read\n• além das permissões já usadas pelo Tunnel e DNS." \
         24 94 1>&2
 }
 
@@ -100,10 +100,10 @@ choose_cloudflare_access_security() {
     local choice status
     while true; do
         choice=$(whiptail --title "SEGURANÇA DO ACESSO REMOTO" --default-item "MFA" --menu \
-            "O Cloudflare Access sempre protegerá o domínio e aceitará somente o e-mail informado.\n\nEscolha se deseja exigir também um segundo fator independente:" \
+            "Escolha como o Control Center será publicado. O modo original mantém os mesmos acessos das versões anteriores; o MFA adiciona Cloudflare Access e um segundo fator:" \
             20 94 4 \
             "MFA" "Access + aplicativo autenticador/chave/biometria (RECOMENDADO)" \
-            "SEM_MFA" "Access sem segundo fator extra (mais simples, menos seguro)" \
+            "SEM_MFA" "Modo original: Tunnel direto, login local e Terminal Remoto" \
             "INSTRUCOES" "Ver o passo a passo no Cloudflare antes de continuar" \
             3>&1 1>&2 2>&3)
         status=$?
@@ -185,6 +185,28 @@ build_cloudflare_access_payload() {
     ' >"$output_file"
 }
 
+build_control_tunnel_route_payload() {
+    local input_file="$1" output_file="$2" host="$3" service="$4"
+    local require_access="$5" team="$6" aud="$7"
+    jq --arg host "$host" --arg service "$service" --arg team "$team" --arg aud "$aud" \
+        --argjson requireAccess "$require_access" '
+        (.result.config // {}) as $cfg
+        | ($cfg.ingress // [])
+        | map(select(.service != "http_status:404" and .hostname != $host))
+        + [{hostname:$host,service:$service,originRequest:
+             (if $requireAccess then {
+                noTlsVerify:true,
+                httpHostHeader:$host,
+                access:{required:true,teamName:$team,audTag:[$aud]}
+              } else {
+                noTlsVerify:true,
+                httpHostHeader:$host
+              } end)},
+           {service:"http_status:404"}]
+        | {config:($cfg + {ingress:.})}
+    ' "$input_file" >"$output_file"
+}
+
 control_center_installed() {
     command -v docker >/dev/null 2>&1 || return 1
     docker service ls --format '{{.Name}}' 2>/dev/null |
@@ -237,32 +259,40 @@ rollback_existing_access_migration() {
 
 prepare_existing_access_migration() {
     local web_service="$1" work_dir="$2" log_file="$3" state_file="$4"
+    local activation_mode="${5:-preserve}"
     local email status action tunnel_raw organization_file applications_file hostname service_target
     local auth_domain team_name payload response app_id aud tunnel_payload tunnel_response original_tunnel
-    local access_required access_team access_aud access_email access_metadata_count=0
+    local access_required access_team access_aud access_email access_mfa
+    local access_mfa_enabled="true"
     jq -n '{active:false}' >"$state_file" || return 1
     [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] || return 0
     access_required=$(control_service_env_value "$web_service" ACCESS_JWT_REQUIRED)
     access_team=$(control_service_env_value "$web_service" ACCESS_TEAM_DOMAIN)
     access_aud=$(control_service_env_value "$web_service" ACCESS_POLICY_AUD)
     access_email=$(control_service_env_value "$web_service" ACCESS_ALLOWED_EMAIL)
-    [ -n "$access_required" ] && access_metadata_count=$((access_metadata_count + 1))
-    [ -n "$access_team" ] && access_metadata_count=$((access_metadata_count + 1))
-    [ -n "$access_aud" ] && access_metadata_count=$((access_metadata_count + 1))
-    [ -n "$access_email" ] && access_metadata_count=$((access_metadata_count + 1))
-    if [ "$access_metadata_count" -eq 4 ] && [ "$access_required" = "true" ]; then
+    access_mfa=$(control_service_env_value "$web_service" ACCESS_MFA_REQUIRED)
+    if [ "$access_required" = "true" ]; then
+        if [ -z "$access_team" ] || [ -z "$access_aud" ] || [ -z "$access_email" ]; then
+            msg "A instalação possui metadados Cloudflare Access parciais ou inconsistentes. Por segurança, nada foi alterado. Revise as variáveis ACCESS_* do serviço web antes de atualizar."
+            return 1
+        fi
+        if [ "$activation_mode" = "preserve" ] && [ "$access_mfa" = "false" ]; then
+            restore_existing_access_original_mode "$web_service" "$work_dir" "$log_file"
+            return $?
+        fi
         return 0
     fi
-    if [ "$access_metadata_count" -ne 0 ]; then
+    if [ -n "$access_team" ] || [ -n "$access_aud" ] || [ -n "$access_email" ] ||
+       { [ -n "$access_required" ] && [ "$access_required" != "false" ]; }; then
         msg "A instalação possui metadados Cloudflare Access parciais ou inconsistentes. Por segurança, nada foi alterado. Revise as variáveis ACCESS_* do serviço web antes de atualizar."
         return 1
     fi
+    [ "$activation_mode" = "activate-mfa" ] || return 0
 
-    whiptail --title "MIGRAÇÃO DE SEGURANÇA DO CONTROL CENTER" --msgbox \
-        "Esta instalação ainda não possui Cloudflare Access.\n\nA atualização criará uma barreira de identidade para o domínio. Na próxima tela você poderá escolher MFA independente ou continuar sem o segundo fator extra. Nenhuma alteração será feita antes da confirmação final." \
+    whiptail --title "ATIVAR MFA NO CONTROL CENTER" --msgbox \
+        "O Control Center está no modo original, sem Cloudflare Access.\n\nEsta opção criará uma aplicação Access exclusiva, permitirá somente o e-mail informado e exigirá MFA independente. Se você cancelar, o acesso atual será preservado." \
         17 88 1>&2
-    choose_cloudflare_access_security || return 130
-    email=$(collect_cloudflare_access_email "IDENTIDADE DA MIGRAÇÃO") || return 130
+    email=$(collect_cloudflare_access_email "IDENTIDADE DO MFA") || return 130
 
     tunnel_raw="$work_dir/access-migration-tunnel.json"
     organization_file="$work_dir/access-migration-organization.json"
@@ -294,20 +324,17 @@ prepare_existing_access_migration() {
             msg "O Zero Trust ainda não possui um domínio de autenticação válido. Configure-o no painel Cloudflare e tente novamente. A instalação atual foi preservada."
             return 1
         fi
-        if [ "$access_mfa_enabled" = "true" ] &&
-           [ "$(jq -r '(.result.mfa_config.allowed_authenticators // []) | length' "$organization_file")" -lt 1 ]; then
+        if [ "$(jq -r '(.result.mfa_config.allowed_authenticators // []) | length' "$organization_file")" -lt 1 ]; then
             action=$(whiptail --title "MFA AINDA NÃO ESTÁ PRONTO" --default-item "INSTRUCOES" --menu \
                 "Nenhum autenticador MFA independente está habilitado no Zero Trust. Nada foi alterado.\n\nEscolha como continuar:" \
-                19 94 4 \
+                19 94 3 \
                 "INSTRUCOES" "Ver o passo a passo e voltar para testar novamente" \
                 "TENTAR" "Consultar novamente após configurar o Cloudflare" \
-                "SEM_MFA" "Continuar com Access, mas sem segundo fator extra" \
-                "CANCELAR" "Preservar a instalação atual e sair" \
+                "CANCELAR" "Voltar ao menu e manter o modo original" \
                 3>&1 1>&2 2>&3) || return 130
             case "$action" in
                 INSTRUCOES) show_cloudflare_access_guide ;;
                 TENTAR) ;;
-                SEM_MFA) access_mfa_enabled="false"; break ;;
                 CANCELAR) return 130 ;;
             esac
             continue
@@ -327,13 +354,18 @@ prepare_existing_access_migration() {
         msg "Já existe um aplicativo Access para $hostname. Por segurança, a migração não substituirá políticas externas. Revise-o no Zero Trust ou solicite uma migração assistida."
         return 1
     fi
+    if ! whiptail --title "CONFIRMAR ATIVAÇÃO DO MFA" --yesno \
+        "Domínio protegido: $hostname\nE-mail autorizado: $email\n\nO modo original continuará ativo até toda a configuração ser concluída. Em caso de falha, rota, serviço e política serão revertidos.\n\nDeseja ativar o MFA agora?" \
+        18 92 1>&2; then
+        return 130
+    fi
 
     team_name="${auth_domain%.cloudflareaccess.com}"
     payload="$work_dir/access-migration-payload.json"
     response="$work_dir/access-migration-response.json"
     build_cloudflare_access_payload "$payload" \
         "Setup MNO Control Center - $hostname" "$hostname" "$email" \
-        "$access_mfa_enabled" 2>>"$log_file" || return 1
+        true 2>>"$log_file" || return 1
     if ! curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
         -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps" \
         -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
@@ -401,10 +433,121 @@ prepare_existing_access_migration() {
         --env-add "ACCESS_TEAM_DOMAIN=https://$auth_domain" \
         --env-add "ACCESS_POLICY_AUD=$aud" \
         --env-add "ACCESS_ALLOWED_EMAIL=$email" \
-        --env-add "ACCESS_MFA_REQUIRED=$access_mfa_enabled" \
+        --env-add "ACCESS_MFA_REQUIRED=true" \
         "$web_service" >>"$log_file" 2>&1; then
         rollback_existing_access_migration "$state_file" "$log_file"
         msg "O serviço existente recusou os metadados Access. Rota e política anteriores foram restauradas."
+        return 1
+    fi
+    return 0
+}
+
+restore_existing_access_original_mode() {
+    local web_service="$1" work_dir="$2" log_file="$3"
+    local team_domain aud email applications_file tunnel_file app_count app_id hostname service_target
+    local original_tunnel tunnel_payload tunnel_response delete_response
+
+    team_domain=$(control_service_env_value "$web_service" ACCESS_TEAM_DOMAIN)
+    aud=$(control_service_env_value "$web_service" ACCESS_POLICY_AUD)
+    email=$(control_service_env_value "$web_service" ACCESS_ALLOWED_EMAIL)
+    [[ "$team_domain" =~ ^https://[A-Za-z0-9-]+\.cloudflareaccess\.com$ ]] &&
+    [ "${#aud}" -ge 16 ] && [ "${#aud}" -le 128 ] &&
+    [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] || {
+        msg "O modo sem MFA possui metadados incompletos. A instalação foi preservada para evitar alterar uma política externa."
+        return 1
+    }
+    applications_file="$work_dir/original-mode-applications.json"
+    tunnel_file="$work_dir/original-mode-tunnel.json"
+    original_tunnel="$work_dir/original-mode-tunnel-original.json"
+    tunnel_payload="$work_dir/original-mode-tunnel-payload.json"
+    tunnel_response="$work_dir/original-mode-tunnel-response.json"
+    delete_response="$work_dir/original-mode-delete-response.json"
+    if ! curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+        "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps?per_page=100" \
+        >"$applications_file" 2>>"$log_file" ||
+       ! curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+        "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+        >"$tunnel_file" 2>>"$log_file" ||
+       [ "$(jq -r '.success // false' "$applications_file")" != "true" ] ||
+       [ "$(jq -r '.success // false' "$tunnel_file")" != "true" ]; then
+        msg "Não foi possível restaurar o modo original porque a Cloudflare não retornou a aplicação e a rota atuais. Nenhuma alteração foi realizada."
+        return 1
+    fi
+    app_count=$(jq -r --arg aud "$aud" '[.result[]? | select(.aud == $aud)] | length' "$applications_file")
+    app_id=$(jq -r --arg aud "$aud" '[.result[]? | select(.aud == $aud)][0].id // empty' "$applications_file")
+    if [ "$app_count" -ne 1 ] || [[ ! "$app_id" =~ ^[A-Fa-f0-9-]{32,36}$ ]]; then
+        msg "A aplicação Access criada para o modo sem MFA não foi identificada de forma única. Nada foi removido."
+        return 1
+    fi
+    service_target="http://${web_service}:8080"
+    hostname=$(jq -r --arg service "$service_target" \
+        '[.result.config.ingress[]? | select(.service == $service) | .hostname][0] // empty' "$tunnel_file")
+    if [[ ! "$hostname" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] ||
+       ! jq -e --arg aud "$aud" --arg host "$hostname" '
+          [.result[]? | select(.aud == $aud and
+            (.domain == $host or any(.destinations[]?; .type == "public" and .uri == $host)))]
+          | length == 1
+       ' "$applications_file" >/dev/null 2>&1; then
+        msg "A aplicação Access não corresponde de forma inequívoca à rota do Control Center. Nada foi removido."
+        return 1
+    fi
+    jq '{config:.result.config}' "$tunnel_file" >"$original_tunnel" 2>>"$log_file" || return 1
+    if ! jq --arg host "$hostname" --arg service "$service_target" '
+        (.result.config // {}) as $cfg
+        | {config:($cfg + {ingress:[($cfg.ingress // [])[] |
+            if .hostname == $host and .service == $service then
+              del(.originRequest.access)
+            else . end]})}
+    ' "$tunnel_file" >"$tunnel_payload" 2>>"$log_file"; then
+        return 1
+    fi
+    if ! curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
+        -X PUT \
+        "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+        --data-binary @"$tunnel_payload" >"$tunnel_response" 2>>"$log_file" ||
+       [ "$(jq -r '.success // false' "$tunnel_response")" != "true" ]; then
+        msg "A Cloudflare recusou a restauração da rota original. O acesso atual foi preservado."
+        return 1
+    fi
+    if ! docker service update --detach=false \
+        --env-rm ACCESS_JWT_REQUIRED \
+        --env-rm ACCESS_TEAM_DOMAIN \
+        --env-rm ACCESS_POLICY_AUD \
+        --env-rm ACCESS_ALLOWED_EMAIL \
+        --env-rm ACCESS_MFA_REQUIRED \
+        --env-add ACCESS_JWT_REQUIRED=false \
+        --env-add ACCESS_MFA_REQUIRED=false \
+        "$web_service" >>"$log_file" 2>&1; then
+        curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
+            -X PUT \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+            --data-binary @"$original_tunnel" >>"$log_file" 2>&1 || true
+        msg "O serviço web recusou o modo original. A rota anterior foi restaurada."
+        return 1
+    fi
+    if ! curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
+        -X DELETE \
+        "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$app_id" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" >"$delete_response" 2>>"$log_file" ||
+       [ "$(jq -r '.success // false' "$delete_response")" != "true" ]; then
+        docker service update --detach=false \
+            --env-rm ACCESS_JWT_REQUIRED --env-rm ACCESS_MFA_REQUIRED \
+            --env-add ACCESS_JWT_REQUIRED=true \
+            --env-add "ACCESS_TEAM_DOMAIN=$team_domain" \
+            --env-add "ACCESS_POLICY_AUD=$aud" \
+            --env-add "ACCESS_ALLOWED_EMAIL=$email" \
+            --env-add ACCESS_MFA_REQUIRED=false \
+            "$web_service" >>"$log_file" 2>&1 || true
+        curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
+            -X PUT \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+            --data-binary @"$original_tunnel" >>"$log_file" 2>&1 || true
+        msg "A aplicação Access não pôde ser removida. Serviço e rota anteriores foram restaurados."
         return 1
     fi
     return 0
@@ -531,7 +674,7 @@ configure_existing_access_mfa() {
     local work_dir log_file web_service service_count access_required team_domain aud email
     local organization_file applications_file application_file policy_payload rollback_payload response_file
     local auth_domain app_count app_id policy_count policy_id current_mfa_disabled current_mfa_enabled
-    local action rollback_response
+    local action rollback_response activation_state status
 
     if [ "$INSTALL_TYPE" != "CLOUDFLARE_TUNNEL" ]; then
         msg "O MFA independente desta opção pertence ao Cloudflare Access.\n\nEste Control Center usa acesso tradicional, portanto nenhuma alteração foi realizada."
@@ -554,6 +697,33 @@ configure_existing_access_mfa() {
     team_domain=$(control_service_env_value "$web_service" ACCESS_TEAM_DOMAIN)
     aud=$(control_service_env_value "$web_service" ACCESS_POLICY_AUD)
     email=$(control_service_env_value "$web_service" ACCESS_ALLOWED_EMAIL)
+    if [ "$access_required" != "true" ]; then
+        if [ -n "$team_domain" ] || [ -n "$aud" ] || [ -n "$email" ] ||
+           { [ -n "$access_required" ] && [ "$access_required" != "false" ]; }; then
+            msg "A instalação possui metadados Cloudflare Access parciais. Por segurança, nenhuma política foi alterada."
+            return 1
+        fi
+        work_dir=$(mktemp -d) || return 1
+        log_file="/tmp/setupmno-control-mfa-${CONTROL_VERSION}.log"
+        activation_state="$work_dir/activation-state.json"
+        : >"$log_file"
+        prepare_existing_access_migration "$web_service" "$work_dir" "$log_file" \
+            "$activation_state" activate-mfa
+        status=$?
+        if [ "$status" -eq 130 ]; then
+            rm -rf -- "$work_dir"
+            return 0
+        fi
+        if [ "$status" -ne 0 ]; then
+            rm -rf -- "$work_dir"
+            return "$status"
+        fi
+        team_domain=$(control_service_env_value "$web_service" ACCESS_TEAM_DOMAIN)
+        email=$(control_service_env_value "$web_service" ACCESS_ALLOWED_EMAIL)
+        rm -rf -- "$work_dir"
+        msg "MFA ATIVADO COM SUCESSO!\n\nE-mail protegido: $email\n\nPróximo passo:\n1. Abra ${team_domain}/AddMfaDevice\n2. Entre com o mesmo e-mail\n3. Cadastre o aplicativo autenticador, biometria ou chave\n4. Volte e abra o Control Center"
+        return 0
+    fi
     if [ "$access_required" != "true" ] ||
        [[ ! "$team_domain" =~ ^https://[A-Za-z0-9-]+\.cloudflareaccess\.com$ ]] ||
        [ "${#aud}" -lt 16 ] || [ "${#aud}" -gt 128 ] ||
@@ -1014,58 +1184,60 @@ fi
 access_email=""
 access_team_domain=""
 access_team_name=""
-access_mfa_enabled="true"
+access_mfa_enabled="false"
 if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     whiptail --title "4/6 — PROTEÇÃO CLOUDFLARE ACCESS" --msgbox \
-        "O instalador criará automaticamente a aplicação Access e autorizará um único e-mail.\n\nVocê não precisa cadastrar esse e-mail manualmente em uma política. Porém, deve informar uma conta real que você controla e que consiga entrar pelo método de identidade configurado no Zero Trust.\n\nNa próxima tela, escolha se deseja MFA independente." \
+        "O MFA é uma camada adicional e opcional.\n\nSe escolher MODO ORIGINAL, o painel continuará usando o Cloudflare Tunnel direto, o login local e o Terminal Remoto como nas versões anteriores. Nenhum aplicativo Cloudflare Access será criado.\n\nVocê poderá ativar o MFA mais tarde pelo menu principal." \
         19 90 1>&2
     choose_cloudflare_access_security || exit 0
-    access_email=$(collect_cloudflare_access_email "4/6") || exit 0
-    access_organization_file=$(mktemp) || exit 1
-    access_applications_file=$(mktemp) || {
-        rm -f "$access_organization_file"
-        exit 1
-    }
-    while true; do
-        check_cloudflare_access "$access_organization_file" "$access_applications_file"
-        access_check_status=$?
-        case "$access_check_status" in
-            0)
-                break
-                ;;
-            42)
-                access_action=$(whiptail --title "MFA AINDA NÃO ESTÁ PRONTO" --default-item "INSTRUCOES" --menu \
-                    "O Zero Trust está acessível, mas nenhum autenticador MFA independente foi habilitado. Nenhum recurso foi criado.\n\nEscolha como continuar:" \
-                    19 94 4 \
-                    "INSTRUCOES" "Ver o passo a passo e depois testar novamente" \
-                    "TENTAR" "Consultar novamente após configurar o Cloudflare" \
-                    "SEM_MFA" "Instalar com Access, mas sem segundo fator extra" \
-                    "CANCELAR" "Sair sem alterar o servidor" \
-                    3>&1 1>&2 2>&3) || {
-                    rm -f "$access_organization_file" "$access_applications_file"
-                    exit 0
-                }
-                case "$access_action" in
-                    INSTRUCOES) show_cloudflare_access_guide ;;
-                    TENTAR) ;;
-                    SEM_MFA) access_mfa_enabled="false" ;;
-                    CANCELAR)
-                        rm -f "$access_organization_file" "$access_applications_file"
-                        exit 0
-                        ;;
-                esac
-                ;;
-            *)
-                if ! whiptail --title "NÃO FOI POSSÍVEL VALIDAR O ACCESS" --yesno \
-                    "A validação não passou, mas nada foi alterado.\n\nDeseja corrigir o Cloudflare/token e tentar novamente?\n\nEscolha Não para sair com segurança." \
-                    15 88 1>&2; then
-                    rm -f "$access_organization_file" "$access_applications_file"
-                    exit 0
-                fi
-                ;;
-        esac
-    done
-    rm -f "$access_organization_file" "$access_applications_file"
+    if [ "$access_mfa_enabled" = "true" ]; then
+        access_email=$(collect_cloudflare_access_email "4/6") || exit 0
+        access_organization_file=$(mktemp) || exit 1
+        access_applications_file=$(mktemp) || {
+            rm -f "$access_organization_file"
+            exit 1
+        }
+        while true; do
+            check_cloudflare_access "$access_organization_file" "$access_applications_file"
+            access_check_status=$?
+            case "$access_check_status" in
+                0)
+                    break
+                    ;;
+                42)
+                    access_action=$(whiptail --title "MFA AINDA NÃO ESTÁ PRONTO" --default-item "INSTRUCOES" --menu \
+                        "O Zero Trust está acessível, mas nenhum autenticador MFA independente foi habilitado. Nenhum recurso foi criado.\n\nEscolha como continuar:" \
+                        19 94 3 \
+                        "INSTRUCOES" "Ver o passo a passo e depois testar novamente" \
+                        "TENTAR" "Consultar novamente após configurar o Cloudflare" \
+                        "MODO_ORIGINAL" "Instalar agora sem Access e configurar MFA depois" \
+                        3>&1 1>&2 2>&3) || access_action="MODO_ORIGINAL"
+                    case "$access_action" in
+                        INSTRUCOES) show_cloudflare_access_guide ;;
+                        TENTAR) ;;
+                        MODO_ORIGINAL)
+                            access_mfa_enabled="false"
+                            break 2
+                            ;;
+                    esac
+                    ;;
+                *)
+                    if ! whiptail --title "NÃO FOI POSSÍVEL VALIDAR O ACCESS" --yesno \
+                        "A validação não passou, mas nada foi alterado.\n\nDeseja corrigir o Cloudflare/token e tentar novamente?\n\nEscolha Não para usar o modo original sem MFA." \
+                        15 88 1>&2; then
+                        access_mfa_enabled="false"
+                        break
+                    fi
+                    ;;
+            esac
+        done
+        rm -f "$access_organization_file" "$access_applications_file"
+        if [ "$access_mfa_enabled" = "false" ]; then
+            access_email=""
+            access_team_domain=""
+            access_team_name=""
+        fi
+    fi
 fi
 
 mem_total_mb=$(awk '/MemTotal:/ {print int($2/1024)}' /proc/meminfo)
@@ -1238,7 +1410,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     if [ "$access_mfa_enabled" = "true" ]; then
         access_summary="E-mail exato + MFA independente · $access_email"
     else
-        access_summary="E-mail exato, sem MFA extra · $access_email"
+        access_summary="Desativado · modo original com Tunnel direto"
     fi
 fi
 whiptail --title "CONFIRMAR INSTALAÇÃO" --yesno \
@@ -1484,13 +1656,10 @@ error_file="/tmp/${nome_app}-error.log"
 
     access_jwt_required="false"
     access_mfa_required="false"
-    if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-        access_mfa_required="$access_mfa_enabled"
-        if [ "$access_mfa_enabled" = "true" ]; then
-            echo -e "XXX\n49\nCRIANDO CLOUDFLARE ACCESS COM MFA... \nXXX"
-        else
-            echo -e "XXX\n49\nCRIANDO CLOUDFLARE ACCESS SEM MFA EXTRA... \nXXX"
-        fi
+    if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] &&
+       [ "$access_mfa_enabled" = "true" ]; then
+        access_mfa_required="true"
+        echo -e "XXX\n49\nCRIANDO CLOUDFLARE ACCESS COM MFA... \nXXX"
         access_payload="$work_dir/access-app-payload.json"
         access_response="$work_dir/access-app-response.json"
         if ! build_cloudflare_access_payload "$access_payload" \
@@ -1941,21 +2110,10 @@ EOL
         if ! jq '{config:.result.config}' "$tunnel_raw" >"$tunnel_original_payload" 2>>"$install_log"; then
             fail_install 71 "ERRO AO PREPARAR ROLLBACK" "Falha ao preservar a configuração anterior do Cloudflare Tunnel."
         fi
-        if ! jq --arg host "$url_control" \
-            --arg service "http://${web_stack}_${web_service}:8080" \
-            --arg team "$access_team_name" \
-            --arg aud "$access_app_aud" '
-            (.result.config // {}) as $cfg
-            | ($cfg.ingress // [])
-            | map(select(.service != "http_status:404" and .hostname != $host))
-            + [{hostname:$host,service:$service,originRequest:{
-                  noTlsVerify:true,
-                  httpHostHeader:$host,
-                  access:{required:true,teamName:$team,audTag:[$aud]}
-               }},
-               {service:"http_status:404"}]
-            | {config:($cfg + {ingress:.})}
-        ' "$tunnel_raw" >"$tunnel_payload" 2>>"$install_log"; then
+        if ! build_control_tunnel_route_payload "$tunnel_raw" "$tunnel_payload" \
+            "$url_control" "http://${web_stack}_${web_service}:8080" \
+            "$access_jwt_required" "$access_team_name" "$access_app_aud" \
+            2>>"$install_log"; then
             fail_install 71 "ERRO AO PREPARAR ROTA" "Falha ao preparar a nova rota do Cloudflare Tunnel."
         fi
         if ! curl -sS \
@@ -2145,7 +2303,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     if [ "$access_mfa_enabled" = "true" ]; then
         access_next_step="\n\nPRIMEIRO ACESSO COM MFA:\n1. Abra https://${access_team_name}.cloudflareaccess.com/AddMfaDevice\n2. Entre com $access_email\n3. Cadastre seu aplicativo autenticador pelo QR Code\n4. Depois abra https://$url_control"
     else
-        access_next_step="\n\nPRIMEIRO ACESSO SEM MFA EXTRA:\nAbra https://$url_control e entre com $access_email pelo método de identidade configurado no Zero Trust. Para receber código por e-mail, habilite Integrations > Identity providers > One-time PIN."
+        access_next_step="\n\nMODO ORIGINAL SEM MFA:\nAbra https://$url_control e use o usuário e a senha locais do painel. O Terminal Remoto continua disponível pelo mesmo fluxo do Control Center. Para ativar MFA depois, use CONFIGURAR MFA CONTROL CENTER no menu do Setup MNO."
     fi
 fi
 

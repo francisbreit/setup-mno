@@ -217,7 +217,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.7.50"
+VERSIONSETUP="7.7.51"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -393,7 +393,7 @@ fi
 
 # --- DISPATCH DINÂMICO (substitui 240+ case blocks) ---
 run_app() {
-    local script="$1" status
+    local script="$1"
     if [ "$script" = "setupmno_control" ] && control_center_installed; then
         whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
             "Já existe um Setup MNO Control Center neste servidor.\n\nSomente uma instalação é permitida por servidor." 12 72
@@ -401,14 +401,12 @@ run_app() {
     fi
     clear
     cd && cd SetupLowCodeMno && ./"$script"
-    status=$?
-
     # O Control Center é executado como processo filho. Ao concluir, cancelar ou
     # falhar, preserve o laço atual do menu em vez de substituir o processo SHC.
     if [ "$script" = "setupmno_control" ]; then
         cd /root/SetupLowCodeMno 2>/dev/null || true
         clear
-        return "$status"
+        return 0
     fi
 
     # Todos os fluxos de saída retornam a uma instância limpa do binário SHC
@@ -540,15 +538,12 @@ reconcile_control_center_release() {
 if control_center_installed; then
     if ! reconcile_control_center_release; then
         whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
-            "A instalação existente foi preservada, mas o Control Center não pôde ser sincronizado com esta versão do Setup MNO.\n\nNenhuma segunda instalação foi criada. Consulte o log informado na tela anterior antes de usar Catálogo, Blueprints ou Assistente." \
+            "A instalação existente foi preservada, mas o Control Center não pôde ser sincronizado agora.\n\nO menu principal continuará disponível para instalar e administrar as demais aplicações. Consulte o log informado antes de usar Catálogo, Blueprints ou Assistente." \
             16 84
-        exit 42
-    fi
-    if ! ensure_control_center_runtime_access; then
+    elif ! ensure_control_center_runtime_access; then
         whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
-            "O Control Center foi preservado, mas o acesso somente leitura ao catálogo runtime não pôde ser confirmado.\n\nNenhuma segunda instalação foi criada. Reinstale o Setup MNO ou consulte o suporte antes de usar Catálogo, Blueprints ou Assistente." \
+            "O Control Center foi preservado, mas o acesso somente leitura ao catálogo runtime não pôde ser confirmado.\n\nO menu principal continuará disponível. Reinstale o Setup MNO ou consulte o suporte antes de usar Catálogo, Blueprints ou Assistente." \
             16 82
-        exit 42
     fi
 fi
 

@@ -99,6 +99,7 @@ for architecture in x86 arm; do
     [ "$(grep -Fc '"${CONTROL_CENTER_MFA_MENU[@]}"' "$install_script")" -eq 4 ]
     [ "$(grep -Fc '"CONFIGURAR MFA CONTROL CENTER") configure_control_center_mfa ;;' "$install_script")" -eq 4 ]
     grep -Fq 'setupmno_control --configure-access-mfa' "$install_script"
+    ! grep -Fq 'exit 42' "$install_script"
     [ "$(grep -Fc 'if [ "$CHOICE" != "SETUP MNO CONTROL CENTER" ] &&' "$install_script")" -eq 3 ] || {
         printf 'ERRO: Control Center continua bloqueado por uma lista de permissão free/free1/free2 em %s.\n' \
             "$install_script" >&2
@@ -349,8 +350,11 @@ grep -Fq 'metadados Cloudflare Access parciais ou inconsistentes' "$template" &&
 grep -Fq 'choose_cloudflare_access_security' "$template" &&
 grep -Fq 'build_cloudflare_access_payload' "$template" &&
 grep -Fq 'configure_existing_access_mfa' "$template" &&
+grep -Fq 'restore_existing_access_original_mode' "$template" &&
 grep -Fq '/access/apps/$app_id/policies/$policy_id' "$template" &&
-grep -Fq 'Access sem segundo fator extra' "$template" &&
+grep -Fq 'Modo original: Tunnel direto, login local e Terminal Remoto' "$template" &&
+grep -Fq '[ "$access_mfa_enabled" = "true" ]; then' "$template" &&
+grep -Fq -- '--argjson requireAccess "$require_access"' "$template" &&
 grep -Fq 'AddMfaDevice' "$template" &&
 grep -Fq 'mfa_disabled:true' "$template" &&
 grep -Fq 'mfa_disabled:false' "$template" &&

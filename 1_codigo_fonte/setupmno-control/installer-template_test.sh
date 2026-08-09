@@ -45,9 +45,11 @@ for migration_function in \
     choose_cloudflare_access_security \
     collect_cloudflare_access_email \
     build_cloudflare_access_payload \
+    build_control_tunnel_route_payload \
     control_service_env_value \
     rollback_existing_access_migration \
     prepare_existing_access_migration \
+    restore_existing_access_original_mode \
     build_existing_access_policy_payload \
     configure_existing_access_mfa; do
     migration_source=$(awk -v name="$migration_function" '
@@ -112,6 +114,7 @@ for argument in "$@"; do
     [ "$previous" = "-X" ] && method="$argument"
     previous="$argument"
 done
+[ -z "${MOCK_CURL_LOG:-}" ] || printf '%s %s\n' "$method" "$url" >>"$MOCK_CURL_LOG"
 case "$MOCK_CURL_MODE" in
     success)
         case "$url" in
@@ -159,6 +162,25 @@ case "$MOCK_CURL_MODE" in
                 printf '%s\n' '{"success":true,"result":[{"id":"11111111-2222-3333-4444-555555555555","aud":"setupmno-test-audience"}]}'
                 ;;
             *) exit 95 ;;
+        esac
+        ;;
+    restore_original)
+        case "$url" in
+            */access/apps/11111111-2222-3333-4444-555555555555)
+                [ "$method" = "DELETE" ] || exit 96
+                printf '%s\n' '{"success":true,"result":{"id":"11111111-2222-3333-4444-555555555555"}}'
+                ;;
+            */access/apps\?per_page=100)
+                printf '%s\n' '{"success":true,"result":[{"id":"11111111-2222-3333-4444-555555555555","aud":"setupmno-test-audience","domain":"control.example.com","destinations":[{"type":"public","uri":"control.example.com"}]}]}'
+                ;;
+            */configurations)
+                if [ "$method" = "PUT" ]; then
+                    printf '%s\n' '{"success":true,"result":{}}'
+                else
+                    printf '%s\n' '{"success":true,"result":{"config":{"ingress":[{"hostname":"control.example.com","service":"http://mnoctrlabc1234-web_mnoctrlabc1234-web:8080","originRequest":{"access":{"required":true,"teamName":"setupmno","audTag":["setupmno-test-audience"]}}},{"service":"http_status:404"}]}}}'
+                fi
+                ;;
+            *) exit 97 ;;
         esac
         ;;
     existing_access)
@@ -292,6 +314,21 @@ jq -e '.mfa_config.mfa_disabled == true and
        (.policies[0].name | contains("sem MFA extra"))' \
     "$simple_payload" >/dev/null
 
+tunnel_fixture="$test_dir/tunnel-fixture.json"
+tunnel_original_route="$test_dir/tunnel-original-route.json"
+tunnel_mfa_route="$test_dir/tunnel-mfa-route.json"
+printf '%s\n' '{"result":{"config":{"ingress":[{"service":"http_status:404"}]}}}' >"$tunnel_fixture"
+build_control_tunnel_route_payload "$tunnel_fixture" "$tunnel_original_route" \
+    "control.example.com" "http://control:8080" false "" ""
+build_control_tunnel_route_payload "$tunnel_fixture" "$tunnel_mfa_route" \
+    "control.example.com" "http://control:8080" true "setupmno" "test-aud"
+jq -e '.config.ingress[0].originRequest.access? == null and
+       .config.ingress[0].service == "http://control:8080"' \
+    "$tunnel_original_route" >/dev/null
+jq -e '.config.ingress[0].originRequest.access.required == true and
+       .config.ingress[0].originRequest.access.teamName == "setupmno"' \
+    "$tunnel_mfa_route" >/dev/null
+
 export MOCK_WHIPTAIL_CHOICE="MFA"
 choose_cloudflare_access_security
 [ "$access_mfa_enabled" = "true" ]
@@ -324,6 +361,11 @@ mkdir -p "$migration_work"
 prepare_existing_access_migration \
     "mnoctrlabc1234-web_mnoctrlabc1234-web" \
     "$migration_work" "$test_dir/migration.log" "$migration_state"
+jq -e '.active == false' "$migration_state" >/dev/null
+[ ! -s "$MOCK_DOCKER_LOG" ]
+prepare_existing_access_migration \
+    "mnoctrlabc1234-web_mnoctrlabc1234-web" \
+    "$migration_work" "$test_dir/migration.log" "$migration_state" activate-mfa
 jq -e '.active == true and .appId == "11111111-2222-3333-4444-555555555555"' \
     "$migration_state" >/dev/null
 grep -Fq -- '--env-add ACCESS_JWT_REQUIRED=true' "$MOCK_DOCKER_LOG"
@@ -340,6 +382,17 @@ if prepare_existing_access_migration \
     exit 1
 fi
 grep -Fq 'metadados Cloudflare Access parciais ou inconsistentes' "$message_capture"
+
+export MOCK_CURL_MODE="restore_original" MOCK_ACCESS_STATE="ready" MOCK_CONTROL_CENTER="installed"
+export MOCK_CURL_LOG="$test_dir/curl.log"
+: >"$MOCK_DOCKER_LOG"
+: >"$MOCK_CURL_LOG"
+prepare_existing_access_migration \
+    "mnoctrlabc1234-web_mnoctrlabc1234-web" \
+    "$migration_work" "$test_dir/migration.log" "$migration_state"
+grep -Fq -- '--env-rm ACCESS_JWT_REQUIRED' "$MOCK_DOCKER_LOG"
+grep -Fq -- '--env-add ACCESS_JWT_REQUIRED=false' "$MOCK_DOCKER_LOG"
+grep -Fq 'DELETE https://api.cloudflare.com/client/v4/accounts/test-account/access/apps/11111111-2222-3333-4444-555555555555' "$MOCK_CURL_LOG"
 
 export MOCK_CURL_MODE="mfa_upgrade" MOCK_ACCESS_STATE="ready" MOCK_CONTROL_CENTER="installed"
 : >"$message_capture"
