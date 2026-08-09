@@ -1996,7 +1996,7 @@ printf '%s' "$secret_key" | docker secret create "$minio_secret_key_secret" - \
     >> "$LANGFUSE_INSTALL_LOG" 2>&1 ||
     langfuse_fail 66 "Não foi possível proteger o segredo S3 do Langfuse como Docker Secret temporário."
 
-if ! docker service create --quiet \
+if ! docker service create --quiet --detach \
     --name "$minio_mc_service" \
     --network interna \
     --constraint 'node.role==manager' \

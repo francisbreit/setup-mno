@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Weaviate no Setup MNO",
   "setupId": "weaviate",
-  "setupVersion": "7.7.43",
+  "setupVersion": "7.7.44",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

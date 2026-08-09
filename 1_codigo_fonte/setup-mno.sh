@@ -1,6 +1,6 @@
 #!/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 22:39:34
-VERSIONSETUP="7.7.43"
+VERSIONSETUP="7.7.44"
 
 
 
@@ -17,6 +17,78 @@ bege="\e[93m"
 vermelho="\e[91m"
 
 reset="\e[0m"
+
+SETUP_MNO_TMUX_SESSION_PREFIX="setup-mno"
+
+setup_mno_tmux() {
+    if [ -n "${SETUPMNO_CLEANUP_TMUX_SOCKET:-}" ]; then
+        tmux -L "$SETUPMNO_CLEANUP_TMUX_SOCKET" "$@"
+    else
+        tmux "$@"
+    fi
+}
+
+setup_mno_cleanup_stale_runtime() {
+    local tmp_root="${SETUPMNO_CLEANUP_TMP_ROOT:-/tmp}"
+    local home_root="${SETUPMNO_CLEANUP_HOME_ROOT:-/root}"
+    local current_session=""
+    local session=""
+    local file_path=""
+    local removed_sessions=0
+    local removed_files=0
+    local runtime_uid
+
+    runtime_uid=$(id -u)
+
+    if [ "${SETUPMNO_CLEANUP_SKIP_TMUX:-0}" != "1" ] && command -v tmux >/dev/null 2>&1; then
+        if [ -n "${TMUX:-}" ]; then
+            current_session=$(setup_mno_tmux display-message -p '#S' 2>/dev/null || true)
+        fi
+
+        while IFS= read -r session; do
+            case "$session" in
+                "$SETUP_MNO_TMUX_SESSION_PREFIX"|"$SETUP_MNO_TMUX_SESSION_PREFIX"-*)
+                    if [ "$session" = "$current_session" ]; then
+                        echo -e "${amarelo}⚠️  Sessão tmux atual $session preservada para não interromper esta atualização.${reset}"
+                    elif setup_mno_tmux kill-session -t "$session" >/dev/null 2>&1; then
+                        removed_sessions=$((removed_sessions + 1))
+                    fi
+                    ;;
+            esac
+        done < <(setup_mno_tmux list-sessions -F '#S' 2>/dev/null || true)
+    fi
+
+    if [ -d "$tmp_root" ]; then
+        while IFS= read -r -d '' file_path; do
+            if rm -f -- "$file_path"; then
+                removed_files=$((removed_files + 1))
+            fi
+        done < <(find "$tmp_root" -maxdepth 1 -type f -user "$runtime_uid" \
+            \( -name 'setupmno-*' \
+               -o -name 'langfuse*-install.log' \
+               -o -name 'langfuse*-error.log' \
+               -o -name 'langfuse*-portainer.log' \) -print0 2>/dev/null)
+    fi
+
+    if [ -d "$home_root" ]; then
+        while IFS= read -r -d '' file_path; do
+            if rm -f -- "$file_path"; then
+                removed_files=$((removed_files + 1))
+            fi
+        done < <(find "$home_root" -maxdepth 1 -type f -user "$runtime_uid" \
+            \( -name 'start_full_7d_a0940b5' \
+               -o -name 'start_full_arm_7d_6408ae6' \
+               -o -name 'start_full_7d_a0940b5.download' \
+               -o -name 'start_full_arm_7d_6408ae6.download' \) -print0 2>/dev/null)
+    fi
+
+    echo -e "${verde}✅ Estado antigo do Setup MNO limpo: ${removed_sessions} sessão(ões) tmux e ${removed_files} arquivo(s) temporário(s).${reset}"
+}
+
+if [ "${SETUPMNO_BOOTSTRAP_CLEANUP_SMOKE_TEST:-0}" = "1" ]; then
+    setup_mno_cleanup_stale_runtime
+    exit 0
+fi
 
 
 
@@ -739,6 +811,8 @@ fi
 echo -e "${verde}✅ TMUX instalado e disponível: $(tmux -V)${reset}"
 sleep 1
 
+setup_mno_cleanup_stale_runtime
+
 #########################################################
 # FIM DO CÓDIGO ADICIONADO - INSTALAÇÃO DO TMUX
 #########################################################
@@ -874,7 +948,19 @@ show_progress_whiptail
 
 # Baixar o arquivo
 
-curl -o "$filename" "https://ativa2.manualnegocioonline.com.br/$filename" 2>/dev/null
+download_tmp="${filename}.download"
+rm -f -- "$filename" "$download_tmp"
+if ! curl --fail --location --silent --show-error \
+    --connect-timeout 15 --max-time 300 \
+    --output "$download_tmp" \
+    "https://ativa2.manualnegocioonline.com.br/$filename" || \
+   [ ! -s "$download_tmp" ] || \
+   ! chmod 700 "$download_tmp" || \
+   ! mv -f -- "$download_tmp" "$filename"; then
+    rm -f -- "$download_tmp"
+    dialog --title "Erro" --msgbox "Erro ao baixar o instalador completo. Nenhum arquivo antigo será executado." 9 76
+    exit 1
+fi
 
 
 

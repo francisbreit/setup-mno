@@ -2,12 +2,12 @@
 {
   "schemaVersion": 1,
   "documentId": "setup-langfuse-minio-clickhouse-overview",
-  "documentVersion": "1.3.0",
-  "contentSHA256": "3c2046d427d6b03d3d2671fd015bc2d00602034b9e4c1f0270ebcb5e7255d91a",
+  "documentVersion": "1.4.0",
+  "contentSHA256": "c9c5911c7dc3a3eae86a80f33157f8c4f32d38c76b47c6a9831916458532ab08",
   "documentType": "setup",
   "title": "Langfuse com MinIO e ClickHouse no Setup MNO",
   "setupId": "langfuse-minio-clickhouse",
-  "setupVersion": "7.7.43",
+  "setupVersion": "7.7.44",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
@@ -79,6 +79,12 @@ de criar os Secrets e novamente dentro do provisionador. Falhas registram apenas
 o estágio, nunca a chave, e acionam a remoção limitada ao serviço e aos Secrets
 temporários daquela tentativa.
 
+O provisionador é um serviço Swarm one-shot com `restart-condition none`. Sua
+criação usa `--detach` explicitamente, pois versões recentes do Docker aguardam
+convergência por padrão e um job concluído não deve bloquear o instalador. O
+script retorna imediatamente ao próprio loop, que aceita somente o estado
+`Complete` antes de avançar para ClickHouse, PostgreSQL, Redis e Langfuse.
+
 ## Primeiro acesso e integrações
 
 Depois da instalação, acesse a URL do Langfuse, crie organização e projeto e
@@ -112,6 +118,11 @@ caracteres: o MinIO recusou a service account e a stack principal não chegou a
 ser criada. A chave corrigida de 20 caracteres foi aceita no mesmo ambiente
 isolado. O gate validou 32 gerações no fonte e após compilação SHC, além de CRUD
 no bucket permitido e bloqueio de acesso a outro bucket.
+
+Também foi reproduzido no Docker 29.4.2 o bloqueio causado por `service create`
+sem detach explícito. Com `--detach`, a chamada retornou em dois segundos e o
+provisionador Swarm atingiu `Complete`, usando a mesma imagem, quatro Secrets,
+rede overlay, bucket privado e policy do instalador.
 
 ## Diagnóstico
 

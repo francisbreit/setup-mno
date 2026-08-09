@@ -2,25 +2,27 @@
 {
   "schemaVersion": 1,
   "documentId": "infra-setupmno-operations-architecture",
-  "documentVersion": "1.1.0",
-  "contentSHA256": "fe267e661ae33f6c9177ce93ed2cbad9e79e3740bc6f87a8960a90e93e91381f",
+  "documentVersion": "1.2.0",
+  "contentSHA256": "553a1dfbd1caff993d9137c06cc8965eebe91fa607edc5f29ebcca5373ed38ec",
   "documentType": "infrastructure",
   "title": "Operação segura do Setup MNO por Portainer e SSH",
   "topicId": "setupmno-operations",
-  "setupVersion": "7.7.43",
+  "setupVersion": "7.7.44",
   "architectures": ["amd64", "arm64"],
   "category": "operations",
   "status": "reviewed",
-  "updatedAt": "2026-08-08",
+  "updatedAt": "2026-08-09",
   "sourceType": "setup-mno",
   "risk": "high",
   "language": "pt-BR",
-  "tags": ["operacao", "portainer", "ssh", "diagnostico", "servicos", "logs", "rollback", "tmux", "shc"],
+  "tags": ["operacao", "portainer", "ssh", "diagnostico", "servicos", "logs", "rollback", "tmux", "shc", "bootstrap", "cache"],
   "sources": [
     {"sourceId":"restart-service","title":"Fluxo autorizado de reinício de serviços","sourceType":"setup-mno","location":"x86/SetupLowCodeMno/restartservice.sh","license":"project-internal","verifiedAt":"2026-08-03"},
     {"sourceId":"uninstall-flow","title":"Fluxo autorizado de remoção","sourceType":"setup-mno","location":"x86/SetupLowCodeMno/uninstall.sh","license":"project-internal","verifiedAt":"2026-08-03"},
     {"sourceId":"control-readme","title":"Arquitetura do Control Center","sourceType":"setup-mno","location":"setupmno-control/README.md","license":"project-internal","verifiedAt":"2026-08-03"},
-    {"sourceId":"setup-installer","title":"Ciclo do instalador SHC em tmux","sourceType":"setup-mno","location":"x86/SetupLowCodeMno/install.sh","license":"project-internal","verifiedAt":"2026-08-08"}
+    {"sourceId":"setup-installer","title":"Ciclo do instalador SHC em tmux","sourceType":"setup-mno","location":"x86/SetupLowCodeMno/install.sh","license":"project-internal","verifiedAt":"2026-08-08"},
+    {"sourceId":"setup-bootstrap","title":"Bootstrap padrão e limpeza de atualização","sourceType":"setup-mno","location":"setup-mno.sh","license":"project-internal","verifiedAt":"2026-08-09"},
+    {"sourceId":"setup-bootstrap-oracle","title":"Bootstrap Oracle e limpeza de atualização","sourceType":"setup-mno","location":"setup-mno-oracle.sh","license":"project-internal","verifiedAt":"2026-08-09"}
   ],
   "homologation": {"verifiedAt": null, "verifiedPorts": [], "verifiedImages": []}
 }
@@ -50,6 +52,21 @@ A opção explícita **SAIR** continua encerrando o instalador e permite que o
 wrapper finalize somente a sessão tmux do Setup MNO. O ciclo de vida da sessão
 é versionado para descartar sessões antigas que ainda possuam semântica de
 saída incompatível.
+
+## Atualização limpa pelos bootstraps
+
+Os bootstraps `setup-mno.sh` e `setup-mno-oracle.sh` encerram sessões tmux
+antigas cujo nome seja `setup-mno` ou comece por `setup-mno-`. A sessão atual é
+preservada quando a atualização é iniciada dentro dela, evitando interromper o
+próprio processo. Sessões com outros nomes nunca são alteradas.
+
+A limpeza de `/tmp` é restrita a arquivos regulares, pertencentes ao usuário da
+execução e reconhecidos pelo Setup MNO: logs `setupmno-*` e logs de instalação,
+erro ou Portainer do Langfuse. O bootstrap também remove somente os nomes
+fixados dos gatilhos `start_full` e seus downloads incompletos em `/root`. É
+proibido apagar todo `/tmp`, sockets tmux genéricos ou arquivos de outras
+aplicações. O novo gatilho é baixado para um arquivo temporário e promovido por
+`mv` somente depois de o `curl`, o tamanho e a permissão de execução passarem.
 
 ## Método de diagnóstico
 
