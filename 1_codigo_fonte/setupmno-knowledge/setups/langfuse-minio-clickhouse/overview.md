@@ -2,12 +2,12 @@
 {
   "schemaVersion": 1,
   "documentId": "setup-langfuse-minio-clickhouse-overview",
-  "documentVersion": "1.4.0",
-  "contentSHA256": "c9c5911c7dc3a3eae86a80f33157f8c4f32d38c76b47c6a9831916458532ab08",
+  "documentVersion": "1.5.0",
+  "contentSHA256": "db282a62863c4984f80ea460b24cd42dc751caa2032460ab26b657b7242e4b20",
   "documentType": "setup",
   "title": "Langfuse com MinIO e ClickHouse no Setup MNO",
   "setupId": "langfuse-minio-clickhouse",
-  "setupVersion": "7.7.44",
+  "setupVersion": "7.7.45",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
@@ -124,6 +124,15 @@ sem detach explícito. Com `--detach`, a chamada retornou em dois segundos e o
 provisionador Swarm atingiu `Complete`, usando a mesma imagem, quatro Secrets,
 rede overlay, bucket privado e policy do instalador.
 
+Na validação de 9 de agosto de 2026, a API do Portainer respondeu antes de o
+Swarm registrar os serviços: worker e web surgiram um e três segundos depois da
+verificação do instalador. A validação agora aguarda o registro por até dois
+minutos. As imagens v4 também escutaram somente no endereço interno quando a
+variável oficial de binding não estava definida; os healthchecks em loopback
+falharam e o Swarm encerrou as tarefas como `unhealthy`. Web e worker agora
+recebem a configuração oficial de escuta em todas as interfaces, mantendo os
+endpoints locais acessíveis.
+
 ## Diagnóstico
 
 Consulte primeiro o log seguro indicado pelo instalador e o estado das quatro
@@ -132,6 +141,12 @@ worker em `/api/health`. Erro S3 `invalid hostname` indica alias com underscore;
 falha de migração com abort do Node indica memória insuficiente. Confirme ainda
 Redis saudável, ClickHouse 25.12 ou superior e acesso ao bucket privado. Nunca
 envie prompts, respostas, chaves ou conteúdo de clientes ao Assistente.
+
+Se a interface informar que a stack não existe, compare o horário do log com o
+campo `CreatedAt` dos serviços. Um atraso curto após resposta HTTP do Portainer
+indica criação assíncrona e deve ser absorvido pela espera do instalador. Tarefas
+em reinício com recusa de conexão no loopback indicam ausência de configuração
+de escuta em todas as interfaces nas versões antigas do YAML.
 
 Se apenas MinIO e ClickHouse aparecerem no Portainer, procure o serviço
 temporário `<langfuse>-mc-internal`. Estado `Failed` antes da criação dos bancos

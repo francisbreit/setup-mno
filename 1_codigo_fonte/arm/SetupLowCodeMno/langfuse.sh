@@ -447,6 +447,23 @@ wait_service_healthy() {
     langfuse_fail "$failure_code" "$label não atingiu estado saudável em cinco minutos."
 }
 
+wait_stack_registered() {
+    local stack_name="$1" label="$2" failure_code="$3"
+    local attempt
+
+    for attempt in $(seq 1 25); do
+        if docker stack ls --format '{{.Name}}' | grep -Fxq "$stack_name"; then
+            return 0
+        fi
+        if [ "$attempt" -lt 25 ]; then
+            echo -e "XXX\n90\nAGUARDANDO REGISTRO DA STACK $label: tentativa ${attempt}/24\nXXX"
+            sleep 5
+        fi
+    done
+
+    langfuse_fail "$failure_code" "A stack $stack_name não foi registrada no Docker Swarm em até dois minutos."
+}
+
 postgres_password=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml)
 [ -n "$postgres_password" ] || {
     whiptail --title "Erro" --msgbox "A senha do PostgreSQL não foi encontrada em /root/postgres.yaml. A instalação foi interrompida antes de criar recursos do Langfuse." 12 70
@@ -2286,6 +2303,7 @@ services:
       ## Node
       - NODE_ENV=production
       - NODE_OPTIONS=--max-old-space-size=1536
+      - HOSTNAME=0.0.0.0
       - TZ=UTC
 
     healthcheck:
@@ -2395,6 +2413,7 @@ cat >> $nome_app.yaml << EOL
       ## Node
       - NODE_ENV=production
       - NODE_OPTIONS=--max-old-space-size=1536
+      - HOSTNAME=0.0.0.0
       - TZ=UTC
 
     healthcheck:
@@ -2589,8 +2608,7 @@ fi
 validate_langfuse_stack() {
     [ -s "/root/${nome_app}.yaml" ] ||
         langfuse_fail 74 "A YAML principal do Langfuse não foi criada em /root/${nome_app}.yaml."
-    docker stack ls --format '{{.Name}}' | grep -Fxq "$nome_app" ||
-        langfuse_fail 75 "A stack $nome_app não foi encontrada no Docker Swarm após o deploy."
+    wait_stack_registered "$nome_app" "Langfuse" 75
     wait_service_healthy "${nome_app}_${nome_app}" "Langfuse Web" 76
     wait_service_healthy "${nome_app}_${nome_app}-worker" "Langfuse Worker" 77
 }

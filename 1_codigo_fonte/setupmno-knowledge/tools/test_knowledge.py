@@ -66,6 +66,24 @@ def run_linter(*arguments: str) -> subprocess.CompletedProcess[str]:
 
 
 class KnowledgeFactoryTests(unittest.TestCase):
+    def test_langfuse_waits_for_portainer_and_binds_health_endpoints(self) -> None:
+        x86_script = (
+            SOURCE_ROOT / "x86" / "SetupLowCodeMno" / "langfuse.sh"
+        ).read_text(encoding="utf-8")
+        arm_script = (
+            SOURCE_ROOT / "arm" / "SetupLowCodeMno" / "langfuse.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertEqual(x86_script, arm_script)
+        self.assertEqual(x86_script.count("      - HOSTNAME=0.0.0.0\n"), 2)
+        self.assertIn("wait_stack_registered() {", x86_script)
+        self.assertIn("for attempt in $(seq 1 25); do", x86_script)
+        self.assertIn('if [ "$attempt" -lt 25 ]; then', x86_script)
+        self.assertIn(
+            'wait_stack_registered "$nome_app" "Langfuse" 75',
+            x86_script,
+        )
+
     def test_quality_governance_is_truthful_and_monotonic(self) -> None:
         report = build_quality_report(ROOT, CATALOG)
         summary = report["summary"]
