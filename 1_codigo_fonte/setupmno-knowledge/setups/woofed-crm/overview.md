@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Woofed CRM no Setup MNO",
   "setupId": "woofed-crm",
-  "setupVersion": "7.7.39",
+  "setupVersion": "7.7.40",
   "architectures": [
     "amd64"
   ],

@@ -18,6 +18,7 @@
 #########################################################
 
 SETUP_MNO_TMUX_SESSION="setup-mno"
+SETUP_MNO_TMUX_LIFECYCLE="2"
 
 #########################################################
 # DESCOBRE O CAMINHO REAL DO EXECUTÁVEL ATUAL
@@ -86,18 +87,30 @@ if [ -z "${TMUX:-}" ] && [ -t 0 ] && [ -t 1 ]; then
 
         if tmux has-session -t "$SETUP_MNO_TMUX_SESSION" 2>/dev/null; then
 
-            # Reconecta à instalação existente.
-            #
-            # O parâmetro -d desconecta uma sessão SSH antiga
-            # eventualmente presa e conecta o terminal atual.
+            SETUP_MNO_EXISTING_LIFECYCLE=$(tmux show-options -v \
+                -t "$SETUP_MNO_TMUX_SESSION" \
+                @setup_mno_lifecycle 2>/dev/null || true)
 
-            tmux attach-session -d -t "$SETUP_MNO_TMUX_SESSION"
+            # Sessões criadas por versões antigas não possuem controle de
+            # ciclo de vida e podem conservar variáveis de outra instalação.
+            # Elas são removidas uma única vez durante a migração.
+            if [ "$SETUP_MNO_EXISTING_LIFECYCLE" != "$SETUP_MNO_TMUX_LIFECYCLE" ]; then
+                tmux kill-session -t "$SETUP_MNO_TMUX_SESSION" >/dev/null 2>&1 || true
+            else
 
-            TMUX_STATUS=$?
+                # Reconecta à instalação ainda em andamento.
+                #
+                # O parâmetro -d desconecta uma sessão SSH antiga
+                # eventualmente presa e conecta o terminal atual.
 
-            # Encerra somente esta instância externa do install.
-            # O controle retorna ao processo que chamou o install.
-            exit "$TMUX_STATUS"
+                tmux attach-session -d -t "$SETUP_MNO_TMUX_SESSION"
+
+                TMUX_STATUS=$?
+
+                # Encerra somente esta instância externa do install.
+                # O controle retorna ao processo que chamou o install.
+                exit "$TMUX_STATUS"
+            fi
         fi
 
         #################################################
@@ -119,9 +132,23 @@ if [ -z "${TMUX:-}" ] && [ -t 0 ] && [ -t 1 ]; then
         # Ele deve ser executado diretamente.
         #################################################
 
-        tmux new-session \
+        # O wrapper aguarda o binário SHC terminar e então remove somente a
+        # sessão do Setup MNO. Uma queda de SSH apenas desanexa o cliente e
+        # não alcança esta limpeza enquanto a instalação estiver em curso.
+        tmux new-session -d \
             -s "$SETUP_MNO_TMUX_SESSION" \
-            "exec \"$SETUP_MNO_INSTALL_SCRIPT\""
+            "\"$SETUP_MNO_INSTALL_SCRIPT\"; setup_mno_status=\$?; tmux kill-session -t \"$SETUP_MNO_TMUX_SESSION\" >/dev/null 2>&1 || true; exit \$setup_mno_status"
+
+        TMUX_STATUS=$?
+
+        if [ "$TMUX_STATUS" -ne 0 ]; then
+            exit "$TMUX_STATUS"
+        fi
+
+        tmux set-option -t "$SETUP_MNO_TMUX_SESSION" \
+            @setup_mno_lifecycle "$SETUP_MNO_TMUX_LIFECYCLE"
+
+        tmux attach-session -t "$SETUP_MNO_TMUX_SESSION"
 
         TMUX_STATUS=$?
 
@@ -157,7 +184,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.7.39"
+VERSIONSETUP="7.7.40"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -334,6 +361,7 @@ fi
 # --- DISPATCH DINÂMICO (substitui 240+ case blocks) ---
 run_app() {
     local script="$1"
+    local app_status
     if [ "$script" = "setupmno_control" ] && control_center_installed; then
         whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
             "Já existe um Setup MNO Control Center neste servidor.\n\nSomente uma instalação é permitida por servidor." 12 72
@@ -341,6 +369,17 @@ run_app() {
     fi
     clear
     cd && cd SetupLowCodeMno && ./"$script"
+    app_status=$?
+
+    # Cada operação deve começar com variáveis novas. Ao retornar do script
+    # selecionado, encerramos o install dentro do tmux; o wrapper criado acima
+    # elimina a sessão. Se o SSH cair durante a operação, este ponto ainda não
+    # foi alcançado e a sessão permanece disponível para reconexão.
+    if [ -n "${TMUX:-}" ]; then
+        exit "$app_status"
+    fi
+
+    return "$app_status"
 }
 
 warn_heavy() {
