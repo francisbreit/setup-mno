@@ -2,18 +2,18 @@
 {
   "schemaVersion": 1,
   "documentId": "setup-langfuse-minio-clickhouse-overview",
-  "documentVersion": "1.0.0",
-  "contentSHA256": "9fc177d65a9b37ed732b04a10796f6e81eba7475844719633526779cbce754d6",
+  "documentVersion": "1.1.0",
+  "contentSHA256": "de08195e9cd69f81e2f3dfa403f33d6f5716628372b23f665a1c0fe2a0d5fc7f",
   "documentType": "setup",
   "title": "Langfuse com MinIO e ClickHouse no Setup MNO",
   "setupId": "langfuse-minio-clickhouse",
-  "setupVersion": "7.7.38",
+  "setupVersion": "7.7.39",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
-  "updatedAt": "2026-08-01",
+  "updatedAt": "2026-08-08",
   "sourceType": "setup-mno",
-  "risk": "critical",
+  "risk": "high",
   "language": "pt-BR",
   "tags": ["langfuse", "observabilidade-ia", "clickhouse", "minio", "tracing"],
   "sources": [
@@ -36,24 +36,26 @@ nem envie dados pessoais sem política explícita de retenção e mascaramento.
 
 ## Arquitetura no Setup MNO
 
-O combo cria MinIO, ClickHouse 23.8, PostgreSQL compartilhado, Redis, servidor e
-worker Langfuse com tags `latest`. Os serviços principais recebem apenas 1 GB
-cada. A documentação atual exige recursos muito maiores e o Langfuse v4 requer
-ClickHouse 25.12 no mínimo, recomendando 26.4. Portanto a combinação distribuída
-é incompatível com uma atualização móvel para v4.
+O combo usa Langfuse web e worker na linha principal `4`, ClickHouse 25.12,
+Redis 7, PostgreSQL compartilhado e MinIO. Web e worker recebem 2 GiB cada e
+`NODE_OPTIONS=--max-old-space-size=1536`. O bucket é privado e recebe uma
+service account exclusiva. O instalador valida MinIO, autenticação e versão do
+ClickHouse antes de criar o banco e antes de implantar o Langfuse.
 
 ## Pré-requisitos
 
-Planeje web e worker com pelo menos 2 CPU e 4 GiB cada, PostgreSQL, Redis/Valkey,
-ClickHouse, storage S3 e espaço de retenção. O mínimo oficial de ClickHouse é 8
-GiB e MinIO 4 GiB; o combo completo não cabe com segurança no rótulo de 4 GB.
+Reserve pelo menos 6 GiB para uma homologação pequena e prefira 8 GiB ou mais.
+Produção, alta ingestão e retenção extensa exigem dimensionamento próprio para
+PostgreSQL, ClickHouse, Redis, storage S3, web e workers. A capacidade deve ser
+medida com a carga e a política de retenção reais.
 
 ## Fluxo seguro
 
-Bloqueie produção. Fixe uma versão Langfuse compatível, atualize ClickHouse por
-etapas, separe Redis em sua stack, use secrets e confirme todas as migrações.
-MinIO deve usar bucket e identidade exclusivos. Cadastro público deve permanecer
-fechado depois da criação controlada do administrador.
+Use ClickHouse 25.12 ou superior e não force a instalação sobre uma versão
+antiga compartilhada. Confirme `schema_migrations` sem estado `dirty`, mantenha
+o bucket privado e use uma identidade exclusiva. Feche o cadastro público após
+a criação controlada do administrador e planeje a migração das credenciais do
+YAML para Docker Secrets.
 
 ## Primeiro acesso e integrações
 
@@ -71,8 +73,11 @@ troque tags móveis sem plano específico de rollback.
 
 ## Validação
 
-Valide health, migrações, ingestão, worker, ClickHouse, Redis, upload S3, consulta
-e retenção.
+No WSL2 com Docker Desktop, a homologação de 8 de agosto de 2026 confirmou
+Langfuse 4.6.0, ClickHouse 25.12.11.4, 46 migrações com `dirty=0`, web e worker
+em `1/1` e `/api/public/health` com HTTP 200. Os manifests das três imagens
+principais incluem `linux/amd64` e `linux/arm64`; ARM ainda requer smoke test em
+hardware ou runner ARM real.
 
 ## Diagnóstico
 
@@ -81,6 +86,7 @@ de clientes ao Assistente.
 
 ## Riscos e limites
 
-Risco crítico por tags móveis, ClickHouse incompatível com v4, recursos muito
-abaixo da referência e secrets gravados nos YAMLs. O Assistente deve informar
-que o combo é exemplo não homologado para a arquitetura atual de produção.
+O risco residual é alto: credenciais ainda são materializadas no YAML gerado,
+ClickHouse e PostgreSQL podem ser compartilhados, e uma atualização dentro da
+linha principal do Langfuse pode introduzir nova migração. A evidência local é
+de homologação funcional, não de carga, restauração coordenada ou produção ARM.

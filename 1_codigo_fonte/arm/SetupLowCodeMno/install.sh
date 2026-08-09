@@ -1,11 +1,163 @@
 #!/usr/bin/bash
 #########################################################
-# SETUP MNO - install.sh x86 (refatorado)
+# SETUP MNO - install.sh ARM (refatorado)
 # Menu explícito + dispatch dinâmico
 #########################################################
 
+#########################################################
+# PROTEÇÃO DA SESSÃO DE INSTALAÇÃO CONTRA QUEDA DE SSH
+#
+# IMPORTANTE:
+# - O TMUX já é instalado pelo pré-instalador.
+# - Este arquivo é compilado/criptografado com SHC.
+# - Portanto, o install deve ser executado diretamente
+#   dentro do TMUX e NUNCA através de "bash install".
+#
+# Se a conexão SSH cair, a sessão TMUX permanece ativa
+# e todos os processos filhos continuam executando.
+#########################################################
+
+SETUP_MNO_TMUX_SESSION="setup-mno"
+
+#########################################################
+# DESCOBRE O CAMINHO REAL DO EXECUTÁVEL ATUAL
+#########################################################
+
+setup_mno_resolve_script_path() {
+
+    local script_path="$0"
+    local resolved
+
+    # Caso tenha sido chamado apenas pelo nome do comando
+    if [[ "$script_path" != */* ]]; then
+        script_path=$(command -v -- "$script_path" 2>/dev/null || printf '%s' "$script_path")
+    fi
+
+    # Tenta obter caminho absoluto real
+    if command -v readlink >/dev/null 2>&1; then
+
+        resolved=$(readlink -f -- "$script_path" 2>/dev/null || true)
+
+        if [ -n "$resolved" ]; then
+            printf '%s\n' "$resolved"
+            return 0
+        fi
+    fi
+
+    # Fallback
+    case "$script_path" in
+
+        /*)
+            printf '%s\n' "$script_path"
+            ;;
+
+        *)
+            printf '%s/%s\n' "$(pwd -P)" "$script_path"
+            ;;
+
+    esac
+}
+
+#########################################################
+# INICIALIZA / RECONECTA À SESSÃO TMUX
+#########################################################
+
+# Só executa esta parte quando:
+#
+# 1) ainda NÃO estamos dentro do TMUX
+# 2) stdin é um terminal
+# 3) stdout é um terminal
+#
+# Quando o install for relançado dentro do TMUX,
+# a variável TMUX estará definida e este bloco será
+# automaticamente ignorado, evitando recursão.
+
+if [ -z "${TMUX:-}" ] && [ -t 0 ] && [ -t 1 ]; then
+
+    #####################################################
+    # VERIFICA SE O TMUX ESTÁ DISPONÍVEL
+    #####################################################
+
+    if command -v tmux >/dev/null 2>&1; then
+
+        #################################################
+        # JÁ EXISTE UMA SESSÃO SETUP-MNO
+        #################################################
+
+        if tmux has-session -t "$SETUP_MNO_TMUX_SESSION" 2>/dev/null; then
+
+            # Reconecta à instalação existente.
+            #
+            # O parâmetro -d desconecta uma sessão SSH antiga
+            # eventualmente presa e conecta o terminal atual.
+
+            tmux attach-session -d -t "$SETUP_MNO_TMUX_SESSION"
+
+            TMUX_STATUS=$?
+
+            # Encerra somente esta instância externa do install.
+            # O controle retorna ao processo que chamou o install.
+            exit "$TMUX_STATUS"
+        fi
+
+        #################################################
+        # NÃO EXISTE SESSÃO: CRIA UMA NOVA
+        #################################################
+
+        SETUP_MNO_INSTALL_SCRIPT=$(setup_mno_resolve_script_path)
+
+        clear
+
+        #################################################
+        # IMPORTANTE PARA SHC
+        #
+        # NÃO USAR:
+        #
+        # bash "$SETUP_MNO_INSTALL_SCRIPT"
+        #
+        # O arquivo gerado pelo SHC é um executável binário.
+        # Ele deve ser executado diretamente.
+        #################################################
+
+        tmux new-session \
+            -s "$SETUP_MNO_TMUX_SESSION" \
+            "exec \"$SETUP_MNO_INSTALL_SCRIPT\""
+
+        TMUX_STATUS=$?
+
+        # Quando a sessão TMUX terminar ou for desconectada,
+        # não continua executando uma segunda cópia do install
+        # fora do TMUX.
+        exit "$TMUX_STATUS"
+
+    else
+
+        #################################################
+        # FALLBACK
+        #
+        # O pré-instalador deveria ter instalado o TMUX.
+        # Se por algum motivo ele não existir, não abortamos
+        # o Setup MNO. A instalação continua sem proteção.
+        #################################################
+
+        clear
+
+        echo "AVISO: TMUX não encontrado."
+        echo "O Setup MNO continuará normalmente, porém sem"
+        echo "proteção contra queda da conexão SSH."
+        echo
+
+        sleep 3
+    fi
+
+fi
+
+#########################################################
+# FIM DA PROTEÇÃO TMUX
+#########################################################
+
 clear
-VERSIONSETUP="7.7.38"
+VERSIONSETUP="7.7.39"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -177,7 +329,6 @@ fi
 if [[ ("$traefik_container" == "") || ("$portainer_container" == "") || ("$postgres_container" == "") || ("$redis_container" == "") || ("$pgbouncer_container" == "") || ("$network_id_agent_network" == "") || ("$network_id_externa" == "") || ("$network_id_interna" == "") ]]; then
     clear
     cd && cd SetupLowCodeMno && ./dockerswarm
-    exit 0
 fi
 
 # --- DISPATCH DINÂMICO (substitui 240+ case blocks) ---
@@ -414,10 +565,8 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MEILISEARCH" "" \
     "MILVUS + ATTU*" "" \
     "MEMOS" "" \
-    "MAUTIC 4 PADRÃO" "" \
     "MAUTIC 6 PADRÃO" "" \
     "MAUTIC 7 PADRÃO" "" \
-    "MAUTIC 4 WHATSAPP MKT" "" \
     "MAUTIC 6 WHATSAPP MKT" "" \
     "MAUTIC 7 WHATSAPP MKT" "" \
     "MEMGRAPH" "" \
@@ -570,7 +719,7 @@ case "$CHOICE" in
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "KARAKEEP")                                              run_app karakeep ;;
             "LANGFLOW")                                              run_app langflow ;;
-            "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
+            "LANGFUSE + MINIO + CLICKHOUSE*")                       warn_heavy "Langfuse + MinIO + ClickHouse" "6GB" && run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
             "LOCALAI")                                                run_app localai ;;
             "LIBRECHAT")                                             run_app librechat ;;
@@ -770,8 +919,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MEILISEARCH" "PRO" \
     "MILVUS + ATTU*" "PRO" \
     "MEMOS" "PRO" \
-    "MAUTIC 4 PADRÃO" "PRO" \
-    "MAUTIC 4 WHATSAPP MKT" "PRO" \
     "MAUTIC 6 WHATSAPP MKT" "PRO" \
     "MAUTIC 7 WHATSAPP MKT" "PRO" \
     "MEMGRAPH" "PRO" \
@@ -891,7 +1038,7 @@ case "$CHOICE" in
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "KARAKEEP")                                              run_app karakeep ;;
             "LANGFLOW")                                              run_app langflow ;;
-            "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
+            "LANGFUSE + MINIO + CLICKHOUSE*")                       warn_heavy "Langfuse + MinIO + ClickHouse" "6GB" && run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
             "LOCALAI")                                                run_app localai ;;
             "LIBRECHAT")                                             run_app librechat ;;
@@ -1058,10 +1205,8 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MEILISEARCH" "PRO" \
     "MILVUS + ATTU*" "PRO" \
     "MEMOS" "PRO" \
-    "MAUTIC 4 PADRÃO" "PRO" \
     "MAUTIC 6 PADRÃO" "PRO" \
     "MAUTIC 7 PADRÃO" "PRO" \
-    "MAUTIC 4 WHATSAPP MKT" "PRO" \
     "MAUTIC 6 WHATSAPP MKT" "PRO" \
     "MAUTIC 7 WHATSAPP MKT" "PRO" \
     "MEMGRAPH" "PRO" \
@@ -1204,7 +1349,7 @@ case "$CHOICE" in
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "KARAKEEP")                                              run_app karakeep ;;
             "LANGFLOW")                                              run_app langflow ;;
-            "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
+            "LANGFUSE + MINIO + CLICKHOUSE*")                       warn_heavy "Langfuse + MinIO + ClickHouse" "6GB" && run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
             "LOCALAI")                                                run_app localai ;;
             "LIBRECHAT")                                             run_app librechat ;;
@@ -1372,10 +1517,8 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MEILISEARCH" "PRO" \
     "MILVUS + ATTU*" "PRO" \
     "MEMOS" "PRO" \
-    "MAUTIC 4 PADRÃO" "PRO" \
     "MAUTIC 6 PADRÃO" "PRO" \
     "MAUTIC 7 PADRÃO" "PRO" \
-    "MAUTIC 4 WHATSAPP MKT" "PRO" \
     "MAUTIC 6 WHATSAPP MKT" "PRO" \
     "MAUTIC 7 WHATSAPP MKT" "PRO" \
     "MEMGRAPH" "PRO" \
@@ -1517,7 +1660,7 @@ case "$CHOICE" in
             "KRAYIN CRM")                                            run_app krayincrm ;;
             "KARAKEEP")                                              run_app karakeep ;;
             "LANGFLOW")                                              run_app langflow ;;
-            "LANGFUSE + MINIO + CLICKHOUSE*")                       run_app langfuse ;;
+            "LANGFUSE + MINIO + CLICKHOUSE*")                       warn_heavy "Langfuse + MinIO + ClickHouse" "6GB" && run_app langfuse ;;
             "LITELLM")                                               run_app litellm ;;
             "LOCALAI")                                                run_app localai ;;
             "LIBRECHAT")                                             run_app librechat ;;

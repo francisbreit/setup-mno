@@ -7,10 +7,9 @@
   "documentType": "setup",
   "title": "Mautic 4 WhatsApp Marketing no Setup MNO",
   "setupId": "mautic-4-whatsapp",
-  "setupVersion": "7.7.38",
+  "setupVersion": "7.7.39",
   "architectures": [
-    "amd64",
-    "arm64"
+    "amd64"
   ],
   "category": "overview",
   "status": "reviewed",
