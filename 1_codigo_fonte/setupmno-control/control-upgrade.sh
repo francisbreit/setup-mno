@@ -131,7 +131,7 @@ fi
 
 progress 10 "VALIDANDO O PACOTE DO CONTROL CENTER $target_version..."
 for required_source in go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
-    terminal-menu.sh configure-control.sh control-upgrade.sh main.go knowledge.go \
+    terminal-menu.sh configure-control.sh control-upgrade.sh main.go access.go knowledge.go \
     retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go \
     provider_evals.go feedback.go web/index.html web/app.js web/assistant-route.js \
     web/styles.css web/terminal-bridge.js; do

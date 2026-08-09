@@ -40,6 +40,9 @@ const (
 	runtimeSchema        = 1
 	defaultSetupStateDir = "/runtime-control"
 	defaultHostDiskPath  = "/runtime-control"
+	panelIdleTimeout     = 15 * time.Minute
+	terminalIdleTimeout  = 30 * time.Minute
+	absoluteSessionTTL   = 8 * time.Hour
 )
 
 //go:embed web/* catalog.json
@@ -48,7 +51,10 @@ var embeddedFiles embed.FS
 type session struct {
 	User          string
 	CSRF          string
+	AccessSubject string
+	AccessEmail   string
 	Expires       time.Time
+	IdleUntil     time.Time
 	LastSeen      time.Time
 	TerminalUntil time.Time
 }
@@ -71,6 +77,7 @@ type webApp struct {
 	assistantModel   string
 	version          string
 	cookieSecure     bool
+	accessVerifier   *accessVerifier
 	httpClient       *http.Client
 	assistantClient  *http.Client
 	blueprints       blueprintCatalogResponse
@@ -508,6 +515,22 @@ func runWeb() error {
 		strings.TrimRight(os.Getenv("ASSISTANT_URL"), "/"),
 	)
 
+	accessDefault := "false"
+	if strings.EqualFold(os.Getenv("SETUPMNO_INSTALL_TYPE"), "CLOUDFLARE_TUNNEL") {
+		accessDefault = "true"
+	}
+	accessHTTPClient := &http.Client{Timeout: 8 * time.Second}
+	accessVerifier, err := newAccessVerifier(
+		envDefault("ACCESS_JWT_REQUIRED", accessDefault) == "true",
+		os.Getenv("ACCESS_TEAM_DOMAIN"),
+		os.Getenv("ACCESS_POLICY_AUD"),
+		os.Getenv("ACCESS_ALLOWED_EMAIL"),
+		accessHTTPClient,
+	)
+	if err != nil {
+		return fmt.Errorf("proteção Cloudflare Access inválida: %w", err)
+	}
+
 	app := &webApp{
 		adminUser:        envDefault("ADMIN_USERNAME", "admin"),
 		passwordSalt:     randomBytes(16),
@@ -519,6 +542,7 @@ func runWeb() error {
 		assistantModel:   assistantModel,
 		version:          controlVersion,
 		cookieSecure:     envDefault("COOKIE_SECURE", "true") != "false",
+		accessVerifier:   accessVerifier,
 		httpClient:       &http.Client{Timeout: 8 * time.Second},
 		assistantClient:  &http.Client{Timeout: 2 * time.Minute},
 		sessions:         make(map[string]*session),
@@ -539,6 +563,7 @@ func runWeb() error {
 	mux.HandleFunc("POST /api/login", app.handleLogin)
 	mux.Handle("POST /api/terminal/reauth", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleTerminalReauth))))
 	mux.Handle("GET /api/session", app.requireAuth(http.HandlerFunc(app.handleSession)))
+	mux.Handle("POST /api/session/activity", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleSessionActivity))))
 	mux.Handle("POST /api/logout", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleLogout))))
 	mux.Handle("GET /api/overview", app.requireAuth(http.HandlerFunc(app.handleOverview)))
 	mux.Handle("GET /api/apps", app.requireAuth(http.HandlerFunc(app.handleApps)))
@@ -566,7 +591,7 @@ func runWeb() error {
 
 	server := &http.Server{
 		Addr:              ":8080",
-		Handler:           app.securityHeaders(mux),
+		Handler:           app.securityHeaders(app.accessVerifier.middleware(mux)),
 		ReadHeaderTimeout: 8 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      2 * time.Minute,
@@ -1866,12 +1891,21 @@ func (a *webApp) handleLogin(w http.ResponseWriter, r *http.Request) {
 	id := randomToken(32)
 	csrf := randomToken(24)
 	now := time.Now()
+	accessSubject := ""
+	accessEmail := ""
+	if identity := accessIdentityFromContext(r.Context()); identity != nil {
+		accessSubject = identity.Subject
+		accessEmail = identity.Email
+	}
 	a.sessionMu.Lock()
 	a.sessions[id] = &session{
-		User:     a.adminUser,
-		CSRF:     csrf,
-		Expires:  now.Add(8 * time.Hour),
-		LastSeen: now,
+		User:          a.adminUser,
+		CSRF:          csrf,
+		AccessSubject: accessSubject,
+		AccessEmail:   accessEmail,
+		Expires:       now.Add(absoluteSessionTTL),
+		IdleUntil:     now.Add(panelIdleTimeout),
+		LastSeen:      now,
 	}
 	a.sessionMu.Unlock()
 
@@ -1879,7 +1913,7 @@ func (a *webApp) handleLogin(w http.ResponseWriter, r *http.Request) {
 		Name:     sessionCookie,
 		Value:    id,
 		Path:     "/",
-		MaxAge:   int((8 * time.Hour).Seconds()),
+		MaxAge:   int(absoluteSessionTTL.Seconds()),
 		HttpOnly: true,
 		Secure:   a.cookieSecure,
 		SameSite: http.SameSiteStrictMode,
@@ -1893,6 +1927,8 @@ func (a *webApp) handleLogin(w http.ResponseWriter, r *http.Request) {
 		"controlVersion": a.version,
 		"assistantMode":  a.assistantMode,
 		"assistantModel": a.assistantModel,
+		"accessEmail":    accessEmail,
+		"idleExpiresAt":  now.Add(panelIdleTimeout).UTC(),
 	})
 }
 
@@ -1940,6 +1976,8 @@ func (a *webApp) handleTerminalReauth(w http.ResponseWriter, r *http.Request) {
 	s, ok := a.sessions[cookie.Value]
 	if ok {
 		s.TerminalUntil = now.Add(2 * time.Minute)
+		s.IdleUntil = now.Add(terminalIdleTimeout)
+		s.LastSeen = now
 	}
 	a.sessionMu.Unlock()
 	if !ok {
@@ -1965,6 +2003,46 @@ func (a *webApp) handleSession(w http.ResponseWriter, r *http.Request) {
 		"controlVersion": a.version,
 		"assistantMode":  a.assistantMode,
 		"assistantModel": a.assistantModel,
+		"accessEmail":    s.AccessEmail,
+		"idleExpiresAt":  s.IdleUntil.UTC(),
+	})
+}
+
+// handleSessionActivity is the only endpoint that extends inactivity time.
+// Background inventory polling deliberately does not keep an abandoned
+// browser authenticated. Terminal output/input may request the longer window;
+// disconnecting the browser never terminates the persistent tmux job.
+func (a *webApp) handleSessionActivity(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Terminal bool `json:"terminal"`
+	}
+	if err := decodeJSON(w, r, &input, 1024); err != nil {
+		return
+	}
+	cookie, err := r.Cookie(sessionCookie)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "sessão expirada")
+		return
+	}
+	now := time.Now()
+	idleTimeout := panelIdleTimeout
+	if input.Terminal {
+		idleTimeout = terminalIdleTimeout
+	}
+	a.sessionMu.Lock()
+	s, ok := a.sessions[cookie.Value]
+	if ok {
+		s.LastSeen = now
+		s.IdleUntil = now.Add(idleTimeout)
+	}
+	a.sessionMu.Unlock()
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "sessão expirada")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"active":        true,
+		"idleExpiresAt": now.Add(idleTimeout).UTC(),
 	})
 }
 
@@ -2692,12 +2770,15 @@ func (a *webApp) requireAuth(next http.Handler) http.Handler {
 		now := time.Now()
 		a.sessionMu.Lock()
 		s, ok := a.sessions[cookie.Value]
-		if ok && (now.After(s.Expires) || now.Sub(s.LastSeen) > 30*time.Minute) {
+		identity := accessIdentityFromContext(r.Context())
+		if ok && s.AccessSubject != "" && (identity == nil ||
+			identity.Subject != s.AccessSubject || !strings.EqualFold(identity.Email, s.AccessEmail)) {
 			delete(a.sessions, cookie.Value)
 			ok = false
 		}
-		if ok {
-			s.LastSeen = now
+		if ok && (now.After(s.Expires) || now.After(s.IdleUntil)) {
+			delete(a.sessions, cookie.Value)
+			ok = false
 		}
 		var snapshot session
 		if ok {
@@ -3157,7 +3238,7 @@ func (a *webApp) sessionJanitor() {
 	for now := range ticker.C {
 		a.sessionMu.Lock()
 		for id, s := range a.sessions {
-			if now.After(s.Expires) || now.Sub(s.LastSeen) > 30*time.Minute {
+			if now.After(s.Expires) || now.After(s.IdleUntil) {
 				delete(a.sessions, id)
 			}
 		}

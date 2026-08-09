@@ -37,6 +37,9 @@
   let resizeTimer = 0;
   let fitTimers = [];
   let themeApplied = false;
+  let activityTerminal = null;
+  let activityDisposables = [];
+  let lastOutputSignal = 0;
 
   function terminal() {
     return window.term && typeof window.term.input === "function" ? window.term : null;
@@ -44,6 +47,34 @@
 
   function touchLayout() {
     return window.matchMedia("(max-width: 650px), (pointer: coarse)").matches;
+  }
+
+  function signalTerminalActivity(kind) {
+    const now = Date.now();
+    if (kind === "output" && now - lastOutputSignal < 10000) return;
+    if (kind === "output") lastOutputSignal = now;
+    if (window.parent === window) return;
+    window.parent.postMessage({ type: "setupmno-terminal-activity", kind }, window.location.origin);
+  }
+
+  function bindTerminalActivity(activeTerminal) {
+    if (!activeTerminal || activityTerminal === activeTerminal) return;
+    activityDisposables.forEach(disposable => disposable?.dispose?.());
+    activityDisposables = [];
+    activityTerminal = activeTerminal;
+    if (typeof activeTerminal.onData === "function") {
+      activityDisposables.push(activeTerminal.onData(() => signalTerminalActivity("input")));
+    }
+    if (typeof activeTerminal.onWriteParsed === "function") {
+      activityDisposables.push(activeTerminal.onWriteParsed(() => signalTerminalActivity("output")));
+    } else if (typeof activeTerminal.write === "function" && !activeTerminal.__setupMNOActivityWrite) {
+      const originalWrite = activeTerminal.write.bind(activeTerminal);
+      activeTerminal.write = (...args) => {
+        signalTerminalActivity("output");
+        return originalWrite(...args);
+      };
+      Object.defineProperty(activeTerminal, "__setupMNOActivityWrite", { value: true });
+    }
   }
 
   function reconnectOverlayVisible() {
@@ -54,6 +85,7 @@
 
   function applyTerminalPresentation(activeTerminal) {
     if (!activeTerminal) return;
+    bindTerminalActivity(activeTerminal);
     activeTerminal.options.theme = terminalTheme;
     activeTerminal.options.scrollback = 2000;
     activeTerminal.options.scrollOnUserInput = false;
@@ -118,6 +150,7 @@
     }
     activeTerminal.focus();
     activeTerminal.input(sequence, true);
+    signalTerminalActivity("input");
     return true;
   }
 
@@ -142,6 +175,7 @@
       event.preventDefault();
       activeTerminal.focus();
       activeTerminal.input(pastedText.replace(/\r\n/g, "\n").replace(/\r/g, "\n"), true);
+      signalTerminalActivity("input");
       scheduleFit();
     });
   }

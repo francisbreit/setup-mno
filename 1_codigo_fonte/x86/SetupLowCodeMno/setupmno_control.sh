@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.15.8"
+CONTROL_VERSION="4.15.9"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -95,11 +95,224 @@ control_center_installed() {
         grep -Eq '^mnoctrl[[:alnum:]]+-(web|agent|terminal|assistant)_'
 }
 
+control_service_env_value() {
+    local service="$1" key="$2"
+    docker service inspect --format '{{range .Spec.TaskTemplate.ContainerSpec.Env}}{{println .}}{{end}}' \
+        "$service" 2>/dev/null | sed -n "s/^${key}=//p" | head -n1
+}
+
+rollback_existing_access_migration() {
+    local state_file="$1" log_file="$2" web_service app_id original_tunnel route_restored="true"
+    [ -s "$state_file" ] || return 0
+    [ "$(jq -r '.active // false' "$state_file" 2>/dev/null)" = "true" ] || return 0
+    web_service=$(jq -r '.webService // empty' "$state_file")
+    app_id=$(jq -r '.appId // empty' "$state_file")
+    original_tunnel=$(jq -r '.originalTunnel // empty' "$state_file")
+    if [[ "$web_service" =~ ^mnoctrl[[:alnum:]]+-web_mnoctrl[[:alnum:]]+-web$ ]]; then
+        docker service update --detach=true \
+            --env-rm ACCESS_JWT_REQUIRED \
+            --env-rm ACCESS_TEAM_DOMAIN \
+            --env-rm ACCESS_POLICY_AUD \
+            --env-rm ACCESS_ALLOWED_EMAIL \
+            "$web_service" >>"$log_file" 2>&1 || true
+    fi
+    if [ -s "$original_tunnel" ]; then
+        if ! curl -sS \
+            --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
+            --max-time "$CLOUDFLARE_MAX_TIME" \
+            -X PUT \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @"$original_tunnel" >>"$log_file" 2>&1; then
+            route_restored="false"
+        fi
+    fi
+    if [ "$route_restored" = "true" ] && [[ "$app_id" =~ ^[A-Fa-f0-9-]{32,36}$ ]]; then
+        curl -sS \
+            --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
+            --max-time "$CLOUDFLARE_MAX_TIME" \
+            -X DELETE \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$app_id" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" >>"$log_file" 2>&1 || true
+    fi
+}
+
+prepare_existing_access_migration() {
+    local web_service="$1" work_dir="$2" log_file="$3" state_file="$4"
+    local email status tunnel_raw organization_file applications_file hostname service_target
+    local auth_domain team_name payload response app_id aud tunnel_payload tunnel_response original_tunnel
+    local access_required access_team access_aud access_email access_metadata_count=0
+    jq -n '{active:false}' >"$state_file" || return 1
+    [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] || return 0
+    access_required=$(control_service_env_value "$web_service" ACCESS_JWT_REQUIRED)
+    access_team=$(control_service_env_value "$web_service" ACCESS_TEAM_DOMAIN)
+    access_aud=$(control_service_env_value "$web_service" ACCESS_POLICY_AUD)
+    access_email=$(control_service_env_value "$web_service" ACCESS_ALLOWED_EMAIL)
+    [ -n "$access_required" ] && access_metadata_count=$((access_metadata_count + 1))
+    [ -n "$access_team" ] && access_metadata_count=$((access_metadata_count + 1))
+    [ -n "$access_aud" ] && access_metadata_count=$((access_metadata_count + 1))
+    [ -n "$access_email" ] && access_metadata_count=$((access_metadata_count + 1))
+    if [ "$access_metadata_count" -eq 4 ] && [ "$access_required" = "true" ]; then
+        return 0
+    fi
+    if [ "$access_metadata_count" -ne 0 ]; then
+        msg "A instalação possui metadados Cloudflare Access parciais ou inconsistentes. Por segurança, nada foi alterado. Revise as variáveis ACCESS_* do serviço web antes de atualizar."
+        return 1
+    fi
+
+    while true; do
+        email=$(whiptail --title "MIGRAÇÃO DE SEGURANÇA P0" --inputbox \
+            "Esta instalação ainda não possui Cloudflare Access com MFA.\n\nInforme o único e-mail autorizado. A atualização será cancelada e a versão atual preservada se o Zero Trust não estiver pronto." \
+            16 86 3>&1 1>&2 2>&3)
+        status=$?
+        [ "$status" -ne 0 ] && return 130
+        email=$(printf '%s' "$email" | tr '[:upper:]' '[:lower:]')
+        if [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] &&
+           [ "${#email}" -le 254 ]; then
+            break
+        fi
+        msg "Informe um endereço de e-mail válido. Nenhuma alteração foi realizada."
+    done
+
+    tunnel_raw="$work_dir/access-migration-tunnel.json"
+    organization_file="$work_dir/access-migration-organization.json"
+    applications_file="$work_dir/access-migration-applications.json"
+    if ! curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+        "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+        >"$tunnel_raw" 2>>"$log_file" ||
+       ! curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+        "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/organizations" \
+        >"$organization_file" 2>>"$log_file" ||
+       ! curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+        "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps?per_page=100" \
+        >"$applications_file" 2>>"$log_file"; then
+        msg "A migração não conseguiu consultar Tunnel, organização e aplicativos Access.\n\nConceda ao token Access: Apps and Policies Write e Access: Organizations Read. A instalação atual foi preservada."
+        return 1
+    fi
+    if [ "$(jq -r '.success // false' "$tunnel_raw")" != "true" ] ||
+       [ "$(jq -r '.success // false' "$organization_file")" != "true" ] ||
+       [ "$(jq -r '.success // false' "$applications_file")" != "true" ]; then
+        msg "A Cloudflare recusou a migração P0. Verifique as permissões Access do token. A instalação atual foi preservada."
+        return 1
+    fi
+    auth_domain=$(jq -r '.result.auth_domain // empty' "$organization_file")
+    if [[ ! "$auth_domain" =~ ^[A-Za-z0-9-]+\.cloudflareaccess\.com$ ]] ||
+       [ "$(jq -r '(.result.mfa_config.allowed_authenticators // []) | length' "$organization_file")" -lt 1 ]; then
+        msg "O Zero Trust ainda não possui domínio e autenticadores MFA válidos. Habilite TOTP, biometria ou chave de segurança e tente novamente. A instalação atual foi preservada."
+        return 1
+    fi
+    service_target="http://${web_service}:8080"
+    hostname=$(jq -r --arg service "$service_target" \
+        '[.result.config.ingress[]? | select(.service == $service) | .hostname][0] // empty' "$tunnel_raw")
+    if [[ ! "$hostname" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] || [[ "$hostname" != *.* ]]; then
+        msg "A rota Cloudflare Tunnel do painel existente não foi identificada com segurança. A instalação atual foi preservada."
+        return 1
+    fi
+    if jq -e --arg host "$hostname" '
+        any(.result[]?; .domain == $host or any(.destinations[]?; .type == "public" and .uri == $host))
+    ' "$applications_file" >/dev/null 2>&1; then
+        msg "Já existe um aplicativo Access para $hostname. Por segurança, a migração não substituirá políticas externas. Revise-o no Zero Trust ou solicite uma migração assistida."
+        return 1
+    fi
+
+    team_name="${auth_domain%.cloudflareaccess.com}"
+    payload="$work_dir/access-migration-payload.json"
+    response="$work_dir/access-migration-response.json"
+    jq -n --arg name "Setup MNO Control Center - $hostname" --arg domain "$hostname" --arg email "$email" '
+      {name:$name,type:"self_hosted",domain:$domain,destinations:[{type:"public",uri:$domain}],
+       session_duration:"8h",app_launcher_visible:false,allow_iframe:false,
+       allow_authenticate_via_warp:false,skip_interstitial:false,same_site_cookie_attribute:"strict",
+       options_preflight_bypass:false,
+       mfa_config:{mfa_disabled:false,session_duration:"0m",allowed_authenticators:["totp","biometrics","security_key"]},
+       policies:[{name:"Setup MNO - identidade autorizada com MFA",decision:"allow",precedence:1,
+         include:[{email:{email:$email}}],exclude:[],require:[],
+         mfa_config:{mfa_disabled:false,session_duration:"0m",allowed_authenticators:["totp","biometrics","security_key"]}}]}
+    ' >"$payload" 2>>"$log_file" || return 1
+    if ! curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
+        -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+        --data-binary @"$payload" >"$response" 2>>"$log_file" ||
+       [ "$(jq -r '.success // false' "$response")" != "true" ]; then
+        msg "A Cloudflare recusou a criação do Access com MFA. A instalação atual foi preservada."
+        return 1
+    fi
+    app_id=$(jq -r '.result.id // empty' "$response")
+    aud=$(jq -r '.result.aud // empty' "$response")
+    if [[ ! "$app_id" =~ ^[A-Fa-f0-9-]{32,36}$ ]] || [ "${#aud}" -lt 16 ] || [ "${#aud}" -gt 128 ]; then
+        [[ "$app_id" =~ ^[A-Fa-f0-9-]{32,36}$ ]] && curl -sS \
+            --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
+            --max-time "$CLOUDFLARE_MAX_TIME" \
+            -X DELETE \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$app_id" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" >>"$log_file" 2>&1 || true
+        return 1
+    fi
+
+    original_tunnel="$work_dir/access-migration-tunnel-original.json"
+    tunnel_payload="$work_dir/access-migration-tunnel-payload.json"
+    tunnel_response="$work_dir/access-migration-tunnel-response.json"
+    if ! jq '{config:.result.config}' "$tunnel_raw" >"$original_tunnel" 2>>"$log_file"; then
+        curl -sS \
+            --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
+            --max-time "$CLOUDFLARE_MAX_TIME" \
+            -X DELETE \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$app_id" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" >>"$log_file" 2>&1 || true
+        return 1
+    fi
+    jq -n --arg web "$web_service" --arg app "$app_id" --arg original "$original_tunnel" \
+        '{active:true,webService:$web,appId:$app,originalTunnel:$original}' >"$state_file" || {
+        curl -sS \
+            --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
+            --max-time "$CLOUDFLARE_MAX_TIME" \
+            -X DELETE \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$app_id" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" >>"$log_file" 2>&1 || true
+        return 1
+    }
+    if ! jq --arg host "$hostname" --arg team "$team_name" --arg aud "$aud" '
+        (.result.config // {}) as $cfg
+        | {config:($cfg + {ingress:[($cfg.ingress // [])[] |
+            if .hostname == $host then
+              .originRequest = ((.originRequest // {}) + {access:{required:true,teamName:$team,audTag:[$aud]}})
+            else . end]})}
+    ' "$tunnel_raw" >"$tunnel_payload" 2>>"$log_file"; then
+        rollback_existing_access_migration "$state_file" "$log_file"
+        return 1
+    fi
+    if ! curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
+        -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+        --data-binary @"$tunnel_payload" >"$tunnel_response" 2>>"$log_file" ||
+       [ "$(jq -r '.success // false' "$tunnel_response")" != "true" ]; then
+        rollback_existing_access_migration "$state_file" "$log_file"
+        msg "A rota existente recusou a proteção Access. A instalação atual foi preservada."
+        return 1
+    fi
+
+    if ! docker service update --detach=true \
+        --env-add ACCESS_JWT_REQUIRED=true \
+        --env-add "ACCESS_TEAM_DOMAIN=https://$auth_domain" \
+        --env-add "ACCESS_POLICY_AUD=$aud" \
+        --env-add "ACCESS_ALLOWED_EMAIL=$email" \
+        "$web_service" >>"$log_file" 2>&1; then
+        rollback_existing_access_migration "$state_file" "$log_file"
+        msg "O serviço existente recusou os metadados Access. Rota e política anteriores foram restauradas."
+        return 1
+    fi
+    return 0
+}
+
 reconcile_existing_control_center() {
     local upgrade_dir upgrade_log upgrade_error upgrade_state status detail noop
     local terminal_service terminal_image control_image plan finalizer_name
     local has_image_env has_plan_env
     local -a terminal_update_args
+    local existing_web migration_state
 
     upgrade_dir=$(mktemp -d) || return 1
     upgrade_log="/tmp/setupmno-control-reconcile-${CONTROL_VERSION}.log"
@@ -120,6 +333,19 @@ reconcile_existing_control_center() {
         return 1
     }
 
+    existing_web=$(docker service ls --format '{{.Name}}' 2>>"$upgrade_log" |
+        grep -E '^mnoctrl[[:alnum:]]+-web_mnoctrl[[:alnum:]]+-web$' | head -n1)
+    [[ "$existing_web" =~ ^mnoctrl[[:alnum:]]+-web_mnoctrl[[:alnum:]]+-web$ ]] || {
+        rm -rf -- "$upgrade_dir"
+        msg "O serviço web existente não pôde ser identificado com segurança. A instalação foi preservada."
+        return 1
+    }
+    migration_state="$upgrade_dir/access-migration-state.json"
+    if ! prepare_existing_access_migration "$existing_web" "$upgrade_dir" "$upgrade_log" "$migration_state"; then
+        rm -rf -- "$upgrade_dir"
+        return 1
+    fi
+
     /usr/bin/bash "$upgrade_dir/control-upgrade.sh" "$upgrade_dir" \
         "$CONTROL_VERSION" "$upgrade_log" "$upgrade_error" "$upgrade_state" |
         whiptail --title "SINCRONIZANDO CONTROL CENTER" --gauge \
@@ -128,6 +354,7 @@ reconcile_existing_control_center() {
     if [ "$status" -ne 0 ] || [ ! -s "$upgrade_state" ]; then
         detail=$(cat "$upgrade_error" 2>/dev/null)
         [ -n "$detail" ] || detail=$(tail -n 20 "$upgrade_log" 2>/dev/null)
+        rollback_existing_access_migration "$migration_state" "$upgrade_log"
         rm -rf -- "$upgrade_dir"
         whiptail --title "ERRO NA SINCRONIZAÇÃO DO CONTROL CENTER" --scrolltext --msgbox \
             "A sincronização foi interrompida e os serviços alterados foram revertidos.\n\n$detail\n\nLog: $upgrade_log" \
@@ -242,7 +469,7 @@ ask_password() {
     local value confirmation status
     while true; do
         value=$(whiptail --title "SETUP MNO CONTROL CENTER" --passwordbox \
-            "3/5 — Crie a senha administrativa:\n\nMínimo de 12 caracteres, com maiúscula, minúscula, número e símbolo." \
+            "3/${wizard_total:-5} — Crie a senha administrativa:\n\nMínimo de 12 caracteres, com maiúscula, minúscula, número e símbolo." \
             14 78 3>&1 1>&2 2>&3)
         status=$?
         [ "$status" -ne 0 ] && return 130
@@ -339,12 +566,85 @@ check_cloudflare_route() {
     fi
 }
 
+check_cloudflare_access() {
+    local organization_file="$1" applications_file="$2" status_file error_file curl_status
+    status_file=$(mktemp) || return 1
+    error_file=$(mktemp) || {
+        rm -f "$status_file"
+        return 1
+    }
+    {
+        echo -e "XXX\n10\nVALIDANDO O CLOUDFLARE ZERO TRUST...\nXXX"
+        if curl -sS \
+            --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
+            --max-time "$CLOUDFLARE_MAX_TIME" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/organizations" \
+            >"$organization_file" 2>"$error_file" && \
+           curl -sS \
+            --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
+            --max-time "$CLOUDFLARE_MAX_TIME" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps?per_page=100" \
+            >"$applications_file" 2>>"$error_file"; then
+            printf '0\n' >"$status_file"
+        else
+            printf '%s\n' "$?" >"$status_file"
+        fi
+        echo -e "XXX\n100\nZERO TRUST VALIDADO\nXXX"
+    } | whiptail --title "SEGURANÇA CLOUDFLARE ACCESS" --gauge \
+        "Confirmando Access, MFA e permissões do token..." 8 82 0
+
+    curl_status=$(cat "$status_file" 2>/dev/null)
+    rm -f "$status_file" "$error_file"
+    [ "$curl_status" = "0" ] || {
+        msg "Não foi possível consultar o Cloudflare Access.\n\nO token precisa das permissões Access: Apps and Policies Write e Access: Organizations Read, além das permissões já usadas pelo Tunnel e DNS. Nenhum recurso foi alterado."
+        return 1
+    }
+    if [ "$(jq -r '.success // false' "$organization_file" 2>/dev/null)" != "true" ] ||
+       [ "$(jq -r '.success // false' "$applications_file" 2>/dev/null)" != "true" ]; then
+        msg "A Cloudflare recusou a validação do Zero Trust.\n\nConfirme as permissões Access: Apps and Policies Write e Access: Organizations Read no token. Nenhum recurso foi alterado."
+        return 1
+    fi
+    access_auth_domain=$(jq -r '.result.auth_domain // empty' "$organization_file")
+    if [[ ! "$access_auth_domain" =~ ^[A-Za-z0-9-]+\.cloudflareaccess\.com$ ]]; then
+        msg "A organização Zero Trust ainda não possui um domínio de autenticação válido. Configure o Cloudflare Zero Trust antes de instalar o Control Center."
+        return 1
+    fi
+    if [ "$(jq -r '(.result.mfa_config.allowed_authenticators // []) | length' "$organization_file")" -lt 1 ]; then
+        msg "O MFA independente do Cloudflare Access ainda não possui autenticadores habilitados.\n\nNo Zero Trust, abra Access controls > Access settings > Multi-factor authentication e habilite TOTP, biometria ou chave de segurança. Depois execute novamente."
+        return 1
+    fi
+    existing_access_app=$(jq -r --arg host "$url_control" '
+        [.result[]? | select(
+            .domain == $host or
+            any(.destinations[]?; .type == "public" and .uri == $host)
+        )][0].id // empty
+    ' "$applications_file" 2>/dev/null)
+    if [ -n "$existing_access_app" ]; then
+        msg "Já existe um aplicativo Cloudflare Access protegendo $url_control.\n\nPara evitar substituir políticas de segurança que podem pertencer a outro sistema, informe outro domínio ou remova conscientemente o aplicativo existente no Zero Trust. Nenhum recurso foi alterado."
+        return 1
+    fi
+    access_team_domain="https://$access_auth_domain"
+    access_team_name="${access_auth_domain%.cloudflareaccess.com}"
+    return 0
+}
+
 whiptail --title "SETUP MNO CONTROL CENTER" --yesno \
     "Instalar o painel web oficial do Setup MNO?\n\nO Control Center mostra aplicações instaladas, saúde do Docker Swarm, CPU, RAM, disco, catálogo de setups, auditoria, diagnóstico local e acesso autenticado ao instalador original." \
     16 82 || exit 0
 
+wizard_total=5
+assistant_step=4
+portainer_step=5
+if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+    wizard_total=6
+    assistant_step=5
+    portainer_step=6
+fi
+
 while true; do
-    if ! url_control=$(ask_required "1/5 — Domínio do painel (ex.: setup.seudominio.com):"); then
+    if ! url_control=$(ask_required "1/$wizard_total — Domínio do painel (ex.: setup.seudominio.com):"); then
         exit 0
     fi
     if [[ "$url_control" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] &&
@@ -372,7 +672,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
 fi
 
 while true; do
-    if ! usuario_control=$(ask_required "2/5 — Usuário administrador do painel:"); then
+    if ! usuario_control=$(ask_required "2/$wizard_total — Usuário administrador do painel:"); then
         exit 0
     fi
     if [[ "$usuario_control" =~ ^[A-Za-z0-9_.-]{3,40}$ ]]; then
@@ -383,6 +683,34 @@ done
 
 if ! senha_control=$(ask_password); then
     exit 0
+fi
+
+access_email=""
+access_team_domain=""
+access_team_name=""
+if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+    while true; do
+        if ! access_email=$(ask_required \
+            "4/6 — E-mail autorizado no Cloudflare Access:\n\nSomente esta identidade poderá chegar à tela de login do Control Center."); then
+            exit 0
+        fi
+        access_email=$(printf '%s' "$access_email" | tr '[:upper:]' '[:lower:]')
+        if [[ "$access_email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] &&
+           [ "${#access_email}" -le 254 ]; then
+            break
+        fi
+        msg "Informe um endereço de e-mail válido. Ele será gravado somente na política de acesso e nos metadados não secretos do serviço."
+    done
+    access_organization_file=$(mktemp) || exit 1
+    access_applications_file=$(mktemp) || {
+        rm -f "$access_organization_file"
+        exit 1
+    }
+    if ! check_cloudflare_access "$access_organization_file" "$access_applications_file"; then
+        rm -f "$access_organization_file" "$access_applications_file"
+        exit 1
+    fi
+    rm -f "$access_organization_file" "$access_applications_file"
 fi
 
 mem_total_mb=$(awk '/MemTotal:/ {print int($2/1024)}' /proc/meminfo)
@@ -398,7 +726,7 @@ elif [ "${mem_total_mb:-0}" -lt 4096 ] || [ "${mem_available_mb:-0}" -lt 1536 ];
     msg "O Control Center será instalado com o diagnóstico básico.\n\nMemória total: ${mem_total_mb:-0} MB\nMemória disponível: ${mem_available_mb:-0} MB\n\nO Copiloto com LLM é opcional e foi desativado para proteger este servidor. Você poderá configurá-lo futuramente após ampliar os recursos."
 else
     while true; do
-        assistant_choice=$(whiptail --title "4/5 — ASSISTENTE MNO" --default-item "OPENAI" --menu \
+        assistant_choice=$(whiptail --title "$assistant_step/$wizard_total — ASSISTENTE MNO" --default-item "OPENAI" --menu \
             "Escolha como o Copiloto de Infraestrutura funcionará.\n\nOpenAI é a seleção inicial. Todo conector usa uma stack isolada de 256 MB, sem acesso ao Docker ou terminal." \
             23 92 7 \
             "OPENAI" "LLM externa pela Responses API (padrão inicial)" \
@@ -485,7 +813,7 @@ fi
 
 while true; do
     if ! criar_portainer=$(ask_required \
-        "5/5 — Criar Stack no Portainer?\n\n0 = editável no Portainer\n1 = direto no Docker"); then
+        "$portainer_step/$wizard_total — Criar Stack no Portainer?\n\n0 = editável no Portainer\n1 = direto no Docker"); then
         exit 0
     fi
     [[ "$criar_portainer" =~ ^[01]$ ]] && break
@@ -550,8 +878,10 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
     fi
 fi
 
+access_summary="Não aplicável (instalação tradicional)"
+[ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] && access_summary="MFA obrigatório · $access_email"
 whiptail --title "CONFIRMAR INSTALAÇÃO" --yesno \
-    "Setup MNO Control Center\n\nDomínio: $url_control\nAdministrador: $usuario_control\nPlano: $CONTROL_PLAN\nAssistente: $assistant_label\nInstalação: $dns_mode\nDeploy: $([ "$criar_portainer" = "0" ] && echo "Portainer editável" || echo "Docker direto")\nArquiteturas: X86 e ARM\nLimite de memória do Control: $memory_limit\n\nO terminal executará o instalador original e será acessível somente após autenticação." \
+    "Setup MNO Control Center\n\nDomínio: $url_control\nAdministrador: $usuario_control\nCloudflare Access: $access_summary\nPlano: $CONTROL_PLAN\nAssistente: $assistant_label\nInstalação: $dns_mode\nDeploy: $([ "$criar_portainer" = "0" ] && echo "Portainer editável" || echo "Docker direto")\nArquiteturas: X86 e ARM\nLimite de memória do Control: $memory_limit\n\nO terminal executará o instalador original dentro de tmux e será acessível somente após autenticação em camadas." \
     23 88 || exit 0
 
 install_log="/tmp/${nome_app}-install.log"
@@ -561,7 +891,42 @@ error_file="/tmp/${nome_app}-error.log"
 
 {
     work_dir=$(mktemp -d)
-    trap 'rm -rf "$work_dir"' EXIT
+    access_app_created="false"
+    access_app_id=""
+    access_app_aud=""
+    tunnel_updated="false"
+    tunnel_original_payload=""
+
+    cleanup_install() {
+        local status=$? route_rollback_ok="true"
+        if [ "$status" -ne 0 ] && [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+            if [ "$tunnel_updated" = "true" ] && [ -s "$tunnel_original_payload" ]; then
+                if ! curl -sS \
+                    --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
+                    --max-time "$CLOUDFLARE_MAX_TIME" \
+                    -X PUT \
+                    "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+                    -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+                    -H "Content-Type: application/json" \
+                    --data-binary @"$tunnel_original_payload" >>"$install_log" 2>&1; then
+                    route_rollback_ok="false"
+                    echo "Rollback da rota do Tunnel falhou; política Access foi preservada por segurança." >>"$install_log"
+                fi
+            fi
+            if [ "$access_app_created" = "true" ] && [ "$route_rollback_ok" = "true" ] &&
+               [[ "$access_app_id" =~ ^[A-Fa-f0-9-]{32,36}$ ]]; then
+                curl -sS \
+                    --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
+                    --max-time "$CLOUDFLARE_MAX_TIME" \
+                    -X DELETE \
+                    "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$access_app_id" \
+                    -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" >>"$install_log" 2>&1 || true
+            fi
+        fi
+        rm -rf -- "$work_dir"
+        return "$status"
+    }
+    trap cleanup_install EXIT
 
     fail_install() {
         local code="$1" progress="$2" message="$3"
@@ -628,7 +993,7 @@ error_file="/tmp/${nome_app}-error.log"
     install -m 0644 "$runtime_catalog" "$work_dir/source/catalog.json"
     for source_file in go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
         terminal-menu.sh configure-control.sh control-upgrade.sh \
-        main.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go catalog.json \
+        main.go access.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go catalog.json \
         web/index.html web/app.js web/assistant-route.js web/styles.css web/terminal-bridge.js; do
         [ -s "$work_dir/source/$source_file" ] ||
             fail_install 21 "FONTE INCOMPLETO" "O arquivo interno '$source_file' não foi encontrado no bundle."
@@ -756,6 +1121,71 @@ error_file="/tmp/${nome_app}-error.log"
         exit 34
     fi
 
+    access_jwt_required="false"
+    if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+        echo -e "XXX\n49\nCRIANDO BARREIRA CLOUDFLARE ACCESS + MFA... \nXXX"
+        access_payload="$work_dir/access-app-payload.json"
+        access_response="$work_dir/access-app-response.json"
+        if ! jq -n \
+            --arg name "Setup MNO Control Center - $url_control" \
+            --arg domain "$url_control" \
+            --arg email "$access_email" '
+            {
+              name:$name,
+              type:"self_hosted",
+              domain:$domain,
+              destinations:[{type:"public",uri:$domain}],
+              session_duration:"8h",
+              app_launcher_visible:false,
+              allow_iframe:false,
+              allow_authenticate_via_warp:false,
+              skip_interstitial:false,
+              same_site_cookie_attribute:"strict",
+              options_preflight_bypass:false,
+              mfa_config:{
+                mfa_disabled:false,
+                session_duration:"0m",
+                allowed_authenticators:["totp","biometrics","security_key"]
+              },
+              policies:[{
+                name:"Setup MNO - identidade autorizada com MFA",
+                decision:"allow",
+                precedence:1,
+                include:[{email:{email:$email}}],
+                exclude:[],
+                require:[],
+                mfa_config:{
+                  mfa_disabled:false,
+                  session_duration:"0m",
+                  allowed_authenticators:["totp","biometrics","security_key"]
+                }
+              }]
+            }
+        ' >"$access_payload" 2>>"$install_log"; then
+            fail_install 35 "POLÍTICA ACCESS INVÁLIDA" "Não foi possível preparar a política de identidade e MFA."
+        fi
+        if ! curl -sS \
+            --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
+            --max-time "$CLOUDFLARE_MAX_TIME" \
+            -X POST \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @"$access_payload" >"$access_response" 2>>"$install_log" ||
+           [ "$(jq -r '.success // false' "$access_response" 2>>"$install_log")" != "true" ]; then
+            access_error=$(jq -r '[.errors[]?.message] | join("; ")' "$access_response" 2>/dev/null)
+            fail_install 35 "CLOUDFLARE ACCESS RECUSADO" "Não foi possível criar o Access com MFA: ${access_error:-resposta inválida da API}."
+        fi
+        access_app_id=$(jq -r '.result.id // empty' "$access_response")
+        access_app_aud=$(jq -r '.result.aud // empty' "$access_response")
+        [[ "$access_app_id" =~ ^[A-Fa-f0-9-]{32,36}$ ]] &&
+        [ "${#access_app_aud}" -ge 16 ] && [ "${#access_app_aud}" -le 128 ] ||
+            fail_install 35 "CLOUDFLARE ACCESS INCOMPLETO" "A Cloudflare criou o aplicativo sem ID ou audiência validáveis."
+        access_app_created="true"
+        access_jwt_required="true"
+        echo "Access confirmado para o domínio do Control Center com MFA em todo login." >>"$install_log"
+    fi
+
     echo -e "XXX\n51\nCRIANDO SEGREDOS DO PAINEL... \nXXX"
     if ! printf '%s' "$senha_control" |
         docker secret create "$admin_secret" - >>"$install_log" 2>&1; then
@@ -794,6 +1224,8 @@ services:
       - -a
       - -W
       - -O
+      - -P
+      - "10"
       - -m
       - "1"
       - /usr/local/bin/setupmno-terminal-menu
@@ -1016,6 +1448,10 @@ services:
       - FEEDBACK_STORE_PATH=/feedback/feedback.json
       - AUDIT_STORE_PATH=/audit/audit.json
       - COOKIE_SECURE=true
+      - ACCESS_JWT_REQUIRED=$access_jwt_required
+      - ACCESS_TEAM_DOMAIN=$access_team_domain
+      - ACCESS_POLICY_AUD=$access_app_aud
+      - ACCESS_ALLOWED_EMAIL=$access_email
     networks:
       - externa
       - interna
@@ -1166,11 +1602,22 @@ EOL
            [ "$(jq -r '.success // false' "$tunnel_raw")" != "true" ]; then
             fail_install 70 "ERRO AO CONSULTAR TUNNEL" "Não foi possível obter a configuração atual do Cloudflare Tunnel."
         fi
-        if ! jq --arg host "$url_control" --arg service "http://${web_stack}_${web_service}:8080" '
+        tunnel_original_payload="$work_dir/tunnel-original-payload.json"
+        if ! jq '{config:.result.config}' "$tunnel_raw" >"$tunnel_original_payload" 2>>"$install_log"; then
+            fail_install 71 "ERRO AO PREPARAR ROLLBACK" "Falha ao preservar a configuração anterior do Cloudflare Tunnel."
+        fi
+        if ! jq --arg host "$url_control" \
+            --arg service "http://${web_stack}_${web_service}:8080" \
+            --arg team "$access_team_name" \
+            --arg aud "$access_app_aud" '
             (.result.config // {}) as $cfg
             | ($cfg.ingress // [])
             | map(select(.service != "http_status:404" and .hostname != $host))
-            + [{hostname:$host,service:$service,originRequest:{noTlsVerify:true,httpHostHeader:$host}},
+            + [{hostname:$host,service:$service,originRequest:{
+                  noTlsVerify:true,
+                  httpHostHeader:$host,
+                  access:{required:true,teamName:$team,audTag:[$aud]}
+               }},
                {service:"http_status:404"}]
             | {config:($cfg + {ingress:.})}
         ' "$tunnel_raw" >"$tunnel_payload" 2>>"$install_log"; then
@@ -1188,6 +1635,7 @@ EOL
             tunnel_error=$(jq -r '[.errors[]?.message] | join("; ")' "$tunnel_response" 2>/dev/null)
             fail_install 72 "ERRO AO ATUALIZAR TUNNEL" "Cloudflare recusou a rota: ${tunnel_error:-resposta inválida da API}."
         fi
+        tunnel_updated="true"
         echo "Rota confirmada: $url_control -> http://${web_stack}_${web_service}:8080" >>"$install_log"
     fi
 

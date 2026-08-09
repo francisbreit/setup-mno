@@ -105,6 +105,66 @@ func TestTerminalIntentAllowed(t *testing.T) {
 	}
 }
 
+func TestRequireAuthDoesNotTreatBackgroundPollingAsActivity(t *testing.T) {
+	now := time.Now()
+	app := &webApp{sessions: map[string]*session{
+		strings.Repeat("a", 32): {
+			User:      "admin",
+			CSRF:      "csrf",
+			Expires:   now.Add(time.Hour),
+			IdleUntil: now.Add(panelIdleTimeout),
+			LastSeen:  now.Add(-5 * time.Minute),
+		},
+	}}
+	called := false
+	handler := app.requireAuth(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	request := httptest.NewRequest(http.MethodGet, "/api/overview", nil)
+	request.AddCookie(&http.Cookie{Name: sessionCookie, Value: strings.Repeat("a", 32)})
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if !called || response.Code != http.StatusNoContent {
+		t.Fatalf("sessão válida foi recusada: %d", response.Code)
+	}
+	if !app.sessions[strings.Repeat("a", 32)].LastSeen.Equal(now.Add(-5 * time.Minute)) {
+		t.Fatal("polling de API renovou indevidamente a atividade da sessão")
+	}
+}
+
+func TestRequireAuthBindsSessionToCloudflareIdentity(t *testing.T) {
+	now := time.Now()
+	token := strings.Repeat("b", 32)
+	app := &webApp{sessions: map[string]*session{
+		token: {
+			User:          "admin",
+			CSRF:          "csrf",
+			AccessSubject: "subject-a",
+			AccessEmail:   "admin@example.com",
+			Expires:       now.Add(time.Hour),
+			IdleUntil:     now.Add(panelIdleTimeout),
+		},
+	}}
+	handler := app.requireAuth(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	request := httptest.NewRequest(http.MethodGet, "/api/session", nil)
+	request.AddCookie(&http.Cookie{Name: sessionCookie, Value: token})
+	request = request.WithContext(context.WithValue(request.Context(), accessIdentityContextKey{}, &accessIdentity{
+		Subject: "subject-b",
+		Email:   "admin@example.com",
+	}))
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("cookie reutilizado por outra identidade não foi recusado: %d", response.Code)
+	}
+	if _, exists := app.sessions[token]; exists {
+		t.Fatal("sessão com identidade divergente não foi invalidada")
+	}
+}
+
 func TestAssistantModeUsesLLM(t *testing.T) {
 	for _, mode := range []string{"openai", "openrouter", "deepseek", "ollama", " OPENAI "} {
 		if !assistantModeUsesLLM(mode) {

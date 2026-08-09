@@ -9,6 +9,25 @@ if [ "$#" -gt 1 ]; then
     exit 64
 fi
 
+case "$intent" in
+    installer|settings|gateway) ;;
+    *)
+        printf 'Terminal Seguro: intenção recusada.\n' >&2
+        exit 64
+        ;;
+esac
+
+# O navegador é apenas um cliente do terminal. A sessão tmux permanece viva
+# quando o WebSocket fecha, permitindo retomar uploads, pulls e instalações
+# depois de uma nova autenticação. O socket dedicado evita colisão com tmux do
+# host e o ttyd continua limitando o acesso a um único cliente por vez.
+if [ -z "${TMUX:-}" ] && [ "${SETUPMNO_TMUX_CHILD:-0}" != "1" ]; then
+    exec tmux -L setupmno-control new-session -A \
+        -s setupmno-terminal \
+        -e SETUPMNO_TMUX_CHILD=1 \
+        /usr/local/bin/setupmno-terminal-menu "$intent"
+fi
+
 export TERM="${TERM:-xterm-256color}"
 export NEWT_COLORS='
 root=white,black
@@ -59,10 +78,6 @@ case "$intent" in
         exec /usr/local/bin/setupmno-control-configure
         ;;
     gateway)
-        ;;
-    *)
-        printf 'Terminal Seguro: intenção recusada.\n' >&2
-        exit 64
         ;;
 esac
 

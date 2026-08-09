@@ -26,13 +26,21 @@ const state = {
   assistantRoute: null,
   view: "dashboard",
   timer: null,
-  catalogTimer: null
+  catalogTimer: null,
+  activityTimer: null,
+  lastActivityAt: 0,
+  lastActivityHeartbeatAt: 0,
+  activityHeartbeatInFlight: false
 };
 
 const $ = id => document.getElementById(id);
 const fmt = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
 let terminalLoadSequence = 0;
 let pendingTerminalIntent = "";
+const PANEL_IDLE_MS = 15 * 60 * 1000;
+const TERMINAL_IDLE_MS = 30 * 60 * 1000;
+const IDLE_WARNING_MS = 2 * 60 * 1000;
+const ACTIVITY_HEARTBEAT_MS = 15 * 1000;
 const titles = {
   dashboard: ["Infraestrutura em tempo real", "Visão geral"],
   installed: ["Inventário do Docker Swarm", "Aplicações instaladas"],
@@ -95,6 +103,18 @@ function bindEvents() {
   $("terminal-reauth-dialog").addEventListener("cancel", event => {
     event.preventDefault();
     closeTerminalReauth();
+  });
+  $("idle-warning-continue").addEventListener("click", () => markSessionActivity(terminalDialogOpen(), true));
+  $("idle-warning-exit").addEventListener("click", logout);
+  $("idle-warning-dialog").addEventListener("cancel", event => event.preventDefault());
+  ["pointerdown", "keydown", "touchstart", "scroll"].forEach(eventName => {
+    document.addEventListener(eventName, () => markSessionActivity(terminalDialogOpen()), { passive: true });
+  });
+  window.addEventListener("message", event => {
+    const frame = $("terminal-frame");
+    if (event.origin !== window.location.origin || event.source !== frame.contentWindow) return;
+    if (event.data?.type !== "setupmno-terminal-activity") return;
+    markSessionActivity(true);
   });
   window.addEventListener("resize", syncTerminalDialogViewport, { passive: true });
   window.addEventListener("orientationchange", syncTerminalDialogViewport, { passive: true });
@@ -184,7 +204,9 @@ async function logout() {
   state.csrf = "";
   clearInterval(state.timer);
   clearInterval(state.catalogTimer);
+  clearInterval(state.activityTimer);
   closeTerminal();
+  closeIdleWarning();
   showLogin();
 }
 
@@ -216,6 +238,7 @@ function setAuthenticated(session) {
   state.assistantModel = session.assistantModel || "";
   state.assistantHistory = [];
   $("current-user").textContent = state.user;
+	$("access-identity").textContent = session.accessEmail ? `MFA · ${session.accessEmail}` : "Administrador";
   $("hero-user").textContent = state.user;
   $("user-initial").textContent = state.user.slice(0, 1).toUpperCase();
   $("settings-username").textContent = state.user;
@@ -230,14 +253,73 @@ function setAuthenticated(session) {
   clearInterval(state.catalogTimer);
   state.timer = setInterval(refreshOverview, 30000);
   state.catalogTimer = setInterval(refreshReleaseData, 300000);
+  state.lastActivityAt = Date.now();
+  state.lastActivityHeartbeatAt = Date.now();
+  clearInterval(state.activityTimer);
+  state.activityTimer = setInterval(checkSessionInactivity, 1000);
 }
 
 function showLogin() {
   clearInterval(state.timer);
   clearInterval(state.catalogTimer);
+  clearInterval(state.activityTimer);
+  closeTerminal();
+  closeIdleWarning();
   $("app-view").classList.add("hidden");
   $("login-view").classList.remove("hidden");
   setTimeout(() => $("login-user").focus(), 80);
+}
+
+function terminalDialogOpen() {
+  return Boolean($("terminal-dialog")?.open);
+}
+
+function markSessionActivity(terminal = false, force = false) {
+  if (!state.csrf) return;
+  const now = Date.now();
+  state.lastActivityAt = now;
+  closeIdleWarning();
+  if (!force && (state.activityHeartbeatInFlight || now - state.lastActivityHeartbeatAt < ACTIVITY_HEARTBEAT_MS)) return;
+  state.lastActivityHeartbeatAt = now;
+  state.activityHeartbeatInFlight = true;
+  api("/api/session/activity", {
+    method: "POST",
+    body: JSON.stringify({ terminal: Boolean(terminal) })
+  }).catch(() => {}).finally(() => {
+    state.activityHeartbeatInFlight = false;
+  });
+}
+
+function checkSessionInactivity() {
+  if (!state.csrf || !state.lastActivityAt) return;
+  const terminal = terminalDialogOpen();
+  const limit = terminal ? TERMINAL_IDLE_MS : PANEL_IDLE_MS;
+  const remaining = limit - (Date.now() - state.lastActivityAt);
+  if (remaining <= 0) {
+    closeTerminal();
+    logout();
+    return;
+  }
+  if (remaining <= IDLE_WARNING_MS) {
+    const dialog = $("idle-warning-dialog");
+    $("idle-warning-countdown").textContent = formatCountdown(remaining);
+    $("idle-warning-job-note").hidden = !terminal;
+    if (!dialog.open) dialog.showModal();
+  } else {
+    closeIdleWarning();
+  }
+}
+
+function formatCountdown(milliseconds) {
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
+function closeIdleWarning() {
+  const dialog = $("idle-warning-dialog");
+  if (dialog?.open) dialog.close();
 }
 
 async function refreshAll() {

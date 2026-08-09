@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Nextcloud no Setup MNO",
   "setupId": "nextcloud",
-  "setupVersion": "7.7.47",
+  "setupVersion": "7.7.48",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

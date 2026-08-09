@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Wiki.js no Setup MNO",
   "setupId": "wiki-js",
-  "setupVersion": "7.7.47",
+  "setupVersion": "7.7.48",
   "architectures": [
     "amd64",
     "arm64"

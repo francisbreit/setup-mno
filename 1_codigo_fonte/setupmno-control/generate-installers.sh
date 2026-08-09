@@ -60,8 +60,10 @@ grep -Fq 'if ! check_cloudflare_route "$route_check"; then' "$template" || {
     printf 'ERRO: fluxo pós-URL não usa a verificação protegida do Cloudflare.\n' >&2
     exit 1
 }
-[ "$(grep -Fc -- '--connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT"' "$template")" -eq 5 ] &&
-[ "$(grep -Fc -- '--max-time "$CLOUDFLARE_MAX_TIME"' "$template")" -eq 5 ] || {
+cloudflare_curl_calls=$(grep -Fc 'curl -sS' "$template")
+[ "$cloudflare_curl_calls" -gt 0 ] &&
+[ "$(grep -Fc -- '--connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT"' "$template")" -eq "$cloudflare_curl_calls" ] &&
+[ "$(grep -Fc -- '--max-time "$CLOUDFLARE_MAX_TIME"' "$template")" -eq "$cloudflare_curl_calls" ] || {
     printf 'ERRO: chamadas Cloudflare sem limites de rede uniformes.\n' >&2
     exit 1
 }
@@ -203,7 +205,7 @@ grep -Fq 'COPY --from=builder /src/knowledge-package /knowledge-package' \
     printf 'ERRO: a imagem final não contém o pacote de conhecimento somente leitura.\n' >&2
     exit 1
 }
-grep -Fq 'COPY go.mod main.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go ./' \
+grep -Fq 'COPY go.mod main.go access.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go ./' \
     "$project_dir/Dockerfile" || {
     printf 'ERRO: o build não inclui retrieval, roteador, prompts, Blueprints e evals.\n' >&2
     exit 1
@@ -333,6 +335,30 @@ grep -Fq 'SETUPMNO_CONFIG_SMOKE_TEST' "$project_dir/configure-control.sh" || {
 grep -Fq 'COPY configure-control.sh /usr/local/bin/setupmno-control-configure' \
     "$project_dir/terminal.Dockerfile" || {
     printf 'ERRO: a imagem do terminal não inclui a Central de Configurações.\n' >&2
+    exit 1
+}
+grep -Fq 'ACCESS_JWT_REQUIRED=$access_jwt_required' "$template" &&
+grep -Fq 'ACCESS_POLICY_AUD=$access_app_aud' "$template" &&
+grep -Fq 'prepare_existing_access_migration' "$template" &&
+grep -Fq 'rollback_existing_access_migration' "$template" &&
+grep -Fq 'metadados Cloudflare Access parciais ou inconsistentes' "$template" &&
+grep -Fq 'mfa_disabled:false' "$template" &&
+grep -Fq 'session_duration:"0m"' "$template" &&
+grep -Fq 'access:{required:true,teamName:$team,audTag:[$aud]}' "$template" &&
+grep -Fq 'accessHeader       = "Cf-Access-Jwt-Assertion"' "$project_dir/access.go" &&
+grep -Fq 'rsa.VerifyPKCS1v15' "$project_dir/access.go" &&
+grep -Fq 'identity.Subject != s.AccessSubject' "$project_dir/main.go" || {
+    printf 'ERRO: barreira P0 do Cloudflare Access/JWT/MFA ausente ou incompleta.\n' >&2
+    exit 1
+}
+grep -Fq 'POST /api/session/activity' "$project_dir/main.go" &&
+grep -Fq 'panelIdleTimeout     = 15 * time.Minute' "$project_dir/main.go" &&
+grep -Fq 'terminalIdleTimeout  = 30 * time.Minute' "$project_dir/main.go" &&
+grep -Fq 'setupmno-terminal-activity' "$project_dir/web/terminal-bridge.js" &&
+grep -Fq 'PANEL_IDLE_MS = 15 * 60 * 1000' "$project_dir/web/app.js" &&
+grep -Fq 'TERMINAL_IDLE_MS = 30 * 60 * 1000' "$project_dir/web/app.js" &&
+grep -Fq 'tmux -L setupmno-control new-session -A' "$project_dir/terminal-menu.sh" || {
+    printf 'ERRO: sessão inteligente ou persistência tmux do Terminal Seguro ausente.\n' >&2
     exit 1
 }
 grep -Fq -- '- /usr/local/bin/setupmno-terminal-menu' "$template" || {
@@ -593,7 +619,7 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
     tar -cf - \
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
         terminal-menu.sh configure-control.sh control-upgrade.sh \
-        main.go knowledge.go retrieval.go routing.go prompts.go \
+        main.go access.go knowledge.go retrieval.go routing.go prompts.go \
         blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go web |
         gzip -9n >"$bundle"
 )
@@ -615,6 +641,10 @@ if ! tar -tzf "$bundle" | grep -Fx 'feedback.go' >/dev/null; then
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'audit.go' >/dev/null; then
     printf 'ERRO: bundle de fontes sem a auditoria durável.\n' >&2
+    exit 1
+fi
+if ! tar -tzf "$bundle" | grep -Fx 'access.go' >/dev/null; then
+    echo "Bundle do Control Center não contém o validador Cloudflare Access." >&2
     exit 1
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'control-upgrade.sh' >/dev/null; then

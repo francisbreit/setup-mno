@@ -64,6 +64,13 @@ for (const provider of ["OpenAI", "OpenRouter", "DeepSeek", "Ollama"]) {
   assert.match(html + app, new RegExp(provider));
 }
 assert.match(app, /openTerminal\("settings"\)/);
+assert.match(html, /id="idle-warning-dialog"/);
+assert.match(html, /continuará executando no tmux/);
+assert.match(app, /PANEL_IDLE_MS = 15 \* 60 \* 1000/);
+assert.match(app, /TERMINAL_IDLE_MS = 30 \* 60 \* 1000/);
+assert.match(app, /\/api\/session\/activity/);
+assert.match(app, /setupmno-terminal-activity/);
+assert.match(html, /Cloudflare Access com MFA/);
 assert.match(html, /id="assistant-route-specialist"/);
 assert.match(html, /id="assistant-disabled"/);
 assert.match(html, /Assistente com IA desativado/);

@@ -18,6 +18,35 @@ comandos. O único componente com acesso ao
 instalador original é o terminal, protegido pela autenticação e pela sessão do
 painel.
 
+## Barreira P0 de identidade e continuidade
+
+Em instalações por Cloudflare Tunnel, o domínio do Control Center é publicado
+somente depois da criação de um aplicativo Cloudflare Access com política para
+um e-mail exato e MFA independente em todo login. O token usado pelo Setup
+precisa das permissões `Access: Apps and Policies Write` e
+`Access: Organizations Read`, além das permissões já usadas pelo Tunnel e DNS.
+Se o Zero Trust não possuir TOTP, biometria ou chave de segurança habilitados,
+a instalação para antes de criar stacks, DNS ou políticas incompletas.
+
+A identidade é validada três vezes: pelo Access na borda, pelo `cloudflared`
+antes do origin e pelo backend. A validação local aceita somente RS256, busca as
+chaves públicas oficiais com cache e rotação, e confere `kid`, assinatura,
+emissor, audiência, `exp`, `nbf`, `iat`, assunto e e-mail autorizado. A sessão
+local fica vinculada ao mesmo assunto e e-mail do Access, impedindo que um
+cookie administrativo seja reutilizado por outra identidade autenticada.
+
+No navegador, atividade real do usuário mantém o painel por até 15 minutos. Um
+Terminal Seguro aberto usa uma janela de 30 minutos e sua entrada ou saída real
+também conta como atividade; polling de métricas não renova uma sessão
+abandonada. Dois minutos antes da expiração, uma caixa explica a desconexão e
+oferece continuidade. O limite absoluto continua em oito horas.
+
+O ttyd é apenas a janela de uma sessão tmux dedicada. Fechar o modal, perder a
+rede ou expirar a sessão desconecta o navegador, mas não encerra pulls, uploads
+ou instaladores em execução. Depois de passar novamente pelo Access/MFA, login
+local e confirmação do Terminal Seguro, o usuário retoma a mesma sessão tmux.
+O limite de um cliente simultâneo permanece ativo.
+
 ## Instalação única e opcional
 
 O `dockerswarm.sh` oferece o Control Center depois que Traefik, Portainer,
