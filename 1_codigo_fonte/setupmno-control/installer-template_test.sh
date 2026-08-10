@@ -41,6 +41,8 @@ access_function_source=$(awk '
 eval "$access_function_source"
 
 for migration_function in \
+    control_mfa_state_valid \
+    write_control_mfa_state \
     show_cloudflare_access_guide \
     choose_cloudflare_access_security \
     collect_cloudflare_access_email \
@@ -67,6 +69,7 @@ done
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 CONTROL_VERSION="test"
+CONTROL_MFA_STATE_FILE="$test_dir/mfa-state.json"
 CLOUDFLARE_API_TOKEN="test-token-not-secret"
 CLOUDFLARE_ACCOUNT_ID="test-account"
 TUNNEL_ID="test-tunnel"
@@ -209,13 +212,13 @@ cat >"$test_dir/bin/docker" <<'EOF'
 #!/usr/bin/bash
 if [ "${1:-}" = "service" ] && [ "${2:-}" = "inspect" ]; then
     case "${MOCK_ACCESS_STATE:-missing}" in
-        ready)
+        ready|ready_mfa)
             printf '%s\n' \
                 'ACCESS_JWT_REQUIRED=true' \
                 'ACCESS_TEAM_DOMAIN=https://setupmno.cloudflareaccess.com' \
                 'ACCESS_POLICY_AUD=setupmno-test-audience' \
                 'ACCESS_ALLOWED_EMAIL=admin@example.com' \
-                'ACCESS_MFA_REQUIRED=false'
+                "ACCESS_MFA_REQUIRED=$([ "${MOCK_ACCESS_STATE}" = ready_mfa ] && printf true || printf false)"
             ;;
         partial)
             printf '%s\n' 'ACCESS_JWT_REQUIRED=true'
@@ -235,6 +238,19 @@ fi
 EOF
 chmod 0755 "$test_dir/bin/whiptail" "$test_dir/bin/curl" "$test_dir/bin/docker"
 PATH="$test_dir/bin:$PATH"
+
+write_control_mfa_state false false false test-original
+control_mfa_state_valid
+jq -e '.desiredMFA == false and .effectiveMFA == false and
+       .activationPromptPending == false and .source == "test-original"' \
+    "$CONTROL_MFA_STATE_FILE" >/dev/null
+write_control_mfa_state true false true test-requested
+jq -e '.desiredMFA == true and .effectiveMFA == false and
+       .activationPromptPending == true' "$CONTROL_MFA_STATE_FILE" >/dev/null
+if write_control_mfa_state false true false invalid-state; then
+    printf 'ERRO: combinação impossível de estado MFA foi aceita.\n' >&2
+    exit 1
+fi
 
 control_function_source=$(awk '
     /^control_center_installed\(\)/ { inside=1 }
@@ -400,6 +416,17 @@ export MOCK_CURL_MODE="mfa_upgrade" MOCK_ACCESS_STATE="ready" MOCK_CONTROL_CENTE
 configure_existing_access_mfa
 grep -Fq -- '--env-rm ACCESS_MFA_REQUIRED --env-add ACCESS_MFA_REQUIRED=true' "$MOCK_DOCKER_LOG"
 grep -Fq 'MFA ATIVADO COM SUCESSO' "$message_capture"
+jq -e '.desiredMFA == true and .effectiveMFA == true' "$CONTROL_MFA_STATE_FILE" >/dev/null
+
+export MOCK_CURL_MODE="restore_original" MOCK_ACCESS_STATE="ready_mfa" MOCK_WHIPTAIL_CHOICE="DESATIVAR"
+: >"$message_capture"
+: >"$MOCK_DOCKER_LOG"
+: >"$MOCK_CURL_LOG"
+configure_existing_access_mfa
+grep -Fq 'MFA DESATIVADO COM SUCESSO' "$message_capture"
+grep -Fq -- '--env-add ACCESS_JWT_REQUIRED=false' "$MOCK_DOCKER_LOG"
+jq -e '.desiredMFA == false and .effectiveMFA == false and
+       .activationPromptPending == false' "$CONTROL_MFA_STATE_FILE" >/dev/null
 
 application_fixture="$test_dir/application-fixture.json"
 policy_fixture="$test_dir/policy-fixture.json"

@@ -63,6 +63,79 @@ wait_for_portainer_ready() {
     return 1
 }
 
+CONTROL_MFA_STATE_FILE="/root/SetupLowCodeMno/.control/mfa-state.json"
+
+control_mfa_state_valid() {
+    [ -f "$CONTROL_MFA_STATE_FILE" ] && [ ! -L "$CONTROL_MFA_STATE_FILE" ] &&
+    [ "$(stat -c '%s' "$CONTROL_MFA_STATE_FILE" 2>/dev/null || printf '0')" -le 2048 ] &&
+    jq -e '.schemaVersion == 1 and .decisionRecorded == true and
+        (.desiredMFA | type == "boolean") and (.effectiveMFA | type == "boolean") and
+        (.activationPromptPending | type == "boolean") and
+        (.source | type == "string" and length > 0) and
+        ((.desiredMFA == false and .effectiveMFA == false and .activationPromptPending == false) or
+         (.desiredMFA == true and .effectiveMFA == true and .activationPromptPending == false) or
+         (.desiredMFA == true and .effectiveMFA == false))' \
+        "$CONTROL_MFA_STATE_FILE" >/dev/null 2>&1
+}
+
+write_control_mfa_state() {
+    local desired="$1" effective="$2" pending="$3" source="$4" state_dir temporary_file
+    case "$desired:$effective:$pending" in
+        true:true:false|true:false:true|true:false:false|false:false:false) ;;
+        *) return 1 ;;
+    esac
+    [[ "$source" =~ ^[a-z0-9-]{3,40}$ ]] || return 1
+    state_dir=$(dirname "$CONTROL_MFA_STATE_FILE")
+    [ ! -L "$state_dir" ] || return 1
+    mkdir -p "$state_dir" || return 1
+    [ ! -e "$CONTROL_MFA_STATE_FILE" ] ||
+        { [ -f "$CONTROL_MFA_STATE_FILE" ] && [ ! -L "$CONTROL_MFA_STATE_FILE" ]; } || return 1
+    temporary_file=$(mktemp "$state_dir/mfa-state.json.tmp.XXXXXX") || return 1
+    chmod 0600 "$temporary_file" || { rm -f "$temporary_file"; return 1; }
+    jq -n --argjson desired "$desired" --argjson effective "$effective" \
+        --argjson pending "$pending" --arg source "$source" \
+        --arg updatedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        '{schemaVersion:1,decisionRecorded:true,desiredMFA:$desired,
+          effectiveMFA:$effective,activationPromptPending:$pending,
+          source:$source,updatedAt:$updatedAt}' >"$temporary_file" || {
+        rm -f "$temporary_file"
+        return 1
+    }
+    mv -f "$temporary_file" "$CONTROL_MFA_STATE_FILE"
+}
+
+show_control_mfa_instructions() {
+    whiptail --title "COMO PREPARAR O MFA" --scrolltext --msgbox \
+        "O MFA será usado pelo Setup MNO Control Center, não pelo login do Portainer. Nesta etapa registramos apenas sua escolha; o domínio e o e-mail do Control Center serão solicitados quando o painel for instalado.\n\n1. Abra dash.cloudflare.com e entre em Zero Trust.\n2. Acesse Access controls > Access settings.\n3. Habilite Allow multi-factor authentication (MFA).\n4. Permita Authenticator application (TOTP), biometria ou chave de segurança.\n5. O token do Setup precisará de Access: Apps and Policies Write e Access: Organizations Read.\n\nVocê poderá alterar esta escolha depois em CONFIGURAR MFA CONTROL CENTER." \
+        23 92
+}
+
+choose_control_mfa_preference() {
+    local choice
+    while true; do
+        choice=$(whiptail --title "SEGURANÇA DO CONTROL CENTER" --default-item "MFA" --menu \
+            "Escolha uma única vez como deseja proteger o futuro Setup MNO Control Center. Esta decisão ficará registrada e não será perguntada novamente nas próximas atualizações:" \
+            19 94 3 \
+            "MFA" "Ativar Cloudflare Access + segundo fator (RECOMENDADO)" \
+            "SEM_MFA" "Manter Tunnel direto, login local e Terminal Remoto" \
+            "INSTRUCOES" "Ver o passo a passo antes de escolher" \
+            3>&1 1>&2 2>&3) || return 130
+        case "$choice" in
+            MFA)
+                CONTROL_MFA_DESIRED="true"
+                CONTROL_MFA_PENDING="true"
+                return 0
+                ;;
+            SEM_MFA)
+                CONTROL_MFA_DESIRED="false"
+                CONTROL_MFA_PENDING="false"
+                return 0
+                ;;
+            INSTRUCOES) show_control_mfa_instructions ;;
+        esac
+    done
+}
+
 offer_control_center_installation() {
     local installer="/root/SetupLowCodeMno/setupmno_control" status
     [ -x "$installer" ] || return 0
@@ -755,6 +828,20 @@ fi
 
 fi
 
+CONTROL_MFA_DESIRED="false"
+CONTROL_MFA_PENDING="false"
+if control_mfa_state_valid; then
+    CONTROL_MFA_DESIRED=$(jq -r '.desiredMFA' "$CONTROL_MFA_STATE_FILE")
+    CONTROL_MFA_PENDING=$(jq -r '.activationPromptPending' "$CONTROL_MFA_STATE_FILE")
+elif [ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ]; then
+    choose_control_mfa_preference || exit 0
+fi
+if [ "$CONTROL_MFA_DESIRED" = "true" ]; then
+    CONTROL_MFA_SUMMARY="Ativar MFA no Control Center quando o painel for instalado"
+else
+    CONTROL_MFA_SUMMARY="Desativado (modo original; pode ser alterado no menu)"
+fi
+
 clear
 
 
@@ -768,7 +855,7 @@ while true; do
     # Exibe as informações formatadas com mais espaço na tela
     if [[ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ]]; then
         whiptail --title "Dados Fornecidos" \
-        --msgbox "TIPO DE INSTALAÇÃO: CLOUDFLARE TUNNEL\n\nDados Preenchidos:\n\n1) Dominio Portainer: $dominio\n2) Usuário do Portainer: $usuariopt\n3) Senha do Portainer: $senhapt\n4) Seu Email: $mail\n5) Senha do Postgres: $postgres_senha\n\nDados Cloudflare:\n- Account ID: ${CLOUDFLARE_ACCOUNT_ID:0:8}...\n- Zone ID: ${CLOUDFLARE_ZONE_ID:0:8}...\n- Tunnel ID: $TUNNEL_ID\n\nConfira e Tecle Enter para continuar. Na próxima etapa você poderá confirmar os dados ou corrigir, se necessário." \
+        --msgbox "TIPO DE INSTALAÇÃO: CLOUDFLARE TUNNEL\n\nDados Preenchidos:\n\n1) Dominio Portainer: $dominio\n2) Usuário do Portainer: $usuariopt\n3) Senha do Portainer: $senhapt\n4) Seu Email: $mail\n5) Senha do Postgres: $postgres_senha\n6) MFA Control Center: $CONTROL_MFA_SUMMARY\n\nDados Cloudflare:\n- Account ID: ${CLOUDFLARE_ACCOUNT_ID:0:8}...\n- Zone ID: ${CLOUDFLARE_ZONE_ID:0:8}...\n- Tunnel ID: $TUNNEL_ID\n\nConfira e Tecle Enter para continuar. Na próxima etapa você poderá confirmar os dados ou corrigir, se necessário." \
         --fb 22 80
     else
     if [ "$criar_dns" = "0" ]; then
@@ -803,6 +890,14 @@ while true; do
 done
 
 # FIM DE VERIFICAÇÃO DE DADOS
+
+if ! control_mfa_state_valid; then
+    if ! write_control_mfa_state "$CONTROL_MFA_DESIRED" false "$CONTROL_MFA_PENDING" fresh-portainer; then
+        whiptail --title "ERRO AO REGISTRAR A SEGURANÇA" --msgbox \
+            "Não foi possível registrar com segurança a preferência de MFA. A instalação foi interrompida antes de criar os serviços." 13 82
+        exit 41
+    fi
+fi
 
 #  INSTALANDO AS DEPENDENCIAS E DOCKER SWARM
 

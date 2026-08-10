@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Cal.com no Setup MNO",
   "setupId": "calcom",
-  "setupVersion": "7.7.52",
+  "setupVersion": "7.8.1",
   "architectures": [
     "amd64"
   ],

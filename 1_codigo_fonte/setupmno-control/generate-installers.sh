@@ -68,6 +68,7 @@ cloudflare_curl_calls=$(grep -Fc 'curl -sS' "$template")
     exit 1
 }
 bash "$project_dir/installer-template_test.sh"
+bash "$project_dir/mfa-state_test.sh"
 bash "$project_dir/configure-control_test.sh"
 bash "$project_dir/control-runtime-transition_test.sh"
 bash "$project_dir/control-runtime-selfheal_test.sh"
@@ -99,6 +100,14 @@ for architecture in x86 arm; do
     [ "$(grep -Fc '"${CONTROL_CENTER_MFA_MENU[@]}"' "$install_script")" -eq 4 ]
     [ "$(grep -Fc '"CONFIGURAR MFA CONTROL CENTER") configure_control_center_mfa ;;' "$install_script")" -eq 4 ]
     grep -Fq 'setupmno_control --configure-access-mfa' "$install_script"
+    grep -Fq 'CONTROL_MFA_STATE_FILE="/root/SetupLowCodeMno/.control/mfa-state.json"' "$install_script"
+    grep -Fq 'ensure_control_mfa_decision()' "$install_script"
+    grep -Fq 'legacy-detected' "$install_script"
+    grep -Fq 'CONTROL_CENTER_MFA_MENU=("CONFIGURAR MFA CONTROL CENTER" "")' "$install_script"
+    ! grep -Fq 'control_center_mfa_configured' "$install_script"
+    grep -Fq 'choose_control_mfa_preference()' "$foundation_script"
+    grep -Fq 'fresh-portainer' "$foundation_script"
+    grep -Fq '6) MFA Control Center: $CONTROL_MFA_SUMMARY' "$foundation_script"
     ! grep -Fq 'exit 42' "$install_script"
     [ "$(grep -Fc 'if [ "$CHOICE" != "SETUP MNO CONTROL CENTER" ] &&' "$install_script")" -eq 3 ] || {
         printf 'ERRO: Control Center continua bloqueado por uma lista de permissão free/free1/free2 em %s.\n' \
@@ -148,6 +157,13 @@ for architecture in x86 arm; do
         exit 1
     }
 done
+
+grep -Fq 'write_control_mfa_state true true false menu-enabled' "$template" &&
+grep -Fq 'write_control_mfa_state false false false menu-disabled' "$template" &&
+grep -Fq '"DESATIVAR" "Remover Access e restaurar Tunnel direto + login local"' "$template" || {
+    printf 'ERRO: ciclo persistente de ativação/desativação do MFA está incompleto.\n' >&2
+    exit 1
+}
 
 grep -Fq -- '- /root/SetupLowCodeMno/.control:/runtime-control:ro' "$template" || {
     printf 'ERRO: o agente precisa montar somente o estado runtime do Control Center.\n' >&2
@@ -739,7 +755,8 @@ catalog_arm_entries=$(jq -e '[.[] | select(.arch == "x86-arm")] | length' "$proj
 count_pro_menu() {
     local install_file="$1"
     awk '
-        /whiptail --title .*--menu/ { inside=1; next }
+        /^CHOICE=\$\(/ { armed=1; next }
+        armed && /whiptail --title .*--menu/ { inside=1; next }
         inside && match($0, /^[[:space:]]*"([^"]+)"/, item) {
             name=item[1]
             if (name != "REINICIAR APPS/SERVIÇOS" &&

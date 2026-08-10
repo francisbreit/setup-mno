@@ -217,7 +217,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.7.52"
+VERSIONSETUP="7.8.1"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -472,20 +472,102 @@ control_center_installed() {
         grep -Eq '^mnoctrl[[:alnum:]]+-(web|agent|terminal|assistant)_'
 }
 
-control_center_mfa_configured() {
-    local service services_count service_environment
+CONTROL_MFA_STATE_FILE="/root/SetupLowCodeMno/.control/mfa-state.json"
+
+control_mfa_state_valid() {
+    [ -f "$CONTROL_MFA_STATE_FILE" ] && [ ! -L "$CONTROL_MFA_STATE_FILE" ] &&
+    [ "$(stat -c '%s' "$CONTROL_MFA_STATE_FILE" 2>/dev/null || printf '0')" -le 2048 ] &&
+    jq -e '.schemaVersion == 1 and .decisionRecorded == true and
+        (.desiredMFA | type == "boolean") and (.effectiveMFA | type == "boolean") and
+        (.activationPromptPending | type == "boolean") and
+        (.source | type == "string" and length > 0) and
+        ((.desiredMFA == false and .effectiveMFA == false and .activationPromptPending == false) or
+         (.desiredMFA == true and .effectiveMFA == true and .activationPromptPending == false) or
+         (.desiredMFA == true and .effectiveMFA == false))' \
+        "$CONTROL_MFA_STATE_FILE" >/dev/null 2>&1
+}
+
+write_control_mfa_state() {
+    local desired="$1" effective="$2" pending="$3" source="$4" state_dir temporary_file
+    case "$desired:$effective:$pending" in
+        true:true:false|true:false:true|true:false:false|false:false:false) ;;
+        *) return 1 ;;
+    esac
+    [[ "$source" =~ ^[a-z0-9-]{3,40}$ ]] || return 1
+    state_dir=$(dirname "$CONTROL_MFA_STATE_FILE")
+    [ ! -L "$state_dir" ] || return 1
+    mkdir -p "$state_dir" || return 1
+    [ ! -e "$CONTROL_MFA_STATE_FILE" ] ||
+        { [ -f "$CONTROL_MFA_STATE_FILE" ] && [ ! -L "$CONTROL_MFA_STATE_FILE" ]; } || return 1
+    temporary_file=$(mktemp "$state_dir/mfa-state.json.tmp.XXXXXX") || return 1
+    chmod 0600 "$temporary_file" || { rm -f "$temporary_file"; return 1; }
+    jq -n --argjson desired "$desired" --argjson effective "$effective" \
+        --argjson pending "$pending" --arg source "$source" \
+        --arg updatedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        '{schemaVersion:1,decisionRecorded:true,desiredMFA:$desired,
+          effectiveMFA:$effective,activationPromptPending:$pending,
+          source:$source,updatedAt:$updatedAt}' >"$temporary_file" || {
+        rm -f "$temporary_file"
+        return 1
+    }
+    mv -f "$temporary_file" "$CONTROL_MFA_STATE_FILE"
+}
+
+show_control_mfa_instructions() {
+    whiptail --title "COMO PREPARAR O MFA" --scrolltext --msgbox \
+        "O MFA opcional protege o Control Center por Cloudflare Access. No Zero Trust, habilite Access controls > Access settings > Allow multi-factor authentication (MFA) e permita TOTP, biometria ou chave de segurança. O token precisa de Access: Apps and Policies Write e Access: Organizations Read. Nenhuma credencial ou e-mail é salvo neste arquivo de preferência." \
+        18 90
+}
+
+choose_control_mfa_preference() {
+    local choice
+    while true; do
+        choice=$(whiptail --title "SEGURANÇA DO CONTROL CENTER" --default-item "MFA" --menu \
+            "Esta instalação antiga ainda não registrou uma decisão. Escolha uma vez; a preferência será preservada nas próximas atualizações:" \
+            19 94 3 \
+            "MFA" "Ativar Cloudflare Access + segundo fator (RECOMENDADO)" \
+            "SEM_MFA" "Manter todos os acessos no modo original" \
+            "INSTRUCOES" "Ver instruções antes de escolher" \
+            3>&1 1>&2 2>&3) || return 130
+        case "$choice" in
+            MFA) write_control_mfa_state true false true legacy-upgrade; return $? ;;
+            SEM_MFA) write_control_mfa_state false false false legacy-upgrade; return $? ;;
+            INSTRUCOES) show_control_mfa_instructions ;;
+        esac
+    done
+}
+
+control_center_effective_mfa() {
+    local service environment
     service=$(docker service ls --format '{{.Name}}' 2>/dev/null |
         grep -E '^mnoctrl[[:alnum:]]+-web_mnoctrl[[:alnum:]]+-web$')
-    services_count=$(printf '%s\n' "$service" | sed '/^$/d' | wc -l)
-    [ "$services_count" -eq 1 ] || return 1
-    service_environment=$(docker service inspect --format \
+    [ "$(printf '%s\n' "$service" | sed '/^$/d' | wc -l)" -eq 1 ] || return 1
+    environment=$(docker service inspect --format \
         '{{range .Spec.TaskTemplate.ContainerSpec.Env}}{{println .}}{{end}}' \
         "$service" 2>/dev/null) || return 1
-    grep -Fxq 'SETUPMNO_INSTALL_TYPE=TRADICIONAL' <<<"$service_environment" && return 0
-    grep -Fxq 'ACCESS_MFA_REQUIRED=true' <<<"$service_environment"
+    grep -Fxq 'ACCESS_JWT_REQUIRED=true' <<<"$environment" &&
+    grep -Fxq 'ACCESS_MFA_REQUIRED=true' <<<"$environment"
+}
+
+ensure_control_mfa_decision() {
+    control_mfa_state_valid && return 0
+    if [ "$INSTALL_TYPE" != "CLOUDFLARE_TUNNEL" ]; then
+        write_control_mfa_state false false false traditional
+        return $?
+    fi
+    if control_center_effective_mfa; then
+        write_control_mfa_state true true false legacy-detected
+        return $?
+    fi
+    choose_control_mfa_preference
 }
 
 configure_control_center_mfa() {
+    if ! control_center_installed; then
+        whiptail --title "CONFIGURAR MFA CONTROL CENTER" --msgbox \
+            "Instale primeiro o Setup MNO Control Center. Sua preferência continuará registrada e será aplicada durante a instalação do painel." 13 82
+        return 0
+    fi
     if [ ! -x /root/SetupLowCodeMno/setupmno_control ]; then
         whiptail --title "CONFIGURAR MFA CONTROL CENTER" --msgbox \
             "O binário protegido setupmno_control não foi encontrado. Reinstale ou atualize o Setup MNO e tente novamente." \
@@ -535,6 +617,12 @@ reconcile_control_center_release() {
     /root/SetupLowCodeMno/setupmno_control --reconcile-existing
 }
 
+if ! ensure_control_mfa_decision; then
+    whiptail --title "PREFERÊNCIA DE MFA NÃO REGISTRADA" --msgbox \
+        "A escolha foi cancelada ou não pôde ser salva. Nenhuma configuração de acesso foi alterada. Execute setup-mno novamente para continuar." 14 84
+    exit 0
+fi
+
 if control_center_installed; then
     if ! reconcile_control_center_release; then
         whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
@@ -544,6 +632,14 @@ if control_center_installed; then
         whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
             "O Control Center foi preservado, mas o acesso somente leitura ao catálogo runtime não pôde ser confirmado.\n\nO menu principal continuará disponível. Reinstale o Setup MNO ou consulte o suporte antes de usar Catálogo, Blueprints ou Assistente." \
             16 82
+    fi
+    if control_mfa_state_valid &&
+       [ "$(jq -r '.desiredMFA' "$CONTROL_MFA_STATE_FILE")" = "true" ] &&
+       [ "$(jq -r '.effectiveMFA' "$CONTROL_MFA_STATE_FILE")" = "false" ] &&
+       [ "$(jq -r '.activationPromptPending' "$CONTROL_MFA_STATE_FILE")" = "true" ]; then
+        if write_control_mfa_state true false false activation-offered; then
+            configure_control_center_mfa
+        fi
     fi
 fi
 
@@ -582,12 +678,10 @@ while true; do
 
 CONTROL_CENTER_MENU=()
 CONTROL_CENTER_FREE_MENU=()
-CONTROL_CENTER_MFA_MENU=()
+CONTROL_CENTER_MFA_MENU=("CONFIGURAR MFA CONTROL CENTER" "")
 if ! control_center_installed; then
     CONTROL_CENTER_MENU=("SETUP MNO CONTROL CENTER" "")
     CONTROL_CENTER_FREE_MENU=("SETUP MNO CONTROL CENTER" "")
-elif ! control_center_mfa_configured; then
-    CONTROL_CENTER_MFA_MENU=("CONFIGURAR MFA CONTROL CENTER" "")
 fi
 
 if [[ ! "$PLANO" = *free* ]]; then

@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.15.13"
+CONTROL_VERSION="4.16.0"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -87,6 +87,47 @@ msg() {
     # As funções de coleta são chamadas por substituição de comando. Direcionar
     # a interface para stderr mantém o Whiptail visível no terminal/ttyd.
     whiptail --title "SETUP MNO CONTROL CENTER" --msgbox "$1" 14 78 1>&2
+}
+
+CONTROL_MFA_STATE_FILE="/root/SetupLowCodeMno/.control/mfa-state.json"
+
+control_mfa_state_valid() {
+    [ -f "$CONTROL_MFA_STATE_FILE" ] && [ ! -L "$CONTROL_MFA_STATE_FILE" ] &&
+    [ "$(stat -c '%s' "$CONTROL_MFA_STATE_FILE" 2>/dev/null || printf '0')" -le 2048 ] &&
+    jq -e '.schemaVersion == 1 and .decisionRecorded == true and
+        (.desiredMFA | type == "boolean") and (.effectiveMFA | type == "boolean") and
+        (.activationPromptPending | type == "boolean") and
+        (.source | type == "string" and length > 0) and
+        ((.desiredMFA == false and .effectiveMFA == false and .activationPromptPending == false) or
+         (.desiredMFA == true and .effectiveMFA == true and .activationPromptPending == false) or
+         (.desiredMFA == true and .effectiveMFA == false))' \
+        "$CONTROL_MFA_STATE_FILE" >/dev/null 2>&1
+}
+
+write_control_mfa_state() {
+    local desired="$1" effective="$2" pending="$3" source="$4" state_dir temporary_file
+    case "$desired:$effective:$pending" in
+        true:true:false|true:false:true|true:false:false|false:false:false) ;;
+        *) return 1 ;;
+    esac
+    [[ "$source" =~ ^[a-z0-9-]{3,40}$ ]] || return 1
+    state_dir=$(dirname "$CONTROL_MFA_STATE_FILE")
+    [ ! -L "$state_dir" ] || return 1
+    mkdir -p "$state_dir" || return 1
+    [ ! -e "$CONTROL_MFA_STATE_FILE" ] ||
+        { [ -f "$CONTROL_MFA_STATE_FILE" ] && [ ! -L "$CONTROL_MFA_STATE_FILE" ]; } || return 1
+    temporary_file=$(mktemp "$state_dir/mfa-state.json.tmp.XXXXXX") || return 1
+    chmod 0600 "$temporary_file" || { rm -f "$temporary_file"; return 1; }
+    jq -n --argjson desired "$desired" --argjson effective "$effective" \
+        --argjson pending "$pending" --arg source "$source" \
+        --arg updatedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        '{schemaVersion:1,decisionRecorded:true,desiredMFA:$desired,
+          effectiveMFA:$effective,activationPromptPending:$pending,
+          source:$source,updatedAt:$updatedAt}' >"$temporary_file" || {
+        rm -f "$temporary_file"
+        return 1
+    }
+    mv -f "$temporary_file" "$CONTROL_MFA_STATE_FILE"
 }
 
 show_cloudflare_access_guide() {
@@ -445,11 +486,13 @@ prepare_existing_access_migration() {
 restore_existing_access_original_mode() {
     local web_service="$1" work_dir="$2" log_file="$3"
     local team_domain aud email applications_file tunnel_file app_count app_id hostname service_target
-    local original_tunnel tunnel_payload tunnel_response delete_response
+    local original_tunnel tunnel_payload tunnel_response delete_response previous_mfa
 
     team_domain=$(control_service_env_value "$web_service" ACCESS_TEAM_DOMAIN)
     aud=$(control_service_env_value "$web_service" ACCESS_POLICY_AUD)
     email=$(control_service_env_value "$web_service" ACCESS_ALLOWED_EMAIL)
+    previous_mfa=$(control_service_env_value "$web_service" ACCESS_MFA_REQUIRED)
+    case "$previous_mfa" in true|false) ;; *) previous_mfa="false" ;; esac
     [[ "$team_domain" =~ ^https://[A-Za-z0-9-]+\.cloudflareaccess\.com$ ]] &&
     [ "${#aud}" -ge 16 ] && [ "${#aud}" -le 128 ] &&
     [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] || {
@@ -540,7 +583,7 @@ restore_existing_access_original_mode() {
             --env-add "ACCESS_TEAM_DOMAIN=$team_domain" \
             --env-add "ACCESS_POLICY_AUD=$aud" \
             --env-add "ACCESS_ALLOWED_EMAIL=$email" \
-            --env-add ACCESS_MFA_REQUIRED=false \
+            --env-add "ACCESS_MFA_REQUIRED=$previous_mfa" \
             "$web_service" >>"$log_file" 2>&1 || true
         curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
             -X PUT \
@@ -550,6 +593,10 @@ restore_existing_access_original_mode() {
         msg "A aplicação Access não pôde ser removida. Serviço e rota anteriores foram restaurados."
         return 1
     fi
+    write_control_mfa_state false false false menu-disabled || {
+        msg "O modo original foi restaurado, mas o registro persistente de MFA não pôde ser atualizado. Execute novamente o Setup MNO antes de outra atualização."
+        return 1
+    }
     return 0
 }
 
@@ -671,7 +718,7 @@ build_existing_access_policy_payload() {
 }
 
 configure_existing_access_mfa() {
-    local work_dir log_file web_service service_count access_required team_domain aud email
+    local work_dir log_file web_service service_count access_required access_mfa team_domain aud email
     local organization_file applications_file application_file policy_payload rollback_payload response_file
     local auth_domain app_count app_id policy_count policy_id current_mfa_disabled current_mfa_enabled
     local action rollback_response activation_state status
@@ -694,6 +741,7 @@ configure_existing_access_mfa() {
     web_service=$(docker service ls --format '{{.Name}}' 2>/dev/null |
         grep -E '^mnoctrl[[:alnum:]]+-web_mnoctrl[[:alnum:]]+-web$')
     access_required=$(control_service_env_value "$web_service" ACCESS_JWT_REQUIRED)
+    access_mfa=$(control_service_env_value "$web_service" ACCESS_MFA_REQUIRED)
     team_domain=$(control_service_env_value "$web_service" ACCESS_TEAM_DOMAIN)
     aud=$(control_service_env_value "$web_service" ACCESS_POLICY_AUD)
     email=$(control_service_env_value "$web_service" ACCESS_ALLOWED_EMAIL)
@@ -720,6 +768,10 @@ configure_existing_access_mfa() {
         fi
         team_domain=$(control_service_env_value "$web_service" ACCESS_TEAM_DOMAIN)
         email=$(control_service_env_value "$web_service" ACCESS_ALLOWED_EMAIL)
+        write_control_mfa_state true true false menu-enabled || {
+            msg "O MFA foi ativado, mas o estado persistente não pôde ser registrado. Execute novamente esta opção antes de atualizar o Setup MNO."
+            return 1
+        }
         rm -rf -- "$work_dir"
         msg "MFA ATIVADO COM SUCESSO!\n\nE-mail protegido: $email\n\nPróximo passo:\n1. Abra ${team_domain}/AddMfaDevice\n2. Entre com o mesmo e-mail\n3. Cadastre o aplicativo autenticador, biometria ou chave\n4. Volte e abra o Control Center"
         return 0
@@ -730,6 +782,39 @@ configure_existing_access_mfa() {
        [[ ! "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
         msg "A instalação não possui metadados Cloudflare Access completos e válidos. Por segurança, nenhuma política foi alterada."
         return 1
+    fi
+
+    if [ "$access_mfa" = "true" ]; then
+        while true; do
+            action=$(whiptail --title "CONFIGURAR MFA CONTROL CENTER" --default-item "CANCELAR" --menu \
+                "O MFA está ATIVO para $email. Você pode mantê-lo, consultar as instruções ou voltar ao modo original das versões sem MFA:" \
+                19 94 3 \
+                "DESATIVAR" "Remover Access e restaurar Tunnel direto + login local" \
+                "INSTRUCOES" "Ver o guia de MFA do Cloudflare" \
+                "CANCELAR" "Manter o MFA ativo e voltar ao menu" \
+                3>&1 1>&2 2>&3) || return 0
+            case "$action" in
+                INSTRUCOES) show_cloudflare_access_guide ;;
+                CANCELAR) return 0 ;;
+                DESATIVAR)
+                    if ! whiptail --title "DESATIVAR MFA?" --yesno \
+                        "O aplicativo Access exclusivo do Control Center será removido e o acesso voltará ao modo original: Cloudflare Tunnel direto, login local e Terminal Remoto.\n\nEm caso de falha, serviço e rota serão restaurados. Deseja continuar?" \
+                        18 92 1>&2; then
+                        return 0
+                    fi
+                    work_dir=$(mktemp -d) || return 1
+                    log_file="/tmp/setupmno-control-mfa-${CONTROL_VERSION}.log"
+                    : >"$log_file"
+                    if restore_existing_access_original_mode "$web_service" "$work_dir" "$log_file"; then
+                        rm -rf -- "$work_dir"
+                        msg "MFA DESATIVADO COM SUCESSO!\n\nO Control Center voltou ao modo original com Tunnel direto, login local e Terminal Remoto. A opção de MFA continuará disponível no menu."
+                        return 0
+                    fi
+                    rm -rf -- "$work_dir"
+                    return 1
+                    ;;
+            esac
+        done
     fi
 
     work_dir=$(mktemp -d) || return 1
@@ -829,6 +914,11 @@ configure_existing_access_mfa() {
             docker service update --detach=true --env-add ACCESS_MFA_REQUIRED=true \
                 "$web_service" >>"$log_file" 2>&1 || true
         fi
+        write_control_mfa_state true true false existing-enabled || {
+            rm -rf -- "$work_dir"
+            msg "O MFA está ativo, mas o estado persistente não pôde ser registrado."
+            return 1
+        }
         rm -rf -- "$work_dir"
         msg "O MFA independente já está ativo para $email.\n\nCadastre ou gerencie o autenticador em:\n${team_domain}/AddMfaDevice"
         return 0
@@ -883,6 +973,11 @@ configure_existing_access_mfa() {
         msg "O Control Center não conseguiu registrar o novo estado. A política anterior foi restaurada.\n\nLog: $log_file"
         return 1
     fi
+    write_control_mfa_state true true false menu-enabled || {
+        rm -rf -- "$work_dir"
+        msg "O MFA foi ativado, mas o estado persistente não pôde ser registrado. Execute novamente esta opção antes de atualizar o Setup MNO."
+        return 1
+    }
     rm -rf -- "$work_dir"
     msg "MFA ATIVADO COM SUCESSO!\n\nE-mail protegido: $email\n\nPróximo passo:\n1. Abra ${team_domain}/AddMfaDevice\n2. Entre com o mesmo e-mail\n3. Cadastre o aplicativo autenticador, biometria ou chave\n4. Volte e abra o Control Center"
     return 0
@@ -1186,10 +1281,24 @@ access_team_domain=""
 access_team_name=""
 access_mfa_enabled="false"
 if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-    whiptail --title "4/6 — PROTEÇÃO CLOUDFLARE ACCESS" --msgbox \
-        "O MFA é uma camada adicional e opcional.\n\nSe escolher MODO ORIGINAL, o painel continuará usando o Cloudflare Tunnel direto, o login local e o Terminal Remoto como nas versões anteriores. Nenhum aplicativo Cloudflare Access será criado.\n\nVocê poderá ativar o MFA mais tarde pelo menu principal." \
-        19 90 1>&2
-    choose_cloudflare_access_security || exit 0
+    if control_mfa_state_valid; then
+        access_mfa_enabled=$(jq -r '.desiredMFA' "$CONTROL_MFA_STATE_FILE")
+        if [ "$access_mfa_enabled" = "true" ]; then
+            whiptail --title "4/6 — PREFERÊNCIA DE MFA REGISTRADA" --msgbox \
+                "Você escolheu MFA durante a preparação do ambiente. Essa decisão foi preservada e não será perguntada novamente.\n\nAgora serão solicitados apenas os dados necessários para ativar a proteção do Control Center." \
+                16 88 1>&2
+        fi
+    else
+        whiptail --title "4/6 — PROTEÇÃO CLOUDFLARE ACCESS" --msgbox \
+            "Esta instalação ainda não possui uma preferência registrada. Escolha MFA ou modo original; a decisão será preservada nas próximas atualizações." \
+            15 88 1>&2
+        choose_cloudflare_access_security || exit 0
+        if [ "$access_mfa_enabled" = "true" ]; then
+            write_control_mfa_state true false true control-fallback || exit 1
+        else
+            write_control_mfa_state false false false control-fallback || exit 1
+        fi
+    fi
     if [ "$access_mfa_enabled" = "true" ]; then
         access_email=$(collect_cloudflare_access_email "4/6") || exit 0
         access_organization_file=$(mktemp) || exit 1
@@ -1217,6 +1326,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
                         TENTAR) ;;
                         MODO_ORIGINAL)
                             access_mfa_enabled="false"
+                            write_control_mfa_state false false false validation-fallback || exit 1
                             break 2
                             ;;
                     esac
@@ -1226,6 +1336,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
                         "A validação não passou, mas nada foi alterado.\n\nDeseja corrigir o Cloudflare/token e tentar novamente?\n\nEscolha Não para usar o modo original sem MFA." \
                         15 88 1>&2; then
                         access_mfa_enabled="false"
+                        write_control_mfa_state false false false validation-fallback || exit 1
                         break
                     fi
                     ;;
@@ -2292,6 +2403,18 @@ if [ "$install_status" -ne 0 ]; then
         "A instalação foi interrompida com segurança.\n\n$error_detail\n\nLog completo: $install_log" \
         24 94
     exit "$install_status"
+fi
+
+if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] && [ "$access_mfa_enabled" = "true" ]; then
+    write_control_mfa_state true true false control-installed || {
+        msg "O Control Center foi instalado e o MFA está ativo, mas o estado persistente não pôde ser atualizado. Execute CONFIGURAR MFA CONTROL CENTER antes da próxima atualização."
+        exit 1
+    }
+else
+    write_control_mfa_state false false false control-installed || {
+        msg "O Control Center foi instalado, mas a preferência sem MFA não pôde ser registrada. Execute novamente o Setup MNO antes da próxima atualização."
+        exit 1
+    }
 fi
 
 manual_dns_note=""

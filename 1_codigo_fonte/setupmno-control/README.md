@@ -20,22 +20,27 @@ painel.
 
 ## Barreira P0 de identidade e continuidade
 
-Em instalações por Cloudflare Tunnel, o usuário escolhe entre dois modos
-independentes. O **modo original** mantém o Tunnel direto, o login local do
+Em instalações novas por Cloudflare Tunnel, o usuário escolhe uma única vez,
+durante a preparação do Portainer, entre dois modos independentes. O **modo
+original** mantém o Tunnel direto, o login local do
 painel e o Terminal Remoto das versões anteriores; ele não cria aplicação,
 política, identidade por e-mail ou validação JWT do Cloudflare Access. O modo
 **MFA** adiciona uma aplicação Access para um e-mail exato e exige TOTP,
 biometria ou chave de segurança. As permissões `Access: Apps and Policies
 Write` e `Access: Organizations Read` só são necessárias para ativar essa
-camada opcional.
+camada opcional. A decisão canônica fica em
+`/root/SetupLowCodeMno/.control/mfa-state.json`, com preferência, estado
+efetivo e ativação inicial pendente separados. O arquivo não contém e-mail,
+token ou credencial e é preservado atomicamente entre atualizações.
 
-Enquanto uma instalação Tunnel estiver no modo original, o menu principal
-exibe `CONFIGURAR MFA CONTROL CENTER`. A ativação posterior preserva o acesso
-atual até aplicação, rota e serviço estarem prontos, possui rollback e volta ao
-mesmo menu. A opção desaparece depois da ativação e não é exibida em instalações
-tradicionais. Instalações criadas pelas versões 7.7.49/7.7.50 com a marca
-explícita `ACCESS_MFA_REQUIRED=false` são normalizadas para o modo original:
-somente a aplicação identificada pelo `aud` e pela rota exata é removida.
+Em uma atualização de versão antiga sem esse arquivo, MFA já ativo é detectado
+e registrado silenciosamente; nos demais casos, o usuário recebe uma única
+escolha entre MFA, modo original ou instruções. O menu principal sempre exibe
+`CONFIGURAR MFA CONTROL CENTER`: no modo original ele ativa a proteção e, com
+MFA ativo, permite desativá-la e voltar ao Tunnel direto. Ativação e
+desativação preservam o acesso anterior até aplicação, rota e serviço estarem
+consistentes, possuem rollback e retornam ao mesmo menu. Em instalações
+tradicionais a opção explica que Cloudflare Access não é aplicável.
 
 Falhas de sincronização do Control Center são apresentadas como aviso e nunca
 mais encerram o instalador geral; o menu de aplicações continua disponível.

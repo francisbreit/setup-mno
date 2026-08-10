@@ -7,7 +7,7 @@
   "documentType": "infrastructure",
   "title": "Cloudflare no acesso tradicional e por túnel",
   "topicId": "cloudflare",
-  "setupVersion": "7.7.52",
+  "setupVersion": "7.8.1",
   "architectures": ["amd64", "arm64"],
   "category": "networking",
   "status": "reviewed",

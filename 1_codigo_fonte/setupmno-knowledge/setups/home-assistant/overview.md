@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Home Assistant no Setup MNO",
   "setupId": "home-assistant",
-  "setupVersion": "7.7.52",
+  "setupVersion": "7.8.1",
   "architectures": [
     "amd64",
     "arm64"
