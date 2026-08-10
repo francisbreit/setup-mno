@@ -2058,6 +2058,23 @@
       ]
     },
     {
+      "catalogName": "POCKET ID",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": true,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "pocket-id",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
       "catalogName": "POCKETBASE",
       "editorialStatus": "reviewed",
       "homologationEvidence": false,
@@ -2641,24 +2658,24 @@
     }
   ],
   "generatedAt": "2026-08-10T00:00:00Z",
-  "knowledgeVersion": "3.15.0",
+  "knowledgeVersion": "3.16.0",
   "schemaVersion": 2,
-  "setupVersion": "7.10.0",
+  "setupVersion": "7.11.0",
   "summary": {
     "editorialStatuses": {
       "deprecated": 0,
       "draft": 0,
       "homologated": 0,
       "outdated": 0,
-      "reviewed": 153
+      "reviewed": 154
     },
     "homologatedEntries": 0,
     "installationStatuses": {
-      "maintainer-homologated": 153
+      "maintainer-homologated": 154
     },
     "integrationMaturityLevels": {
       "documented": 0,
-      "not-mapped": 153,
+      "not-mapped": 154,
       "suggested": 0,
       "validated": 0
     },
@@ -2669,12 +2686,12 @@
       "operational-reviewed": 0,
       "script-reviewed": 0,
       "source-reviewed": 0,
-      "structural": 153
+      "structural": 154
     },
-    "officialSourceEntries": 133,
+    "officialSourceEntries": 134,
     "officialSourceExceptions": 1,
     "operationalEvidenceEntries": 0,
-    "setupEntries": 153,
+    "setupEntries": 154,
     "unresolvedIssueCount": 29
   }
 }

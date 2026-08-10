@@ -1,10 +1,10 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.10.0"
-EXPECTED_CATALOG_ENTRIES="153"
-EXPECTED_EVAL_DATASET_VERSION="1.11.0"
+VERSIONSETUP="7.11.0"
+EXPECTED_CATALOG_ENTRIES="154"
+EXPECTED_EVAL_DATASET_VERSION="1.12.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
-EXPECTED_EVAL_CASE_ENTRIES="853"
+EXPECTED_EVAL_CASE_ENTRIES="858"
 EXPECTED_BLUEPRINT_FACTORY_VERSION="2.1.0"
 EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="0"
 EXPECTED_QUALITY_SCHEMA_VERSION="2"
@@ -1656,6 +1656,13 @@ rm pihole.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm pihole
 fi
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o pocketid -f pocketid.sh
+rm pocketid.sh
+rm pocketid.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm pocketid
+fi
+
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o pocketbase -f pocketbase.sh
 rm pocketbase.sh
 rm pocketbase.sh.x.c

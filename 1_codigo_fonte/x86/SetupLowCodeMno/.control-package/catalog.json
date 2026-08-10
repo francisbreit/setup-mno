@@ -1210,6 +1210,17 @@
     "search": "pi-hole dns, privacy, ad blocker bloqueador de anúncios no nível de dns. privacy, proteção contra tracking, filtros personalizáveis."
   },
   {
+    "name": "POCKET ID",
+    "cats": "Segurança, Identidade, OIDC, Passkeys",
+    "desc": "Provedor de identidade OIDC self-hosted com login sem senha por passkeys, biometria, PIN do dispositivo ou chave de segurança.",
+    "ram": 0.5,
+    "ramLabel": "~512MB máximo",
+    "arch": "x86-arm",
+    "stars": 8600,
+    "type": "Individual",
+    "search": "pocket id segurança identidade oidc sso passkeys webauthn biometria login sem senha provedor de identidade self-hosted"
+  },
+  {
     "name": "POCKETBASE",
     "cats": "Backend, API, SQLite",
     "desc": "Backend completo em um binário. API REST, auth, realtime, admin UI. Alternativa ao Firebase.",

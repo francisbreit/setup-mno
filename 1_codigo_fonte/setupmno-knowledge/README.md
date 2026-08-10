@@ -60,7 +60,7 @@ python3 tools/lint_knowledge.py --root . hashes
 
 Cobertura, estado editorial e maturidade operacional são dimensões diferentes.
 Ter um documento para cada item do catálogo não autoriza declarar que todos os
-setups foram testados. A baseline da Etapa 8.1A agora classifica os 153 documentos
+setups foram testados. A baseline da Etapa 8.1A agora classifica os 154 documentos
 atuais como `structural`, com zero revisão operacional e zero homologação.
 
 Os níveis são cumulativos e bloqueantes:
@@ -85,7 +85,7 @@ python3 -B tools/knowledge_quality.py \
 
 ## Cobertura do catálogo
 
-A base atual possui documento estrutural para as 153 entradas do catálogo. Os
+A base atual possui documento estrutural para as 154 entradas do catálogo. Os
 sete lotes editoriais fecharam essa cobertura em 100%; o relatório reproduzível é:
 
 ```bash
@@ -170,7 +170,7 @@ python3 -B tools/knowledge_quality.py --enforce-baseline
 
 ## Dataset e evals
 
-`evals/dataset.json` é um artefato canônico revisado, com 853 casos e schema
+`evals/dataset.json` é um artefato canônico revisado, com 858 casos e schema
 estrito em `schema/eval-dataset.schema.json`. Ele contém perguntas e respostas
 de referência, portanto entra somente no pacote interno de conhecimento e
 nunca é devolvido pela API do painel. A interface recebe apenas métricas

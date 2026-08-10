@@ -217,7 +217,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.10.0"
+VERSIONSETUP="7.11.0"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -771,6 +771,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "PAPERLESS" "" \
     "PENPOT" "" \
     "PI-HOLE" "" \
+    "POCKET ID" "" \
     "POCKETBASE" "" \
     "PGADMIN4" "" \
     "PHOTOPRISM" "PRO" \
@@ -945,6 +946,7 @@ case "$CHOICE" in
             "PAPERLESS")                                               run_app paperless ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
             "PI-HOLE")                                               run_app pihole ;;
+            "POCKET ID")                                           run_app pocketid ;;
             "POCKETBASE")                                           run_app pocketbase ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
@@ -1119,6 +1121,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "PENPOT" "PRO" \
     "PHOTOPRISM" "PRO" \
     "PI-HOLE" "PRO" \
+    "POCKET ID" "PRO" \
     "POCKETBASE" "PRO" \
     "REACTIVE RESUME" "PRO" \
     "ROCKET.CHAT" "PRO" \
@@ -1270,6 +1273,7 @@ case "$CHOICE" in
             "PAPERLESS")                                               run_app paperless ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
             "PI-HOLE")                                               run_app pihole ;;
+            "POCKET ID")                                           run_app pocketid ;;
             "POCKETBASE")                                           run_app pocketbase ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
@@ -1418,6 +1422,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "PAPERLESS" "PRO" \
     "PENPOT" "PRO" \
     "PI-HOLE" "PRO" \
+    "POCKET ID" "PRO" \
     "POCKETBASE" "PRO" \
     "PHPMYADMIN" "PRO" \
     "PLANE" "PRO" \
@@ -1587,6 +1592,7 @@ case "$CHOICE" in
             "PAPERLESS")                                               run_app paperless ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
             "PI-HOLE")                                               run_app pihole ;;
+            "POCKET ID")                                           run_app pocketid ;;
             "POCKETBASE")                                           run_app pocketbase ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
@@ -1735,6 +1741,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "PAPERLESS" "PRO" \
     "PENPOT" "PRO" \
     "PI-HOLE" "PRO" \
+    "POCKET ID" "PRO" \
     "POCKETBASE" "PRO" \
     "PLANE" "PRO" \
     "PHPMYADMIN" "PRO" \
@@ -1904,6 +1911,7 @@ case "$CHOICE" in
             "PAPERLESS")                                               run_app paperless ;;
             "PENPOT")                                                warn_heavy "Penpot" "4GB" && run_app penpot ;;
             "PI-HOLE")                                               run_app pihole ;;
+            "POCKET ID")                                           run_app pocketid ;;
             "POCKETBASE")                                           run_app pocketbase ;;
             "ROCKET.CHAT")                                           run_app rocketchat ;;
             "PGADMIN4")                                              run_app pgadmin ;;
