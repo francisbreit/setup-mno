@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "ChromaDB no Setup MNO",
   "setupId": "chromadb",
-  "setupVersion": "7.8.2",
+  "setupVersion": "7.8.3",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

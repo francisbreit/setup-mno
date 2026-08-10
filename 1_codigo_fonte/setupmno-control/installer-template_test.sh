@@ -408,6 +408,7 @@ grep -Fq -- '--env-add ACCESS_JWT_REQUIRED=false' "$MOCK_DOCKER_LOG"
 grep -Fq 'DELETE https://api.cloudflare.com/client/v4/accounts/test-account/access/apps/11111111-2222-3333-4444-555555555555' "$MOCK_CURL_LOG"
 
 export MOCK_CURL_MODE="mfa_upgrade" MOCK_ACCESS_STATE="ready" MOCK_CONTROL_CENTER="installed"
+export MOCK_WHIPTAIL_CHOICE="ATIVAR"
 : >"$message_capture"
 : >"$MOCK_DOCKER_LOG"
 configure_existing_access_mfa

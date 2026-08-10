@@ -167,6 +167,8 @@ done
 
 grep -Fq 'write_control_mfa_state true true false menu-enabled' "$template" &&
 grep -Fq 'write_control_mfa_state false false false menu-disabled' "$template" &&
+grep -Fq '"ATIVAR" "Configurar Cloudflare Access + MFA agora"' "$template" &&
+grep -Fq '"INSTRUCOES" "Ver o passo a passo completo do Cloudflare"' "$template" &&
 grep -Fq '"DESATIVAR" "Remover Access e restaurar Tunnel direto + login local"' "$template" || {
     printf 'ERRO: ciclo persistente de ativação/desativação do MFA está incompleto.\n' >&2
     exit 1

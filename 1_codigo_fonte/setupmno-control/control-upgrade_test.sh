@@ -70,14 +70,14 @@ docker() {
     printf '%s\n' "$*" >>"$docker_log"
 }
 
-target_version="4.16.1"
+target_version="4.16.2"
 MOCK_ACCESS_STATE=legacy
-update_web "mnoctrltest-web_mnoctrltest-web" "mnoctrltest-app:4.16.1" pro
+update_web "mnoctrltest-web_mnoctrltest-web" "mnoctrltest-app:4.16.2" pro
 grep -Fq -- '--env-add ACCESS_JWT_REQUIRED=false --env-add ACCESS_MFA_REQUIRED=false' "$docker_log"
 
 : >"$docker_log"
 MOCK_ACCESS_STATE=original
-update_web "mnoctrltest-web_mnoctrltest-web" "mnoctrltest-app:4.16.1" pro
+update_web "mnoctrltest-web_mnoctrltest-web" "mnoctrltest-app:4.16.2" pro
 for key in ACCESS_JWT_REQUIRED ACCESS_TEAM_DOMAIN ACCESS_POLICY_AUD ACCESS_ALLOWED_EMAIL ACCESS_MFA_REQUIRED; do
     grep -Fq -- "--env-rm $key" "$docker_log"
 done
@@ -85,12 +85,12 @@ grep -Fq -- '--env-add ACCESS_JWT_REQUIRED=false --env-add ACCESS_MFA_REQUIRED=f
 
 : >"$docker_log"
 MOCK_ACCESS_STATE=mfa
-update_web "mnoctrltest-web_mnoctrltest-web" "mnoctrltest-app:4.16.1" pro
+update_web "mnoctrltest-web_mnoctrltest-web" "mnoctrltest-app:4.16.2" pro
 ! grep -Fq 'ACCESS_' "$docker_log"
 
 : >"$docker_log"
 MOCK_ACCESS_STATE=partial
-if update_web "mnoctrltest-web_mnoctrltest-web" "mnoctrltest-app:4.16.1" pro; then
+if update_web "mnoctrltest-web_mnoctrltest-web" "mnoctrltest-app:4.16.2" pro; then
     printf 'ERRO: metadados Access parciais foram aceitos.\n' >&2
     exit 1
 fi

@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.16.1"
+CONTROL_VERSION="4.16.2"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -765,6 +765,20 @@ configure_existing_access_mfa() {
             msg "A instalação possui metadados Cloudflare Access parciais. Por segurança, nenhuma política foi alterada."
             return 1
         fi
+        while true; do
+            action=$(whiptail --title "CONFIGURAR MFA CONTROL CENTER" --default-item "ATIVAR" --menu \
+                "O Control Center está no modo original. Escolha como deseja continuar:" \
+                18 92 3 \
+                "ATIVAR" "Configurar Cloudflare Access + MFA agora" \
+                "INSTRUCOES" "Ver o passo a passo completo do Cloudflare" \
+                "CANCELAR" "Manter o modo original e voltar ao menu" \
+                3>&1 1>&2 2>&3) || return 0
+            case "$action" in
+                ATIVAR) break ;;
+                INSTRUCOES) show_cloudflare_access_guide ;;
+                CANCELAR) return 0 ;;
+            esac
+        done
         work_dir=$(mktemp -d) || return 1
         log_file="/tmp/setupmno-control-mfa-${CONTROL_VERSION}.log"
         activation_state="$work_dir/activation-state.json"

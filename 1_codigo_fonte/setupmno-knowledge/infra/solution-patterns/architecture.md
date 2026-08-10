@@ -7,7 +7,7 @@
   "documentType": "infrastructure",
   "title": "Padrões de deploy e microssistemas orientados a objetivos",
   "topicId": "solution-patterns",
-  "setupVersion": "7.8.2",
+  "setupVersion": "7.8.3",
   "architectures": ["amd64", "arm64"],
   "category": "architecture",
   "status": "reviewed",
