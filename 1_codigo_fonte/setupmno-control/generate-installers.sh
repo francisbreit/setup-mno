@@ -589,6 +589,7 @@ quality_operational_entries=$(jq -r '.qualitySummary.maturityLevels["operational
 quality_homologated_entries=$(jq -r '.qualitySummary.maturityLevels.homologated // -1' "$knowledge_package/manifest.json")
 quality_official_entries=$(jq -r '.qualitySummary.officialSourceEntries // -1' "$knowledge_package/manifest.json")
 quality_unresolved_issues=$(jq -r '.qualitySummary.unresolvedIssueCount // -1' "$knowledge_package/manifest.json")
+catalog_expected_entries=$(jq -e 'length' "$project_dir/catalog.json")
 quality_maturity_total=$((quality_structural_entries + quality_source_reviewed_entries + quality_script_reviewed_entries + quality_operational_entries + quality_homologated_entries))
 quality_integration_total=$((quality_integration_not_mapped_entries + quality_integration_suggested_entries + quality_integration_documented_entries + quality_integration_validated_entries))
 knowledge_archive_sha=$(jq -r '.archiveSHA256 // empty' "$knowledge_package/manifest.json")
@@ -619,7 +620,7 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "${#blueprint_index_sha}" -eq 64 ] &&
 [ "$quality_schema" = "2" ] &&
 [ "${#quality_report_sha}" -eq 64 ] &&
-[ "$quality_setup_entries" = "152" ] &&
+[ "$quality_setup_entries" = "$catalog_expected_entries" ] &&
 [ "$quality_installer_homologated_entries" = "$quality_setup_entries" ] &&
 [ "$quality_integration_total" = "$quality_setup_entries" ] &&
 [ "$quality_maturity_total" = "$quality_setup_entries" ] &&
@@ -644,7 +645,9 @@ runtime_gate_files=(
 for runtime_gate_file in "${runtime_gate_files[@]}"; do
     grep -Fq '[ "$blueprint_factory_version" != "$EXPECTED_BLUEPRINT_FACTORY_VERSION" ]' "$runtime_gate_file" &&
     grep -Fq '[ "$blueprint_fixture_entries" != "$EXPECTED_BLUEPRINT_FIXTURE_ENTRIES" ]' "$runtime_gate_file" &&
-    grep -Fq '[ "$quality_schema_version" != "$EXPECTED_QUALITY_SCHEMA_VERSION" ]' "$runtime_gate_file" || {
+    grep -Fq '[ "$quality_schema_version" != "$EXPECTED_QUALITY_SCHEMA_VERSION" ]' "$runtime_gate_file" &&
+    grep -Fq '[ "$control_catalog_entries" != "$EXPECTED_CATALOG_ENTRIES" ]' "$runtime_gate_file" &&
+    grep -Fq '[ "$quality_setup_entries" != "$EXPECTED_CATALOG_ENTRIES" ]' "$runtime_gate_file" || {
         printf 'ERRO: gate de Blueprint/qualidade não usa as expectativas versionadas em %s.\n' \
             "$runtime_gate_file" >&2
         exit 1
@@ -655,16 +658,20 @@ for runtime_gate_file in "${runtime_gate_files[@]}"; do
     gate_blueprint_factory_version=$(sed -n 's/^EXPECTED_BLUEPRINT_FACTORY_VERSION="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
     gate_blueprint_fixture_entries=$(sed -n 's/^EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
     gate_quality_schema=$(sed -n 's/^EXPECTED_QUALITY_SCHEMA_VERSION="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
+    gate_catalog_entries=$(sed -n 's/^EXPECTED_CATALOG_ENTRIES="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
     [ "$gate_eval_dataset_version" = "$eval_dataset_version" ] &&
     [ "$gate_eval_grader_version" = "$eval_grader_version" ] &&
     [ "$gate_eval_case_entries" = "$eval_case_entries" ] &&
     [ "$gate_blueprint_factory_version" = "$blueprint_factory_version" ] &&
     [ "$gate_blueprint_fixture_entries" = "$blueprint_fixture_entries" ] &&
-    [ "$gate_quality_schema" = "$quality_schema" ] || {
-        printf 'ERRO: gate runtime divergente em %s (esperado evals=%s/%s/%s, blueprint=%s/%s, qualidade=%s; encontrado evals=%s/%s/%s, blueprint=%s/%s, qualidade=%s).\n' \
+    [ "$gate_quality_schema" = "$quality_schema" ] &&
+    [ "$gate_catalog_entries" = "$catalog_expected_entries" ] || {
+        printf 'ERRO: gate runtime divergente em %s (esperado catálogo=%s, evals=%s/%s/%s, blueprint=%s/%s, qualidade=%s; encontrado catálogo=%s, evals=%s/%s/%s, blueprint=%s/%s, qualidade=%s).\n' \
             "$runtime_gate_file" \
+            "$catalog_expected_entries" \
             "$eval_dataset_version" "$eval_grader_version" "$eval_case_entries" \
             "$blueprint_factory_version" "$blueprint_fixture_entries" "$quality_schema" \
+            "${gate_catalog_entries:-ausente}" \
             "${gate_eval_dataset_version:-ausente}" \
             "${gate_eval_grader_version:-ausente}" \
             "${gate_eval_case_entries:-ausente}" \

@@ -1,6 +1,7 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.9.0"
+VERSIONSETUP="7.9.1"
+EXPECTED_CATALOG_ENTRIES="152"
 EXPECTED_EVAL_DATASET_VERSION="1.10.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
 EXPECTED_EVAL_CASE_ENTRIES="848"
@@ -436,8 +437,10 @@ fi
 control_schema=$(jq -r '.schemaVersion // 0' "$control_package/release.json" 2>/dev/null)
 control_version=$(jq -r '.setupVersion // empty' "$control_package/release.json" 2>/dev/null)
 control_arch=$(jq -r '.architecture // empty' "$control_package/release.json" 2>/dev/null)
+control_catalog_entries=$(jq -r '.catalogEntries // 0' "$control_package/release.json" 2>/dev/null)
 control_expected_sha=$(jq -r '.catalogSHA256 // empty' "$control_package/release.json" 2>/dev/null)
 control_actual_sha=$(sha256sum "$control_package/catalog.json" | awk '{print $1}')
+control_actual_entries=$(jq -r 'length' "$control_package/catalog.json" 2>/dev/null)
 control_source_archive="$control_package/control-source.tar.gz"
 control_source_expected_sha=$(jq -r '.controlSourceSHA256 // empty' "$control_package/release.json" 2>/dev/null)
 control_source_expected_bytes=$(jq -r '.controlSourceBytes // 0' "$control_package/release.json" 2>/dev/null)
@@ -494,6 +497,15 @@ runtime_quality_source_reviewed_entries=$(jq -r '.qualitySourceReviewedEntries /
 runtime_quality_script_reviewed_entries=$(jq -r '.qualityScriptReviewedEntries // -1' "$control_package/release.json" 2>/dev/null)
 runtime_quality_operational_entries=$(jq -r '.qualityOperationalEntries // -1' "$control_package/release.json" 2>/dev/null)
 runtime_quality_homologated_entries=$(jq -r '.qualityHomologatedEntries // -1' "$control_package/release.json" 2>/dev/null)
+if [ "$control_catalog_entries" != "$EXPECTED_CATALOG_ENTRIES" ] ||
+   [ "$control_actual_entries" != "$EXPECTED_CATALOG_ENTRIES" ] ||
+   [ "$quality_setup_entries" != "$EXPECTED_CATALOG_ENTRIES" ] ||
+   [ "$runtime_quality_setup_entries" != "$EXPECTED_CATALOG_ENTRIES" ]; then
+    printf 'A quantidade de setups do pacote diverge da release: esperado=%s, catálogo=%s/%s, conhecimento=%s, runtime=%s.\n' \
+        "$EXPECTED_CATALOG_ENTRIES" "$control_catalog_entries" "${control_actual_entries:-inválido}" \
+        "$quality_setup_entries" "$runtime_quality_setup_entries" >"$control_state_error"
+    exit 41
+fi
 if [ "$control_schema" != "1" ] ||
    [ "$control_version" != "$VERSIONSETUP" ] ||
    [ "$control_arch" != "amd64" ] ||
@@ -541,7 +553,7 @@ if [ "$control_schema" != "1" ] ||
    [ "${#quality_report_sha}" -ne 64 ] ||
    [ "$quality_report_sha" != "$runtime_quality_report_sha" ] ||
    [ "$quality_setup_entries" != "$runtime_quality_setup_entries" ] ||
-   [ "$quality_setup_entries" != "151" ] ||
+   [ "$quality_setup_entries" != "$EXPECTED_CATALOG_ENTRIES" ] ||
    [ "$quality_maturity_total" != "$quality_setup_entries" ] ||
    [ "$quality_structural_entries" != "$runtime_quality_structural_entries" ] ||
    [ "$quality_source_reviewed_entries" != "$runtime_quality_source_reviewed_entries" ] ||
