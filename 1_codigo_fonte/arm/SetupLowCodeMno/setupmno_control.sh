@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.16.0"
+CONTROL_VERSION="4.16.1"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -162,6 +162,20 @@ choose_cloudflare_access_security() {
                 show_cloudflare_access_guide
                 ;;
         esac
+    done
+}
+
+ask_required() {
+    local prompt="$1" value status
+    while true; do
+        value=$(whiptail --title "SETUP MNO CONTROL CENTER" --inputbox "$prompt" 12 78 3>&1 1>&2 2>&3)
+        status=$?
+        [ "$status" -ne 0 ] && return 130
+        [ -n "$value" ] && {
+            printf '%s' "$value"
+            return
+        }
+        msg "Este campo é obrigatório."
     done
 }
 
@@ -1010,20 +1024,6 @@ if control_center_installed; then
     msg "Já existe um Setup MNO Control Center neste servidor.\n\nPor segurança, somente uma instalação é permitida por servidor. A instalação atual foi preservada."
     exit 0
 fi
-
-ask_required() {
-    local prompt="$1" value status
-    while true; do
-        value=$(whiptail --title "SETUP MNO CONTROL CENTER" --inputbox "$prompt" 12 78 3>&1 1>&2 2>&3)
-        status=$?
-        [ "$status" -ne 0 ] && return 130
-        [ -n "$value" ] && {
-            printf '%s' "$value"
-            return
-        }
-        msg "Este campo é obrigatório."
-    done
-}
 
 ask_with_default() {
     local prompt="$1" default_value="$2" value status

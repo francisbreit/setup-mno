@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Uptime Kuma no Setup MNO",
   "setupId": "uptime-kuma",
-  "setupVersion": "7.8.1",
+  "setupVersion": "7.8.2",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Docmost no Setup MNO",
   "setupId": "docmost",
-  "setupVersion": "7.8.1",
+  "setupVersion": "7.8.2",
   "architectures": [
     "amd64",
     "arm64"

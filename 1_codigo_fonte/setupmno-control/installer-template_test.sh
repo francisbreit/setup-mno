@@ -45,6 +45,7 @@ for migration_function in \
     write_control_mfa_state \
     show_cloudflare_access_guide \
     choose_cloudflare_access_security \
+    ask_required \
     collect_cloudflare_access_email \
     build_cloudflare_access_payload \
     build_control_tunnel_route_payload \
@@ -79,10 +80,6 @@ export MOCK_CURL_MODE="success" GAUGE_CAPTURE="$gauge_capture"
 
 msg() {
     printf '%s' "$1" >"$message_capture"
-}
-
-ask_required() {
-    printf '%s' 'admin@example.com'
 }
 
 mkdir -p "$test_dir/bin"

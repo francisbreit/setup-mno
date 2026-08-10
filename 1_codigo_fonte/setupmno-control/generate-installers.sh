@@ -37,6 +37,13 @@ unhandled_collectors=$(grep -E '^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*=\$\(ask_' "$
         "$unhandled_collectors" >&2
     exit 1
 }
+ask_required_line=$(grep -n '^ask_required()' "$template" | cut -d: -f1)
+configure_dispatch_line=$(grep -n -- '--configure-access-mfa)' "$template" | cut -d: -f1)
+[ -n "$ask_required_line" ] && [ -n "$configure_dispatch_line" ] &&
+[ "$ask_required_line" -lt "$configure_dispatch_line" ] || {
+    printf 'ERRO: ask_required() precisa existir antes do despacho direto --configure-access-mfa.\n' >&2
+    exit 1
+}
 
 route_check_function=$(awk '/^check_cloudflare_route\(\)/,/^}/' "$template")
 grep -Fq -- '--connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT"' <<<"$route_check_function" || {
