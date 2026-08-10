@@ -238,9 +238,9 @@ func TestReadRuntimeSnapshotAcceptsGeneratedKnowledgeManifest(t *testing.T) {
 		snapshot.Release.BlueprintFixtureEntries != 0 ||
 		len(snapshot.Release.BlueprintIndexSHA256) != 64 ||
 		snapshot.Release.EvalSchemaVersion != 1 ||
-		snapshot.Release.EvalDatasetVersion != "1.10.0" ||
+		snapshot.Release.EvalDatasetVersion != "1.11.0" ||
 		snapshot.Release.EvalGraderVersion != "1.9.0" ||
-		snapshot.Release.EvalCaseEntries != 848 ||
+		snapshot.Release.EvalCaseEntries != 853 ||
 		len(snapshot.Release.EvalDatasetSHA256) != 64 {
 		t.Fatalf("metadados do conhecimento ausentes: %#v", snapshot.Release)
 	}
@@ -530,7 +530,7 @@ func TestFullCatalogRequestDetection(t *testing.T) {
 	accepted := []string{
 		"Liste todos os setups possíveis na atual versão do Setup MNO",
 		"Mostre o catálogo completo",
-		"Quais são os 151 setups?",
+		"Quais são os 153 setups?",
 	}
 	for _, question := range accepted {
 		if !isFullCatalogRequest(question) {
@@ -569,8 +569,8 @@ func TestFullCatalogMarkdownListsEveryCanonicalSetup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("catálogo canônico foi recusado: %v", err)
 	}
-	if len(items) != 151 || !strings.Contains(answer, "**151 de 151 setups validados:**") {
-		t.Fatalf("resposta não confirmou os 151 setups: %s", answer)
+	if len(items) != 153 || !strings.Contains(answer, "**153 de 153 setups validados:**") {
+		t.Fatalf("resposta não confirmou os 153 setups: %s", answer)
 	}
 	numbered := 0
 	for _, line := range strings.Split(answer, "\n") {
@@ -657,7 +657,7 @@ func TestKnowledgeStatusMarkdownUsesManifestInsteadOfRetrievalSlice(t *testing.T
 	}
 	state := knowledgePackageState{Manifest: knowledgeManifest{
 		SetupVersion: "7.2.8", KnowledgeVersion: "3.10.0",
-		EvalDatasetVersion: "1.10.0", EvalCaseEntries: 848,
+		EvalDatasetVersion: "1.11.0", EvalCaseEntries: 853,
 		DocumentEntries: 165, SetupEntries: 151, InfrastructureEntries: 9,
 		BlueprintKnowledgeEntries: 5,
 		DocumentTypeEntries:       map[string]int{"setup": 151, "infrastructure": 9, "blueprint": 5},
@@ -1166,8 +1166,8 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 	}
 	if state.Source != "image-read-only" ||
 		state.Stale ||
-		state.Manifest.DocumentEntries != 170 ||
-		state.Manifest.SetupEntries != 151 ||
+		state.Manifest.DocumentEntries != 172 ||
+		state.Manifest.SetupEntries != 153 ||
 		state.Manifest.InfrastructureEntries != 14 ||
 		state.Manifest.BlueprintFactoryVersion != "2.1.0" ||
 		state.Manifest.BlueprintSchemaVersion != 2 ||
@@ -1178,9 +1178,9 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 		state.Manifest.IndexSchemaVersion != 2 ||
 		state.Manifest.RetrievalVersion != "1.3.0" ||
 		state.Manifest.EvalSchemaVersion != 1 ||
-		state.Manifest.EvalDatasetVersion != "1.10.0" ||
+		state.Manifest.EvalDatasetVersion != "1.11.0" ||
 		state.Manifest.EvalGraderVersion != "1.9.0" ||
-		state.Manifest.EvalCaseEntries != 848 ||
+		state.Manifest.EvalCaseEntries != 853 ||
 		len(state.Manifest.EvalDatasetSHA256) != 64 ||
 		state.Manifest.ChunkEntries <= state.Manifest.DocumentEntries {
 		t.Fatalf("estado inesperado do conhecimento: %#v", state)

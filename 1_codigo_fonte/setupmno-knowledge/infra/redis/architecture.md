@@ -7,7 +7,7 @@
   "documentType": "infrastructure",
   "title": "Redis compartilhado e Redis dedicado",
   "topicId": "redis",
-  "setupVersion": "7.9.1",
+  "setupVersion": "7.10.0",
   "architectures": ["amd64", "arm64"],
   "category": "architecture",
   "status": "reviewed",

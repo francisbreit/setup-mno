@@ -958,6 +958,23 @@
       ]
     },
     {
+      "catalogName": "HOMEPAGE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": true,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "homepage",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
       "catalogName": "HOPPSCOTCH",
       "editorialStatus": "reviewed",
       "homologationEvidence": false,
@@ -2624,24 +2641,24 @@
     }
   ],
   "generatedAt": "2026-08-10T00:00:00Z",
-  "knowledgeVersion": "3.14.0",
+  "knowledgeVersion": "3.15.0",
   "schemaVersion": 2,
-  "setupVersion": "7.9.1",
+  "setupVersion": "7.10.0",
   "summary": {
     "editorialStatuses": {
       "deprecated": 0,
       "draft": 0,
       "homologated": 0,
       "outdated": 0,
-      "reviewed": 152
+      "reviewed": 153
     },
     "homologatedEntries": 0,
     "installationStatuses": {
-      "maintainer-homologated": 152
+      "maintainer-homologated": 153
     },
     "integrationMaturityLevels": {
       "documented": 0,
-      "not-mapped": 152,
+      "not-mapped": 153,
       "suggested": 0,
       "validated": 0
     },
@@ -2652,12 +2669,12 @@
       "operational-reviewed": 0,
       "script-reviewed": 0,
       "source-reviewed": 0,
-      "structural": 152
+      "structural": 153
     },
-    "officialSourceEntries": 132,
+    "officialSourceEntries": 133,
     "officialSourceExceptions": 1,
     "operationalEvidenceEntries": 0,
-    "setupEntries": 152,
+    "setupEntries": 153,
     "unresolvedIssueCount": 29
   }
 }

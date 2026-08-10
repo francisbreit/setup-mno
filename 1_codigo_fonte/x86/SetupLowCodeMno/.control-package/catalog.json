@@ -1650,6 +1650,17 @@
     "search": "glance dashboard produtividade monitoramento feeds favoritos notícias releases mercados serviços self-hosted"
   },
   {
+    "name": "HOMEPAGE",
+    "cats": "Dashboard, Serviços, Docker, Produtividade",
+    "desc": "Dashboard self-hosted para organizar aplicações, favoritos e widgets, com descoberta automática e segura dos serviços do Docker Swarm por proxy interno somente leitura.",
+    "ram": 0.75,
+    "ramLabel": "~768MB máximo",
+    "arch": "x86-arm",
+    "stars": 31700,
+    "type": "Utilitário",
+    "search": "homepage dashboard serviços docker produtividade favoritos widgets descoberta automática swarm proxy somente leitura self-hosted"
+  },
+  {
     "name": "HOPPSCOTCH",
     "cats": "Desenvolvimento, APIs, Testes, Colaboração",
     "desc": "Ecossistema open-source para desenvolver, testar e documentar APIs REST, GraphQL e WebSocket, com workspaces colaborativos e painel administrativo.",

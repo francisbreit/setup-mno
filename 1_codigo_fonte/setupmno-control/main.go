@@ -2571,6 +2571,7 @@ func isFullCatalogRequest(question string) bool {
 		strings.Contains(normalized, "todas") ||
 		strings.Contains(normalized, "completo") ||
 		strings.Contains(normalized, "completa") ||
+		strings.Contains(normalized, "153") ||
 		strings.Contains(normalized, "151")
 	listIntent := strings.Contains(normalized, "list") ||
 		strings.Contains(normalized, "mostr") ||
