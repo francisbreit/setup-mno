@@ -515,13 +515,13 @@ func runWeb() error {
 		strings.TrimRight(os.Getenv("ASSISTANT_URL"), "/"),
 	)
 
-	accessDefault := "false"
-	if strings.EqualFold(os.Getenv("SETUPMNO_INSTALL_TYPE"), "CLOUDFLARE_TUNNEL") {
-		accessDefault = "true"
+	accessRequired, err := parseAccessRequired(os.Getenv("ACCESS_JWT_REQUIRED"))
+	if err != nil {
+		return fmt.Errorf("proteção Cloudflare Access inválida: %w", err)
 	}
 	accessHTTPClient := &http.Client{Timeout: 8 * time.Second}
 	accessVerifier, err := newAccessVerifier(
-		envDefault("ACCESS_JWT_REQUIRED", accessDefault) == "true",
+		accessRequired,
 		os.Getenv("ACCESS_TEAM_DOMAIN"),
 		os.Getenv("ACCESS_POLICY_AUD"),
 		os.Getenv("ACCESS_ALLOWED_EMAIL"),
@@ -602,6 +602,17 @@ func runWeb() error {
 	go app.sessionJanitor()
 	log.Printf("Setup MNO Control Center %s iniciado na porta 8080", app.version)
 	return server.ListenAndServe()
+}
+
+func parseAccessRequired(value string) (bool, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "false":
+		return false, nil
+	case "true":
+		return true, nil
+	default:
+		return false, errors.New("ACCESS_JWT_REQUIRED deve ser true ou false")
+	}
 }
 
 func runAgent() error {

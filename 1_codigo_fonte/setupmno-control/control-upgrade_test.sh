@@ -15,6 +15,8 @@ grep -Fq 'knowledgecheck' "$updater"
 grep -Fq 'evalcheck' "$updater"
 grep -Fq '/root/SetupLowCodeMno/install' "$updater"
 grep -Fq 'changed_services=()' "$updater"
+grep -Fq 'service_env_value "$service" ACCESS_JWT_REQUIRED' "$updater"
+grep -Fq 'args+=(--env-add ACCESS_JWT_REQUIRED=false --env-add ACCESS_MFA_REQUIRED=false)' "$updater"
 
 for forbidden in 'docker stack deploy' 'docker service create' 'docker secret create' \
     'docker volume rm' 'docker stack rm' 'docker service rm' '--label-rm'; do
@@ -24,4 +26,74 @@ for forbidden in 'docker stack deploy' 'docker service create' 'docker secret cr
     fi
 done
 
-printf 'Reconciliação in-place, rollback e preservação da instalação aprovados.\n'
+test_dir=$(mktemp -d)
+trap 'rm -rf -- "$test_dir"' EXIT
+log_file="$test_dir/upgrade.log"
+docker_log="$test_dir/docker.log"
+: >"$log_file"
+: >"$docker_log"
+
+for function_name in service_has_env_key service_env_value update_web; do
+    function_source=$(awk -v name="$function_name" '
+        $0 ~ "^" name "\\(\\) \\{" {capture=1}
+        capture {print}
+        capture && /^}$/ {exit}
+    ' "$updater")
+    [ -n "$function_source" ] || {
+        printf 'ERRO: função %s ausente no reconciliador.\n' "$function_name" >&2
+        exit 1
+    }
+    eval "$function_source"
+done
+
+docker() {
+    if [ "${1:-}" = "service" ] && [ "${2:-}" = "inspect" ]; then
+        printf '%s\n' 'APP_VERSION=4.15.8' 'SETUPMNO_PLAN=pro' \
+            'SETUPMNO_INSTALL_TYPE=CLOUDFLARE_TUNNEL'
+        case "${MOCK_ACCESS_STATE:-legacy}" in
+            original)
+                printf '%s\n' 'ACCESS_JWT_REQUIRED=false' 'ACCESS_TEAM_DOMAIN=' \
+                    'ACCESS_POLICY_AUD=' 'ACCESS_ALLOWED_EMAIL=' 'ACCESS_MFA_REQUIRED=false'
+                ;;
+            mfa)
+                printf '%s\n' 'ACCESS_JWT_REQUIRED=true' \
+                    'ACCESS_TEAM_DOMAIN=https://setupmno.cloudflareaccess.com' \
+                    'ACCESS_POLICY_AUD=setupmno-test-audience' \
+                    'ACCESS_ALLOWED_EMAIL=admin@example.com' 'ACCESS_MFA_REQUIRED=true'
+                ;;
+            partial)
+                printf '%s\n' 'ACCESS_TEAM_DOMAIN=https://setupmno.cloudflareaccess.com'
+                ;;
+        esac
+        return 0
+    fi
+    printf '%s\n' "$*" >>"$docker_log"
+}
+
+target_version="4.15.13"
+MOCK_ACCESS_STATE=legacy
+update_web "mnoctrltest-web_mnoctrltest-web" "mnoctrltest-app:4.15.13" pro
+grep -Fq -- '--env-add ACCESS_JWT_REQUIRED=false --env-add ACCESS_MFA_REQUIRED=false' "$docker_log"
+
+: >"$docker_log"
+MOCK_ACCESS_STATE=original
+update_web "mnoctrltest-web_mnoctrltest-web" "mnoctrltest-app:4.15.13" pro
+for key in ACCESS_JWT_REQUIRED ACCESS_TEAM_DOMAIN ACCESS_POLICY_AUD ACCESS_ALLOWED_EMAIL ACCESS_MFA_REQUIRED; do
+    grep -Fq -- "--env-rm $key" "$docker_log"
+done
+grep -Fq -- '--env-add ACCESS_JWT_REQUIRED=false --env-add ACCESS_MFA_REQUIRED=false' "$docker_log"
+
+: >"$docker_log"
+MOCK_ACCESS_STATE=mfa
+update_web "mnoctrltest-web_mnoctrltest-web" "mnoctrltest-app:4.15.13" pro
+! grep -Fq 'ACCESS_' "$docker_log"
+
+: >"$docker_log"
+MOCK_ACCESS_STATE=partial
+if update_web "mnoctrltest-web_mnoctrltest-web" "mnoctrltest-app:4.15.13" pro; then
+    printf 'ERRO: metadados Access parciais foram aceitos.\n' >&2
+    exit 1
+fi
+[ ! -s "$docker_log" ]
+
+printf 'Reconciliação in-place, modo original explícito, MFA preservado e rollback aprovados.\n'

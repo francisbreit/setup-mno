@@ -39,6 +39,12 @@ somente a aplicação identificada pelo `aud` e pela rota exata é removida.
 
 Falhas de sincronização do Control Center são apresentadas como aviso e nunca
 mais encerram o instalador geral; o menu de aplicações continua disponível.
+Durante upgrades, instalações Tunnel antigas sem variáveis `ACCESS_*` são
+normalizadas explicitamente com `ACCESS_JWT_REQUIRED=false` e
+`ACCESS_MFA_REQUIRED=false`. O backend também considera Access desativado
+quando a variável está ausente; somente o valor explícito `true` ativa JWT.
+Valores diferentes de `true`, `false` ou vazio são recusados como configuração
+insegura. Instalações com MFA válido preservam integralmente seus metadados.
 
 Quando o MFA está ativo, a identidade é validada três vezes: pelo Access na
 borda, pelo `cloudflared` antes do origin e pelo backend. A validação local aceita somente RS256, busca as

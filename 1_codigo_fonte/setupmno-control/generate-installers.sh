@@ -362,7 +362,11 @@ grep -Fq 'session_duration:"0m"' "$template" &&
 grep -Fq 'access:{required:true,teamName:$team,audTag:[$aud]}' "$template" &&
 grep -Fq 'accessHeader       = "Cf-Access-Jwt-Assertion"' "$project_dir/access.go" &&
 grep -Fq 'rsa.VerifyPKCS1v15' "$project_dir/access.go" &&
-grep -Fq 'identity.Subject != s.AccessSubject' "$project_dir/main.go" || {
+grep -Fq 'identity.Subject != s.AccessSubject' "$project_dir/main.go" &&
+grep -Fq 'parseAccessRequired(os.Getenv("ACCESS_JWT_REQUIRED"))' "$project_dir/main.go" &&
+! grep -Fq 'accessDefault' "$project_dir/main.go" &&
+grep -Fq 'args+=(--env-add ACCESS_JWT_REQUIRED=false --env-add ACCESS_MFA_REQUIRED=false)' \
+    "$project_dir/control-upgrade.sh" || {
     printf 'ERRO: barreira P0 do Cloudflare Access/JWT/MFA ausente ou incompleta.\n' >&2
     exit 1
 }

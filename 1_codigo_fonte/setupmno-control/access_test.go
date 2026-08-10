@@ -16,6 +16,26 @@ import (
 	"time"
 )
 
+func TestParseAccessRequiredIsExplicitOptIn(t *testing.T) {
+	for _, value := range []string{"", "false", " FALSE "} {
+		required, err := parseAccessRequired(value)
+		if err != nil || required {
+			t.Fatalf("modo original recusado para %q: required=%v err=%v", value, required, err)
+		}
+	}
+	for _, value := range []string{"true", " TRUE "} {
+		required, err := parseAccessRequired(value)
+		if err != nil || !required {
+			t.Fatalf("opt-in explícito recusado para %q: required=%v err=%v", value, required, err)
+		}
+	}
+	for _, value := range []string{"1", "yes", "invalid"} {
+		if _, err := parseAccessRequired(value); err == nil {
+			t.Fatalf("valor inseguro aceito: %q", value)
+		}
+	}
+}
+
 func TestNormalizeAccessTeamDomain(t *testing.T) {
 	valid, err := normalizeAccessTeamDomain("https://equipe.cloudflareaccess.com/")
 	if err != nil || valid != "https://equipe.cloudflareaccess.com" {

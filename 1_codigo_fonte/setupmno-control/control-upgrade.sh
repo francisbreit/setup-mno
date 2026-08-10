@@ -36,6 +36,12 @@ service_has_env_key() {
         "$service" 2>>"$log_file" | grep -Eq "^${key}="
 }
 
+service_env_value() {
+    local service="$1" key="$2"
+    docker service inspect --format '{{range .Spec.TaskTemplate.ContainerSpec.Env}}{{println .}}{{end}}' \
+        "$service" 2>>"$log_file" | sed -n "s/^${key}=//p" | head -n1
+}
+
 service_has_mount_target() {
     local service="$1" target="$2"
     docker service inspect --format '{{range .Spec.TaskTemplate.ContainerSpec.Mounts}}{{println .Target}}{{end}}' \
@@ -69,12 +75,43 @@ update_agent() {
 }
 
 update_web() {
-    local service="$1" image="$2" plan="$3" args
+    local service="$1" image="$2" plan="$3" args key
+    local access_required access_team access_aud access_email access_mfa
     args=(service update --image "$image" --detach=true)
     service_has_env_key "$service" APP_VERSION && args+=(--env-rm APP_VERSION)
     args+=(--env-add "APP_VERSION=$target_version")
     service_has_env_key "$service" SETUPMNO_PLAN && args+=(--env-rm SETUPMNO_PLAN)
     args+=(--env-add "SETUPMNO_PLAN=$plan")
+
+    access_required=$(service_env_value "$service" ACCESS_JWT_REQUIRED)
+    access_team=$(service_env_value "$service" ACCESS_TEAM_DOMAIN)
+    access_aud=$(service_env_value "$service" ACCESS_POLICY_AUD)
+    access_email=$(service_env_value "$service" ACCESS_ALLOWED_EMAIL)
+    access_mfa=$(service_env_value "$service" ACCESS_MFA_REQUIRED)
+    case "$access_required" in
+        true)
+            if [ -z "$access_team" ] || [ -z "$access_aud" ] || [ -z "$access_email" ]; then
+                printf 'Metadados Cloudflare Access incompletos no serviço %s.\n' "$service" >>"$log_file"
+                return 1
+            fi
+            ;;
+        ""|false)
+            if [ -n "$access_team" ] || [ -n "$access_aud" ] || [ -n "$access_email" ] ||
+               { [ -n "$access_mfa" ] && [ "$access_mfa" != "false" ]; }; then
+                printf 'Metadados Cloudflare Access inconsistentes no serviço %s.\n' "$service" >>"$log_file"
+                return 1
+            fi
+            for key in ACCESS_JWT_REQUIRED ACCESS_TEAM_DOMAIN ACCESS_POLICY_AUD \
+                ACCESS_ALLOWED_EMAIL ACCESS_MFA_REQUIRED; do
+                service_has_env_key "$service" "$key" && args+=(--env-rm "$key")
+            done
+            args+=(--env-add ACCESS_JWT_REQUIRED=false --env-add ACCESS_MFA_REQUIRED=false)
+            ;;
+        *)
+            printf 'ACCESS_JWT_REQUIRED inválido no serviço %s.\n' "$service" >>"$log_file"
+            return 1
+            ;;
+    esac
     docker "${args[@]}" "$service" >>"$log_file" 2>&1
 }
 
