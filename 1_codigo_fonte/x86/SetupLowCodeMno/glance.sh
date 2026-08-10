@@ -547,7 +547,7 @@ install_status=${PIPESTATUS[0]}
 if [ "$install_status" -ne 0 ]; then
     error_detail=$(cat "$error_file" 2>/dev/null)
     [ -n "$error_detail" ] || error_detail=$(tail -n 18 "$install_log" 2>/dev/null)
-    whiptail --title "ERRO NA INSTALAÇÃO DO GLANCE" --scrolltext --msgbox \
+    whiptail --title "ERRO NA INSTALAÇÃO DO GLANCE" --msgbox \
         "A instalação foi interrompida com segurança.\n\n$error_detail\n\nLog completo: $install_log" \
         24 92
     exit "$install_status"

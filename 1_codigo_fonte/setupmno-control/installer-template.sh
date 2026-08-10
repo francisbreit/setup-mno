@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.16.3"
+CONTROL_VERSION="4.16.4"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -145,7 +145,7 @@ write_control_mfa_state() {
 
 show_cloudflare_access_guide() {
     local team_hint="${access_team_name:-SEU-TIME}"
-    whiptail --title "GUIA RÁPIDO — CLOUDFLARE ACCESS" --scrolltext --msgbox \
+    whiptail --title "GUIA RÁPIDO — CLOUDFLARE ACCESS" --msgbox \
         "O MFA é opcional; o modo original permanece compatível com versões antigas.\n\nATIVAÇÃO AUTOMÁTICA\n1. O Setup valida as 5 permissões do token.\n2. Habilita TOTP, login por código, App Launcher e política do e-mail.\n3. Cria a proteção Access com cookie Lax.\n4. Você abre https://${team_hint}.cloudflareaccess.com/AddMfaDevice e lê o QR Code em Authenticator application.\n\nPERMISSÕES DO TOKEN\n• Configurações da conta > Editar\n• Cloudflare Tunnel > Editar\n• DNS > Editar\n• Access: Apps and Policies > Editar\n• Access: Organizations, Identity Providers, and Groups > Editar\n\nO assistente permite validar o token atual ou substituir o token armazenado sem alterar Account ID, Zone ID ou Tunnel." \
         24 94 1>&2
 }
@@ -678,7 +678,7 @@ reconcile_existing_control_center() {
         [ -n "$detail" ] || detail=$(tail -n 20 "$upgrade_log" 2>/dev/null)
         rollback_existing_access_migration "$migration_state" "$upgrade_log"
         rm -rf -- "$upgrade_dir"
-        whiptail --title "ERRO NA SINCRONIZAÇÃO DO CONTROL CENTER" --scrolltext --msgbox \
+        whiptail --title "ERRO NA SINCRONIZAÇÃO DO CONTROL CENTER" --msgbox \
             "A sincronização foi interrompida e os serviços alterados foram revertidos.\n\n$detail\n\nLog: $upgrade_log" \
             24 94
         return "${status:-1}"
@@ -2444,7 +2444,7 @@ unset llm_api_key
 if [ "$install_status" -ne 0 ]; then
     error_detail=$(cat "$error_file" 2>/dev/null)
     [ -n "$error_detail" ] || error_detail=$(tail -n 20 "$install_log" 2>/dev/null)
-    whiptail --title "ERRO NA INSTALAÇÃO DO CONTROL CENTER" --scrolltext --msgbox \
+    whiptail --title "ERRO NA INSTALAÇÃO DO CONTROL CENTER" --msgbox \
         "A instalação foi interrompida com segurança.\n\n$error_detail\n\nLog completo: $install_log" \
         24 94
     exit "$install_status"
@@ -2475,7 +2475,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     fi
 fi
 
-whiptail --title "SETUP MNO CONTROL CENTER" --scrolltext --msgbox \
+whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
     "Control Center instalado com sucesso.\n\nAcesse: https://$url_control\nUsuário: $usuario_control\nSenha: definida durante a instalação\nCloudflare Access: $access_summary\nAssistente: $assistant_label\n\nStacks:\n- $web_stack\n- $agent_stack\n- $terminal_stack$([ "$assistant_has_llm" = "true" ] && printf '\\n- %s' "$assistant_stack")\n\nAs imagens foram construídas localmente e validadas sem upload pelo Cloudflare.$access_next_step$manual_dns_note" \
     24 94
 

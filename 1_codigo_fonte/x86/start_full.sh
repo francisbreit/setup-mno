@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.8.4"
+VERSIONSETUP="7.8.5"
 EXPECTED_EVAL_DATASET_VERSION="1.9.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
 EXPECTED_EVAL_CASE_ENTRIES="843"
@@ -1828,7 +1828,7 @@ setup_status=${PIPESTATUS[0]}
 if [ "$setup_status" -ne 0 ]; then
     setup_error=$(cat "$control_state_error" 2>/dev/null)
     [ -n "$setup_error" ] || setup_error="A instalação foi interrompida. Atualize o instalador e tente novamente."
-    whiptail --title "ERRO NA INSTALAÇÃO DO SETUP MNO" --scrolltext --msgbox \
+    whiptail --title "ERRO NA INSTALAÇÃO DO SETUP MNO" --msgbox \
         "$setup_error\n\nCódigo da falha: $setup_status" 18 82
     exit "$setup_status"
 fi

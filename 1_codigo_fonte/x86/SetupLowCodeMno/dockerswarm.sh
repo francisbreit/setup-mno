@@ -105,7 +105,7 @@ write_control_mfa_state() {
 }
 
 show_control_mfa_instructions() {
-    whiptail --title "COMO PREPARAR O MFA" --scrolltext --msgbox \
+    whiptail --title "COMO PREPARAR O MFA" --msgbox \
         "O MFA será usado pelo Setup MNO Control Center, não pelo login do Portainer. Nesta etapa registramos apenas sua escolha; o domínio e o e-mail do Control Center serão solicitados quando o painel for instalado.\n\n1. Abra dash.cloudflare.com e entre em Zero Trust.\n2. Acesse Access controls > Access settings.\n3. Habilite Allow multi-factor authentication (MFA).\n4. Permita Authenticator application (TOTP), biometria ou chave de segurança.\n5. O token do Setup precisará de Access: Apps and Policies Write e Access: Organizations Read.\n\nVocê poderá alterar esta escolha depois em CONFIGURAR MFA CONTROL CENTER." \
         23 92
 }

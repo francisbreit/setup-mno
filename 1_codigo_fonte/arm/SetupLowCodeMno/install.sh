@@ -217,7 +217,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.8.4"
+VERSIONSETUP="7.8.5"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -506,7 +506,7 @@ write_control_mfa_state() {
 }
 
 show_control_mfa_instructions() {
-    whiptail --title "COMO PREPARAR O MFA" --scrolltext --msgbox \
+    whiptail --title "COMO PREPARAR O MFA" --msgbox \
         "O MFA opcional protege o Control Center por Cloudflare Access. No Zero Trust, habilite Access controls > Access settings > Allow multi-factor authentication (MFA) e permita TOTP, biometria ou chave de segurança. O token precisa de Access: Apps and Policies Write e Access: Organizations Read. Nenhuma credencial ou e-mail é salvo neste arquivo de preferência." 18 90
 }
 

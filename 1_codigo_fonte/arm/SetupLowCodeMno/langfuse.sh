@@ -2631,7 +2631,7 @@ if [ "$langfuse_install_status" -ne 0 ]; then
     error_detail=$(cat "$LANGFUSE_ERROR_FILE" 2>/dev/null)
     [ -n "$error_detail" ] || error_detail=$(tail -n 30 "$LANGFUSE_INSTALL_LOG" 2>/dev/null)
     [ -n "$error_detail" ] || error_detail="Falha não identificada durante o fluxo protegido de instalação."
-    whiptail --title "ERRO NA INSTALAÇÃO DO LANGFUSE" --scrolltext --msgbox \
+    whiptail --title "ERRO NA INSTALAÇÃO DO LANGFUSE" --msgbox \
         "A instalação foi interrompida sem declarar falso sucesso.\n\n$error_detail\n\nLog completo: $LANGFUSE_INSTALL_LOG" \
         22 90
     exit "$langfuse_install_status"

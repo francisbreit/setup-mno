@@ -19,7 +19,7 @@ cf_mfa_error() {
 }
 
 show_cloudflare_token_permissions() {
-    whiptail --title "PERMISSÕES DO TOKEN CLOUDFLARE" --scrolltext --msgbox \
+    whiptail --title "PERMISSÕES DO TOKEN CLOUDFLARE" --msgbox \
         "Para automatizar o MFA, o token usado pelo Setup MNO precisa destas 5 permissões:\n\nPERMISSÕES ANTIGAS — MANTENHA\n1. Conta > Configurações da conta > Editar\n2. Conta > Cloudflare Tunnel > Editar\n3. Zona > DNS > Editar\n\nNOVAS PERMISSÕES — ADICIONE\n4. Conta > Access: Apps and Policies > Editar\n5. Conta > Access: Organizations, Identity Providers, and Groups > Editar\n\nA quinta permissão permite habilitar TOTP e preparar automaticamente o login por código de e-mail. Restrinja Recursos da conta e Recursos de zona à conta e ao domínio usados pelo Setup MNO.\n\nEdite o token atual em Meu perfil > Tokens de API ou crie outro token personalizado. O Setup validará tudo antes de alterar qualquer recurso." \
         25 96 1>&2
 }

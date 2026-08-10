@@ -11,6 +11,15 @@ arm_runtime_package="$source_root/arm/SetupLowCodeMno/.control-package"
 temporary_dir=$(mktemp -d)
 trap 'rm -rf "$temporary_dir"' EXIT
 
+scrolltext_flag='--scrolltext'
+msgbox_flag='--msgbox'
+if grep -R -F --include='*.sh' --exclude='setupmno_control.sh' \
+    -e "$scrolltext_flag $msgbox_flag" -e "$msgbox_flag $scrolltext_flag" \
+    "$source_root"; then
+    printf 'ERRO: --scrolltext em msgbox tira o foco inicial de <Ok> e exige Tab.\n' >&2
+    exit 1
+fi
+
 msg_function=$(awk '/^msg\(\)/,/^}/' "$template")
 grep -Fq '1>&2' <<<"$msg_function" || {
     printf 'ERRO: msg() precisa direcionar a interface Whiptail para stderr.\n' >&2
