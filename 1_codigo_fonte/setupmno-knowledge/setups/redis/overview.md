@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Instância Redis no Setup MNO",
   "setupId": "redis",
-  "setupVersion": "7.8.3",
+  "setupVersion": "7.8.4",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

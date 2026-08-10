@@ -236,6 +236,18 @@ EOF
 chmod 0755 "$test_dir/bin/whiptail" "$test_dir/bin/curl" "$test_dir/bin/docker"
 PATH="$test_dir/bin:$PATH"
 
+# A lógica detalhada do assistente vive no bundle autenticado e possui suíte
+# própria. Aqui isolamos apenas a integração do template com esse contrato.
+load_cloudflare_mfa_helper() { return 0; }
+prepare_cloudflare_mfa_token() { return 0; }
+ensure_cloudflare_mfa_onboarding() {
+    jq -n '{active:true}' >"$4"
+}
+rollback_cloudflare_mfa_onboarding() { return 0; }
+remove_setupmno_launcher_policy() { return 0; }
+ensure_cloudflare_access_cookie_lax() { return 0; }
+cf_mfa_error() { printf '%s' 'erro simulado'; }
+
 write_control_mfa_state false false false test-original
 control_mfa_state_valid
 jq -e '.desiredMFA == false and .effectiveMFA == false and
@@ -300,15 +312,7 @@ check_cloudflare_access "$organization_output" "$applications_output"
 
 export MOCK_CURL_MODE="mfa_missing"
 : >"$message_capture"
-if check_cloudflare_access "$organization_output" "$applications_output"; then
-    printf 'ERRO: organização sem MFA foi aceita.\n' >&2
-    exit 1
-else
-    [ "$?" -eq 42 ] || {
-        printf 'ERRO: ausência de MFA não retornou o diagnóstico esperado.\n' >&2
-        exit 1
-    }
-fi
+check_cloudflare_access "$organization_output" "$applications_output"
 access_mfa_enabled="false"
 check_cloudflare_access "$organization_output" "$applications_output"
 
@@ -319,6 +323,9 @@ build_cloudflare_access_payload "$mfa_payload" "Control" \
 build_cloudflare_access_payload "$simple_payload" "Control" \
     "control.example.com" "admin@example.com" false
 jq -e '.mfa_config.mfa_disabled == false and
+       .same_site_cookie_attribute == "lax" and
+       .mfa_config.session_duration == "8h" and
+       .mfa_config.allowed_authenticators == ["totp"] and
        .policies[0].mfa_config.mfa_disabled == false and
        .policies[0].include[0].email.email == "admin@example.com"' \
     "$mfa_payload" >/dev/null
@@ -433,5 +440,7 @@ build_existing_access_policy_payload "$application_fixture" "$policy_fixture" \
     "admin@example.com" true
 jq -e '.mfa_config.mfa_disabled == false and .include[0].email.email == "admin@example.com"' \
     "$policy_fixture" >/dev/null
+jq -e '.mfa_config.session_duration == "8h" and
+       .mfa_config.allowed_authenticators == ["totp"]' "$policy_fixture" >/dev/null
 
 printf 'Progresso, timeout, Access e MFA do Cloudflare aprovados.\n'

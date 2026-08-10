@@ -75,6 +75,7 @@ cloudflare_curl_calls=$(grep -Fc 'curl -sS' "$template")
     exit 1
 }
 bash "$project_dir/installer-template_test.sh"
+bash "$project_dir/cloudflare-mfa_test.sh"
 bash "$project_dir/mfa-state_test.sh"
 bash "$project_dir/configure-control_test.sh"
 bash "$project_dir/control-runtime-transition_test.sh"
@@ -383,7 +384,11 @@ grep -Fq -- '--argjson requireAccess "$require_access"' "$template" &&
 grep -Fq 'AddMfaDevice' "$template" &&
 grep -Fq 'mfa_disabled:true' "$template" &&
 grep -Fq 'mfa_disabled:false' "$template" &&
-grep -Fq 'session_duration:"0m"' "$template" &&
+grep -Fq 'session_duration:"8h"' "$template" &&
+grep -Fq 'same_site_cookie_attribute:"lax"' "$template" &&
+grep -Fq 'allowed_authenticators:["totp"]' "$template" &&
+grep -Fq 'prepare_cloudflare_mfa_token' "$project_dir/cloudflare-mfa.sh" &&
+grep -Fq 'ensure_cloudflare_mfa_onboarding' "$project_dir/cloudflare-mfa.sh" &&
 grep -Fq 'access:{required:true,teamName:$team,audTag:[$aud]}' "$template" &&
 grep -Fq 'accessHeader       = "Cf-Access-Jwt-Assertion"' "$project_dir/access.go" &&
 grep -Fq 'rsa.VerifyPKCS1v15' "$project_dir/access.go" &&
@@ -662,7 +667,7 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
     cd "$project_dir"
     tar -cf - \
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
-        terminal-menu.sh configure-control.sh control-upgrade.sh \
+        terminal-menu.sh configure-control.sh control-upgrade.sh cloudflare-mfa.sh \
         main.go access.go knowledge.go retrieval.go routing.go prompts.go \
         blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go web |
         gzip -9n >"$bundle"
@@ -693,6 +698,10 @@ if ! tar -tzf "$bundle" | grep -Fx 'access.go' >/dev/null; then
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'control-upgrade.sh' >/dev/null; then
     printf 'ERRO: bundle de fontes sem o reconciliador in-place do Control Center.\n' >&2
+    exit 1
+fi
+if ! tar -tzf "$bundle" | grep -Fx 'cloudflare-mfa.sh' >/dev/null; then
+    printf 'ERRO: bundle de fontes sem o assistente autenticado do Cloudflare MFA.\n' >&2
     exit 1
 fi
 "$project_dir/control-upgrade_test.sh" >/dev/null
