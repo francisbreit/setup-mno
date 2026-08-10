@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.16.4"
+CONTROL_VERSION="4.16.5"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -146,7 +146,7 @@ write_control_mfa_state() {
 show_cloudflare_access_guide() {
     local team_hint="${access_team_name:-SEU-TIME}"
     whiptail --title "GUIA RÁPIDO — CLOUDFLARE ACCESS" --msgbox \
-        "O MFA é opcional; o modo original permanece compatível com versões antigas.\n\nATIVAÇÃO AUTOMÁTICA\n1. O Setup valida as 5 permissões do token.\n2. Habilita TOTP, login por código, App Launcher e política do e-mail.\n3. Cria a proteção Access com cookie Lax.\n4. Você abre https://${team_hint}.cloudflareaccess.com/AddMfaDevice e lê o QR Code em Authenticator application.\n\nPERMISSÕES DO TOKEN\n• Configurações da conta > Editar\n• Cloudflare Tunnel > Editar\n• DNS > Editar\n• Access: Apps and Policies > Editar\n• Access: Organizations, Identity Providers, and Groups > Editar\n\nO assistente permite validar o token atual ou substituir o token armazenado sem alterar Account ID, Zone ID ou Tunnel." \
+        "O MFA é opcional; o modo original permanece compatível com versões antigas.\n\nATIVAÇÃO AUTOMÁTICA\n1. O Setup valida as 5 permissões do token.\n2. Habilita TOTP, login por código, App Launcher, política do e-mail e identidade visual.\n3. Cria a proteção Access com cookie Lax.\n4. Você abre https://${team_hint}.cloudflareaccess.com/AddMfaDevice e lê o QR Code em Authenticator application.\n\nPERMISSÕES DO TOKEN\n• Configurações da conta > Editar\n• Cloudflare Tunnel > Editar\n• DNS > Editar\n• Access: Apps and Policies > Editar\n• Access: Organizations, Identity Providers, and Groups > Editar\n\nO assistente permite validar o token atual ou substituir o token armazenado sem alterar Account ID, Zone ID ou Tunnel." \
         24 94 1>&2
 }
 
@@ -1318,7 +1318,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
         access_mfa_enabled=$(jq -r '.desiredMFA' "$CONTROL_MFA_STATE_FILE")
         if [ "$access_mfa_enabled" = "true" ]; then
             whiptail --title "4/6 — PREFERÊNCIA DE MFA REGISTRADA" --msgbox \
-                "Você escolheu MFA durante a preparação do ambiente. Essa decisão foi preservada e não será perguntada novamente.\n\nAgora serão solicitados apenas os dados necessários para ativar a proteção do Control Center." \
+                "Você escolheu MFA durante a preparação do ambiente. Essa decisão foi preservada e não será perguntada novamente.\n\nAntes de criar qualquer recurso, a instalação inicial validará o token atual nas cinco permissões necessárias e permitirá substituí-lo caso seja preciso." \
                 16 88 1>&2
         fi
     else

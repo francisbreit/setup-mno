@@ -88,7 +88,27 @@ org_payload="$test_dir/org-payload.json"
 printf '%s\n' '{"result":{"auth_domain":"setupmno.cloudflareaccess.com","name":"Setup MNO","mfa_config":{"allowed_authenticators":["security_key"],"session_duration":"12h"}}}' >"$org_fixture"
 cf_mfa_org_payload "$org_fixture" "$org_payload"
 jq -e '.mfa_config.allowed_authenticators == ["security_key","totp"] and
-       .mfa_config.session_duration == "12h"' "$org_payload" >/dev/null
+       .mfa_config.session_duration == "12h" and
+       .login_design.header_text == "Acesso seguro ao Setup MNO" and
+       .login_design.footer_text == "Digite o código de 6 dígitos gerado pelo seu aplicativo autenticador." and
+       .login_design.logo_path == "https://ativa2.manualnegocioonline.com.br/setup-mno-logo.svg" and
+       .login_design.background_color == "#07090d" and
+       .login_design.text_color == "#f4f6f8"' "$org_payload" >/dev/null
+if cf_mfa_org_is_ready "$org_fixture"; then
+    printf 'ERRO: organização sem identidade visual foi considerada pronta.\n' >&2
+    exit 1
+fi
+
+custom_org_fixture="$test_dir/org-custom.json"
+custom_org_payload="$test_dir/org-custom-payload.json"
+printf '%s\n' '{"result":{"auth_domain":"custom.cloudflareaccess.com","name":"Empresa","mfa_config":{"allowed_authenticators":["totp"]},"login_design":{"header_text":"Portal da Empresa","footer_text":"Suporte interno","logo_path":"https://example.com/custom.svg","background_color":"#123456","text_color":"#abcdef"}}}' >"$custom_org_fixture"
+cf_mfa_org_payload "$custom_org_fixture" "$custom_org_payload"
+cf_mfa_org_is_ready "$custom_org_fixture"
+jq -e '.login_design.header_text == "Portal da Empresa" and
+       .login_design.footer_text == "Suporte interno" and
+       .login_design.logo_path == "https://example.com/custom.svg" and
+       .login_design.background_color == "#123456" and
+       .login_design.text_color == "#abcdef"' "$custom_org_payload" >/dev/null
 policy_payload="$test_dir/policy.json"
 cf_mfa_launcher_policy_payload 'admin@example.com' 3 "$policy_payload"
 jq -e '.decision == "allow" and .precedence == 3 and
@@ -99,6 +119,9 @@ onboarding_mode="success"
 cf_mfa_api() {
     local method="$1" path="$2" output="$3" payload="${4:-}"
     printf '%s %s\n' "$method" "$path" >>"$api_log"
+    if [ "$method" = "PUT" ] && [[ "$path" == */access/organizations ]] && [ -s "$payload" ]; then
+        cp "$payload" "$test_dir/organization-update-captured.json"
+    fi
     case "$method:$path" in
         GET:*/access/organizations)
             printf '%s\n' '{"success":true,"result":{"auth_domain":"setupmno.cloudflareaccess.com","name":"Setup MNO","mfa_config":{"allowed_authenticators":[]}}}' >"$output"
@@ -138,6 +161,13 @@ state="$test_dir/onboarding-state.json"
 ensure_cloudflare_mfa_onboarding "$test_dir" 'admin@example.com' "$test_dir/onboarding.log" "$state"
 jq -e '.active == true and .organizationChanged == true and .otpCreated == true and
        .launcherPolicyCreated == true' "$state" >/dev/null
+jq -e '.login_design.header_text == "Acesso seguro ao Setup MNO" and
+       .login_design.footer_text == "Digite o código de 6 dígitos gerado pelo seu aplicativo autenticador." and
+       .login_design.logo_path == "https://ativa2.manualnegocioonline.com.br/setup-mno-logo.svg" and
+       .login_design.background_color == "#07090d" and
+       .login_design.text_color == "#f4f6f8"' \
+    "$test_dir/organization-update-captured.json" >/dev/null
+jq -e '.login_design == {}' "$test_dir/organization-rollback.json" >/dev/null
 grep -Fq 'PUT /accounts/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/access/organizations' "$api_log"
 grep -Fq 'POST /accounts/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/access/identity_providers' "$api_log"
 grep -Fq 'POST /accounts/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/access/apps/11111111-2222-3333-4444-555555555555/policies' "$api_log"

@@ -15,6 +15,22 @@ grep -Fq 'if control_center_installed; then' "$template"
 grep -Fq 'somente uma instalação é permitida por servidor' "$template"
 grep -Fq '/root/SetupLowCodeMno/.setupmno-control-install.lock' "$template"
 grep -Fq 'flock -n 9' "$template"
+
+initial_mfa_flow=$(awk '
+    /^access_email=""$/ { inside=1 }
+    inside { print }
+    inside && /^mem_total_mb=/ { exit }
+' "$template")
+[ -n "$initial_mfa_flow" ] || {
+    printf 'ERRO: fluxo MFA da instalação inicial não foi localizado.\n' >&2
+    exit 1
+}
+grep -Fq 'load_cloudflare_mfa_helper' <<<"$initial_mfa_flow" &&
+grep -Fq 'prepare_cloudflare_mfa_token "$access_token_work" "$access_token_log"' \
+    <<<"$initial_mfa_flow" || {
+    printf 'ERRO: instalação inicial com MFA não valida as cinco permissões do token.\n' >&2
+    exit 1
+}
 test_dir=$(mktemp -d)
 trap 'rm -rf "$test_dir"' EXIT
 

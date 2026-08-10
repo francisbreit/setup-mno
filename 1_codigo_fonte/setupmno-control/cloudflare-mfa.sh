@@ -3,6 +3,11 @@
 # control-source.tar.gz validado pelo manifesto runtime do Setup MNO.
 
 CF_MFA_API="https://api.cloudflare.com/client/v4"
+CF_MFA_LOGIN_HEADER="Acesso seguro ao Setup MNO"
+CF_MFA_LOGIN_FOOTER="Digite o código de 6 dígitos gerado pelo seu aplicativo autenticador."
+CF_MFA_LOGIN_LOGO="https://ativa2.manualnegocioonline.com.br/setup-mno-logo.svg"
+CF_MFA_LOGIN_BACKGROUND="#07090d"
+CF_MFA_LOGIN_TEXT="#f4f6f8"
 
 cf_mfa_api() {
     local method="$1" path="$2" output="$3" payload="${4:-}"
@@ -20,7 +25,7 @@ cf_mfa_error() {
 
 show_cloudflare_token_permissions() {
     whiptail --title "PERMISSÕES DO TOKEN CLOUDFLARE" --msgbox \
-        "Para automatizar o MFA, o token usado pelo Setup MNO precisa destas 5 permissões:\n\nPERMISSÕES ANTIGAS — MANTENHA\n1. Conta > Configurações da conta > Editar\n2. Conta > Cloudflare Tunnel > Editar\n3. Zona > DNS > Editar\n\nNOVAS PERMISSÕES — ADICIONE\n4. Conta > Access: Apps and Policies > Editar\n5. Conta > Access: Organizations, Identity Providers, and Groups > Editar\n\nA quinta permissão permite habilitar TOTP e preparar automaticamente o login por código de e-mail. Restrinja Recursos da conta e Recursos de zona à conta e ao domínio usados pelo Setup MNO.\n\nEdite o token atual em Meu perfil > Tokens de API ou crie outro token personalizado. O Setup validará tudo antes de alterar qualquer recurso." \
+        "Para automatizar o MFA, o token usado pelo Setup MNO precisa destas 5 permissões:\n\nPERMISSÕES ANTIGAS — MANTENHA\n1. Conta > Configurações da conta > Editar\n2. Conta > Cloudflare Tunnel > Editar\n3. Zona > DNS > Editar\n\nNOVAS PERMISSÕES — ADICIONE\n4. Conta > Access: Apps and Policies > Editar\n5. Conta > Access: Organizations, Identity Providers, and Groups > Editar\n\nA quinta permissão permite habilitar TOTP, preparar o login por código de e-mail e aplicar a identidade visual do Setup MNO sem apagar personalizações existentes. Restrinja Recursos da conta e Recursos de zona à conta e ao domínio usados pelo Setup MNO.\n\nEdite o token atual em Meu perfil > Tokens de API ou crie outro token personalizado. A instalação inicial e a ativação pelo menu usam exatamente esta mesma validação antes de alterar recursos." \
         25 96 1>&2
 }
 
@@ -137,10 +142,37 @@ prepare_cloudflare_mfa_token() {
 }
 
 cf_mfa_org_payload() {
-    jq '.result | {auth_domain,name,mfa_config:((.mfa_config // {}) + {
-        allowed_authenticators:(((.mfa_config.allowed_authenticators // []) + ["totp"]) | unique),
-        session_duration:(.mfa_config.session_duration // "24h")
-    })}' "$1" >"$2"
+    jq --arg header "$CF_MFA_LOGIN_HEADER" --arg footer "$CF_MFA_LOGIN_FOOTER" \
+        --arg logo "$CF_MFA_LOGIN_LOGO" --arg background "$CF_MFA_LOGIN_BACKGROUND" \
+        --arg text "$CF_MFA_LOGIN_TEXT" '
+        def preserve($value; $fallback):
+          if (($value | type) == "string" and ($value | length) > 0)
+          then $value else $fallback end;
+        .result
+        | (.login_design // {}) as $design
+        | {auth_domain,name,
+           mfa_config:((.mfa_config // {}) + {
+             allowed_authenticators:(((.mfa_config.allowed_authenticators // []) + ["totp"]) | unique),
+             session_duration:(.mfa_config.session_duration // "24h")
+           }),
+           login_design:{
+             header_text:preserve($design.header_text; $header),
+             footer_text:preserve($design.footer_text; $footer),
+             logo_path:preserve($design.logo_path; $logo),
+             background_color:preserve($design.background_color; $background),
+             text_color:preserve($design.text_color; $text)
+           }}
+    ' "$1" >"$2"
+}
+
+cf_mfa_org_is_ready() {
+    jq -e '
+        ((.result.mfa_config.allowed_authenticators // []) | index("totp") != null) and
+        ([.result.login_design.header_text, .result.login_design.footer_text,
+          .result.login_design.logo_path, .result.login_design.background_color,
+          .result.login_design.text_color]
+         | all(type == "string" and length > 0))
+    ' "$1" >/dev/null 2>&1
 }
 
 cf_mfa_launcher_policy_payload() {
@@ -217,15 +249,18 @@ ensure_cloudflare_mfa_onboarding() {
         msg "Não foi possível preparar automaticamente o MFA. Confirme as duas permissões Access do token."
         return 1
     fi
-    if ! jq -e '(.result.mfa_config.allowed_authenticators // []) | index("totp") != null' "$org" >/dev/null; then
+    if ! cf_mfa_org_is_ready "$org"; then
         org_payload="$work/organization-totp.json"
         org_response="$work/organization-totp-response.json"
         org_rollback="$work/organization-rollback.json"
         cf_mfa_org_payload "$org" "$org_payload" || return 1
-        jq '.result | {auth_domain,name,mfa_config:(.mfa_config // {})}' "$org" >"$org_rollback" || return 1
+        jq '.result | {auth_domain,name,mfa_config:(.mfa_config // {}),
+            login_design:((.login_design // {})
+              | {background_color,footer_text,header_text,logo_path,text_color}
+              | with_entries(select(.value != null)))}' "$org" >"$org_rollback" || return 1
         if ! cf_mfa_api PUT "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/organizations" "$org_response" "$org_payload" 2>>"$log" ||
            [ "$(jq -r '.success // false' "$org_response")" != true ]; then
-            msg "A Cloudflare não permitiu habilitar o aplicativo autenticador (TOTP). Confirme Organizations, Identity Providers, and Groups > Editar."
+            msg "A Cloudflare não permitiu habilitar o TOTP e preparar a identidade visual do Setup MNO. Confirme Organizations, Identity Providers, and Groups > Editar."
             return 1
         fi
         org_changed="true"

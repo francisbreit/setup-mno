@@ -398,6 +398,10 @@ grep -Fq 'same_site_cookie_attribute:"lax"' "$template" &&
 grep -Fq 'allowed_authenticators:["totp"]' "$template" &&
 grep -Fq 'prepare_cloudflare_mfa_token' "$project_dir/cloudflare-mfa.sh" &&
 grep -Fq 'ensure_cloudflare_mfa_onboarding' "$project_dir/cloudflare-mfa.sh" &&
+grep -Fq 'CF_MFA_LOGIN_HEADER="Acesso seguro ao Setup MNO"' "$project_dir/cloudflare-mfa.sh" &&
+grep -Fq 'CF_MFA_LOGIN_LOGO="https://ativa2.manualnegocioonline.com.br/setup-mno-logo.svg"' "$project_dir/cloudflare-mfa.sh" &&
+grep -Fq 'header_text:preserve($design.header_text; $header)' "$project_dir/cloudflare-mfa.sh" &&
+test -s "$source_root/setup-mno-logo.svg" &&
 grep -Fq 'access:{required:true,teamName:$team,audTag:[$aud]}' "$template" &&
 grep -Fq 'accessHeader       = "Cf-Access-Jwt-Assertion"' "$project_dir/access.go" &&
 grep -Fq 'rsa.VerifyPKCS1v15' "$project_dir/access.go" &&

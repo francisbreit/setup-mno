@@ -41,6 +41,9 @@ cp "$BASE_DIR/1_codigo_fonte/setup-mno-oracle.sh" "$BASE_DIR/3_distribuicao/"
 echo "📄 Copiando ferramentas.html (catálogo atual)..."
 cp "$BASE_DIR/1_codigo_fonte/ferramentas.html" "$BASE_DIR/3_distribuicao/"
 
+echo "🎨 Copiando a identidade visual pública do Setup MNO..."
+cp "$BASE_DIR/1_codigo_fonte/setup-mno-logo.svg" "$BASE_DIR/3_distribuicao/"
+
 # 4. Zipar os ficheiros x86 com senha
 echo -e "${amarelo}📦 Compactando arquivos x86...${reset}"
 cd "$BASE_DIR/1_codigo_fonte/x86"
