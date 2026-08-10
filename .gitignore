@@ -1,5 +1,6 @@
 # === DISTRIBUICAO (ZIPs, binarios compilados) ===
 3_distribuicao/
+5_distribuicao_antiga/
 
 # === BINARIOS COMPILADOS (shc) ===
 *.bin
