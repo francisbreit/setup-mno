@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Plane no Setup MNO",
   "setupId": "plane",
-  "setupVersion": "7.8.6",
+  "setupVersion": "7.9.0",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

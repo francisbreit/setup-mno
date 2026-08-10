@@ -1,9 +1,9 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.8.6"
-EXPECTED_EVAL_DATASET_VERSION="1.9.0"
+VERSIONSETUP="7.9.0"
+EXPECTED_EVAL_DATASET_VERSION="1.10.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
-EXPECTED_EVAL_CASE_ENTRIES="843"
+EXPECTED_EVAL_CASE_ENTRIES="848"
 EXPECTED_BLUEPRINT_FACTORY_VERSION="2.1.0"
 EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="0"
 EXPECTED_QUALITY_SCHEMA_VERSION="2"
@@ -1602,6 +1602,13 @@ rm neo4j.sh
 rm neo4j.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm neo4j
+fi
+
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o netdada -f netdada.sh
+rm netdada.sh
+rm netdada.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm netdada
 fi
 
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o openfang -f openfang.sh

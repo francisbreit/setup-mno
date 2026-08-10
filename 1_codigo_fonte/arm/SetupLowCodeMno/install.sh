@@ -217,7 +217,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.8.6"
+VERSIONSETUP="7.9.0"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -754,8 +754,9 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "N8N V2 - FILA (QUEUE)" "" \
     "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "" \
     "NEO4J" "" \
-    "NGINXPROXYMANAGER" "" \
+    "NETDADA" "" \
     "NEXTCLOUD" "" \
+    "NGINXPROXYMANAGER" "" \
     "NOCODB" "" \
     "NOCOBASE" "" \
     "NTFY" "" \
@@ -924,8 +925,9 @@ case "$CHOICE" in
             "N8N V2 - FILA (QUEUE)")                                 warn_heavy "N8N V2 (Fila)" "7GB" && run_app n8n2 ;;
             "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
             "NEO4J")                                                 run_app neo4j ;;
-            "NGINXPROXYMANAGER")                                   run_app nginxproxymanager ;;
+            "NETDADA")                                              run_app netdada ;;
             "NEXTCLOUD")                                             run_app nextcloud ;;
+            "NGINXPROXYMANAGER")                                   run_app nginxproxymanager ;;
             "NOCODB")                                                run_app nocodb ;;
             "NOCOBASE")                                             run_app nocobase ;;
             "NTFY")                                                  run_app ntfy ;;
@@ -1101,8 +1103,9 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MEMGRAPH" "PRO" \
     "METABASE" "PRO" \
     "NEO4J" "PRO" \
-    "NGINXPROXYMANAGER" "PRO" \
+    "NETDADA" "PRO" \
     "NEXTCLOUD" "PRO" \
+    "NGINXPROXYMANAGER" "PRO" \
     "OPEN WEBUI" "PRO" \
     "OPENCLAW" "PRO" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
@@ -1148,7 +1151,7 @@ case "$CHOICE" in
             whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
-        if [ "$CHOICE" != "SETUP MNO CONTROL CENTER" ] && [[ ("$CHOICE" == "AFFINE") || ("$CHOICE" == "APPSMITH") || ("$CHOICE" == "AUTOGEN STUDIO") || ("$CHOICE" == "BASEROW") || ("$CHOICE" == "BOTPRESS") || ("$CHOICE" == "CAL.COM") || ("$CHOICE" == "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "DOCUMENSO") || ("$CHOICE" == "DOCUSEAL") || ("$CHOICE" == "DOZZLE") || ("$CHOICE" == "EVOAI + EVOLUTION 2.0 + MINIO*") || ("$CHOICE" == "IMMICH") || ("$CHOICE" == "HOME ASSISTANT") || ("$CHOICE" == "HOPPSCOTCH") || ("$CHOICE" == "HUMHUB") || ("$CHOICE" == "KRAYIN CRM") || ("$CHOICE" == "LANGFUSE + MINIO + CLICKHOUSE*") || ("$CHOICE" == "LITELLM") || ("$CHOICE" == "MAUTIC 4 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 6 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 7 WHATSAPP MKT") || ("$CHOICE" == "MATOMO") || ("$CHOICE" == "NEXTCLOUD") || ("$CHOICE" == "OPEN PROJECT") || ("$CHOICE" == "TWENTY CRM") || ("$CHOICE" == "TYPEBOT + MINIO*") || ("$CHOICE" == "OPENCLAW") || ("$CHOICE" == "DISCOURSE") || ("$CHOICE" == "GHOST") || ("$CHOICE" == "GLANCE") || ("$CHOICE" == "IT-TOOLS") || ("$CHOICE" == "COGNEE") || ("$CHOICE" == "MEMGRAPH") || ("$CHOICE" == "NEO4J") || ("$CHOICE" == "OPENFANG") || ("$CHOICE" == "PAPERCLIP") || ("$CHOICE" == "SEARXNG") || ("$CHOICE" == "SYNCTHING") || ("$CHOICE" == "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*") || ("$CHOICE" == "HERMES AGENT") || ("$CHOICE" == "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOT AI CUSTOMER SERVICE*") || ("\$CHOICE" == "DIFY") || ("\$CHOICE" == "CHANGEDETECTION.IO") ]]; then
+        if [ "$CHOICE" != "SETUP MNO CONTROL CENTER" ] && [[ ("$CHOICE" == "AFFINE") || ("$CHOICE" == "APPSMITH") || ("$CHOICE" == "AUTOGEN STUDIO") || ("$CHOICE" == "BASEROW") || ("$CHOICE" == "BOTPRESS") || ("$CHOICE" == "CAL.COM") || ("$CHOICE" == "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "DOCUMENSO") || ("$CHOICE" == "DOCUSEAL") || ("$CHOICE" == "DOZZLE") || ("$CHOICE" == "EVOAI + EVOLUTION 2.0 + MINIO*") || ("$CHOICE" == "IMMICH") || ("$CHOICE" == "HOME ASSISTANT") || ("$CHOICE" == "HOPPSCOTCH") || ("$CHOICE" == "HUMHUB") || ("$CHOICE" == "KRAYIN CRM") || ("$CHOICE" == "LANGFUSE + MINIO + CLICKHOUSE*") || ("$CHOICE" == "LITELLM") || ("$CHOICE" == "MAUTIC 4 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 6 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 7 WHATSAPP MKT") || ("$CHOICE" == "MATOMO") || ("$CHOICE" == "NEXTCLOUD") || ("$CHOICE" == "OPEN PROJECT") || ("$CHOICE" == "TWENTY CRM") || ("$CHOICE" == "TYPEBOT + MINIO*") || ("$CHOICE" == "OPENCLAW") || ("$CHOICE" == "DISCOURSE") || ("$CHOICE" == "GHOST") || ("$CHOICE" == "GLANCE") || ("$CHOICE" == "IT-TOOLS") || ("$CHOICE" == "COGNEE") || ("$CHOICE" == "MEMGRAPH") || ("$CHOICE" == "NEO4J") || ("$CHOICE" == "NETDADA") || ("$CHOICE" == "OPENFANG") || ("$CHOICE" == "PAPERCLIP") || ("$CHOICE" == "SEARXNG") || ("$CHOICE" == "SYNCTHING") || ("$CHOICE" == "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*") || ("$CHOICE" == "HERMES AGENT") || ("$CHOICE" == "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOT AI CUSTOMER SERVICE*") || ("\$CHOICE" == "DIFY") || ("\$CHOICE" == "CHANGEDETECTION.IO") ]]; then
             whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
@@ -1245,8 +1248,9 @@ case "$CHOICE" in
             "N8N V2 - FILA (QUEUE)")                                 warn_heavy "N8N V2 (Fila)" "7GB" && run_app n8n2 ;;
             "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
             "NEO4J")                                                 run_app neo4j ;;
-            "NGINXPROXYMANAGER")                                   run_app nginxproxymanager ;;
+            "NETDADA")                                              run_app netdada ;;
             "NEXTCLOUD")                                             run_app nextcloud ;;
+            "NGINXPROXYMANAGER")                                   run_app nginxproxymanager ;;
             "NOCODB")                                                run_app nocodb ;;
             "NOCOBASE")                                             run_app nocobase ;;
             "NTFY")                                                  run_app ntfy ;;
@@ -1394,8 +1398,9 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MYSQL" "PRO" \
     "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "PRO" \
     "NEO4J" "PRO" \
-    "NGINXPROXYMANAGER" "PRO" \
+    "NETDADA" "PRO" \
     "NEXTCLOUD" "PRO" \
+    "NGINXPROXYMANAGER" "PRO" \
     "NOCODB" "PRO" \
     "NOCOBASE" "PRO" \
     "NTFY" "PRO" \
@@ -1558,8 +1563,9 @@ case "$CHOICE" in
             "N8N V2 - FILA (QUEUE)")                                 warn_heavy "N8N V2 (Fila)" "7GB" && run_app n8n2 ;;
             "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
             "NEO4J")                                                 run_app neo4j ;;
-            "NGINXPROXYMANAGER")                                   run_app nginxproxymanager ;;
+            "NETDADA")                                              run_app netdada ;;
             "NEXTCLOUD")                                             run_app nextcloud ;;
+            "NGINXPROXYMANAGER")                                   run_app nginxproxymanager ;;
             "NOCODB")                                                run_app nocodb ;;
             "NOCOBASE")                                             run_app nocobase ;;
             "NTFY")                                                  run_app ntfy ;;
@@ -1708,8 +1714,9 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MYSQL" "PRO" \
     "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "PRO" \
     "NEO4J" "PRO" \
-    "NGINXPROXYMANAGER" "PRO" \
+    "NETDADA" "PRO" \
     "NEXTCLOUD" "PRO" \
+    "NGINXPROXYMANAGER" "PRO" \
     "NOCODB" "PRO" \
     "NOCOBASE" "PRO" \
     "NTFY" "PRO" \
@@ -1871,8 +1878,9 @@ case "$CHOICE" in
             "N8N V2 - FILA (QUEUE)")                                 warn_heavy "N8N V2 (Fila)" "7GB" && run_app n8n2 ;;
             "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
             "NEO4J")                                                 run_app neo4j ;;
-            "NGINXPROXYMANAGER")                                   run_app nginxproxymanager ;;
+            "NETDADA")                                              run_app netdada ;;
             "NEXTCLOUD")                                             run_app nextcloud ;;
+            "NGINXPROXYMANAGER")                                   run_app nginxproxymanager ;;
             "NOCODB")                                                run_app nocodb ;;
             "NOCOBASE")                                             run_app nocobase ;;
             "NTFY")                                                  run_app ntfy ;;

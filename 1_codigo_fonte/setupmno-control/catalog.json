@@ -1012,6 +1012,17 @@
     "search": "neo4j banco de dados, grafos, ia banco de dados de grafos líder de mercado. cypher, apoc, graph data science."
   },
   {
+    "name": "NETDADA",
+    "cats": "Monitoramento, Observabilidade, Docker, Servidor",
+    "desc": "Monitoramento em tempo real do servidor e dos containers Docker com métricas de CPU, memória, discos, processos, alertas e dashboard protegido por autenticação.",
+    "ram": 0.875,
+    "ramLabel": "~896MB máximo",
+    "arch": "x86-arm",
+    "stars": 76000,
+    "type": "Utilitário",
+    "search": "netdada netdata monitoramento observabilidade docker servidor métricas cpu memória discos processos alertas dashboard protegido"
+  },
+  {
     "name": "NGINXPROXYMANAGER",
     "cats": "Reverse Proxy, SSL, Let's Encrypt",
     "desc": "Gerenciador de proxy reverso com interface visual. SSL automático, Redirecionamento, SSL wildcard.",

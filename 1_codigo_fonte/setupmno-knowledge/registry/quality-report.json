@@ -1637,6 +1637,23 @@
       ]
     },
     {
+      "catalogName": "NETDADA",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "netdada",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
       "catalogName": "NEXTCLOUD",
       "editorialStatus": "reviewed",
       "homologationEvidence": false,
@@ -2606,25 +2623,25 @@
       ]
     }
   ],
-  "generatedAt": "2026-08-09T00:00:00Z",
+  "generatedAt": "2026-08-10T00:00:00Z",
   "knowledgeVersion": "3.14.0",
   "schemaVersion": 2,
-  "setupVersion": "7.8.6",
+  "setupVersion": "7.9.0",
   "summary": {
     "editorialStatuses": {
       "deprecated": 0,
       "draft": 0,
       "homologated": 0,
       "outdated": 0,
-      "reviewed": 151
+      "reviewed": 152
     },
     "homologatedEntries": 0,
     "installationStatuses": {
-      "maintainer-homologated": 151
+      "maintainer-homologated": 152
     },
     "integrationMaturityLevels": {
       "documented": 0,
-      "not-mapped": 151,
+      "not-mapped": 152,
       "suggested": 0,
       "validated": 0
     },
@@ -2635,12 +2652,12 @@
       "operational-reviewed": 0,
       "script-reviewed": 0,
       "source-reviewed": 0,
-      "structural": 151
+      "structural": 152
     },
-    "officialSourceEntries": 131,
+    "officialSourceEntries": 132,
     "officialSourceExceptions": 1,
     "operationalEvidenceEntries": 0,
-    "setupEntries": 151,
+    "setupEntries": 152,
     "unresolvedIssueCount": 29
   }
 }

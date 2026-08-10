@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "WuzAPI no Setup MNO",
   "setupId": "wuzap",
-  "setupVersion": "7.8.6",
+  "setupVersion": "7.9.0",
   "architectures": [
     "amd64",
     "arm64"

@@ -228,7 +228,7 @@ O script `gerar_distribuicao.sh` cria automaticamente um backup do conteúdo atu
 ## REGRA PARA ADIÇÃO DE NOVAS FERRAMENTAS
 Ao adicionar uma ferramenta (CRM, IA, etc):
 1. **Criação:** Crie o script `ferramenta.sh` em ambos os diretórios de arquitetura.
-2. **Gestão de Planos:** Pergunte sempre se é Pro ou Free. Se houver variantes (Free1, Free2), a lógica de deleção/manutenção no `start_full` e a opção no menu do `install.sh` devem ser espelhadas.
+2. **Gestão de Planos:** Toda ferramenta nova é **Pro por padrão**. Não pergunte o plano quando o usuário não o informar: assuma Pro. Somente classifique como `free`, `free1` ou `free2` quando o usuário declarar explicitamente uma dessas modalidades. A lógica de deleção/manutenção no `start_full` e a opção no menu do `install.sh` devem ser espelhadas.
 3. **Menu:** Atualize o menu `whiptail` no `install.sh` de ambas as arquiteturas.
    - **PRO:** Ferramentas PRO devem aparecer no menu de todos os planos (PRO, free, free1, free2), marcadas com `"PRO"` — para que os usuários vejam o que está disponível.
    - **Free:** Ferramentas Free devem aparecer com `""` (vazio) em todos os menus.
