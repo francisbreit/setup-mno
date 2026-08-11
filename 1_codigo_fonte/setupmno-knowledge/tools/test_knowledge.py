@@ -199,9 +199,20 @@ class KnowledgeFactoryTests(unittest.TestCase):
         self.assertIn('previous_container="${4:-}"', x86_script)
         self.assertIn('[ "$container_id" != "$previous_container" ]', x86_script)
         self.assertIn(
-            'wait_service "$app_service" 120 healthy "$app_container"',
+            'deploy_stack "$app_stack" "$app_yaml" ||\n'
+            '        fail_install 44 "ERRO NO LINKWARDEN" "Não foi possível criar a stack principal do Linkwarden."\n'
+            '    wait_service "$app_service" 120 healthy ||',
             x86_script,
         )
+        self.assertIn(
+            'wait_service "$app_service" 120 healthy "$app_container" ||\n'
+            '        fail_install 56 "ATUALIZAÇÃO NÃO CONVERGIU"',
+            x86_script,
+        )
+        self.assertIn('wait_secure_config "$app_container" "https://$url_content" 30', x86_script)
+        self.assertIn('Configuração segura confirmada pela API do Linkwarden.', x86_script)
+        self.assertIn('disableRegistration:', x86_script)
+        self.assertNotIn('config_json=$(docker exec "$app_container"', x86_script)
         self.assertIn("read_only: true", x86_script)
         self.assertIn(
             '[[ "$yaml_file" == /root/linkwarden*.yaml ]]',

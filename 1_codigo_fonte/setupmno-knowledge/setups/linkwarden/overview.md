@@ -3,11 +3,11 @@
   "schemaVersion": 1,
   "documentId": "setup-linkwarden-overview",
   "documentVersion": "1.0.0",
-  "contentSHA256": "4ce58b940cf6abdc7e6f1cdd8a62ce4eee6fdeb484e42ee402ad154082b32cbf",
+  "contentSHA256": "a7bb40e6ce95f83ce5ef4a68d378ade3e4910c5c6bac5bfecbf231f1bc1b551c",
   "documentType": "setup",
   "title": "Linkwarden no Setup MNO",
   "setupId": "linkwarden",
-  "setupVersion": "7.12.1",
+  "setupVersion": "7.12.2",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
@@ -84,8 +84,11 @@ inseguro permanece desativado.
 A homologação isolada confirmou os três YAMLs, convergência saudável de
 PostgreSQL, Meilisearch e Linkwarden, criação do administrador com HTTP 201,
 fechamento de cadastros, domínio de conteúdo isolado e persistência após reinício
-forçado. Não houve porta publicada. No repouso observado, Linkwarden consumiu
-aproximadamente 678 MiB, PostgreSQL 76 MiB e Meilisearch 10 MiB.
+forçado. Também foi reproduzida a janela em que o Swarm ainda reportava o
+container antigo como saudável durante uma atualização; o instalador agora exige
+um novo ID de container e confirma a configuração segura com tentativas. Não
+houve porta publicada. No repouso observado, Linkwarden consumiu entre 654 e 678
+MiB, PostgreSQL entre 39 e 76 MiB e Meilisearch aproximadamente 10 MiB.
 
 ## Riscos e limites
 

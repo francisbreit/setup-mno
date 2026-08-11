@@ -314,6 +314,24 @@ error_file="/tmp/${nome_app}-error.log"
         return 1
     }
 
+    wait_secure_config() {
+        local container_id="$1" expected_domain="$2" attempts="${3:-30}" config_json config_summary
+        for _ in $(seq 1 "$attempts"); do
+            config_json=$(docker exec "$container_id" curl -fsS http://127.0.0.1:3000/api/v1/config 2>>"$install_log" || true)
+            if printf '%s' "$config_json" | jq -e --arg domain "$expected_domain" \
+                '(.response.DISABLE_REGISTRATION == true) and (.response.USER_CONTENT_DOMAIN == $domain)' >/dev/null 2>&1; then
+                echo "Configuração segura confirmada pela API do Linkwarden." >>"$install_log"
+                return 0
+            fi
+            config_summary=$(printf '%s' "$config_json" | jq -c \
+                '{disableRegistration:(.response.DISABLE_REGISTRATION // null),userContentDomain:(.response.USER_CONTENT_DOMAIN // null)}' \
+                2>/dev/null || echo '{"response":"indisponivel"}')
+            echo "Aguardando configuração segura do Linkwarden: $config_summary" >>"$install_log"
+            sleep 2
+        done
+        return 1
+    }
+
     echo -e "XXX\n4\nVALIDANDO AMBIENTE, SWARM E REDES...\nXXX"
     for required_command in docker curl jq openssl grep awk sed; do
         command -v "$required_command" >/dev/null 2>&1 ||
@@ -598,7 +616,7 @@ EOAPPEND
     echo -e "XXX\n68\nPUBLICANDO LINKWARDEN E APLICANDO MIGRAÇÕES...\nXXX"
     deploy_stack "$app_stack" "$app_yaml" ||
         fail_install 44 "ERRO NO LINKWARDEN" "Não foi possível criar a stack principal do Linkwarden."
-    wait_service "$app_service" 120 healthy "$app_container" ||
+    wait_service "$app_service" 120 healthy ||
         fail_install 45 "LINKWARDEN NÃO FICOU PRONTO" "O Linkwarden não atingiu 1/1 réplica saudável."
     app_container="$WAIT_CONTAINER_ID"
 
@@ -635,12 +653,10 @@ EOAPPEND
         docker stack deploy --prune --resolve-image always -c "$app_yaml" "$app_stack" >>"$install_log" 2>&1 ||
             fail_install 55 "CADASTRO AINDA ABERTO" "O Docker recusou a atualização que fecha novos cadastros."
     fi
-    wait_service "$app_service" 120 healthy ||
+    wait_service "$app_service" 120 healthy "$app_container" ||
         fail_install 56 "ATUALIZAÇÃO NÃO CONVERGIU" "O Linkwarden não voltou saudável após fechar novos cadastros."
     app_container="$WAIT_CONTAINER_ID"
-    config_json=$(docker exec "$app_container" curl -sS http://127.0.0.1:3000/api/v1/config 2>>"$install_log")
-    printf '%s' "$config_json" | jq -e --arg domain "https://$url_content" \
-        '(.response.DISABLE_REGISTRATION == true) and (.response.USER_CONTENT_DOMAIN == $domain)' >/dev/null ||
+    wait_secure_config "$app_container" "https://$url_content" 30 ||
         fail_install 57 "SEGURANÇA NÃO CONFIRMADA" "A API não confirmou cadastros fechados e domínio de conteúdo isolado."
 
     upsert_dns() {
