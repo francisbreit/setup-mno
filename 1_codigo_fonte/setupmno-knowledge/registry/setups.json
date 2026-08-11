@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "selectionVersion": "1.11.0",
-  "setupVersion": "7.11.0",
+  "selectionVersion": "1.12.0",
+  "setupVersion": "7.12.0",
   "selectionPolicy": "Lotes 1 a 6 orientados a deploy, IA, integrações, dados, identidade, colaboração, produtividade, atendimento e segurança operacional",
   "setups": [
     {
@@ -700,6 +700,20 @@
       "aliases": [
         "kara keep",
         "bookmarks karakeep"
+      ]
+    },
+    {
+      "setupId": "linkwarden",
+      "catalogName": "LINKWARDEN",
+      "script": "linkwarden.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "link warden",
+        "favoritos linkwarden",
+        "arquivamento de paginas"
       ]
     },
     {

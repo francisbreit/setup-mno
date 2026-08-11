@@ -726,6 +726,17 @@
     "search": "librechat ia, chat, multi-modelo plataforma de chat ia multi-modelo. suporta openai, anthropic, google, modelos locais. interface moderna."
   },
   {
+    "name": "LINKWARDEN",
+    "cats": "Produtividade, Favoritos, Arquivamento, Colaboração",
+    "desc": "Gerenciador colaborativo de favoritos que organiza, pesquisa, anota e preserva páginas como screenshot, PDF e HTML em domínio isolado.",
+    "ram": 2.5,
+    "ramLabel": "~2,5GB máximo",
+    "arch": "x86-arm",
+    "stars": 18500,
+    "type": "Individual",
+    "search": "linkwarden produtividade favoritos bookmarks read it later arquivamento colaboração screenshot pdf html preservação meilisearch"
+  },
+  {
     "name": "LISTMONK",
     "cats": "Newsletter, Mailing, Email Marketing",
     "desc": "Plataforma de newsletters e mailing lists self-hosted. Editor de templates, listas, campanhas, relatórios.",

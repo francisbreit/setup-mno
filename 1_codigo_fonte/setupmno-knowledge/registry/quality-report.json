@@ -1211,6 +1211,23 @@
       ]
     },
     {
+      "catalogName": "LINKWARDEN",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "linkwarden",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
       "catalogName": "LISTMONK",
       "editorialStatus": "reviewed",
       "homologationEvidence": false,
@@ -2658,24 +2675,24 @@
     }
   ],
   "generatedAt": "2026-08-10T00:00:00Z",
-  "knowledgeVersion": "3.16.0",
+  "knowledgeVersion": "3.17.0",
   "schemaVersion": 2,
-  "setupVersion": "7.11.0",
+  "setupVersion": "7.12.0",
   "summary": {
     "editorialStatuses": {
       "deprecated": 0,
       "draft": 0,
       "homologated": 0,
       "outdated": 0,
-      "reviewed": 154
+      "reviewed": 155
     },
     "homologatedEntries": 0,
     "installationStatuses": {
-      "maintainer-homologated": 154
+      "maintainer-homologated": 155
     },
     "integrationMaturityLevels": {
       "documented": 0,
-      "not-mapped": 154,
+      "not-mapped": 155,
       "suggested": 0,
       "validated": 0
     },
@@ -2686,12 +2703,12 @@
       "operational-reviewed": 0,
       "script-reviewed": 0,
       "source-reviewed": 0,
-      "structural": 154
+      "structural": 155
     },
-    "officialSourceEntries": 134,
+    "officialSourceEntries": 135,
     "officialSourceExceptions": 1,
     "operationalEvidenceEntries": 0,
-    "setupEntries": 154,
+    "setupEntries": 155,
     "unresolvedIssueCount": 29
   }
 }

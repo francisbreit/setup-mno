@@ -3,11 +3,11 @@
   "schemaVersion": 1,
   "documentId": "infra-ecosystem-architecture",
   "documentVersion": "1.0.0",
-  "contentSHA256": "c8cdf4bb1ad6ed0b4eb5f23dac1f0eadfe24e0a057a25cbb91f3695219e69e88",
+  "contentSHA256": "934bb4be372a0dd11ac8648dfe56519d32b266a6f2f52e62d1f3b6f497fa1526",
   "documentType": "infrastructure",
   "title": "Ontologia e inventários do ecossistema Setup MNO",
   "topicId": "ecosystem",
-  "setupVersion": "7.11.0",
+  "setupVersion": "7.12.0",
   "architectures": ["amd64", "arm64"],
   "category": "terminology",
   "status": "reviewed",
@@ -129,7 +129,7 @@ evidências próprias de integração.
 
 Os gates devem perguntar separadamente quantos setups, Blueprints, aplicações
 únicas, aplicações instaladas e serviços existem. É falha crítica responder
-“154 Blueprints” ou “154 aplicações únicas”, porque 154 é exclusivamente o
+“155 Blueprints” ou “155 aplicações únicas”, porque 155 é exclusivamente o
 inventário atual de setups.
 
 Perguntas sobre a diferença entre os conceitos devem recuperar este documento
