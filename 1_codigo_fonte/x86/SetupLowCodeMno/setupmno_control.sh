@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.16.10"
+CONTROL_VERSION="4.16.11"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -146,7 +146,7 @@ write_control_mfa_state() {
 show_cloudflare_access_guide() {
     local team_hint="${access_team_name:-SEU-TIME}"
     whiptail --title "GUIA RÁPIDO — CLOUDFLARE ACCESS" --msgbox \
-        "O MFA é opcional; o modo original permanece compatível com versões antigas.\n\nATIVAÇÃO AUTOMÁTICA\n1. O Setup valida as 5 permissões do token.\n2. Habilita TOTP, login por código, App Launcher, política do e-mail e identidade visual.\n3. Cria a proteção Access com cookie Lax.\n4. Você abre https://${team_hint}.cloudflareaccess.com/AddMfaDevice e lê o QR Code em Authenticator application.\n\nPERMISSÕES DO TOKEN\n• Configurações da conta > Editar\n• Cloudflare Tunnel > Editar\n• DNS > Editar\n• Access: Apps and Policies > Editar\n• Access: Organizations, Identity Providers, and Groups > Editar\n\nO assistente permite validar o token atual ou substituir o token armazenado sem alterar Account ID, Zone ID ou Tunnel." \
+        "O MFA é opcional; o modo original permanece compatível com versões antigas.\n\nATIVAÇÃO AUTOMÁTICA\n1. O Setup valida as 7 permissões do token.\n2. Habilita TOTP, login por código, App Launcher, política do e-mail e identidade visual.\n3. Cria a proteção Access com cookie Lax.\n4. Você abre https://${team_hint}.cloudflareaccess.com/AddMfaDevice e lê o QR Code em Authenticator application.\n\nPERMISSÕES DO TOKEN\n• Configurações da conta > Editar\n• Cloudflare Tunnel > Editar\n• DNS > Editar\n• Access: Apps and Policies > Editar\n• Access: Organizations, Identity Providers, and Groups > Editar\n• Access: Organizations, Identity Providers, and Groups > Revogar\n• Access: Audit Logs > Ler\n\nO assistente permite validar o token atual ou substituir o token armazenado sem alterar Account ID, Zone ID ou Tunnel." \
         24 94 1>&2
 }
 
@@ -400,7 +400,7 @@ prepare_existing_access_migration() {
     if [ "$(jq -r '.success // false' "$tunnel_raw")" != "true" ] ||
            [ "$(jq -r '.success // false' "$organization_file")" != "true" ] ||
            [ "$(jq -r '.success // false' "$applications_file")" != "true" ]; then
-        msg "A Cloudflare recusou a migração. Verifique as cinco permissões apresentadas pelo assistente. A instalação atual foi preservada."
+        msg "A Cloudflare recusou a migração. Verifique as sete permissões apresentadas pelo assistente. A instalação atual foi preservada."
         return 1
     fi
     auth_domain=$(jq -r '.result.auth_domain // empty' "$organization_file")
@@ -584,6 +584,9 @@ restore_existing_access_original_mode() {
         msg "A aplicação Access não corresponde de forma inequívoca à rota do Control Center. Nada foi removido."
         return 1
     fi
+    control_mfa_restore_progress "$show_progress" 38 "Revogando sessões e autenticadores antigos..."
+    load_cloudflare_mfa_helper &&
+        reset_cloudflare_access_identity "$work_dir" "$email" "$log_file" false || return 1
     jq '{config:.result.config}' "$tunnel_file" >"$original_tunnel" 2>>"$log_file" || return 1
     if ! jq --arg host "$hostname" --arg service "$service_target" '
         (.result.config // {}) as $cfg
@@ -868,14 +871,21 @@ configure_existing_access_mfa() {
                 INSTRUCOES) show_cloudflare_access_guide ;;
                 CANCELAR) return 0 ;;
                 DESATIVAR)
-                    if ! whiptail --title "DESATIVAR MFA?" --yesno \
-                        "O aplicativo Access exclusivo do Control Center será removido e o acesso voltará ao modo original: Cloudflare Tunnel direto, login local e Terminal Remoto.\n\nEm caso de falha, serviço e rota serão restaurados. Deseja continuar?" \
-                        18 92 1>&2; then
-                        return 0
-                    fi
                     work_dir=$(mktemp -d) || return 1
                     log_file="/tmp/setupmno-control-mfa-${CONTROL_VERSION}.log"
                     : >"$log_file"
+                    load_cloudflare_mfa_helper || {
+                        rm -rf -- "$work_dir"
+                        msg "O assistente autenticado de MFA não pôde ser carregado."
+                        return 1
+                    }
+                    prepare_cloudflare_mfa_deactivation "$work_dir" "$log_file" "$email"
+                    status=$?
+                    if [ "$status" -ne 0 ]; then
+                        rm -rf -- "$work_dir"
+                        [ "$status" -eq 130 ] && return 0
+                        return "$status"
+                    fi
                     if restore_existing_access_original_mode "$web_service" "$work_dir" "$log_file" true |
                         whiptail --title "DESATIVANDO MFA DO CONTROL CENTER" --gauge \
                             "Restaurando Tunnel direto, login local e Terminal Remoto..." 9 92 0; then
@@ -1256,7 +1266,7 @@ check_cloudflare_access() {
     curl_status=$(cat "$status_file" 2>/dev/null)
     rm -f "$status_file" "$error_file"
     [ "$curl_status" = "0" ] || {
-        msg "Não foi possível consultar o Cloudflare Access.\n\nUse o assistente de token para validar as cinco permissões necessárias. Nenhum recurso foi alterado."
+        msg "Não foi possível consultar o Cloudflare Access.\n\nUse o assistente de token para validar as sete permissões necessárias. Nenhum recurso foi alterado."
         return 1
     }
     if [ "$(jq -r '.success // false' "$organization_file" 2>/dev/null)" != "true" ] ||
@@ -1348,7 +1358,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
         access_mfa_enabled=$(jq -r '.desiredMFA' "$CONTROL_MFA_STATE_FILE")
         if [ "$access_mfa_enabled" = "true" ]; then
             whiptail --title "4/6 — PREFERÊNCIA DE MFA REGISTRADA" --msgbox \
-                "Você escolheu MFA durante a preparação do ambiente. Essa decisão foi preservada e não será perguntada novamente.\n\nAntes de criar qualquer recurso, a instalação inicial validará o token atual nas cinco permissões necessárias e permitirá substituí-lo caso seja preciso." \
+                "Você escolheu MFA durante a preparação do ambiente. Essa decisão foi preservada e não será perguntada novamente.\n\nAntes de criar qualquer recurso, a instalação inicial validará o token atual nas sete permissões necessárias e permitirá substituí-lo caso seja preciso." \
                 16 88 1>&2
         fi
     else
@@ -1749,7 +1759,7 @@ error_file="/tmp/${nome_app}-error.log"
     [ "$knowledge_index_schema" = "2" ] &&
     [ "$knowledge_retrieval_version" = "1.3.0" ] &&
     [ "$eval_schema" = "1" ] &&
-    [ "$eval_dataset_version" = "1.13.3" ] &&
+    [ "$eval_dataset_version" = "1.13.4" ] &&
     [ "$eval_grader_version" = "1.9.0" ] &&
     [ "${#eval_dataset_sha}" -eq 64 ] &&
     [ "$eval_dataset_sha" = "$release_eval_dataset_sha" ] &&
@@ -1843,7 +1853,7 @@ error_file="/tmp/${nome_app}-error.log"
         echo -e "XXX\n48\nPREPARANDO LOGIN E MFA NA CLOUDFLARE... \nXXX"
         if ! ensure_cloudflare_mfa_onboarding "$work_dir" "$access_email" "$install_log" \
             "$access_onboarding_state"; then
-            fail_install 35 "AUTOMAÇÃO DO MFA RECUSADA" "Não foi possível preparar TOTP, login por e-mail e App Launcher. Revise as duas permissões Access do token."
+            fail_install 35 "AUTOMAÇÃO DO MFA RECUSADA" "Não foi possível preparar TOTP, login por e-mail e App Launcher. Revise as quatro permissões Access do token."
         fi
         echo -e "XXX\n49\nCRIANDO CLOUDFLARE ACCESS COM MFA... \nXXX"
         access_payload="$work_dir/access-app-payload.json"

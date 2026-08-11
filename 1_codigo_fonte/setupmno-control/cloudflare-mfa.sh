@@ -25,7 +25,7 @@ cf_mfa_error() {
 
 show_cloudflare_token_permissions() {
     whiptail --title "PERMISSÕES DO TOKEN CLOUDFLARE" --msgbox \
-        "Para automatizar o MFA, o token usado pelo Setup MNO precisa destas 5 permissões:\n\nPERMISSÕES ANTIGAS — MANTENHA\n1. Conta > Configurações da conta > Editar\n2. Conta > Cloudflare Tunnel > Editar\n3. Zona > DNS > Editar\n\nNOVAS PERMISSÕES — ADICIONE\n4. Conta > Access: Apps and Policies > Editar\n5. Conta > Access: Organizations, Identity Providers, and Groups > Editar\n\nA quinta permissão permite habilitar TOTP, preparar o login por código de e-mail e aplicar a identidade visual do Setup MNO sem apagar personalizações existentes. Restrinja Recursos da conta e Recursos de zona à conta e ao domínio usados pelo Setup MNO.\n\nEdite o token atual em Meu perfil > Tokens de API ou crie outro token personalizado. A instalação inicial e a ativação pelo menu usam exatamente esta mesma validação antes de alterar recursos." \
+        "Para automatizar o MFA, o token usado pelo Setup MNO precisa destas 7 permissões:\n\nPERMISSÕES ANTIGAS — MANTENHA\n1. Conta > Configurações da conta > Editar\n2. Conta > Cloudflare Tunnel > Editar\n3. Zona > DNS > Editar\n\nPERMISSÕES MFA — ADICIONE\n4. Conta > Access: Apps and Policies > Editar\n5. Conta > Access: Organizations, Identity Providers, and Groups > Editar\n6. Conta > Access: Organizations, Identity Providers, and Groups > Revogar\n7. Conta > Access: Audit Logs > Ler\n\nAs duas últimas permissões permitem localizar somente o usuário do e-mail confirmado, remover sua identidade Zero Trust e revogar sessões e autenticadores antigos. Isso garante um novo QR Code na reativação. Outros usuários, aplicativos e políticas são preservados.\n\nRestrinja Recursos da conta e Recursos de zona à conta e ao domínio usados pelo Setup MNO. Edite o token atual em Meu perfil > Tokens de API ou crie outro token personalizado." \
         25 96 1>&2
 }
 
@@ -38,7 +38,7 @@ validate_cloudflare_mfa_token() {
     old_token="${CLOUDFLARE_API_TOKEN:-}"
     CLOUDFLARE_API_TOKEN="$candidate"
     whiptail --title "VALIDANDO TOKEN CLOUDFLARE" --infobox \
-        "Verificando validade, conta, Tunnel, DNS, Access e provedores de identidade..." 8 82
+        "Verificando validade, conta, Tunnel, DNS, Access e usuários Zero Trust..." 8 82
     while IFS='|' read -r item path permission; do
         response="$work/token-${item}.json"
         if ! cf_mfa_api GET "$path" "$response" 2>>"${CF_MFA_LOG:-/dev/null}" ||
@@ -56,6 +56,7 @@ dns|/zones/$CLOUDFLARE_ZONE_ID/dns_records?per_page=1|DNS > Editar
 access|/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps?per_page=100|Access: Apps and Policies > Editar
 organizacao|/accounts/$CLOUDFLARE_ACCOUNT_ID/access/organizations|Access: Organizations, Identity Providers, and Groups > Editar
 identidades|/accounts/$CLOUDFLARE_ACCOUNT_ID/access/identity_providers|Access: Organizations, Identity Providers, and Groups > Editar
+usuarios|/accounts/$CLOUDFLARE_ACCOUNT_ID/access/users?per_page=1|Access: Audit Logs > Ler
 EOF
     if [ "$(jq -r '.result.status // empty' "$work/token-validade.json")" != "active" ]; then
         CF_MFA_VALIDATION_ERROR="O token existe, mas não está ativo."
@@ -94,16 +95,19 @@ persist_cloudflare_token() {
 }
 
 prepare_cloudflare_mfa_token() {
-    local work="$1" log="$2" choice candidate status
+    local work="$1" log="$2" mode="${3:-guided}" choice candidate status
     CF_MFA_LOG="$log"
+    if [ "$mode" = "current-first" ] && validate_cloudflare_mfa_token "$CLOUDFLARE_API_TOKEN" "$work"; then
+        return 0
+    fi
     show_cloudflare_token_permissions
     while true; do
         choice=$(whiptail --title "TOKEN PARA AUTOMAÇÃO DO MFA" --default-item "ATUAL" --menu \
             "Escolha como deseja continuar. Nenhum token novo será salvo antes de passar por todas as validações:" \
             19 94 4 \
-            "ATUAL" "Já editei o token atual e adicionei as duas permissões Access" \
+            "ATUAL" "Já editei o token atual e adicionei as quatro permissões Access" \
             "NOVO" "Validar e usar outro token da Cloudflare" \
-            "INSTRUCOES" "Rever as cinco permissões necessárias" \
+            "INSTRUCOES" "Rever as sete permissões necessárias" \
             "CANCELAR" "Voltar sem alterar credenciais ou Cloudflare" \
             3>&1 1>&2 2>&3) || return 130
         case "$choice" in
@@ -139,6 +143,58 @@ prepare_cloudflare_mfa_token() {
                 ;;
         esac
     done
+}
+
+prepare_cloudflare_mfa_deactivation() {
+    local work="$1" log="$2" email="$3" status
+    prepare_cloudflare_mfa_token "$work" "$log" current-first
+    status=$?
+    [ "$status" -eq 0 ] || return "$status"
+    whiptail --title "DESATIVAR MFA?" --yesno \
+        "O aplicativo Access exclusivo do Control Center será removido e o acesso voltará ao modo original: Tunnel direto, login local e Terminal Remoto.\n\nPara permitir uma futura reativação com novo QR Code, a identidade Zero Trust de $email também será removida. Isso revoga suas sessões e autenticadores independentes em outros aplicativos Access desta conta, mas preserva aplicativos, políticas e outros usuários.\n\nDeseja continuar?" \
+        21 94 1>&2 || return 130
+}
+
+reset_cloudflare_access_identity() {
+    local work="$1" email="$2" log="$3" confirm="${4:-false}"
+    local encoded users count user_id response detail
+    [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] || return 1
+    encoded=$(jq -rn --arg value "$email" '$value | @uri') || return 1
+    users="$work/access-user-reset.json"
+    if ! cf_mfa_api GET "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/users?email=$encoded&per_page=100" "$users" 2>>"$log" ||
+       [ "$(jq -r '.success // false' "$users" 2>/dev/null)" != "true" ]; then
+        detail=$(cf_mfa_error "$users")
+        msg "Não foi possível localizar a identidade Zero Trust do e-mail informado. Confirme Access: Audit Logs > Ler no token.${detail:+\n\nCloudflare: $detail}"
+        return 1
+    fi
+    count=$(jq -r --arg email "$email" '[.result[]? | select((.email // "" | ascii_downcase) == ($email | ascii_downcase))] | length' "$users")
+    [ "$count" -ne 0 ] || {
+        printf '%s\n' "Identidade Zero Trust já ausente para o e-mail confirmado." >>"$log"
+        return 0
+    }
+    [ "$count" -eq 1 ] || {
+        msg "A Cloudflare retornou mais de uma identidade para o mesmo e-mail. Nenhum usuário foi removido. Revise Team & Resources > Users antes de tentar novamente."
+        return 1
+    }
+    user_id=$(jq -r --arg email "$email" '[.result[]? | select((.email // "" | ascii_downcase) == ($email | ascii_downcase))][0].id // empty' "$users")
+    [[ "$user_id" =~ ^[A-Fa-f0-9-]{32,36}$ ]] || {
+        msg "A identidade Zero Trust retornou um identificador inválido. Nenhum usuário foi removido."
+        return 1
+    }
+    if [ "$confirm" = "true" ] && ! whiptail --title "REINICIAR CADASTRO DO MFA" --yesno \
+        "A Cloudflare ainda possui uma identidade Zero Trust antiga para $email. Para garantir um novo QR Code, o Setup precisa removê-la e deixar a Cloudflare recriá-la no próximo login.\n\nIsso revoga as sessões e todos os autenticadores independentes desse e-mail em outros aplicativos Access da mesma conta. Aplicativos, políticas e outros usuários não serão apagados.\n\nDeseja reiniciar o cadastro deste e-mail?" \
+        19 94 1>&2; then
+        msg "A ativação foi cancelada. A identidade Zero Trust e os acessos atuais foram preservados."
+        return 1
+    fi
+    response="$work/access-user-reset-response.json"
+    if ! cf_mfa_api DELETE "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/users/$user_id" "$response" 2>>"$log" ||
+       [ "$(jq -r '.success // false' "$response" 2>/dev/null)" != "true" ]; then
+        detail=$(cf_mfa_error "$response")
+        msg "A Cloudflare não permitiu reiniciar a identidade Zero Trust. Nenhum recurso do Control Center foi alterado.${detail:+\n\nCloudflare: $detail}"
+        return 1
+    fi
+    printf '%s\n' "Identidade Zero Trust anterior removida; sessões e autenticadores antigos foram revogados." >>"$log"
 }
 
 cf_mfa_org_payload() {
@@ -240,13 +296,14 @@ ensure_cloudflare_mfa_onboarding() {
     idps="$work/onboarding-idps.json"
     apps="$work/onboarding-apps.json"
     cf_mfa_save_onboarding_state "$state" false false "" "" false "" false false "" "" false || return 1
+    reset_cloudflare_access_identity "$work" "$email" "$log" true || return 1
     if ! cf_mfa_api GET "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/organizations" "$org" 2>>"$log" ||
        ! cf_mfa_api GET "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/identity_providers" "$idps" 2>>"$log" ||
        ! cf_mfa_api GET "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps?per_page=100" "$apps" 2>>"$log" ||
        [ "$(jq -r '.success // false' "$org")" != true ] ||
        [ "$(jq -r '.success // false' "$idps")" != true ] ||
        [ "$(jq -r '.success // false' "$apps")" != true ]; then
-        msg "Não foi possível preparar automaticamente o MFA. Confirme as duas permissões Access do token."
+        msg "Não foi possível preparar automaticamente o MFA. Confirme as quatro permissões Access do token."
         return 1
     fi
     if ! cf_mfa_org_is_ready "$org"; then

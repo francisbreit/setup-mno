@@ -40,6 +40,8 @@ cf_mfa_api() {
     [ "$method" = "GET" ]
     if [ "$validation_mode" = "denied" ] && [[ "$path" == */access/apps* ]]; then
         printf '%s\n' '{"success":false,"errors":[{"message":"permission denied"}]}' >"$output"
+    elif [ "$validation_mode" = "user-denied" ] && [[ "$path" == */access/users* ]]; then
+        printf '%s\n' '{"success":false,"errors":[{"message":"permission denied"}]}' >"$output"
     elif [ "$path" = "/user/tokens/verify" ]; then
         printf '%s\n' '{"success":true,"result":{"status":"active"}}' >"$output"
     else
@@ -56,6 +58,12 @@ if validate_cloudflare_mfa_token "$candidate" "$test_dir"; then
     exit 1
 fi
 [[ "$CF_MFA_VALIDATION_ERROR" == *"Apps and Policies"* ]]
+validation_mode="user-denied"
+if validate_cloudflare_mfa_token "$candidate" "$test_dir"; then
+    printf 'ERRO: token sem leitura de usuários Access foi aceito.\n' >&2
+    exit 1
+fi
+[[ "$CF_MFA_VALIDATION_ERROR" == *"Audit Logs"* ]]
 
 validation_mode="success"
 password_counter="$test_dir/password-counter"
@@ -82,6 +90,36 @@ persist_cloudflare_token() {
 prepare_cloudflare_mfa_token "$test_dir" "$test_dir/token-assistant.log"
 [ "$(<"$password_counter")" -eq 2 ]
 grep -Fqx "CLOUDFLARE_API_TOKEN=$valid_candidate" "$credentials"
+
+reset_api_log="$test_dir/reset-api.log"
+reset_mode="existing"
+cf_mfa_api() {
+    local method="$1" path="$2" output="$3"
+    printf '%s %s\n' "$method" "$path" >>"$reset_api_log"
+    case "$method:$path:$reset_mode" in
+        GET:*/access/users\?email=admin%40example.com\&per_page=100:existing)
+            printf '%s\n' '{"success":true,"result":[{"id":"99999999-aaaa-bbbb-cccc-dddddddddddd","email":"admin@example.com"}]}' >"$output" ;;
+        DELETE:*/access/users/99999999-aaaa-bbbb-cccc-dddddddddddd:existing)
+            printf '%s\n' '{"success":true,"result":{}}' >"$output" ;;
+        GET:*/access/users\?email=admin%40example.com\&per_page=100:none)
+            printf '%s\n' '{"success":true,"result":[]}' >"$output" ;;
+        GET:*/access/users\?email=admin%40example.com\&per_page=100:ambiguous)
+            printf '%s\n' '{"success":true,"result":[{"id":"99999999-aaaa-bbbb-cccc-dddddddddddd","email":"admin@example.com"},{"id":"88888888-aaaa-bbbb-cccc-dddddddddddd","email":"ADMIN@example.com"}]}' >"$output" ;;
+        *) return 1 ;;
+    esac
+}
+reset_cloudflare_access_identity "$test_dir" 'admin@example.com' "$test_dir/reset.log" false
+grep -Fq 'DELETE /accounts/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/access/users/99999999-aaaa-bbbb-cccc-dddddddddddd' "$reset_api_log"
+reset_mode="none"
+: >"$reset_api_log"
+reset_cloudflare_access_identity "$test_dir" 'admin@example.com' "$test_dir/reset.log" false
+! grep -Fq 'DELETE ' "$reset_api_log"
+reset_mode="ambiguous"
+if reset_cloudflare_access_identity "$test_dir" 'admin@example.com' "$test_dir/reset.log" false; then
+    printf 'ERRO: identidade Zero Trust ambígua foi removida.\n' >&2
+    exit 1
+fi
+! grep -Fq 'DELETE ' "$reset_api_log"
 
 org_fixture="$test_dir/org.json"
 org_payload="$test_dir/org-payload.json"
@@ -123,6 +161,9 @@ cf_mfa_api() {
         cp "$payload" "$test_dir/organization-update-captured.json"
     fi
     case "$method:$path" in
+        GET:*/access/users\?email=*)
+            printf '%s\n' '{"success":true,"result":[]}' >"$output"
+            ;;
         GET:*/access/organizations)
             printf '%s\n' '{"success":true,"result":{"auth_domain":"setupmno.cloudflareaccess.com","name":"Setup MNO","mfa_config":{"allowed_authenticators":[]}}}' >"$output"
             ;;
