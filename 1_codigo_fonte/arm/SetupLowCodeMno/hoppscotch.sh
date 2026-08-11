@@ -10,9 +10,9 @@ INSTALL_TYPE="TRADICIONAL"
 [ -f "$INSTALL_TYPE_FILE" ] && INSTALL_TYPE=$(cat "$INSTALL_TYPE_FILE")
 
 if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-    CREDENTIALS_FILE="/root/.cloudflared_config/cloudflare_credentials"
+    CREDENTIALS_FILE="${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials}"
 else
-    CREDENTIALS_FILE="/root/.tradicional_config/tradicional_credentials"
+    CREDENTIALS_FILE="${SETUPMNO_TRADITIONAL_CREDENTIALS_FILE:-/root/.tradicional_config/tradicional_credentials}"
 fi
 [ -f "$CREDENTIALS_FILE" ] && source "$CREDENTIALS_FILE"
 criar_dns="${criar_dns:-0}"

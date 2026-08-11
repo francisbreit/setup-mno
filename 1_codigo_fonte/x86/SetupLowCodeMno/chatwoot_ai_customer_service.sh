@@ -49,12 +49,12 @@ fi
 
 # --- CARREGAR CREDENCIAIS ---
 if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-    if [ -f "/root/.cloudflared_config/cloudflare_credentials" ]; then
-        source "/root/.cloudflared_config/cloudflare_credentials"
+    if [ -f "${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials}" ]; then
+        source "${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials}"
     fi
 else
-    if [ -f "/root/.tradicional_config/tradicional_credentials" ]; then
-        source "/root/.tradicional_config/tradicional_credentials"
+    if [ -f "${SETUPMNO_TRADITIONAL_CREDENTIALS_FILE:-/root/.tradicional_config/tradicional_credentials}" ]; then
+        source "${SETUPMNO_TRADITIONAL_CREDENTIALS_FILE:-/root/.tradicional_config/tradicional_credentials}"
     fi
 fi
 

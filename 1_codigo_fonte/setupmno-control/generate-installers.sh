@@ -89,6 +89,7 @@ bash "$project_dir/mfa-state_test.sh"
 bash "$project_dir/configure-control_test.sh"
 bash "$project_dir/control-runtime-transition_test.sh"
 bash "$project_dir/control-runtime-selfheal_test.sh"
+bash "$project_dir/domain-profiles_test.sh"
 
 for architecture in x86 arm; do
     install_script="$source_root/$architecture/SetupLowCodeMno/install.sh"
@@ -811,6 +812,7 @@ count_pro_menu() {
             if (name != "REINICIAR APPS/SERVIÇOS" &&
                 name != "${CONTROL_CENTER_MFA_MENU[@]}" &&
                 name != "DELETAR APPS/STACKS" &&
+                name != "GERENCIAR DOMÍNIOS CLOUDFLARE" &&
                 name != "GERADOR DE REGISTROS DNS" &&
                 name != "ESSENCIAIS EDITÁVEIS NO PORTAINER" &&
                 name != "SAIR" &&

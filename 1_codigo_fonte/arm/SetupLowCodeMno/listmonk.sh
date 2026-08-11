@@ -18,9 +18,9 @@ fi
 
 # CARREGAMENTO DE CREDENCIAIS
 if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-    source "/root/.cloudflared_config/cloudflare_credentials"
+    source "${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials}"
 else
-    source "/root/.tradicional_config/tradicional_credentials"
+    source "${SETUPMNO_TRADITIONAL_CREDENTIALS_FILE:-/root/.tradicional_config/tradicional_credentials}"
 fi
 
 # MENU INICIAL

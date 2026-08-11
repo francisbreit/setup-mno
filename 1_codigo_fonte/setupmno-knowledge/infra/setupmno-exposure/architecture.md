@@ -2,16 +2,16 @@
 {
   "schemaVersion": 1,
   "documentId": "infra-setupmno-exposure-architecture",
-  "documentVersion": "1.0.0",
-  "contentSHA256": "f7424d2690871fbcaf2adbf1a981b371022d71ae98bb85f977d42c8507834f46",
+  "documentVersion": "1.1.0",
+  "contentSHA256": "857bf693e0ddff137cfa8c3bf977fa4854426c36884185806d0fba26cab3c617",
   "documentType": "infrastructure",
   "title": "Publicação de serviços por Cloudflare Tunnel ou Traefik",
   "topicId": "setupmno-exposure",
-  "setupVersion": "7.12.6",
+  "setupVersion": "7.13.0",
   "architectures": ["amd64", "arm64"],
   "category": "networking",
   "status": "reviewed",
-  "updatedAt": "2026-08-03",
+  "updatedAt": "2026-08-11",
   "sourceType": "setup-mno",
   "risk": "high",
   "language": "pt-BR",
@@ -45,12 +45,22 @@ serviços, quais credenciais são necessárias e onde investigar uma falha. O
 Assistente deve usar a tag runtime e não presumir o tipo pela existência de um
 container isolado.
 
+O tipo de instalação continua global, mas a zona Cloudflare pode ser escolhida
+por aplicação. O domínio inicialmente instalado permanece o principal e é o
+único usado por Portainer e Control Center. Um domínio adicional nunca altera
+esses dois hostnames e recebe credencial isolada. Aplicações antigas continuam
+usando o domínio principal quando nenhuma seleção adicional existir.
+
 ## Cloudflare Tunnel
 
 No modelo Tunnel, o conector cloudflared estabelece uma saída autenticada para
 a Cloudflare. A rota associa hostname a um serviço interno na rede Docker. A
 aplicação não precisa publicar uma porta diretamente no host para ser acessada
 por essa rota.
+
+Zonas adicionais da mesma conta podem compartilhar o túnel principal. Zonas de
+outra conta Cloudflare usam túnel e stack cloudflared dedicados, pois conta,
+token e configuração do túnel formam uma fronteira administrativa separada.
 
 O diagnóstico deve separar:
 
@@ -84,6 +94,11 @@ O diagnóstico deve separar:
 
 Não assuma que toda imagem escuta na porta HTTP padrão. A porta indicada ao proxy deve
 corresponder ao processo real do container.
+
+Para múltiplas zonas, cada perfil adicional possui um hostname técnico de
+origem na própria zona. Os instaladores criam os subdomínios das aplicações
+como CNAME para essa origem, enquanto o roteamento HTTP permanece determinado
+pelas labels do Traefik.
 
 ## Redes
 

@@ -217,11 +217,22 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.12.6"
+VERSIONSETUP="7.13.0"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
 CONTATO_GITHUB="github.com/francisbreit"
+
+# Perfis multidomínio são uma camada aditiva. Se o arquivo não existir em uma
+# instalação antiga, todo o comportamento legado permanece inalterado.
+DOMAIN_PROFILES_LIB="/root/SetupLowCodeMno/domain_profiles.sh"
+if [ -f "$DOMAIN_PROFILES_LIB" ] && [ ! -L "$DOMAIN_PROFILES_LIB" ] &&
+   [ "$(stat -c '%s' "$DOMAIN_PROFILES_LIB" 2>/dev/null || printf '999999')" -le 131072 ] &&
+   [ "$(stat -c '%u' "$DOMAIN_PROFILES_LIB" 2>/dev/null || printf '999999')" = "0" ] &&
+   [ $((8#$(stat -c '%a' "$DOMAIN_PROFILES_LIB" 2>/dev/null || printf '777') & 022)) -eq 0 ]; then
+    # shellcheck disable=SC1090
+    source "$DOMAIN_PROFILES_LIB"
+fi
 
 amarelo="\e[33m"
 branco="\e[97m"
@@ -394,13 +405,26 @@ fi
 # --- DISPATCH DINÂMICO (substitui 240+ case blocks) ---
 run_app() {
     local script="$1"
+    local domain_selection_status
     if [ "$script" = "setupmno_control" ] && control_center_installed; then
         whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
             "Já existe um Setup MNO Control Center neste servidor.\n\nSomente uma instalação é permitida por servidor." 12 72
         return 0
     fi
+    if declare -F setupmno_domain_select_for_app >/dev/null 2>&1; then
+        setupmno_domain_select_for_app "$script"
+        domain_selection_status=$?
+        if [ "$domain_selection_status" -ne 0 ]; then
+            setupmno_domain_clear_selection
+            clear
+            return 0
+        fi
+    fi
     clear
     cd && cd SetupLowCodeMno && ./"$script"
+    if declare -F setupmno_domain_clear_selection >/dev/null 2>&1; then
+        setupmno_domain_clear_selection
+    fi
     # O Control Center é executado como processo filho. Ao concluir, cancelar ou
     # falhar, preserve o laço atual do menu em vez de substituir o processo SHC.
     if [ "$script" = "setupmno_control" ]; then
@@ -412,6 +436,18 @@ run_app() {
     # Todos os fluxos de saída retornam a uma instância limpa do binário SHC
     # dentro da mesma sessão tmux. Nunca invoque install.sh nem use bash aqui.
     setup_mno_return_to_installer
+}
+
+manage_cloudflare_domains() {
+    if ! declare -F setupmno_domain_manage >/dev/null 2>&1; then
+        whiptail --title "GERENCIAR DOMÍNIOS CLOUDFLARE" --msgbox \
+            "O componente multidomínio não foi encontrado. Atualize ou reinstale o Setup MNO e tente novamente." 12 78
+        return 0
+    fi
+    setupmno_domain_manage || true
+    setupmno_domain_clear_selection
+    cd /root/SetupLowCodeMno 2>/dev/null || true
+    clear
 }
 
 warn_heavy() {
@@ -846,6 +882,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "${CONTROL_CENTER_MFA_MENU[@]}" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
+    "GERENCIAR DOMÍNIOS CLOUDFLARE" "" \
     "GERADOR DE REGISTROS DNS" "" \
     "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
     "SAIR" ""  3>&2 2>&1 1>&3
@@ -858,6 +895,7 @@ case "$CHOICE" in
     "CONFIGURAR MFA CONTROL CENTER") configure_control_center_mfa ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
+    "GERENCIAR DOMÍNIOS CLOUDFLARE") manage_cloudflare_domains ;;
     "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;
     "ESSENCIAIS EDITÁVEIS NO PORTAINER") run_app essenciais ;;
     "SAIR") do_exit ;;
@@ -1191,6 +1229,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "${CONTROL_CENTER_MFA_MENU[@]}" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
+    "GERENCIAR DOMÍNIOS CLOUDFLARE" "" \
     "GERADOR DE REGISTROS DNS" "" \
     "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
     "SAIR" ""  3>&2 2>&1 1>&3
@@ -1203,6 +1242,7 @@ case "$CHOICE" in
     "CONFIGURAR MFA CONTROL CENTER") configure_control_center_mfa ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
+    "GERENCIAR DOMÍNIOS CLOUDFLARE") manage_cloudflare_domains ;;
     "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;
     "ESSENCIAIS EDITÁVEIS NO PORTAINER") run_app essenciais ;;
     "SAIR") do_exit ;;
@@ -1529,6 +1569,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "${CONTROL_CENTER_MFA_MENU[@]}" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
+    "GERENCIAR DOMÍNIOS CLOUDFLARE" "" \
     "GERADOR DE REGISTROS DNS" "" \
     "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
     "SAIR" ""  3>&2 2>&1 1>&3
@@ -1541,6 +1582,7 @@ case "$CHOICE" in
     "CONFIGURAR MFA CONTROL CENTER") configure_control_center_mfa ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
+    "GERENCIAR DOMÍNIOS CLOUDFLARE") manage_cloudflare_domains ;;
     "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;
     "ESSENCIAIS EDITÁVEIS NO PORTAINER") run_app essenciais ;;
     "SAIR") do_exit ;;
@@ -1867,6 +1909,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "${CONTROL_CENTER_MFA_MENU[@]}" \
     "REINICIAR APPS/SERVIÇOS" "" \
     "DELETAR APPS/STACKS" "" \
+    "GERENCIAR DOMÍNIOS CLOUDFLARE" "" \
     "GERADOR DE REGISTROS DNS" "" \
     "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
     "SAIR" ""  3>&2 2>&1 1>&3
@@ -1879,6 +1922,7 @@ case "$CHOICE" in
     "CONFIGURAR MFA CONTROL CENTER") configure_control_center_mfa ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
+    "GERENCIAR DOMÍNIOS CLOUDFLARE") manage_cloudflare_domains ;;
     "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;
     "ESSENCIAIS EDITÁVEIS NO PORTAINER") run_app essenciais ;;
     "SAIR") do_exit ;;

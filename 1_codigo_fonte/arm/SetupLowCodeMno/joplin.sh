@@ -10,8 +10,8 @@ msg() { echo -e "${RED}$1${NC}"; }
 INSTALL_TYPE_FILE="/root/.cloudflared_config/installation_type"
 if [ -f "$INSTALL_TYPE_FILE" ]; then INSTALL_TYPE=$(cat "$INSTALL_TYPE_FILE"); else INSTALL_TYPE="TRADICIONAL"; fi
 
-if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then source "/root/.cloudflared_config/cloudflare_credentials"
-else source "/root/.tradicional_config/tradicional_credentials"; fi
+if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then source "${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials}"
+else source "${SETUPMNO_TRADITIONAL_CREDENTIALS_FILE:-/root/.tradicional_config/tradicional_credentials}"; fi
 
 while true; do
     opcao=$(whiptail --title "INSTALAÇÃO DO JOPLIN SERVER" --menu "O que deseja fazer?" --fb 12 60 2 "1" "Instalar Joplin Server" "2" "Sair" 3>&1 1>&2 2>&3)

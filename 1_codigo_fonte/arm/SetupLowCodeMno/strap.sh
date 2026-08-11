@@ -6,9 +6,9 @@ INSTALL_TYPE_FILE="/root/.cloudflared_config/installation_type"
 INSTALL_TYPE="TRADICIONAL"
 [ -f "$INSTALL_TYPE_FILE" ] && INSTALL_TYPE=$(cat "$INSTALL_TYPE_FILE")
 if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-  [ -f /root/.cloudflared_config/cloudflare_credentials ] && source /root/.cloudflared_config/cloudflare_credentials
+  [ -f ${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials} ] && source ${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials}
 else
-  [ -f /root/.tradicional_config/tradicional_credentials ] && source /root/.tradicional_config/tradicional_credentials
+  [ -f ${SETUPMNO_TRADITIONAL_CREDENTIALS_FILE:-/root/.tradicional_config/tradicional_credentials} ] && source ${SETUPMNO_TRADITIONAL_CREDENTIALS_FILE:-/root/.tradicional_config/tradicional_credentials}
 fi
 
 msg(){ whiptail --title "STRAPI" --msgbox "$1" 12 72; }
