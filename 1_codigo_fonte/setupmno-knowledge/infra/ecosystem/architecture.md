@@ -7,7 +7,7 @@
   "documentType": "infrastructure",
   "title": "Ontologia e inventários do ecossistema Setup MNO",
   "topicId": "ecosystem",
-  "setupVersion": "7.13.0",
+  "setupVersion": "7.14.0",
   "architectures": ["amd64", "arm64"],
   "category": "terminology",
   "status": "reviewed",

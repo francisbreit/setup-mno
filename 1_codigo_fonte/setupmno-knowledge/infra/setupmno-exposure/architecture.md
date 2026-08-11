@@ -2,12 +2,12 @@
 {
   "schemaVersion": 1,
   "documentId": "infra-setupmno-exposure-architecture",
-  "documentVersion": "1.1.0",
-  "contentSHA256": "857bf693e0ddff137cfa8c3bf977fa4854426c36884185806d0fba26cab3c617",
+  "documentVersion": "1.2.0",
+  "contentSHA256": "623aece5508bd42c8ebc5152c689a189825f387a5ea28d9be3c2d35ceb23bcc3",
   "documentType": "infrastructure",
   "title": "Publicação de serviços por Cloudflare Tunnel ou Traefik",
   "topicId": "setupmno-exposure",
-  "setupVersion": "7.13.0",
+  "setupVersion": "7.14.0",
   "architectures": ["amd64", "arm64"],
   "category": "networking",
   "status": "reviewed",
@@ -61,6 +61,13 @@ por essa rota.
 Zonas adicionais da mesma conta podem compartilhar o túnel principal. Zonas de
 outra conta Cloudflare usam túnel e stack cloudflared dedicados, pois conta,
 token e configuração do túnel formam uma fronteira administrativa separada.
+
+Na preparação inicial, o usuário escolhe entre criação automática e Tunnel
+existente. A criação automática é transacional e pertence ao Setup MNO; o
+Tunnel existente permanece externo e nunca pode ser excluído pelo rollback.
+Em ambos os casos, o token do conector fica em Docker Secret e a publicação só
+é confirmada depois de validar conector, rota e DNS. Esse fluxo não altera
+instalações antigas que já possuem o Swarm e o túnel principal configurados.
 
 O diagnóstico deve separar:
 

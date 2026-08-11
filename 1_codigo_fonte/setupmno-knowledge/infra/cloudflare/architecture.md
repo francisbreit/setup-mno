@@ -2,12 +2,12 @@
 {
   "schemaVersion": 1,
   "documentId": "infra-cloudflare-architecture",
-  "documentVersion": "1.1.0",
-  "contentSHA256": "2a61cd233e86d2488aaad5eb8ae201c25a4dca93c2f784dc4cbd24c6a44bb540",
+  "documentVersion": "1.2.0",
+  "contentSHA256": "2c3a82d8ab886c8b9c04f8a17608f0a05ca64f371e142f80cf4e92727c833021",
   "documentType": "infrastructure",
   "title": "Cloudflare no acesso tradicional e por túnel",
   "topicId": "cloudflare",
-  "setupVersion": "7.13.0",
+  "setupVersion": "7.14.0",
   "architectures": ["amd64", "arm64"],
   "category": "networking",
   "status": "reviewed",
@@ -23,7 +23,7 @@
       "sourceType": "setup-mno",
       "location": "x86/SetupLowCodeMno/geracloudflare.sh",
       "license": "project-internal",
-      "verifiedAt": "2026-07-30"
+      "verifiedAt": "2026-08-11"
     },
     {
       "sourceId": "cloudflare-base-script",
@@ -31,7 +31,7 @@
       "sourceType": "setup-mno",
       "location": "x86/SetupLowCodeMno/dockerswarm.sh",
       "license": "project-internal",
-      "verifiedAt": "2026-07-30"
+      "verifiedAt": "2026-08-11"
     },
     {
       "sourceId": "cloudflare-domain-profiles",
@@ -88,6 +88,27 @@ os subdomínios das aplicações continuam sendo criados pelo instalador.
 Falhas posteriores à criação de um recurso disparam rollback do túnel, Secret,
 stack ou registro técnico que tenha sido criado naquela tentativa. Recursos
 preexistentes e o perfil principal não entram nesse rollback.
+
+## Criação do túnel principal
+
+Em uma instalação inicial por Cloudflare Tunnel, o usuário pode solicitar a
+criação automática recomendada ou informar o ID de um Tunnel já criado. Os
+dois caminhos validam token, conta, zona, acesso a DNS e permissão de Tunnel
+antes da confirmação final. A escolha automática usa um nome determinístico e
+somente chama a API depois que o usuário confirma todos os dados.
+
+O túnel automático nasce com estado `pending` e propriedade `setupmno`. O
+conector recebe o Tunnel Token exclusivamente por Docker Secret e a conclusão
+exige stack 1/1, estado Healthy confirmado pela Cloudflare, ingresso do
+Portainer e CNAME válidos. Uma falha restaura a configuração do Tunnel, os
+registros DNS e as credenciais locais anteriores, remove stack e Secret e
+exclui apenas o Tunnel automático ainda pendente.
+
+No método clássico, o Tunnel recebe propriedade `external`. O Setup pode
+configurar a rota e iniciar o conector, mas o rollback nunca exclui esse
+Tunnel. O Tunnel Token não é gravado no arquivo de credenciais; o arquivo 0600
+mantém somente os identificadores necessários para compatibilidade com os
+instaladores atuais e antigos.
 
 ## Validação
 

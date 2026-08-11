@@ -2677,7 +2677,7 @@
   "generatedAt": "2026-08-11T00:00:00Z",
   "knowledgeVersion": "3.17.6",
   "schemaVersion": 2,
-  "setupVersion": "7.13.0",
+  "setupVersion": "7.14.0",
   "summary": {
     "editorialStatuses": {
       "deprecated": 0,

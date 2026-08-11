@@ -279,6 +279,450 @@ validate_cloudflare_traditional_credentials() {
     return 0
 }
 
+PRIMARY_TUNNEL_STATE_FILE="/root/.setupmno/cloudflare/primary-tunnel.json"
+PRIMARY_TUNNEL_LOG="/tmp/setupmno-primary-tunnel-install.log"
+SETUPMNO_PRIMARY_TUNNEL_TRANSACTION=false
+SETUPMNO_PRIMARY_DELETE_ON_ROLLBACK=false
+SETUPMNO_PRIMARY_STACK_CREATED=false
+SETUPMNO_PRIMARY_DNS_RECORD_ID=""
+SETUPMNO_PRIMARY_DNS_BACKUP=""
+SETUPMNO_PRIMARY_DNS_MUTATED=false
+SETUPMNO_PRIMARY_TUNNEL_CONFIG_BACKUP=""
+SETUPMNO_PRIMARY_TUNNEL_SECRET=""
+SETUPMNO_PRIMARY_CREDENTIALS_BACKUP=""
+SETUPMNO_PRIMARY_CREDENTIALS_EXISTED=false
+
+primary_tunnel_cf_api() {
+    local method="$1" endpoint="$2" output="$3" payload="${4:-}"
+    local args=(-sS --connect-timeout 10 --max-time 45 -X "$method"
+        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"
+        -H "Content-Type: application/json")
+    [ -z "$payload" ] || args+=(--data-binary "@$payload")
+    curl "${args[@]}" "https://api.cloudflare.com/client/v4${endpoint}" >"$output" 2>/dev/null
+}
+
+primary_tunnel_api_success() {
+    jq -e '.success == true' "$1" >/dev/null 2>&1
+}
+
+primary_tunnel_error_text() {
+    jq -r '[.errors[]?.message, .messages[]?.message] | map(select(length > 0)) | join("\n")' "$1" 2>/dev/null |
+        awk 'NF {print; found=1} END {if(!found) print "A Cloudflare recusou a operação."}' |
+        head -c 1800
+}
+
+primary_tunnel_prepare_state_dir() {
+    local state_dir
+    state_dir=$(dirname "$PRIMARY_TUNNEL_STATE_FILE")
+    [ ! -L "$state_dir" ] || return 1
+    mkdir -p "$state_dir" || return 1
+    chmod 700 "$state_dir" || return 1
+}
+
+primary_tunnel_state_valid() {
+    local size owner permissions
+    [ -f "$PRIMARY_TUNNEL_STATE_FILE" ] && [ ! -L "$PRIMARY_TUNNEL_STATE_FILE" ] || return 1
+    size=$(stat -c '%s' "$PRIMARY_TUNNEL_STATE_FILE" 2>/dev/null) || return 1
+    owner=$(stat -c '%u' "$PRIMARY_TUNNEL_STATE_FILE" 2>/dev/null) || return 1
+    permissions=$(stat -c '%a' "$PRIMARY_TUNNEL_STATE_FILE" 2>/dev/null) || return 1
+    [ "$size" -gt 0 ] && [ "$size" -le 4096 ] || return 1
+    [ "$owner" = "0" ] || [ "${SETUPMNO_TUNNEL_TEST_MODE:-0}" = "1" ] || return 1
+    [ $((8#$permissions & 077)) -eq 0 ] || return 1
+    jq -e '.schemaVersion == 1 and
+        (.accountId | type == "string" and length > 0) and
+        (.zoneId | type == "string" and length > 0) and
+        (.tunnelId | type == "string" and length > 0) and
+        (.tunnelName | type == "string" and length > 0) and
+        (.ownership == "external" or .ownership == "setupmno") and
+        (.status == "pending" or .status == "active")' \
+        "$PRIMARY_TUNNEL_STATE_FILE" >/dev/null 2>&1
+}
+
+primary_tunnel_write_state() {
+    local ownership="$1" status="$2" account_id="$3" zone_id="$4" tunnel_id="$5" tunnel_name="$6"
+    local state_dir temporary
+    case "$ownership:$status" in
+        external:pending|external:active|setupmno:pending|setupmno:active) ;;
+        *) return 1 ;;
+    esac
+    primary_tunnel_prepare_state_dir || return 1
+    state_dir=$(dirname "$PRIMARY_TUNNEL_STATE_FILE")
+    temporary=$(mktemp "$state_dir/primary-tunnel.json.tmp.XXXXXX") || return 1
+    chmod 600 "$temporary" || { rm -f "$temporary"; return 1; }
+    jq -n --arg account "$account_id" --arg zone "$zone_id" --arg tunnel "$tunnel_id" \
+        --arg name "$tunnel_name" --arg ownership "$ownership" --arg status "$status" \
+        --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        '{schemaVersion:1,accountId:$account,zoneId:$zone,tunnelId:$tunnel,
+          tunnelName:$name,ownership:$ownership,status:$status,updatedAt:$now}' >"$temporary" || {
+        rm -f "$temporary"
+        return 1
+    }
+    mv -f "$temporary" "$PRIMARY_TUNNEL_STATE_FILE"
+}
+
+primary_tunnel_deterministic_name() {
+    local account_id="$1" zone_id="$2" suffix
+    suffix=$(printf '%s:%s' "$account_id" "$zone_id" | sha256sum | cut -c1-12)
+    printf 'setupmno-primary-%s' "$suffix"
+}
+
+validate_cloudflare_tunnel_creation_access() {
+    local api_token="$1" account_id="$2" zone_id="$3" response old_token
+    validate_cloudflare_api_token "$api_token" || return 1
+    validate_cloudflare_zone_dns "$api_token" "$zone_id" "$account_id" || return 1
+    response=$(mktemp) || return 1
+    chmod 600 "$response"
+    old_token="${CLOUDFLARE_API_TOKEN:-}"
+    CLOUDFLARE_API_TOKEN="$api_token"
+    if ! primary_tunnel_cf_api GET "/accounts/${account_id}/cfd_tunnel?is_deleted=false&per_page=1" "$response" ||
+       ! primary_tunnel_api_success "$response"; then
+        CLOUDFLARE_VALIDATION_ERROR="O API Token não pode consultar Cloudflare Tunnels nesta conta. Adicione Conta > Cloudflare Tunnel > Edição."
+        CLOUDFLARE_API_TOKEN="$old_token"
+        rm -f "$response"
+        return 1
+    fi
+    CLOUDFLARE_API_TOKEN="$old_token"
+    rm -f "$response"
+}
+
+show_primary_tunnel_instructions() {
+    whiptail --title "COMO CONFIGURAR O CLOUDFLARE TUNNEL" --msgbox \
+        "O Setup MNO oferece dois caminhos:\n\nAUTOMÁTICO — o Setup cria um Tunnel remoto, guarda o token em Docker Secret, inicia o conector e valida a conexão.\n\nEXISTENTE — mantém o método clássico. Você cria o Tunnel no painel e informa o Tunnel ID. Esse Tunnel será tratado como externo e nunca será excluído pelo Setup.\n\nPermissões do API Token:\n- Conta > Cloudflare Tunnel > Edição\n- Zona > Zona > Leitura\n- Zona > DNS > Edição\n\nPortainer e Control Center continuarão no domínio principal." \
+        24 88 1>&2
+}
+
+choose_primary_tunnel_mode() {
+    local choice
+    while true; do
+        choice=$(whiptail --title "ORIGEM DO CLOUDFLARE TUNNEL" --default-item "AUTO" --menu \
+            "Escolha como o Tunnel principal será preparado. Nenhuma criação automática ocorrerá antes da confirmação final da instalação." \
+            18 92 4 \
+            "AUTO" "Criar e validar automaticamente — RECOMENDADO" \
+            "EXISTENTE" "Informar Tunnel ID — método clássico" \
+            "INSTRUCOES" "Ver permissões e funcionamento" \
+            "VOLTAR" "Cancelar esta configuração" \
+            3>&1 1>&2 2>&3) || return 130
+        case "$choice" in
+            AUTO|EXISTENTE) printf '%s' "$choice"; return 0 ;;
+            INSTRUCOES) show_primary_tunnel_instructions ;;
+            VOLTAR) return 130 ;;
+        esac
+    done
+}
+
+primary_tunnel_get_token() {
+    local tunnel_id="$1" response token
+    response=$(mktemp) || return 1
+    chmod 600 "$response"
+    if ! primary_tunnel_cf_api GET "/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${tunnel_id}/token" "$response" ||
+       ! primary_tunnel_api_success "$response"; then
+        CLOUDFLARE_VALIDATION_ERROR="Não foi possível obter o token do Tunnel. $(primary_tunnel_error_text "$response")"
+        rm -f "$response"
+        return 1
+    fi
+    token=$(jq -r '.result // empty' "$response")
+    rm -f "$response"
+    [[ "$token" == ey* ]] || {
+        CLOUDFLARE_VALIDATION_ERROR="A Cloudflare retornou um Tunnel Token vazio ou inválido."
+        return 1
+    }
+    printf '%s' "$token"
+}
+
+primary_tunnel_begin_existing() {
+    TUNNEL_TOKEN=$(primary_tunnel_get_token "$TUNNEL_ID") || return 1
+    TUNNEL_NAME="Tunnel existente"
+    TUNNEL_OWNERSHIP="external"
+    SETUPMNO_PRIMARY_DELETE_ON_ROLLBACK=false
+    primary_tunnel_write_state external pending "$CLOUDFLARE_ACCOUNT_ID" "$CLOUDFLARE_ZONE_ID" "$TUNNEL_ID" "$TUNNEL_NAME" || return 1
+    SETUPMNO_PRIMARY_TUNNEL_TRANSACTION=true
+    trap 'primary_tunnel_exit_handler $?' EXIT
+}
+
+primary_tunnel_begin_automatic() {
+    local expected_name response payload existing_count state_status state_account state_zone state_tunnel state_name
+    expected_name=$(primary_tunnel_deterministic_name "$CLOUDFLARE_ACCOUNT_ID" "$CLOUDFLARE_ZONE_ID")
+    response=$(mktemp) || return 1
+    payload=$(mktemp) || { rm -f "$response"; return 1; }
+    chmod 600 "$response" "$payload"
+
+    if [ -e "$PRIMARY_TUNNEL_STATE_FILE" ] && ! primary_tunnel_state_valid; then
+        CLOUDFLARE_VALIDATION_ERROR="O estado local do Tunnel principal existe, mas é inválido. Nenhum Tunnel novo será criado até esse estado ser reparado."
+        rm -f "$response" "$payload"
+        return 1
+    fi
+
+    if primary_tunnel_state_valid; then
+        state_account=$(jq -r '.accountId' "$PRIMARY_TUNNEL_STATE_FILE")
+        state_zone=$(jq -r '.zoneId' "$PRIMARY_TUNNEL_STATE_FILE")
+        state_tunnel=$(jq -r '.tunnelId' "$PRIMARY_TUNNEL_STATE_FILE")
+        state_name=$(jq -r '.tunnelName' "$PRIMARY_TUNNEL_STATE_FILE")
+        state_status=$(jq -r '.status' "$PRIMARY_TUNNEL_STATE_FILE")
+        if [ "$state_account" = "$CLOUDFLARE_ACCOUNT_ID" ] && [ "$state_zone" = "$CLOUDFLARE_ZONE_ID" ] &&
+           [ "$(jq -r '.ownership' "$PRIMARY_TUNNEL_STATE_FILE")" = "setupmno" ] &&
+           primary_tunnel_cf_api GET "/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${state_tunnel}" "$response" &&
+           primary_tunnel_api_success "$response"; then
+            TUNNEL_ID="$state_tunnel"
+            TUNNEL_NAME="$state_name"
+            TUNNEL_TOKEN=$(primary_tunnel_get_token "$TUNNEL_ID") || { rm -f "$response" "$payload"; return 1; }
+            TUNNEL_OWNERSHIP="setupmno"
+            [ "$state_status" = "pending" ] && SETUPMNO_PRIMARY_DELETE_ON_ROLLBACK=true || SETUPMNO_PRIMARY_DELETE_ON_ROLLBACK=false
+            SETUPMNO_PRIMARY_TUNNEL_TRANSACTION=true
+            trap 'primary_tunnel_exit_handler $?' EXIT
+            rm -f "$response" "$payload"
+            return 0
+        fi
+    fi
+
+    if ! primary_tunnel_cf_api GET "/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel?is_deleted=false&per_page=100" "$response" ||
+       ! primary_tunnel_api_success "$response"; then
+        CLOUDFLARE_VALIDATION_ERROR="Não foi possível consultar os Tunnels existentes. $(primary_tunnel_error_text "$response")"
+        rm -f "$response" "$payload"
+        return 1
+    fi
+    existing_count=$(jq --arg name "$expected_name" '[.result[]? | select(.name == $name)] | length' "$response")
+    if [ "$existing_count" -gt 0 ]; then
+        CLOUDFLARE_VALIDATION_ERROR="Já existe um Tunnel chamado ${expected_name}, mas ele não possui estado transacional reconhecido. Selecione USAR TÚNEL EXISTENTE e informe seu ID."
+        rm -f "$response" "$payload"
+        return 1
+    fi
+
+    jq -n --arg name "$expected_name" '{name:$name,config_src:"cloudflare"}' >"$payload"
+    if ! primary_tunnel_cf_api POST "/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel" "$response" "$payload" ||
+       ! primary_tunnel_api_success "$response"; then
+        CLOUDFLARE_VALIDATION_ERROR="A criação automática foi recusada. $(primary_tunnel_error_text "$response")"
+        rm -f "$response" "$payload"
+        return 1
+    fi
+    TUNNEL_ID=$(jq -r '.result.id // empty' "$response")
+    TUNNEL_NAME=$(jq -r '.result.name // empty' "$response")
+    [ -n "$TUNNEL_ID" ] && [ "$TUNNEL_NAME" = "$expected_name" ] || {
+        if [ -n "$TUNNEL_ID" ]; then
+            primary_tunnel_cf_api DELETE "/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}" "$response" || true
+        fi
+        CLOUDFLARE_VALIDATION_ERROR="A Cloudflare não devolveu uma identificação válida para o Tunnel criado."
+        rm -f "$response" "$payload"
+        return 1
+    }
+    TUNNEL_TOKEN=$(jq -r '.result.token // empty' "$response")
+    if [[ "$TUNNEL_TOKEN" != ey* ]]; then
+        TUNNEL_TOKEN=$(primary_tunnel_get_token "$TUNNEL_ID") || {
+            primary_tunnel_cf_api DELETE "/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}" "$response" || true
+            rm -f "$response" "$payload"
+            return 1
+        }
+    fi
+    TUNNEL_OWNERSHIP="setupmno"
+    if ! primary_tunnel_write_state setupmno pending "$CLOUDFLARE_ACCOUNT_ID" "$CLOUDFLARE_ZONE_ID" "$TUNNEL_ID" "$TUNNEL_NAME"; then
+        primary_tunnel_cf_api DELETE "/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}" "$response" || true
+        CLOUDFLARE_VALIDATION_ERROR="O Tunnel foi criado, mas o estado transacional não pôde ser salvo; a criação foi revertida."
+        rm -f "$response" "$payload"
+        return 1
+    fi
+    SETUPMNO_PRIMARY_DELETE_ON_ROLLBACK=true
+    SETUPMNO_PRIMARY_TUNNEL_TRANSACTION=true
+    trap 'primary_tunnel_exit_handler $?' EXIT
+    rm -f "$response" "$payload"
+}
+
+primary_tunnel_write_credentials() {
+    local destination="/root/.cloudflared_config/cloudflare_credentials" temporary
+    mkdir -p "$(dirname "$destination")" || return 1
+    if [ -z "$SETUPMNO_PRIMARY_CREDENTIALS_BACKUP" ]; then
+        SETUPMNO_PRIMARY_CREDENTIALS_BACKUP=$(mktemp) || return 1
+        chmod 600 "$SETUPMNO_PRIMARY_CREDENTIALS_BACKUP" || return 1
+        if [ -f "$destination" ] && [ ! -L "$destination" ]; then
+            cp -p "$destination" "$SETUPMNO_PRIMARY_CREDENTIALS_BACKUP" || return 1
+            SETUPMNO_PRIMARY_CREDENTIALS_EXISTED=true
+        fi
+    fi
+    temporary=$(mktemp "${destination}.tmp.XXXXXX") || return 1
+    chmod 600 "$temporary" || { rm -f "$temporary"; return 1; }
+    {
+        printf 'CLOUDFLARE_API_TOKEN=%q\n' "$CLOUDFLARE_API_TOKEN"
+        printf 'CLOUDFLARE_ACCOUNT_ID=%q\n' "$CLOUDFLARE_ACCOUNT_ID"
+        printf 'CLOUDFLARE_ZONE_ID=%q\n' "$CLOUDFLARE_ZONE_ID"
+        printf 'TUNNEL_NAME=%q\n' "$TUNNEL_NAME"
+        printf 'TUNNEL_ID=%q\n' "$TUNNEL_ID"
+        printf 'TUNNEL_OWNERSHIP=%q\n' "$TUNNEL_OWNERSHIP"
+    } >"$temporary" || { rm -f "$temporary"; return 1; }
+    mv -f "$temporary" "$destination"
+}
+
+primary_tunnel_restore_configuration() {
+    local payload response
+    [ -n "$SETUPMNO_PRIMARY_TUNNEL_CONFIG_BACKUP" ] &&
+    [ -f "$SETUPMNO_PRIMARY_TUNNEL_CONFIG_BACKUP" ] || return 0
+    payload=$(mktemp) || return 0
+    response=$(mktemp) || { rm -f "$payload"; return 0; }
+    chmod 600 "$payload" "$response"
+    jq '{config:(.result.config // {ingress:[{service:"http_status:404"}]})}' \
+        "$SETUPMNO_PRIMARY_TUNNEL_CONFIG_BACKUP" >"$payload" 2>/dev/null || {
+        rm -f "$payload" "$response"
+        return 0
+    }
+    primary_tunnel_cf_api PUT "/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}/configurations" "$response" "$payload" || true
+    rm -f "$payload" "$response"
+}
+
+primary_tunnel_rollback() {
+    local response attempt record payload
+    SETUPMNO_PRIMARY_TUNNEL_TRANSACTION=false
+    primary_tunnel_restore_configuration
+    response=$(mktemp 2>/dev/null || true)
+    [ -z "$response" ] || chmod 600 "$response"
+    if [ -n "$SETUPMNO_PRIMARY_DNS_RECORD_ID" ] && [ -n "$response" ]; then
+        primary_tunnel_cf_api DELETE "/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${SETUPMNO_PRIMARY_DNS_RECORD_ID}" "$response" || true
+    fi
+    if [ "$SETUPMNO_PRIMARY_DNS_MUTATED" = "true" ] && [ -f "$SETUPMNO_PRIMARY_DNS_BACKUP" ] && [ -n "$response" ]; then
+        while IFS= read -r record; do
+            payload=$(mktemp) || continue
+            printf '%s' "$record" | jq '{type,name,content,ttl,proxied} +
+                (if .priority != null then {priority} else {} end) +
+                (if .comment != null then {comment} else {} end) +
+                (if .tags != null then {tags} else {} end)' >"$payload" 2>/dev/null || {
+                rm -f "$payload"
+                continue
+            }
+            primary_tunnel_cf_api POST "/zones/${CLOUDFLARE_ZONE_ID}/dns_records" "$response" "$payload" || true
+            rm -f "$payload"
+        done < <(jq -c '.result[]?' "$SETUPMNO_PRIMARY_DNS_BACKUP" 2>/dev/null)
+    fi
+    if [ "$SETUPMNO_PRIMARY_STACK_CREATED" = "true" ] && command -v docker >/dev/null 2>&1; then
+        docker stack rm cloudflared >>"$PRIMARY_TUNNEL_LOG" 2>&1 || true
+        for attempt in $(seq 1 20); do
+            docker service inspect cloudflared_cloudflared >/dev/null 2>&1 || break
+            sleep 1
+        done
+    fi
+    if [ -n "$SETUPMNO_PRIMARY_TUNNEL_SECRET" ] && command -v docker >/dev/null 2>&1; then
+        docker secret rm "$SETUPMNO_PRIMARY_TUNNEL_SECRET" >>"$PRIMARY_TUNNEL_LOG" 2>&1 || true
+    fi
+    if [ "$SETUPMNO_PRIMARY_DELETE_ON_ROLLBACK" = "true" ] && [ -n "$response" ]; then
+        primary_tunnel_cf_api DELETE "/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}" "$response" || true
+    fi
+    if primary_tunnel_state_valid && [ "$(jq -r '.status' "$PRIMARY_TUNNEL_STATE_FILE")" = "pending" ] &&
+       [ "$(jq -r '.tunnelId' "$PRIMARY_TUNNEL_STATE_FILE")" = "$TUNNEL_ID" ]; then
+        rm -f "$PRIMARY_TUNNEL_STATE_FILE"
+    fi
+    if [ "$SETUPMNO_PRIMARY_CREDENTIALS_EXISTED" = "true" ] && [ -f "$SETUPMNO_PRIMARY_CREDENTIALS_BACKUP" ]; then
+        cp -p "$SETUPMNO_PRIMARY_CREDENTIALS_BACKUP" /root/.cloudflared_config/cloudflare_credentials 2>/dev/null || true
+    elif [ -n "$SETUPMNO_PRIMARY_CREDENTIALS_BACKUP" ]; then
+        rm -f /root/.cloudflared_config/cloudflare_credentials
+    fi
+    rm -f "${response:-}" "${SETUPMNO_PRIMARY_TUNNEL_CONFIG_BACKUP:-}" "${SETUPMNO_PRIMARY_DNS_BACKUP:-}"
+    rm -f "${SETUPMNO_PRIMARY_CREDENTIALS_BACKUP:-}"
+}
+
+primary_tunnel_exit_handler() {
+    local status="$1"
+    if [ "$SETUPMNO_PRIMARY_TUNNEL_TRANSACTION" = "true" ]; then
+        printf '%s [%s] rollback: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$status" \
+            "${CLOUDFLARE_VALIDATION_ERROR:-falha não especificada}" >>"$PRIMARY_TUNNEL_LOG"
+        primary_tunnel_rollback
+    fi
+    return "$status"
+}
+
+primary_tunnel_deploy_connector() {
+    local token_file stack_file secret_suffix attempt replicas status_file status ready=false
+    if docker service inspect cloudflared_cloudflared >/dev/null 2>&1; then
+        CLOUDFLARE_VALIDATION_ERROR="Já existe um serviço cloudflared no Swarm. A instalação automática não substituirá um conector preexistente."
+        return 1
+    fi
+    secret_suffix=$(printf '%s' "$TUNNEL_ID" | tr -d '-' | cut -c1-16)
+    SETUPMNO_PRIMARY_TUNNEL_SECRET="setupmno_primary_tunnel_${secret_suffix}"
+    token_file=$(mktemp) || return 1
+    stack_file=$(mktemp) || { rm -f "$token_file"; return 1; }
+    chmod 600 "$token_file" "$stack_file"
+    printf '%s' "$TUNNEL_TOKEN" >"$token_file"
+    if docker secret inspect "$SETUPMNO_PRIMARY_TUNNEL_SECRET" >/dev/null 2>&1; then
+        docker secret rm "$SETUPMNO_PRIMARY_TUNNEL_SECRET" >>"$PRIMARY_TUNNEL_LOG" 2>&1 || {
+            CLOUDFLARE_VALIDATION_ERROR="Um Docker Secret residual está em uso e não pôde ser renovado."
+            rm -f "$token_file" "$stack_file"
+            return 1
+        }
+    fi
+    docker secret create "$SETUPMNO_PRIMARY_TUNNEL_SECRET" "$token_file" >>"$PRIMARY_TUNNEL_LOG" 2>&1 || {
+        CLOUDFLARE_VALIDATION_ERROR="Não foi possível criar o Docker Secret do Tunnel."
+        rm -f "$token_file" "$stack_file"
+        return 1
+    }
+    cat >"$stack_file" <<EOF
+version: '3.7'
+services:
+  cloudflared:
+    image: cloudflare/cloudflared
+    command: tunnel run --token-file /run/secrets/${SETUPMNO_PRIMARY_TUNNEL_SECRET}
+    secrets:
+      - ${SETUPMNO_PRIMARY_TUNNEL_SECRET}
+    networks:
+      - externa
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+secrets:
+  ${SETUPMNO_PRIMARY_TUNNEL_SECRET}:
+    external: true
+networks:
+  externa:
+    external: true
+EOF
+    if ! docker stack deploy --prune --resolve-image always -c "$stack_file" cloudflared >>"$PRIMARY_TUNNEL_LOG" 2>&1; then
+        CLOUDFLARE_VALIDATION_ERROR="O deploy do cloudflared falhou. Log: ${PRIMARY_TUNNEL_LOG}"
+        docker secret rm "$SETUPMNO_PRIMARY_TUNNEL_SECRET" >>"$PRIMARY_TUNNEL_LOG" 2>&1 || true
+        SETUPMNO_PRIMARY_TUNNEL_SECRET=""
+        rm -f "$token_file" "$stack_file"
+        return 1
+    fi
+    SETUPMNO_PRIMARY_STACK_CREATED=true
+    rm -f "$token_file" "$stack_file"
+    for attempt in $(seq 1 45); do
+        replicas=$(docker service ls --filter name=cloudflared_cloudflared --format '{{.Replicas}}' 2>/dev/null | head -n1)
+        [ "$replicas" = "1/1" ] && { ready=true; break; }
+        sleep 2
+    done
+    [ "$ready" = "true" ] || {
+        docker service ps --no-trunc cloudflared_cloudflared >>"$PRIMARY_TUNNEL_LOG" 2>&1 || true
+        CLOUDFLARE_VALIDATION_ERROR="O cloudflared não atingiu 1/1 réplica. Log: ${PRIMARY_TUNNEL_LOG}"
+        return 1
+    }
+    ready=false
+    status_file=$(mktemp) || return 1
+    chmod 600 "$status_file"
+    for attempt in $(seq 1 45); do
+        if primary_tunnel_cf_api GET "/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}" "$status_file" &&
+           primary_tunnel_api_success "$status_file"; then
+            status=$(jq -r '.result.status // empty' "$status_file")
+            [ "$status" = "healthy" ] && { ready=true; break; }
+        fi
+        sleep 2
+    done
+    rm -f "$status_file"
+    [ "$ready" = "true" ] || {
+        CLOUDFLARE_VALIDATION_ERROR="A stack iniciou, mas a Cloudflare não confirmou o Tunnel como Healthy dentro do limite."
+        return 1
+    }
+}
+
+primary_tunnel_commit() {
+    primary_tunnel_write_state "$TUNNEL_OWNERSHIP" active "$CLOUDFLARE_ACCOUNT_ID" \
+        "$CLOUDFLARE_ZONE_ID" "$TUNNEL_ID" "$TUNNEL_NAME" || return 1
+    SETUPMNO_PRIMARY_TUNNEL_TRANSACTION=false
+    SETUPMNO_PRIMARY_DELETE_ON_ROLLBACK=false
+    trap - EXIT
+    rm -f "${SETUPMNO_PRIMARY_TUNNEL_CONFIG_BACKUP:-}"
+    rm -f "${SETUPMNO_PRIMARY_DNS_BACKUP:-}"
+    rm -f "${SETUPMNO_PRIMARY_CREDENTIALS_BACKUP:-}"
+}
+
 
 #
 # FIM DE LOADING
@@ -535,28 +979,42 @@ if [[ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ]]; then
             fi
         done
 
-        while true; do
-            TUNNEL_ID=$(whiptail --title "Tunnel ID" --inputbox "Digite Tunnel ID (encontre em: Cloudflare Dashboard > Seu site > Overview > Tunnel ID):" 12 80 3>&1 1>&2 2>&3)
-            if [ $? -ne 0 ]; then
-                exit 1
-            fi
-            if [ -z "$TUNNEL_ID" ]; then
-                whiptail --msgbox "O Tunnel ID é obrigatório." 10 70
-            else
+        TUNNEL_SETUP_MODE=$(choose_primary_tunnel_mode) || exit $?
+        if [ "$TUNNEL_SETUP_MODE" = "AUTO" ]; then
+            TUNNEL_ID=""
+            TUNNEL_NAME=$(primary_tunnel_deterministic_name "$CLOUDFLARE_ACCOUNT_ID" "$CLOUDFLARE_ZONE_ID")
+            if validate_cloudflare_tunnel_creation_access \
+                "$CLOUDFLARE_API_TOKEN" \
+                "$CLOUDFLARE_ACCOUNT_ID" \
+                "$CLOUDFLARE_ZONE_ID"; then
+                whiptail --title "CRIAÇÃO AUTOMÁTICA AUTORIZADA" --msgbox \
+                    "API Token, Account ID, Zone ID, DNS e permissão de Cloudflare Tunnel validados.\n\nO Tunnel ${TUNNEL_NAME} somente será criado depois da confirmação final. Se a instalação falhar, os recursos automáticos serão revertidos." \
+                    14 82
                 break
             fi
-        done
-
-        if validate_cloudflare_tunnel_credentials \
-            "$CLOUDFLARE_API_TOKEN" \
-            "$CLOUDFLARE_ACCOUNT_ID" \
-            "$CLOUDFLARE_ZONE_ID" \
-            "$TUNNEL_ID"; then
-
-            whiptail --title "CREDENCIAIS CLOUDFLARE VÁLIDAS" --msgbox \
-                "API Token, Account ID, Zone ID e Tunnel ID validados com sucesso pela API da Cloudflare.\n\nA instalação poderá continuar com segurança." \
-                12 76
-            break
+        else
+            while true; do
+                TUNNEL_ID=$(whiptail --title "TUNNEL EXISTENTE" --inputbox "Digite o Tunnel ID criado anteriormente no painel da Cloudflare:" 12 80 3>&1 1>&2 2>&3)
+                if [ $? -ne 0 ]; then
+                    exit 1
+                fi
+                if [ -z "$TUNNEL_ID" ]; then
+                    whiptail --msgbox "O Tunnel ID é obrigatório no método clássico." 10 70
+                else
+                    break
+                fi
+            done
+            if validate_cloudflare_tunnel_credentials \
+                "$CLOUDFLARE_API_TOKEN" \
+                "$CLOUDFLARE_ACCOUNT_ID" \
+                "$CLOUDFLARE_ZONE_ID" \
+                "$TUNNEL_ID"; then
+                TUNNEL_NAME="Tunnel existente"
+                whiptail --title "TUNNEL EXISTENTE VALIDADO" --msgbox \
+                    "API Token, Account ID, Zone ID e Tunnel ID foram validados.\n\nEste Tunnel será registrado como EXTERNO: o Setup MNO poderá configurar sua rota, mas nunca o excluirá durante rollback ou desinstalação." \
+                    14 82
+                break
+            fi
         fi
 
         whiptail --title "CREDENCIAIS CLOUDFLARE INVÁLIDAS" --msgbox \
@@ -564,7 +1022,7 @@ if [[ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ]]; then
             16 78
     done
 
-    whiptail --msgbox "Credenciais iniciais do Cloudflare validadas! A rota do Tunnel será criada automaticamente durante a instalação (via API).\n\nTecle ENTER para continuar." 10 70
+    whiptail --msgbox "Credenciais iniciais da Cloudflare validadas. O Tunnel e a rota do Portainer serão preparados após sua confirmação final.\n\nTecle ENTER para continuar." 11 74
 fi
 
 # FIM DA ESCOLHA DO TIPO DE INSTALAÇÃO
@@ -685,7 +1143,7 @@ fi
         done
 
 # Verificar se URL já existe no Cloudflare Tunnel
-if [ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ]; then
+if [ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ] && [ "$TUNNEL_SETUP_MODE" = "EXISTENTE" ]; then
     CHECK_RESPONSE=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
       "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations")
     EXISTING_HOST=$(echo "$CHECK_RESPONSE" | jq -r --arg h "$dominio" '.result.config.ingress[] | select(.hostname == $h) | .hostname' 2>/dev/null)
@@ -854,8 +1312,15 @@ clear
 while true; do
     # Exibe as informações formatadas com mais espaço na tela
     if [[ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ]]; then
+        if [ "$TUNNEL_SETUP_MODE" = "AUTO" ]; then
+            TUNNEL_METHOD_SUMMARY="Criação automática (recomendada)"
+            TUNNEL_ID_SUMMARY="Será criado após a confirmação"
+        else
+            TUNNEL_METHOD_SUMMARY="Tunnel existente (método clássico)"
+            TUNNEL_ID_SUMMARY="$TUNNEL_ID"
+        fi
         whiptail --title "Dados Fornecidos" \
-        --msgbox "TIPO DE INSTALAÇÃO: CLOUDFLARE TUNNEL\n\nDados Preenchidos:\n\n1) Dominio Portainer: $dominio\n2) Usuário do Portainer: $usuariopt\n3) Senha do Portainer: $senhapt\n4) Seu Email: $mail\n5) Senha do Postgres: $postgres_senha\n6) MFA Control Center: $CONTROL_MFA_SUMMARY\n\nDados Cloudflare:\n- Account ID: ${CLOUDFLARE_ACCOUNT_ID:0:8}...\n- Zone ID: ${CLOUDFLARE_ZONE_ID:0:8}...\n- Tunnel ID: $TUNNEL_ID\n\nConfira e Tecle Enter para continuar. Na próxima etapa você poderá confirmar os dados ou corrigir, se necessário." \
+        --msgbox "TIPO DE INSTALAÇÃO: CLOUDFLARE TUNNEL\n\nDados Preenchidos:\n\n1) Dominio Portainer: $dominio\n2) Usuário do Portainer: $usuariopt\n3) Senha do Portainer: $senhapt\n4) Seu Email: $mail\n5) Senha do Postgres: $postgres_senha\n6) MFA Control Center: $CONTROL_MFA_SUMMARY\n\nDados Cloudflare:\n- Método: $TUNNEL_METHOD_SUMMARY\n- Account ID: ${CLOUDFLARE_ACCOUNT_ID:0:8}...\n- Zone ID: ${CLOUDFLARE_ZONE_ID:0:8}...\n- Tunnel ID: $TUNNEL_ID_SUMMARY\n\nConfira e Tecle Enter para continuar. Na próxima etapa você poderá confirmar os dados ou corrigir, se necessário." \
         --fb 22 80
     else
     if [ "$criar_dns" = "0" ]; then
@@ -910,41 +1375,15 @@ button=black,white
 '
 
 clear
+set -o pipefail
 {
 
 # Função para verificar o domínio
 
 
     if [[ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ]]; then
-
-      # 1. Obtendo Tunnel_token
-   echo -e "XXX\n1\nOBTENDO TUNNEL_TOKEN\nXXX"
- TUNNEL_TOKEN=$(curl -s -X GET \
-  "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}/token" \
-  -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-  -H "Content-Type: application/json" | jq -r '.result')
-
-if [[ ${TUNNEL_TOKEN} == ey* ]]; then
-  echo -e "XXX\n2\nTUNNEL TOKEN OBTIDO COM SUCESSO\nXXX"
-  sleep 2
-else
-  echo -e "XXX\n3\nERRO AO TENTAR OBTER O TUNNEL TOKEN\nXXX"
-  sleep 3
-  exit 1
-fi
-
-    # Salvar credenciais iniciais (serão atualizadas com id/token após criar tunnel via API)
-    mkdir -p /root/.cloudflared_config
-  cat > /root/.cloudflared_config/cloudflare_credentials << EOL
-CLOUDFLARE_API_TOKEN=$CLOUDFLARE_API_TOKEN
-CLOUDFLARE_ACCOUNT_ID=$CLOUDFLARE_ACCOUNT_ID
-CLOUDFLARE_ZONE_ID=$CLOUDFLARE_ZONE_ID
-TUNNEL_NAME=$TUNNEL_NAME
-TUNNEL_ID=$TUNNEL_ID
-# NÃO salvar TUNNEL_TOKEN em texto claro se você preferir segurança; aqui salvo para uso interno
-TUNNEL_TOKEN=$TUNNEL_TOKEN
-EOL
-  chmod 600 /root/.cloudflared_config/cloudflare_credentials
+      echo -e "XXX\n2\nCLOUDFLARE VALIDADA; O TUNNEL SERÁ PREPARADO APÓS O DOCKER SWARM\nXXX"
+      sleep 2
 
 
 else
@@ -1310,6 +1749,24 @@ fi
 if [[ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ]]; then
   echo -e "XXX\n55\nCRIANDO SERVIÇO E ROTA CLOUDFLARE TUNNEL \nXXX"
   sleep 3
+  : >"$PRIMARY_TUNNEL_LOG"
+  chmod 600 "$PRIMARY_TUNNEL_LOG"
+
+  if [ "$TUNNEL_SETUP_MODE" = "AUTO" ]; then
+      echo -e "XXX\n55\nCRIANDO O TUNNEL PRINCIPAL PELA API DA CLOUDFLARE\nXXX"
+      primary_tunnel_begin_automatic || {
+          exit 1
+      }
+  else
+      echo -e "XXX\n55\nPREPARANDO O TUNNEL EXISTENTE SEM TRANSFERIR SUA PROPRIEDADE\nXXX"
+      primary_tunnel_begin_existing || {
+          exit 1
+      }
+  fi
+  primary_tunnel_write_credentials || {
+      CLOUDFLARE_VALIDATION_ERROR="Não foi possível salvar as credenciais da Cloudflare de forma atômica."
+      exit 1
+  }
 
 NEW_SERVICE="http://portainer:9000"
 DOMINIO_PRINCIPAL=$(echo "$dominio" | cut -d'.' -f2-)
@@ -1336,11 +1793,10 @@ curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
 
 # quick check success
 if ! jq -e '.success == true' "$BACKUP_RAW" >/dev/null 2>&1; then
-
- # echo "ERROR: GET did not return success=true. See $BACKUP_RAW"
-  jq '.' "$BACKUP_RAW"
-
+  CLOUDFLARE_VALIDATION_ERROR="Não foi possível obter a configuração atual do Tunnel antes da alteração."
+  exit 1
 fi
+SETUPMNO_PRIMARY_TUNNEL_CONFIG_BACKUP="$BACKUP_RAW"
 
 echo "[1b] Backup saved. Preview ingress (if any):"
 jq '.result.config.ingress // []' "$BACKUP_RAW"
@@ -1382,16 +1838,31 @@ jq '.' "$TO_PUT" | sed -n '1,200p'
 # ----------- 3) PUT apply ------------
 echo -e "XXX\n56\nATUALIZANDO CONFIGURAÇÕES DO TUNNEL 1 \nXXX"
 #echo "[3] Applying PUT to update tunnel configuration..."
+PUT_RESPONSE="$TMPDIR/put_response.$TIMESTAMP.json"
 curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
   -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
   -H "Content-Type: application/json" \
-  --data-binary @"$TO_PUT" | jq '.'
+  --data-binary @"$TO_PUT" >"$PUT_RESPONSE"
+if ! jq -e '.success == true' "$PUT_RESPONSE" >/dev/null 2>&1; then
+  CLOUDFLARE_VALIDATION_ERROR="A Cloudflare recusou a nova rota do Portainer. $(primary_tunnel_error_text "$PUT_RESPONSE")"
+  exit 1
+fi
 sleep 3
 # ----------- 4) verify ------------
 #echo "[4] Verifying applied configuration (GET)..."
 echo -e "XXX\n57\nATUALIZANDO CONFIGURAÇÕES DO TUNNEL 2 \nXXX"
+VERIFY_RESPONSE="$TMPDIR/verify_response.$TIMESTAMP.json"
 curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-  "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" | jq '.result.config.ingress'
+  "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" >"$VERIFY_RESPONSE"
+if ! jq -e --arg host "$dominio" --arg service "$NEW_SERVICE" \
+  '.success == true and any(.result.config.ingress[]?; .hostname == $host and .service == $service)' \
+  "$VERIFY_RESPONSE" >/dev/null 2>&1; then
+  CLOUDFLARE_VALIDATION_ERROR="A API não confirmou a rota do Portainer após a atualização do Tunnel."
+  exit 1
+fi
+
+echo -e "XXX\n57\nINICIANDO E VALIDANDO O CONECTOR CLOUDFLARED\nXXX"
+primary_tunnel_deploy_connector || exit 1
 
 
 sleep 3
@@ -1407,11 +1878,19 @@ EXISTING_RECORDS=$(curl -s -X GET \
   "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${dominio}" \
   -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
   -H "Content-Type: application/json")
+if ! printf '%s' "$EXISTING_RECORDS" | jq -e '.success == true and (.result | type == "array")' >/dev/null 2>&1; then
+  CLOUDFLARE_VALIDATION_ERROR="Não foi possível inventariar os registros DNS existentes antes da alteração."
+  exit 1
+fi
+SETUPMNO_PRIMARY_DNS_BACKUP="$TMPDIR/dns_backup.$TIMESTAMP.json"
+printf '%s' "$EXISTING_RECORDS" >"$SETUPMNO_PRIMARY_DNS_BACKUP"
+chmod 600 "$SETUPMNO_PRIMARY_DNS_BACKUP"
 
 # Contar registros encontrados
 COUNT=$(echo "$EXISTING_RECORDS" | jq '.result | length')
 
 if [[ "$COUNT" -gt 0 ]]; then
+  SETUPMNO_PRIMARY_DNS_MUTATED=true
   #echo ""S
   #echo "⚠️  Foram encontrados $COUNT registro(s) existentes para $dominio:"
  # echo "---------------------------------------------------------------"
@@ -1422,13 +1901,17 @@ if [[ "$COUNT" -gt 0 ]]; then
 
     #echo ""
     #echo "[5.3] Removendo registros antigos..."
-    echo "$EXISTING_RECORDS" | jq -r '.result[].id' | while read -r REC_ID; do
+    while read -r REC_ID; do
       [[ -z "$REC_ID" ]] && continue
-      curl -s -X DELETE \
+      DELETE_RESPONSE=$(curl -s -X DELETE \
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${REC_ID}" \
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json" | jq '.'
-done
+        -H "Content-Type: application/json")
+      if ! printf '%s' "$DELETE_RESPONSE" | jq -e '.success == true' >/dev/null 2>&1; then
+        CLOUDFLARE_VALIDATION_ERROR="A Cloudflare recusou a substituição de um registro DNS existente."
+        exit 1
+      fi
+    done < <(printf '%s' "$EXISTING_RECORDS" | jq -r '.result[].id')
 
 
 else
@@ -1445,6 +1928,7 @@ DNS_RESPONSE=$(curl -s -X POST \
   --data "{\"type\":\"CNAME\",\"name\":\"${dominio}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}")
 
 if echo "$DNS_RESPONSE" | grep -q '"success":true'; then
+SETUPMNO_PRIMARY_DNS_RECORD_ID=$(printf '%s' "$DNS_RESPONSE" | jq -r '.result.id // empty')
 #  echo ""
 echo -e "XXX\n59\n✅ REGISTRO DNS CNAME CRIADO COM SUCESSO! \nXXX"
  # echo "✅ REGISTRO DNS CNAME CRIADO COM SUCESSO!"
@@ -1460,37 +1944,12 @@ else
 
 fi
 
-
-# Implantar serviço cloudflared no Docker Swarm
-  cat > cloudflared.yaml << EOL
-
-version: '3.7'
-services:
-    cloudflared:
-        image: cloudflare/cloudflared
-        command: tunnel run
-        environment:
-            - TUNNEL_TOKEN=$TUNNEL_TOKEN
-        networks:
-            - externa
-        deploy:
-            mode: replicated
-            replicas: 1
-            placement:
-                constraints:
-                    - node.role == manager
-
-networks:
-    externa:
-        external: true
-
-EOL
-
-  docker stack deploy --prune --resolve-image always -c cloudflared.yaml cloudflared >/dev/null 2>&1
-  echo -e "XXX\n58\nCLOUDFLARE TUNNEL IMPLANTADO \nXXX"
-  sleep 3
-
-  # Configurar DNS e rotas via API Cloudflare
+primary_tunnel_commit || {
+  CLOUDFLARE_VALIDATION_ERROR="A infraestrutura foi criada, mas o estado final do Tunnel não pôde ser confirmado."
+  exit 1
+}
+echo -e "XXX\n60\nCLOUDFLARE TUNNEL IMPLANTADO E VALIDADO\nXXX"
+sleep 3
 
 fi
 
@@ -2148,6 +2607,14 @@ else
 
 fi
 }|whiptail --title "SETUP MNO - FERRAMENTAS ESSENCIAIS" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
+INSTALL_GAUGE_STATUS=$?
+set +o pipefail
+if [ "$INSTALL_GAUGE_STATUS" -ne 0 ]; then
+    whiptail --title "INSTALAÇÃO INTERROMPIDA COM SEGURANÇA" --msgbox \
+        "Uma etapa obrigatória falhou e o rollback dos recursos automáticos foi executado.\n\nLog técnico: $PRIMARY_TUNNEL_LOG\n\nCorrija a causa indicada no log e execute setup-mno novamente." \
+        15 82
+    exit 1
+fi
 
 # O Control Center deve ser oferecido apenas na instalação tradicional e
 # antes da mensagem final que solicita o reinício do servidor.
