@@ -605,7 +605,7 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$knowledge_index_schema" = "2" ] &&
 [ "$knowledge_retrieval_version" = "1.3.0" ] &&
 [ "$eval_schema" = "1" ] &&
-[ "$eval_dataset_version" = "1.13.0" ] &&
+[ "$eval_dataset_version" = "1.13.1" ] &&
 [ "$eval_grader_version" = "1.9.0" ] &&
 [ "${#eval_dataset_sha}" -eq 64 ] &&
 [ "$eval_case_entries" = "863" ] &&

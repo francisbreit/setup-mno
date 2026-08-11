@@ -1719,7 +1719,7 @@ error_file="/tmp/${nome_app}-error.log"
     [ "$knowledge_index_schema" = "2" ] &&
     [ "$knowledge_retrieval_version" = "1.3.0" ] &&
     [ "$eval_schema" = "1" ] &&
-    [ "$eval_dataset_version" = "1.13.0" ] &&
+    [ "$eval_dataset_version" = "1.13.1" ] &&
     [ "$eval_grader_version" = "1.9.0" ] &&
     [ "${#eval_dataset_sha}" -eq 64 ] &&
     [ "$eval_dataset_sha" = "$release_eval_dataset_sha" ] &&

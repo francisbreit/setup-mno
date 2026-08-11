@@ -238,7 +238,7 @@ func TestReadRuntimeSnapshotAcceptsGeneratedKnowledgeManifest(t *testing.T) {
 		snapshot.Release.BlueprintFixtureEntries != 0 ||
 		len(snapshot.Release.BlueprintIndexSHA256) != 64 ||
 		snapshot.Release.EvalSchemaVersion != 1 ||
-		snapshot.Release.EvalDatasetVersion != "1.13.0" ||
+		snapshot.Release.EvalDatasetVersion != "1.13.1" ||
 		snapshot.Release.EvalGraderVersion != "1.9.0" ||
 		snapshot.Release.EvalCaseEntries != 863 ||
 		len(snapshot.Release.EvalDatasetSHA256) != 64 {
@@ -657,7 +657,7 @@ func TestKnowledgeStatusMarkdownUsesManifestInsteadOfRetrievalSlice(t *testing.T
 	}
 	state := knowledgePackageState{Manifest: knowledgeManifest{
 		SetupVersion: "7.2.8", KnowledgeVersion: "3.10.0",
-		EvalDatasetVersion: "1.13.0", EvalCaseEntries: 863,
+		EvalDatasetVersion: "1.13.1", EvalCaseEntries: 863,
 		DocumentEntries: 165, SetupEntries: 151, InfrastructureEntries: 9,
 		BlueprintKnowledgeEntries: 5,
 		DocumentTypeEntries:       map[string]int{"setup": 151, "infrastructure": 9, "blueprint": 5},
@@ -1178,7 +1178,7 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 		state.Manifest.IndexSchemaVersion != 2 ||
 		state.Manifest.RetrievalVersion != "1.3.0" ||
 		state.Manifest.EvalSchemaVersion != 1 ||
-		state.Manifest.EvalDatasetVersion != "1.13.0" ||
+		state.Manifest.EvalDatasetVersion != "1.13.1" ||
 		state.Manifest.EvalGraderVersion != "1.9.0" ||
 		state.Manifest.EvalCaseEntries != 863 ||
 		len(state.Manifest.EvalDatasetSHA256) != 64 ||

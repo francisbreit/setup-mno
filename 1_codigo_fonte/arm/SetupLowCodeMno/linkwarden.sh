@@ -129,6 +129,7 @@ base_dir="/root/${nome_app}_data"
 postgres_dir="$base_dir/postgres"
 meili_dir="$base_dir/meilisearch"
 app_data_dir="$base_dir/data"
+app_tmp_dir="$base_dir/tmp"
 postgres_yaml="/root/${postgres_stack}.yaml"
 meili_yaml="/root/${meili_stack}.yaml"
 app_yaml="/root/${app_stack}.yaml"
@@ -254,7 +255,7 @@ error_file="/tmp/${nome_app}-error.log"
     }
 
     rollback_deployment() {
-        local stack_name secret_name original_payload
+        local stack_name secret_name yaml_file original_payload
         echo "Executando rollback exclusivo do Linkwarden..." >>"$install_log"
         if [ "$route_updated" = "true" ] && [ -s "$work_dir/tunnel-original.json" ]; then
             original_payload="$work_dir/tunnel-restore.json"
@@ -280,6 +281,9 @@ error_file="/tmp/${nome_app}-error.log"
             docker secret rm "$secret_name" >>"$install_log" 2>&1 || true
         done
         if [[ "$base_dir" == /root/linkwarden*_data ]]; then rm -rf "$base_dir"; fi
+        for yaml_file in "$postgres_yaml" "$meili_yaml" "$app_yaml"; do
+            if [[ "$yaml_file" == /root/linkwarden*.yaml ]]; then rm -f -- "$yaml_file"; fi
+        done
     }
 
     fail_install() {
@@ -291,14 +295,15 @@ error_file="/tmp/${nome_app}-error.log"
     }
 
     wait_service() {
-        local service="$1" attempts="$2" expected_health="$3" replicas container_id health
+        local service="$1" attempts="$2" expected_health="$3" previous_container="${4:-}" replicas container_id health
         WAIT_CONTAINER_ID=""
         for _ in $(seq 1 "$attempts"); do
             replicas=$(docker service ls --filter "name=$service" --format '{{.Replicas}}' 2>>"$install_log" | head -n1)
             container_id=$(docker ps -q --filter "label=com.docker.swarm.service.name=$service" 2>>"$install_log" | head -n1)
             health=""
             [ -n "$container_id" ] && health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$container_id" 2>>"$install_log")
-            if [ "$replicas" = "1/1" ] && { [ -z "$expected_health" ] || [ "$health" = "$expected_health" ]; }; then
+            if [ "$replicas" = "1/1" ] && [ "$container_id" != "$previous_container" ] &&
+                { [ -z "$expected_health" ] || [ "$health" = "$expected_health" ]; }; then
                 WAIT_CONTAINER_ID="$container_id"
                 return 0
             fi
@@ -346,9 +351,9 @@ error_file="/tmp/${nome_app}-error.log"
     done
 
     echo -e "XXX\n22\nCRIANDO DIRETÓRIOS E DOCKER SECRETS...\nXXX"
-    mkdir -p "$postgres_dir" "$meili_dir" "$app_data_dir" >>"$install_log" 2>&1 ||
+    mkdir -p "$postgres_dir" "$meili_dir" "$app_data_dir" "$app_tmp_dir" >>"$install_log" 2>&1 ||
         fail_install 22 "ERRO AO CRIAR DADOS" "Não foi possível criar $base_dir."
-    chmod 700 "$base_dir" "$postgres_dir" "$meili_dir" "$app_data_dir"
+    chmod 700 "$base_dir" "$postgres_dir" "$meili_dir" "$app_data_dir" "$app_tmp_dir"
     chown 1000:1000 "$meili_dir" >>"$install_log" 2>&1 ||
         fail_install 23 "ERRO DE PERMISSÃO" "Não foi possível preparar o diretório do Meilisearch."
     postgres_password=$(openssl rand -hex 32)
@@ -422,7 +427,7 @@ services:
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |
-        export MEILI_MASTER_KEY="\$(cat /run/secrets/meili_master_key)"
+        export MEILI_MASTER_KEY="\$\$(cat /run/secrets/meili_master_key)"
         exec tini -- /bin/meilisearch
     environment:
       MEILI_ENV: production
@@ -474,15 +479,13 @@ services:
     read_only: true
     cap_drop:
       - ALL
-    security_opt:
-      - no-new-privileges:true
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |
-        POSTGRES_PASSWORD="\$(cat /run/secrets/postgres_password)"
-        export DATABASE_URL="postgresql://linkwarden:\${POSTGRES_PASSWORD}@$postgres_service:5432/linkwarden"
-        export NEXTAUTH_SECRET="\$(cat /run/secrets/nextauth_secret)"
-        export MEILI_MASTER_KEY="\$(cat /run/secrets/meili_master_key)"
+        POSTGRES_PASSWORD="\$\$(cat /run/secrets/postgres_password)"
+        export DATABASE_URL="postgresql://linkwarden:\$\${POSTGRES_PASSWORD}@$postgres_service:5432/linkwarden"
+        export NEXTAUTH_SECRET="\$\$(cat /run/secrets/nextauth_secret)"
+        export MEILI_MASTER_KEY="\$\$(cat /run/secrets/meili_master_key)"
         exec docker-entrypoint.sh sh -c 'yarn prisma:deploy && yarn concurrently:start'
     environment:
       NEXTAUTH_URL: https://$url_linkwarden/api/v1/auth
@@ -507,9 +510,12 @@ services:
         mode: 0400
     volumes:
       - $app_data_dir:/data/data
-    tmpfs:
-      - /tmp:rw,noexec,nosuid,size=512m
-      - /dev/shm:rw,nosuid,size=256m
+      - $app_tmp_dir:/tmp
+      - type: tmpfs
+        target: /dev/shm
+        tmpfs:
+          size: 268435456
+          mode: 1777
     networks:
       - externa
       - interna
@@ -592,7 +598,7 @@ EOAPPEND
     echo -e "XXX\n68\nPUBLICANDO LINKWARDEN E APLICANDO MIGRAÇÕES...\nXXX"
     deploy_stack "$app_stack" "$app_yaml" ||
         fail_install 44 "ERRO NO LINKWARDEN" "Não foi possível criar a stack principal do Linkwarden."
-    wait_service "$app_service" 120 healthy ||
+    wait_service "$app_service" 120 healthy "$app_container" ||
         fail_install 45 "LINKWARDEN NÃO FICOU PRONTO" "O Linkwarden não atingiu 1/1 réplica saudável."
     app_container="$WAIT_CONTAINER_ID"
 
@@ -634,7 +640,7 @@ EOAPPEND
     app_container="$WAIT_CONTAINER_ID"
     config_json=$(docker exec "$app_container" curl -sS http://127.0.0.1:3000/api/v1/config 2>>"$install_log")
     printf '%s' "$config_json" | jq -e --arg domain "https://$url_content" \
-        '(.DISABLE_REGISTRATION == true) and (.USER_CONTENT_DOMAIN == $domain)' >/dev/null ||
+        '(.response.DISABLE_REGISTRATION == true) and (.response.USER_CONTENT_DOMAIN == $domain)' >/dev/null ||
         fail_install 57 "SEGURANÇA NÃO CONFIRMADA" "A API não confirmou cadastros fechados e domínio de conteúdo isolado."
 
     upsert_dns() {

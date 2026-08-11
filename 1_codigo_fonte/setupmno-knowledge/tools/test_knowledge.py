@@ -194,9 +194,32 @@ class KnowledgeFactoryTests(unittest.TestCase):
             'NEXT_PUBLIC_DISABLE_REGISTRATION: "true"/\'',
             x86_script,
         )
-        self.assertIn("(.DISABLE_REGISTRATION == true)", x86_script)
+        self.assertIn("(.response.DISABLE_REGISTRATION == true)", x86_script)
+        self.assertIn("(.response.USER_CONTENT_DOMAIN == $domain)", x86_script)
+        self.assertIn('previous_container="${4:-}"', x86_script)
+        self.assertIn('[ "$container_id" != "$previous_container" ]', x86_script)
+        self.assertIn(
+            'wait_service "$app_service" 120 healthy "$app_container"',
+            x86_script,
+        )
         self.assertIn("read_only: true", x86_script)
-        self.assertIn("no-new-privileges:true", x86_script)
+        self.assertIn(
+            '[[ "$yaml_file" == /root/linkwarden*.yaml ]]',
+            x86_script,
+        )
+        self.assertIn('app_tmp_dir="$base_dir/tmp"', x86_script)
+        self.assertIn("- $app_tmp_dir:/tmp", x86_script)
+        self.assertIn("target: /dev/shm", x86_script)
+        self.assertNotIn("security_opt:", x86_script)
+        self.assertIn(
+            'export MEILI_MASTER_KEY="\\$\\$(cat /run/secrets/meili_master_key)"',
+            x86_script,
+        )
+        self.assertIn(
+            'postgresql://linkwarden:\\$\\${POSTGRES_PASSWORD}',
+            x86_script,
+        )
+        self.assertNotIn("target: /tmp\n        tmpfs:", x86_script)
         self.assertNotIn("\n    ports:\n", x86_script)
         self.assertIn('whiptail --title "LINKWARDEN PRO" --msgbox "$1" 16 84 1>&2', x86_script)
         self.assertIn('[ "$status" -ne 0 ] && return 130', x86_script)

@@ -3,15 +3,15 @@
   "schemaVersion": 1,
   "documentId": "setup-linkwarden-overview",
   "documentVersion": "1.0.0",
-  "contentSHA256": "4f69a46b0afe6450a525698a10086ca36e6ebc8e6bfb519d19213c2130da627f",
+  "contentSHA256": "4ce58b940cf6abdc7e6f1cdd8a62ce4eee6fdeb484e42ee402ad154082b32cbf",
   "documentType": "setup",
   "title": "Linkwarden no Setup MNO",
   "setupId": "linkwarden",
-  "setupVersion": "7.12.0",
+  "setupVersion": "7.12.1",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
-  "updatedAt": "2026-08-10",
+  "updatedAt": "2026-08-11",
   "sourceType": "setup-mno",
   "risk": "high",
   "language": "pt-BR",
@@ -24,7 +24,7 @@
     {"sourceId":"linkwarden-releases","title":"Releases oficiais do Linkwarden","sourceType":"official-documentation","location":"https://github.com/linkwarden/linkwarden/releases","license":"documentation-reference","verifiedAt":"2026-08-10"}
   ],
   "homologation": {
-    "verifiedAt": "2026-08-10",
+    "verifiedAt": "2026-08-11",
     "verifiedPorts": [],
     "verifiedImages": [
       "ghcr.io/linkwarden/linkwarden:v2.14.1@sha256:31cf4bd2a2e111991fa5c9de03174c8698869c83722105c6ce529e4c911e6861",
@@ -51,7 +51,7 @@ os valores não entram nos YAMLs, logs ou arquivos de inventário.
 
 ## Pré-requisitos
 
-Requer Docker Swarm ativo, redes `interna` e `rede_publica` existentes, dois
+Requer Docker Swarm ativo, redes `interna` e `externa` existentes, dois
 domínios HTTPS distintos e, preferencialmente, um host com pelo menos 4 GB de
 RAM. O fluxo cria credenciais próprias; não reutiliza banco, índice ou secrets
 de outra aplicação.
@@ -73,17 +73,19 @@ valor permanece apenas na memória do processo durante a criação da conta.
 
 ## Segurança operacional
 
-O Linkwarden não publica a porta de aplicação no host. PostgreSQL e Meilisearch ficam
-somente na rede interna. O Meilisearch executa como UID 1000, a aplicação usa
-filesystem raiz somente leitura, capabilities removidas e `no-new-privileges`.
-O acesso a redes privadas e TLS inseguro permanece desativado.
+O Linkwarden não publica a porta de aplicação no host. PostgreSQL e Meilisearch
+ficam somente na rede interna. O Meilisearch executa como UID 1000, a aplicação
+usa filesystem raiz somente leitura, diretório temporário dedicado, `tmpfs` para
+memória compartilhada e capabilities removidas. O acesso a redes privadas e TLS
+inseguro permanece desativado.
 
 ## Validação
 
-Foram confirmados a release v2.14.1, os manifestos AMD64 e ARM64, os digests das
-três imagens, a porta interna, o healthcheck oficial, o entrypoint e o contrato da
-API de criação de usuário presentes na imagem. A convergência completa das três
-stacks ainda deve ser confirmada em instalação real ou homologação isolada.
+A homologação isolada confirmou os três YAMLs, convergência saudável de
+PostgreSQL, Meilisearch e Linkwarden, criação do administrador com HTTP 201,
+fechamento de cadastros, domínio de conteúdo isolado e persistência após reinício
+forçado. Não houve porta publicada. No repouso observado, Linkwarden consumiu
+aproximadamente 678 MiB, PostgreSQL 76 MiB e Meilisearch 10 MiB.
 
 ## Riscos e limites
 
