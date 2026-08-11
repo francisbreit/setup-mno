@@ -454,7 +454,9 @@ export MOCK_WHIPTAIL_CHOICE="ATIVAR"
 : >"$MOCK_DOCKER_LOG"
 configure_existing_access_mfa
 grep -Fq -- '--env-rm ACCESS_MFA_REQUIRED --env-add ACCESS_MFA_REQUIRED=true' "$MOCK_DOCKER_LOG"
-grep -Fq 'MFA ATIVADO COM SUCESSO' "$message_capture"
+grep -Fq 'MFA ATIVADO!' "$message_capture"
+grep -Fq 'NÃO use o e-mail original' "$message_capture"
+grep -Fq 'Digite exatamente o endereço acima' "$message_capture"
 jq -e '.desiredMFA == true and .effectiveMFA == true' "$CONTROL_MFA_STATE_FILE" >/dev/null
 
 export MOCK_CURL_MODE="restore_original" MOCK_ACCESS_STATE="ready_mfa" MOCK_WHIPTAIL_CHOICE="DESATIVAR"

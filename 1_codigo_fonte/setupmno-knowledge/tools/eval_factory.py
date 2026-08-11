@@ -14,7 +14,7 @@ from typing import Any
 
 
 EVAL_SCHEMA_VERSION = 1
-EVAL_DATASET_VERSION = "1.13.5"
+EVAL_DATASET_VERSION = "1.13.6"
 EVAL_GRADER_VERSION = "1.9.0"
 EXPECTED_CASES = 863
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")

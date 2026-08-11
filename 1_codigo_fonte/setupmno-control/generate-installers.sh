@@ -403,6 +403,8 @@ grep -Fq 'prepare_cloudflare_mfa_token' "$project_dir/cloudflare-mfa.sh" &&
 grep -Fq 'prepare_cloudflare_mfa_deactivation' "$project_dir/cloudflare-mfa.sh" &&
 grep -Fq 'ensure_cloudflare_mfa_onboarding' "$project_dir/cloudflare-mfa.sh" &&
 grep -Fq 'prepare_cloudflare_mfa_enrollment_email' "$project_dir/cloudflare-mfa.sh" &&
+grep -Fq 'NÃO digite o e-mail original' "$project_dir/cloudflare-mfa.sh" &&
+grep -Fq 'NÃO use o e-mail original' "$template" &&
 grep -Fq '/access/logs/access_requests?per_page=1' "$project_dir/cloudflare-mfa.sh" &&
 grep -Fq '[ "$code" = "12167" ]' "$project_dir/cloudflare-mfa.sh" &&
 grep -Fq 'Access: Organizations, Identity Providers, and Groups > Revogar' "$project_dir/cloudflare-mfa.sh" &&
@@ -614,7 +616,7 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$knowledge_index_schema" = "2" ] &&
 [ "$knowledge_retrieval_version" = "1.3.0" ] &&
 [ "$eval_schema" = "1" ] &&
-[ "$eval_dataset_version" = "1.13.5" ] &&
+[ "$eval_dataset_version" = "1.13.6" ] &&
 [ "$eval_grader_version" = "1.9.0" ] &&
 [ "${#eval_dataset_sha}" -eq 64 ] &&
 [ "$eval_case_entries" = "863" ] &&

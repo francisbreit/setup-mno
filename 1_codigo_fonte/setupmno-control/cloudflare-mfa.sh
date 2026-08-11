@@ -107,9 +107,9 @@ prepare_cloudflare_mfa_enrollment_email() {
     domain=${domain,,}
     if [ "$domain" = "gmail.com" ] || [ "$domain" = "googlemail.com" ]; then
         choice=$(whiptail --title "REATIVAÇÃO DO MFA" --default-item "NOVO_QR" --menu \
-            "Este Control Center já teve MFA. Para evitar um autenticador antigo ou órfão, escolha como deseja reativar. O alias Gmail recomendado entrega os códigos na mesma caixa postal, mas deve ser digitado exatamente como será mostrado:" \
+            "Para gerar outro QR, o Setup criará um E-MAIL DE ACESSO com +setupmno. Ele usa a mesma caixa Gmail, mas na Cloudflare você NÃO deve digitar o e-mail original: deverá preencher o alias completo que será mostrado:" \
             20 96 4 \
-            "NOVO_QR" "Criar identidade nova na mesma caixa Gmail e exibir novo QR" \
+            "NOVO_QR" "Mesmo Gmail: gerar alias obrigatório +setupmno e novo QR" \
             "REUTILIZAR" "Reutilizar o cadastro e o código do autenticador anterior" \
             "OUTRO_EMAIL" "Informar outro e-mail para uma identidade nova" \
             "CANCELAR" "Voltar sem alterar Cloudflare ou Control Center" \
@@ -135,9 +135,9 @@ prepare_cloudflare_mfa_enrollment_email() {
                     10 82 1>&2
                 return 130
             }
-            whiptail --title "NOVO QR CODE CONFIRMADO" --msgbox \
-                "O Setup usará esta identidade exclusiva:\n\n$effective\n\nOs códigos por e-mail continuarão chegando em $email. Na tela da Cloudflare, digite exatamente o endereço com +setupmno mostrado acima. Depois do código por e-mail, será exibido um novo QR Code." \
-                17 94 1>&2
+            whiptail --title "COPIE O E-MAIL DE ACESSO CLOUDFLARE" --msgbox \
+                "CAIXA POSTAL ORIGINAL:\n$email\n\nE-MAIL DE ACESSO CLOUDFLARE:\n$effective\n\nATENÇÃO: na página da Cloudflare, NÃO digite o e-mail original. Preencha exatamente o alias completo acima, incluindo +setupmno. O código chegará na caixa postal original e, depois da confirmação, será exibido o novo QR Code." \
+                20 96 1>&2
             printf '%s\n' "$effective"
             ;;
         REUTILIZAR)

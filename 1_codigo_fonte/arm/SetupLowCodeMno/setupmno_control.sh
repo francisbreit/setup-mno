@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.16.12"
+CONTROL_VERSION="4.16.13"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -848,7 +848,7 @@ configure_existing_access_mfa() {
             return 1
         }
         rm -rf -- "$work_dir"
-        msg "MFA ATIVADO COM SUCESSO!\n\nE-mail de acesso: $email\n\nA Cloudflare foi preparada automaticamente. Próximo passo:\n1. Abra ${team_domain}/cdn-cgi/access/logout para limpar a sessão anterior\n2. Abra ${team_domain}/AddMfaDevice\n3. Entre exatamente com o e-mail de acesso mostrado acima\n4. Escolha Aplicativo autenticador e leia o QR Code\n5. Volte e abra o Control Center"
+        msg "MFA ATIVADO!\n\nE-MAIL OBRIGATÓRIO NA CLOUDFLARE:\n$email\n\nNÃO use o e-mail original se o endereço acima contém +setupmno. Digite o alias completo; caso contrário, a Cloudflare dirá que enviou o código, mas nenhum e-mail chegará.\n\n1. Abra ${team_domain}/cdn-cgi/access/logout\n2. Abra ${team_domain}/AddMfaDevice\n3. Digite exatamente o endereço acima\n4. Receba o código na caixa original e leia o novo QR"
         return 0
     fi
     if [ "$access_required" != "true" ] ||
@@ -1071,7 +1071,7 @@ configure_existing_access_mfa() {
         return 1
     }
     rm -rf -- "$work_dir"
-    msg "MFA ATIVADO COM SUCESSO!\n\nE-mail de acesso: $email\n\nA Cloudflare foi preparada automaticamente. Próximo passo:\n1. Abra ${team_domain}/cdn-cgi/access/logout para limpar a sessão anterior\n2. Abra ${team_domain}/AddMfaDevice\n3. Entre exatamente com o e-mail de acesso mostrado acima\n4. Escolha Aplicativo autenticador e leia o QR Code\n5. Volte e abra o Control Center"
+    msg "MFA ATIVADO!\n\nE-MAIL OBRIGATÓRIO NA CLOUDFLARE:\n$email\n\nNÃO use o e-mail original se o endereço acima contém +setupmno. Digite o alias completo; caso contrário, a Cloudflare dirá que enviou o código, mas nenhum e-mail chegará.\n\n1. Abra ${team_domain}/cdn-cgi/access/logout\n2. Abra ${team_domain}/AddMfaDevice\n3. Digite exatamente o endereço acima\n4. Receba o código na caixa original e leia o novo QR"
     return 0
 }
 
@@ -1760,7 +1760,7 @@ error_file="/tmp/${nome_app}-error.log"
     [ "$knowledge_index_schema" = "2" ] &&
     [ "$knowledge_retrieval_version" = "1.3.0" ] &&
     [ "$eval_schema" = "1" ] &&
-    [ "$eval_dataset_version" = "1.13.5" ] &&
+    [ "$eval_dataset_version" = "1.13.6" ] &&
     [ "$eval_grader_version" = "1.9.0" ] &&
     [ "${#eval_dataset_sha}" -eq 64 ] &&
     [ "$eval_dataset_sha" = "$release_eval_dataset_sha" ] &&
