@@ -426,19 +426,25 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
     fi
     ```
     **Variáveis esperadas:** `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ZONE_ID`, `nome_servidor`, `TUNNEL_ID`, `CLOUDFLARE_ACCOUNT_ID`
-10.5 **PostgreSQL Compartilhado (ESTRATÉGIA PADRÃO ⚠️):** Por padrão, SEMPRE usar o PostgreSQL compartilhado para novas aplicações. A senha é extraída de `/root/postgres.yaml` (regra 11 abaixo). Apenas criar PostgreSQL dedicado se a aplicação EXIGIR (ex: GitLab).
+10.5 **PostgreSQL Compartilhado (ESTRATÉGIA PADRÃO E PRIORITÁRIA ⚠️):** Por padrão, SEMPRE usar o PostgreSQL compartilhado nativo do Setup MNO para novas aplicações. A senha é extraída de `/root/postgres.yaml` (regra 11 abaixo). Antes de propor ou criar uma instância dedicada, verifique se a aplicação aceita um PostgreSQL externo por hostname/porta ou `DATABASE_URL`. Se aceitar, o compartilhado é obrigatório. O simples fato de o Compose oficial da aplicação incluir um container PostgreSQL próprio **não** caracteriza exigência de banco dedicado.
 
     **USAR O COMPARTILHADO (quase sempre):**
     - Conectar via hostname `postgres` na porta `5432`
     - Criar database: `CREATE DATABASE $nome_app;`
     - Connection string: `postgresql://postgres:$postgres_password@postgres:5432/$nome_app`
+    - Verificar se o serviço compartilhado está instalado e aguardar sua disponibilidade antes de criar o database ou iniciar migrações
+    - Fazer a criação do database de forma idempotente, sem alterar ou remover databases de outras aplicações
+    - Não criar uma substack PostgreSQL apenas por conveniência, isolamento genérico ou por copiar o Compose oficial
     - SCRIPTS DE REFERÊNCIA: `outline.sh`, `tooljet.sh`, `fireflyiii.sh`
 
     **QUANDO USAR DEDICADO (exceção):**
-    - Se a aplicação EXIGIR extensões específicas do PostgreSQL (pgvector, etc.)
-    - Se a aplicação precisar de superuser ou configurações que afetariam outras databases
+    - Somente quando houver exigência técnica documentada e incompatível com o PostgreSQL compartilhado
+    - Se a aplicação EXIGIR versão, extensões específicas do PostgreSQL (pgvector, etc.), parâmetros globais ou método de inicialização incompatíveis
+    - Se a aplicação precisar de superuser permanente ou configurações que afetariam outras databases
+    - Se houver incompatibilidade de versão, collation, encoding, arquitetura de alta disponibilidade ou ciclo de atualização
     - Exemplo: GitLab (banco isolado)
     - Nestes casos, criar stack separada com `postgres:16-alpine`
+    - Registrar no código e na documentação da aplicação a justificativa objetiva para a exceção
 11. **Carregamento da Senha do Postgres (OBRIGATÓRIO):** Todo script que usa PostgreSQL DEVE extrair a senha do arquivo `/root/postgres.yaml`. **NUNCA use variável de ambiente `$POSTGRES_PASSWORD` diretamente — ela não existe no runtime.**
     ```bash
     # CARREGAR SENHA DO POSTGRES (padrão dos scripts validados)
