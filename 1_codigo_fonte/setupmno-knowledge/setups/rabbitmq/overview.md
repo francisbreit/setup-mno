@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "RabbitMQ no Setup MNO",
   "setupId": "rabbitmq",
-  "setupVersion": "7.12.2",
+  "setupVersion": "7.12.3",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

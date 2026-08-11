@@ -68,6 +68,7 @@ for migration_function in \
     control_service_env_value \
     rollback_existing_access_migration \
     prepare_existing_access_migration \
+    control_mfa_restore_progress \
     restore_existing_access_original_mode \
     build_existing_access_policy_payload \
     configure_existing_access_mfa; do
@@ -197,6 +198,21 @@ case "$MOCK_CURL_MODE" in
                 fi
                 ;;
             *) exit 97 ;;
+        esac
+        ;;
+    restore_original_missing_app)
+        case "$url" in
+            */access/apps\?per_page=100)
+                printf '%s\n' '{"success":true,"result":[]}'
+                ;;
+            */configurations)
+                if [ "$method" = "PUT" ]; then
+                    printf '%s\n' '{"success":true,"result":{}}'
+                else
+                    printf '%s\n' '{"success":true,"result":{"config":{"ingress":[{"hostname":"control.example.com","service":"http://mnoctrlabc1234-web_mnoctrlabc1234-web:8080","originRequest":{"access":{"required":true,"teamName":"setupmno","audTag":["setupmno-test-audience"]}}},{"service":"http_status:404"}]}}}'
+                fi
+                ;;
+            *) exit 98 ;;
         esac
         ;;
     existing_access)
@@ -446,6 +462,25 @@ export MOCK_CURL_MODE="restore_original" MOCK_ACCESS_STATE="ready_mfa" MOCK_WHIP
 configure_existing_access_mfa
 grep -Fq 'MFA DESATIVADO COM SUCESSO' "$message_capture"
 grep -Fq -- '--env-add ACCESS_JWT_REQUIRED=false' "$MOCK_DOCKER_LOG"
+grep -Fq 'Ativando login local e Terminal Remoto' "$gauge_capture"
+grep -Fq 'Modo original restaurado com sucesso.' "$gauge_capture"
+jq -e '.desiredMFA == false and .effectiveMFA == false and
+       .activationPromptPending == false' "$CONTROL_MFA_STATE_FILE" >/dev/null
+
+write_control_mfa_state true true false test-app-removed
+export MOCK_CURL_MODE="restore_original_missing_app" MOCK_ACCESS_STATE="ready_mfa"
+: >"$message_capture"
+: >"$gauge_capture"
+: >"$MOCK_DOCKER_LOG"
+: >"$MOCK_CURL_LOG"
+configure_existing_access_mfa
+grep -Fq 'MFA DESATIVADO COM SUCESSO' "$message_capture"
+grep -Fq -- '--env-add ACCESS_JWT_REQUIRED=false' "$MOCK_DOCKER_LOG"
+grep -Fq 'Modo original restaurado com sucesso.' "$gauge_capture"
+if grep -Fq 'DELETE https://api.cloudflare.com/client/v4/accounts/test-account/access/apps/' "$MOCK_CURL_LOG"; then
+    printf 'ERRO: desativação tentou remover novamente uma aplicação Access já ausente.\n' >&2
+    exit 1
+fi
 jq -e '.desiredMFA == false and .effectiveMFA == false and
        .activationPromptPending == false' "$CONTROL_MFA_STATE_FILE" >/dev/null
 

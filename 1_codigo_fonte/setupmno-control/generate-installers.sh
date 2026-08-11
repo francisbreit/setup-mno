@@ -386,6 +386,9 @@ grep -Fq 'choose_cloudflare_access_security' "$template" &&
 grep -Fq 'build_cloudflare_access_payload' "$template" &&
 grep -Fq 'configure_existing_access_mfa' "$template" &&
 grep -Fq 'restore_existing_access_original_mode' "$template" &&
+grep -Fq 'control_mfa_restore_progress' "$template" &&
+grep -Fq 'Aplicação Access já ausente; continuando a restauração idempotente' "$template" &&
+grep -Fq 'DESATIVANDO MFA DO CONTROL CENTER' "$template" &&
 grep -Fq '/access/apps/$app_id/policies/$policy_id' "$template" &&
 grep -Fq 'Modo original: Tunnel direto, login local e Terminal Remoto' "$template" &&
 grep -Fq '[ "$access_mfa_enabled" = "true" ]; then' "$template" &&
@@ -605,7 +608,7 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$knowledge_index_schema" = "2" ] &&
 [ "$knowledge_retrieval_version" = "1.3.0" ] &&
 [ "$eval_schema" = "1" ] &&
-[ "$eval_dataset_version" = "1.13.2" ] &&
+[ "$eval_dataset_version" = "1.13.3" ] &&
 [ "$eval_grader_version" = "1.9.0" ] &&
 [ "${#eval_dataset_sha}" -eq 64 ] &&
 [ "$eval_case_entries" = "863" ] &&

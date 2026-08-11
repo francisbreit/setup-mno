@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.16.9"
+CONTROL_VERSION="4.16.10"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -510,11 +510,18 @@ prepare_existing_access_migration() {
     return 0
 }
 
+control_mfa_restore_progress() {
+    local enabled="$1" percent="$2" message="$3"
+    [ "$enabled" = "true" ] || return 0
+    printf 'XXX\n%s\n%s\nXXX\n' "$percent" "$message"
+}
+
 restore_existing_access_original_mode() {
-    local web_service="$1" work_dir="$2" log_file="$3"
-    local team_domain aud email applications_file tunnel_file app_count app_id hostname service_target
+    local web_service="$1" work_dir="$2" log_file="$3" show_progress="${4:-false}"
+    local team_domain aud email applications_file tunnel_file app_count app_id hostname service_target route_count
     local original_tunnel tunnel_payload tunnel_response delete_response previous_mfa
 
+    control_mfa_restore_progress "$show_progress" 5 "Validando a configuração atual..."
     team_domain=$(control_service_env_value "$web_service" ACCESS_TEAM_DOMAIN)
     aud=$(control_service_env_value "$web_service" ACCESS_POLICY_AUD)
     email=$(control_service_env_value "$web_service" ACCESS_ALLOWED_EMAIL)
@@ -532,6 +539,7 @@ restore_existing_access_original_mode() {
     tunnel_payload="$work_dir/original-mode-tunnel-payload.json"
     tunnel_response="$work_dir/original-mode-tunnel-response.json"
     delete_response="$work_dir/original-mode-delete-response.json"
+    control_mfa_restore_progress "$show_progress" 15 "Consultando a Cloudflare..."
     if ! curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
         -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
         "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps?per_page=100" \
@@ -547,14 +555,27 @@ restore_existing_access_original_mode() {
     fi
     app_count=$(jq -r --arg aud "$aud" '[.result[]? | select(.aud == $aud)] | length' "$applications_file")
     app_id=$(jq -r --arg aud "$aud" '[.result[]? | select(.aud == $aud)][0].id // empty' "$applications_file")
-    if [ "$app_count" -ne 1 ] || [[ ! "$app_id" =~ ^[A-Fa-f0-9-]{32,36}$ ]]; then
-        msg "A aplicação Access criada para o modo sem MFA não foi identificada de forma única. Nada foi removido."
+    if [ "$app_count" -gt 1 ] ||
+       { [ "$app_count" -eq 1 ] && [[ ! "$app_id" =~ ^[A-Fa-f0-9-]{32,36}$ ]]; }; then
+        msg "A aplicação Access não foi identificada de forma única. Nada foi removido."
         return 1
     fi
+    if [ "$app_count" -eq 0 ]; then
+        app_id=""
+        printf '%s\n' "Aplicação Access já ausente; continuando a restauração idempotente do modo original." >>"$log_file"
+    fi
+    control_mfa_restore_progress "$show_progress" 30 "Identificando a rota do Control Center..."
     service_target="http://${web_service}:8080"
+    route_count=$(jq -r --arg service "$service_target" \
+        '[.result.config.ingress[]? | select(.service == $service)] | length' "$tunnel_file")
     hostname=$(jq -r --arg service "$service_target" \
         '[.result.config.ingress[]? | select(.service == $service) | .hostname][0] // empty' "$tunnel_file")
-    if [[ ! "$hostname" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] ||
+    if [ "$route_count" -ne 1 ] ||
+       [[ ! "$hostname" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]]; then
+        msg "A rota exclusiva do Control Center não foi identificada com segurança. Nada foi alterado."
+        return 1
+    fi
+    if [ "$app_count" -eq 1 ] &&
        ! jq -e --arg aud "$aud" --arg host "$hostname" '
           [.result[]? | select(.aud == $aud and
             (.domain == $host or any(.destinations[]?; .type == "public" and .uri == $host)))]
@@ -573,6 +594,7 @@ restore_existing_access_original_mode() {
     ' "$tunnel_file" >"$tunnel_payload" 2>>"$log_file"; then
         return 1
     fi
+    control_mfa_restore_progress "$show_progress" 45 "Restaurando o Tunnel direto..."
     if ! curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
         -X PUT \
         "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
@@ -582,6 +604,7 @@ restore_existing_access_original_mode() {
         msg "A Cloudflare recusou a restauração da rota original. O acesso atual foi preservado."
         return 1
     fi
+    control_mfa_restore_progress "$show_progress" 60 "Ativando login local e Terminal Remoto..."
     if ! docker service update --detach=false \
         --env-rm ACCESS_JWT_REQUIRED \
         --env-rm ACCESS_TEAM_DOMAIN \
@@ -599,33 +622,38 @@ restore_existing_access_original_mode() {
         msg "O serviço web recusou o modo original. A rota anterior foi restaurada."
         return 1
     fi
-    if ! curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
-        -X DELETE \
-        "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$app_id" \
-        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" >"$delete_response" 2>>"$log_file" ||
-       [ "$(jq -r '.success // false' "$delete_response")" != "true" ]; then
-        docker service update --detach=false \
-            --env-rm ACCESS_JWT_REQUIRED --env-rm ACCESS_MFA_REQUIRED \
-            --env-add ACCESS_JWT_REQUIRED=true \
-            --env-add "ACCESS_TEAM_DOMAIN=$team_domain" \
-            --env-add "ACCESS_POLICY_AUD=$aud" \
-            --env-add "ACCESS_ALLOWED_EMAIL=$email" \
-            --env-add "ACCESS_MFA_REQUIRED=$previous_mfa" \
-            "$web_service" >>"$log_file" 2>&1 || true
-        curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
-            -X PUT \
-            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
-            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
-            --data-binary @"$original_tunnel" >>"$log_file" 2>&1 || true
-        msg "A aplicação Access não pôde ser removida. Serviço e rota anteriores foram restaurados."
-        return 1
+    control_mfa_restore_progress "$show_progress" 82 "Removendo os recursos Access..."
+    if [ -n "$app_id" ]; then
+        if ! curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
+            -X DELETE \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$app_id" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" >"$delete_response" 2>>"$log_file" ||
+           [ "$(jq -r '.success // false' "$delete_response")" != "true" ]; then
+            docker service update --detach=false \
+                --env-rm ACCESS_JWT_REQUIRED --env-rm ACCESS_MFA_REQUIRED \
+                --env-add ACCESS_JWT_REQUIRED=true \
+                --env-add "ACCESS_TEAM_DOMAIN=$team_domain" \
+                --env-add "ACCESS_POLICY_AUD=$aud" \
+                --env-add "ACCESS_ALLOWED_EMAIL=$email" \
+                --env-add "ACCESS_MFA_REQUIRED=$previous_mfa" \
+                "$web_service" >>"$log_file" 2>&1 || true
+            curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" --max-time "$CLOUDFLARE_MAX_TIME" \
+                -X PUT \
+                "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+                -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+                --data-binary @"$original_tunnel" >>"$log_file" 2>&1 || true
+            msg "A aplicação Access não pôde ser removida. Serviço e rota anteriores foram restaurados."
+            return 1
+        fi
     fi
     load_cloudflare_mfa_helper &&
         remove_setupmno_launcher_policy "$work_dir" "$email" "$log_file" || true
+    control_mfa_restore_progress "$show_progress" 95 "Registrando o modo original..."
     write_control_mfa_state false false false menu-disabled || {
         msg "O modo original foi restaurado, mas o registro persistente de MFA não pôde ser atualizado. Execute novamente o Setup MNO antes de outra atualização."
         return 1
     }
+    control_mfa_restore_progress "$show_progress" 100 "Modo original restaurado com sucesso."
     return 0
 }
 
@@ -848,7 +876,9 @@ configure_existing_access_mfa() {
                     work_dir=$(mktemp -d) || return 1
                     log_file="/tmp/setupmno-control-mfa-${CONTROL_VERSION}.log"
                     : >"$log_file"
-                    if restore_existing_access_original_mode "$web_service" "$work_dir" "$log_file"; then
+                    if restore_existing_access_original_mode "$web_service" "$work_dir" "$log_file" true |
+                        whiptail --title "DESATIVANDO MFA DO CONTROL CENTER" --gauge \
+                            "Restaurando Tunnel direto, login local e Terminal Remoto..." 9 92 0; then
                         rm -rf -- "$work_dir"
                         msg "MFA DESATIVADO COM SUCESSO!\n\nO Control Center voltou ao modo original com Tunnel direto, login local e Terminal Remoto. A opção de MFA continuará disponível no menu."
                         return 0
@@ -1719,7 +1749,7 @@ error_file="/tmp/${nome_app}-error.log"
     [ "$knowledge_index_schema" = "2" ] &&
     [ "$knowledge_retrieval_version" = "1.3.0" ] &&
     [ "$eval_schema" = "1" ] &&
-    [ "$eval_dataset_version" = "1.13.2" ] &&
+    [ "$eval_dataset_version" = "1.13.3" ] &&
     [ "$eval_grader_version" = "1.9.0" ] &&
     [ "${#eval_dataset_sha}" -eq 64 ] &&
     [ "$eval_dataset_sha" = "$release_eval_dataset_sha" ] &&
