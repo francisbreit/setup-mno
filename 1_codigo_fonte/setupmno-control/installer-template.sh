@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.16.11"
+CONTROL_VERSION="4.16.12"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -378,6 +378,9 @@ prepare_existing_access_migration() {
     status=$?
     [ "$status" -eq 0 ] || return "$status"
     email=$(collect_cloudflare_access_email "IDENTIDADE DO MFA") || return 130
+    email=$(prepare_cloudflare_mfa_enrollment_email "$email")
+    status=$?
+    [ "$status" -eq 0 ] || return "$status"
 
     tunnel_raw="$work_dir/access-migration-tunnel.json"
     organization_file="$work_dir/access-migration-organization.json"
@@ -584,9 +587,7 @@ restore_existing_access_original_mode() {
         msg "A aplicação Access não corresponde de forma inequívoca à rota do Control Center. Nada foi removido."
         return 1
     fi
-    control_mfa_restore_progress "$show_progress" 38 "Revogando sessões e autenticadores antigos..."
-    load_cloudflare_mfa_helper &&
-        reset_cloudflare_access_identity "$work_dir" "$email" "$log_file" false || return 1
+    control_mfa_restore_progress "$show_progress" 38 "Preservando a identidade Zero Trust..."
     jq '{config:.result.config}' "$tunnel_file" >"$original_tunnel" 2>>"$log_file" || return 1
     if ! jq --arg host "$hostname" --arg service "$service_target" '
         (.result.config // {}) as $cfg
@@ -847,7 +848,7 @@ configure_existing_access_mfa() {
             return 1
         }
         rm -rf -- "$work_dir"
-        msg "MFA ATIVADO COM SUCESSO!\n\nE-mail protegido: $email\n\nA Cloudflare foi preparada automaticamente. Próximo passo:\n1. Abra ${team_domain}/AddMfaDevice\n2. Entre com o mesmo e-mail\n3. Escolha Aplicativo autenticador e leia o QR Code\n4. Volte e abra o Control Center"
+        msg "MFA ATIVADO COM SUCESSO!\n\nE-mail de acesso: $email\n\nA Cloudflare foi preparada automaticamente. Próximo passo:\n1. Abra ${team_domain}/cdn-cgi/access/logout para limpar a sessão anterior\n2. Abra ${team_domain}/AddMfaDevice\n3. Entre exatamente com o e-mail de acesso mostrado acima\n4. Escolha Aplicativo autenticador e leia o QR Code\n5. Volte e abra o Control Center"
         return 0
     fi
     if [ "$access_required" != "true" ] ||
@@ -1070,7 +1071,7 @@ configure_existing_access_mfa() {
         return 1
     }
     rm -rf -- "$work_dir"
-    msg "MFA ATIVADO COM SUCESSO!\n\nE-mail protegido: $email\n\nA Cloudflare foi preparada automaticamente. Próximo passo:\n1. Abra ${team_domain}/AddMfaDevice\n2. Entre com o mesmo e-mail\n3. Escolha Aplicativo autenticador e leia o QR Code\n4. Volte e abra o Control Center"
+    msg "MFA ATIVADO COM SUCESSO!\n\nE-mail de acesso: $email\n\nA Cloudflare foi preparada automaticamente. Próximo passo:\n1. Abra ${team_domain}/cdn-cgi/access/logout para limpar a sessão anterior\n2. Abra ${team_domain}/AddMfaDevice\n3. Entre exatamente com o e-mail de acesso mostrado acima\n4. Escolha Aplicativo autenticador e leia o QR Code\n5. Volte e abra o Control Center"
     return 0
 }
 
@@ -1759,7 +1760,7 @@ error_file="/tmp/${nome_app}-error.log"
     [ "$knowledge_index_schema" = "2" ] &&
     [ "$knowledge_retrieval_version" = "1.3.0" ] &&
     [ "$eval_schema" = "1" ] &&
-    [ "$eval_dataset_version" = "1.13.4" ] &&
+    [ "$eval_dataset_version" = "1.13.5" ] &&
     [ "$eval_grader_version" = "1.9.0" ] &&
     [ "${#eval_dataset_sha}" -eq 64 ] &&
     [ "$eval_dataset_sha" = "$release_eval_dataset_sha" ] &&

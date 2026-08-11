@@ -37,10 +37,17 @@ fi
 validation_mode="success"
 cf_mfa_api() {
     local method="$1" path="$2" output="$3"
-    [ "$method" = "GET" ]
-    if [ "$validation_mode" = "denied" ] && [[ "$path" == */access/apps* ]]; then
+    if [ "$method" = "DELETE" ] && [[ "$path" == */mfa_authenticators/* ]]; then
+        if [ "$validation_mode" = "revoke-denied" ]; then
+            printf '%s\n' '{"success":false,"errors":[{"code":10000,"message":"permission denied"}]}' >"$output"
+        else
+            printf '%s\n' '{"success":false,"errors":[{"code":12167,"message":"access.api.error.authenticator_not_found"}]}' >"$output"
+        fi
+    elif [ "$method" != "GET" ]; then
+        return 1
+    elif [ "$validation_mode" = "denied" ] && [[ "$path" == */access/apps* ]]; then
         printf '%s\n' '{"success":false,"errors":[{"message":"permission denied"}]}' >"$output"
-    elif [ "$validation_mode" = "user-denied" ] && [[ "$path" == */access/users* ]]; then
+    elif [ "$validation_mode" = "audit-denied" ] && [[ "$path" == */access/logs/access_requests* ]]; then
         printf '%s\n' '{"success":false,"errors":[{"message":"permission denied"}]}' >"$output"
     elif [ "$path" = "/user/tokens/verify" ]; then
         printf '%s\n' '{"success":true,"result":{"status":"active"}}' >"$output"
@@ -58,12 +65,18 @@ if validate_cloudflare_mfa_token "$candidate" "$test_dir"; then
     exit 1
 fi
 [[ "$CF_MFA_VALIDATION_ERROR" == *"Apps and Policies"* ]]
-validation_mode="user-denied"
+validation_mode="audit-denied"
 if validate_cloudflare_mfa_token "$candidate" "$test_dir"; then
-    printf 'ERRO: token sem leitura de usuários Access foi aceito.\n' >&2
+    printf 'ERRO: token sem leitura de auditoria Access foi aceito.\n' >&2
     exit 1
 fi
 [[ "$CF_MFA_VALIDATION_ERROR" == *"Audit Logs"* ]]
+validation_mode="revoke-denied"
+if validate_cloudflare_mfa_token "$candidate" "$test_dir"; then
+    printf 'ERRO: token sem capacidade de revogação foi aceito.\n' >&2
+    exit 1
+fi
+[[ "$CF_MFA_VALIDATION_ERROR" == *"Revogar"* ]]
 
 validation_mode="success"
 password_counter="$test_dir/password-counter"
@@ -91,35 +104,32 @@ prepare_cloudflare_mfa_token "$test_dir" "$test_dir/token-assistant.log"
 [ "$(<"$password_counter")" -eq 2 ]
 grep -Fqx "CLOUDFLARE_API_TOKEN=$valid_candidate" "$credentials"
 
-reset_api_log="$test_dir/reset-api.log"
-reset_mode="existing"
-cf_mfa_api() {
-    local method="$1" path="$2" output="$3"
-    printf '%s %s\n' "$method" "$path" >>"$reset_api_log"
-    case "$method:$path:$reset_mode" in
-        GET:*/access/users\?email=admin%40example.com\&per_page=100:existing)
-            printf '%s\n' '{"success":true,"result":[{"id":"99999999-aaaa-bbbb-cccc-dddddddddddd","email":"admin@example.com"}]}' >"$output" ;;
-        DELETE:*/access/users/99999999-aaaa-bbbb-cccc-dddddddddddd:existing)
-            printf '%s\n' '{"success":true,"result":{}}' >"$output" ;;
-        GET:*/access/users\?email=admin%40example.com\&per_page=100:none)
-            printf '%s\n' '{"success":true,"result":[]}' >"$output" ;;
-        GET:*/access/users\?email=admin%40example.com\&per_page=100:ambiguous)
-            printf '%s\n' '{"success":true,"result":[{"id":"99999999-aaaa-bbbb-cccc-dddddddddddd","email":"admin@example.com"},{"id":"88888888-aaaa-bbbb-cccc-dddddddddddd","email":"ADMIN@example.com"}]}' >"$output" ;;
-        *) return 1 ;;
-    esac
+CONTROL_MFA_STATE_FILE="$test_dir/mfa-state.json"
+jq -n '{schemaVersion:1,decisionRecorded:true,desiredMFA:false,effectiveMFA:false,
+    activationPromptPending:false,source:"menu-disabled",updatedAt:"2026-08-11T00:00:00Z"}' \
+    >"$CONTROL_MFA_STATE_FILE"
+whiptail() {
+    if [[ " $* " == *" --menu "* ]]; then
+        printf '%s' 'NOVO_QR' >&2
+    fi
+    return 0
 }
-reset_cloudflare_access_identity "$test_dir" 'admin@example.com' "$test_dir/reset.log" false
-grep -Fq 'DELETE /accounts/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/access/users/99999999-aaaa-bbbb-cccc-dddddddddddd' "$reset_api_log"
-reset_mode="none"
-: >"$reset_api_log"
-reset_cloudflare_access_identity "$test_dir" 'admin@example.com' "$test_dir/reset.log" false
-! grep -Fq 'DELETE ' "$reset_api_log"
-reset_mode="ambiguous"
-if reset_cloudflare_access_identity "$test_dir" 'admin@example.com' "$test_dir/reset.log" false; then
-    printf 'ERRO: identidade Zero Trust ambígua foi removida.\n' >&2
+alias_email=$(prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com')
+[[ "$alias_email" =~ ^admin\+setupmno[0-9a-f]+@gmail\.com$ ]]
+if prepare_cloudflare_mfa_enrollment_email 'admin@example.com' >/dev/null; then
+    printf 'ERRO: NOVO_QR foi aceito fora do Gmail.\n' >&2
     exit 1
 fi
-! grep -Fq 'DELETE ' "$reset_api_log"
+whiptail() {
+    if [[ " $* " == *" --menu "* ]]; then
+        printf '%s' 'REUTILIZAR' >&2
+    fi
+    return 0
+}
+[ "$(prepare_cloudflare_mfa_enrollment_email 'admin@example.com')" = 'admin@example.com' ]
+jq '.source = "control-installed"' "$CONTROL_MFA_STATE_FILE" >"$CONTROL_MFA_STATE_FILE.new"
+mv "$CONTROL_MFA_STATE_FILE.new" "$CONTROL_MFA_STATE_FILE"
+[ "$(prepare_cloudflare_mfa_enrollment_email 'primeiro@example.com')" = 'primeiro@example.com' ]
 
 org_fixture="$test_dir/org.json"
 org_payload="$test_dir/org-payload.json"
@@ -161,9 +171,6 @@ cf_mfa_api() {
         cp "$payload" "$test_dir/organization-update-captured.json"
     fi
     case "$method:$path" in
-        GET:*/access/users\?email=*)
-            printf '%s\n' '{"success":true,"result":[]}' >"$output"
-            ;;
         GET:*/access/organizations)
             printf '%s\n' '{"success":true,"result":{"auth_domain":"setupmno.cloudflareaccess.com","name":"Setup MNO","mfa_config":{"allowed_authenticators":[]}}}' >"$output"
             ;;

@@ -273,9 +273,7 @@ PATH="$test_dir/bin:$PATH"
 load_cloudflare_mfa_helper() { return 0; }
 prepare_cloudflare_mfa_token() { return 0; }
 prepare_cloudflare_mfa_deactivation() { return 0; }
-reset_cloudflare_access_identity() {
-    printf '%s|%s\n' "$2" "$4" >>"$test_dir/identity-reset.log"
-}
+prepare_cloudflare_mfa_enrollment_email() { printf '%s\n' "$1"; }
 ensure_cloudflare_mfa_onboarding() {
     jq -n '{active:true}' >"$4"
 }
@@ -441,7 +439,6 @@ grep -Fq 'metadados Cloudflare Access parciais ou inconsistentes' "$message_capt
 
 export MOCK_CURL_MODE="restore_original" MOCK_ACCESS_STATE="ready" MOCK_CONTROL_CENTER="installed"
 export MOCK_CURL_LOG="$test_dir/curl.log"
-: >"$test_dir/identity-reset.log"
 : >"$MOCK_DOCKER_LOG"
 : >"$MOCK_CURL_LOG"
 prepare_existing_access_migration \
@@ -450,7 +447,6 @@ prepare_existing_access_migration \
 grep -Fq -- '--env-rm ACCESS_JWT_REQUIRED' "$MOCK_DOCKER_LOG"
 grep -Fq -- '--env-add ACCESS_JWT_REQUIRED=false' "$MOCK_DOCKER_LOG"
 grep -Fq 'DELETE https://api.cloudflare.com/client/v4/accounts/test-account/access/apps/11111111-2222-3333-4444-555555555555' "$MOCK_CURL_LOG"
-grep -Fq 'admin@example.com|false' "$test_dir/identity-reset.log"
 
 export MOCK_CURL_MODE="mfa_upgrade" MOCK_ACCESS_STATE="ready" MOCK_CONTROL_CENTER="installed"
 export MOCK_WHIPTAIL_CHOICE="ATIVAR"
@@ -465,13 +461,11 @@ export MOCK_CURL_MODE="restore_original" MOCK_ACCESS_STATE="ready_mfa" MOCK_WHIP
 : >"$message_capture"
 : >"$MOCK_DOCKER_LOG"
 : >"$MOCK_CURL_LOG"
-: >"$test_dir/identity-reset.log"
 configure_existing_access_mfa
 grep -Fq 'MFA DESATIVADO COM SUCESSO' "$message_capture"
 grep -Fq -- '--env-add ACCESS_JWT_REQUIRED=false' "$MOCK_DOCKER_LOG"
 grep -Fq 'Ativando login local e Terminal Remoto' "$gauge_capture"
 grep -Fq 'Modo original restaurado com sucesso.' "$gauge_capture"
-grep -Fq 'admin@example.com|false' "$test_dir/identity-reset.log"
 jq -e '.desiredMFA == false and .effectiveMFA == false and
        .activationPromptPending == false' "$CONTROL_MFA_STATE_FILE" >/dev/null
 
@@ -481,12 +475,10 @@ export MOCK_CURL_MODE="restore_original_missing_app" MOCK_ACCESS_STATE="ready_mf
 : >"$gauge_capture"
 : >"$MOCK_DOCKER_LOG"
 : >"$MOCK_CURL_LOG"
-: >"$test_dir/identity-reset.log"
 configure_existing_access_mfa
 grep -Fq 'MFA DESATIVADO COM SUCESSO' "$message_capture"
 grep -Fq -- '--env-add ACCESS_JWT_REQUIRED=false' "$MOCK_DOCKER_LOG"
 grep -Fq 'Modo original restaurado com sucesso.' "$gauge_capture"
-grep -Fq 'admin@example.com|false' "$test_dir/identity-reset.log"
 if grep -Fq 'DELETE https://api.cloudflare.com/client/v4/accounts/test-account/access/apps/' "$MOCK_CURL_LOG"; then
     printf 'ERRO: desativação tentou remover novamente uma aplicação Access já ausente.\n' >&2
     exit 1

@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "NocoDB no Setup MNO",
   "setupId": "nocodb",
-  "setupVersion": "7.12.4",
+  "setupVersion": "7.12.5",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
