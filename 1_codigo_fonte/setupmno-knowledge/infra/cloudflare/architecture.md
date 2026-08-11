@@ -2,12 +2,12 @@
 {
   "schemaVersion": 1,
   "documentId": "infra-cloudflare-architecture",
-  "documentVersion": "1.2.0",
-  "contentSHA256": "2c3a82d8ab886c8b9c04f8a17608f0a05ca64f371e142f80cf4e92727c833021",
+  "documentVersion": "1.3.0",
+  "contentSHA256": "1b9ab96d17dc1ad1eb5da68feaab1d1b633544045b2d3e789bdd0388abb4d356",
   "documentType": "infrastructure",
   "title": "Cloudflare no acesso tradicional e por túnel",
   "topicId": "cloudflare",
-  "setupVersion": "7.14.0",
+  "setupVersion": "7.14.1",
   "architectures": ["amd64", "arm64"],
   "category": "networking",
   "status": "reviewed",
@@ -93,9 +93,17 @@ preexistentes e o perfil principal não entram nesse rollback.
 
 Em uma instalação inicial por Cloudflare Tunnel, o usuário pode solicitar a
 criação automática recomendada ou informar o ID de um Tunnel já criado. Os
-dois caminhos validam token, conta, zona, acesso a DNS e permissão de Tunnel
-antes da confirmação final. A escolha automática usa um nome determinístico e
-somente chama a API depois que o usuário confirma todos os dados.
+dois caminhos pedem primeiro o hostname do Portainer e o API Token. O Setup
+lista as zonas ativas acessíveis pelo token, escolhe a zona mais específica
+compatível com o hostname e descobre automaticamente Account ID, Zone ID e
+nome da zona. O usuário não precisa copiar esses identificadores do painel.
+
+O token inicial precisa de Cloudflare Tunnel em edição, Zona em leitura e DNS
+em edição. No método automático, esses são todos os dados Cloudflare pedidos.
+O método clássico acrescenta somente o Tunnel ID. Os dois caminhos validam
+token, conta descoberta, zona, acesso a DNS e permissão de Tunnel antes da
+confirmação final. A escolha automática usa um nome determinístico e somente
+chama a API depois que o usuário confirma todos os dados.
 
 O túnel automático nasce com estado `pending` e propriedade `setupmno`. O
 conector recebe o Tunnel Token exclusivamente por Docker Secret e a conclusão
@@ -109,6 +117,13 @@ configurar a rota e iniciar o conector, mas o rollback nunca exclui esse
 Tunnel. O Tunnel Token não é gravado no arquivo de credenciais; o arquivo 0600
 mantém somente os identificadores necessários para compatibilidade com os
 instaladores atuais e antigos.
+
+Na instalação tradicional com DNS automático, o mesmo mecanismo descobre
+Account ID e Zone ID a partir do hostname do Portainer e solicita apenas o API
+Token com leitura de zona e edição de DNS. Se o usuário escolher DNS manual,
+nenhuma credencial Cloudflare é pedida nessa etapa. Os campos históricos de
+credenciais continuam sendo gravados quando aplicáveis para compatibilidade
+com scripts atuais e antigos.
 
 ## Validação
 

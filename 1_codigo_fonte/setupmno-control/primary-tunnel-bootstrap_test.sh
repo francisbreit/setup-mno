@@ -9,7 +9,7 @@ temporary_dir=$(mktemp -d)
 trap 'rm -rf "$temporary_dir"' EXIT
 
 extract_primary_tunnel_runtime() {
-    sed -n '/^PRIMARY_TUNNEL_STATE_FILE=/,/^# FIM DE LOADING/p' "$1" | sed '$d'
+    sed -n '/^normalize_cloudflare_hostname()/,/^# FIM DE LOADING/p' "$1" | sed '$d'
 }
 
 extract_primary_tunnel_runtime "$x86" >"$temporary_dir/x86-runtime.sh"
@@ -29,7 +29,26 @@ for script in "$x86" "$arm"; do
     grep -Fq 'SETUPMNO_PRIMARY_DNS_RECORD_ID=' "$script"
     grep -Fq 'INSTALL_GAUGE_STATUS=$?' "$script"
     grep -Fq 'set -o pipefail' "$script"
+    grep -Fq 'discover_cloudflare_zone_context "$CLOUDFLARE_API_TOKEN" "$hostname"' "$script"
+    grep -Fq 'discover_cloudflare_zone_context "$CLOUDFLARE_API_TOKEN2" "$dominio"' "$script"
+    grep -Fq 'CLOUDFLARE_ACCOUNT_ID2="$CLOUDFLARE_ACCOUNT_ID"' "$script"
+    grep -Fq 'CLOUDFLARE_ZONE_ID2="$CLOUDFLARE_ZONE_ID"' "$script"
+    grep -Fq 'CLOUDFLARE_ZONE_NAME2="$CLOUDFLARE_ZONE_NAME"' "$script"
+    grep -Fq 'DOMINIO_PRINCIPAL="$CLOUDFLARE_ZONE_NAME"' "$script"
+    grep -Fq 'DOMINIO_PRINCIPAL="$CLOUDFLARE_ZONE_NAME2"' "$script"
+    grep -Fq -- '--passwordbox' "$script"
+    ! grep -Fq -- '--title "Cloudflare Account ID"' "$script" || {
+        printf 'ERRO: dockerswarm ainda solicita Account ID manualmente em %s.\n' "$script" >&2
+        exit 1
+    }
+    ! grep -Fq -- '--title "Cloudflare Zone ID"' "$script" || {
+        printf 'ERRO: dockerswarm ainda solicita Zone ID manualmente em %s.\n' "$script" >&2
+        exit 1
+    }
     credentials_function=$(awk '/^primary_tunnel_write_credentials\(\)/,/^}/' "$script")
+    grep -Fq 'CLOUDFLARE_ACCOUNT_ID=' <<<"$credentials_function"
+    grep -Fq 'CLOUDFLARE_ZONE_ID=' <<<"$credentials_function"
+    grep -Fq 'CLOUDFLARE_ZONE_NAME=' <<<"$credentials_function"
     ! grep -Fq 'TUNNEL_TOKEN' <<<"$credentials_function" || {
         printf 'ERRO: Tunnel Token não pode ser persistido nas credenciais em %s.\n' "$script" >&2
         exit 1
@@ -47,6 +66,48 @@ run_runtime_test() (
     CLOUDFLARE_ZONE_ID="zone-test"
     api_log="$temporary_dir/api.log"
     : >"$api_log"
+
+    validate_cloudflare_api_token() {
+        return 0
+    }
+
+    validate_cloudflare_zone_dns() {
+        return 0
+    }
+
+    curl() {
+        local argument url=""
+        for argument in "$@"; do
+            case "$argument" in
+                https://*) url="$argument" ;;
+            esac
+        done
+        case "$url" in
+            *'&page=1')
+                printf '%s' '{"success":true,"result":[{"id":"zone-root","name":"example.com","account":{"id":"account-root"}}],"result_info":{"total_pages":2}}'
+                ;;
+            *'&page=2')
+                printf '%s' '{"success":true,"result":[{"id":"zone-nested","name":"sub.example.com","account":{"id":"account-nested"}}],"result_info":{"total_pages":2}}'
+                ;;
+            *)
+                printf '%s' '{"success":false,"errors":[{"message":"URL mock inesperada"}]}'
+                return 1
+                ;;
+        esac
+    }
+
+    [ "$(normalize_cloudflare_hostname 'HTTPS://Painel.Sub.Example.COM/caminho')" = 'painel.sub.example.com' ]
+    discover_cloudflare_zone_context 'token-test' 'painel.sub.example.com'
+    [ "$CLOUDFLARE_ZONE_ID" = 'zone-nested' ]
+    [ "$CLOUDFLARE_ACCOUNT_ID" = 'account-nested' ]
+    [ "$CLOUDFLARE_ZONE_NAME" = 'sub.example.com' ]
+    if discover_cloudflare_zone_context 'token-test' 'painel.outro-dominio.com'; then
+        printf 'ERRO: descoberta aceitou hostname sem zona correspondente.\n' >&2
+        exit 1
+    fi
+
+    CLOUDFLARE_ACCOUNT_ID="account-test"
+    CLOUDFLARE_ZONE_ID="zone-test"
 
     primary_tunnel_cf_api() {
         local method="$1" endpoint="$2" output="$3"

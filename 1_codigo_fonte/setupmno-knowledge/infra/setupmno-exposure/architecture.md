@@ -2,12 +2,12 @@
 {
   "schemaVersion": 1,
   "documentId": "infra-setupmno-exposure-architecture",
-  "documentVersion": "1.2.0",
-  "contentSHA256": "623aece5508bd42c8ebc5152c689a189825f387a5ea28d9be3c2d35ceb23bcc3",
+  "documentVersion": "1.3.0",
+  "contentSHA256": "7d18e8fa01e445e6d5e3241ec49a094dc9bc3d947f3bfb3596cf1d7ec795c6df",
   "documentType": "infrastructure",
   "title": "Publicação de serviços por Cloudflare Tunnel ou Traefik",
   "topicId": "setupmno-exposure",
-  "setupVersion": "7.14.0",
+  "setupVersion": "7.14.1",
   "architectures": ["amd64", "arm64"],
   "category": "networking",
   "status": "reviewed",
@@ -69,6 +69,13 @@ Em ambos os casos, o token do conector fica em Docker Secret e a publicação s�
 é confirmada depois de validar conector, rota e DNS. Esse fluxo não altera
 instalações antigas que já possuem o Swarm e o túnel principal configurados.
 
+Como `dockerswarm.sh` atende a instalação limpa, ele coleta apenas os dados
+necessários. No Tunnel automático, são pedidos hostname do Portainer e API
+Token; Account ID, Zone ID e zona são descobertos pela API. No Tunnel
+existente, acrescenta-se somente o Tunnel ID. A seleção usa a zona ativa mais
+específica correspondente ao hostname, preservando zonas delegadas ou
+aninhadas da mesma conta.
+
 O diagnóstico deve separar:
 
 1. serviço e healthcheck dentro do Swarm;
@@ -88,6 +95,12 @@ No modelo tradicional, Traefik observa labels de serviços, recebe tráfego nas
 portas publicadas de entrada e encaminha pela rede overlay externa. DNS aponta
 para o endereço público do servidor e TLS depende dos resolvers e labels
 configurados.
+
+Quando o DNS automático é escolhido na instalação inicial, o Setup solicita
+somente o API Token e descobre os IDs pela zona do hostname. No DNS manual,
+nenhum token ou identificador Cloudflare é necessário. Os identificadores
+descobertos continuam persistidos no formato histórico para não quebrar os
+instaladores que os consomem.
 
 O diagnóstico deve separar:
 
