@@ -95,6 +95,12 @@ Ative este modo quando o usuário disser **“Modo Homologação”**, **“Modo
 
 ## CONTEXTO DOS AMBIENTES DO SETUP MNO
 
+### Versão estável vigente
+- A última versão estável homologada do Setup MNO é **v7.14.6**.
+- Tag Git: `v7.14.6`.
+- Commit de release: `40ac4d7e` (`release: v7.14.6 - recuperação de Tunnel excluído`).
+- Este registro somente deve ser alterado quando o usuário declarar explicitamente uma nova versão como estável após a homologação.
+
 ### Projeto de construção
 - Este repositório é o ambiente que mantém o código-fonte, monta, protege com SHC, criptografa e empacota o instalador do Setup MNO.
 - O código editável permanece em `1_codigo_fonte/`; `2_empacotador/` constrói os artefatos e `3_distribuicao/` contém a saída de release.
