@@ -131,6 +131,23 @@ jq '.source = "control-installed"' "$CONTROL_MFA_STATE_FILE" >"$CONTROL_MFA_STAT
 mv "$CONTROL_MFA_STATE_FILE.new" "$CONTROL_MFA_STATE_FILE"
 [ "$(prepare_cloudflare_mfa_enrollment_email 'primeiro@example.com')" = 'primeiro@example.com' ]
 
+alias_message="$test_dir/initial-alias-message.txt"
+: >"$alias_message"
+whiptail() {
+    printf '%s\n' "$*" >>"$alias_message"
+    return 0
+}
+initial_alias=$(prepare_cloudflare_mfa_enrollment_email 'primeiro+antigo@example.com' initial)
+[[ "$initial_alias" =~ ^primeiro\+setupmno[0-9a-f]+@example\.com$ ]]
+grep -Fq 'COPIE O E-MAIL DE ACESSO CLOUDFLARE' "$alias_message"
+grep -Fq 'CAIXA POSTAL ORIGINAL:' "$alias_message"
+grep -Fq 'primeiro+antigo@example.com' "$alias_message"
+grep -Fq 'E-MAIL DE ACESSO CLOUDFLARE:' "$alias_message"
+grep -Fq "$initial_alias" "$alias_message"
+grep -Fq 'NÃO digite o e-mail original' "$alias_message"
+grep -Fq 'incluindo +setupmno' "$alias_message"
+grep -Fq 'será exibido o novo QR Code' "$alias_message"
+
 org_fixture="$test_dir/org.json"
 org_payload="$test_dir/org-payload.json"
 printf '%s\n' '{"result":{"auth_domain":"setupmno.cloudflareaccess.com","name":"Setup MNO","mfa_config":{"allowed_authenticators":["security_key"],"session_duration":"12h"}}}' >"$org_fixture"

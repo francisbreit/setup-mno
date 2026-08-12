@@ -14,8 +14,8 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.14.1` no canal estável
-- Control Center: `4.16.13`
+- Setup MNO: `7.14.2` no canal estável
+- Control Center: `4.16.14`
 - Conhecimento canônico: `3.17.6`
 - Catálogo runtime: 155 entradas
 - Cobertura canônica dedicada: 155 de 155 entradas (`100%`)

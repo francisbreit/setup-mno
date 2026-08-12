@@ -405,6 +405,8 @@ grep -Fq 'prepare_cloudflare_mfa_token' "$project_dir/cloudflare-mfa.sh" &&
 grep -Fq 'prepare_cloudflare_mfa_deactivation' "$project_dir/cloudflare-mfa.sh" &&
 grep -Fq 'ensure_cloudflare_mfa_onboarding' "$project_dir/cloudflare-mfa.sh" &&
 grep -Fq 'prepare_cloudflare_mfa_enrollment_email' "$project_dir/cloudflare-mfa.sh" &&
+grep -Fq 'generate_cloudflare_mfa_alias' "$project_dir/cloudflare-mfa.sh" &&
+grep -Fq 'show_cloudflare_mfa_alias_instructions' "$project_dir/cloudflare-mfa.sh" &&
 grep -Fq 'NÃO digite o e-mail original' "$project_dir/cloudflare-mfa.sh" &&
 grep -Fq 'NÃO use o e-mail original' "$template" &&
 grep -Fq '/access/logs/access_requests?per_page=1' "$project_dir/cloudflare-mfa.sh" &&
@@ -424,6 +426,13 @@ grep -Fq 'parseAccessRequired(os.Getenv("ACCESS_JWT_REQUIRED"))' "$project_dir/m
 grep -Fq 'args+=(--env-add ACCESS_JWT_REQUIRED=false --env-add ACCESS_MFA_REQUIRED=false)' \
     "$project_dir/control-upgrade.sh" || {
     printf 'ERRO: barreira P0 do Cloudflare Access/JWT/MFA ausente ou incompleta.\n' >&2
+    exit 1
+}
+grep -Fq 'access_email=$(prepare_cloudflare_mfa_enrollment_email "$access_original_email" initial)' "$template" &&
+grep -Fq 'show_cloudflare_mfa_alias_instructions "$access_original_email" "$access_email"' "$template" &&
+grep -Fq 'CAIXA POSTAL ORIGINAL:' "$project_dir/cloudflare-mfa.sh" &&
+grep -Fq 'E-MAIL DE ACESSO CLOUDFLARE:' "$project_dir/cloudflare-mfa.sh" || {
+    printf 'ERRO: instalação inicial não força alias exclusivo nem repete as instruções finais.\n' >&2
     exit 1
 }
 grep -Fq 'POST /api/session/activity' "$project_dir/main.go" &&

@@ -90,10 +90,43 @@ EOF
     return 0
 }
 
-prepare_cloudflare_mfa_enrollment_email() {
-    local email="$1" state_file="${CONTROL_MFA_STATE_FILE:-}" source="" choice
-    local local_part domain base tag effective replacement status
+generate_cloudflare_mfa_alias() {
+    local email="$1" local_part domain base tag effective
     [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] || return 1
+    local_part=${email%@*}
+    domain=${email##*@}
+    domain=${domain,,}
+    base=${local_part%%+*}
+    tag="setupmno$(date -u +%y%m%d%H%M%S)$(od -An -N2 -tx1 /dev/urandom | tr -d ' \n')"
+    effective="${base}+${tag}@${domain}"
+    [ -n "$base" ] && [ "${#base}" -le 40 ] && [ "${#effective}" -le 254 ] || return 1
+    printf '%s\n' "$effective"
+}
+
+show_cloudflare_mfa_alias_instructions() {
+    local original_email="$1" access_email="$2"
+    whiptail --title "COPIE O E-MAIL DE ACESSO CLOUDFLARE" --msgbox \
+        "CAIXA POSTAL ORIGINAL:\n$original_email\n\nE-MAIL DE ACESSO CLOUDFLARE:\n$access_email\n\nATENÇÃO: na página da Cloudflare, NÃO digite o e-mail original. Preencha exatamente o alias completo acima, incluindo +setupmno. O código chegará na caixa postal original e, depois da confirmação, será exibido o novo QR Code." \
+        20 96 1>&2
+}
+
+prepare_cloudflare_mfa_enrollment_email() {
+    local email="$1" mode="${2:-reactivation}"
+    local state_file="${CONTROL_MFA_STATE_FILE:-}" source="" choice
+    local domain effective replacement status
+    [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] || return 1
+    if [ "$mode" = "initial" ]; then
+        effective=$(generate_cloudflare_mfa_alias "$email") || {
+            whiptail --title "NÃO FOI POSSÍVEL CRIAR O ALIAS" --msgbox \
+                "Use uma caixa postal real que aceite endereços com +alias. Gmail é recomendado para garantir o recebimento do código e a criação de um novo QR Code." \
+                12 86 1>&2
+            return 130
+        }
+        show_cloudflare_mfa_alias_instructions "$email" "$effective"
+        printf '%s\n' "$effective"
+        return 0
+    fi
+    [ "$mode" = "reactivation" ] || return 1
     if [ -f "$state_file" ] && [ ! -L "$state_file" ] &&
        [ "$(stat -c '%s' "$state_file" 2>/dev/null || printf '99999')" -le 2048 ]; then
         source=$(jq -r '.source // empty' "$state_file" 2>/dev/null)
@@ -102,7 +135,6 @@ prepare_cloudflare_mfa_enrollment_email() {
         printf '%s\n' "$email"
         return 0
     }
-    local_part=${email%@*}
     domain=${email##*@}
     domain=${domain,,}
     if [ "$domain" = "gmail.com" ] || [ "$domain" = "googlemail.com" ]; then
@@ -126,18 +158,13 @@ prepare_cloudflare_mfa_enrollment_email() {
     case "$choice" in
         NOVO_QR)
             { [ "$domain" = "gmail.com" ] || [ "$domain" = "googlemail.com" ]; } || return 1
-            base=${local_part%%+*}
-            tag="setupmno$(date -u +%y%m%d%H%M%S)$(od -An -N2 -tx1 /dev/urandom | tr -d ' \n')"
-            effective="${base}+${tag}@${domain}"
-            [ "${#base}" -le 40 ] && [ "${#effective}" -le 254 ] || {
+            effective=$(generate_cloudflare_mfa_alias "$email") || {
                 whiptail --title "ALIAS GMAIL MUITO LONGO" --msgbox \
                     "O endereço informado não comporta um alias seguro. Escolha OUTRO E-MAIL na próxima tentativa." \
                     10 82 1>&2
                 return 130
             }
-            whiptail --title "COPIE O E-MAIL DE ACESSO CLOUDFLARE" --msgbox \
-                "CAIXA POSTAL ORIGINAL:\n$email\n\nE-MAIL DE ACESSO CLOUDFLARE:\n$effective\n\nATENÇÃO: na página da Cloudflare, NÃO digite o e-mail original. Preencha exatamente o alias completo acima, incluindo +setupmno. O código chegará na caixa postal original e, depois da confirmação, será exibido o novo QR Code." \
-                20 96 1>&2
+            show_cloudflare_mfa_alias_instructions "$email" "$effective"
             printf '%s\n' "$effective"
             ;;
         REUTILIZAR)

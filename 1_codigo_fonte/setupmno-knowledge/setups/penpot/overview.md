@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Penpot no Setup MNO",
   "setupId": "penpot",
-  "setupVersion": "7.14.1",
+  "setupVersion": "7.14.2",
   "architectures": [
     "amd64",
     "arm64"

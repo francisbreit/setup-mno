@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.16.13"
+CONTROL_VERSION="4.16.14"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -196,7 +196,7 @@ collect_cloudflare_access_email() {
     local step_label="$1" email status
     while true; do
         if ! email=$(ask_required \
-            "$step_label — E-mail autorizado no Cloudflare Access:\n\nUse um endereço REAL que você controla e que consiga usar em um método de login do Zero Trust. O instalador criará a permissão automaticamente; ele não cria a conta de e-mail."); then
+            "$step_label — Caixa postal original:\n\nInforme um e-mail real que aceite +alias (Gmail recomendado). O Setup criará um alias exclusivo e outro QR Code."); then
             return 130
         fi
         email=$(printf '%s' "$email" | tr '[:upper:]' '[:lower:]')
@@ -1351,6 +1351,7 @@ if ! senha_control=$(ask_password); then
 fi
 
 access_email=""
+access_original_email=""
 access_team_domain=""
 access_team_name=""
 access_mfa_enabled="false"
@@ -1389,7 +1390,8 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
             [ "$access_token_status" -eq 130 ] && exit 0
             exit "$access_token_status"
         fi
-        access_email=$(collect_cloudflare_access_email "4/6") || exit 0
+        access_original_email=$(collect_cloudflare_access_email "4/6") || exit 0
+        access_email=$(prepare_cloudflare_mfa_enrollment_email "$access_original_email" initial) || exit 0
         access_organization_file=$(mktemp) || exit 1
         access_applications_file=$(mktemp) || {
             rm -f "$access_organization_file"
@@ -1416,6 +1418,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
         rm -f "$access_organization_file" "$access_applications_file"
         if [ "$access_mfa_enabled" = "false" ]; then
             access_email=""
+            access_original_email=""
             access_team_domain=""
             access_team_name=""
         fi
@@ -2510,7 +2513,8 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "1" ]; then
 fi
 if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     if [ "$access_mfa_enabled" = "true" ]; then
-        access_next_step="\n\nPRIMEIRO ACESSO COM MFA:\n1. Abra https://${access_team_name}.cloudflareaccess.com/AddMfaDevice\n2. Entre com $access_email\n3. Cadastre seu aplicativo autenticador pelo QR Code\n4. Depois abra https://$url_control"
+        show_cloudflare_mfa_alias_instructions "$access_original_email" "$access_email"
+        access_next_step="\n\nPRIMEIRO ACESSO: abra https://${access_team_name}.cloudflareaccess.com/AddMfaDevice, use o alias informado, cadastre o QR Code e acesse https://$url_control."
     else
         access_next_step="\n\nMODO ORIGINAL SEM MFA:\nAbra https://$url_control e use o usuário e a senha locais do painel. O Terminal Remoto continua disponível pelo mesmo fluxo do Control Center. Para ativar MFA depois, use CONFIGURAR MFA CONTROL CENTER no menu do Setup MNO."
     fi

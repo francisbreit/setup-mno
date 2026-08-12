@@ -2,12 +2,12 @@
 {
   "schemaVersion": 1,
   "documentId": "setup-setupmno-control-overview",
-  "documentVersion": "1.5.0",
-  "contentSHA256": "086b183d0ec127bb1ef319b8e1ccb09a81c84c7b9ca7c13c571c2d23fadea040",
+  "documentVersion": "1.6.0",
+  "contentSHA256": "b9f4566f64c4916100ca4d64ffd612b6ee62352462d75735dc951379923942be",
   "documentType": "setup",
   "title": "Setup MNO Control Center",
   "setupId": "setupmno-control",
-  "setupVersion": "7.14.1",
+  "setupVersion": "7.14.2",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
@@ -103,6 +103,23 @@ Os fontes compactados do painel permanecem fora do script protegido pelo SHC.
 O arquivo `control-source.tar.gz` possui tamanho e SHA-256 no manifesto,
 é promovido atomicamente para o estado runtime e validado novamente antes do
 build local.
+
+## Primeiro cadastro do MFA
+
+Na instalação inicial com Cloudflare Access e MFA, o e-mail informado é a
+caixa postal original. Antes de criar políticas, o instalador gera uma
+identidade exclusiva no formato `usuario+setupmno<data><sufixo>@dominio` e usa
+somente esse alias no App Launcher, na aplicação Access e no painel. Isso evita
+reutilizar uma identidade Zero Trust que já possua autenticador em outro
+projeto e força a apresentação de um novo QR Code.
+
+O instalador mostra separadamente **CAIXA POSTAL ORIGINAL** e **E-MAIL DE
+ACESSO CLOUDFLARE** antes do deploy e novamente ao concluir. Na página da
+Cloudflare, o operador deve digitar exatamente o alias completo; o código de
+e-mail chega à caixa original. O provedor da caixa precisa aceitar endereços
+com `+alias`, sendo Gmail a opção recomendada. O fluxo de reativação pelo menu
+continua permitindo gerar nova identidade ou reutilizar conscientemente um
+autenticador anterior.
 
 ## Central de Configurações
 
