@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Firecrawl no Setup MNO",
   "setupId": "firecrawl",
-  "setupVersion": "7.14.4",
+  "setupVersion": "7.14.5",
   "architectures": ["amd64"],
   "category": "overview",
   "status": "reviewed",

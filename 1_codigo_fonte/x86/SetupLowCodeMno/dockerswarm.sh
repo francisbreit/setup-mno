@@ -692,7 +692,11 @@ primary_tunnel_begin_automatic() {
             TUNNEL_NAME="$state_name"
             TUNNEL_TOKEN=$(primary_tunnel_get_token "$TUNNEL_ID") || { rm -f "$response" "$payload"; return 1; }
             TUNNEL_OWNERSHIP="setupmno"
-            [ "$state_status" = "pending" ] && SETUPMNO_PRIMARY_TUNNEL_CONFIG_MAY_BE_EMPTY=true || SETUPMNO_PRIMARY_TUNNEL_CONFIG_MAY_BE_EMPTY=false
+            # Um Tunnel comprovadamente criado pelo Setup pode estar sem configuração
+            # remota após reinstalação, interrupção ou limpeza manual na Cloudflare.
+            # Permitir o primeiro ingresso vazio recupera esse estado sem relaxar a
+            # proteção aplicada aos Tunnels externos informados pelo usuário.
+            SETUPMNO_PRIMARY_TUNNEL_CONFIG_MAY_BE_EMPTY=true
             [ "$state_status" = "pending" ] && SETUPMNO_PRIMARY_DELETE_ON_ROLLBACK=true || SETUPMNO_PRIMARY_DELETE_ON_ROLLBACK=false
             SETUPMNO_PRIMARY_TUNNEL_TRANSACTION=true
             trap 'primary_tunnel_exit_handler $?' EXIT

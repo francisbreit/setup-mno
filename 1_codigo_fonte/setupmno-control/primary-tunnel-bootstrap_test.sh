@@ -148,7 +148,7 @@ run_runtime_test() (
                         ;;
                     absent)
                         PRIMARY_TUNNEL_HTTP_CODE=404
-                        printf '{"success":false,"errors":[{"code":1003,"message":"Tunnel configuration not found"}]}' >"$output"
+                        printf '{"success":false,"errors":[{"code":1003,"message":"Configuration for tunnel not found"}]}' >"$output"
                         ;;
                     null_config)
                         printf '{"success":true,"result":{"config":null}}' >"$output"
@@ -178,6 +178,12 @@ run_runtime_test() (
                 ;;
             GET:*/existing-tunnel-id/token)
                 printf '{"success":true,"result":"ey-existing-token"}' >"$output"
+                ;;
+            GET:*/active-tunnel-id/token)
+                printf '{"success":true,"result":"ey-active-token"}' >"$output"
+                ;;
+            GET:*/cfd_tunnel/active-tunnel-id)
+                printf '{"success":true,"result":{"id":"active-tunnel-id","name":"setupmno-primary-aaaaaaaaaaaa","status":"inactive"}}' >"$output"
                 ;;
             DELETE:*)
                 printf '{"success":true,"result":null}' >"$output"
@@ -211,6 +217,31 @@ run_runtime_test() (
     trap - EXIT
     ! grep -Fq 'DELETE /accounts/account-test/cfd_tunnel/existing-tunnel-id' "$api_log"
     [ ! -e "$PRIMARY_TUNNEL_STATE_FILE" ]
+
+    # Reinstalação: um Tunnel antigo do próprio Setup pode manter estado ativo,
+    # mas ter perdido sua configuração remota. Nesse caso a rota inicial deve
+    # ser reconstruída; a exceção nunca se aplica a um Tunnel externo.
+    active_name="setupmno-primary-aaaaaaaaaaaa"
+    primary_tunnel_write_state setupmno active "account-test" "zone-test" \
+        "active-tunnel-id" "$active_name"
+    TUNNEL_NAME=""
+    TUNNEL_TOKEN=""
+    primary_tunnel_begin_automatic
+    [ "$TUNNEL_ID" = "active-tunnel-id" ]
+    [ "$TUNNEL_OWNERSHIP" = "setupmno" ]
+    [ "$SETUPMNO_PRIMARY_TUNNEL_CONFIG_MAY_BE_EMPTY" = "true" ]
+    [ "$SETUPMNO_PRIMARY_DELETE_ON_ROLLBACK" = "false" ]
+    config_scenario=absent
+    config_calls=0
+    primary_tunnel_get_configuration "$temporary_dir/active-recovery.json" \
+        "$SETUPMNO_PRIMARY_TUNNEL_CONFIG_MAY_BE_EMPTY"
+    jq -e '.setupmnoInitialEmpty == true and .result.config == {}' \
+        "$temporary_dir/active-recovery.json" >/dev/null
+    primary_tunnel_rollback
+    trap - EXIT
+    primary_tunnel_state_valid
+    [ "$(jq -r '.status' "$PRIMARY_TUNNEL_STATE_FILE")" = "active" ]
+    rm -f "$PRIMARY_TUNNEL_STATE_FILE"
 
     config_output="$temporary_dir/configuration.json"
     config_scenario=delayed
