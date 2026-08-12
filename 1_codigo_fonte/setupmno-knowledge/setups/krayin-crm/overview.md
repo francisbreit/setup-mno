@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Krayin CRM no Setup MNO",
   "setupId": "krayin-crm",
-  "setupVersion": "7.14.6",
+  "setupVersion": "7.15.0",
   "architectures": [
     "amd64",
     "arm64"

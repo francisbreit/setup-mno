@@ -825,6 +825,7 @@ count_pro_menu() {
                 name != "GERENCIAR DOMÍNIOS CLOUDFLARE" &&
                 name != "GERADOR DE REGISTROS DNS" &&
                 name != "ESSENCIAIS EDITÁVEIS NO PORTAINER" &&
+                name != "DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR" &&
                 name != "SAIR" &&
                 name !~ /^─+$/) count++
         }
