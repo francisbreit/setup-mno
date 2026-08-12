@@ -2,12 +2,12 @@
 {
   "schemaVersion": 1,
   "documentId": "infra-setupmno-exposure-architecture",
-  "documentVersion": "1.3.0",
-  "contentSHA256": "7d18e8fa01e445e6d5e3241ec49a094dc9bc3d947f3bfb3596cf1d7ec795c6df",
+  "documentVersion": "1.3.1",
+  "contentSHA256": "64875bf4a6bad1bb85ddb4e821254e760a2736b987b3f11f8101430e59ec01dc",
   "documentType": "infrastructure",
   "title": "Publicação de serviços por Cloudflare Tunnel ou Traefik",
   "topicId": "setupmno-exposure",
-  "setupVersion": "7.14.2",
+  "setupVersion": "7.14.3",
   "architectures": ["amd64", "arm64"],
   "category": "networking",
   "status": "reviewed",
@@ -68,6 +68,10 @@ Tunnel existente permanece externo e nunca pode ser excluído pelo rollback.
 Em ambos os casos, o token do conector fica em Docker Secret e a publicação só
 é confirmada depois de validar conector, rota e DNS. Esse fluxo não altera
 instalações antigas que já possuem o Swarm e o túnel principal configurados.
+Novos túneis automáticos recebem sufixo aleatório exclusivo, evitando colisão
+quando vários projetos usam a mesma conta e zona Cloudflare. Um túnel já
+registrado localmente preserva seu nome original durante atualização ou
+reconciliação.
 
 Como `dockerswarm.sh` atende a instalação limpa, ele coleta apenas os dados
 necessários. No Tunnel automático, são pedidos hostname do Portainer e API

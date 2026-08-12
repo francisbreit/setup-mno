@@ -36,6 +36,11 @@ for script in "$x86" "$arm"; do
     grep -Fq 'CLOUDFLARE_ZONE_NAME2="$CLOUDFLARE_ZONE_NAME"' "$script"
     grep -Fq 'DOMINIO_PRINCIPAL="$CLOUDFLARE_ZONE_NAME"' "$script"
     grep -Fq 'DOMINIO_PRINCIPAL="$CLOUDFLARE_ZONE_NAME2"' "$script"
+    grep -Fq 'primary_tunnel_random_name()' "$script"
+    ! grep -Fq 'primary_tunnel_deterministic_name' "$script" || {
+        printf 'ERRO: nome determinístico do Tunnel ainda existe em %s.\n' "$script" >&2
+        exit 1
+    }
     grep -Fq -- '--passwordbox' "$script"
     ! grep -Fq -- '--title "Cloudflare Account ID"' "$script" || {
         printf 'ERRO: dockerswarm ainda solicita Account ID manualmente em %s.\n' "$script" >&2
@@ -64,6 +69,12 @@ run_runtime_test() (
     CLOUDFLARE_API_TOKEN="token-test"
     CLOUDFLARE_ACCOUNT_ID="account-test"
     CLOUDFLARE_ZONE_ID="zone-test"
+    first_random_name=$(primary_tunnel_random_name)
+    second_random_name=$(primary_tunnel_random_name)
+    [[ "$first_random_name" =~ ^setupmno-primary-[0-9a-f]{12}$ ]]
+    [[ "$second_random_name" =~ ^setupmno-primary-[0-9a-f]{12}$ ]]
+    [ "$first_random_name" != "$second_random_name" ]
+    TUNNEL_NAME="$first_random_name"
     api_log="$temporary_dir/api.log"
     : >"$api_log"
 
@@ -118,7 +129,7 @@ run_runtime_test() (
                 ;;
             POST:*/cfd_tunnel)
                 printf '{"success":true,"result":{"id":"auto-tunnel-id","name":"%s","token":"ey-auto-token"}}' \
-                    "$(primary_tunnel_deterministic_name "$CLOUDFLARE_ACCOUNT_ID" "$CLOUDFLARE_ZONE_ID")" >"$output"
+                    "$TUNNEL_NAME" >"$output"
                 ;;
             GET:*/existing-tunnel-id/token)
                 printf '{"success":true,"result":"ey-existing-token"}' >"$output"
@@ -136,6 +147,7 @@ run_runtime_test() (
     primary_tunnel_begin_automatic
     [ "$TUNNEL_ID" = "auto-tunnel-id" ]
     [ "$TUNNEL_OWNERSHIP" = "setupmno" ]
+    [ "$TUNNEL_NAME" = "$first_random_name" ]
     primary_tunnel_state_valid
     [ "$(jq -r '.status' "$PRIMARY_TUNNEL_STATE_FILE")" = "pending" ]
     [ "$(stat -c '%a' "$PRIMARY_TUNNEL_STATE_FILE")" = "600" ]

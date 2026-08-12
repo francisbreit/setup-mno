@@ -353,7 +353,10 @@ collect_primary_tunnel_context() {
         fi
         if [ "$TUNNEL_SETUP_MODE" = "AUTO" ]; then
             TUNNEL_ID=""
-            TUNNEL_NAME=$(primary_tunnel_deterministic_name "$CLOUDFLARE_ACCOUNT_ID" "$CLOUDFLARE_ZONE_ID")
+            TUNNEL_NAME=$(primary_tunnel_random_name) || {
+                CLOUDFLARE_VALIDATION_ERROR="Não foi possível gerar um nome exclusivo para o Tunnel automático."
+                continue
+            }
             if validate_cloudflare_tunnel_creation_access "$CLOUDFLARE_API_TOKEN" \
                 "$CLOUDFLARE_ACCOUNT_ID" "$CLOUDFLARE_ZONE_ID"; then
                 whiptail --title "CLOUDFLARE VALIDADA" --msgbox \
@@ -463,9 +466,18 @@ primary_tunnel_write_state() {
     mv -f "$temporary" "$PRIMARY_TUNNEL_STATE_FILE"
 }
 
-primary_tunnel_deterministic_name() {
-    local account_id="$1" zone_id="$2" suffix
-    suffix=$(printf '%s:%s' "$account_id" "$zone_id" | sha256sum | cut -c1-12)
+primary_tunnel_random_name() {
+    local suffix=""
+    if command -v openssl >/dev/null 2>&1; then
+        suffix=$(openssl rand -hex 6 2>/dev/null || true)
+    fi
+    if ! [[ "$suffix" =~ ^[0-9a-f]{12}$ ]] && [ -r /dev/urandom ]; then
+        suffix=$(od -An -N6 -tx1 /dev/urandom 2>/dev/null | tr -d '[:space:]')
+    fi
+    if ! [[ "$suffix" =~ ^[0-9a-f]{12}$ ]]; then
+        suffix=$(printf '%s:%s:%s' "$(date +%s%N)" "$$" "${RANDOM:-0}" | sha256sum | cut -c1-12)
+    fi
+    [[ "$suffix" =~ ^[0-9a-f]{12}$ ]] || return 1
     printf 'setupmno-primary-%s' "$suffix"
 }
 
@@ -544,7 +556,14 @@ primary_tunnel_begin_existing() {
 
 primary_tunnel_begin_automatic() {
     local expected_name response payload existing_count state_status state_account state_zone state_tunnel state_name
-    expected_name=$(primary_tunnel_deterministic_name "$CLOUDFLARE_ACCOUNT_ID" "$CLOUDFLARE_ZONE_ID")
+    expected_name="${TUNNEL_NAME:-}"
+    if ! [[ "$expected_name" =~ ^setupmno-primary-[0-9a-f]{12}$ ]]; then
+        expected_name=$(primary_tunnel_random_name) || {
+            CLOUDFLARE_VALIDATION_ERROR="Não foi possível gerar um nome exclusivo para o Tunnel automático."
+            return 1
+        }
+    fi
+    TUNNEL_NAME="$expected_name"
     response=$(mktemp) || return 1
     payload=$(mktemp) || { rm -f "$response"; return 1; }
     chmod 600 "$response" "$payload"

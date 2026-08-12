@@ -2,12 +2,12 @@
 {
   "schemaVersion": 1,
   "documentId": "infra-cloudflare-architecture",
-  "documentVersion": "1.3.0",
-  "contentSHA256": "1b9ab96d17dc1ad1eb5da68feaab1d1b633544045b2d3e789bdd0388abb4d356",
+  "documentVersion": "1.3.1",
+  "contentSHA256": "0986b98a3b2c89f602532fc261c27621c4b89232ae66f149a82902c4c2153905",
   "documentType": "infrastructure",
   "title": "Cloudflare no acesso tradicional e por túnel",
   "topicId": "cloudflare",
-  "setupVersion": "7.14.2",
+  "setupVersion": "7.14.3",
   "architectures": ["amd64", "arm64"],
   "category": "networking",
   "status": "reviewed",
@@ -102,8 +102,12 @@ O token inicial precisa de Cloudflare Tunnel em edição, Zona em leitura e DNS
 em edição. No método automático, esses são todos os dados Cloudflare pedidos.
 O método clássico acrescenta somente o Tunnel ID. Os dois caminhos validam
 token, conta descoberta, zona, acesso a DNS e permissão de Tunnel antes da
-confirmação final. A escolha automática usa um nome determinístico e somente
-chama a API depois que o usuário confirma todos os dados.
+confirmação final. A escolha automática gera um nome exclusivo no formato
+`setupmno-primary-<12 caracteres hexadecimais aleatórios>` e somente chama a
+API depois que o usuário confirma todos os dados. O identificador aleatório
+evita colisões entre projetos que compartilham a mesma conta e zona. Se já
+existir estado local válido, o nome e o Tunnel ID registrados são reutilizados
+sem renomear ou recriar o recurso.
 
 O túnel automático nasce com estado `pending` e propriedade `setupmno`. O
 conector recebe o Tunnel Token exclusivamente por Docker Secret e a conclusão
