@@ -421,6 +421,24 @@ primary_tunnel_api_success() {
     jq -e '.success == true' "$1" >/dev/null 2>&1
 }
 
+primary_tunnel_response_is_live() {
+    local response="$1" expected_id="$2"
+    jq -e --arg tunnel_id "$expected_id" '
+        .success == true and
+        .result.id == $tunnel_id and
+        ((.result.deleted_at // null) == null)' \
+        "$response" >/dev/null 2>&1
+}
+
+primary_tunnel_response_is_deleted() {
+    local response="$1" expected_id="$2"
+    jq -e --arg tunnel_id "$expected_id" '
+        .success == true and
+        .result.id == $tunnel_id and
+        ((.result.deleted_at // null) != null)' \
+        "$response" >/dev/null 2>&1
+}
+
 primary_tunnel_error_text() {
     jq -r '[.errors[]?.message, .messages[]?.message] | map(select(length > 0)) | join("\n")' "$1" 2>/dev/null |
         awk 'NF {print; found=1} END {if(!found) print "A Cloudflare recusou a operação."}' |
@@ -651,14 +669,13 @@ primary_tunnel_begin_existing() {
 }
 
 primary_tunnel_begin_automatic() {
-    local expected_name response payload existing_count state_status state_account state_zone state_tunnel state_name
-    expected_name="${TUNNEL_NAME:-}"
-    if ! [[ "$expected_name" =~ ^setupmno-primary-[0-9a-f]{12}$ ]]; then
-        expected_name=$(primary_tunnel_random_name) || {
-            CLOUDFLARE_VALIDATION_ERROR="Não foi possível gerar um nome exclusivo para o Tunnel automático."
-            return 1
-        }
-    fi
+    local expected_name response payload existing_count state_status state_account state_zone state_tunnel state_name detail
+    # Cada criação automática recebe uma identidade nova. Um nome vindo de
+    # credenciais antigas jamais deve ressuscitar a referência de outro projeto.
+    expected_name=$(primary_tunnel_random_name) || {
+        CLOUDFLARE_VALIDATION_ERROR="Não foi possível gerar um nome exclusivo para o Tunnel automático."
+        return 1
+    }
     TUNNEL_NAME="$expected_name"
     response=$(mktemp) || return 1
     payload=$(mktemp) || { rm -f "$response"; return 1; }
@@ -677,23 +694,43 @@ primary_tunnel_begin_automatic() {
         state_name=$(jq -r '.tunnelName' "$PRIMARY_TUNNEL_STATE_FILE")
         state_status=$(jq -r '.status' "$PRIMARY_TUNNEL_STATE_FILE")
         if [ "$state_account" = "$CLOUDFLARE_ACCOUNT_ID" ] && [ "$state_zone" = "$CLOUDFLARE_ZONE_ID" ] &&
-           [ "$(jq -r '.ownership' "$PRIMARY_TUNNEL_STATE_FILE")" = "setupmno" ] &&
-           primary_tunnel_cf_api GET "/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${state_tunnel}" "$response" &&
-           primary_tunnel_api_success "$response"; then
-            TUNNEL_ID="$state_tunnel"
-            TUNNEL_NAME="$state_name"
-            TUNNEL_TOKEN=$(primary_tunnel_get_token "$TUNNEL_ID") || { rm -f "$response" "$payload"; return 1; }
-            TUNNEL_OWNERSHIP="setupmno"
-            # Um Tunnel comprovadamente criado pelo Setup pode estar sem configuração
-            # remota após reinstalação, interrupção ou limpeza manual na Cloudflare.
-            # Permitir o primeiro ingresso vazio recupera esse estado sem relaxar a
-            # proteção aplicada aos Tunnels externos informados pelo usuário.
-            SETUPMNO_PRIMARY_TUNNEL_CONFIG_MAY_BE_EMPTY=true
-            [ "$state_status" = "pending" ] && SETUPMNO_PRIMARY_DELETE_ON_ROLLBACK=true || SETUPMNO_PRIMARY_DELETE_ON_ROLLBACK=false
-            SETUPMNO_PRIMARY_TUNNEL_TRANSACTION=true
-            trap 'primary_tunnel_exit_handler $?' EXIT
-            rm -f "$response" "$payload"
-            return 0
+           [ "$(jq -r '.ownership' "$PRIMARY_TUNNEL_STATE_FILE")" = "setupmno" ]; then
+            : >"$response"
+            if ! primary_tunnel_cf_api GET "/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${state_tunnel}" "$response"; then
+                CLOUDFLARE_VALIDATION_ERROR="Não foi possível consultar o Tunnel registrado antes de decidir pela recuperação. Nenhum Tunnel novo foi criado."
+                rm -f "$response" "$payload"
+                return 1
+            fi
+            if primary_tunnel_response_is_live "$response" "$state_tunnel"; then
+                TUNNEL_ID="$state_tunnel"
+                TUNNEL_NAME="$state_name"
+                TUNNEL_TOKEN=$(primary_tunnel_get_token "$TUNNEL_ID") || { rm -f "$response" "$payload"; return 1; }
+                TUNNEL_OWNERSHIP="setupmno"
+                # Um Tunnel vivo criado pelo Setup pode ter perdido somente a
+                # configuração remota; nesse caso o primeiro ingresso é seguro.
+                SETUPMNO_PRIMARY_TUNNEL_CONFIG_MAY_BE_EMPTY=true
+                [ "$state_status" = "pending" ] && SETUPMNO_PRIMARY_DELETE_ON_ROLLBACK=true || SETUPMNO_PRIMARY_DELETE_ON_ROLLBACK=false
+                SETUPMNO_PRIMARY_TUNNEL_TRANSACTION=true
+                trap 'primary_tunnel_exit_handler $?' EXIT
+                rm -f "$response" "$payload"
+                return 0
+            fi
+            if primary_tunnel_response_is_deleted "$response" "$state_tunnel" ||
+               [ "${PRIMARY_TUNNEL_HTTP_CODE:-}" = "404" ]; then
+                printf '%s estado local apontava para Tunnel excluído; uma nova identidade automática será criada.\n' \
+                    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$PRIMARY_TUNNEL_LOG"
+                expected_name=$(primary_tunnel_random_name) || {
+                    CLOUDFLARE_VALIDATION_ERROR="O Tunnel anterior foi excluído e não foi possível gerar uma nova identidade exclusiva."
+                    rm -f "$response" "$payload"
+                    return 1
+                }
+                TUNNEL_NAME="$expected_name"
+            else
+                detail=$(primary_tunnel_error_text "$response")
+                CLOUDFLARE_VALIDATION_ERROR="A Cloudflare não confirmou que o Tunnel registrado está vivo nem excluído. HTTP ${PRIMARY_TUNNEL_HTTP_CODE:-indisponível}: ${detail}. Nenhum Tunnel novo foi criado."
+                rm -f "$response" "$payload"
+                return 1
+            fi
         fi
     fi
 

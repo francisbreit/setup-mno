@@ -79,6 +79,7 @@ run_runtime_test() (
     SETUPMNO_TUNNEL_CONFIG_ATTEMPTS=3
     config_scenario=""
     config_calls=0
+    next_auto_id="auto-tunnel-id"
     first_random_name=$(primary_tunnel_random_name)
     second_random_name=$(primary_tunnel_random_name)
     [[ "$first_random_name" =~ ^setupmno-primary-[0-9a-f]{12}$ ]]
@@ -173,8 +174,8 @@ run_runtime_test() (
                 printf '{"success":true,"result":[]}' >"$output"
                 ;;
             POST:*/cfd_tunnel)
-                printf '{"success":true,"result":{"id":"auto-tunnel-id","name":"%s","token":"ey-auto-token"}}' \
-                    "$TUNNEL_NAME" >"$output"
+                printf '{"success":true,"result":{"id":"%s","name":"%s","token":"ey-auto-token"}}' \
+                    "$next_auto_id" "$TUNNEL_NAME" >"$output"
                 ;;
             GET:*/existing-tunnel-id/token)
                 printf '{"success":true,"result":"ey-existing-token"}' >"$output"
@@ -184,6 +185,17 @@ run_runtime_test() (
                 ;;
             GET:*/cfd_tunnel/active-tunnel-id)
                 printf '{"success":true,"result":{"id":"active-tunnel-id","name":"setupmno-primary-aaaaaaaaaaaa","status":"inactive"}}' >"$output"
+                ;;
+            GET:*/cfd_tunnel/deleted-tunnel-id)
+                printf '{"success":true,"result":{"id":"deleted-tunnel-id","name":"setupmno-primary-bbbbbbbbbbbb","status":"down","deleted_at":"2026-08-12T04:24:00Z"}}' >"$output"
+                ;;
+            GET:*/cfd_tunnel/missing-tunnel-id)
+                PRIMARY_TUNNEL_HTTP_CODE=404
+                printf '{"success":false,"errors":[{"code":1002,"message":"Tunnel not found"}]}' >"$output"
+                ;;
+            GET:*/cfd_tunnel/forbidden-tunnel-id)
+                PRIMARY_TUNNEL_HTTP_CODE=403
+                printf '{"success":false,"errors":[{"code":9109,"message":"Unauthorized to access requested resource"}]}' >"$output"
                 ;;
             DELETE:*)
                 printf '{"success":true,"result":null}' >"$output"
@@ -199,7 +211,8 @@ run_runtime_test() (
     [ "$TUNNEL_ID" = "auto-tunnel-id" ]
     [ "$TUNNEL_OWNERSHIP" = "setupmno" ]
     [ "$SETUPMNO_PRIMARY_TUNNEL_CONFIG_MAY_BE_EMPTY" = "true" ]
-    [ "$TUNNEL_NAME" = "$first_random_name" ]
+    [[ "$TUNNEL_NAME" =~ ^setupmno-primary-[0-9a-f]{12}$ ]]
+    [ "$TUNNEL_NAME" != "$first_random_name" ]
     primary_tunnel_state_valid
     [ "$(jq -r '.status' "$PRIMARY_TUNNEL_STATE_FILE")" = "pending" ]
     [ "$(stat -c '%a' "$PRIMARY_TUNNEL_STATE_FILE")" = "600" ]
@@ -242,6 +255,62 @@ run_runtime_test() (
     primary_tunnel_state_valid
     [ "$(jq -r '.status' "$PRIMARY_TUNNEL_STATE_FILE")" = "active" ]
     rm -f "$PRIMARY_TUNNEL_STATE_FILE"
+
+    # A API devolve HTTP 200/success=true também para um Tunnel soft-deleted.
+    # A presença de deleted_at deve forçar uma identidade nova e aleatória.
+    deleted_name="setupmno-primary-bbbbbbbbbbbb"
+    primary_tunnel_write_state setupmno active "account-test" "zone-test" \
+        "deleted-tunnel-id" "$deleted_name"
+    TUNNEL_NAME="$deleted_name"
+    TUNNEL_TOKEN=""
+    next_auto_id="replacement-tunnel-id"
+    : >"$api_log"
+    primary_tunnel_begin_automatic
+    [ "$TUNNEL_ID" = "replacement-tunnel-id" ]
+    [ "$TUNNEL_NAME" != "$deleted_name" ]
+    [[ "$TUNNEL_NAME" =~ ^setupmno-primary-[0-9a-f]{12}$ ]]
+    [ "$SETUPMNO_PRIMARY_DELETE_ON_ROLLBACK" = "true" ]
+    grep -Fq 'GET /accounts/account-test/cfd_tunnel/deleted-tunnel-id' "$api_log"
+    grep -Fq 'POST /accounts/account-test/cfd_tunnel' "$api_log"
+    primary_tunnel_rollback
+    trap - EXIT
+    grep -Fq 'DELETE /accounts/account-test/cfd_tunnel/replacement-tunnel-id' "$api_log"
+    [ ! -e "$PRIMARY_TUNNEL_STATE_FILE" ]
+
+    # Um 404 direto para estado antigo do próprio Setup também é recuperável.
+    missing_name="setupmno-primary-cccccccccccc"
+    primary_tunnel_write_state setupmno active "account-test" "zone-test" \
+        "missing-tunnel-id" "$missing_name"
+    TUNNEL_NAME="$missing_name"
+    TUNNEL_TOKEN=""
+    next_auto_id="replacement-missing-id"
+    : >"$api_log"
+    primary_tunnel_begin_automatic
+    [ "$TUNNEL_ID" = "replacement-missing-id" ]
+    [ "$TUNNEL_NAME" != "$missing_name" ]
+    primary_tunnel_rollback
+    trap - EXIT
+    [ ! -e "$PRIMARY_TUNNEL_STATE_FILE" ]
+
+    # Falta de permissão nunca pode ser confundida com Tunnel excluído, pois
+    # isso criaria duplicatas sem conseguir auditar o recurso anterior.
+    forbidden_name="setupmno-primary-dddddddddddd"
+    primary_tunnel_write_state setupmno active "account-test" "zone-test" \
+        "forbidden-tunnel-id" "$forbidden_name"
+    TUNNEL_NAME="$forbidden_name"
+    TUNNEL_TOKEN=""
+    next_auto_id="must-not-be-created"
+    : >"$api_log"
+    if primary_tunnel_begin_automatic; then
+        printf 'ERRO: HTTP 403 do estado antigo criou outro Tunnel.\n' >&2
+        exit 1
+    fi
+    ! grep -Fq 'POST /accounts/account-test/cfd_tunnel' "$api_log"
+    [[ "$CLOUDFLARE_VALIDATION_ERROR" == *"HTTP 403"* ]]
+    primary_tunnel_state_valid
+    [ "$(jq -r '.tunnelId' "$PRIMARY_TUNNEL_STATE_FILE")" = "forbidden-tunnel-id" ]
+    rm -f "$PRIMARY_TUNNEL_STATE_FILE"
+    next_auto_id="auto-tunnel-id"
 
     config_output="$temporary_dir/configuration.json"
     config_scenario=delayed
