@@ -7,7 +7,7 @@
   "documentType": "infrastructure",
   "title": "Baseline de VPS para o Setup MNO",
   "topicId": "vps",
-  "setupVersion": "7.14.3",
+  "setupVersion": "7.14.4",
   "architectures": ["amd64", "arm64"],
   "category": "capacity",
   "status": "reviewed",

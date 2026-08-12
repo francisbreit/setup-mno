@@ -2,12 +2,12 @@
 {
   "schemaVersion": 1,
   "documentId": "infra-setupmno-exposure-architecture",
-  "documentVersion": "1.3.1",
-  "contentSHA256": "64875bf4a6bad1bb85ddb4e821254e760a2736b987b3f11f8101430e59ec01dc",
+  "documentVersion": "1.3.2",
+  "contentSHA256": "b0052d7ca1a80ca90daeb56b9ed55fd72d934b6d23db0569e5f5f2b9772c6bc9",
   "documentType": "infrastructure",
   "title": "Publicação de serviços por Cloudflare Tunnel ou Traefik",
   "topicId": "setupmno-exposure",
-  "setupVersion": "7.14.3",
+  "setupVersion": "7.14.4",
   "architectures": ["amd64", "arm64"],
   "category": "networking",
   "status": "reviewed",
@@ -72,6 +72,11 @@ Novos túneis automáticos recebem sufixo aleatório exclusivo, evitando colisã
 quando vários projetos usam a mesma conta e zona Cloudflare. Um túnel já
 registrado localmente preserva seu nome original durante atualização ou
 reconciliação.
+Na criação automática, a propagação inicial da configuração é aguardada com
+retry progressivo. Somente um Tunnel novo ou `pending`, reconhecido como
+propriedade do Setup MNO, pode receber o primeiro ingresso a partir de uma
+configuração vazia confirmada pela API; erros de autorização e recursos
+externos permanecem bloqueantes.
 
 Como `dockerswarm.sh` atende a instalação limpa, ele coleta apenas os dados
 necessários. No Tunnel automático, são pedidos hostname do Portainer e API

@@ -402,17 +402,27 @@ SETUPMNO_PRIMARY_DNS_RECORD_ID=""
 SETUPMNO_PRIMARY_DNS_BACKUP=""
 SETUPMNO_PRIMARY_DNS_MUTATED=false
 SETUPMNO_PRIMARY_TUNNEL_CONFIG_BACKUP=""
+SETUPMNO_PRIMARY_TUNNEL_CONFIG_MAY_BE_EMPTY=false
 SETUPMNO_PRIMARY_TUNNEL_SECRET=""
 SETUPMNO_PRIMARY_CREDENTIALS_BACKUP=""
 SETUPMNO_PRIMARY_CREDENTIALS_EXISTED=false
+PRIMARY_TUNNEL_HTTP_CODE=""
 
 primary_tunnel_cf_api() {
     local method="$1" endpoint="$2" output="$3" payload="${4:-}"
+    local http_code
     local args=(-sS --connect-timeout 10 --max-time 45 -X "$method"
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"
         -H "Content-Type: application/json")
     [ -z "$payload" ] || args+=(--data-binary "@$payload")
-    curl "${args[@]}" "https://api.cloudflare.com/client/v4${endpoint}" >"$output" 2>/dev/null
+    PRIMARY_TUNNEL_HTTP_CODE=""
+    http_code=$(curl "${args[@]}" -o "$output" -w '%{http_code}' \
+        "https://api.cloudflare.com/client/v4${endpoint}" 2>/dev/null) || {
+        PRIMARY_TUNNEL_HTTP_CODE="000"
+        return 1
+    }
+    PRIMARY_TUNNEL_HTTP_CODE="$http_code"
+    [[ "$http_code" =~ ^[0-9]{3}$ ]]
 }
 
 primary_tunnel_api_success() {
@@ -423,6 +433,91 @@ primary_tunnel_error_text() {
     jq -r '[.errors[]?.message, .messages[]?.message] | map(select(length > 0)) | join("\n")' "$1" 2>/dev/null |
         awk 'NF {print; found=1} END {if(!found) print "A Cloudflare recusou a operação."}' |
         head -c 1800
+}
+
+primary_tunnel_configuration_missing() {
+    local response="$1" http_code="${2:-}"
+    [ "$http_code" = "404" ] && return 0
+    jq -e '.success == true and ((.result.config // null) == null)' \
+        "$response" >/dev/null 2>&1 && return 0
+    jq -e '.success == false and
+        ([.errors[]?.message, .messages[]?.message] | map(select(type == "string")) |
+         join(" ") | ascii_downcase |
+         test("(configuration|config).*(not found|does not exist|missing|not configured)|no (configuration|config)"))' \
+        "$response" >/dev/null 2>&1
+}
+
+primary_tunnel_get_configuration() {
+    local output="$1" allow_empty="${2:-false}" attempt attempts delay detail last_missing=false
+    attempts="${SETUPMNO_TUNNEL_CONFIG_ATTEMPTS:-6}"
+    [[ "$attempts" =~ ^[1-9][0-9]*$ ]] && [ "$attempts" -le 12 ] || attempts=6
+    for attempt in $(seq 1 "$attempts"); do
+        : >"$output"
+        if primary_tunnel_cf_api GET \
+            "/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}/configurations" "$output" &&
+           primary_tunnel_api_success "$output" &&
+           jq -e '.result.config | type == "object"' "$output" >/dev/null 2>&1; then
+            printf '%s configuração disponível na tentativa %s/%s (HTTP %s).\n' \
+                "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$attempt" "$attempts" \
+                "${PRIMARY_TUNNEL_HTTP_CODE:-desconhecido}" >>"$PRIMARY_TUNNEL_LOG"
+            return 0
+        fi
+        if primary_tunnel_configuration_missing "$output" "${PRIMARY_TUNNEL_HTTP_CODE:-}"; then
+            last_missing=true
+        else
+            last_missing=false
+        fi
+        detail=$(primary_tunnel_error_text "$output")
+        printf '%s configuração indisponível na tentativa %s/%s (HTTP %s): %s\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$attempt" "$attempts" \
+            "${PRIMARY_TUNNEL_HTTP_CODE:-desconhecido}" "$detail" >>"$PRIMARY_TUNNEL_LOG"
+        case "${PRIMARY_TUNNEL_HTTP_CODE:-}" in 401|403) break ;; esac
+        if [ "$attempt" -lt "$attempts" ]; then
+            delay="$attempt"
+            [ "${SETUPMNO_TUNNEL_TEST_MODE:-0}" = "1" ] && delay=0
+            [ "$delay" -eq 0 ] || sleep "$delay"
+        fi
+    done
+    if [ "$allow_empty" = "true" ] && [ "$last_missing" = "true" ]; then
+        jq -n '{success:true,result:{config:{}},setupmnoInitialEmpty:true}' >"$output" || return 1
+        printf '%s Tunnel automático ainda sem configuração; iniciando primeiro ingresso vazio de forma controlada.\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$PRIMARY_TUNNEL_LOG"
+        return 0
+    fi
+    CLOUDFLARE_VALIDATION_ERROR="Não foi possível obter a configuração do Tunnel. HTTP ${PRIMARY_TUNNEL_HTTP_CODE:-indisponível}: $(primary_tunnel_error_text "$output")"
+    return 1
+}
+
+primary_tunnel_wait_for_route() {
+    local output="$1" hostname="$2" service="$3" attempt attempts delay detail
+    attempts="${SETUPMNO_TUNNEL_CONFIG_ATTEMPTS:-6}"
+    [[ "$attempts" =~ ^[1-9][0-9]*$ ]] && [ "$attempts" -le 12 ] || attempts=6
+    for attempt in $(seq 1 "$attempts"); do
+        : >"$output"
+        if primary_tunnel_cf_api GET \
+            "/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}/configurations" "$output" &&
+           primary_tunnel_api_success "$output" &&
+           jq -e --arg host "$hostname" --arg service "$service" \
+             'any(.result.config.ingress[]?; .hostname == $host and .service == $service)' \
+             "$output" >/dev/null 2>&1; then
+            printf '%s rota confirmada na tentativa %s/%s (HTTP %s).\n' \
+                "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$attempt" "$attempts" \
+                "${PRIMARY_TUNNEL_HTTP_CODE:-desconhecido}" >>"$PRIMARY_TUNNEL_LOG"
+            return 0
+        fi
+        detail=$(primary_tunnel_error_text "$output")
+        printf '%s rota ainda não confirmada na tentativa %s/%s (HTTP %s): %s\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$attempt" "$attempts" \
+            "${PRIMARY_TUNNEL_HTTP_CODE:-desconhecido}" "$detail" >>"$PRIMARY_TUNNEL_LOG"
+        case "${PRIMARY_TUNNEL_HTTP_CODE:-}" in 401|403) break ;; esac
+        if [ "$attempt" -lt "$attempts" ]; then
+            delay="$attempt"
+            [ "${SETUPMNO_TUNNEL_TEST_MODE:-0}" = "1" ] && delay=0
+            [ "$delay" -eq 0 ] || sleep "$delay"
+        fi
+    done
+    CLOUDFLARE_VALIDATION_ERROR="A API não confirmou a rota do Portainer. HTTP ${PRIMARY_TUNNEL_HTTP_CODE:-indisponível}: $(primary_tunnel_error_text "$output")"
+    return 1
 }
 
 primary_tunnel_prepare_state_dir() {
@@ -556,6 +651,7 @@ primary_tunnel_begin_existing() {
     TUNNEL_TOKEN=$(primary_tunnel_get_token "$TUNNEL_ID") || return 1
     TUNNEL_NAME="Tunnel existente"
     TUNNEL_OWNERSHIP="external"
+    SETUPMNO_PRIMARY_TUNNEL_CONFIG_MAY_BE_EMPTY=false
     SETUPMNO_PRIMARY_DELETE_ON_ROLLBACK=false
     primary_tunnel_write_state external pending "$CLOUDFLARE_ACCOUNT_ID" "$CLOUDFLARE_ZONE_ID" "$TUNNEL_ID" "$TUNNEL_NAME" || return 1
     SETUPMNO_PRIMARY_TUNNEL_TRANSACTION=true
@@ -596,6 +692,7 @@ primary_tunnel_begin_automatic() {
             TUNNEL_NAME="$state_name"
             TUNNEL_TOKEN=$(primary_tunnel_get_token "$TUNNEL_ID") || { rm -f "$response" "$payload"; return 1; }
             TUNNEL_OWNERSHIP="setupmno"
+            [ "$state_status" = "pending" ] && SETUPMNO_PRIMARY_TUNNEL_CONFIG_MAY_BE_EMPTY=true || SETUPMNO_PRIMARY_TUNNEL_CONFIG_MAY_BE_EMPTY=false
             [ "$state_status" = "pending" ] && SETUPMNO_PRIMARY_DELETE_ON_ROLLBACK=true || SETUPMNO_PRIMARY_DELETE_ON_ROLLBACK=false
             SETUPMNO_PRIMARY_TUNNEL_TRANSACTION=true
             trap 'primary_tunnel_exit_handler $?' EXIT
@@ -643,6 +740,7 @@ primary_tunnel_begin_automatic() {
         }
     fi
     TUNNEL_OWNERSHIP="setupmno"
+    SETUPMNO_PRIMARY_TUNNEL_CONFIG_MAY_BE_EMPTY=true
     if ! primary_tunnel_write_state setupmno pending "$CLOUDFLARE_ACCOUNT_ID" "$CLOUDFLARE_ZONE_ID" "$TUNNEL_ID" "$TUNNEL_NAME"; then
         primary_tunnel_cf_api DELETE "/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}" "$response" || true
         CLOUDFLARE_VALIDATION_ERROR="O Tunnel foi criado, mas o estado transacional não pôde ser salvo; a criação foi revertida."
@@ -1838,20 +1936,15 @@ TO_PUT="$TMPDIR/to_put.$TIMESTAMP.json"
 # echo "[*] tmpdir: $TMPDIR"
 
 # ----------- 1) GET current configuration (backup) ------------
-echo "[1] GET current configuration (saving full API response) -> $BACKUP_RAW"
-curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-  "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
-  | jq '.' > "$BACKUP_RAW"
-
-# quick check success
-if ! jq -e '.success == true' "$BACKUP_RAW" >/dev/null 2>&1; then
-  CLOUDFLARE_VALIDATION_ERROR="Não foi possível obter a configuração atual do Tunnel antes da alteração."
+if ! primary_tunnel_get_configuration "$BACKUP_RAW" \
+    "$SETUPMNO_PRIMARY_TUNNEL_CONFIG_MAY_BE_EMPTY"; then
   exit 1
 fi
-SETUPMNO_PRIMARY_TUNNEL_CONFIG_BACKUP="$BACKUP_RAW"
-
-echo "[1b] Backup saved. Preview ingress (if any):"
-jq '.result.config.ingress // []' "$BACKUP_RAW"
+if jq -e '.setupmnoInitialEmpty == true' "$BACKUP_RAW" >/dev/null 2>&1; then
+  SETUPMNO_PRIMARY_TUNNEL_CONFIG_BACKUP=""
+else
+  SETUPMNO_PRIMARY_TUNNEL_CONFIG_BACKUP="$BACKUP_RAW"
+fi
 
 # ----------- 2) build safe payload (preserve existing, avoid duplicates, one catch-all) ------------
 
@@ -1878,38 +1971,20 @@ if [[ -n "${FORCE_VERSION:-}" ]]; then
   jq --argjson v "$FORCE_VERSION" '.config.version = $v' "$TO_PUT" > "${TO_PUT}.v" && mv "${TO_PUT}.v" "$TO_PUT"
 fi
 
-# echo "[2b] Payload built. Ingress summary:"
-jq '.config.ingress' "$TO_PUT"
-
-# Safety: show first lines of full payload
-# echo "[2c] Full payload preview (first 200 lines):"
-jq '.' "$TO_PUT" | sed -n '1,200p'
-
-
-
 # ----------- 3) PUT apply ------------
 echo -e "XXX\n56\nATUALIZANDO CONFIGURAÇÕES DO TUNNEL 1 \nXXX"
-#echo "[3] Applying PUT to update tunnel configuration..."
 PUT_RESPONSE="$TMPDIR/put_response.$TIMESTAMP.json"
-curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
-  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  --data-binary @"$TO_PUT" >"$PUT_RESPONSE"
-if ! jq -e '.success == true' "$PUT_RESPONSE" >/dev/null 2>&1; then
-  CLOUDFLARE_VALIDATION_ERROR="A Cloudflare recusou a nova rota do Portainer. $(primary_tunnel_error_text "$PUT_RESPONSE")"
+if ! primary_tunnel_cf_api PUT \
+    "/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}/configurations" \
+    "$PUT_RESPONSE" "$TO_PUT" || ! primary_tunnel_api_success "$PUT_RESPONSE"; then
+  CLOUDFLARE_VALIDATION_ERROR="A Cloudflare recusou a nova rota do Portainer. HTTP ${PRIMARY_TUNNEL_HTTP_CODE:-indisponível}: $(primary_tunnel_error_text "$PUT_RESPONSE")"
   exit 1
 fi
 sleep 3
 # ----------- 4) verify ------------
-#echo "[4] Verifying applied configuration (GET)..."
 echo -e "XXX\n57\nATUALIZANDO CONFIGURAÇÕES DO TUNNEL 2 \nXXX"
 VERIFY_RESPONSE="$TMPDIR/verify_response.$TIMESTAMP.json"
-curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-  "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" >"$VERIFY_RESPONSE"
-if ! jq -e --arg host "$dominio" --arg service "$NEW_SERVICE" \
-  '.success == true and any(.result.config.ingress[]?; .hostname == $host and .service == $service)' \
-  "$VERIFY_RESPONSE" >/dev/null 2>&1; then
-  CLOUDFLARE_VALIDATION_ERROR="A API não confirmou a rota do Portainer após a atualização do Tunnel."
+if ! primary_tunnel_wait_for_route "$VERIFY_RESPONSE" "$dominio" "$NEW_SERVICE"; then
   exit 1
 fi
 

@@ -2,12 +2,12 @@
 {
   "schemaVersion": 1,
   "documentId": "infra-cloudflare-architecture",
-  "documentVersion": "1.3.1",
-  "contentSHA256": "0986b98a3b2c89f602532fc261c27621c4b89232ae66f149a82902c4c2153905",
+  "documentVersion": "1.3.2",
+  "contentSHA256": "758a2f9c32e171123fc251f15bb9f9388ee53ad43924d77a5ba0b6760cd6140f",
   "documentType": "infrastructure",
   "title": "Cloudflare no acesso tradicional e por túnel",
   "topicId": "cloudflare",
-  "setupVersion": "7.14.3",
+  "setupVersion": "7.14.4",
   "architectures": ["amd64", "arm64"],
   "category": "networking",
   "status": "reviewed",
@@ -115,6 +115,15 @@ exige stack 1/1, estado Healthy confirmado pela Cloudflare, ingresso do
 Portainer e CNAME válidos. Uma falha restaura a configuração do Tunnel, os
 registros DNS e as credenciais locais anteriores, remove stack e Secret e
 exclui apenas o Tunnel automático ainda pendente.
+
+A configuração de um Tunnel recém-criado pode demorar alguns segundos para
+ficar consultável. O instalador repete a leitura com espera progressiva e
+registra somente HTTP e mensagem sanitizada. Se, ao final, a API confirmar que
+a configuração ainda não existe, apenas um Tunnel automático `pending` e
+pertencente ao Setup MNO pode começar com configuração vazia. HTTP 401/403,
+erros não reconhecidos, Tunnel externo ou Tunnel ativo continuam bloqueantes.
+Depois do `PUT`, a rota do Portainer também é consultada com retry antes da
+confirmação; ausência persistente aciona rollback.
 
 No método clássico, o Tunnel recebe propriedade `external`. O Setup pode
 configurar a rota e iniciar o conector, mas o rollback nunca exclui esse

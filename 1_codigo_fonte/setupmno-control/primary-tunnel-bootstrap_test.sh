@@ -37,6 +37,13 @@ for script in "$x86" "$arm"; do
     grep -Fq 'DOMINIO_PRINCIPAL="$CLOUDFLARE_ZONE_NAME"' "$script"
     grep -Fq 'DOMINIO_PRINCIPAL="$CLOUDFLARE_ZONE_NAME2"' "$script"
     grep -Fq 'primary_tunnel_random_name()' "$script"
+    grep -Fq 'primary_tunnel_get_configuration()' "$script"
+    grep -Fq 'primary_tunnel_wait_for_route()' "$script"
+    grep -Fq 'SETUPMNO_PRIMARY_TUNNEL_CONFIG_MAY_BE_EMPTY' "$script"
+    grep -Fq 'HTTP ${PRIMARY_TUNNEL_HTTP_CODE:-indisponível}' "$script"
+    grep -Fq 'primary_tunnel_get_configuration "$BACKUP_RAW"' "$script"
+    grep -Fq 'primary_tunnel_wait_for_route "$VERIFY_RESPONSE" "$dominio" "$NEW_SERVICE"' "$script"
+    grep -Fq 'setupmnoInitialEmpty == true' "$script"
     ! grep -Fq 'primary_tunnel_deterministic_name' "$script" || {
         printf 'ERRO: nome determinístico do Tunnel ainda existe em %s.\n' "$script" >&2
         exit 1
@@ -69,6 +76,9 @@ run_runtime_test() (
     CLOUDFLARE_API_TOKEN="token-test"
     CLOUDFLARE_ACCOUNT_ID="account-test"
     CLOUDFLARE_ZONE_ID="zone-test"
+    SETUPMNO_TUNNEL_CONFIG_ATTEMPTS=3
+    config_scenario=""
+    config_calls=0
     first_random_name=$(primary_tunnel_random_name)
     second_random_name=$(primary_tunnel_random_name)
     [[ "$first_random_name" =~ ^setupmno-primary-[0-9a-f]{12}$ ]]
@@ -123,7 +133,42 @@ run_runtime_test() (
     primary_tunnel_cf_api() {
         local method="$1" endpoint="$2" output="$3"
         printf '%s %s\n' "$method" "$endpoint" >>"$api_log"
+        PRIMARY_TUNNEL_HTTP_CODE=200
         case "$method:$endpoint" in
+            GET:*/configurations)
+                config_calls=$((config_calls + 1))
+                case "$config_scenario" in
+                    delayed)
+                        if [ "$config_calls" -lt 3 ]; then
+                            PRIMARY_TUNNEL_HTTP_CODE=404
+                            printf '{"success":false,"errors":[{"code":1003,"message":"Tunnel configuration not found"}]}' >"$output"
+                        else
+                            printf '{"success":true,"result":{"config":{"ingress":[{"service":"http_status:404"}]}}}' >"$output"
+                        fi
+                        ;;
+                    absent)
+                        PRIMARY_TUNNEL_HTTP_CODE=404
+                        printf '{"success":false,"errors":[{"code":1003,"message":"Tunnel configuration not found"}]}' >"$output"
+                        ;;
+                    null_config)
+                        printf '{"success":true,"result":{"config":null}}' >"$output"
+                        ;;
+                    permission)
+                        PRIMARY_TUNNEL_HTTP_CODE=403
+                        printf '{"success":false,"errors":[{"code":9109,"message":"Unauthorized to access requested resource"}]}' >"$output"
+                        ;;
+                    route_delayed)
+                        if [ "$config_calls" -lt 2 ]; then
+                            printf '{"success":true,"result":{"config":{"ingress":[{"service":"http_status:404"}]}}}' >"$output"
+                        else
+                            printf '{"success":true,"result":{"config":{"ingress":[{"hostname":"portainer.example.com","service":"http://portainer:9000"},{"service":"http_status:404"}]}}}' >"$output"
+                        fi
+                        ;;
+                    *)
+                        printf '{"success":true,"result":{"config":{"ingress":[{"service":"http_status:404"}]}}}' >"$output"
+                        ;;
+                esac
+                ;;
             GET:*/cfd_tunnel\?*)
                 printf '{"success":true,"result":[]}' >"$output"
                 ;;
@@ -147,6 +192,7 @@ run_runtime_test() (
     primary_tunnel_begin_automatic
     [ "$TUNNEL_ID" = "auto-tunnel-id" ]
     [ "$TUNNEL_OWNERSHIP" = "setupmno" ]
+    [ "$SETUPMNO_PRIMARY_TUNNEL_CONFIG_MAY_BE_EMPTY" = "true" ]
     [ "$TUNNEL_NAME" = "$first_random_name" ]
     primary_tunnel_state_valid
     [ "$(jq -r '.status' "$PRIMARY_TUNNEL_STATE_FILE")" = "pending" ]
@@ -160,10 +206,54 @@ run_runtime_test() (
     TUNNEL_ID="existing-tunnel-id"
     primary_tunnel_begin_existing
     [ "$TUNNEL_OWNERSHIP" = "external" ]
+    [ "$SETUPMNO_PRIMARY_TUNNEL_CONFIG_MAY_BE_EMPTY" = "false" ]
     primary_tunnel_rollback
     trap - EXIT
     ! grep -Fq 'DELETE /accounts/account-test/cfd_tunnel/existing-tunnel-id' "$api_log"
     [ ! -e "$PRIMARY_TUNNEL_STATE_FILE" ]
+
+    config_output="$temporary_dir/configuration.json"
+    config_scenario=delayed
+    config_calls=0
+    primary_tunnel_get_configuration "$config_output" false
+    [ "$config_calls" -eq 3 ]
+    jq -e '.success == true and .result.config.ingress[0].service == "http_status:404"' \
+        "$config_output" >/dev/null
+
+    config_scenario=absent
+    config_calls=0
+    primary_tunnel_get_configuration "$config_output" true
+    [ "$config_calls" -eq 3 ]
+    jq -e '.success == true and .setupmnoInitialEmpty == true and .result.config == {}' \
+        "$config_output" >/dev/null
+
+    config_scenario=null_config
+    config_calls=0
+    primary_tunnel_get_configuration "$config_output" true
+    [ "$config_calls" -eq 3 ]
+    jq -e '.setupmnoInitialEmpty == true and .result.config == {}' "$config_output" >/dev/null
+
+    config_calls=0
+    if primary_tunnel_get_configuration "$config_output" false; then
+        printf 'ERRO: Tunnel externo aceitou configuração ausente.\n' >&2
+        exit 1
+    fi
+    [ "$config_calls" -eq 3 ]
+
+    config_scenario=permission
+    config_calls=0
+    if primary_tunnel_get_configuration "$config_output" true; then
+        printf 'ERRO: HTTP 403 foi confundido com configuração inicial vazia.\n' >&2
+        exit 1
+    fi
+    [ "$config_calls" -eq 1 ]
+    [[ "$CLOUDFLARE_VALIDATION_ERROR" == *"HTTP 403"* ]]
+
+    config_scenario=route_delayed
+    config_calls=0
+    primary_tunnel_wait_for_route "$config_output" \
+        "portainer.example.com" "http://portainer:9000"
+    [ "$config_calls" -eq 2 ]
 
     printf '{"schemaVersion":1,"status":"corrompido"}' >"$PRIMARY_TUNNEL_STATE_FILE"
     chmod 600 "$PRIMARY_TUNNEL_STATE_FILE"
