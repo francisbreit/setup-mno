@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Botpress no Setup MNO",
   "setupId": "botpress",
-  "setupVersion": "7.15.0",
+  "setupVersion": "7.15.1",
   "architectures": [
     "amd64"
   ],

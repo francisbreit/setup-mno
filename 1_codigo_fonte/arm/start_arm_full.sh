@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.15.0"
+VERSIONSETUP="7.15.1"
 EXPECTED_CATALOG_ENTRIES="155"
 EXPECTED_EVAL_DATASET_VERSION="1.13.6"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
@@ -1279,6 +1279,9 @@ fi
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o restartservice -f restartservice.sh
 rm restartservice.sh
 rm restartservice.sh.x.c
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o securitydiagnostic -f securitydiagnostic.sh
+rm securitydiagnostic.sh
+rm securitydiagnostic.sh.x.c
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o uninstall -f uninstall.sh
 rm uninstall.sh
 rm uninstall.sh.x.c

@@ -94,6 +94,7 @@ bash "$project_dir/primary-tunnel-bootstrap_test.sh"
 
 for architecture in x86 arm; do
     install_script="$source_root/$architecture/SetupLowCodeMno/install.sh"
+    security_diagnostic_script="$source_root/$architecture/SetupLowCodeMno/securitydiagnostic.sh"
     foundation_script="$source_root/$architecture/SetupLowCodeMno/dockerswarm.sh"
     if [ "$architecture" = "x86" ]; then
         start_script="$source_root/x86/start_full.sh"
@@ -101,8 +102,25 @@ for architecture in x86 arm; do
         start_script="$source_root/arm/start_arm_full.sh"
     fi
     bash -n "$install_script"
+    bash -n "$security_diagnostic_script"
     bash -n "$foundation_script"
     bash -n "$start_script"
+    install_script_bytes=$(stat -c '%s' "$install_script")
+    security_diagnostic_bytes=$(stat -c '%s' "$security_diagnostic_script")
+    [ "$install_script_bytes" -le 122880 ] || {
+        printf 'ERRO: %s possui %s bytes e ultrapassa a margem segura de 120 KiB do SHC.\n' \
+            "$install_script" "$install_script_bytes" >&2
+        exit 1
+    }
+    [ "$security_diagnostic_bytes" -le 122880 ] || {
+        printf 'ERRO: %s possui %s bytes e ultrapassa a margem segura de 120 KiB do SHC.\n' \
+            "$security_diagnostic_script" "$security_diagnostic_bytes" >&2
+        exit 1
+    }
+    [ "$(grep -Fc '"DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR" ""' "$install_script")" -eq 4 ]
+    [ "$(grep -Fc '"DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR") run_app securitydiagnostic ;;' "$install_script")" -eq 4 ]
+    ! grep -Fq 'show_server_security_diagnostic()' "$install_script"
+    grep -Fq -- '-o securitydiagnostic -f securitydiagnostic.sh' "$start_script"
     grep -Fq 'control_center_installed()' "$install_script"
     grep -Fq 'ensure_control_center_runtime_access()' "$install_script"
     grep -Fq 'reconcile_control_center_release()' "$install_script"
@@ -176,6 +194,12 @@ for architecture in x86 arm; do
         exit 1
     }
 done
+
+cmp -s "$source_root/x86/SetupLowCodeMno/securitydiagnostic.sh" \
+    "$source_root/arm/SetupLowCodeMno/securitydiagnostic.sh" || {
+    printf 'ERRO: o diagnóstico de segurança diverge entre x86 e ARM.\n' >&2
+    exit 1
+}
 
 grep -Fq 'write_control_mfa_state true true false menu-enabled' "$template" &&
 grep -Fq 'write_control_mfa_state false false false menu-disabled' "$template" &&

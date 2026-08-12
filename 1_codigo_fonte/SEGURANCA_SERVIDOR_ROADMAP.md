@@ -18,6 +18,11 @@ Princípio central: **diagnosticar primeiro, explicar o risco e só alterar o se
 
 Status: **implementado em modo somente leitura**.
 
+Na v7.15.1, a auditoria foi isolada no binário SHC `securitydiagnostic`. Essa
+separação preserva margem segura no argumento usado pelo binário `install` e
+evita a falha `Argument list too long` observada quando a lógica estava
+incorporada diretamente ao menu na v7.15.0.
+
 Entrada disponível imediatamente antes de `SAIR` em todos os menus e planos:
 
 `DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR`
@@ -140,4 +145,3 @@ Status: **estrutural e opcional**.
 - Microsoft WSL networking: https://learn.microsoft.com/windows/wsl/networking
 - Docker e UFW: https://docs.docker.com/engine/network/packet-filtering-firewalls/#docker-and-ufw
 - Cloudflare SSH: https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/use-cases/ssh/
-
