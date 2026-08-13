@@ -104,6 +104,7 @@ nome_principal="openobserve"
 sufixo_app=$(date +%s%N | md5sum | head -c7)
 nome_app="${nome_principal}${sufixo_app}"
 service_name="${nome_app}_openobserve"
+health_service="${nome_app}_healthcheck"
 data_dir="/root/${nome_app}_data"
 app_yaml="/root/${nome_app}.yaml"
 
@@ -183,8 +184,19 @@ error_file="/tmp/${nome_app}-error.log"
         fi
     }
 
+    remove_health_service() {
+        docker service inspect "$health_service" >/dev/null 2>&1 || return 0
+        docker service rm "$health_service" >>"$install_log" 2>&1 || true
+        for _ in $(seq 1 30); do
+            docker service inspect "$health_service" >/dev/null 2>&1 || return 0
+            sleep 1
+        done
+        return 1
+    }
+
     rollback_deployment() {
         echo "Executando rollback exclusivo do OpenObserve..." >>"$install_log"
+        remove_health_service || true
         if [ "$route_updated" = "true" ] && [ -s "$work_dir/tunnel-original.json" ]; then
             jq '{config:.result.config}' "$work_dir/tunnel-original.json" >"$work_dir/tunnel-restore.json" 2>/dev/null || true
             curl -sS -X PUT \
@@ -318,11 +330,40 @@ EOYAML
     }
 
     check_health() {
-        local output="$work_dir/health.json"
-        docker run --rm --network interna "$CURL_IMAGE" \
+        local output="$work_dir/health.json" state result=1
+        remove_health_service || return 1
+        : >"$output"
+        docker service create --detach \
+            --name "$health_service" \
+            --network interna \
+            --constraint 'node.role==manager' \
+            --restart-condition none \
+            --read-only \
+            --cap-drop ALL \
+            --limit-cpu 0.25 \
+            --limit-memory 64M \
+            "$CURL_IMAGE" \
             --retry 30 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 75 \
-            -fsS "http://$service_name:5080/healthz" >"$output" 2>>"$install_log" || return 1
-        jq -e '.status == "ok"' "$output" >/dev/null 2>>"$install_log"
+            -fsS "http://$service_name:5080/healthz" >>"$install_log" 2>&1 || return 1
+
+        for _ in $(seq 1 90); do
+            state=$(docker service ps "$health_service" --format '{{.CurrentState}}' 2>>"$install_log" | head -n1)
+            case "$state" in
+                Complete*)
+                    docker service logs --raw "$health_service" >"$output" 2>>"$install_log" &&
+                        jq -e '.status == "ok"' "$output" >/dev/null 2>>"$install_log" && result=0
+                    break
+                    ;;
+                Failed*|Rejected*|Shutdown*)
+                    docker service ps --no-trunc "$health_service" >>"$install_log" 2>&1 || true
+                    break
+                    ;;
+            esac
+            sleep 2
+        done
+        [ "$result" -eq 0 ] || docker service logs --raw "$health_service" >>"$install_log" 2>&1 || true
+        remove_health_service || result=1
+        return "$result"
     }
 
     echo -e "XXX\n5\nVALIDANDO AMBIENTE, SWARM E REDES...\nXXX"

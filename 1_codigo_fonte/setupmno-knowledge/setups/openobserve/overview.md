@@ -3,11 +3,11 @@
   "schemaVersion": 1,
   "documentId": "setup-openobserve-overview",
   "documentVersion": "1.0.0",
-  "contentSHA256": "f81c1f977641e9bfea8ad478d9e8d873bc904549abe00a8227a157593c8a9a35",
+  "contentSHA256": "a3599aed1d73c71ad4c526f77d1d6cac52db43b1605b7a7f541329cb6458ac9d",
   "documentType": "setup",
   "title": "OpenObserve no Setup MNO",
   "setupId": "openobserve",
-  "setupVersion": "7.16.0",
+  "setupVersion": "7.16.1",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
@@ -101,7 +101,10 @@ O instalador exige Docker Swarm ativo, redes externa e interna e credenciais do
 perfil de domínio. Ele valida ambas as arquiteturas no manifesto oficial,
 inicialização não-root, endpoint interno `/healthz`, criação de arquivos
 persistentes, reconciliação sem credenciais e réplica 1/1 antes de configurar o
-DNS e a rota pública.
+DNS e a rota pública. A consulta interna usa um serviço efêmero do Swarm,
+restrito a 64 MB, filesystem somente leitura e sem capabilities; isso preserva
+a validação nas redes overlay não anexáveis e o serviço auxiliar é removido no
+sucesso, na falha e no rollback.
 
 ## Diagnóstico
 

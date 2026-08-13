@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Homepage no Setup MNO",
   "setupId": "homepage",
-  "setupVersion": "7.16.0",
+  "setupVersion": "7.16.1",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
