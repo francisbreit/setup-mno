@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Discourse no Setup MNO",
   "setupId": "discourse",
-  "setupVersion": "7.16.1",
+  "setupVersion": "7.17.0",
   "architectures": [
     "amd64",
     "arm64"

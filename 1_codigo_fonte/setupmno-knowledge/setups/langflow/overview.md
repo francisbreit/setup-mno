@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Langflow no Setup MNO",
   "setupId": "langflow",
-  "setupVersion": "7.16.1",
+  "setupVersion": "7.17.0",
   "architectures": ["amd64"],
   "category": "overview",
   "status": "reviewed",

@@ -2249,6 +2249,23 @@
       ]
     },
     {
+      "catalogName": "RUSTDESK SERVER",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": true,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "rustdesk-server",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
       "catalogName": "SEARXNG",
       "editorialStatus": "reviewed",
       "homologationEvidence": false,
@@ -2692,24 +2709,24 @@
     }
   ],
   "generatedAt": "2026-08-13T00:00:00Z",
-  "knowledgeVersion": "3.18.0",
+  "knowledgeVersion": "3.19.0",
   "schemaVersion": 2,
-  "setupVersion": "7.16.1",
+  "setupVersion": "7.17.0",
   "summary": {
     "editorialStatuses": {
       "deprecated": 0,
       "draft": 0,
       "homologated": 0,
       "outdated": 0,
-      "reviewed": 156
+      "reviewed": 157
     },
     "homologatedEntries": 0,
     "installationStatuses": {
-      "maintainer-homologated": 156
+      "maintainer-homologated": 157
     },
     "integrationMaturityLevels": {
       "documented": 0,
-      "not-mapped": 156,
+      "not-mapped": 157,
       "suggested": 0,
       "validated": 0
     },
@@ -2720,12 +2737,12 @@
       "operational-reviewed": 0,
       "script-reviewed": 0,
       "source-reviewed": 0,
-      "structural": 156
+      "structural": 157
     },
-    "officialSourceEntries": 136,
+    "officialSourceEntries": 137,
     "officialSourceExceptions": 1,
     "operationalEvidenceEntries": 0,
-    "setupEntries": 156,
+    "setupEntries": 157,
     "unresolvedIssueCount": 29
   }
 }

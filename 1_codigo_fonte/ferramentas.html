@@ -20,7 +20,7 @@
   </style>
 </head>
 <body>
-<header><div class="eyebrow">Setup MNO - Catálogo de Setups (Deploys / Instalações) - Versão PRO</div><h1>Guia completo de todos os setups disponíveis</h1><p class="lead">Veja aqui os setups disponíveis, usando vários tipos de filtros.</p><div class="catalog-meta" id="catalog-meta"><p>Versão 7.16.1 | Atualizado em Agosto/2026</p><p>Total de Setups (Deploys / Instalações): 156</p><p>Total de Setups Arquitetura X86: 156</p><p>Total de Setups Arquitetura ARM: 139</p></div></header>
+<header><div class="eyebrow">Setup MNO - Catálogo de Setups (Deploys / Instalações) - Versão PRO</div><h1>Guia completo de todos os setups disponíveis</h1><p class="lead">Veja aqui os setups disponíveis, usando vários tipos de filtros.</p><div class="catalog-meta" id="catalog-meta"><p>Versão 7.17.0 | Atualizado em Agosto/2026</p><p>Total de Setups (Deploys / Instalações): 157</p><p>Total de Setups Arquitetura X86: 157</p><p>Total de Setups Arquitetura ARM: 140</p></div></header>
   <main>
     <section class="panel" aria-label="Filtros do catálogo">
       <div class="toolbar">
@@ -47,6 +47,7 @@
     STATIC_CATALOG.push({"name":"NETDADA","cats":"Monitoramento, Observabilidade, Docker, Servidor","desc":"Monitoramento em tempo real do servidor e dos containers Docker com métricas de CPU, memória, discos, processos, alertas e dashboard protegido por autenticação.","ram":0.875,"ramLabel":"~896MB máximo","arch":"x86-arm","stars":76000,"type":"Utilitário","search":"netdada netdata monitoramento observabilidade docker servidor métricas cpu memória discos processos alertas dashboard protegido"});
     STATIC_CATALOG.push({"name":"OPENOBSERVE","cats":"Observabilidade, Logs, Métricas, Traces","desc":"Plataforma open-source unificada de observabilidade para coletar, pesquisar e visualizar logs, métricas e traces, com dashboards e alertas.","ram":2,"ramLabel":"~2GB máximo","arch":"x86-arm","stars":19000,"type":"Utilitário","search":"openobserve observabilidade logs métricas traces opentelemetry dashboards alertas monitoramento analytics self-hosted"});
     STATIC_CATALOG.push({"name":"POCKET ID","cats":"Segurança, Identidade, OIDC, Passkeys","desc":"Provedor de identidade OIDC self-hosted com login sem senha por passkeys, biometria, PIN do dispositivo ou chave de segurança.","ram":0.5,"ramLabel":"~512MB máximo","arch":"x86-arm","stars":8600,"type":"Individual","search":"pocket id segurança identidade oidc sso passkeys webauthn biometria login sem senha provedor de identidade self-hosted"});
+    STATIC_CATALOG.push({"name":"RUSTDESK SERVER","cats":"Acesso Remoto, Suporte, Infraestrutura, Rede","desc":"Servidor OSS de identificação e relay para acesso remoto RustDesk, com DNS-only, chaves persistentes e portas TCP/UDP publicadas diretamente.","ram":0.625,"ramLabel":"~640MB máximo","arch":"x86-arm","stars":119100,"type":"Utilitário","search":"rustdesk server acesso remoto suporte infraestrutura rede rendezvous relay hbbs hbbr alternativa teamviewer anydesk self-hosted"});
     STATIC_CATALOG.push({"name":"SETUP MNO CONTROL CENTER","cats":"DevOps, Deploy, Monitoramento, Administração","desc":"Painel web oficial do Setup MNO com inventário do Docker Swarm, métricas do servidor, catálogo completo, diagnóstico assistido e acesso autenticado ao instalador original.","ram":0.5,"ramLabel":"~512MB","arch":"x86-arm","stars":0,"type":"Utilitário","search":"setup mno control center painel web devops deploy monitoramento servidor docker swarm instalador remoto"});
     // Mautic 4 usa imagens x86-only; manter o catálogo público alinhado ao catálogo canônico.
     STATIC_CATALOG.filter(tool=>tool.name==='MAUTIC 4 PADRÃO'||tool.name==='MAUTIC 4 WHATSAPP MKT').forEach(tool=>tool.arch='x86');
@@ -67,6 +68,6 @@
     controls.forEach(el=>el.addEventListener(el.id==='search'?'input':'change',render));$('search').addEventListener('search',render);$('reset').onclick=()=>{controls.forEach(x=>x.value='');render()};
     populate();render();
   </script>
-<footer class="footer"><p>Setup MNO v7.16.1 | Documentação gerada automaticamente</p><p>Para mais informações, acesse: <a class="link" href="https://manualnegocioonline.com.br/instalador" target="_blank" rel="noopener">manualnegocioonline.com.br/instalador</a></p></footer>
+<footer class="footer"><p>Setup MNO v7.17.0 | Documentação gerada automaticamente</p><p>Para mais informações, acesse: <a class="link" href="https://manualnegocioonline.com.br/instalador" target="_blank" rel="noopener">manualnegocioonline.com.br/instalador</a></p></footer>
 </body>
 </html>

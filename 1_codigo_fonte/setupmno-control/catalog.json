@@ -1386,6 +1386,17 @@
     "search": "rocket.chat chat, comunicação, colaboração plataforma de chat corporativo open-source. alternativa ao slack com canais, mensagens privadas, videochamadas e integrações."
   },
   {
+    "name": "RUSTDESK SERVER",
+    "cats": "Acesso Remoto, Suporte, Infraestrutura, Rede",
+    "desc": "Servidor OSS de identificação e relay para acesso remoto RustDesk, com DNS-only, chaves persistentes e portas TCP/UDP publicadas diretamente.",
+    "ram": 0.625,
+    "ramLabel": "~640MB máximo",
+    "arch": "x86-arm",
+    "stars": 119100,
+    "type": "Utilitário",
+    "search": "rustdesk server acesso remoto suporte infraestrutura rede rendezvous relay hbbs hbbr alternativa teamviewer anydesk self-hosted"
+  },
+  {
     "name": "SEARXNG",
     "cats": "Busca, Privacidade, Meta-Busca",
     "desc": "Meta-mecanismo de busca open-source que agrega resultados de múltiplos buscadores sem rastrear.",

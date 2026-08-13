@@ -14,9 +14,9 @@ from typing import Any
 
 
 EVAL_SCHEMA_VERSION = 1
-EVAL_DATASET_VERSION = "1.14.0"
+EVAL_DATASET_VERSION = "1.15.0"
 EVAL_GRADER_VERSION = "1.9.0"
-EXPECTED_CASES = 868
+EXPECTED_CASES = 873
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 ARCHITECTURES = {"amd64", "arm64"}
@@ -259,8 +259,8 @@ def ecosystem_cases() -> list[dict[str, Any]]:
             "blueprint_recommendation",
             "blueprint_architect",
             ["infra-ecosystem-architecture"],
-            ["5 Blueprints", "156 setups não são 156 Blueprints"],
-            "Conclusão: o Setup MNO possui 5 Blueprints. Os 156 itens do catálogo são setups instaláveis e não podem ser reutilizados como quantidade de Blueprints.",
+            ["5 Blueprints", "157 setups não são 157 Blueprints"],
+            "Conclusão: o Setup MNO possui 5 Blueprints. Os 157 itens do catálogo são setups instaláveis e não podem ser reutilizados como quantidade de Blueprints.",
         ),
         (
             "setup-count",
@@ -268,8 +268,8 @@ def ecosystem_cases() -> list[dict[str, Any]]:
             "setup_guidance",
             "setup_specialist",
             ["infra-ecosystem-architecture"],
-            ["156 setups", "unidades instaláveis"],
-            "Conclusão: o catálogo canônico possui 156 setups instaláveis. Um setup pode representar uma aplicação, uma variante, um utilitário, um banco ou um combo.",
+            ["157 setups", "unidades instaláveis"],
+            "Conclusão: o catálogo canônico possui 157 setups instaláveis. Um setup pode representar uma aplicação, uma variante, um utilitário, um banco ou um combo.",
         ),
         (
             "application-count",
@@ -277,8 +277,8 @@ def ecosystem_cases() -> list[dict[str, Any]]:
             "setup_guidance",
             "setup_specialist",
             ["infra-ecosystem-architecture"],
-            ["inventário não normalizado", "não usar 156 como total de aplicações"],
-            "Conclusão: o total de aplicações únicas ainda não está normalizado. As 156 entradas contam setups, e variantes e combos impedem reutilizar esse número como total de produtos.",
+            ["inventário não normalizado", "não usar 157 como total de aplicações"],
+            "Conclusão: o total de aplicações únicas ainda não está normalizado. As 157 entradas contam setups, e variantes e combos impedem reutilizar esse número como total de produtos.",
         ),
         (
             "taxonomy",
