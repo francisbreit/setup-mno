@@ -217,7 +217,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.15.1"
+VERSIONSETUP="7.16.0"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -833,6 +833,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPENCLAW" "" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "" \
     "OPENFANG" "" \
+    "OPENOBSERVE" "" \
     "OPEN PROJECT" "" \
     "OUTLINE" "" \
     "PAPERCLIP" "" \
@@ -1017,6 +1018,7 @@ case "$CHOICE" in
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
             "OUTLINE")                                               run_app outline ;;
             "OPENFANG")                                              run_app openfang ;;
+            "OPENOBSERVE")                                          warn_heavy "OpenObserve" "4GB" && run_app openobserve ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PAPERLESS")                                               run_app paperless ;;
@@ -1203,6 +1205,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPENCLAW" "PRO" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
     "OPENFANG" "PRO" \
+    "OPENOBSERVE" "PRO" \
     "OPEN PROJECT" "PRO" \
     "OUTLINE" "PRO" \
     "PAPERCLIP" "PRO" \
@@ -1255,7 +1258,7 @@ case "$CHOICE" in
             whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
-        if [ "$CHOICE" != "SETUP MNO CONTROL CENTER" ] && [[ ("$CHOICE" == "AFFINE") || ("$CHOICE" == "APPSMITH") || ("$CHOICE" == "AUTOGEN STUDIO") || ("$CHOICE" == "BASEROW") || ("$CHOICE" == "BOTPRESS") || ("$CHOICE" == "CAL.COM") || ("$CHOICE" == "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "DOCUMENSO") || ("$CHOICE" == "DOCUSEAL") || ("$CHOICE" == "DOZZLE") || ("$CHOICE" == "EVOAI + EVOLUTION 2.0 + MINIO*") || ("$CHOICE" == "IMMICH") || ("$CHOICE" == "HOME ASSISTANT") || ("$CHOICE" == "HOMEPAGE") || ("$CHOICE" == "HOPPSCOTCH") || ("$CHOICE" == "HUMHUB") || ("$CHOICE" == "KRAYIN CRM") || ("$CHOICE" == "LANGFUSE + MINIO + CLICKHOUSE*") || ("$CHOICE" == "LITELLM") || ("$CHOICE" == "LINKWARDEN") || ("$CHOICE" == "MAUTIC 4 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 6 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 7 WHATSAPP MKT") || ("$CHOICE" == "MATOMO") || ("$CHOICE" == "NEXTCLOUD") || ("$CHOICE" == "OPEN PROJECT") || ("$CHOICE" == "TWENTY CRM") || ("$CHOICE" == "TYPEBOT + MINIO*") || ("$CHOICE" == "OPENCLAW") || ("$CHOICE" == "DISCOURSE") || ("$CHOICE" == "GHOST") || ("$CHOICE" == "GLANCE") || ("$CHOICE" == "IT-TOOLS") || ("$CHOICE" == "COGNEE") || ("$CHOICE" == "MEMGRAPH") || ("$CHOICE" == "NEO4J") || ("$CHOICE" == "NETDADA") || ("$CHOICE" == "OPENFANG") || ("$CHOICE" == "PAPERCLIP") || ("$CHOICE" == "SEARXNG") || ("$CHOICE" == "SYNCTHING") || ("$CHOICE" == "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*") || ("$CHOICE" == "HERMES AGENT") || ("$CHOICE" == "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOT AI CUSTOMER SERVICE*") || ("\$CHOICE" == "DIFY") || ("\$CHOICE" == "CHANGEDETECTION.IO") ]]; then
+        if [ "$CHOICE" != "SETUP MNO CONTROL CENTER" ] && [[ ("$CHOICE" == "AFFINE") || ("$CHOICE" == "APPSMITH") || ("$CHOICE" == "AUTOGEN STUDIO") || ("$CHOICE" == "BASEROW") || ("$CHOICE" == "BOTPRESS") || ("$CHOICE" == "CAL.COM") || ("$CHOICE" == "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "DOCUMENSO") || ("$CHOICE" == "DOCUSEAL") || ("$CHOICE" == "DOZZLE") || ("$CHOICE" == "EVOAI + EVOLUTION 2.0 + MINIO*") || ("$CHOICE" == "IMMICH") || ("$CHOICE" == "HOME ASSISTANT") || ("$CHOICE" == "HOMEPAGE") || ("$CHOICE" == "HOPPSCOTCH") || ("$CHOICE" == "HUMHUB") || ("$CHOICE" == "KRAYIN CRM") || ("$CHOICE" == "LANGFUSE + MINIO + CLICKHOUSE*") || ("$CHOICE" == "LITELLM") || ("$CHOICE" == "LINKWARDEN") || ("$CHOICE" == "MAUTIC 4 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 6 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 7 WHATSAPP MKT") || ("$CHOICE" == "MATOMO") || ("$CHOICE" == "NEXTCLOUD") || ("$CHOICE" == "OPEN PROJECT") || ("$CHOICE" == "TWENTY CRM") || ("$CHOICE" == "TYPEBOT + MINIO*") || ("$CHOICE" == "OPENCLAW") || ("$CHOICE" == "DISCOURSE") || ("$CHOICE" == "GHOST") || ("$CHOICE" == "GLANCE") || ("$CHOICE" == "IT-TOOLS") || ("$CHOICE" == "COGNEE") || ("$CHOICE" == "MEMGRAPH") || ("$CHOICE" == "NEO4J") || ("$CHOICE" == "NETDADA") || ("$CHOICE" == "OPENFANG") || ("$CHOICE" == "OPENOBSERVE") || ("$CHOICE" == "PAPERCLIP") || ("$CHOICE" == "SEARXNG") || ("$CHOICE" == "SYNCTHING") || ("$CHOICE" == "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*") || ("$CHOICE" == "HERMES AGENT") || ("$CHOICE" == "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOT AI CUSTOMER SERVICE*") || ("\$CHOICE" == "DIFY") || ("\$CHOICE" == "CHANGEDETECTION.IO") ]]; then
             whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
@@ -1367,6 +1370,7 @@ case "$CHOICE" in
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
             "OUTLINE")                                               run_app outline ;;
             "OPENFANG")                                              run_app openfang ;;
+            "OPENOBSERVE")                                          warn_heavy "OpenObserve" "4GB" && run_app openobserve ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PAPERLESS")                                               run_app paperless ;;
@@ -1530,6 +1534,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPENCLAW" "PRO" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
     "OPENFANG" "PRO" \
+    "OPENOBSERVE" "PRO" \
     "OPEN PROJECT" "PRO" \
     "PAPERCLIP" "PRO" \
     "PAPERLESS" "PRO" \
@@ -1709,6 +1714,7 @@ case "$CHOICE" in
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
             "OUTLINE")                                               run_app outline ;;
             "OPENFANG")                                              run_app openfang ;;
+            "OPENOBSERVE")                                          warn_heavy "OpenObserve" "4GB" && run_app openobserve ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PAPERLESS")                                               run_app paperless ;;
@@ -1872,6 +1878,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "OPEN WEBUI" "PRO" \
     "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*" "PRO" \
     "OPENFANG" "PRO" \
+    "OPENOBSERVE" "PRO" \
     "OPEN PROJECT" "PRO" \
     "PAPERCLIP" "PRO" \
     "PAPERLESS" "PRO" \
@@ -2051,6 +2058,7 @@ case "$CHOICE" in
             "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*")        run_app openclawpro ;;
             "OUTLINE")                                               run_app outline ;;
             "OPENFANG")                                              run_app openfang ;;
+            "OPENOBSERVE")                                          warn_heavy "OpenObserve" "4GB" && run_app openobserve ;;
             "OPEN PROJECT")                                          run_app openproject ;;
             "PAPERCLIP")                                             run_app paperclip ;;
             "PAPERLESS")                                               run_app paperless ;;

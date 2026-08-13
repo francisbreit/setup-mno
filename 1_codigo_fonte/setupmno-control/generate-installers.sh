@@ -275,7 +275,7 @@ grep -Fq 'COPY go.mod main.go access.go knowledge.go retrieval.go routing.go pro
     printf 'ERRO: o build não inclui retrieval, roteador, prompts, Blueprints e evals.\n' >&2
     exit 1
 }
-grep -Eq 'evalExpectedCases[[:space:]]*=[[:space:]]*863' "$project_dir/evals.go" &&
+grep -Eq 'evalExpectedCases[[:space:]]*=[[:space:]]*868' "$project_dir/evals.go" &&
 grep -Fq 'runEvalSuite' "$project_dir/evals.go" &&
 grep -Fq 'CredentialLeakCount' "$project_dir/evals.go" || {
     printf 'ERRO: suíte determinística de evals ausente ou incompleta.\n' >&2
@@ -651,10 +651,10 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$knowledge_index_schema" = "2" ] &&
 [ "$knowledge_retrieval_version" = "1.3.0" ] &&
 [ "$eval_schema" = "1" ] &&
-[ "$eval_dataset_version" = "1.13.6" ] &&
+[ "$eval_dataset_version" = "1.14.0" ] &&
 [ "$eval_grader_version" = "1.9.0" ] &&
 [ "${#eval_dataset_sha}" -eq 64 ] &&
-[ "$eval_case_entries" = "863" ] &&
+[ "$eval_case_entries" = "868" ] &&
 [ "$blueprint_schema" = "2" ] &&
 [ "$blueprint_factory_version" = "2.1.0" ] &&
 [ "$blueprint_entries" -gt 0 ] &&

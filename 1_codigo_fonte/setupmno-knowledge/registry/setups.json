@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "selectionVersion": "1.12.0",
-  "setupVersion": "7.15.1",
+  "selectionVersion": "1.13.0",
+  "setupVersion": "7.16.0",
   "selectionPolicy": "Lotes 1 a 6 orientados a deploy, IA, integrações, dados, identidade, colaboração, produtividade, atendimento e segurança operacional",
   "setups": [
     {
@@ -1285,6 +1285,13 @@
       "script": "openfang.sh",
       "architectures": ["amd64", "arm64"],
       "aliases": ["open fang", "agent os openfang"]
+    },
+    {
+      "setupId": "openobserve",
+      "catalogName": "OPENOBSERVE",
+      "script": "openobserve.sh",
+      "architectures": ["amd64", "arm64"],
+      "aliases": ["open observe", "o2 observability", "observabilidade openobserve"]
     },
     {
       "setupId": "paperclip",

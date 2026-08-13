@@ -1155,6 +1155,17 @@
     "search": "openfang ia, agentes, automação plataforma para criar e gerenciar agentes de ia com capacidades de ação no mundo real."
   },
   {
+    "name": "OPENOBSERVE",
+    "cats": "Observabilidade, Logs, Métricas, Traces",
+    "desc": "Plataforma open-source unificada de observabilidade para coletar, pesquisar e visualizar logs, métricas e traces, com dashboards e alertas.",
+    "ram": 2,
+    "ramLabel": "~2GB máximo",
+    "arch": "x86-arm",
+    "stars": 19000,
+    "type": "Utilitário",
+    "search": "openobserve observabilidade logs métricas traces opentelemetry dashboards alertas monitoramento analytics self-hosted"
+  },
+  {
     "name": "OPEN PROJECT",
     "cats": "Gestão de Projetos, Agile, Scrum",
     "desc": "Gerenciamento de projetos profissional. Scrum, Kanban, Gantt, Time tracking, Relatórios.",

@@ -1,10 +1,10 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.15.1"
-EXPECTED_CATALOG_ENTRIES="155"
-EXPECTED_EVAL_DATASET_VERSION="1.13.6"
+VERSIONSETUP="7.16.0"
+EXPECTED_CATALOG_ENTRIES="156"
+EXPECTED_EVAL_DATASET_VERSION="1.14.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
-EXPECTED_EVAL_CASE_ENTRIES="863"
+EXPECTED_EVAL_CASE_ENTRIES="868"
 EXPECTED_BLUEPRINT_FACTORY_VERSION="2.1.0"
 EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="0"
 EXPECTED_QUALITY_SCHEMA_VERSION="2"
@@ -1661,6 +1661,13 @@ rm openfang.sh
 rm openfang.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm openfang
+fi
+
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o openobserve -f openobserve.sh
+rm openobserve.sh
+rm openobserve.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm openobserve
 fi
 
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o paperclip -f paperclip.sh
