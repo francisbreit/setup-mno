@@ -1654,6 +1654,23 @@
       ]
     },
     {
+      "catalogName": "NAVIDROME",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": true,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "maturity": "structural",
+      "operationalEvidence": false,
+      "scriptSourceDeclared": true,
+      "setupId": "navidrome",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
       "catalogName": "NEO4J",
       "editorialStatus": "reviewed",
       "homologationEvidence": false,
@@ -2249,23 +2266,6 @@
       ]
     },
     {
-      "catalogName": "RUSTDESK SERVER",
-      "editorialStatus": "reviewed",
-      "homologationEvidence": true,
-      "installationStatus": "maintainer-homologated",
-      "integrationMaturity": "not-mapped",
-      "issues": [],
-      "maturity": "structural",
-      "operationalEvidence": false,
-      "scriptSourceDeclared": true,
-      "setupId": "rustdesk-server",
-      "sourceClassification": "official-and-internal",
-      "testedArchitectures": [
-        "amd64",
-        "arm64"
-      ]
-    },
-    {
       "catalogName": "SEARXNG",
       "editorialStatus": "reviewed",
       "homologationEvidence": false,
@@ -2708,10 +2708,10 @@
       ]
     }
   ],
-  "generatedAt": "2026-08-13T00:00:00Z",
-  "knowledgeVersion": "3.19.1",
+  "generatedAt": "2026-08-14T00:00:00Z",
+  "knowledgeVersion": "3.20.0",
   "schemaVersion": 2,
-  "setupVersion": "7.17.1",
+  "setupVersion": "7.18.0",
   "summary": {
     "editorialStatuses": {
       "deprecated": 0,

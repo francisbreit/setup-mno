@@ -10,7 +10,7 @@ import (
 
 const (
 	evalSchemaVersion  = 1
-	evalDatasetVersion = "1.15.0"
+	evalDatasetVersion = "1.16.0"
 	evalGraderVersion  = "1.9.0"
 	evalExpectedCases  = 873
 )

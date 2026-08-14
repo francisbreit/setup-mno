@@ -1,8 +1,8 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.17.1"
+VERSIONSETUP="7.18.0"
 EXPECTED_CATALOG_ENTRIES="157"
-EXPECTED_EVAL_DATASET_VERSION="1.15.0"
+EXPECTED_EVAL_DATASET_VERSION="1.16.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
 EXPECTED_EVAL_CASE_ENTRIES="873"
 EXPECTED_BLUEPRINT_FACTORY_VERSION="2.1.0"
@@ -1711,11 +1711,11 @@ if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]];
 rm rocketchat
 fi
 
-shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o rustdesk -f rustdesk.sh
-rm rustdesk.sh
-rm rustdesk.sh.x.c
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o navidrome -f navidrome.sh
+rm navidrome.sh
+rm navidrome.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
-rm rustdesk
+rm navidrome
 fi
 
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o gitea -f gitea.sh

@@ -217,7 +217,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.17.1"
+VERSIONSETUP="7.18.0"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -791,6 +791,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "N8N V1 - FILA (QUEUE)" "" \
     "N8N V2 - FILA (QUEUE)" "" \
     "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "" \
+    "NAVIDROME" "" \
     "NEO4J" "" \
     "NETDADA" "" \
     "NEXTCLOUD" "" \
@@ -823,7 +824,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "REDIS COMMANDER" "" \
     "REDISINSIGHT" "" \
     "ROCKET.CHAT" "" \
-    "RUSTDESK SERVER" "" \
     "SEARXNG" "" \
     "${CONTROL_CENTER_MENU[@]}" \
     "SYNCTHING" "" \
@@ -971,6 +971,7 @@ case "$CHOICE" in
             "N8N V1 - FILA (QUEUE)")                                 warn_heavy "N8N (Fila)" "8GB" && run_app n8n ;;
             "N8N V2 - FILA (QUEUE)")                                 warn_heavy "N8N V2 (Fila)" "7GB" && run_app n8n2 ;;
             "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
+            "NAVIDROME")                                                 run_app navidrome ;;
             "NEO4J")                                                 run_app neo4j ;;
             "NETDADA")                                              run_app netdada ;;
             "NEXTCLOUD")                                             run_app nextcloud ;;
@@ -1006,7 +1007,6 @@ case "$CHOICE" in
             "REDIS")                                                 run_app redis ;;
             "REDIS COMMANDER")                                       run_app redicommander ;;
             "REDISINSIGHT")                                          run_app redisinsight ;;
-            "RUSTDESK SERVER")                                      run_app rustdesk ;;
             "SEARXNG")                                               run_app searxng ;;
             "SETUP MNO CONTROL CENTER")                              run_app setupmno_control ;;
             "SYNCTHING")                                             run_app syncthing ;;
@@ -1154,6 +1154,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MAUTIC 7 WHATSAPP MKT" "PRO" \
     "MEMGRAPH" "PRO" \
     "METABASE" "PRO" \
+    "NAVIDROME" "PRO" \
     "NEO4J" "PRO" \
     "NETDADA" "PRO" \
     "NEXTCLOUD" "PRO" \
@@ -1173,7 +1174,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "POCKETBASE" "PRO" \
     "REACTIVE RESUME" "PRO" \
     "ROCKET.CHAT" "PRO" \
-    "RUSTDESK SERVER" "PRO" \
     "SEARXNG" "PRO" \
     "SYNCTHING" "PRO" \
     "SIYUAN" "PRO" \
@@ -1210,7 +1210,7 @@ case "$CHOICE" in
             whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
-        if [ "$CHOICE" != "SETUP MNO CONTROL CENTER" ] && [[ ("$CHOICE" == "AFFINE") || ("$CHOICE" == "APPSMITH") || ("$CHOICE" == "AUTOGEN STUDIO") || ("$CHOICE" == "BASEROW") || ("$CHOICE" == "BOTPRESS") || ("$CHOICE" == "CAL.COM") || ("$CHOICE" == "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "DOCUMENSO") || ("$CHOICE" == "DOCUSEAL") || ("$CHOICE" == "DOZZLE") || ("$CHOICE" == "EVOAI + EVOLUTION 2.0 + MINIO*") || ("$CHOICE" == "IMMICH") || ("$CHOICE" == "HOME ASSISTANT") || ("$CHOICE" == "HOMEPAGE") || ("$CHOICE" == "HOPPSCOTCH") || ("$CHOICE" == "HUMHUB") || ("$CHOICE" == "KRAYIN CRM") || ("$CHOICE" == "LANGFUSE + MINIO + CLICKHOUSE*") || ("$CHOICE" == "LITELLM") || ("$CHOICE" == "LINKWARDEN") || ("$CHOICE" == "MAUTIC 4 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 6 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 7 WHATSAPP MKT") || ("$CHOICE" == "MATOMO") || ("$CHOICE" == "NEXTCLOUD") || ("$CHOICE" == "OPEN PROJECT") || ("$CHOICE" == "TWENTY CRM") || ("$CHOICE" == "TYPEBOT + MINIO*") || ("$CHOICE" == "OPENCLAW") || ("$CHOICE" == "DISCOURSE") || ("$CHOICE" == "GHOST") || ("$CHOICE" == "GLANCE") || ("$CHOICE" == "IT-TOOLS") || ("$CHOICE" == "COGNEE") || ("$CHOICE" == "MEMGRAPH") || ("$CHOICE" == "NEO4J") || ("$CHOICE" == "NETDADA") || ("$CHOICE" == "OPENFANG") || ("$CHOICE" == "OPENOBSERVE") || ("$CHOICE" == "PAPERCLIP") || ("$CHOICE" == "RUSTDESK SERVER") || ("$CHOICE" == "SEARXNG") || ("$CHOICE" == "SYNCTHING") || ("$CHOICE" == "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*") || ("$CHOICE" == "HERMES AGENT") || ("$CHOICE" == "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOT AI CUSTOMER SERVICE*") || ("\$CHOICE" == "DIFY") || ("\$CHOICE" == "CHANGEDETECTION.IO") ]]; then
+        if [ "$CHOICE" != "SETUP MNO CONTROL CENTER" ] && [[ ("$CHOICE" == "AFFINE") || ("$CHOICE" == "APPSMITH") || ("$CHOICE" == "AUTOGEN STUDIO") || ("$CHOICE" == "BASEROW") || ("$CHOICE" == "BOTPRESS") || ("$CHOICE" == "CAL.COM") || ("$CHOICE" == "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "DOCUMENSO") || ("$CHOICE" == "DOCUSEAL") || ("$CHOICE" == "DOZZLE") || ("$CHOICE" == "EVOAI + EVOLUTION 2.0 + MINIO*") || ("$CHOICE" == "IMMICH") || ("$CHOICE" == "HOME ASSISTANT") || ("$CHOICE" == "HOMEPAGE") || ("$CHOICE" == "HOPPSCOTCH") || ("$CHOICE" == "HUMHUB") || ("$CHOICE" == "KRAYIN CRM") || ("$CHOICE" == "LANGFUSE + MINIO + CLICKHOUSE*") || ("$CHOICE" == "LITELLM") || ("$CHOICE" == "LINKWARDEN") || ("$CHOICE" == "MAUTIC 4 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 6 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 7 WHATSAPP MKT") || ("$CHOICE" == "MATOMO") || ("$CHOICE" == "NEXTCLOUD") || ("$CHOICE" == "OPEN PROJECT") || ("$CHOICE" == "TWENTY CRM") || ("$CHOICE" == "TYPEBOT + MINIO*") || ("$CHOICE" == "OPENCLAW") || ("$CHOICE" == "DISCOURSE") || ("$CHOICE" == "GHOST") || ("$CHOICE" == "GLANCE") || ("$CHOICE" == "IT-TOOLS") || ("$CHOICE" == "COGNEE") || ("$CHOICE" == "MEMGRAPH") || ("$CHOICE" == "NEO4J") || ("$CHOICE" == "NETDADA") || ("$CHOICE" == "OPENFANG") || ("$CHOICE" == "OPENOBSERVE") || ("$CHOICE" == "PAPERCLIP") || ("$CHOICE" == "NAVIDROME") || ("$CHOICE" == "SEARXNG") || ("$CHOICE" == "SYNCTHING") || ("$CHOICE" == "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*") || ("$CHOICE" == "HERMES AGENT") || ("$CHOICE" == "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOT AI CUSTOMER SERVICE*") || ("\$CHOICE" == "DIFY") || ("\$CHOICE" == "CHANGEDETECTION.IO") ]]; then
             whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
@@ -1308,6 +1308,7 @@ case "$CHOICE" in
             "N8N V1 - FILA (QUEUE)")                                 warn_heavy "N8N (Fila)" "8GB" && run_app n8n ;;
             "N8N V2 - FILA (QUEUE)")                                 warn_heavy "N8N V2 (Fila)" "7GB" && run_app n8n2 ;;
             "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
+            "NAVIDROME")                                                 run_app navidrome ;;
             "NEO4J")                                                 run_app neo4j ;;
             "NETDADA")                                              run_app netdada ;;
             "NEXTCLOUD")                                             run_app nextcloud ;;
@@ -1343,7 +1344,6 @@ case "$CHOICE" in
             "REDIS")                                                 run_app redis ;;
             "REDIS COMMANDER")                                       run_app redicommander ;;
             "REDISINSIGHT")                                          run_app redisinsight ;;
-            "RUSTDESK SERVER")                                      run_app rustdesk ;;
             "SEARXNG")                                               run_app searxng ;;
             "SETUP MNO CONTROL CENTER")                              run_app setupmno_control ;;
             "SYNCTHING")                                             run_app syncthing ;;
@@ -1463,6 +1463,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MONGODB" "PRO" \
     "MYSQL" "PRO" \
     "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "PRO" \
+    "NAVIDROME" "PRO" \
     "NEO4J" "PRO" \
     "NETDADA" "PRO" \
     "NEXTCLOUD" "PRO" \
@@ -1490,7 +1491,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "REACTIVE RESUME" "PRO" \
     "REDIS COMMANDER" "PRO" \
     "REDISINSIGHT" "PRO" \
-    "RUSTDESK SERVER" "PRO" \
     "SEARXNG" "PRO" \
     "SYNCTHING" "PRO" \
     "SHLINK" "PRO" \
@@ -1637,6 +1637,7 @@ case "$CHOICE" in
             "N8N V1 - FILA (QUEUE)")                                 warn_heavy "N8N (Fila)" "8GB" && run_app n8n ;;
             "N8N V2 - FILA (QUEUE)")                                 warn_heavy "N8N V2 (Fila)" "7GB" && run_app n8n2 ;;
             "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
+            "NAVIDROME")                                                 run_app navidrome ;;
             "NEO4J")                                                 run_app neo4j ;;
             "NETDADA")                                              run_app netdada ;;
             "NEXTCLOUD")                                             run_app nextcloud ;;
@@ -1672,7 +1673,6 @@ case "$CHOICE" in
             "REDIS")                                                 run_app redis ;;
             "REDIS COMMANDER")                                       run_app redicommander ;;
             "REDISINSIGHT")                                          run_app redisinsight ;;
-            "RUSTDESK SERVER")                                      run_app rustdesk ;;
             "SEARXNG")                                               run_app searxng ;;
             "SETUP MNO CONTROL CENTER")                              run_app setupmno_control ;;
             "SYNCTHING")                                             run_app syncthing ;;
@@ -1793,6 +1793,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MONGODB" "PRO" \
     "MYSQL" "PRO" \
     "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "PRO" \
+    "NAVIDROME" "PRO" \
     "NEO4J" "PRO" \
     "NETDADA" "PRO" \
     "NEXTCLOUD" "PRO" \
@@ -1819,7 +1820,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "REACTIVE RESUME" "PRO" \
     "REDIS COMMANDER" "PRO" \
     "REDISINSIGHT" "PRO" \
-    "RUSTDESK SERVER" "PRO" \
     "SEARXNG" "PRO" \
     "SYNCTHING" "PRO" \
     "SHLINK" "PRO" \
@@ -1966,6 +1966,7 @@ case "$CHOICE" in
             "N8N V1 - FILA (QUEUE)")                                 warn_heavy "N8N (Fila)" "8GB" && run_app n8n ;;
             "N8N V2 - FILA (QUEUE)")                                 warn_heavy "N8N V2 (Fila)" "7GB" && run_app n8n2 ;;
             "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
+            "NAVIDROME")                                                 run_app navidrome ;;
             "NEO4J")                                                 run_app neo4j ;;
             "NETDADA")                                              run_app netdada ;;
             "NEXTCLOUD")                                             run_app nextcloud ;;
@@ -2001,7 +2002,6 @@ case "$CHOICE" in
             "REDIS")                                                 run_app redis ;;
             "REDIS COMMANDER")                                       run_app redicommander ;;
             "REDISINSIGHT")                                          run_app redisinsight ;;
-            "RUSTDESK SERVER")                                      run_app rustdesk ;;
             "SEARXNG")                                               run_app searxng ;;
             "SETUP MNO CONTROL CENTER")                              run_app setupmno_control ;;
             "SYNCTHING")                                             run_app syncthing ;;
