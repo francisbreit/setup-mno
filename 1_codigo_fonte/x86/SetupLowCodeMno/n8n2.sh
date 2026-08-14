@@ -185,7 +185,7 @@ echo -e "XXX\n5\nVERIFICANDO CONFIGURAÇÃO N8N EDITOR (ADMIN)... \nXXX"
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
     echo -e "XXX\n10\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
     
-    DOMINIO_PRINCIPAL=$(echo "$dominioadmin" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     SUBDOMINIO=${dominioadmin%%.$DOMINIO_PRINCIPAL}
     echo -e "XXX\n15\nVERIFICANDO REGISTROS EXISTENTES... \nXXX"
     EXISTING_RECORDS=$(curl -s -X GET \
@@ -220,7 +220,7 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
 elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     echo -e "XXX\n10\nCONFIGURANDO CLOUDFLARE TUNNEL (DNS + ROTAS)... \nXXX"
     
-    DOMINIO_PRINCIPAL=$(echo "$dominioadmin" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     SUBDOMINIO=${dominioadmin%%.$DOMINIO_PRINCIPAL}
     echo -e "XXX\n15\nCONFIGURANDO REGISTRO DNS... \nXXX"
     EXISTING_RECORDS=$(curl -s -X GET \
@@ -341,7 +341,7 @@ fi
 echo -e "XXX\n5\nVERIFICANDO CONFIGURAÇÃO N8N Webhook... \nXXX"
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
     echo -e "XXX\n10\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"   
-    DOMINIO_PRINCIPAL=$(echo "$dominiowebhook" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     SUBDOMINIO=${dominiowebhook%%.$DOMINIO_PRINCIPAL}
     echo -e "XXX\n15\nVERIFICANDO REGISTROS EXISTENTES... \nXXX"
     EXISTING_RECORDS=$(curl -s -X GET \
@@ -373,7 +373,7 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
 
 elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     echo -e "XXX\n10\nCONFIGURANDO CLOUDFLARE TUNNEL (DNS + ROTAS)... \nXXX"   
-    DOMINIO_PRINCIPAL=$(echo "$dominiowebhook" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     SUBDOMINIO=${dominiowebhook%%.$DOMINIO_PRINCIPAL}
     echo -e "XXX\n15\nCONFIGURANDO REGISTRO DNS... \nXXX"
     EXISTING_RECORDS=$(curl -s -X GET \

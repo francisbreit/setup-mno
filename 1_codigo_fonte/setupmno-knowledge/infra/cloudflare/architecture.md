@@ -2,16 +2,16 @@
 {
   "schemaVersion": 1,
   "documentId": "infra-cloudflare-architecture",
-  "documentVersion": "1.3.2",
-  "contentSHA256": "758a2f9c32e171123fc251f15bb9f9388ee53ad43924d77a5ba0b6760cd6140f",
+  "documentVersion": "1.3.3",
+  "contentSHA256": "9bc500df9574a4703c47bdfa61ed6f11b711527d81f8cecaaef0597587faaf4c",
   "documentType": "infrastructure",
   "title": "Cloudflare no acesso tradicional e por túnel",
   "topicId": "cloudflare",
-  "setupVersion": "7.19.0",
+  "setupVersion": "7.19.1",
   "architectures": ["amd64", "arm64"],
   "category": "networking",
   "status": "reviewed",
-  "updatedAt": "2026-08-11",
+  "updatedAt": "2026-08-14",
   "sourceType": "setup-mno",
   "risk": "high",
   "language": "pt-BR",
@@ -88,6 +88,16 @@ os subdomínios das aplicações continuam sendo criados pelo instalador.
 Falhas posteriores à criação de um recurso disparam rollback do túnel, Secret,
 stack ou registro técnico que tenha sido criado naquela tentativa. Recursos
 preexistentes e o perfil principal não entram nesse rollback.
+
+O hostname de uma aplicação pode ser o próprio domínio-raiz, como
+`empresa.com.br`, ou um subdomínio, como `wordpress.empresa.com.br`. A zona
+DNS nunca é inferida removendo o primeiro trecho do hostname; o instalador usa
+o `rootDomain` validado do perfil selecionado. Isso preserva corretamente
+domínios com sufixos compostos, como `.com.br`, e funciona da mesma forma nos
+perfis principal e adicionais. No modo tradicional, o CNAME aponta para o
+hostname técnico de origem do perfil. No modo Tunnel, o CNAME aponta para
+`<tunnel-id>.cfargotunnel.com` e a regra de ingresso mantém o hostname exato,
+inclusive quando ele é o apex da zona.
 
 ## Criação do túnel principal
 

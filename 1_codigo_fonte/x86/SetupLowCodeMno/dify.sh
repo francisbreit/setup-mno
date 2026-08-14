@@ -227,7 +227,7 @@ echo -e "XXX\n5\nVERIFICANDO CONFIGURAÇÃO URL WEB... \nXXX"
 # --- DNS URL WEB ---
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ZONE_ID" ]; then
     echo -e "XXX\n10\nCONFIGURANDO DNS WEB (TRADICIONAL)... \nXXX"
-    DOMINIO_PRINCIPAL=$(echo "$url_dify" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     EXISTING_RECORDS=$(curl -s -X GET \
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${url_dify}" \
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
@@ -252,7 +252,7 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n
 
 elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     echo -e "XXX\n10\nCONFIGURANDO DNS WEB (TUNNEL)... \nXXX"
-    DOMINIO_PRINCIPAL=$(echo "$url_dify" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     EXISTING_RECORDS=$(curl -s -X GET \
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${url_dify}" \
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
@@ -281,7 +281,7 @@ echo -e "XXX\n22\nCONFIGURANDO URL API... \nXXX"
 # --- DNS URL API ---
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ZONE_ID" ]; then
     echo -e "XXX\n25\nCONFIGURANDO DNS API (TRADICIONAL)... \nXXX"
-    DOMINIO_PRINCIPAL=$(echo "$url_api_dify" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     EXISTING_RECORDS=$(curl -s -X GET \
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${url_api_dify}" \
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
@@ -306,7 +306,7 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n
 
 elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     echo -e "XXX\n25\nCONFIGURANDO DNS API (TUNNEL)... \nXXX"
-    DOMINIO_PRINCIPAL=$(echo "$url_api_dify" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     EXISTING_RECORDS=$(curl -s -X GET \
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${url_api_dify}" \
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
@@ -384,7 +384,7 @@ if [[ ("$minio_container" == "") ]]; then
     nome_principal2="minio"
     nome_app2=$nome_principal2$sufixo_app
 
-    DOMINIO_PRINCIPAL=$(echo "$url_dify" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
 
     if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ZONE_ID" ]; then
         echo -e "XXX\n48\nCONFIGURANDO DNS DO MINIO (TRADICIONAL)... \nXXX"
@@ -796,7 +796,7 @@ services:
       - CONSOLE_WEB_URL=https://$url_dify
       - CONSOLE_API_URL=https://$url_api_dify
       - SERVICE_API_URL=https://$url_api_dify
-      - COOKIE_DOMAIN=.$(echo "$url_dify" | cut -d'.' -f2-)
+      - COOKIE_DOMAIN=.${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}
       - APP_WEB_URL=https://$url_dify
       - APP_API_URL=https://$url_api_dify
       - FILES_URL=https://$url_api_dify
@@ -963,7 +963,7 @@ services:
       - SECRET_KEY=$secret_key
       - INIT_PASSWORD=setupmno_admin
       - HOSTNAME=0.0.0.0
-      - NEXT_PUBLIC_COOKIE_DOMAIN=.$(echo "$url_dify" | cut -d'.' -f2-)
+      - NEXT_PUBLIC_COOKIE_DOMAIN=.${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}
     deploy:
       mode: replicated
       replicas: 1

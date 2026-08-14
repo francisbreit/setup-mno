@@ -191,7 +191,7 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
     # CONFIGURAÇÃO TRADICIONAL COM DNS AUTOMÁTICO
     echo -e "XXX\n10\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
     
-    DOMINIO_PRINCIPAL=$(echo "$url_openproject" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     SUBDOMINIO=${url_openproject%%.$DOMINIO_PRINCIPAL}
 
     # Verificar e remover registros existentes
@@ -231,7 +231,7 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     # CONFIGURAÇÃO CLOUDFLARE TUNNEL - DNS E ROTAS
     echo -e "XXX\n10\nCONFIGURANDO CLOUDFLARE TUNNEL (DNS + ROTAS)... \nXXX"
     
-    DOMINIO_PRINCIPAL=$(echo "$url_openproject" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     SUBDOMINIO=${url_openproject%%.$DOMINIO_PRINCIPAL}
 
     # 1. PRIMEIRO CONFIGURAR O DNS

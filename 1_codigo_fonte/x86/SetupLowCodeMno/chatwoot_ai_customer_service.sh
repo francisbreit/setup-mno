@@ -263,7 +263,7 @@ create_dns() {
     
     if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
         # TRADICIONAL + DNS AUTOMATICO
-        DOMINIO_PRINC=$(echo "$dominio" | cut -d'.' -f2-)
+        DOMINIO_PRINC="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
         
         EXISTING=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${dominio}" \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json")
@@ -282,7 +282,7 @@ create_dns() {
 
     elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
         # CLOUDFLARE TUNNEL
-        DOMINIO_PRINC=$(echo "$dominio" | cut -d'.' -f2-)
+        DOMINIO_PRINC="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
         
         EXISTING=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${dominio}" \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json")

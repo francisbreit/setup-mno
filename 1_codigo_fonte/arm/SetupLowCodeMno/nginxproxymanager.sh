@@ -53,7 +53,7 @@ clear
 echo -e "XXX\n5\nCONFIGURANDO... \nXXX"
 
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
-    DOMINIO_PRINCIPAL=$(echo "$url_npm" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     EXISTING_RECORDS=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${url_npm}" \
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json")
     COUNT=$(echo "$EXISTING_RECORDS" | jq '.result | length')
@@ -69,7 +69,7 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
         --data '{"type":"CNAME","name":"'${url_npm}'","content":"'${nome_servidor}'.'${DOMINIO_PRINCIPAL}'","ttl":1,"proxied":false}' >/dev/null 2>&1
 
 elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-    DOMINIO_PRINCIPAL=$(echo "$url_npm" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     EXISTING_RECORDS=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${url_npm}" \
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json")
     COUNT=$(echo "$EXISTING_RECORDS" | jq '.result | length')

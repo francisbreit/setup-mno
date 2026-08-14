@@ -432,7 +432,7 @@ echo -e "XXX\n5\nVERIFICANDO CONFIGURAÇÃO... \nXXX"
 
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
     echo -e "XXX\n2\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
-    DOMINIO_PRINCIPAL=$(echo "$urlneo4j" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     
     EXISTING_RECORDS=$(curl -s -X GET \
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${urlneo4j}" \
@@ -727,7 +727,7 @@ echo -e "XXX\n31\nVERIFICANDO CONFIGURAÇÃO... \nXXX"
 
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
     echo -e "XXX\n32\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
-    DOMINIO_PRINCIPAL=$(echo "$urlqdrant" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     
     EXISTING_RECORDS=$(curl -s -X GET \
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${urlqdrant}" \
@@ -1014,7 +1014,7 @@ echo -e "XXX\n49\nVERIFICANDO CONFIGURAÇÃO... \nXXX"
 
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
     echo -e "XXX\n50\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
-    DOMINIO_PRINCIPAL=$(echo "$urlcognee" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     
     EXISTING_RECORDS=$(curl -s -X GET \
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${urlcognee}" \
@@ -1524,7 +1524,7 @@ echo -e "XXX\n84\nVERIFICANDO CONFIGURAÇÃO... \nXXX"
 
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
     echo -e "XXX\n85\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
-    DOMINIO_PRINCIPAL=$(echo "$urlopenclaw" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     
     EXISTING_RECORDS=$(curl -s -X GET \
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${urlopenclaw}" \

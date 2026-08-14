@@ -200,7 +200,7 @@ echo -e "XXX\n5\nVERIFICANDO CONFIGURAÇÃO... \nXXX"
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
     echo -e "XXX\n10\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
 
-    DOMINIO_PRINCIPAL=$(echo "$url_shlink" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
 
     echo -e "XXX\n15\nVERIFICANDO REGISTROS EXISTENTES... \nXXX"
     EXISTING_RECORDS=$(curl -s -X GET \
@@ -235,7 +235,7 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
 
     # Criar também para a API
     echo -e "XXX\n32\nCRIANDO REGISTRO CNAME PARA API... \nXXX"
-    DOMINIO_PRINCIPAL_API=$(echo "$url_shlink_api" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL_API="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     CNAME_RESPONSE_API=$(curl -s -X POST \
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
@@ -251,7 +251,7 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
 elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     echo -e "XXX\n10\nCONFIGURANDO CLOUDFLARE TUNNEL (DNS + ROTAS)... \nXXX"
 
-    DOMINIO_PRINCIPAL=$(echo "$url_shlink" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
 
     echo -e "XXX\n15\nCONFIGURANDO REGISTRO DNS... \nXXX"
 

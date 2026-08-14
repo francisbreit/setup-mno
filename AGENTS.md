@@ -490,6 +490,10 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
     ```
     **NUNCA use nomes fixos** como `activepieces.yaml` ou `jitsi.yaml` — sempre use `$nome_app.yaml`.
 12. **Configuração DNS (OBRIGATÓRIO):** O script DEVE configurar o DNS automaticamente. Verificar se as variáveis estão definidas antes de usar:
+    - O domínio-raiz nunca pode ser inferido removendo o primeiro label do hostname (`cut -d'.' -f2-` ou equivalente). Essa regra transforma `dominio.com.br` em `com.br` e também falha com hostnames de múltiplos níveis.
+    - Use exclusivamente o domínio validado pelo perfil selecionado: `DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"`.
+    - A regra deve aceitar tanto o apex exato (`dominio.com.br`) quanto subdomínios (`app.dominio.com.br`) nos perfis principal e adicionais.
+    - No modo tradicional, o CNAME aponta para `${nome_servidor}.${DOMINIO_PRINCIPAL}`. No Tunnel, o CNAME aponta para `${TUNNEL_ID}.cfargotunnel.com`, com `proxied:true`, e o ingresso usa o hostname solicitado sem remover labels.
     ```bash
     # VERIFICAR VARIÁVEIS
     if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ZONE_ID" ]; then
@@ -501,6 +505,8 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
     if [ -z "$nome_servidor" ]; then
         nome_servidor=$(hostname -I | awk '{print $1}')
     fi
+
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     
     # GARANTIR CNAME DE FORMA IDEMPOTENTE (TRADICIONAL)
     DNS_LOOKUP=$(mktemp)

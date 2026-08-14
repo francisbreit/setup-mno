@@ -695,7 +695,7 @@ EOAPPEND
             dns_content="${TUNNEL_ID}.cfargotunnel.com"
             dns_proxied=true
         else
-            dominio_principal=$(echo "$url_linkwarden" | cut -d'.' -f2-)
+            dominio_principal="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
             [ -n "$nome_servidor" ] || nome_servidor=$(hostname -I | awk '{print $1}')
             dns_content="${nome_servidor}.${dominio_principal}"
             dns_proxied=false

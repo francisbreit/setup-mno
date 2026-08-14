@@ -131,7 +131,7 @@ echo -e "XXX\n5\nVERIFICANDO CONFIGURAÇÃO... \nXXX"
 
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
     echo -e "XXX\n10\nCONFIGURANDO DNS AUTOMÁTICO... \nXXX"
-    DOMINIO_PRINCIPAL=$(echo "$url_listmonk" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
 
     EXISTING_RECORDS=$(curl -s -X GET \
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${url_listmonk}" \
@@ -156,7 +156,7 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
 
 elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     echo -e "XXX\n10\nCONFIGURANDO CLOUDFLARE TUNNEL... \nXXX"
-    DOMINIO_PRINCIPAL=$(echo "$url_listmonk" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
 
     EXISTING_RECORDS=$(curl -s -X GET \
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${url_listmonk}" \

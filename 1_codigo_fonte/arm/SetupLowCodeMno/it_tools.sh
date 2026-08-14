@@ -209,7 +209,7 @@ EOL
             dns_content="${TUNNEL_ID}.cfargotunnel.com"
             dns_proxied="true"
         else
-            DOMINIO_PRINCIPAL=$(echo "$url_it_tools" | cut -d'.' -f2-)
+            DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
             [ -n "$nome_servidor" ] || nome_servidor=$(hostname -I | awk '{print $1}')
             dns_content="${nome_servidor}.${DOMINIO_PRINCIPAL}"
             dns_proxied="false"

@@ -683,7 +683,7 @@ setupmno_domain_register() {
 }
 
 setupmno_domain_load_profile() {
-    local profile_id="$1" profile credential install_type status infrastructure
+    local profile_id="$1" profile credential install_type status infrastructure root_domain
     setupmno_domain_registry_valid || return 1
     profile=$(jq -c --arg id "$profile_id" '.profiles[] | select(.id == $id)' "$SETUPMNO_DOMAIN_REGISTRY")
     [ -n "$profile" ] || return 1
@@ -691,14 +691,16 @@ setupmno_domain_load_profile() {
     install_type=$(jq -r '.installationType' <<<"$profile")
     status=$(jq -r '.status // "invalid"' <<<"$profile")
     infrastructure=$(jq -r '.infrastructure // false' <<<"$profile")
+    root_domain=$(jq -r '.rootDomain // empty' <<<"$profile")
     if [ "$infrastructure" != "true" ] && [ "$status" != "validated" ]; then
         setupmno_domain_error "Este domínio adicional não está validado. Use GERENCIAR DOMÍNIOS CLOUDFLARE > Revalidar antes de instalar a aplicação."
         return 1
     fi
     setupmno_domain_credential_path_valid "$credential" || return 1
+    setupmno_domain_name_valid "$root_domain" || return 1
     export SETUPMNO_DOMAIN_PROFILE_ID="$profile_id"
-    export SETUPMNO_SELECTED_ROOT_DOMAIN
-    SETUPMNO_SELECTED_ROOT_DOMAIN=$(jq -r '.rootDomain' <<<"$profile")
+    export SETUPMNO_SELECTED_ROOT_DOMAIN="$root_domain"
+    export SETUPMNO_DOMAIN_ROOT="$root_domain"
     if [ "$install_type" = "CLOUDFLARE_TUNNEL" ]; then
         export SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE="$credential"
         unset SETUPMNO_TRADITIONAL_CREDENTIALS_FILE
@@ -709,7 +711,7 @@ setupmno_domain_load_profile() {
 }
 
 setupmno_domain_clear_selection() {
-    unset SETUPMNO_DOMAIN_PROFILE_ID SETUPMNO_SELECTED_ROOT_DOMAIN
+    unset SETUPMNO_DOMAIN_PROFILE_ID SETUPMNO_SELECTED_ROOT_DOMAIN SETUPMNO_DOMAIN_ROOT
     unset SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE SETUPMNO_TRADITIONAL_CREDENTIALS_FILE
 }
 

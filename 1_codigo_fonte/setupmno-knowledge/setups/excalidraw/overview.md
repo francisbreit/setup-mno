@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Excalidraw no Setup MNO",
   "setupId": "excalidraw",
-  "setupVersion": "7.19.0",
+  "setupVersion": "7.19.1",
   "architectures": [
     "amd64"
   ],

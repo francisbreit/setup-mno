@@ -204,7 +204,7 @@ echo -e "XXX\n5\nVERIFICANDO CONFIGURAÇÃO... \nXXX"
 
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
     echo -e "XXX\n10\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
-    DOMINIO_PRINCIPAL=$(echo "$urlautogen" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     
     EXISTING_RECORDS=$(curl -s -X GET \
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${urlautogen}" \

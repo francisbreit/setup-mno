@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "NocoBase no Setup MNO",
   "setupId": "nocobase",
-  "setupVersion": "7.19.0",
+  "setupVersion": "7.19.1",
   "architectures": [
     "amd64",
     "arm64"

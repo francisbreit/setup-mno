@@ -208,7 +208,7 @@ echo -e "XXX\n5\nVERIFICANDO CONFIGURAÇÃO DE DOMÍNIO... \nXXX"
 
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
     echo -e "XXX\n10\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
-    DOMINIO_PRINCIPAL=$(echo "$url_plane" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
 
     EXISTING_RECORDS=$(curl -s -X GET \
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${url_plane}" \
@@ -240,7 +240,7 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
 elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     echo -e "XXX\n10\nCONFIGURANDO CLOUDFLARE TUNNEL (DNS + ROTAS)... \nXXX"
 
-    DOMINIO_PRINCIPAL=$(echo "$url_plane" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
 
     EXISTING_RECORDS=$(curl -s -X GET \
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${url_plane}" \
@@ -418,7 +418,7 @@ EOL
 
     echo -e "XXX\n41\nCONFIGURANDO DNS/ROTAS DO MINIO... \nXXX"
 
-    DOMINIO_PRINCIPAL=$(echo "$url_plane" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
 
     if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
         for minio_url in "$painel" "$publico"; do

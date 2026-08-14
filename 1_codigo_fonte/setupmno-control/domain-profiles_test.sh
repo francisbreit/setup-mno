@@ -32,6 +32,10 @@ for architecture_root in "$x86_root" "$arm_root"; do
             printf 'ERRO: aplicação não aceita credencial selecionada: %s\n' "$script" >&2
             exit 1
         }
+        if grep -Fq "cut -d'.' -f2-" "$script"; then
+            printf 'ERRO: aplicação ainda tenta inferir a zona removendo o primeiro label: %s\n' "$script" >&2
+            exit 1
+        fi
         bash -n "$script"
     done <"$architecture_root/domain_profile_apps.list"
 done
@@ -76,9 +80,49 @@ setupmno_domain_registry_valid
 printf 'aplicacao\n' >"$SETUPMNO_DOMAIN_APP_LIST"
 setupmno_domain_select_for_app aplicacao
 [ "$SETUPMNO_DOMAIN_PROFILE_ID" = "primary" ]
+[ "$SETUPMNO_SELECTED_ROOT_DOMAIN" = "exemplo.com.br" ]
+[ "$SETUPMNO_DOMAIN_ROOT" = "exemplo.com.br" ]
 [ "$SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE" = "$credential" ]
 setupmno_domain_clear_selection
 [ -z "${SETUPMNO_DOMAIN_PROFILE_ID:-}" ]
+[ -z "${SETUPMNO_SELECTED_ROOT_DOMAIN:-}" ]
+[ -z "${SETUPMNO_DOMAIN_ROOT:-}" ]
+
+traditional_credential="$SETUPMNO_DOMAIN_CREDENTIALS_DIR/domain-cliente.env"
+setupmno_domain_write_credentials "$traditional_credential" "token adicional" \
+    "account-traditional" "zone-traditional" "cliente.com.br" "domain-cliente" \
+    "TRADICIONAL" "" "" "setupmno-origin-cliente"
+updated_registry="$test_dir/registry-updated.json"
+jq --arg credential "$traditional_credential" '.profiles += [{
+    id: "domain-cliente", name: "cliente.com.br", rootDomain: "cliente.com.br",
+    zoneId: "zone-traditional", accountId: "account-traditional",
+    installationType: "TRADICIONAL", credentialFile: $credential,
+    tunnelId: "", tunnelScope: "none", infrastructure: false,
+    status: "validated"
+}]' "$SETUPMNO_DOMAIN_REGISTRY" >"$updated_registry"
+mv "$updated_registry" "$SETUPMNO_DOMAIN_REGISTRY"
+chmod 600 "$SETUPMNO_DOMAIN_REGISTRY"
+setupmno_domain_registry_valid
+setupmno_domain_load_profile domain-cliente
+[ "$SETUPMNO_SELECTED_ROOT_DOMAIN" = "cliente.com.br" ]
+. "$traditional_credential"
+[ "${nome_servidor}.${SETUPMNO_DOMAIN_ROOT}" = "setupmno-origin-cliente.cliente.com.br" ]
+for requested_hostname in cliente.com.br wordpress.cliente.com.br; do
+    case "$requested_hostname" in
+        "$SETUPMNO_DOMAIN_ROOT"|*."$SETUPMNO_DOMAIN_ROOT") ;;
+        *) printf 'ERRO: hostname válido rejeitado no cenário tradicional: %s\n' "$requested_hostname" >&2; exit 1 ;;
+    esac
+done
+setupmno_domain_load_profile primary
+. "$credential"
+for requested_hostname in exemplo.com.br wordpress.exemplo.com.br; do
+    case "$requested_hostname" in
+        "$SETUPMNO_DOMAIN_ROOT"|*."$SETUPMNO_DOMAIN_ROOT") ;;
+        *) printf 'ERRO: hostname válido rejeitado no cenário Tunnel: %s\n' "$requested_hostname" >&2; exit 1 ;;
+    esac
+    [ "${TUNNEL_ID}.cfargotunnel.com" = "tunnel-test.cfargotunnel.com" ]
+done
+setupmno_domain_clear_selection
 
 api_log="$test_dir/cloudflare-api.log"
 setupmno_cf_request() {

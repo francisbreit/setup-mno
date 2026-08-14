@@ -256,7 +256,7 @@ echo -e "XXX\n5\nVERIFICANDO CONFIGURAÇÃO... \nXXX"
 
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
     echo -e "XXX\n10\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
-    DOMINIO_PRINCIPAL=$(echo "$urlmilvus" | cut -d'.' -f2-)
+    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
     
     EXISTING_RECORDS=$(curl -s -X GET \
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${urlmilvus}" \
@@ -377,7 +377,7 @@ fi
 if [[ ("$minio_container" == "") ]] && [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
     if [ "$criar_dns" = "0" ]; then
         echo -e "XXX\n30\nCONFIGURANDO DNS DO MINIO (TRADICIONAL)... \nXXX"
-        DOMINIO_PRINCIPAL=$(echo "$urlmilvus" | cut -d'.' -f2-)
+        DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
         for minio_url in "$painel" "$publico"; do
             EXISTING=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${minio_url}" \
                 -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json")
