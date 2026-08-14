@@ -96,9 +96,9 @@ Ative este modo quando o usuário disser **“Modo Homologação”**, **“Modo
 ## CONTEXTO DOS AMBIENTES DO SETUP MNO
 
 ### Versão estável vigente
-- A última versão estável homologada do Setup MNO é **v7.14.6**.
-- Tag Git: `v7.14.6`.
-- Commit de release: `40ac4d7e` (`release: v7.14.6 - recuperação de Tunnel excluído`).
+- A última versão estável homologada do Setup MNO é **v7.18.0**.
+- Tag Git: `v7.18.0`.
+- Commit de release: `a944bed1` (`release: v7.18.0 - Navidrome PRO`).
 - Este registro somente deve ser alterado quando o usuário declarar explicitamente uma nova versão como estável após a homologação.
 
 ### Projeto de construção
