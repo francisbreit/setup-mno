@@ -14,11 +14,11 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.18.0` em preparação de release
-- Control Center: `4.18.0`
-- Conhecimento canônico: `3.20.0`
-- Catálogo runtime: 157 entradas
-- Cobertura canônica dedicada: 157 de 157 entradas (`100%`)
+- Setup MNO: `7.19.0` em preparação de release
+- Control Center: `4.19.0`
+- Conhecimento canônico: `3.21.0`
+- Catálogo runtime: 158 entradas
+- Cobertura canônica dedicada: 158 de 158 entradas (`100%`)
 - Blueprints: cinco guias Beta editáveis, consultáveis e baixáveis; ainda não homologados
 - Estado: Beta consultivo; deploy real continua no Instalador Seguro
 
@@ -154,7 +154,7 @@ determinísticos, auditáveis e homologados.
 ### Pilar 1 — Conhecimento Completo
 
 **Prioridade:** crítica
-**Estado atual:** 157 de 157 entradas cobertas
+**Estado atual:** 158 de 158 entradas cobertas
 
 Objetivo: possuir um documento canônico revisado para cada entrada do catálogo,
 com fontes verificáveis e profundidade suficiente para orientar escolha,

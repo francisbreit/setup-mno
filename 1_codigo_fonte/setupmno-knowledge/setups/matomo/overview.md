@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Matomo no Setup MNO",
   "setupId": "matomo",
-  "setupVersion": "7.18.0",
+  "setupVersion": "7.19.0",
   "architectures": [
     "amd64",
     "arm64"

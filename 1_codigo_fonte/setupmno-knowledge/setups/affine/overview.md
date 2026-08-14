@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "AFFiNE no Setup MNO",
   "setupId": "affine",
-  "setupVersion": "7.18.0",
+  "setupVersion": "7.19.0",
   "architectures": [
     "amd64",
     "arm64"

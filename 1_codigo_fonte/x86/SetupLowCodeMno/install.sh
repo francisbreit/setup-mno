@@ -217,7 +217,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.18.0"
+VERSIONSETUP="7.19.0"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -732,9 +732,10 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "AUTOGEN STUDIO" "" \
     "BASEROW" "" \
     "BESZEL" "" \
+    "BOOKSTACK" "" \
     "BOTPRESS" "" \
     "BUDIBASE" "" \
-    "BOOKSTACK" "" \
+    "BYTEBASE" "" \
     "CAL.COM" ""  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" ""   \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
@@ -918,9 +919,10 @@ case "$CHOICE" in
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
             "BESZEL")                                               run_app beszel ;;
+            "BOOKSTACK")                                               run_app bookstack ;;
             "BOTPRESS")                                              run_app botpress ;;
             "BUDIBASE")                                              run_app budibase ;;
-            "BOOKSTACK")                                               run_app bookstack ;;
+            "BYTEBASE")                                              run_app bytebase ;;
             "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
@@ -1132,9 +1134,10 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "AUTOGEN STUDIO" "PRO" \
     "BASEROW" "PRO" \
     "BESZEL" "PRO" \
+    "BOOKSTACK" "PRO" \
     "BOTPRESS" "PRO" \
     "BUDIBASE" "PRO" \
-    "BOOKSTACK" "PRO" \
+    "BYTEBASE" "PRO" \
     "CAL.COM" "PRO"  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
@@ -1261,7 +1264,7 @@ case "$CHOICE" in
             whiptail --msgbox "Aviso: ${CHOICE} já está instalado. Não é permitido instalar mais de uma instância.\n\nDigite ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
-        if [ "$CHOICE" != "SETUP MNO CONTROL CENTER" ] && [[ ("$CHOICE" == "AFFINE") || ("$CHOICE" == "APPSMITH") || ("$CHOICE" == "AUTOGEN STUDIO") || ("$CHOICE" == "BASEROW") || ("$CHOICE" == "BOTPRESS") || ("$CHOICE" == "CAL.COM") || ("$CHOICE" == "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "DOCUMENSO") || ("$CHOICE" == "DOCUSEAL") || ("$CHOICE" == "DOZZLE") || ("$CHOICE" == "EVOAI + EVOLUTION 2.0 + MINIO*") || ("$CHOICE" == "IMMICH") || ("$CHOICE" == "HOME ASSISTANT") || ("$CHOICE" == "HOMEPAGE") || ("$CHOICE" == "HOPPSCOTCH") || ("$CHOICE" == "HUMHUB") || ("$CHOICE" == "KRAYIN CRM") || ("$CHOICE" == "LANGFUSE + MINIO + CLICKHOUSE*") || ("$CHOICE" == "LITELLM") || ("$CHOICE" == "LINKWARDEN") || ("$CHOICE" == "MAUTIC 4 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 6 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 7 WHATSAPP MKT") || ("$CHOICE" == "MATOMO") || ("$CHOICE" == "NEXTCLOUD") || ("$CHOICE" == "OPEN PROJECT") || ("$CHOICE" == "TWENTY CRM") || ("$CHOICE" == "TYPEBOT + MINIO*") || ("$CHOICE" == "OPENCLAW") || ("$CHOICE" == "DISCOURSE") || ("$CHOICE" == "GHOST") || ("$CHOICE" == "GLANCE") || ("$CHOICE" == "IT-TOOLS") || ("$CHOICE" == "COGNEE") || ("$CHOICE" == "MEMGRAPH") || ("$CHOICE" == "NEO4J") || ("$CHOICE" == "NETDADA") || ("$CHOICE" == "OPENFANG") || ("$CHOICE" == "OPENOBSERVE") || ("$CHOICE" == "PAPERCLIP") || ("$CHOICE" == "NAVIDROME") || ("$CHOICE" == "SEARXNG") || ("$CHOICE" == "SYNCTHING") || ("$CHOICE" == "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*") || ("$CHOICE" == "HERMES AGENT") || ("$CHOICE" == "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOT AI CUSTOMER SERVICE*") || ("\$CHOICE" == "DIFY") || ("\$CHOICE" == "CHANGEDETECTION.IO") ]]; then
+        if [ "$CHOICE" != "SETUP MNO CONTROL CENTER" ] && [[ ("$CHOICE" == "AFFINE") || ("$CHOICE" == "APPSMITH") || ("$CHOICE" == "AUTOGEN STUDIO") || ("$CHOICE" == "BASEROW") || ("$CHOICE" == "BYTEBASE") || ("$CHOICE" == "BOTPRESS") || ("$CHOICE" == "CAL.COM") || ("$CHOICE" == "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "DOCUMENSO") || ("$CHOICE" == "DOCUSEAL") || ("$CHOICE" == "DOZZLE") || ("$CHOICE" == "EVOAI + EVOLUTION 2.0 + MINIO*") || ("$CHOICE" == "IMMICH") || ("$CHOICE" == "HOME ASSISTANT") || ("$CHOICE" == "HOMEPAGE") || ("$CHOICE" == "HOPPSCOTCH") || ("$CHOICE" == "HUMHUB") || ("$CHOICE" == "KRAYIN CRM") || ("$CHOICE" == "LANGFUSE + MINIO + CLICKHOUSE*") || ("$CHOICE" == "LITELLM") || ("$CHOICE" == "LINKWARDEN") || ("$CHOICE" == "MAUTIC 4 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 6 WHATSAPP MKT") || ("$CHOICE" == "MAUTIC 7 WHATSAPP MKT") || ("$CHOICE" == "MATOMO") || ("$CHOICE" == "NEXTCLOUD") || ("$CHOICE" == "OPEN PROJECT") || ("$CHOICE" == "TWENTY CRM") || ("$CHOICE" == "TYPEBOT + MINIO*") || ("$CHOICE" == "OPENCLAW") || ("$CHOICE" == "DISCOURSE") || ("$CHOICE" == "GHOST") || ("$CHOICE" == "GLANCE") || ("$CHOICE" == "IT-TOOLS") || ("$CHOICE" == "COGNEE") || ("$CHOICE" == "MEMGRAPH") || ("$CHOICE" == "NEO4J") || ("$CHOICE" == "NETDADA") || ("$CHOICE" == "OPENFANG") || ("$CHOICE" == "OPENOBSERVE") || ("$CHOICE" == "PAPERCLIP") || ("$CHOICE" == "NAVIDROME") || ("$CHOICE" == "SEARXNG") || ("$CHOICE" == "SYNCTHING") || ("$CHOICE" == "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*") || ("$CHOICE" == "HERMES AGENT") || ("$CHOICE" == "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") || ("$CHOICE" == "CHATWOOT AI CUSTOMER SERVICE*") || ("\$CHOICE" == "DIFY") || ("\$CHOICE" == "CHANGEDETECTION.IO") ]]; then
             whiptail --msgbox "A ferramenta ${CHOICE} não está disponível no plano free.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP e adquira o plano PRO.\n\nPressione ENTER para voltar ao Menu Principal." 12 70
             continue
         fi
@@ -1272,9 +1275,10 @@ case "$CHOICE" in
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
             "BESZEL")                                               run_app beszel ;;
+            "BOOKSTACK")                                               run_app bookstack ;;
             "BOTPRESS")                                              run_app botpress ;;
             "BUDIBASE")                                              run_app budibase ;;
-            "BOOKSTACK")                                               run_app bookstack ;;
+            "BYTEBASE")                                              run_app bytebase ;;
             "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
@@ -1451,9 +1455,10 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "AUTOGEN STUDIO" "PRO" \
     "BASEROW" "PRO" \
     "BESZEL" "PRO" \
+    "BOOKSTACK" "PRO" \
     "BOTPRESS" "PRO" \
     "BUDIBASE" "PRO" \
-    "BOOKSTACK" "PRO" \
+    "BYTEBASE" "PRO" \
     "CAL.COM" "PRO"  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" "PRO"   \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
@@ -1618,9 +1623,10 @@ case "$CHOICE" in
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
             "BESZEL")                                               run_app beszel ;;
+            "BOOKSTACK")                                               run_app bookstack ;;
             "BOTPRESS")                                              run_app botpress ;;
             "BUDIBASE")                                              run_app budibase ;;
-            "BOOKSTACK")                                               run_app bookstack ;;
+            "BYTEBASE")                                              run_app bytebase ;;
             "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
@@ -1797,9 +1803,10 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "AUTOGEN STUDIO" "PRO" \
     "BASEROW" "PRO" \
     "BESZEL" "PRO" \
+    "BOOKSTACK" "PRO" \
     "BOTPRESS" "PRO" \
     "BUDIBASE" "PRO" \
-    "BOOKSTACK" "PRO" \
+    "BYTEBASE" "PRO" \
     "CAL.COM" "PRO"  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" "PRO"   \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
@@ -1964,9 +1971,10 @@ case "$CHOICE" in
             "AUTOGEN STUDIO")                                        run_app autogen ;;
             "BASEROW")                                               run_app baserow ;;
             "BESZEL")                                               run_app beszel ;;
+            "BOOKSTACK")                                               run_app bookstack ;;
             "BOTPRESS")                                              run_app botpress ;;
             "BUDIBASE")                                              run_app budibase ;;
-            "BOOKSTACK")                                               run_app bookstack ;;
+            "BYTEBASE")                                              run_app bytebase ;;
             "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
              "CHANGEDETECTION.IO")                                     run_app changedetection ;;

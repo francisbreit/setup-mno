@@ -88,6 +88,17 @@
     "search": "beszel monitoramento, server, leve hub de monitoramento leve. docker stats, alerts, métricas de servidor em tempo real."
   },
   {
+    "name": "BOOKSTACK",
+    "cats": "Wiki, Documentação, Colaboração",
+    "desc": "Wiki e plataforma de documentação open-source. Alternativa ao Confluence com páginas, livros e hierarquia de conteúdo.",
+    "ram": 0.5,
+    "ramLabel": "~512MB",
+    "arch": "x86-arm",
+    "stars": 15000,
+    "type": "Individual",
+    "search": "bookstack wiki, documentação, colaboração wiki e plataforma de documentação open-source. alternativa ao confluence com páginas, livros e hierarquia de conteúdo."
+  },
+  {
     "name": "BOTPRESS",
     "cats": "Chatbot, IA, Atendimento",
     "desc": "Plataforma para criar chatbots inteligentes com IA generativa. Interface visual drag-and-drop para fluxos de conversa.",
@@ -110,15 +121,15 @@
     "search": "budibase low-code, internal tools, retool alt plataforma low-code para criar ferramentas internas. drag-and-drop, automações, múltiplas fontes de dados."
   },
   {
-    "name": "BOOKSTACK",
-    "cats": "Wiki, Documentação, Colaboração",
-    "desc": "Wiki e plataforma de documentação open-source. Alternativa ao Confluence com páginas, livros e hierarquia de conteúdo.",
-    "ram": 0.5,
-    "ramLabel": "~512MB",
+    "name": "BYTEBASE",
+    "cats": "Banco de Dados, DevOps, DevSecOps, Governança",
+    "desc": "Plataforma de DevOps para bancos de dados com mudanças de esquema, revisão SQL, controle de acesso, auditoria e fluxos GitOps.",
+    "ram": 2,
+    "ramLabel": "~2GB máximo",
     "arch": "x86-arm",
-    "stars": 15000,
-    "type": "Individual",
-    "search": "bookstack wiki, documentação, colaboração wiki e plataforma de documentação open-source. alternativa ao confluence com páginas, livros e hierarquia de conteúdo."
+    "stars": 14306,
+    "type": "Banco de Dados",
+    "search": "bytebase banco de dados devops devsecops governança schema migration revisão sql auditoria gitops acesso"
   },
   {
     "name": "CAL.COM",

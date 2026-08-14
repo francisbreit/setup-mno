@@ -1,10 +1,10 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.18.0"
-EXPECTED_CATALOG_ENTRIES="157"
-EXPECTED_EVAL_DATASET_VERSION="1.16.0"
+VERSIONSETUP="7.19.0"
+EXPECTED_CATALOG_ENTRIES="158"
+EXPECTED_EVAL_DATASET_VERSION="1.17.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
-EXPECTED_EVAL_CASE_ENTRIES="873"
+EXPECTED_EVAL_CASE_ENTRIES="878"
 EXPECTED_BLUEPRINT_FACTORY_VERSION="2.1.0"
 EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="0"
 EXPECTED_QUALITY_SCHEMA_VERSION="2"
@@ -1244,6 +1244,12 @@ rm baserow
 fi
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm baserow
+fi
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o bytebase -f bytebase.sh
+rm bytebase.sh
+rm bytebase.sh.x.c
+if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm bytebase
 fi
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o beszel -f beszel.sh
 rm beszel.sh
