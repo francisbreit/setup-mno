@@ -417,11 +417,10 @@ EOYAML
     [ "$(jq -r '.success // false' "$work_dir/dns-response.json")" = "true" ] ||
         fail_install 56 "CLOUDFLARE RECUSOU DNS" "A Cloudflare recusou o CNAME DNS-only do RustDesk."
     dns_record_id=$(jq -r '.result.id // empty' "$work_dir/dns-response.json")
-    dns_proxied=$(jq -r '.result.proxied // true' "$work_dir/dns-response.json")
     [ -n "$dns_record_id" ] ||
         fail_install 57 "DNS SEM IDENTIFICADOR" "A Cloudflare criou o registro sem retornar um identificador seguro para rollback."
     dns_created="true"
-    [ "$dns_proxied" = "false" ] ||
+    jq -e '.result | has("proxied") and (.proxied == false)' "$work_dir/dns-response.json" >/dev/null 2>&1 ||
         fail_install 57 "DNS-ONLY NÃO CONFIRMADO" "A Cloudflare não confirmou o hostname com proxy desativado."
 
     public_key=$(tr -d '\r\n' <"$data_dir/id_ed25519.pub")

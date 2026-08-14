@@ -235,6 +235,23 @@ class KnowledgeFactoryTests(unittest.TestCase):
         self.assertIn('whiptail --title "LINKWARDEN PRO" --msgbox "$1" 16 84 1>&2', x86_script)
         self.assertIn('[ "$status" -ne 0 ] && return 130', x86_script)
 
+    def test_rustdesk_accepts_cloudflare_dns_only_boolean_false(self) -> None:
+        x86_script = (
+            ROOT.parent / "x86" / "SetupLowCodeMno" / "rustdesk.sh"
+        ).read_text(encoding="utf-8")
+        arm_script = (
+            ROOT.parent / "arm" / "SetupLowCodeMno" / "rustdesk.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertEqual(x86_script, arm_script)
+        self.assertIn(
+            "jq -e '.result | has(\"proxied\") and (.proxied == false)'",
+            x86_script,
+        )
+        self.assertNotIn(".result.proxied // true", x86_script)
+        self.assertIn("published: 21116", x86_script)
+        self.assertIn("protocol: udp", x86_script)
+
     def test_quality_governance_is_truthful_and_monotonic(self) -> None:
         report = build_quality_report(ROOT, CATALOG)
         summary = report["summary"]
