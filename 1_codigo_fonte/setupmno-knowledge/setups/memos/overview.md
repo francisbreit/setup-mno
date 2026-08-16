@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Memos no Setup MNO",
   "setupId": "memos",
-  "setupVersion": "7.19.1",
+  "setupVersion": "7.19.2",
   "architectures": [
     "amd64",
     "arm64"

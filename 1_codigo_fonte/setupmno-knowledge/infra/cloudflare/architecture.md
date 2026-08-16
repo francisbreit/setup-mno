@@ -2,12 +2,12 @@
 {
   "schemaVersion": 1,
   "documentId": "infra-cloudflare-architecture",
-  "documentVersion": "1.3.3",
-  "contentSHA256": "9bc500df9574a4703c47bdfa61ed6f11b711527d81f8cecaaef0597587faaf4c",
+  "documentVersion": "1.3.4",
+  "contentSHA256": "cd6abfcc8ef116a7ee08e95f79c28cbf41382f3810ec9de32033898f3a8c6d2a",
   "documentType": "infrastructure",
   "title": "Cloudflare no acesso tradicional e por túnel",
   "topicId": "cloudflare",
-  "setupVersion": "7.19.1",
+  "setupVersion": "7.19.2",
   "architectures": ["amd64", "arm64"],
   "category": "networking",
   "status": "reviewed",
@@ -85,6 +85,12 @@ sem deslocar Portainer ou Control Center. No modo tradicional, cada domínio
 adicional recebe um hostname técnico de origem que aponta ao IPv4 do servidor;
 os subdomínios das aplicações continuam sendo criados pelo instalador.
 
+No WordPress tradicional, a automação pode criar também a variante com ou sem
+`www`, sempre como DNS-only, sem substituir registro alternativo preexistente.
+Com DNS manual, a variante só participa da rota e do certificado quando resolve
+para o IPv4 público da VPS. Isso impede que um conflito no alias invalide a
+solicitação ACME do hostname principal.
+
 Falhas posteriores à criação de um recurso disparam rollback do túnel, Secret,
 stack ou registro técnico que tenha sido criado naquela tentativa. Recursos
 preexistentes e o perfil principal não entram nesse rollback.
@@ -98,6 +104,12 @@ perfis principal e adicionais. No modo tradicional, o CNAME aponta para o
 hostname técnico de origem do perfil. No modo Tunnel, o CNAME aponta para
 `<tunnel-id>.cfargotunnel.com` e a regra de ingresso mantém o hostname exato,
 inclusive quando ele é o apex da zona.
+
+O Tunnel publica apenas o hostname exato informado. O Universal SSL padrão
+cobre a zona e um nível de subdomínio, mas não cobre nomes aninhados como
+`www.wordpress.empresa.com.br`. Esse segundo nome exige um certificado avançado
+compatível na borda Cloudflare, outro registro DNS e outra regra de ingresso;
+por isso o instalador não o cria automaticamente.
 
 ## Criação do túnel principal
 

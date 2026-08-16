@@ -199,6 +199,12 @@ done
                 fi
         done
 
+if [[ "$url_wordpress" == www.* ]]; then
+    url_wordpress_alias="${url_wordpress#www.}"
+else
+    url_wordpress_alias="www.${url_wordpress}"
+fi
+
 
 
 # Perguntar ao usuário se deseja criar a stack no Portainer
@@ -613,6 +619,7 @@ clear
 {
 # Função para verificar o domínio
 echo -e "XXX\n5\nVERIFICANDO CONFIGURAÇÃO... \nXXX"
+wordpress_alias_enabled="0"
 
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
     # CONFIGURAÇÃO TRADICIONAL COM DNS AUTOMÁTICO
@@ -640,6 +647,24 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
         done
     fi
 
+    EXISTING_ALIAS_RECORDS=$(curl -s -X GET \
+        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${url_wordpress_alias}" \
+        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+        -H "Content-Type: application/json")
+
+    ALIAS_TARGET="${nome_servidor}.${DOMINIO_PRINCIPAL}"
+    ALIAS_COUNT=$(echo "$EXISTING_ALIAS_RECORDS" | jq '.result | length')
+    alias_record_ready="0"
+    if [[ "$ALIAS_COUNT" -gt 0 ]]; then
+        if echo "$EXISTING_ALIAS_RECORDS" | jq -e --arg target "$ALIAS_TARGET" \
+            '.result | length == 1 and .[0].type == "CNAME" and .[0].content == $target and .[0].proxied == false' >/dev/null 2>&1; then
+            alias_record_ready="1"
+            echo -e "XXX\n22\nALIAS EXISTENTE E COMPATÍVEL SERÁ PRESERVADO \nXXX"
+        else
+            echo -e "XXX\n22\nALIAS $url_wordpress_alias JÁ ESTÁ EM USO E NÃO SERÁ ALTERADO \nXXX"
+        fi
+    fi
+
     # Criar registro CNAME
     echo -e "XXX\n25\nCRIANDO REGISTRO CNAME... \nXXX"
     CNAME_RESPONSE=$(curl -s -X POST \
@@ -650,6 +675,26 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
 
     if echo "$CNAME_RESPONSE" | grep -q '"success":true'; then
         echo -e "XXX\n30\nREGISTRO CNAME CRIADO COM SUCESSO! \nXXX"
+
+        if [ "$alias_record_ready" = "1" ]; then
+            wordpress_alias_enabled="1"
+            echo -e "XXX\n35\nDOMÍNIO PRINCIPAL E ALIAS EXISTENTE CONFIGURADOS! \nXXX"
+        elif [[ "$ALIAS_COUNT" -eq 0 ]]; then
+            CNAME_ALIAS_RESPONSE=$(curl -s -X POST \
+                "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                -H "Content-Type: application/json" \
+                --data '{"type":"CNAME","name":"'${url_wordpress_alias}'","content":"'${nome_servidor}'.'${DOMINIO_PRINCIPAL}'","ttl":1,"proxied":false}')
+
+            if echo "$CNAME_ALIAS_RESPONSE" | grep -q '"success":true'; then
+                wordpress_alias_enabled="1"
+                echo -e "XXX\n35\nDOMÍNIO PRINCIPAL E ALTERNATIVO CONFIGURADOS! \nXXX"
+            else
+                echo -e "XXX\n35\nAVISO: O ALIAS $url_wordpress_alias NÃO FOI CRIADO; SEGUINDO SOMENTE COM $url_wordpress \nXXX"
+            fi
+        else
+            echo -e "XXX\n35\nAVISO: CONFLITO NO ALIAS $url_wordpress_alias; SEGUINDO SOMENTE COM $url_wordpress \nXXX"
+        fi
     else
         echo -e "XXX\n30\nAVISO: ERRO AO CRIAR REGISTRO CNAME \nXXX"
     fi
@@ -766,6 +811,15 @@ elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
         echo -e "XXX\n15\nDNS CONFIGURADO \nXXX"
     else
         echo -e "XXX\n15\nAVISO: VERIFIQUE A CONFIGURAÇÃO DNS \nXXX"
+    fi
+
+    ip_servidor_alias=$(curl -s --max-time 10 ipinfo.io/ip)
+    dns_ip_alias=$(timeout 10 getent ahostsv4 "$url_wordpress_alias" 2>/dev/null | awk 'NR == 1 {print $1}')
+    if [[ -n "$ip_servidor_alias" && "$dns_ip_alias" == "$ip_servidor_alias" ]]; then
+        wordpress_alias_enabled="1"
+        echo -e "XXX\n18\nALIAS $url_wordpress_alias VALIDADO \nXXX"
+    else
+        echo -e "XXX\n18\nALIAS $url_wordpress_alias AUSENTE; CERTIFICADO SERÁ EMITIDO SOMENTE PARA $url_wordpress \nXXX"
     fi
 fi
 
@@ -886,10 +940,15 @@ services:
 EOL
 # Adicionar as labels apenas se for instalação tradicional
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
+if [ "$wordpress_alias_enabled" = "1" ]; then
+    wordpress_router_rule="Host(\`$url_wordpress\`) || Host(\`$url_wordpress_alias\`)"
+else
+    wordpress_router_rule="Host(\`$url_wordpress\`)"
+fi
 cat >> $nome_app.yaml << EOL
       labels:
         - traefik.enable=true
-        - traefik.http.routers.$nome_app.rule=Host(\`$url_wordpress\`)
+        - traefik.http.routers.$nome_app.rule=$wordpress_router_rule
         - traefik.http.routers.$nome_app.entrypoints=websecure
         - traefik.http.routers.$nome_app.tls.certresolver=letsencryptresolver
         - traefik.http.routers.$nome_app.service=$nome_app
@@ -1090,16 +1149,25 @@ sleep 3
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
     ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
     dns_ip=$(timeout 10 nslookup "$url_wordpress" | grep "Address" | tail -n1 | awk '{print $2}' 2>/dev/null)
+    dns_ip_alias=$(timeout 10 getent ahostsv4 "$url_wordpress_alias" 2>/dev/null | awk 'NR == 1 {print $1}')
+    alias_router_configured="0"
+    if grep -Fq "Host(\`$url_wordpress_alias\`)" "$nome_app.yaml" 2>/dev/null; then
+        alias_router_configured="1"
+    fi
 
     if [[ "$dns_ip" != "$ip_servidor" ]]; then
         whiptail --title "Mensagem" --msgbox "Não foi possivel acessar o dominio do Wordpress ($url_wordpress). A instalação foi cancelada. Por favor, verifique se os apontamentos DNS estão corretos e propagados!. Depois, instale novamente. Pressione ENTER para voltar ao Menu Principal" 20 78
     else
-        whiptail --title "Mensagem" --msgbox "Parabéns, Wordpress foi instalado com sucesso!\n\nAcesse: https://$url_wordpress\n\nPressione ENTER para voltar ao Menu Principal" 20 78
+        if [[ "$alias_router_configured" == "1" && -n "$dns_ip_alias" && "$dns_ip_alias" == "$ip_servidor" ]]; then
+            whiptail --title "Mensagem" --msgbox "Parabéns, Wordpress foi instalado com sucesso!\n\nURL principal: https://$url_wordpress\nURL alternativa: https://$url_wordpress_alias\n\nO Traefik foi configurado para solicitar SSL para os dois endereços.\n\nPressione ENTER para voltar ao Menu Principal" 22 82
+        else
+            whiptail --title "Mensagem" --msgbox "Parabéns, Wordpress foi instalado com sucesso!\n\nAcesse: https://$url_wordpress\n\nO alias $url_wordpress_alias não foi incluído porque não está validado simultaneamente no DNS e na rota desta instalação.\n\nPressione ENTER para voltar ao Menu Principal" 22 82
+        fi
     fi
 else
     # Para Cloudflare Tunnel, verificação mais simples
     if nslookup "$url_wordpress" >/dev/null 2>&1; then
-        whiptail --title "Mensagem" --msgbox "Parabéns, Wordpress foi instalado com sucesso!\n\nAcesse: https://$url_wordpress\n\nConfiguração Cloudflare Tunnel concluída com rotas e DNS.\n\nPressione ENTER para voltar ao Menu Principal" 20 78
+        whiptail --title "Mensagem" --msgbox "Parabéns, Wordpress foi instalado com sucesso!\n\nAcesse: https://$url_wordpress\n\nConfiguração Cloudflare Tunnel concluída com rotas e DNS.\n\nO Tunnel publica somente a URL informada. O alias $url_wordpress_alias não é criado automaticamente; em subdomínios aninhados ele exige certificado avançado da Cloudflare.\n\nPressione ENTER para voltar ao Menu Principal" 24 86
     else
         whiptail --title "Mensagem" --msgbox "AVISO: O domínio do Wordpress ($url_wordpress) não está resolvendo.\nVerifique a configuração do Cloudflare Tunnel.\n\nA instalação foi concluída, mas o acesso pode não funcionar até que o DNS esteja configurado corretamente.\n\nPressione ENTER para voltar ao Menu Principal" 20 78
     fi

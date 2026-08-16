@@ -2,16 +2,16 @@
 {
   "schemaVersion": 1,
   "documentId": "infra-traefik-architecture",
-  "documentVersion": "1.0.2",
-  "contentSHA256": "cd2843917f40e4fe8b1621d0db0a5b13f07f93ff2d6c65b0ede9de7f0914ed30",
+  "documentVersion": "1.0.3",
+  "contentSHA256": "d86ecb98d8de64bb264d9a781260ec19b46c4c19e0769edd4a17f663974846fd",
   "documentType": "infrastructure",
   "title": "Traefik e publicação segura dos setups",
   "topicId": "traefik",
-  "setupVersion": "7.19.1",
+  "setupVersion": "7.19.2",
   "architectures": ["amd64", "arm64"],
   "category": "networking",
   "status": "reviewed",
-  "updatedAt": "2026-07-30",
+  "updatedAt": "2026-08-16",
   "sourceType": "setup-mno",
   "risk": "high",
   "language": "pt-BR",
@@ -40,6 +40,11 @@
 O Traefik recebe as rotas declaradas pelas stacks e publica somente os
 serviços autorizados. Ele centraliza redirecionamento seguro, certificados e
 integração com as redes externas do Swarm.
+
+A infraestrutura base usa Traefik `v2.11.46`, versão da linha 2.11 compatível
+com a API do Docker 29 usada no laboratório WSL2. Uma regra com dois matchers
+`Host` permite que o resolvedor ACME solicite os nomes principal e alternativo
+da aplicação quando ambos estão validados no DNS.
 
 ## Princípios
 

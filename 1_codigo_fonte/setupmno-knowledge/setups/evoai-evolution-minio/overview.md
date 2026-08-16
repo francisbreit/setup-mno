@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "EvoAI com Evolution e MinIO no Setup MNO",
   "setupId": "evoai-evolution-minio",
-  "setupVersion": "7.19.1",
+  "setupVersion": "7.19.2",
   "architectures": [
     "amd64",
     "arm64"

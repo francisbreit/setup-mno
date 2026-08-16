@@ -1811,7 +1811,7 @@ if [ "$INSTALL_CHOICE" = "TRADICIONAL" ]; then
 version: '3.7'
 services:
     traefik:
-        image: traefik:v2.11.2
+        image: traefik:v2.11.46
         command:
             - "--providers.docker=true"
             - "--providers.docker.swarmMode=true"
@@ -1877,7 +1877,7 @@ else
 version: '3.7'
 services:
     traefik:
-        image: traefik:v2.11.2
+        image: traefik:v2.11.46
         command:
             - "--providers.docker=true"
             - "--providers.docker.swarmMode=true"
