@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.19.2"
+VERSIONSETUP="7.19.3"
 EXPECTED_CATALOG_ENTRIES="158"
 EXPECTED_EVAL_DATASET_VERSION="1.17.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
@@ -115,7 +115,7 @@ prepare_setup_directory_preserving_control() {
 }
 
 reconcile_control_center_plan_services() {
-    local plan="$1" services service assistant_replicas running_task_status
+    local plan="$1" services service assistant_replicas running_task_status swarm_state
 
     valid_setup_plan "$plan" || return 1
     case "$plan" in
@@ -123,6 +123,9 @@ reconcile_control_center_plan_services() {
         *) assistant_replicas="1" ;;
     esac
     command -v docker >/dev/null 2>&1 || return 0
+    swarm_state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null) || return 1
+    [ "$swarm_state" = "inactive" ] && return 0
+    [ "$swarm_state" = "active" ] || return 1
     services=$(docker service ls --format '{{.Name}}' 2>/dev/null) || return 1
     while IFS= read -r service; do
         case "$service" in

@@ -2,16 +2,16 @@
 {
   "schemaVersion": 1,
   "documentId": "setup-setupmno-control-overview",
-  "documentVersion": "1.6.0",
-  "contentSHA256": "b9f4566f64c4916100ca4d64ffd612b6ee62352462d75735dc951379923942be",
+  "documentVersion": "1.6.1",
+  "contentSHA256": "0a5d0ae62fba2d3bc7279d8dbc2f7fc01a212f664821a209a45bf32af31a2f03",
   "documentType": "setup",
   "title": "Setup MNO Control Center",
   "setupId": "setupmno-control",
-  "setupVersion": "7.19.2",
+  "setupVersion": "7.19.3",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
-  "updatedAt": "2026-08-02",
+  "updatedAt": "2026-08-16",
   "sourceType": "setup-mno",
   "risk": "critical",
   "language": "pt-BR",
@@ -84,6 +84,12 @@ Na primeira preparação da infraestrutura-base, o `dockerswarm.sh` explica a
 finalidade do Control Center e pergunta se o usuário deseja instalá-lo. A
 resposta negativa não altera o Setup MNO: a instalação continua disponível no
 menu principal para outro momento.
+
+Em uma instalação limpa, a reconciliação inicial reconhece o estado `inactive`
+do Docker Swarm como esperado e permite que o `dockerswarm.sh` inicialize o
+cluster. Quando o Swarm já está ativo, falhas ao consultar ou reconciliar os
+serviços existentes continuam bloqueantes para preservar o estado anterior do
+Control Center.
 
 Somente uma instalação é aceita por servidor. A presença de qualquer serviço
 do Control Center no namespace reservado `mnoctrl` remove a opção do menu. O

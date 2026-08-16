@@ -14,7 +14,7 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.19.2` em preparação de release
+- Setup MNO: `7.19.3` em preparação de release
 - Control Center: `4.19.1`
 - Conhecimento canônico: `3.21.1`
 - Catálogo runtime: 158 entradas

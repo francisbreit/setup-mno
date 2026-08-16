@@ -81,6 +81,11 @@ docker_log="$test_dir/docker.log"
 export DOCKER_TEST_LOG="$docker_log"
 cat >"$test_dir/bin/docker" <<'EOF'
 #!/usr/bin/bash
+if [ "$1" = "info" ]; then
+    [ "${MOCK_DOCKER_INFO_FAIL:-false}" != "true" ] || exit 1
+    printf '%s\n' "${MOCK_SWARM_STATE:-active}"
+    exit 0
+fi
 if [ "$1 $2" = "service ls" ]; then
     [ "${MOCK_SERVICE_LS_FAIL:-false}" != "true" ] || exit 1
     printf '%s\n' \
@@ -129,6 +134,14 @@ chmod 0755 "$test_dir/bin/docker"
 PATH="$test_dir/bin:$PATH"
 export MOCK_DOCKER_STATE_DIR="$test_dir/docker-state"
 export MOCK_AGENT_RUNNING=true
+export MOCK_SWARM_STATE=inactive
+
+export MOCK_SERVICE_LS_FAIL=true
+: >"$docker_log"
+reconcile_control_center_plan_services free1
+[ ! -s "$docker_log" ]
+
+export MOCK_SWARM_STATE=active
 
 export MOCK_SERVICE_LS_FAIL=true
 : >"$docker_log"
@@ -194,4 +207,4 @@ grep -Fq -- '--mount-rm /runtime-control' "$docker_log"
 grep -Fq -- '--mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly' "$docker_log"
 export MOCK_AGENT_RUNNING=true
 
-printf 'Matriz de planos, agente saudável preservado, recuperação legada e remount WSL2 aprovados.\n'
+printf 'Instalação limpa sem Swarm, matriz de planos, agente saudável preservado, recuperação legada e remount WSL2 aprovados.\n'

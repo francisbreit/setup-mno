@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Langfuse com MinIO e ClickHouse no Setup MNO",
   "setupId": "langfuse-minio-clickhouse",
-  "setupVersion": "7.19.2",
+  "setupVersion": "7.19.3",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

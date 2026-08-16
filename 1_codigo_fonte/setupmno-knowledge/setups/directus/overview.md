@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Directus no Setup MNO",
   "setupId": "directus",
-  "setupVersion": "7.19.2",
+  "setupVersion": "7.19.3",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

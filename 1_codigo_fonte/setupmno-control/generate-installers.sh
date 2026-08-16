@@ -178,6 +178,8 @@ for architecture in x86 arm; do
     grep -Fq "! -name '.control'" "$start_script" &&
     ! grep -Fq 'mv "$live_dir" "$hold_dir/.control"' "$start_script" &&
     grep -Fq 'reconcile_control_center_plan_services "$PLANO"' "$start_script" &&
+    grep -Fq 'swarm_state=$(docker info --format' "$start_script" &&
+    grep -Fq '[ "$swarm_state" = "inactive" ] && return 0' "$start_script" &&
     grep -Fq 'service_has_mount_target "$service" /runtime-control' "$start_script" &&
     grep -Fq 'service_has_running_task "$service"' "$start_script" &&
     grep -Fq 'current_states=$(docker service ps --filter desired-state=running' "$start_script" &&

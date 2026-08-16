@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Hoppscotch no Setup MNO",
   "setupId": "hoppscotch",
-  "setupVersion": "7.19.2",
+  "setupVersion": "7.19.3",
   "architectures": [
     "amd64",
     "arm64"
