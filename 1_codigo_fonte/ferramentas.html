@@ -20,7 +20,7 @@
   </style>
 </head>
 <body>
-<header><div class="eyebrow">Setup MNO - Catálogo de Setups (Deploys / Instalações) - Versão PRO</div><h1>Guia completo de todos os setups disponíveis</h1><p class="lead">Veja aqui os setups disponíveis, usando vários tipos de filtros.</p><div class="catalog-meta" id="catalog-meta"><p>Versão 7.19.8 | Atualizado em Agosto/2026</p><p>Total de Setups (Deploys / Instalações): 158</p><p>Total de Setups Arquitetura X86: 158</p><p>Total de Setups Arquitetura ARM: 141</p></div></header>
+<header><div class="eyebrow">Setup MNO - Catálogo de Setups (Deploys / Instalações) - Versão PRO</div><h1>Guia completo de todos os setups disponíveis</h1><p class="lead">Veja aqui os setups disponíveis, usando vários tipos de filtros.</p><div class="catalog-meta" id="catalog-meta"><p>Versão 7.19.9 | Atualizado em Agosto/2026</p><p>Total de Setups (Deploys / Instalações): 158</p><p>Total de Setups Arquitetura X86: 158</p><p>Total de Setups Arquitetura ARM: 141</p></div></header>
   <main>
     <section class="panel" aria-label="Filtros do catálogo">
       <div class="toolbar">
@@ -47,10 +47,6 @@
     $('theme').onclick=()=>{state.theme=document.documentElement.dataset.theme=state.theme==='dark'?'light':'dark';localStorage.setItem('mno-theme',state.theme)};
     const clean=s=>String(s??'').replace(/\s+/g,' ').trim();
     const normalize=s=>clean(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR');
-    const ramToGb=s=>{const m=s.match(/~?\s*([\d.]+)\s*(GB|MB)/i);return !m?null:m[2].toUpperCase()==='MB'?+m[1]/1024:+m[1]};
-    const stars=s=>{const m=s.match(/GitHub[^)]*\(([\d.]+)K\s+stars\)/i);return m?Math.round(+m[1]*1000):0};
-    const inferredType=(name,cats,combo)=>{const t=(name+' '+cats).toLowerCase();if(combo)return 'Combo';if(/banco de dados|database|vector|postgres|mysql|redis|mongo|clickhouse|neo4j/.test(t))return 'Banco de Dados';if(/monitoramento|dns|backup|file|proxy|utilit/.test(t))return 'Utilitário';return 'Individual'};
-    function extract(html){const doc=new DOMParser().parseFromString(html,'text/html');return [...doc.querySelectorAll('.tool-card')].map(card=>{const name=clean(card.querySelector('.tool-name')?.textContent||'');const cats=clean(card.querySelector('.tool-categories')?.textContent||'').replace(/[()]/g,'');const desc=clean(card.querySelector('.tool-description')?.textContent||'');const text=clean(card.textContent);const compat=/X86 e ARM/i.test(text)?'x86-arm':/X86/i.test(text)?'x86':'x86-arm';const ramLine=[...card.querySelectorAll('.tool-examples')].find(x=>/RAM:/i.test(x.textContent))?.textContent||'';const combo=Boolean(card.querySelector('.combo-badge'))||/combo/i.test(name);return {name,cats,desc,ram:ramToGb(ramLine),ramLabel:ramLine.replace(/^\s*RAM:\s*/i,'')||'Não informado',arch:compat,stars:stars(text),type:inferredType(name,cats,combo),search:(name+' '+cats+' '+desc).toLowerCase()}}).filter(x=>x.name)}
     function populate(){const cats=[...new Set(state.tools.flatMap(x=>x.cats.split(',').map(clean).filter(Boolean)))].sort((a,b)=>a.localeCompare(b,'pt-BR'));$('category').innerHTML='<option value="">Todas as categorias</option>'+cats.map(x=>`<option>${x}</option>`).join('')}
     function popularity(t){return t.stars>=50000?'high':t.stars>=10000?'medium':t.stars?'known':''}
     function filtered(){const q=normalize($('search').value),cat=$('category').value,type=$('type').value,ram=+$('ram').value,arch=$('arch').value,pop=$('popularity').value;let items=state.tools.filter(t=>{const ramOk=!ram||!t.ram||(ram===9?t.ram>8:t.ram<=ram);const searchable=normalize([t.name,t.cats,t.desc].join(' '));return (!q||searchable.includes(q))&&(!cat||t.cats.split(',').map(clean).includes(cat))&&(!type||t.type===type)&&ramOk&&(!arch||t.arch.includes(arch))&&(!pop||popularity(t)===pop)});const sort=$('sort').value;items.sort(sort==='stars'?(a,b)=>b.stars-a.stars||a.name.localeCompare(b.name):sort==='ram'?(a,b)=>(a.ram??99)-(b.ram??99)||a.name.localeCompare(b.name):(a,b)=>a.name.localeCompare(b.name));return items}
@@ -58,6 +54,6 @@
     controls.forEach(el=>el.addEventListener(el.id==='search'?'input':'change',render));$('search').addEventListener('search',render);$('reset').onclick=()=>{controls.forEach(x=>x.value='');render()};
     populate();render();
   </script>
-<footer class="footer"><p>Setup MNO v7.19.8 | Documentação gerada automaticamente</p><p>Para mais informações, acesse: <a class="link" href="https://manualnegocioonline.com.br/instalador" target="_blank" rel="noopener">manualnegocioonline.com.br/instalador</a></p></footer>
+<footer class="footer"><p>Setup MNO v7.19.9 | Documentação gerada automaticamente</p><p>Para mais informações, acesse: <a class="link" href="https://manualnegocioonline.com.br/instalador" target="_blank" rel="noopener">manualnegocioonline.com.br/instalador</a></p></footer>
 </body>
 </html>

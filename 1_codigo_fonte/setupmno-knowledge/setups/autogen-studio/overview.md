@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "AutoGen Studio no Setup MNO",
   "setupId": "autogen-studio",
-  "setupVersion": "7.19.8",
+  "setupVersion": "7.19.9",
   "architectures": [
     "amd64",
     "arm64"

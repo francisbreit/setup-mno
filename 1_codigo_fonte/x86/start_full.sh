@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.19.8"
+VERSIONSETUP="7.19.9"
 EXPECTED_CATALOG_ENTRIES="158"
 EXPECTED_EVAL_DATASET_VERSION="1.17.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
@@ -15,20 +15,26 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-setupmno_repair_debian13_apt_keyring() {
-    local root="${SETUPMNO_APT_ROOT:-}" os_release keyring os_id os_version
+setupmno_prepare_debian13_apt() {
+    local root="${SETUPMNO_APT_ROOT:-}" os_release source_list keyring os_id os_version
     os_release="${root}/etc/os-release"
+    source_list="${root}/etc/apt/sources.list.d/azlux.list"
     keyring="${root}/usr/share/keyrings/azlux-archive-keyring.gpg"
-    [ -f "$os_release" ] && [ ! -L "$os_release" ] || return 0
+    [ -r "$os_release" ] || return 0
     os_id=$(sed -n 's/^ID=//p' "$os_release" | head -n1 | tr -d "\"'")
     os_version=$(sed -n 's/^VERSION_ID=//p' "$os_release" | head -n1 | tr -d "\"'")
     [ "$os_id" = "debian" ] && [[ "$os_version" == 13* ]] || return 0
+    [ ! -e "$source_list" ] || { [ -f "$source_list" ] && [ ! -L "$source_list" ]; } || return 1
     [ ! -e "$keyring" ] || { [ -f "$keyring" ] && [ ! -L "$keyring" ]; } || return 1
-    [ ! -f "$keyring" ] || chmod 0644 "$keyring"
+    if [ -f "$source_list" ]; then
+        grep -Fq 'packages.azlux.fr/debian' "$source_list" || return 1
+        rm -f -- "$source_list" || return 1
+    fi
+    [ ! -f "$keyring" ] || rm -f -- "$keyring"
 }
 
-setupmno_repair_debian13_apt_keyring || {
-    printf 'ERRO: não foi possível reparar a chave Azlux para o APT do Debian 13.\n' >&2
+setupmno_prepare_debian13_apt || {
+    printf 'ERRO: não foi possível remover com segurança o repositório legado Azlux no Debian 13.\n' >&2
     exit 42
 }
 

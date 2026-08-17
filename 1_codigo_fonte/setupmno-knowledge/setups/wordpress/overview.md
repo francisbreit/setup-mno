@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "WordPress no Setup MNO",
   "setupId": "wordpress",
-  "setupVersion": "7.19.8",
+  "setupVersion": "7.19.9",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

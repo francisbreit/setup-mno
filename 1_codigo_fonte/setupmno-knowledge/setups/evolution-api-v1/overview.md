@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Evolution API v1 no Setup MNO",
   "setupId": "evolution-api-v1",
-  "setupVersion": "7.19.8",
+  "setupVersion": "7.19.9",
   "architectures": [
     "amd64",
     "arm64"
