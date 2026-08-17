@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "GLPI no Setup MNO",
   "setupId": "glpi",
-  "setupVersion": "7.19.7",
+  "setupVersion": "7.19.8",
   "architectures": [
     "amd64"
   ],

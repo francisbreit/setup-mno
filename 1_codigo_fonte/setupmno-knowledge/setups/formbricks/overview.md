@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Formbricks no Setup MNO",
   "setupId": "formbricks",
-  "setupVersion": "7.19.7",
+  "setupVersion": "7.19.8",
   "architectures": [
     "amd64"
   ],
