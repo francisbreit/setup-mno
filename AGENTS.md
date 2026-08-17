@@ -96,9 +96,9 @@ Ative este modo quando o usuário disser **“Modo Homologação”**, **“Modo
 ## CONTEXTO DOS AMBIENTES DO SETUP MNO
 
 ### Versão estável vigente
-- A última versão estável homologada do Setup MNO é **v7.18.0**.
-- Tag Git: `v7.18.0`.
-- Commit de release: `a944bed1` (`release: v7.18.0 - Navidrome PRO`).
+- A última versão estável homologada do Setup MNO é **v7.19.5**.
+- Tag Git: `v7.19.5`.
+- Commit de release: `9f961b44` (`release: v7.19.5 - heartbeat nas etapas lentas do Control Center`).
 - Este registro somente deve ser alterado quando o usuário declarar explicitamente uma nova versão como estável após a homologação.
 
 ### Projeto de construção
@@ -379,6 +379,14 @@ Ao adicionar uma ferramenta (CRM, IA, etc):
     - Logs devem usar nome único por instalação em `/tmp`, não podem expor senhas, tokens ou secrets e devem receber toda saída técnica que poderia poluir a interface.
     - É proibido executar uma segunda etapa pesada depois que o gauge terminar. Build, criação da imagem, upload ao Portainer e deploy devem estar dentro do mesmo fluxo visual ou de gauges subsequentes.
     - É proibido mascarar erros com `>/dev/null 2>&1` sem guardar diagnóstico em log e sem apresentar a falha dentro do Whiptail.
+
+    **HEARTBEAT OBRIGATÓRIO SOB SOLICITAÇÃO:** Sempre que o usuário enviar um trecho de Whiptail mais lento e disser **“aplique o heartbeat nessa etapa lenta”**, implemente o padrão homologado na release v7.19.5:
+    - Spinner ASCII com ciclo exato `| / - \`.
+    - Tempo decorrido no formato `MM:SS`.
+    - Descrição da operação atual.
+    - Porcentagem real, sem avanço artificial.
+    - O comando demorado deve executar com saída técnica direcionada ao log; o heartbeat deve terminar junto com ele, sem processo órfão, preservando integralmente o código de saída, o tratamento de falha e o rollback existente.
+    - A porcentagem só pode mudar quando houver transição real de fase e `100%` continua reservado ao sucesso confirmado de todas as validações.
 
     **PADRÃO OBRIGATÓRIO:**
     ```bash
