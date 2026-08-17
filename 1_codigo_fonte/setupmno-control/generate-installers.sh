@@ -54,26 +54,20 @@ configure_dispatch_line=$(grep -n -- '--configure-access-mfa)' "$template" | cut
     exit 1
 }
 
-route_check_function=$(awk '/^check_cloudflare_route\(\)/,/^}/' "$template")
-grep -Fq -- '--connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT"' <<<"$route_check_function" || {
-    printf 'ERRO: verificação inicial do Cloudflare sem timeout de conexão.\n' >&2
+route_guard="$project_dir/cloudflare-route-guard.sh"
+bash -n "$route_guard"
+grep -Fq 'cf_route_guard_inventory "$url_control" "$TUNNEL_ID"' "$template" &&
+grep -Fq 'cf_route_guard_choose "$control_route_inventory"' "$template" &&
+grep -Fq 'cf_route_guard_apply_dns' "$template" &&
+grep -Fq 'cf_route_guard_remove_old_routes' "$template" &&
+grep -Fq 'cf_route_guard_restore_dns' "$template" &&
+grep -Fq 'cf_route_guard_restore_tunnels' "$template" || {
+    printf 'ERRO: Control Center sem proteção transacional completa de rotas Cloudflare.\n' >&2
     exit 1
 }
-grep -Fq -- '--max-time "$CLOUDFLARE_MAX_TIME"' <<<"$route_check_function" || {
-    printf 'ERRO: verificação inicial do Cloudflare sem limite total.\n' >&2
-    exit 1
-}
-grep -Fq -- '--gauge' <<<"$route_check_function" || {
-    printf 'ERRO: verificação inicial do Cloudflare sem progresso Whiptail visível.\n' >&2
-    exit 1
-}
-grep -Fq '.success == true and (.result.config.ingress | type == "array")' \
-    <<<"$route_check_function" || {
-    printf 'ERRO: resposta inicial do Cloudflare não é validada.\n' >&2
-    exit 1
-}
-grep -Fq 'if ! check_cloudflare_route "$route_check"; then' "$template" || {
-    printf 'ERRO: fluxo pós-URL não usa a verificação protegida do Cloudflare.\n' >&2
+grep -Fq -- '--connect-timeout "${CLOUDFLARE_CONNECT_TIMEOUT:-10}"' "$route_guard" &&
+grep -Fq -- '--max-time "${CLOUDFLARE_MAX_TIME:-45}"' "$route_guard" || {
+    printf 'ERRO: proteção de rotas Cloudflare sem limites de rede.\n' >&2
     exit 1
 }
 cloudflare_curl_calls=$(grep -Fc 'curl -sS' "$template")
@@ -91,6 +85,7 @@ bash "$project_dir/control-runtime-transition_test.sh"
 bash "$project_dir/control-runtime-selfheal_test.sh"
 bash "$project_dir/domain-profiles_test.sh"
 bash "$project_dir/primary-tunnel-bootstrap_test.sh"
+bash "$project_dir/cloudflare-route-guard_test.sh"
 bash "$project_dir/wsl-docker-preflight_test.sh"
 
 for architecture in x86 arm; do
@@ -421,7 +416,7 @@ grep -Fq 'DESATIVANDO MFA DO CONTROL CENTER' "$template" &&
 grep -Fq '/access/apps/$app_id/policies/$policy_id' "$template" &&
 grep -Fq 'Modo original: Tunnel direto, login local e Terminal Remoto' "$template" &&
 grep -Fq '[ "$access_mfa_enabled" = "true" ]; then' "$template" &&
-grep -Fq -- '--argjson requireAccess "$require_access"' "$template" &&
+grep -Fq -- '--argjson requireAccess "$require_access"' "$route_guard" &&
 grep -Fq 'AddMfaDevice' "$template" &&
 grep -Fq 'mfa_disabled:true' "$template" &&
 grep -Fq 'mfa_disabled:false' "$template" &&
@@ -737,6 +732,7 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
     tar -cf - \
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
         terminal-menu.sh configure-control.sh control-upgrade.sh cloudflare-mfa.sh \
+        cloudflare-route-guard.sh \
         main.go access.go knowledge.go retrieval.go routing.go prompts.go \
         blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go web |
         gzip -9n >"$bundle"
@@ -771,6 +767,10 @@ if ! tar -tzf "$bundle" | grep -Fx 'control-upgrade.sh' >/dev/null; then
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'cloudflare-mfa.sh' >/dev/null; then
     printf 'ERRO: bundle de fontes sem o assistente autenticado do Cloudflare MFA.\n' >&2
+    exit 1
+fi
+if ! tar -tzf "$bundle" | grep -Fx 'cloudflare-route-guard.sh' >/dev/null; then
+    printf 'ERRO: bundle de fontes sem a proteção transacional de rotas Cloudflare.\n' >&2
     exit 1
 fi
 "$project_dir/control-upgrade_test.sh" >/dev/null

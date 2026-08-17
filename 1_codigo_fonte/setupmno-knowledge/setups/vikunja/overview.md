@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Vikunja no Setup MNO",
   "setupId": "vikunja",
-  "setupVersion": "7.19.5",
+  "setupVersion": "7.19.6",
   "architectures": [
     "amd64",
     "arm64"

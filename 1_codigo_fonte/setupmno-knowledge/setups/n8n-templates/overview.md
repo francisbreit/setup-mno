@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "N8N Templates Free no Setup MNO",
   "setupId": "n8n-templates",
-  "setupVersion": "7.19.5",
+  "setupVersion": "7.19.6",
   "architectures": [
     "amd64",
     "arm64"

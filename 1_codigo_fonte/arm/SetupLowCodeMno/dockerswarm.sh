@@ -283,6 +283,50 @@ normalize_cloudflare_hostname() {
     printf '%s' "$hostname"
 }
 
+primary_tunnel_load_route_guard() {
+    local archive="/root/SetupLowCodeMno/.control/control-source.tar.gz"
+    local release="/root/SetupLowCodeMno/.control/release.json" helper expected actual
+    declare -F cf_route_guard_inventory >/dev/null && return 0
+    [ -f "$archive" ] && [ ! -L "$archive" ] &&
+    [ -f "$release" ] && [ ! -L "$release" ] || return 1
+    expected=$(jq -r '.controlSourceSHA256 // empty' "$release")
+    actual=$(sha256sum "$archive" | awk '{print $1}')
+    [ -n "$expected" ] && [ "$expected" = "$actual" ] || return 1
+    helper=$(mktemp) || return 1
+    chmod 0700 "$helper"
+    if ! tar -xzOf "$archive" cloudflare-route-guard.sh >"$helper"; then
+        rm -f "$helper"
+        return 1
+    fi
+    . "$helper"
+    rm -f "$helper"
+}
+
+primary_tunnel_preflight_hostname() {
+    local hostname="$1" current_tunnel_id="${2:-}" status
+    if ! primary_tunnel_load_route_guard; then
+        CLOUDFLARE_VALIDATION_ERROR="A proteção transacional de rotas Cloudflare não pôde ser carregada. Atualize o Setup MNO."
+        return 1
+    fi
+    rm -f "${SETUPMNO_PRIMARY_ROUTE_INVENTORY:-}"
+    SETUPMNO_PRIMARY_ROUTE_INVENTORY=$(mktemp) || return 1
+    chmod 600 "$SETUPMNO_PRIMARY_ROUTE_INVENTORY"
+    if ! cf_route_guard_inventory "$hostname" "$current_tunnel_id" \
+        "$SETUPMNO_PRIMARY_ROUTE_INVENTORY"; then
+        CLOUDFLARE_VALIDATION_ERROR="$CF_ROUTE_GUARD_ERROR"
+        return 1
+    fi
+    CF_ROUTE_GUARD_DECISION=""
+    cf_route_guard_choose "$SETUPMNO_PRIMARY_ROUTE_INVENTORY"
+    status=$?
+    case "$status" in
+        0) SETUPMNO_PRIMARY_ROUTE_DECISION="$CF_ROUTE_GUARD_DECISION"; return 0 ;;
+        20) return 20 ;;
+        130) return 130 ;;
+        *) CLOUDFLARE_VALIDATION_ERROR="Não foi possível classificar o hostname na Cloudflare."; return 1 ;;
+    esac
+}
+
 discover_cloudflare_zone_context() {
     local api_token="$1" hostname="$2" response candidates page total_pages page_matches selected count
     response=$(mktemp) || return 1
@@ -359,6 +403,11 @@ collect_primary_tunnel_context() {
             }
             if validate_cloudflare_tunnel_creation_access "$CLOUDFLARE_API_TOKEN" \
                 "$CLOUDFLARE_ACCOUNT_ID" "$CLOUDFLARE_ZONE_ID"; then
+                primary_tunnel_preflight_hostname "$hostname" ""
+                preflight_status=$?
+                [ "$preflight_status" -eq 20 ] && return 20
+                [ "$preflight_status" -eq 130 ] && return 130
+                [ "$preflight_status" -eq 0 ] || continue
                 whiptail --title "CLOUDFLARE VALIDADA" --msgbox \
                     "Zona identificada automaticamente: ${CLOUDFLARE_ZONE_NAME}\n\nO Tunnel ${TUNNEL_NAME} será criado somente depois da confirmação final." \
                     12 78
@@ -372,6 +421,11 @@ collect_primary_tunnel_context() {
                 CLOUDFLARE_VALIDATION_ERROR="O Tunnel ID é obrigatório no método clássico."
             elif validate_cloudflare_tunnel_credentials "$CLOUDFLARE_API_TOKEN" \
                 "$CLOUDFLARE_ACCOUNT_ID" "$CLOUDFLARE_ZONE_ID" "$TUNNEL_ID"; then
+                primary_tunnel_preflight_hostname "$hostname" "$TUNNEL_ID"
+                preflight_status=$?
+                [ "$preflight_status" -eq 20 ] && return 20
+                [ "$preflight_status" -eq 130 ] && return 130
+                [ "$preflight_status" -eq 0 ] || continue
                 TUNNEL_NAME="Tunnel existente"
                 whiptail --title "TUNNEL EXISTENTE VALIDADO" --msgbox \
                     "Zona identificada automaticamente: ${CLOUDFLARE_ZONE_NAME}\n\nO Tunnel foi validado e será tratado como externo: o Setup MNO nunca o excluirá." \
@@ -393,6 +447,11 @@ SETUPMNO_PRIMARY_STACK_CREATED=false
 SETUPMNO_PRIMARY_DNS_RECORD_ID=""
 SETUPMNO_PRIMARY_DNS_BACKUP=""
 SETUPMNO_PRIMARY_DNS_MUTATED=false
+SETUPMNO_PRIMARY_ROUTE_INVENTORY=""
+SETUPMNO_PRIMARY_ROUTE_DECISION="FREE"
+SETUPMNO_PRIMARY_DNS_TRANSACTION=""
+SETUPMNO_PRIMARY_OLD_TUNNEL_CHANGES=""
+SETUPMNO_PRIMARY_OLD_TUNNELS_MUTATED=false
 SETUPMNO_PRIMARY_TUNNEL_CONFIG_BACKUP=""
 SETUPMNO_PRIMARY_TUNNEL_CONFIG_MAY_BE_EMPTY=false
 SETUPMNO_PRIMARY_TUNNEL_SECRET=""
@@ -830,6 +889,14 @@ primary_tunnel_restore_configuration() {
 primary_tunnel_rollback() {
     local response attempt record payload
     SETUPMNO_PRIMARY_TUNNEL_TRANSACTION=false
+    if [ "$SETUPMNO_PRIMARY_OLD_TUNNELS_MUTATED" = "true" ]; then
+        cf_route_guard_restore_tunnels "$SETUPMNO_PRIMARY_OLD_TUNNEL_CHANGES" \
+            "$PRIMARY_TUNNEL_LOG" || true
+    fi
+    if [ "$SETUPMNO_PRIMARY_DNS_MUTATED" = "true" ]; then
+        cf_route_guard_restore_dns "$SETUPMNO_PRIMARY_DNS_TRANSACTION" \
+            "$PRIMARY_TUNNEL_LOG" || true
+    fi
     primary_tunnel_restore_configuration
     response=$(mktemp 2>/dev/null || true)
     [ -z "$response" ] || chmod 600 "$response"
@@ -873,6 +940,8 @@ primary_tunnel_rollback() {
         rm -f /root/.cloudflared_config/cloudflare_credentials
     fi
     rm -f "${response:-}" "${SETUPMNO_PRIMARY_TUNNEL_CONFIG_BACKUP:-}" "${SETUPMNO_PRIMARY_DNS_BACKUP:-}"
+    rm -f "${SETUPMNO_PRIMARY_ROUTE_INVENTORY:-}" "${SETUPMNO_PRIMARY_DNS_TRANSACTION:-}"
+    rm -f "${SETUPMNO_PRIMARY_OLD_TUNNEL_CHANGES:-}"
     rm -f "${SETUPMNO_PRIMARY_CREDENTIALS_BACKUP:-}"
 }
 
@@ -982,6 +1051,8 @@ primary_tunnel_commit() {
     trap - EXIT
     rm -f "${SETUPMNO_PRIMARY_TUNNEL_CONFIG_BACKUP:-}"
     rm -f "${SETUPMNO_PRIMARY_DNS_BACKUP:-}"
+    rm -f "${SETUPMNO_PRIMARY_ROUTE_INVENTORY:-}" "${SETUPMNO_PRIMARY_DNS_TRANSACTION:-}"
+    rm -f "${SETUPMNO_PRIMARY_OLD_TUNNEL_CHANGES:-}"
     rm -f "${SETUPMNO_PRIMARY_CREDENTIALS_BACKUP:-}"
 }
 
@@ -1321,26 +1392,19 @@ fi
                 dominio=$(whiptail --title "URL do Portainer" --inputbox "Digite seu dominio para acessar o Portainer (Sem https://  ex: admin.dominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
                 if [[ $saida -eq '0' ]] ; then
                         dominio_normalizado=$(normalize_cloudflare_hostname "$dominio" 2>/dev/null || true)
-                        if [[ -z $dominio_normalizado ]] ; then msg "Digite um domínio válido para o Portainer, sem caminho. Exemplo: painel.seudominio.com.br" ; continue ; else dominio="$dominio_normalizado"; break; fi
+                        if [[ -z $dominio_normalizado ]] ; then msg "Digite um domínio válido para o Portainer, sem caminho. Exemplo: painel.seudominio.com.br" ; continue ; fi
+                        dominio="$dominio_normalizado"
                 else
                         echo $dominio ; echo "saindo..."  &  exit 0 ;
                 fi
+                if [ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ]; then
+                    collect_primary_tunnel_context "$dominio"
+                    tunnel_context_status=$?
+                    [ "$tunnel_context_status" -eq 20 ] && continue
+                    [ "$tunnel_context_status" -eq 0 ] || exit "$tunnel_context_status"
+                fi
+                break
         done
-
-if [ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ]; then
-    collect_primary_tunnel_context "$dominio" || exit $?
-fi
-
-# Verificar se URL já existe no Cloudflare Tunnel
-if [ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ] && [ "$TUNNEL_SETUP_MODE" = "EXISTENTE" ]; then
-    CHECK_RESPONSE=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-      "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations")
-    EXISTING_HOST=$(echo "$CHECK_RESPONSE" | jq -r --arg h "$dominio" '.result.config.ingress[] | select(.hostname == $h) | .hostname' 2>/dev/null)
-    if [[ -n "$EXISTING_HOST" ]]; then
-        EXISTING_SERVICE=$(echo "$CHECK_RESPONSE" | jq -r --arg h "$dominio" '.result.config.ingress[] | select(.hostname == $h) | .service' 2>/dev/null)
-        whiptail --title "Rota Existente" --msgbox "Já existe uma rota configurada para:\n\nURL: $dominio\nServiço: $EXISTING_SERVICE\n\nA rota será substituída pela nova aplicação." --fb 14 70
-    fi
-fi
 
     while true ; do
                 usuariopt=$(whiptail --title "Crie o Usuário do Portainer" --inputbox "Digite o Usuario do Portainer(ex: Nome):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
@@ -1950,6 +2014,20 @@ if [[ "$INSTALL_CHOICE" = "CLOUDFLARE_TUNNEL" ]]; then
       CLOUDFLARE_VALIDATION_ERROR="Não foi possível salvar as credenciais da Cloudflare de forma atômica."
       exit 1
   }
+  FRESH_ROUTE_INVENTORY=$(mktemp) || exit 1
+  chmod 600 "$FRESH_ROUTE_INVENTORY"
+  if ! cf_route_guard_inventory "$dominio" "$TUNNEL_ID" "$FRESH_ROUTE_INVENTORY"; then
+      CLOUDFLARE_VALIDATION_ERROR="$CF_ROUTE_GUARD_ERROR"
+      exit 1
+  fi
+  FRESH_ROUTE_CLASS=$(cf_route_guard_classify "$FRESH_ROUTE_INVENTORY") || exit 1
+  if [ "$FRESH_ROUTE_CLASS" = "BLOCKED" ] ||
+     { [ "$SETUPMNO_PRIMARY_ROUTE_DECISION" = "FREE" ] && [ "$FRESH_ROUTE_CLASS" != "FREE" ]; }; then
+      CLOUDFLARE_VALIDATION_ERROR="O DNS ou as rotas de ${dominio} mudaram após a confirmação. Execute novamente para revisar o conflito."
+      exit 1
+  fi
+  rm -f "${SETUPMNO_PRIMARY_ROUTE_INVENTORY:-}"
+  SETUPMNO_PRIMARY_ROUTE_INVENTORY="$FRESH_ROUTE_INVENTORY"
 
 NEW_SERVICE="http://portainer:9000"
 DOMINIO_PRINCIPAL="$CLOUDFLARE_ZONE_NAME"
@@ -2026,83 +2104,23 @@ primary_tunnel_deploy_connector || exit 1
 
 
 sleep 3
-# ----------- 5) criar o registro DNS CNAME ------------
-#echo ""
-echo -e "XXX\n57\nVERIFICANDO E CRIANDO REGISTRO DNS CNAME... \nXXX"
-# Extrair apenas o subdomínio (parte antes do domínio principal)
-SUBDOMINIO=${dominio%%.$DOMINIO_PRINCIPAL}
-
-# Verificar registros A ou CNAME existentes
-#echo "[5.2] Verificando se já existe algum registro A ou CNAME para $dominio..."
-EXISTING_RECORDS=$(curl -s -X GET \
-  "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${dominio}" \
-  -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-  -H "Content-Type: application/json")
-if ! printf '%s' "$EXISTING_RECORDS" | jq -e '.success == true and (.result | type == "array")' >/dev/null 2>&1; then
-  CLOUDFLARE_VALIDATION_ERROR="Não foi possível inventariar os registros DNS existentes antes da alteração."
+echo -e "XXX\n58\nTRANSFERINDO DNS E REMOVENDO ROTAS ANTIGAS... \nXXX"
+SETUPMNO_PRIMARY_DNS_TRANSACTION="$TMPDIR/dns-transaction.$TIMESTAMP.json"
+SETUPMNO_PRIMARY_DNS_MUTATED=true
+if ! cf_route_guard_apply_dns "$SETUPMNO_PRIMARY_ROUTE_INVENTORY" "$dominio" \
+    "${TUNNEL_ID}.cfargotunnel.com" true "$SETUPMNO_PRIMARY_DNS_TRANSACTION" \
+    "$PRIMARY_TUNNEL_LOG"; then
+  CLOUDFLARE_VALIDATION_ERROR="$CF_ROUTE_GUARD_ERROR"
   exit 1
 fi
-SETUPMNO_PRIMARY_DNS_BACKUP="$TMPDIR/dns_backup.$TIMESTAMP.json"
-printf '%s' "$EXISTING_RECORDS" >"$SETUPMNO_PRIMARY_DNS_BACKUP"
-chmod 600 "$SETUPMNO_PRIMARY_DNS_BACKUP"
-
-# Contar registros encontrados
-COUNT=$(echo "$EXISTING_RECORDS" | jq '.result | length')
-
-if [[ "$COUNT" -gt 0 ]]; then
-  SETUPMNO_PRIMARY_DNS_MUTATED=true
-  #echo ""S
-  #echo "⚠️  Foram encontrados $COUNT registro(s) existentes para $dominio:"
- # echo "---------------------------------------------------------------"
-  echo "$EXISTING_RECORDS" | jq -r '.result[] | "ID: \(.id)\tTipo: \(.type)\tConteúdo: \(.content)"'
-  #echo "---------------------------------------------------------------"
-  #read -p "Deseja APAGAR esses registros antes de criar o novo CNAME? (y/N): " DELETE_CONFIRM
-
-
-    #echo ""
-    #echo "[5.3] Removendo registros antigos..."
-    while read -r REC_ID; do
-      [[ -z "$REC_ID" ]] && continue
-      DELETE_RESPONSE=$(curl -s -X DELETE \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${REC_ID}" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json")
-      if ! printf '%s' "$DELETE_RESPONSE" | jq -e '.success == true' >/dev/null 2>&1; then
-        CLOUDFLARE_VALIDATION_ERROR="A Cloudflare recusou a substituição de um registro DNS existente."
-        exit 1
-      fi
-    done < <(printf '%s' "$EXISTING_RECORDS" | jq -r '.result[].id')
-
-
-else
-echo -e "XXX\n58\nVERIFICANDO...ISSO PODE DEMORAR UM POUCO \nXXX"
- # echo "✅ Nenhum registro existente encontrado. Prosseguindo com a criação do novo CNAME..."
-fi
-
-# Criar o novo registro CNAME
-#secho "[5.4] Criando registro CNAME..."
-DNS_RESPONSE=$(curl -s -X POST \
-  "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
-  -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-  -H "Content-Type: application/json" \
-  --data "{\"type\":\"CNAME\",\"name\":\"${dominio}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}")
-
-if echo "$DNS_RESPONSE" | grep -q '"success":true'; then
-SETUPMNO_PRIMARY_DNS_RECORD_ID=$(printf '%s' "$DNS_RESPONSE" | jq -r '.result.id // empty')
-#  echo ""
-echo -e "XXX\n59\n✅ REGISTRO DNS CNAME CRIADO COM SUCESSO! \nXXX"
- # echo "✅ REGISTRO DNS CNAME CRIADO COM SUCESSO!"
-#  echo "→ Host: $dominio"
-#  echo "→ Aponta para: ${TUNNEL_ID}.cfargotunnel.com"
-
-else
- # echo ""
- echo -e "XXX\n59\n❌ ERRO AO CRIAR REGISTRO DNS CNAME \nXXX"
- # echo "❌ ERRO AO CRIAR REGISTRO DNS CNAME"
-#  echo "Resposta: $DNS_RESPONSE"
+SETUPMNO_PRIMARY_OLD_TUNNEL_CHANGES="$TMPDIR/old-tunnel-changes.$TIMESTAMP.json"
+if ! cf_route_guard_remove_old_routes "$SETUPMNO_PRIMARY_ROUTE_INVENTORY" "$dominio" \
+    "$TUNNEL_ID" "$SETUPMNO_PRIMARY_OLD_TUNNEL_CHANGES" "$PRIMARY_TUNNEL_LOG"; then
+  CLOUDFLARE_VALIDATION_ERROR="$CF_ROUTE_GUARD_ERROR"
   exit 1
-
 fi
+SETUPMNO_PRIMARY_OLD_TUNNELS_MUTATED=true
+echo -e "XXX\n59\nDNS E ROTAS CLOUDFLARE TRANSFERIDOS COM SUCESSO \nXXX"
 
 primary_tunnel_commit || {
   CLOUDFLARE_VALIDATION_ERROR="A infraestrutura foi criada, mas o estado final do Tunnel não pôde ser confirmado."

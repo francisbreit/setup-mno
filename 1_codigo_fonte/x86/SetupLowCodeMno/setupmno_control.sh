@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.19.2"
+CONTROL_VERSION="4.19.3"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -251,28 +251,6 @@ build_cloudflare_access_payload() {
           }]
         }
     ' >"$output_file"
-}
-
-build_control_tunnel_route_payload() {
-    local input_file="$1" output_file="$2" host="$3" service="$4"
-    local require_access="$5" team="$6" aud="$7"
-    jq --arg host "$host" --arg service "$service" --arg team "$team" --arg aud "$aud" \
-        --argjson requireAccess "$require_access" '
-        (.result.config // {}) as $cfg
-        | ($cfg.ingress // [])
-        | map(select(.service != "http_status:404" and .hostname != $host))
-        + [{hostname:$host,service:$service,originRequest:
-             (if $requireAccess then {
-                noTlsVerify:true,
-                httpHostHeader:$host,
-                access:{required:true,teamName:$team,audTag:[$aud]}
-              } else {
-                noTlsVerify:true,
-                httpHostHeader:$host
-              } end)},
-           {service:"http_status:404"}]
-        | {config:($cfg + {ingress:.})}
-    ' "$input_file" >"$output_file"
 }
 
 control_center_installed() {
@@ -1178,61 +1156,17 @@ ask_password() {
     done
 }
 
-check_cloudflare_route() {
-    local output_file="$1" status_file error_file curl_status
-    status_file=$(mktemp) || {
-        msg "Não foi possível preparar a verificação segura do Cloudflare Tunnel."
-        return 1
-    }
-    error_file=$(mktemp) || {
-        rm -f "$status_file"
-        msg "Não foi possível preparar a verificação segura do Cloudflare Tunnel."
-        return 1
-    }
-
-    {
-        echo -e "XXX\n10\nCONECTANDO À API DO CLOUDFLARE...\nXXX"
-        if curl -sS \
-            --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
-            --max-time "$CLOUDFLARE_MAX_TIME" \
-            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
-            >"$output_file" 2>"$error_file"; then
-            printf '0\n' >"$status_file"
-        else
-            printf '%s\n' "$?" >"$status_file"
-        fi
-        echo -e "XXX\n100\nVERIFICAÇÃO DO CLOUDFLARE CONCLUÍDA\nXXX"
-    } | whiptail --title "SETUP MNO CONTROL CENTER" --gauge \
-        "Verificando o domínio informado..." 8 78 0
-
-    curl_status=$(cat "$status_file" 2>/dev/null)
-    rm -f "$status_file" "$error_file"
-    case "$curl_status" in
-        0) ;;
-        6)
-            msg "Não foi possível resolver api.cloudflare.com. Verifique o DNS e a conexão do servidor."
-            return 1
-            ;;
-        7)
-            msg "Não foi possível conectar à API do Cloudflare. Verifique a conexão do servidor."
-            return 1
-            ;;
-        28)
-            msg "A API do Cloudflare não respondeu em até ${CLOUDFLARE_MAX_TIME} segundos. Nenhum recurso foi alterado. Tente novamente quando a conexão estiver estável."
-            return 1
-            ;;
-        *)
-            msg "Não foi possível consultar o Cloudflare Tunnel. Nenhum recurso foi alterado. Verifique a conexão e tente novamente."
-            return 1
-            ;;
-    esac
-
-    if ! jq -e '.success == true and (.result.config.ingress | type == "array")' \
-        "$output_file" >/dev/null 2>&1; then
-        msg "A Cloudflare recusou a consulta ou retornou uma resposta inválida. Verifique as credenciais do Tunnel. Nenhum recurso foi alterado."
+load_cloudflare_route_guard() {
+    local helper
+    declare -F cf_route_guard_inventory >/dev/null && return 0
+    helper=$(mktemp) || return 1
+    chmod 0700 "$helper"
+    if ! extract_control_bundle | tar -xzOf - cloudflare-route-guard.sh >"$helper"; then
+        rm -f "$helper"
         return 1
     fi
+    . "$helper"
+    rm -f "$helper"
 }
 
 check_cloudflare_access() {
@@ -1308,33 +1242,50 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     portainer_step=6
 fi
 
+control_route_guard_dir=""
+control_route_inventory=""
+control_route_decision="FREE"
+if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+    control_route_guard_dir=$(mktemp -d) || {
+        msg "Falha ao preparar a proteção de rotas Cloudflare."
+        exit 1
+    }
+    chmod 700 "$control_route_guard_dir"
+    trap 'rm -rf -- "$control_route_guard_dir"' EXIT
+    if ! load_cloudflare_route_guard; then
+        msg "Proteção de rotas indisponível. Atualize o Setup MNO."
+        exit 1
+    fi
+fi
+
 while true; do
     if ! url_control=$(ask_required "1/$wizard_total — Domínio do painel (ex.: setup.seudominio.com):"); then
         exit 0
     fi
-    if [[ "$url_control" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] &&
-       [[ "$url_control" == *.* ]]; then
-        break
+    if ! [[ "$url_control" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] ||
+       [[ "$url_control" != *.* ]]; then
+        msg "Informe somente o domínio, sem http://, https://, barras ou caminhos."
+        continue
     fi
-    msg "Informe somente o domínio, sem http://, https://, barras ou caminhos."
+    url_control=$(printf '%s' "$url_control" | tr '[:upper:]' '[:lower:]')
+    if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+        control_route_inventory="$control_route_guard_dir/inventory.json"
+        if ! cf_route_guard_inventory "$url_control" "$TUNNEL_ID" "$control_route_inventory"; then
+            msg "Falha ao auditar DNS e Tunnels.\n\n${CF_ROUTE_GUARD_ERROR}\n\nNada foi alterado."
+            exit 1
+        fi
+        CF_ROUTE_GUARD_DECISION=""
+        cf_route_guard_choose "$control_route_inventory"
+        route_decision_status=$?
+        case "$route_decision_status" in
+            0) control_route_decision="$CF_ROUTE_GUARD_DECISION"; break ;;
+            20) continue ;;
+            130) exit 0 ;;
+            *) msg "Falha ao classificar o conflito Cloudflare. Nada foi alterado."; exit 1 ;;
+        esac
+    fi
+    break
 done
-
-if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-    route_check=$(mktemp) || {
-        msg "Não foi possível preparar a verificação segura do Cloudflare Tunnel."
-        exit 1
-    }
-    if ! check_cloudflare_route "$route_check"; then
-        rm -f "$route_check"
-        exit 1
-    fi
-    existing_service=$(jq -r --arg host "$url_control" \
-        '.result.config.ingress[]? | select(.hostname == $host) | .service' "$route_check" 2>/dev/null | head -n1)
-    rm -f "$route_check"
-    if [ -n "$existing_service" ] && [ "$existing_service" != "null" ]; then
-        msg "Já existe uma rota para:\n\n$url_control\n\nServiço atual: $existing_service\n\nA rota será substituída pela nova instalação."
-    fi
-fi
 
 while true; do
     if ! usuario_control=$(ask_required "2/$wizard_total — Usuário administrador do painel:"); then
@@ -1615,10 +1566,26 @@ error_file="/tmp/${nome_app}-error.log"
     access_onboarding_state="$work_dir/access-onboarding-state.json"
     tunnel_updated="false"
     tunnel_original_payload=""
+    route_guard_inventory="$work_dir/route-inventory.json"
+    route_dns_transaction="$work_dir/route-dns-transaction.json"
+    route_old_tunnel_changes="$work_dir/route-old-tunnel-changes.json"
+    route_dns_mutated="false"
+    route_old_tunnels_mutated="false"
+    if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+        cp "$control_route_inventory" "$route_guard_inventory" || exit 1
+    fi
 
     cleanup_install() {
         local status=$? route_rollback_ok="true" access_delete_ok="true" access_delete_response
         if [ "$status" -ne 0 ] && [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+            if [ "$route_old_tunnels_mutated" = "true" ]; then
+                cf_route_guard_restore_tunnels "$route_old_tunnel_changes" "$install_log" ||
+                    route_rollback_ok="false"
+            fi
+            if [ "$route_dns_mutated" = "true" ]; then
+                cf_route_guard_restore_dns "$route_dns_transaction" "$install_log" ||
+                    route_rollback_ok="false"
+            fi
             if [ "$tunnel_updated" = "true" ] && [ -s "$tunnel_original_payload" ]; then
                 if ! curl -sS \
                     --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
@@ -2238,20 +2205,14 @@ EOL
         fi
     done
 
-    if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] ||
-       { [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; }; then
+    if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
         echo -e "XXX\n67\nCONFIGURANDO DNS DE FORMA IDEMPOTENTE... \nXXX"
         dns_lookup="$work_dir/dns-lookup.json"
         dns_response="$work_dir/dns-response.json"
-        if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-            dns_content="${TUNNEL_ID}.cfargotunnel.com"
-            dns_proxied="true"
-        else
-            DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
-            [ -n "$nome_servidor" ] || nome_servidor=$(hostname -I | awk '{print $1}')
-            dns_content="${nome_servidor}.${DOMINIO_PRINCIPAL}"
-            dns_proxied="false"
-        fi
+        DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
+        [ -n "$nome_servidor" ] || nome_servidor=$(hostname -I | awk '{print $1}')
+        dns_content="${nome_servidor}.${DOMINIO_PRINCIPAL}"
+        dns_proxied="false"
         dns_payload=$(jq -nc \
             --arg name "$url_control" \
             --arg content "$dns_content" \
@@ -2293,6 +2254,18 @@ EOL
     fi
 
     if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+        fresh_route_inventory="$work_dir/route-inventory-fresh.json"
+        if ! cf_route_guard_inventory "$url_control" "$TUNNEL_ID" "$fresh_route_inventory"; then
+            fail_install 69 "ERRO AO REVALIDAR ROTAS" "$CF_ROUTE_GUARD_ERROR"
+        fi
+        fresh_route_class=$(cf_route_guard_classify "$fresh_route_inventory") ||
+            fail_install 69 "ERRO AO CLASSIFICAR ROTAS" "O novo inventário Cloudflare é inválido."
+        if [ "$fresh_route_class" = "BLOCKED" ] ||
+           { [ "$control_route_decision" = "FREE" ] && [ "$fresh_route_class" != "FREE" ]; }; then
+            fail_install 69 "HOSTNAME ALTERADO DURANTE A INSTALAÇÃO" \
+                "DNS ou rotas de $url_control mudaram após a confirmação. Execute novamente para revisar o conflito."
+        fi
+        mv -f "$fresh_route_inventory" "$route_guard_inventory"
         echo -e "XXX\n73\nATUALIZANDO ROTA DO CLOUDFLARE TUNNEL... \nXXX"
         tunnel_raw="$work_dir/tunnel-raw.json"
         tunnel_payload="$work_dir/tunnel-payload.json"
@@ -2330,6 +2303,18 @@ EOL
         fi
         tunnel_updated="true"
         echo "Rota confirmada: $url_control -> http://${web_stack}_${web_service}:8080" >>"$install_log"
+
+        echo -e "XXX\n75\nTRANSFERINDO DNS E REMOVENDO ROTAS ANTIGAS... \nXXX"
+        route_dns_mutated="true"
+        if ! cf_route_guard_apply_dns "$route_guard_inventory" "$url_control" \
+            "${TUNNEL_ID}.cfargotunnel.com" true "$route_dns_transaction" "$install_log"; then
+            fail_install 73 "ERRO AO TRANSFERIR DNS" "$CF_ROUTE_GUARD_ERROR"
+        fi
+        if ! cf_route_guard_remove_old_routes "$route_guard_inventory" "$url_control" \
+            "$TUNNEL_ID" "$route_old_tunnel_changes" "$install_log"; then
+            fail_install 74 "ERRO AO REMOVER ROTA ANTIGA" "$CF_ROUTE_GUARD_ERROR"
+        fi
+        route_old_tunnels_mutated="true"
     fi
 
     if [ "$assistant_has_llm" = "false" ]; then

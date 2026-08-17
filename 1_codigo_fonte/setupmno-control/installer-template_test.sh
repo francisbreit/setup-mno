@@ -3,6 +3,8 @@ set -euo pipefail
 
 project_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 template="$project_dir/installer-template.sh"
+# shellcheck disable=SC1091
+. "$project_dir/cloudflare-route-guard.sh"
 grep -Fq 'LATER)' "$template"
 grep -Fq 'assistant_mode="later"' "$template"
 grep -Fq 'assistant_has_llm="false"' "$template"
@@ -34,17 +36,6 @@ grep -Fq 'prepare_cloudflare_mfa_token "$access_token_work" "$access_token_log"'
 test_dir=$(mktemp -d)
 trap 'rm -rf "$test_dir"' EXIT
 
-function_source=$(awk '
-    /^check_cloudflare_route\(\)/ { inside=1 }
-    inside { print }
-    inside && /^}/ { exit }
-' "$template")
-[ -n "$function_source" ] || {
-    printf 'ERRO: função check_cloudflare_route ausente.\n' >&2
-    exit 1
-}
-eval "$function_source"
-
 access_function_source=$(awk '
     /^check_cloudflare_access\(\)/ { inside=1 }
     inside { print }
@@ -64,7 +55,6 @@ for migration_function in \
     ask_required \
     collect_cloudflare_access_email \
     build_cloudflare_access_payload \
-    build_control_tunnel_route_payload \
     control_service_env_value \
     rollback_existing_access_migration \
     prepare_existing_access_migration \
@@ -309,29 +299,6 @@ if control_center_installed; then
     printf 'ERRO: serviço não relacionado foi identificado como Control Center.\n' >&2
     exit 1
 fi
-
-route_output="$test_dir/route.json"
-check_cloudflare_route "$route_output"
-jq -e '.success == true' "$route_output" >/dev/null
-grep -Fq 'CONECTANDO À API DO CLOUDFLARE' "$gauge_capture"
-grep -Fq 'VERIFICAÇÃO DO CLOUDFLARE CONCLUÍDA' "$gauge_capture"
-[ ! -s "$message_capture" ]
-
-export MOCK_CURL_MODE="timeout"
-: >"$message_capture"
-if check_cloudflare_route "$route_output"; then
-    printf 'ERRO: timeout do Cloudflare foi aceito.\n' >&2
-    exit 1
-fi
-grep -Fq 'não respondeu em até 30 segundos' "$message_capture"
-
-export MOCK_CURL_MODE="invalid"
-: >"$message_capture"
-if check_cloudflare_route "$route_output"; then
-    printf 'ERRO: resposta inválida do Cloudflare foi aceita.\n' >&2
-    exit 1
-fi
-grep -Fq 'resposta inválida' "$message_capture"
 
 export MOCK_CURL_MODE="success"
 : >"$message_capture"
