@@ -1,6 +1,6 @@
 #!/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 22:39:34
-VERSIONSETUP="7.19.6"
+VERSIONSETUP="7.19.7"
 
 
 
@@ -29,6 +29,18 @@ setupmno_normalize_arch() {
         aarch64|arm64) printf 'arm64\n' ;;
         *) return 1 ;;
     esac
+}
+
+setupmno_repair_debian13_apt_keyring() {
+    local root="${SETUPMNO_APT_ROOT:-}" os_release keyring os_id os_version
+    os_release="${root}/etc/os-release"
+    keyring="${root}/usr/share/keyrings/azlux-archive-keyring.gpg"
+    [ -f "$os_release" ] && [ ! -L "$os_release" ] || return 0
+    os_id=$(sed -n 's/^ID=//p' "$os_release" | head -n1 | tr -d "\"'")
+    os_version=$(sed -n 's/^VERSION_ID=//p' "$os_release" | head -n1 | tr -d "\"'")
+    [ "$os_id" = "debian" ] && [[ "$os_version" == 13* ]] || return 0
+    [ ! -e "$keyring" ] || { [ -f "$keyring" ] && [ ! -L "$keyring" ]; } || return 1
+    [ ! -f "$keyring" ] || chmod 0644 "$keyring"
 }
 
 setupmno_wsl_docker_alert() {
@@ -842,6 +854,11 @@ cd
 
 
 # Executa os comandos de atualização com spinner
+
+if ! setupmno_repair_debian13_apt_keyring; then
+    echo -e "${vermelho}✗ Não foi possível reparar a permissão da chave Azlux usada pelo APT no Debian 13.${reset}"
+    exit 1
+fi
 
 execute_with_spinner "apt-get update -y" "Atualizando lista de pacotes..."
 

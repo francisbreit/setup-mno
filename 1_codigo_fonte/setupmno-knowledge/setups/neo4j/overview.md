@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Neo4j no Setup MNO",
   "setupId": "neo4j",
-  "setupVersion": "7.19.6",
+  "setupVersion": "7.19.7",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Ghost no Setup MNO",
   "setupId": "ghost",
-  "setupVersion": "7.19.6",
+  "setupVersion": "7.19.7",
   "architectures": [
     "amd64",
     "arm64"

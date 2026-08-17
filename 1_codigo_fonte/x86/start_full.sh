@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.19.6"
+VERSIONSETUP="7.19.7"
 EXPECTED_CATALOG_ENTRIES="158"
 EXPECTED_EVAL_DATASET_VERSION="1.17.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
@@ -14,6 +14,23 @@ if [ "$EUID" -ne 0 ]; then
     echo "ERRO: Este script deve ser executado como root." >&2
     exit 1
 fi
+
+setupmno_repair_debian13_apt_keyring() {
+    local root="${SETUPMNO_APT_ROOT:-}" os_release keyring os_id os_version
+    os_release="${root}/etc/os-release"
+    keyring="${root}/usr/share/keyrings/azlux-archive-keyring.gpg"
+    [ -f "$os_release" ] && [ ! -L "$os_release" ] || return 0
+    os_id=$(sed -n 's/^ID=//p' "$os_release" | head -n1 | tr -d "\"'")
+    os_version=$(sed -n 's/^VERSION_ID=//p' "$os_release" | head -n1 | tr -d "\"'")
+    [ "$os_id" = "debian" ] && [[ "$os_version" == 13* ]] || return 0
+    [ ! -e "$keyring" ] || { [ -f "$keyring" ] && [ ! -L "$keyring" ]; } || return 1
+    [ ! -f "$keyring" ] || chmod 0644 "$keyring"
+}
+
+setupmno_repair_debian13_apt_keyring || {
+    printf 'ERRO: não foi possível reparar a chave Azlux para o APT do Debian 13.\n' >&2
+    exit 42
+}
 
 setupmno_is_wsl() {
     grep -qi microsoft /proc/sys/kernel/osrelease 2>/dev/null ||

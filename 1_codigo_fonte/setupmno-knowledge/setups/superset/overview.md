@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Apache Superset no Setup MNO",
   "setupId": "superset",
-  "setupVersion": "7.19.6",
+  "setupVersion": "7.19.7",
   "architectures": [
     "amd64",
     "arm64"

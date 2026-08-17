@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "SiYuan no Setup MNO",
   "setupId": "siyuan",
-  "setupVersion": "7.19.6",
+  "setupVersion": "7.19.7",
   "architectures": [
     "amd64",
     "arm64"

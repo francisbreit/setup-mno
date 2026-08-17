@@ -1837,6 +1837,7 @@ sudo apt install -y ca-certificates curl gnupg >/dev/null 2>&1
 
 curl -fsSL https://azlux.fr/repo.gpg.key \
 | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/azlux-archive-keyring.gpg >/dev/null 2>&1
+sudo chmod 0644 /usr/share/keyrings/azlux-archive-keyring.gpg >/dev/null 2>&1 || exit 1
 
 # 🔴 SEM usar ubuntu/noble (causa 404)
 # 🔴 Sempre usar debian stable (funciona em Debian e Ubuntu)
@@ -1844,6 +1845,7 @@ curl -fsSL https://azlux.fr/repo.gpg.key \
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/azlux-archive-keyring.gpg] \
 http://packages.azlux.fr/debian stable main" \
 | sudo tee /etc/apt/sources.list.d/azlux.list >/dev/null 2>&1
+sudo chmod 0644 /etc/apt/sources.list.d/azlux.list >/dev/null 2>&1 || exit 1
 
 sudo apt update -y >/dev/null 2>&1
 sudo apt install -y docker-ctop >/dev/null 2>&1 || true
