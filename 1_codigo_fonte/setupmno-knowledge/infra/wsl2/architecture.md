@@ -2,16 +2,16 @@
 {
   "schemaVersion": 1,
   "documentId": "infra-wsl2-architecture",
-  "documentVersion": "1.0.2",
-  "contentSHA256": "4109ffe5b9aec196d90c8bae216ab7a1d1196ddae55968d189f109073997bdea",
+  "documentVersion": "1.1.0",
+  "contentSHA256": "c02deae803dd05241b48e7d53788c23d0a5d9394fcf33581243e99f570ed1b5b",
   "documentType": "infrastructure",
   "title": "WSL2 e Docker Desktop no Setup MNO",
   "topicId": "wsl2",
-  "setupVersion": "7.19.3",
+  "setupVersion": "7.19.4",
   "architectures": ["amd64", "arm64"],
   "category": "compatibility",
   "status": "reviewed",
-  "updatedAt": "2026-07-30",
+  "updatedAt": "2026-08-17",
   "sourceType": "setup-mno",
   "risk": "high",
   "language": "pt-BR",
@@ -49,6 +49,13 @@ O ambiente local usa WSL2 integrado ao Docker Desktop. O bootstrap detecta o
 ambiente e aplica compatibilidades de rede e relógio, enquanto a preparação do
 Swarm reutiliza o Docker disponível.
 
+Antes de autenticar, limpar arquivos ou decidir pela preparação do Swarm, os
+bootstraps validam funcionalmente o Docker dentro da distribuição WSL2. Cliente
+ausente, engine inacessível, Windows Containers, arquitetura divergente ou
+estado inconsistente do Swarm interrompem o fluxo com instruções para ativar o
+Docker Desktop e a integração da distribuição. Em VPS Linux, esse gate não
+altera o comportamento existente.
+
 ## Princípios
 
 WSL2 segue o fluxo de Cloudflare Tunnel para atravessar limitações da rede
@@ -57,9 +64,11 @@ temporários, nomes exclusivos e limpeza apenas do que foi criado pelo teste.
 
 ## Validação
 
-Confirmar detecção do WSL2, disponibilidade do Docker Desktop, estado do Swarm,
-memória disponível e sincronização de relógio. Problemas do Windows, da
-distribuição Linux e do Docker devem ser diferenciados antes da recomendação.
+Confirmar detecção do WSL2, cliente e engine Docker acessíveis, engine Linux,
+arquitetura compatível, estado `active` ou `inactive` do Swarm, memória
+disponível e sincronização de relógio. Swarm `inactive` é válido na primeira
+instalação; indisponibilidade do Docker nunca deve ser confundida com ausência
+do Swarm nem encaminhar automaticamente para o `dockerswarm.sh`.
 
 ## Riscos e limites
 

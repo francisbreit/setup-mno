@@ -91,6 +91,7 @@ bash "$project_dir/control-runtime-transition_test.sh"
 bash "$project_dir/control-runtime-selfheal_test.sh"
 bash "$project_dir/domain-profiles_test.sh"
 bash "$project_dir/primary-tunnel-bootstrap_test.sh"
+bash "$project_dir/wsl-docker-preflight_test.sh"
 
 for architecture in x86 arm; do
     install_script="$source_root/$architecture/SetupLowCodeMno/install.sh"

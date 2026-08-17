@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.19.3"
+VERSIONSETUP="7.19.4"
 EXPECTED_CATALOG_ENTRIES="158"
 EXPECTED_EVAL_DATASET_VERSION="1.17.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
@@ -14,6 +14,75 @@ if [ "$EUID" -ne 0 ]; then
     echo "ERRO: Este script deve ser executado como root." >&2
     exit 1
 fi
+
+setupmno_is_wsl() {
+    grep -qi microsoft /proc/sys/kernel/osrelease 2>/dev/null ||
+        grep -qi microsoft /proc/version 2>/dev/null
+}
+
+setupmno_normalize_arch() {
+    case "$1" in
+        x86_64|amd64) printf 'amd64\n' ;;
+        aarch64|arm64) printf 'arm64\n' ;;
+        *) return 1 ;;
+    esac
+}
+
+setupmno_wsl_docker_alert() {
+    local reason="$1" distro="${WSL_DISTRO_NAME:-Ubuntu}" message
+    message="${reason}\n\nO Setup MNO foi interrompido antes de alterar a instalação.\n\n1. Abra o Docker Desktop no Windows.\n2. Ative Use WSL 2 based engine.\n3. Em Resources > WSL Integration, ative ${distro}.\n4. Clique em Apply & Restart.\n5. Confirme no Ubuntu com: docker info\n6. Execute novamente o Setup MNO.\n\nNão execute docker swarm init manualmente."
+    if command -v whiptail >/dev/null 2>&1; then
+        whiptail --title "DOCKER DESKTOP INDISPONÍVEL" --msgbox "$message" 22 82 1>&2
+    elif command -v dialog >/dev/null 2>&1; then
+        dialog --title "DOCKER DESKTOP INDISPONÍVEL" --msgbox "$message" 22 82 1>&2
+    else
+        printf '\nDOCKER DESKTOP INDISPONÍVEL\n%b\n' "$message" >&2
+    fi
+}
+
+setupmno_docker_runtime_info() {
+    if command -v timeout >/dev/null 2>&1; then
+        timeout 15 docker info --format '{{.OSType}}|{{.Architecture}}|{{.Swarm.LocalNodeState}}|{{.ServerVersion}}' 2>/dev/null
+    else
+        docker info --format '{{.OSType}}|{{.Architecture}}|{{.Swarm.LocalNodeState}}|{{.ServerVersion}}' 2>/dev/null
+    fi
+}
+
+setupmno_validate_wsl_docker() {
+    local runtime_info docker_os docker_arch swarm_state server_version
+    local host_arch normalized_docker_arch normalized_host_arch
+
+    setupmno_is_wsl || return 0
+    if ! command -v docker >/dev/null 2>&1; then
+        setupmno_wsl_docker_alert "O cliente Docker não está disponível nesta distribuição WSL2. A integração pode estar desativada."
+        return 71
+    fi
+    if ! runtime_info=$(setupmno_docker_runtime_info); then
+        setupmno_wsl_docker_alert "O cliente Docker existe, mas o engine não respondeu. O Docker Desktop pode estar fechado ou inicializando."
+        return 72
+    fi
+    IFS='|' read -r docker_os docker_arch swarm_state server_version <<<"$runtime_info"
+    if [ "$docker_os" != "linux" ] || [ -z "$server_version" ]; then
+        setupmno_wsl_docker_alert "O Docker Desktop não está disponibilizando um engine Linux válido. Selecione Linux Containers."
+        return 73
+    fi
+    host_arch=$(uname -m 2>/dev/null) || host_arch=""
+    normalized_host_arch=$(setupmno_normalize_arch "$host_arch") || normalized_host_arch=""
+    normalized_docker_arch=$(setupmno_normalize_arch "$docker_arch") || normalized_docker_arch=""
+    if [ -z "$normalized_host_arch" ] || [ "$normalized_host_arch" != "$normalized_docker_arch" ]; then
+        setupmno_wsl_docker_alert "A arquitetura do engine Docker (${docker_arch:-desconhecida}) é incompatível com o Ubuntu WSL2 (${host_arch:-desconhecida})."
+        return 74
+    fi
+    case "$swarm_state" in
+        active|inactive) return 0 ;;
+        *)
+            setupmno_wsl_docker_alert "O Docker respondeu, mas o Swarm está em estado inconsistente (${swarm_state:-desconhecido})."
+            return 75
+            ;;
+    esac
+}
+
+setupmno_validate_wsl_docker || exit $?
 
 export NEWT_COLORS='
 root=,white
