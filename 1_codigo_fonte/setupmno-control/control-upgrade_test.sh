@@ -17,6 +17,10 @@ grep -Fq '/root/SetupLowCodeMno/install' "$updater"
 grep -Fq 'changed_services=()' "$updater"
 grep -Fq 'service_env_value "$service" ACCESS_JWT_REQUIRED' "$updater"
 grep -Fq 'args+=(--env-add ACCESS_JWT_REQUIRED=false --env-add ACCESS_MFA_REQUIRED=false)' "$updater"
+grep -Fq 'run_with_heartbeat 25 "CONSTRUINDO A IMAGEM DO PAINEL' "$updater"
+grep -Fq 'run_with_heartbeat 45 "CONSTRUINDO A IMAGEM DO TERMINAL' "$updater"
+grep -Fq 'run_with_heartbeat 66 "AGUARDANDO O AGENTE ATINGIR 1/1 RÉPLICA' "$updater"
+grep -Fq 'run_with_heartbeat 88 "AGUARDANDO O PAINEL ATINGIR 1/1 RÉPLICA' "$updater"
 
 for forbidden in 'docker stack deploy' 'docker service create' 'docker secret create' \
     'docker volume rm' 'docker stack rm' 'docker service rm' '--label-rm'; do
@@ -33,7 +37,8 @@ docker_log="$test_dir/docker.log"
 : >"$log_file"
 : >"$docker_log"
 
-for function_name in service_has_env_key service_env_value update_web; do
+for function_name in progress heartbeat_loop stop_heartbeat run_with_heartbeat \
+    service_has_env_key service_env_value update_web; do
     function_source=$(awk -v name="$function_name" '
         $0 ~ "^" name "\\(\\) \\{" {capture=1}
         capture {print}
@@ -45,6 +50,33 @@ for function_name in service_has_env_key service_env_value update_web; do
     }
     eval "$function_source"
 done
+
+heartbeat_pid=""
+heartbeat_output="$test_dir/heartbeat-gauge.log"
+sleep() { command sleep 0.02; }
+heartbeat_success() {
+    command sleep 0.12
+    printf 'comando monitorado concluído\n'
+}
+run_with_heartbeat 84 "ATUALIZANDO O PAINEL..." heartbeat_success >"$heartbeat_output"
+grep -Fq '[|]' "$heartbeat_output"
+grep -Fq '[/]' "$heartbeat_output"
+grep -Fq '[\]' "$heartbeat_output"
+grep -Fq 'Processando há 00:00' "$heartbeat_output"
+grep -Fq 'comando monitorado concluído' "$log_file"
+[ -z "$heartbeat_pid" ]
+
+heartbeat_failure() {
+    printf 'falha monitorada\n'
+    return 37
+}
+set +e
+run_with_heartbeat 45 "CONSTRUINDO O TERMINAL..." heartbeat_failure >"$heartbeat_output"
+heartbeat_status=$?
+set -e
+[ "$heartbeat_status" -eq 37 ]
+[ -z "$heartbeat_pid" ]
+grep -Fq 'falha monitorada' "$log_file"
 
 docker() {
     if [ "${1:-}" = "service" ] && [ "${2:-}" = "inspect" ]; then

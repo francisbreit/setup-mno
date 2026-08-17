@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "DocuSeal no Setup MNO",
   "setupId": "docuseal",
-  "setupVersion": "7.19.4",
+  "setupVersion": "7.19.5",
   "architectures": [
     "amd64",
     "arm64"

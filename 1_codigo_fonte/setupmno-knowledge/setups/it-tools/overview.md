@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "IT-Tools no Setup MNO",
   "setupId": "it-tools",
-  "setupVersion": "7.19.4",
+  "setupVersion": "7.19.5",
   "architectures": [
     "amd64",
     "arm64"

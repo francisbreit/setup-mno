@@ -2,16 +2,16 @@
 {
   "schemaVersion": 1,
   "documentId": "setup-setupmno-control-overview",
-  "documentVersion": "1.6.1",
-  "contentSHA256": "0a5d0ae62fba2d3bc7279d8dbc2f7fc01a212f664821a209a45bf32af31a2f03",
+  "documentVersion": "1.6.2",
+  "contentSHA256": "886ccc14d7edb6863d8d54b6cf3e899edf2f3b06daabc1e88107be1b8d3b3a32",
   "documentType": "setup",
   "title": "Setup MNO Control Center",
   "setupId": "setupmno-control",
-  "setupVersion": "7.19.4",
+  "setupVersion": "7.19.5",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
-  "updatedAt": "2026-08-16",
+  "updatedAt": "2026-08-17",
   "sourceType": "setup-mno",
   "risk": "critical",
   "language": "pt-BR",
@@ -109,6 +109,12 @@ Os fontes compactados do painel permanecem fora do script protegido pelo SHC.
 O arquivo `control-source.tar.gz` possui tamanho e SHA-256 no manifesto,
 é promovido atomicamente para o estado runtime e validado novamente antes do
 build local.
+
+Durante as etapas demoradas de build, validação de imagens, atualização de
+serviços e convergência de réplicas, o Whiptail mantém a porcentagem real e
+exibe um spinner ASCII com tempo decorrido. O heartbeat é encerrado junto com
+o comando monitorado, preserva o código de saída e mantém os detalhes no log
+técnico, sem simular avanço inexistente.
 
 ## Primeiro cadastro do MFA
 

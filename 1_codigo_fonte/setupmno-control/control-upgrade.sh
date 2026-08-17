@@ -11,9 +11,46 @@ error_file="${4:?arquivo de erro ausente}"
 state_file="${5:?arquivo de estado ausente}"
 runtime_dir="/root/SetupLowCodeMno/.control"
 changed_services=()
+heartbeat_pid=""
 
 progress() {
     printf 'XXX\n%s\n%s\nXXX\n' "$1" "$2"
+}
+
+heartbeat_loop() {
+    local percent="$1" message="$2" started now elapsed minutes seconds elapsed_text frame=0
+    local -a frames=('|' '/' '-' '\')
+    printf -v started '%(%s)T' -1
+    while :; do
+        printf -v now '%(%s)T' -1
+        elapsed=$((now - started))
+        minutes=$((elapsed / 60))
+        seconds=$((elapsed % 60))
+        printf -v elapsed_text '%02d:%02d' "$minutes" "$seconds"
+        progress "$percent" "${message}  [${frames[$frame]}]  Processando há ${elapsed_text}"
+        frame=$(((frame + 1) % ${#frames[@]}))
+        sleep 1
+    done
+}
+
+stop_heartbeat() {
+    if [ -n "$heartbeat_pid" ]; then
+        kill "$heartbeat_pid" 2>/dev/null || true
+        wait "$heartbeat_pid" 2>/dev/null || true
+        heartbeat_pid=""
+    fi
+}
+
+run_with_heartbeat() {
+    local percent="$1" message="$2" status
+    shift 2
+    stop_heartbeat
+    heartbeat_loop "$percent" "$message" &
+    heartbeat_pid=$!
+    "$@" >>"$log_file" 2>&1
+    status=$?
+    stop_heartbeat
+    return "$status"
 }
 
 fail_upgrade() {
@@ -115,7 +152,7 @@ update_web() {
     docker "${args[@]}" "$service" >>"$log_file" 2>&1
 }
 
-trap 'status=$?; if [ "$status" -ne 0 ] && [ "${#changed_services[@]}" -gt 0 ]; then rollback_changed_services; fi' EXIT
+trap 'status=$?; stop_heartbeat; if [ "$status" -ne 0 ] && [ "${#changed_services[@]}" -gt 0 ]; then rollback_changed_services; fi' EXIT
 
 progress 3 "VALIDANDO A INSTALAÇÃO EXISTENTE..."
 for command_name in docker jq tar sha256sum stat; do
@@ -201,41 +238,47 @@ install -m 0644 "$runtime_knowledge/manifest.json" "$source_dir/knowledge-packag
 install -m 0644 "$runtime_knowledge/knowledge-package.tar.gz" \
     "$source_dir/knowledge-package/knowledge-package.tar.gz"
 
-progress 25 "CONSTRUINDO E VALIDANDO O PAINEL $target_version..."
-docker build --pull -t "$control_image" "$source_dir" >>"$log_file" 2>&1 ||
+run_with_heartbeat 25 "CONSTRUINDO A IMAGEM DO PAINEL $target_version..." \
+    docker build --pull -t "$control_image" "$source_dir" ||
     fail_upgrade 30 "Falha ao construir a nova imagem do painel."
-docker run --rm --entrypoint /setupmno-control "$control_image" knowledgecheck \
-    >>"$log_file" 2>&1 || fail_upgrade 31 "A nova imagem recusou o conhecimento canônico."
-docker run --rm --entrypoint /setupmno-control "$control_image" evalcheck \
-    >>"$log_file" 2>&1 || fail_upgrade 31 "A nova imagem não passou pela suíte de qualidade."
+run_with_heartbeat 35 "VALIDANDO CONHECIMENTO E CATÁLOGO DO PAINEL..." \
+    docker run --rm --entrypoint /setupmno-control "$control_image" knowledgecheck ||
+    fail_upgrade 31 "A nova imagem recusou o conhecimento canônico."
+run_with_heartbeat 40 "EXECUTANDO A SUÍTE DE QUALIDADE DO PAINEL..." \
+    docker run --rm --entrypoint /setupmno-control "$control_image" evalcheck ||
+    fail_upgrade 31 "A nova imagem não passou pela suíte de qualidade."
 
-progress 45 "CONSTRUINDO E VALIDANDO O TERMINAL PROTEGIDO..."
-docker build --pull -f "$source_dir/terminal.Dockerfile" -t "$terminal_image" \
-    "$source_dir" >>"$log_file" 2>&1 || fail_upgrade 32 "Falha ao construir o terminal protegido."
-docker run --rm --entrypoint /usr/bin/ldd -v /root:/root:ro \
+run_with_heartbeat 45 "CONSTRUINDO A IMAGEM DO TERMINAL PROTEGIDO..." \
+    docker build --pull -f "$source_dir/terminal.Dockerfile" -t "$terminal_image" \
+    "$source_dir" || fail_upgrade 32 "Falha ao construir o terminal protegido."
+run_with_heartbeat 55 "VALIDANDO A COMPATIBILIDADE DO TERMINAL COM O SHC..." \
+    docker run --rm --entrypoint /usr/bin/ldd -v /root:/root:ro \
     -v /usr/bin/bash:/usr/bin/bash:ro "$terminal_image" \
-    /root/SetupLowCodeMno/install >>"$log_file" 2>&1 ||
+    /root/SetupLowCodeMno/install ||
     fail_upgrade 33 "O terminal não é compatível com o binário SHC instalado."
 
-progress 62 "ATUALIZANDO O AGENTE SEM RECRIAR A STACK..."
-update_agent "$agent_service" "$control_image" || fail_upgrade 40 "Falha ao atualizar o agente."
+run_with_heartbeat 62 "ATUALIZANDO O AGENTE SEM RECRIAR A STACK..." \
+    update_agent "$agent_service" "$control_image" || fail_upgrade 40 "Falha ao atualizar o agente."
 changed_services+=("$agent_service")
-wait_service "$agent_service" 1 || fail_upgrade 41 "O agente atualizado não atingiu 1/1 réplica."
+run_with_heartbeat 66 "AGUARDANDO O AGENTE ATINGIR 1/1 RÉPLICA..." \
+    wait_service "$agent_service" 1 || fail_upgrade 41 "O agente atualizado não atingiu 1/1 réplica."
 
 if [ "$assistant_exists" = "true" ]; then
-    progress 72 "ATUALIZANDO O ASSISTENTE E PRESERVANDO O PLANO $plan..."
-    docker service update --image "$control_image" --replicas "$assistant_replicas" \
-        --detach=true "$assistant_service" >>"$log_file" 2>&1 ||
+    run_with_heartbeat 72 "ATUALIZANDO O ASSISTENTE E PRESERVANDO O PLANO $plan..." \
+        docker service update --image "$control_image" --replicas "$assistant_replicas" \
+        --detach=true "$assistant_service" ||
         fail_upgrade 42 "Falha ao atualizar o Assistente MNO."
     changed_services+=("$assistant_service")
-    wait_service "$assistant_service" "$assistant_replicas" ||
+    run_with_heartbeat 76 "AGUARDANDO A CONVERGÊNCIA DO ASSISTENTE..." \
+        wait_service "$assistant_service" "$assistant_replicas" ||
         fail_upgrade 43 "O Assistente atualizado não atingiu o estado esperado."
 fi
 
-progress 84 "ATUALIZANDO O PAINEL E PRESERVANDO DOMÍNIO, SECRETS E VOLUME..."
-update_web "$web_service" "$control_image" "$plan" || fail_upgrade 44 "Falha ao atualizar o painel web."
+run_with_heartbeat 84 "ATUALIZANDO O PAINEL E PRESERVANDO DOMÍNIO, SECRETS E VOLUME..." \
+    update_web "$web_service" "$control_image" "$plan" || fail_upgrade 44 "Falha ao atualizar o painel web."
 changed_services+=("$web_service")
-wait_service "$web_service" 1 || fail_upgrade 45 "O painel atualizado não atingiu 1/1 réplica."
+run_with_heartbeat 88 "AGUARDANDO O PAINEL ATINGIR 1/1 RÉPLICA..." \
+    wait_service "$web_service" 1 || fail_upgrade 45 "O painel atualizado não atingiu 1/1 réplica."
 
 terminal_has_image_env=false
 terminal_has_plan_env=false
