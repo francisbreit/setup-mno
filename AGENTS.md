@@ -96,9 +96,9 @@ Ative este modo quando o usuário disser **“Modo Homologação”**, **“Modo
 ## CONTEXTO DOS AMBIENTES DO SETUP MNO
 
 ### Versão estável vigente
-- A última versão estável homologada do Setup MNO é **v7.19.5**.
-- Tag Git: `v7.19.5`.
-- Commit de release: `9f961b44` (`release: v7.19.5 - heartbeat nas etapas lentas do Control Center`).
+- A última versão estável homologada do Setup MNO é **v7.19.9**.
+- Tag Git: `v7.19.9`.
+- Commit de release: `781a5b5f` (`release: v7.19.9 - recuperação APT Debian 13 e catálogo HTML íntegro`).
 - Este registro somente deve ser alterado quando o usuário declarar explicitamente uma nova versão como estável após a homologação.
 
 ### Projeto de construção
