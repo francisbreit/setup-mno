@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.22.1"
+CONTROL_VERSION="4.22.2"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -1169,64 +1169,18 @@ load_cloudflare_route_guard() {
     rm -f "$helper"
 }
 
-check_cloudflare_access() {
-    local organization_file="$1" applications_file="$2" status_file error_file curl_status
-    status_file=$(mktemp) || return 1
-    error_file=$(mktemp) || {
-        rm -f "$status_file"
-        return 1
-    }
-    {
-        echo -e "XXX\n10\nVALIDANDO O CLOUDFLARE ZERO TRUST...\nXXX"
-        if curl -sS \
-            --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
-            --max-time "$CLOUDFLARE_MAX_TIME" \
-            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/organizations" \
-            >"$organization_file" 2>"$error_file" && \
-           curl -sS \
-            --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
-            --max-time "$CLOUDFLARE_MAX_TIME" \
-            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps?per_page=100" \
-            >"$applications_file" 2>>"$error_file"; then
-            printf '0\n' >"$status_file"
-        else
-            printf '%s\n' "$?" >"$status_file"
-        fi
-        echo -e "XXX\n100\nZERO TRUST VALIDADO\nXXX"
-    } | whiptail --title "SEGURANÇA CLOUDFLARE ACCESS" --gauge \
-        "Confirmando identidade, modo de segurança e permissões..." 8 82 0
 
-    curl_status=$(cat "$status_file" 2>/dev/null)
-    rm -f "$status_file" "$error_file"
-    [ "$curl_status" = "0" ] || {
-        msg "Não foi possível consultar o Cloudflare Access.\n\nUse o assistente de token para validar as sete permissões necessárias. Nenhum recurso foi alterado."
-        return 1
-    }
-    if [ "$(jq -r '.success // false' "$organization_file" 2>/dev/null)" != "true" ] ||
-       [ "$(jq -r '.success // false' "$applications_file" 2>/dev/null)" != "true" ]; then
-        msg "A Cloudflare recusou a validação do Zero Trust.\n\nConfirme Access: Apps and Policies > Editar e Access: Organizations, Identity Providers, and Groups > Editar. Nenhum recurso foi alterado."
+load_cloudflare_access_reconcile() {
+    local helper
+    declare -F inspect_sem_mfa_access_conflicts >/dev/null && return 0
+    helper=$(mktemp) || return 1
+    chmod 0700 "$helper"
+    if ! extract_control_bundle | tar -xzOf - cloudflare-access-reconcile.sh >"$helper"; then
+        rm -f "$helper"
         return 1
     fi
-    access_auth_domain=$(jq -r '.result.auth_domain // empty' "$organization_file")
-    if [[ ! "$access_auth_domain" =~ ^[A-Za-z0-9-]+\.cloudflareaccess\.com$ ]]; then
-        msg "A organização Zero Trust ainda não possui um domínio de autenticação válido. Configure o Cloudflare Zero Trust antes de instalar o Control Center."
-        return 1
-    fi
-    existing_access_app=$(jq -r --arg host "$url_control" '
-        [.result[]? | select(
-            .domain == $host or
-            any(.destinations[]?; .type == "public" and .uri == $host)
-        )][0].id // empty
-    ' "$applications_file" 2>/dev/null)
-    if [ -n "$existing_access_app" ]; then
-        msg "Já existe um aplicativo Cloudflare Access protegendo $url_control.\n\nPara evitar substituir políticas de segurança que podem pertencer a outro sistema, informe outro domínio ou remova conscientemente o aplicativo existente no Zero Trust. Nenhum recurso foi alterado."
-        return 1
-    fi
-    access_team_domain="https://$access_auth_domain"
-    access_team_name="${access_auth_domain%.cloudflareaccess.com}"
-    return 0
+    . "$helper"
+    rm -f "$helper"
 }
 
 whiptail --title "SETUP MNO CONTROL CENTER" --yesno \
@@ -1258,34 +1212,44 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     fi
 fi
 
-while true; do
-    if ! url_control=$(ask_required "1/$wizard_total — Domínio do painel (ex.: setup.seudominio.com):"); then
-        exit 0
-    fi
-    if ! [[ "$url_control" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] ||
-       [[ "$url_control" != *.* ]]; then
-        msg "Informe somente o domínio, sem http://, https://, barras ou caminhos."
-        continue
-    fi
-    url_control=$(printf '%s' "$url_control" | tr '[:upper:]' '[:lower:]')
-    if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-        control_route_inventory="$control_route_guard_dir/inventory.json"
-        if ! cf_route_guard_inventory "$url_control" "$TUNNEL_ID" "$control_route_inventory"; then
-            msg "Falha ao auditar DNS e Tunnels.\n\n${CF_ROUTE_GUARD_ERROR}\n\nNada foi alterado."
-            exit 1
+collect_control_hostname() {
+    local route_decision_status
+    while true; do
+        if ! url_control=$(ask_required "1/$wizard_total — Domínio do painel (ex.: setup.seudominio.com):"); then
+            return 130
         fi
-        CF_ROUTE_GUARD_DECISION=""
-        cf_route_guard_choose "$control_route_inventory"
-        route_decision_status=$?
-        case "$route_decision_status" in
-            0) control_route_decision="$CF_ROUTE_GUARD_DECISION"; break ;;
-            20) continue ;;
-            130) exit 0 ;;
-            *) msg "Falha ao classificar o conflito Cloudflare. Nada foi alterado."; exit 1 ;;
-        esac
-    fi
-    break
-done
+        if ! [[ "$url_control" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] ||
+           [[ "$url_control" != *.* ]]; then
+            msg "Informe somente o domínio, sem http://, https://, barras ou caminhos."
+            continue
+        fi
+        url_control=$(printf '%s' "$url_control" | tr '[:upper:]' '[:lower:]')
+        if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+            control_route_inventory="$control_route_guard_dir/inventory.json"
+            if ! cf_route_guard_inventory "$url_control" "$TUNNEL_ID" "$control_route_inventory"; then
+                msg "Falha ao auditar DNS e Tunnels.\n\n${CF_ROUTE_GUARD_ERROR}\n\nNada foi alterado."
+                return 1
+            fi
+            CF_ROUTE_GUARD_DECISION=""
+            cf_route_guard_choose "$control_route_inventory"
+            route_decision_status=$?
+            case "$route_decision_status" in
+                0) control_route_decision="$CF_ROUTE_GUARD_DECISION" ;;
+                20) continue ;;
+                130) return 130 ;;
+                *) msg "Falha ao classificar o conflito Cloudflare. Nada foi alterado."; return 1 ;;
+            esac
+        fi
+        return 0
+    done
+}
+
+collect_control_hostname
+collect_hostname_status=$?
+[ "$collect_hostname_status" -eq 0 ] || {
+    [ "$collect_hostname_status" -eq 130 ] && exit 0
+    exit "$collect_hostname_status"
+}
 
 while true; do
     if ! usuario_control=$(ask_required "2/$wizard_total — Usuário administrador do painel:"); then
@@ -1306,7 +1270,15 @@ access_original_email=""
 access_team_domain=""
 access_team_name=""
 access_mfa_enabled="false"
+sem_mfa_access_decision="NONE"
+sem_mfa_access_app_id=""
+sem_mfa_access_app_name=""
+sem_mfa_access_wildcards=""
 if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+    if ! load_cloudflare_access_reconcile; then
+        msg "A auditoria autenticada do Cloudflare Access não pôde ser carregada. Atualize o Setup MNO e tente novamente. Nenhum recurso foi alterado."
+        exit 1
+    fi
     if control_mfa_state_valid; then
         access_mfa_enabled=$(jq -r '.desiredMFA' "$CONTROL_MFA_STATE_FILE")
         if [ "$access_mfa_enabled" = "true" ]; then
@@ -1373,6 +1345,28 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
             access_team_domain=""
             access_team_name=""
         fi
+    fi
+    if [ "$access_mfa_enabled" = "false" ]; then
+        while true; do
+            inspect_sem_mfa_access_conflicts
+            access_conflict_status=$?
+            case "$access_conflict_status" in
+                0)
+                    break
+                    ;;
+                20)
+                    collect_control_hostname
+                    collect_hostname_status=$?
+                    [ "$collect_hostname_status" -eq 0 ] || {
+                        [ "$collect_hostname_status" -eq 130 ] && exit 0
+                        exit "$collect_hostname_status"
+                    }
+                    ;;
+                *)
+                    exit "$access_conflict_status"
+                    ;;
+            esac
+        done
     fi
 fi
 
@@ -1545,6 +1539,10 @@ access_summary="Não aplicável (instalação tradicional)"
 if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     if [ "$access_mfa_enabled" = "true" ]; then
         access_summary="E-mail exato + MFA independente · $access_email"
+    elif [ "$sem_mfa_access_decision" = "REMOVE" ]; then
+        access_summary="SEM MFA · aplicação Access exata anterior será removida"
+    elif [ "$sem_mfa_access_decision" = "KEEP" ]; then
+        access_summary="SEM MFA novo · proteção Access preexistente será mantida"
     else
         access_summary="Desativado · modo original com Tunnel direto"
     fi
@@ -1563,6 +1561,7 @@ error_file="/tmp/${nome_app}-error.log"
     access_app_created="false"
     access_app_id=""
     access_app_aud=""
+    sem_mfa_access_removed="false"
     access_onboarding_state="$work_dir/access-onboarding-state.json"
     tunnel_updated="false"
     tunnel_original_payload=""
@@ -2464,6 +2463,16 @@ EOL
         echo "Serviço confirmado: $service_name com 1/1 réplica." >>"$install_log"
     done
 
+    if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] &&
+       [ "$access_mfa_enabled" = "false" ] &&
+       [ "$sem_mfa_access_decision" = "REMOVE" ]; then
+        echo -e "XXX\n99\nREVALIDANDO E REMOVENDO ACCESS ANTERIOR... \nXXX"
+        if ! remove_confirmed_sem_mfa_access_app "$work_dir" "$install_log"; then
+            fail_install 97 "REMOÇÃO ACCESS BLOQUEADA" \
+                "A aplicação Access exata mudou ou não pôde ser removida com segurança. Tunnel, DNS e wildcards não foram apagados. Execute novamente para revisar o conflito."
+        fi
+    fi
+
     echo -e "XXX\n100\nCONTROL CENTER INSTALADO COM SUCESSO\nXXX"
 } 2>>"$install_log" | whiptail --title "SETUP MNO CONTROL CENTER" --gauge \
     "Preparando o painel..." 8 78 0
@@ -2500,6 +2509,8 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     if [ "$access_mfa_enabled" = "true" ]; then
         show_cloudflare_mfa_alias_instructions "$access_original_email" "$access_email"
         access_next_step="\n\nPRIMEIRO ACESSO: abra https://${access_team_name}.cloudflareaccess.com/AddMfaDevice, use o alias informado, cadastre o QR Code e acesse https://$url_control."
+    elif [ "$sem_mfa_access_decision" = "KEEP" ]; then
+        access_next_step="\n\nPROTEÇÃO ACCESS PRESERVADA:\nA aplicação exata ou wildcard encontrada não foi removida. A Cloudflare continuará solicitando a autenticação definida nessa proteção antes do login local do Control Center."
     else
         access_next_step="\n\nMODO ORIGINAL SEM MFA:\nAbra https://$url_control e use o usuário e a senha locais do painel. O Terminal Remoto continua disponível pelo mesmo fluxo do Control Center. Para ativar MFA depois, use CONFIGURAR MFA CONTROL CENTER no menu do Setup MNO."
     fi

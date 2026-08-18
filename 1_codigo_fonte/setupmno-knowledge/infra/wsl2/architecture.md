@@ -7,7 +7,7 @@
   "documentType": "infrastructure",
   "title": "WSL2 e Docker Desktop no Setup MNO",
   "topicId": "wsl2",
-  "setupVersion": "7.22.1",
+  "setupVersion": "7.22.2",
   "architectures": ["amd64", "arm64"],
   "category": "compatibility",
   "status": "reviewed",

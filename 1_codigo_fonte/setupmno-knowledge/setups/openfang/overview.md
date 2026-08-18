@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "OpenFang no Setup MNO",
   "setupId": "openfang",
-  "setupVersion": "7.22.1",
+  "setupVersion": "7.22.2",
   "architectures": [
     "amd64",
     "arm64"

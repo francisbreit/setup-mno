@@ -5,6 +5,8 @@ project_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 template="$project_dir/installer-template.sh"
 # shellcheck disable=SC1091
 . "$project_dir/cloudflare-route-guard.sh"
+# shellcheck disable=SC1091
+. "$project_dir/cloudflare-access-reconcile.sh"
 grep -Fq 'LATER)' "$template"
 grep -Fq 'assistant_mode="later"' "$template"
 grep -Fq 'assistant_has_llm="false"' "$template"
@@ -35,17 +37,6 @@ grep -Fq 'prepare_cloudflare_mfa_token "$access_token_work" "$access_token_log"'
 }
 test_dir=$(mktemp -d)
 trap 'rm -rf "$test_dir"' EXIT
-
-access_function_source=$(awk '
-    /^check_cloudflare_access\(\)/ { inside=1 }
-    inside { print }
-    inside && /^}/ { exit }
-' "$template")
-[ -n "$access_function_source" ] || {
-    printf 'ERRO: função check_cloudflare_access ausente.\n' >&2
-    exit 1
-}
-eval "$access_function_source"
 
 for migration_function in \
     control_mfa_state_valid \
@@ -216,6 +207,34 @@ case "$MOCK_CURL_MODE" in
             *) printf '%s\n' '{"success":true,"result":{"config":{"ingress":[]}}}' ;;
         esac
         ;;
+    sem_mfa_exact)
+        case "$url" in
+            */access/apps/11111111-2222-3333-4444-555555555555)
+                [ "$method" = "DELETE" ] || exit 99
+                printf '%s\n' '{"success":true,"result":{"id":"11111111-2222-3333-4444-555555555555"}}'
+                ;;
+            */access/apps\?per_page=100)
+                printf '%s\n' '{"success":true,"result":[{"id":"11111111-2222-3333-4444-555555555555","name":"Setup antigo","domain":"control.example.com","destinations":[{"type":"public","uri":"control.example.com"}]},{"id":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee","name":"Proteção wildcard","domain":"*.example.com","destinations":[{"type":"public","uri":"*.example.com"}]}]}'
+                ;;
+            *) exit 99 ;;
+        esac
+        ;;
+    sem_mfa_wildcard)
+        case "$url" in
+            */access/apps\?per_page=100)
+                printf '%s\n' '{"success":true,"result":[{"id":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee","name":"Proteção wildcard","domain":"*.example.com","destinations":[{"type":"public","uri":"*.example.com"}]}]}'
+                ;;
+            *) exit 99 ;;
+        esac
+        ;;
+    sem_mfa_changed)
+        case "$url" in
+            */access/apps\?per_page=100)
+                printf '%s\n' '{"success":true,"result":[{"id":"99999999-2222-3333-4444-555555555555","name":"Aplicação substituída","domain":"control.example.com","destinations":[{"type":"public","uri":"control.example.com"}]}]}'
+                ;;
+            *) exit 99 ;;
+        esac
+        ;;
     timeout)
         exit 28
         ;;
@@ -369,6 +388,75 @@ if check_cloudflare_access "$organization_output" "$applications_output"; then
     exit 1
 fi
 grep -Fq 'Já existe um aplicativo Cloudflare Access' "$message_capture"
+
+sem_mfa_fixture="$test_dir/sem-mfa-fixture.json"
+sem_mfa_inventory="$test_dir/sem-mfa-inventory.json"
+printf '%s\n' '{"success":true,"result":[{"id":"11111111-2222-3333-4444-555555555555","name":"Setup antigo","domain":"https://CONTROL.EXAMPLE.COM/path"},{"id":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee","name":"Wildcard","destinations":[{"type":"public","uri":"*.example.com"}]},{"id":"bbbbbbbb-cccc-dddd-eeee-ffffffffffff","name":"Outro wildcard","domain":"*.other.example"}]}' >"$sem_mfa_fixture"
+build_access_hostname_inventory "$sem_mfa_fixture" "control.example.com" "$sem_mfa_inventory"
+jq -e '.hostname == "control.example.com" and
+       (.exactApps | length) == 1 and
+       .exactApps[0].id == "11111111-2222-3333-4444-555555555555" and
+       (.wildcardApps | length) == 1 and
+       .wildcardApps[0].id == "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"' \
+    "$sem_mfa_inventory" >/dev/null
+
+export MOCK_CURL_MODE="sem_mfa_exact" MOCK_WHIPTAIL_CHOICE="REMOVER"
+export MOCK_CURL_LOG="$test_dir/sem-mfa-curl.log"
+: >"$MOCK_CURL_LOG"
+url_control="control.example.com"
+inspect_sem_mfa_access_conflicts
+[ "$sem_mfa_access_decision" = "REMOVE" ]
+[ "$sem_mfa_access_app_id" = "11111111-2222-3333-4444-555555555555" ]
+sem_mfa_remove_work="$test_dir/sem-mfa-remove"
+mkdir -p "$sem_mfa_remove_work"
+remove_confirmed_sem_mfa_access_app "$sem_mfa_remove_work" "$test_dir/sem-mfa-remove.log"
+grep -Fxq 'DELETE https://api.cloudflare.com/client/v4/accounts/test-account/access/apps/11111111-2222-3333-4444-555555555555' "$MOCK_CURL_LOG"
+if grep -E '^DELETE .*(cfd_tunnel|dns_records)' "$MOCK_CURL_LOG"; then
+    printf 'ERRO: reconciliação SEM_MFA alterou Tunnel ou DNS.\n' >&2
+    exit 1
+fi
+grep -Fq 'Tunnel, DNS e wildcards preservados' "$test_dir/sem-mfa-remove.log"
+
+export MOCK_CURL_MODE="sem_mfa_exact" MOCK_WHIPTAIL_CHOICE="MANTER"
+: >"$MOCK_CURL_LOG"
+inspect_sem_mfa_access_conflicts
+[ "$sem_mfa_access_decision" = "KEEP" ]
+remove_confirmed_sem_mfa_access_app "$sem_mfa_remove_work" "$test_dir/sem-mfa-keep.log"
+if grep -Fq 'DELETE ' "$MOCK_CURL_LOG"; then
+    printf 'ERRO: opção MANTER removeu a aplicação Access existente.\n' >&2
+    exit 1
+fi
+
+export MOCK_CURL_MODE="sem_mfa_wildcard" MOCK_WHIPTAIL_CHOICE="MANTER"
+: >"$MOCK_CURL_LOG"
+inspect_sem_mfa_access_conflicts
+[ "$sem_mfa_access_decision" = "KEEP" ]
+[ -z "$sem_mfa_access_app_id" ]
+if grep -Fq 'DELETE ' "$MOCK_CURL_LOG"; then
+    printf 'ERRO: wildcard Access foi removido automaticamente.\n' >&2
+    exit 1
+fi
+
+export MOCK_CURL_MODE="sem_mfa_exact" MOCK_WHIPTAIL_CHOICE="VOLTAR"
+if inspect_sem_mfa_access_conflicts; then
+    printf 'ERRO: opção VOLTAR não interrompeu a reconciliação Access.\n' >&2
+    exit 1
+else
+    [ "$?" -eq 20 ]
+fi
+
+export MOCK_CURL_MODE="sem_mfa_changed" MOCK_WHIPTAIL_CHOICE="REMOVER"
+sem_mfa_access_decision="REMOVE"
+sem_mfa_access_app_id="11111111-2222-3333-4444-555555555555"
+: >"$MOCK_CURL_LOG"
+if remove_confirmed_sem_mfa_access_app "$sem_mfa_remove_work" "$test_dir/sem-mfa-changed.log"; then
+    printf 'ERRO: aplicação Access alterada após confirmação foi removida.\n' >&2
+    exit 1
+fi
+if grep -Fq 'DELETE ' "$MOCK_CURL_LOG"; then
+    printf 'ERRO: revalidação divergente executou DELETE.\n' >&2
+    exit 1
+fi
 
 export MOCK_CURL_MODE="success" MOCK_ACCESS_STATE="missing"
 export MOCK_WHIPTAIL_CHOICE="MFA"

@@ -56,7 +56,9 @@ configure_dispatch_line=$(grep -n -- '--configure-access-mfa)' "$template" | cut
 }
 
 route_guard="$project_dir/cloudflare-route-guard.sh"
+access_reconcile="$project_dir/cloudflare-access-reconcile.sh"
 bash -n "$route_guard"
+bash -n "$access_reconcile"
 grep -Fq 'cf_route_guard_inventory "$url_control" "$TUNNEL_ID"' "$template" &&
 grep -Fq 'cf_route_guard_choose "$control_route_inventory"' "$template" &&
 grep -Fq 'cf_route_guard_apply_dns' "$template" &&
@@ -69,6 +71,13 @@ grep -Fq 'cf_route_guard_restore_tunnels' "$template" || {
 grep -Fq -- '--connect-timeout "${CLOUDFLARE_CONNECT_TIMEOUT:-10}"' "$route_guard" &&
 grep -Fq -- '--max-time "${CLOUDFLARE_MAX_TIME:-45}"' "$route_guard" || {
     printf 'ERRO: proteção de rotas Cloudflare sem limites de rede.\n' >&2
+    exit 1
+}
+access_reconcile_curl_calls=$(grep -Fc 'curl -sS' "$access_reconcile")
+[ "$access_reconcile_curl_calls" -gt 0 ] &&
+[ "$(grep -Fc -- '--connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT"' "$access_reconcile")" -eq "$access_reconcile_curl_calls" ] &&
+[ "$(grep -Fc -- '--max-time "$CLOUDFLARE_MAX_TIME"' "$access_reconcile")" -eq "$access_reconcile_curl_calls" ] || {
+    printf 'ERRO: reconciliação Access SEM_MFA sem limites de rede uniformes.\n' >&2
     exit 1
 }
 cloudflare_curl_calls=$(grep -Fc 'curl -sS' "$template")
@@ -434,6 +443,13 @@ grep -Fq 'build_cloudflare_access_payload' "$template" &&
 grep -Fq 'configure_existing_access_mfa' "$template" &&
 grep -Fq 'restore_existing_access_original_mode' "$template" &&
 grep -Fq 'control_mfa_restore_progress' "$template" &&
+grep -Fq 'inspect_sem_mfa_access_conflicts' "$template" &&
+grep -Fq 'remove_confirmed_sem_mfa_access_app' "$template" &&
+grep -Fq '"REMOVER" "Remover a aplicação exata/políticas e continuar SEM MFA"' "$access_reconcile" &&
+grep -Fq '"MANTER" "Manter a proteção Access existente e continuar"' "$access_reconcile" &&
+grep -Fq '"VOLTAR" "Voltar e informar outro hostname"' "$access_reconcile" &&
+grep -Fq 'A aplicação Access exata mudou após a confirmação; remoção bloqueada.' "$access_reconcile" &&
+grep -Fq 'Tunnel, DNS e wildcards preservados.' "$access_reconcile" &&
 grep -Fq 'Aplicação Access já ausente; continuando a restauração idempotente' "$template" &&
 grep -Fq 'DESATIVANDO MFA DO CONTROL CENTER' "$template" &&
 grep -Fq '/access/apps/$app_id/policies/$policy_id' "$template" &&
@@ -817,7 +833,7 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
     tar -cf - \
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
         terminal-menu.sh configure-control.sh control-upgrade.sh cloudflare-mfa.sh \
-        cloudflare-route-guard.sh \
+        cloudflare-route-guard.sh cloudflare-access-reconcile.sh \
         main.go access.go knowledge.go retrieval.go routing.go prompts.go \
         blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go web |
         gzip -9n >"$bundle"
@@ -856,6 +872,10 @@ if ! tar -tzf "$bundle" | grep -Fx 'cloudflare-mfa.sh' >/dev/null; then
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'cloudflare-route-guard.sh' >/dev/null; then
     printf 'ERRO: bundle de fontes sem a proteção transacional de rotas Cloudflare.\n' >&2
+    exit 1
+fi
+if ! tar -tzf "$bundle" | grep -Fx 'cloudflare-access-reconcile.sh' >/dev/null; then
+    printf 'ERRO: bundle de fontes sem a reconciliação Access do modo SEM_MFA.\n' >&2
     exit 1
 fi
 "$project_dir/control-upgrade_test.sh" >/dev/null
