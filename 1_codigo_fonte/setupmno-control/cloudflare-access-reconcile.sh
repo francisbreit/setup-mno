@@ -120,7 +120,7 @@ build_access_hostname_inventory() {
 
 inspect_sem_mfa_access_conflicts() {
     local work_dir applications_file inventory_file curl_error exact_count wildcard_count
-    local exact_description wildcard_description choice status
+    local exact_description wildcard_description exact_dedicated choice status
     work_dir=$(mktemp -d) || return 1
     chmod 0700 "$work_dir"
     applications_file="$work_dir/access-applications.json"
@@ -179,10 +179,29 @@ inspect_sem_mfa_access_conflicts() {
     if [ "$exact_count" -eq 1 ]; then
         sem_mfa_access_app_id=$(jq -r '.exactApps[0].id // empty' "$inventory_file")
         sem_mfa_access_app_name=$(jq -r '.exactApps[0].name // "Aplicação Access"' "$inventory_file")
+        exact_dedicated=$(jq -r --arg host "$url_control" \
+            '(.exactApps[0].patterns | length) == 1 and .exactApps[0].patterns[0] == ($host | ascii_downcase)' \
+            "$inventory_file")
         if [[ ! "$sem_mfa_access_app_id" =~ ^[A-Fa-f0-9-]{32,36}$ ]]; then
             rm -rf -- "$work_dir"
             msg "A aplicação Access exata de $url_control não possui um identificador seguro para remoção automática.\n\nNenhum recurso foi alterado. Use outro hostname ou revise a aplicação no Zero Trust."
             return 1
+        fi
+        if [ "$exact_dedicated" != "true" ]; then
+            choice=$(whiptail --title "APLICAÇÃO ACCESS COMPARTILHADA" --default-item "VOLTAR" --menu \
+                "A aplicação Access exata de $url_control também possui outros destinos:\n\n$exact_description\n\nRemovê-la afetaria outros hostnames. Por isso, o Setup nunca oferecerá exclusão automática para esta aplicação compartilhada." \
+                22 96 2 \
+                "MANTER" "Manter integralmente a proteção Access e continuar" \
+                "VOLTAR" "Voltar e informar outro hostname" \
+                3>&1 1>&2 2>&3)
+            status=$?
+            [ "$status" -eq 0 ] && [ "$choice" = "MANTER" ] || {
+                rm -rf -- "$work_dir"
+                return 20
+            }
+            sem_mfa_access_decision="KEEP"
+            rm -rf -- "$work_dir"
+            return 0
         fi
         while true; do
             choice=$(whiptail --title "CONFLITO CLOUDFLARE ACCESS" --default-item "VOLTAR" --menu \
@@ -231,7 +250,7 @@ inspect_sem_mfa_access_conflicts() {
 
 remove_confirmed_sem_mfa_access_app() {
     local work_dir="$1" log_file="$2" applications_file inventory_file response_file
-    local exact_count current_id
+    local exact_count current_id current_dedicated
     [ "${sem_mfa_access_decision:-NONE}" = "REMOVE" ] || return 0
     [[ "${sem_mfa_access_app_id:-}" =~ ^[A-Fa-f0-9-]{32,36}$ ]] || return 1
     applications_file="$work_dir/sem-mfa-access-applications-fresh.json"
@@ -255,7 +274,11 @@ remove_confirmed_sem_mfa_access_app() {
         return 0
     fi
     current_id=$(jq -r '.exactApps[0].id // empty' "$inventory_file")
-    if [ "$exact_count" -ne 1 ] || [ "$current_id" != "$sem_mfa_access_app_id" ]; then
+    current_dedicated=$(jq -r --arg host "$url_control" \
+        '(.exactApps[0].patterns | length) == 1 and .exactApps[0].patterns[0] == ($host | ascii_downcase)' \
+        "$inventory_file")
+    if [ "$exact_count" -ne 1 ] || [ "$current_id" != "$sem_mfa_access_app_id" ] ||
+       [ "$current_dedicated" != "true" ]; then
         echo "A aplicação Access exata mudou após a confirmação; remoção bloqueada." >>"$log_file"
         return 1
     fi

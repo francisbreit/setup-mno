@@ -5,8 +5,8 @@
   "catalogSHA256": "ce8391d9bc0e924abf9b43bfc1b0de9b684b0a9447985acd014952df0634effc",
   "catalogEntries": 158,
   "architecture": "arm64",
-  "controlSourceSHA256": "81da25f967e9615e1846b6520a4d16614b8a268dae012638bcc8bd96647e799b",
-  "controlSourceBytes": 170578,
+  "controlSourceSHA256": "eef76e03084bda364414395c5e27471f7cd4fc30ed2a2e35211c2b9750b83e7d",
+  "controlSourceBytes": 170792,
   "knowledgeVersion": "3.24.1",
   "knowledgeArchiveSHA256": "7d09dc76ead89e07323b5ad5af2399d2230ac667a537f2f15e05de1bfcefa8c4",
   "knowledgeEntries": 177,
@@ -33,6 +33,6 @@
   "homologationRunnerVersion": "1.1.0",
   "homologationCandidateSchemaVersion": 1,
   "homologationRegistryEntries": 158,
-  "homologationPackageManifestSHA256": "112099f06198d7a17b99ff65af8eb432434d673a6d1b140be2dd1ccb398a6678",
+  "homologationPackageManifestSHA256": "b03e7be6399483471b3102f387b5bc7bb45b548ce5bd16414d0fcc92d6466c83",
   "homologationAutomaticPromotion": false
 }

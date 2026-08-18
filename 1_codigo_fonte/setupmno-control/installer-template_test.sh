@@ -227,6 +227,14 @@ case "$MOCK_CURL_MODE" in
             *) exit 99 ;;
         esac
         ;;
+    sem_mfa_shared)
+        case "$url" in
+            */access/apps\?per_page=100)
+                printf '%s\n' '{"success":true,"result":[{"id":"11111111-2222-3333-4444-555555555555","name":"Aplicação compartilhada","domain":"control.example.com","destinations":[{"type":"public","uri":"control.example.com"},{"type":"public","uri":"outro.example.com"}]}]}'
+                ;;
+            *) exit 99 ;;
+        esac
+        ;;
     sem_mfa_changed)
         case "$url" in
             */access/apps\?per_page=100)
@@ -434,6 +442,15 @@ inspect_sem_mfa_access_conflicts
 [ -z "$sem_mfa_access_app_id" ]
 if grep -Fq 'DELETE ' "$MOCK_CURL_LOG"; then
     printf 'ERRO: wildcard Access foi removido automaticamente.\n' >&2
+    exit 1
+fi
+
+export MOCK_CURL_MODE="sem_mfa_shared" MOCK_WHIPTAIL_CHOICE="MANTER"
+: >"$MOCK_CURL_LOG"
+inspect_sem_mfa_access_conflicts
+[ "$sem_mfa_access_decision" = "KEEP" ]
+if grep -Fq 'DELETE ' "$MOCK_CURL_LOG"; then
+    printf 'ERRO: aplicação Access compartilhada foi removida automaticamente.\n' >&2
     exit 1
 fi
 

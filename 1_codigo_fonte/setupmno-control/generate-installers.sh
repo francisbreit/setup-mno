@@ -449,6 +449,8 @@ grep -Fq '"REMOVER" "Remover a aplicação exata/políticas e continuar SEM MFA"
 grep -Fq '"MANTER" "Manter a proteção Access existente e continuar"' "$access_reconcile" &&
 grep -Fq '"VOLTAR" "Voltar e informar outro hostname"' "$access_reconcile" &&
 grep -Fq 'A aplicação Access exata mudou após a confirmação; remoção bloqueada.' "$access_reconcile" &&
+grep -Fq 'Removê-la afetaria outros hostnames.' "$access_reconcile" &&
+grep -Fq '[ "$current_dedicated" != "true" ]' "$access_reconcile" &&
 grep -Fq 'Tunnel, DNS e wildcards preservados.' "$access_reconcile" &&
 grep -Fq 'Aplicação Access já ausente; continuando a restauração idempotente' "$template" &&
 grep -Fq 'DESATIVANDO MFA DO CONTROL CENTER' "$template" &&
