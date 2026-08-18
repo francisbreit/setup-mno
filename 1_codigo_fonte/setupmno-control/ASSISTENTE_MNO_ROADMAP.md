@@ -1,5 +1,16 @@
 # Roadmap do Assistente MNO Especialista
 
+## v7.21.0 — Homologation Runner controlado
+
+- Runner v1 somente local, distribuído pelo pacote runtime autenticado.
+- Registro dos 158 instaladores vinculado ao SHA-256 por arquitetura.
+- Sessões com identidade obrigatória `setupmno-hml-*` e preflight Docker Swarm.
+- Nove checks permitidos, sem endpoint de shell e sem comandos fornecidos pelo usuário.
+- Bundle determinístico, sanitizado e marcado como candidato sem selo.
+- Verificação de integridade e conversão para evidência somente após revisão humana.
+- Promoção automática bloqueada no schema, no manifesto, no runtime e no Control Center.
+- Agente e painel permanecem somente leitura; a coleta ocorre localmente no servidor autenticado, sem API web de escrita.
+
 ## Propósito
 
 Este documento registra o plano oficial para transformar o Setup MNO Control
@@ -14,9 +25,10 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.20.0` em preparação de release
-- Control Center: `4.20.0`
-- Conhecimento canônico: `3.22.0`
+- Setup MNO: `7.21.0` em preparação de release
+- Última versão estável homologada: `7.20.0`
+- Control Center: `4.21.0`
+- Conhecimento canônico: `3.23.0`
 - Catálogo runtime: 158 entradas
 - Cobertura canônica dedicada: 158 de 158 entradas (`100%`)
 - Blueprints: cinco guias Beta editáveis, consultáveis e baixáveis; ainda não homologados

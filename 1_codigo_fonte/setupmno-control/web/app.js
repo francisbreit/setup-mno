@@ -650,7 +650,21 @@ function applyReleaseMetadata(data) {
       renderAssistantMode();
     }
   }
+  if (Object.prototype.hasOwnProperty.call(data, "homologationRunnerAvailable")) {
+    renderHomologationRunner(data);
+  }
   setCatalogSyncStatus(Boolean(data.stale), data.warning, data);
+}
+
+function renderHomologationRunner(data) {
+  const card = $("homologation-runner-card");
+  const status = $("homologation-runner-status");
+  if (!card || !status) return;
+  const available = data.homologationRunnerAvailable === true;
+  card.className = `homologation-runner-card ${available ? "available" : "pending"}`;
+  status.textContent = available
+    ? `Runner v${data.homologationRunnerVersion} disponível · schema candidato v${data.homologationCandidateSchemaVersion} · revisão do mantenedor obrigatória`
+    : "Runner ainda não foi confirmado no runtime desta instalação";
 }
 
 function terminalAccessAllowed() {

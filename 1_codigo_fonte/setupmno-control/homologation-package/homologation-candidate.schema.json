@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://manualnegocioonline.com.br/schemas/homologation-candidate.schema.json",
+  "title": "Setup MNO Homologation Candidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "candidateId",
+    "runId",
+    "runnerVersion",
+    "setupId",
+    "setupVersion",
+    "architecture",
+    "createdAt",
+    "tester",
+    "environment",
+    "artifact",
+    "images",
+    "checks",
+    "result",
+    "sanitized",
+    "submission"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "kind": {"const": "setupmno-homologation-candidate"},
+    "candidateId": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+    "runId": {"type": "string", "pattern": "^setupmno-hml-[a-z0-9]+(?:-[a-z0-9]+)*-[0-9]{12}$"},
+    "runnerVersion": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "setupId": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+    "setupVersion": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "architecture": {"enum": ["amd64", "arm64"]},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "tester": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["displayName", "attestation"],
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80,
+          "pattern": "^[A-Za-zÀ-ÖØ-öø-ÿ0-9][A-Za-zÀ-ÖØ-öø-ÿ0-9 ._-]*$"
+        },
+        "attestation": {"const": "self-attested"}
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "orchestrator", "isolation"],
+      "properties": {
+        "platform": {"enum": ["linux-vps", "wsl2-docker-desktop", "linux-emulated"]},
+        "orchestrator": {"const": "docker-swarm"},
+        "isolation": {"const": "setupmno-hml"}
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^(x86|arm)/SetupLowCodeMno/[a-z0-9_-]+\\.sh$"},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "images": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^\\S+@sha256:[a-f0-9]{64}$"}
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deploy", "convergence", "health", "persistence", "restart", "update", "backup", "restore", "cleanup"],
+      "properties": {
+        "deploy": {"$ref": "#/$defs/check"},
+        "convergence": {"$ref": "#/$defs/check"},
+        "health": {"$ref": "#/$defs/check"},
+        "persistence": {"$ref": "#/$defs/check"},
+        "restart": {"$ref": "#/$defs/check"},
+        "update": {"$ref": "#/$defs/check"},
+        "backup": {"$ref": "#/$defs/check"},
+        "restore": {"$ref": "#/$defs/check"},
+        "cleanup": {"$ref": "#/$defs/check"}
+      }
+    },
+    "result": {"enum": ["candidate-operational", "candidate-full"]},
+    "sanitized": {"const": true},
+    "submission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "automaticPromotion", "officialSeal"],
+      "properties": {
+        "status": {"const": "pending-maintainer-review"},
+        "automaticPromotion": {"const": false},
+        "officialSeal": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "evidence"],
+      "properties": {
+        "status": {"enum": ["passed", "not-tested", "not-applicable"]},
+        "evidence": {"type": "string", "minLength": 1, "maxLength": 240}
+      }
+    }
+  }
+}

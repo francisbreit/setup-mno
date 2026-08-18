@@ -223,6 +223,11 @@ type setupRelease struct {
 	QualityOperationalEntries    int    `json:"qualityOperationalEntries,omitempty"`
 	QualityHomologatedEntries    int    `json:"qualityHomologatedEntries,omitempty"`
 	QualityUnresolvedIssues      int    `json:"qualityUnresolvedIssues,omitempty"`
+	HomologationRunnerVersion    string `json:"homologationRunnerVersion,omitempty"`
+	HomologationCandidateSchema  int    `json:"homologationCandidateSchemaVersion,omitempty"`
+	HomologationRegistryEntries  int    `json:"homologationRegistryEntries,omitempty"`
+	HomologationManifestSHA256   string `json:"homologationPackageManifestSHA256,omitempty"`
+	HomologationAutoPromotion    bool   `json:"homologationAutomaticPromotion"`
 }
 
 type runtimeSnapshot struct {
@@ -231,19 +236,23 @@ type runtimeSnapshot struct {
 }
 
 type setupStateResponse struct {
-	SchemaVersion    int    `json:"schemaVersion"`
-	SetupVersion     string `json:"setupVersion"`
-	ControlVersion   string `json:"controlVersion,omitempty"`
-	CatalogVersion   string `json:"catalogVersion"`
-	CatalogSHA256    string `json:"catalogSHA256"`
-	CatalogEntries   int    `json:"catalogEntries"`
-	Architecture     string `json:"architecture"`
-	Source           string `json:"source"`
-	Stale            bool   `json:"stale"`
-	Warning          string `json:"warning,omitempty"`
-	Plan             string `json:"plan,omitempty"`
-	InstallationType string `json:"installationType,omitempty"`
-	LLMAllowed       bool   `json:"llmAllowed"`
+	SchemaVersion               int    `json:"schemaVersion"`
+	SetupVersion                string `json:"setupVersion"`
+	ControlVersion              string `json:"controlVersion,omitempty"`
+	CatalogVersion              string `json:"catalogVersion"`
+	CatalogSHA256               string `json:"catalogSHA256"`
+	CatalogEntries              int    `json:"catalogEntries"`
+	Architecture                string `json:"architecture"`
+	Source                      string `json:"source"`
+	Stale                       bool   `json:"stale"`
+	Warning                     string `json:"warning,omitempty"`
+	Plan                        string `json:"plan,omitempty"`
+	InstallationType            string `json:"installationType,omitempty"`
+	LLMAllowed                  bool   `json:"llmAllowed"`
+	HomologationRunnerAvailable bool   `json:"homologationRunnerAvailable"`
+	HomologationRunnerVersion   string `json:"homologationRunnerVersion,omitempty"`
+	HomologationCandidateSchema int    `json:"homologationCandidateSchemaVersion,omitempty"`
+	HomologationWorkflow        string `json:"homologationWorkflow,omitempty"`
 }
 
 type runtimeEnvironment struct {
@@ -3086,6 +3095,20 @@ func validateReleaseKnowledge(release setupRelease) error {
 			return errors.New("metadados de qualidade inconsistentes")
 		}
 	}
+	hasHomologationRunner := release.HomologationRunnerVersion != "" ||
+		release.HomologationCandidateSchema != 0 ||
+		release.HomologationRegistryEntries != 0 ||
+		release.HomologationManifestSHA256 != ""
+	if hasHomologationRunner {
+		runnerHash, hashErr := hex.DecodeString(release.HomologationManifestSHA256)
+		if !validSemanticVersion(release.HomologationRunnerVersion) ||
+			release.HomologationCandidateSchema != 1 ||
+			release.HomologationRegistryEntries != release.CatalogEntries ||
+			hashErr != nil || len(runnerHash) != sha256.Size ||
+			release.HomologationAutoPromotion {
+			return errors.New("metadados do Homologation Runner inconsistentes")
+		}
+	}
 	hasBlueprintMetadata := release.BlueprintFactoryVersion != "" ||
 		release.BlueprintSchemaVersion != 0 ||
 		release.BlueprintIndexSHA256 != "" ||
@@ -3184,15 +3207,23 @@ func validSemanticVersion(value string) bool {
 
 func stateFromSnapshot(snapshot runtimeSnapshot, source string) setupStateResponse {
 	release := snapshot.Release
+	homologationWorkflow := ""
+	if release.HomologationRunnerVersion != "" {
+		homologationWorkflow = "candidate-requires-maintainer-review"
+	}
 	return setupStateResponse{
-		SchemaVersion:  release.SchemaVersion,
-		SetupVersion:   release.SetupVersion,
-		CatalogVersion: release.CatalogVersion,
-		CatalogSHA256:  release.CatalogSHA256,
-		CatalogEntries: release.CatalogEntries,
-		Architecture:   release.Architecture,
-		Source:         source,
-		Stale:          false,
+		SchemaVersion:               release.SchemaVersion,
+		SetupVersion:                release.SetupVersion,
+		CatalogVersion:              release.CatalogVersion,
+		CatalogSHA256:               release.CatalogSHA256,
+		CatalogEntries:              release.CatalogEntries,
+		Architecture:                release.Architecture,
+		Source:                      source,
+		Stale:                       false,
+		HomologationRunnerAvailable: release.HomologationRunnerVersion != "",
+		HomologationRunnerVersion:   release.HomologationRunnerVersion,
+		HomologationCandidateSchema: release.HomologationCandidateSchema,
+		HomologationWorkflow:        homologationWorkflow,
 	}
 }
 

@@ -23,18 +23,20 @@ import (
 )
 
 const (
-	knowledgeSchema          = 1
-	knowledgeIndexSchema     = 2
-	knowledgeRetrieval       = "1.3.0"
-	knowledgeQualitySchema   = 2
-	blueprintSchema          = 2
-	maxBlueprintEntries      = 64
-	maxKnowledgeArchiveBytes = 8 << 20
-	maxKnowledgeManifest     = 1 << 20
-	maxKnowledgeFileBytes    = 3 << 20
-	maxKnowledgeFiles        = 1024
-	maxKnowledgeChunks       = 4096
-	maxKnowledgeChunkRunes   = 2400
+	knowledgeSchema             = 1
+	knowledgeIndexSchema        = 2
+	knowledgeRetrieval          = "1.3.0"
+	knowledgeQualitySchema      = 2
+	blueprintSchema             = 2
+	homologationCandidateSchema = 1
+	homologationRunnerVersion   = "1.0.0"
+	maxBlueprintEntries         = 64
+	maxKnowledgeArchiveBytes    = 8 << 20
+	maxKnowledgeManifest        = 1 << 20
+	maxKnowledgeFileBytes       = 3 << 20
+	maxKnowledgeFiles           = 1024
+	maxKnowledgeChunks          = 4096
+	maxKnowledgeChunkRunes      = 2400
 )
 
 //go:embed knowledge-package/*
@@ -55,41 +57,43 @@ type knowledgeLimits struct {
 }
 
 type knowledgeManifest struct {
-	SchemaVersion             int                     `json:"schemaVersion"`
-	KnowledgeVersion          string                  `json:"knowledgeVersion"`
-	SetupVersion              string                  `json:"setupVersion"`
-	ControlVersion            string                  `json:"controlVersion"`
-	GeneratedAt               string                  `json:"generatedAt"`
-	ArchiveFile               string                  `json:"archiveFile"`
-	ArchiveSHA256             string                  `json:"archiveSHA256"`
-	ArchiveBytes              int64                   `json:"archiveBytes"`
-	IndexSHA256               string                  `json:"indexSHA256"`
-	LegacyIndexSHA256         string                  `json:"legacyIndexSHA256"`
-	IndexSchemaVersion        int                     `json:"indexSchemaVersion"`
-	RetrievalVersion          string                  `json:"retrievalVersion"`
-	EvalSchemaVersion         int                     `json:"evalSchemaVersion"`
-	EvalDatasetVersion        string                  `json:"evalDatasetVersion"`
-	EvalGraderVersion         string                  `json:"evalGraderVersion"`
-	EvalDatasetSHA256         string                  `json:"evalDatasetSHA256"`
-	EvalCaseEntries           int                     `json:"evalCaseEntries"`
-	DocumentEntries           int                     `json:"documentEntries"`
-	ChunkEntries              int                     `json:"chunkEntries"`
-	DocumentTypeEntries       map[string]int          `json:"documentTypeEntries"`
-	SetupEntries              int                     `json:"setupEntries"`
-	InfrastructureEntries     int                     `json:"infrastructureEntries"`
-	BlueprintSchemaVersion    int                     `json:"blueprintSchemaVersion"`
-	BlueprintFactoryVersion   string                  `json:"blueprintFactoryVersion"`
-	BlueprintEntries          int                     `json:"blueprintEntries"`
-	BlueprintBundleEntries    int                     `json:"blueprintBundleEntries"`
-	BlueprintIndexSHA256      string                  `json:"blueprintIndexSHA256"`
-	BlueprintKnowledgeEntries int                     `json:"blueprintKnowledgeEntries"`
-	BlueprintFixtureEntries   int                     `json:"blueprintFixtureEntries"`
-	QualitySchemaVersion      int                     `json:"qualitySchemaVersion"`
-	QualityReportSHA256       string                  `json:"qualityReportSHA256"`
-	QualitySummary            knowledgeQualitySummary `json:"qualitySummary"`
-	FileEntries               int                     `json:"fileEntries"`
-	Limits                    knowledgeLimits         `json:"limits"`
-	Files                     []knowledgeFileRecord   `json:"files"`
+	SchemaVersion                      int                     `json:"schemaVersion"`
+	KnowledgeVersion                   string                  `json:"knowledgeVersion"`
+	SetupVersion                       string                  `json:"setupVersion"`
+	ControlVersion                     string                  `json:"controlVersion"`
+	GeneratedAt                        string                  `json:"generatedAt"`
+	ArchiveFile                        string                  `json:"archiveFile"`
+	ArchiveSHA256                      string                  `json:"archiveSHA256"`
+	ArchiveBytes                       int64                   `json:"archiveBytes"`
+	IndexSHA256                        string                  `json:"indexSHA256"`
+	LegacyIndexSHA256                  string                  `json:"legacyIndexSHA256"`
+	IndexSchemaVersion                 int                     `json:"indexSchemaVersion"`
+	RetrievalVersion                   string                  `json:"retrievalVersion"`
+	EvalSchemaVersion                  int                     `json:"evalSchemaVersion"`
+	EvalDatasetVersion                 string                  `json:"evalDatasetVersion"`
+	EvalGraderVersion                  string                  `json:"evalGraderVersion"`
+	EvalDatasetSHA256                  string                  `json:"evalDatasetSHA256"`
+	EvalCaseEntries                    int                     `json:"evalCaseEntries"`
+	DocumentEntries                    int                     `json:"documentEntries"`
+	ChunkEntries                       int                     `json:"chunkEntries"`
+	DocumentTypeEntries                map[string]int          `json:"documentTypeEntries"`
+	SetupEntries                       int                     `json:"setupEntries"`
+	InfrastructureEntries              int                     `json:"infrastructureEntries"`
+	BlueprintSchemaVersion             int                     `json:"blueprintSchemaVersion"`
+	BlueprintFactoryVersion            string                  `json:"blueprintFactoryVersion"`
+	BlueprintEntries                   int                     `json:"blueprintEntries"`
+	BlueprintBundleEntries             int                     `json:"blueprintBundleEntries"`
+	BlueprintIndexSHA256               string                  `json:"blueprintIndexSHA256"`
+	BlueprintKnowledgeEntries          int                     `json:"blueprintKnowledgeEntries"`
+	BlueprintFixtureEntries            int                     `json:"blueprintFixtureEntries"`
+	QualitySchemaVersion               int                     `json:"qualitySchemaVersion"`
+	QualityReportSHA256                string                  `json:"qualityReportSHA256"`
+	QualitySummary                     knowledgeQualitySummary `json:"qualitySummary"`
+	HomologationCandidateSchemaVersion int                     `json:"homologationCandidateSchemaVersion"`
+	HomologationRunnerVersion          string                  `json:"homologationRunnerVersion"`
+	FileEntries                        int                     `json:"fileEntries"`
+	Limits                             knowledgeLimits         `json:"limits"`
+	Files                              []knowledgeFileRecord   `json:"files"`
 }
 
 type knowledgeQualitySummary struct {
@@ -488,6 +492,8 @@ func validateKnowledgePackage(
 		manifest.BlueprintSchemaVersion != blueprintSchema ||
 		manifest.BlueprintFactoryVersion == "" ||
 		manifest.QualitySchemaVersion != knowledgeQualitySchema ||
+		manifest.HomologationCandidateSchemaVersion != homologationCandidateSchema ||
+		manifest.HomologationRunnerVersion != homologationRunnerVersion ||
 		manifest.KnowledgeVersion == "" ||
 		manifest.SetupVersion == "" ||
 		manifest.ControlVersion == "" {

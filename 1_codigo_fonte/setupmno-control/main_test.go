@@ -208,7 +208,7 @@ func TestRuntimeAllowsLLMOnlyForValidatedProPlan(t *testing.T) {
 func TestHandleQualityUsesFixedReadOnlyAgentEndpoint(t *testing.T) {
 	report := knowledgeQualityReport{
 		SchemaVersion: 2, EvidenceSchemaVersion: 1,
-		SetupVersion: "7.20.0", KnowledgeVersion: "3.22.0",
+		SetupVersion: "7.21.0", KnowledgeVersion: "3.23.0",
 		GeneratedAt: "2026-08-17T00:00:00Z",
 		Summary:     knowledgeQualitySummary{SetupEntries: 1},
 		Entries:     []knowledgeQualityEntry{{SetupID: "navidrome", CatalogName: "NAVIDROME"}},
@@ -236,7 +236,7 @@ func TestHandleQualityUsesFixedReadOnlyAgentEndpoint(t *testing.T) {
 	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
 		t.Fatal(err)
 	}
-	if response.Source != "runtime-read-only" || response.SetupVersion != "7.20.0" || len(response.Entries) != 1 {
+	if response.Source != "runtime-read-only" || response.SetupVersion != "7.21.0" || len(response.Entries) != 1 {
 		t.Fatalf("relatório runtime foi alterado: %#v", response)
 	}
 }
@@ -1411,5 +1411,43 @@ func TestKnowledgePackageUsesEmbeddedFallback(t *testing.T) {
 	}
 	if state.Source != "embedded-fallback" || !state.Stale {
 		t.Fatalf("fallback não foi sinalizado: %#v", state)
+	}
+}
+
+func TestReleaseAcceptsRunnerWithoutAutomaticPromotion(t *testing.T) {
+	release := setupRelease{
+		CatalogEntries:              158,
+		KnowledgeVersion:            "3.23.0",
+		KnowledgeArchiveSHA256:      strings.Repeat("a", 64),
+		KnowledgeEntries:            177,
+		HomologationRunnerVersion:   "1.0.0",
+		HomologationCandidateSchema: 1,
+		HomologationRegistryEntries: 158,
+		HomologationManifestSHA256:  strings.Repeat("b", 64),
+		HomologationAutoPromotion:   false,
+	}
+	if err := validateReleaseKnowledge(release); err != nil {
+		t.Fatalf("runner seguro foi recusado: %v", err)
+	}
+	release.HomologationAutoPromotion = true
+	if err := validateReleaseKnowledge(release); err == nil {
+		t.Fatal("promoção automática do runner foi aceita")
+	}
+}
+
+func TestSetupStateExposesCandidateOnlyRunner(t *testing.T) {
+	release := setupRelease{
+		SchemaVersion:               runtimeSchema,
+		SetupVersion:                "7.21.0",
+		CatalogVersion:              "7.21.0",
+		CatalogEntries:              158,
+		Architecture:                "amd64",
+		HomologationRunnerVersion:   "1.0.0",
+		HomologationCandidateSchema: 1,
+	}
+	state := stateFromSnapshot(runtimeSnapshot{Release: release}, "runtime")
+	if !state.HomologationRunnerAvailable || state.HomologationRunnerVersion != "1.0.0" ||
+		state.HomologationWorkflow != "candidate-requires-maintainer-review" {
+		t.Fatalf("estado do runner incorreto: %#v", state)
 	}
 }

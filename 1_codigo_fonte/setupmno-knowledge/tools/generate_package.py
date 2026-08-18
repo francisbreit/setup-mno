@@ -31,6 +31,7 @@ from knowledge_quality import (
     build_report as build_quality_report,
     evaluate_baseline as evaluate_quality_baseline,
 )
+from homologation_runner import CANDIDATE_SCHEMA_VERSION, RUNNER_VERSION
 
 
 PACKAGE_SCHEMA = 1
@@ -461,6 +462,7 @@ def build_package_files(
         (root / "schema" / "eval-dataset.schema.json", "schema/eval-dataset.schema.json"),
         (root / "schema" / "quality-report.schema.json", "schema/quality-report.schema.json"),
         (root / "schema" / "operational-evidence.schema.json", "schema/operational-evidence.schema.json"),
+        (root / "schema" / "homologation-candidate.schema.json", "schema/homologation-candidate.schema.json"),
         (root / "registry" / "setups.json", "registry/setups.json"),
         (root / "registry" / "governance.json", "registry/governance.json"),
         (root / "registry" / "quality-report.json", "registry/quality-report.json"),
@@ -528,6 +530,8 @@ def build_package_files(
         "setupEntries": sum(entry["documentType"] == "setup" for entry in index_entries),
         "indexSHA256": sha256_hex(index_data),
         "qualitySchemaVersion": quality_report["schemaVersion"],
+        "homologationCandidateSchemaVersion": CANDIDATE_SCHEMA_VERSION,
+        "homologationRunnerVersion": RUNNER_VERSION,
         "qualityReportSHA256": sha256_hex(
             ensure_regular_source(root / "registry" / "quality-report.json", root)
         ),
@@ -611,6 +615,8 @@ def build_manifest(
         "blueprintKnowledgeEntries": summary["blueprintKnowledgeEntries"],
         "blueprintFixtureEntries": summary["blueprintFixtureEntries"],
         "qualitySchemaVersion": summary["qualitySchemaVersion"],
+        "homologationCandidateSchemaVersion": summary["homologationCandidateSchemaVersion"],
+        "homologationRunnerVersion": summary["homologationRunnerVersion"],
         "qualityReportSHA256": summary["qualityReportSHA256"],
         "qualitySummary": summary["qualitySummary"],
         "fileEntries": len(files),

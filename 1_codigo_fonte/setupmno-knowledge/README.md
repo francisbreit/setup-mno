@@ -96,6 +96,37 @@ deve aparecer como parcial na interface. O nível `homologated` exige cobertura
 completa de arquiteturas e todos os checks aprovados, inclusive update, backup
 e restore.
 
+### Homologation Runner e submissões externas
+
+O Homologation Runner v1 é distribuído no runtime autenticado em
+`/root/SetupLowCodeMno/.control/homologation-package/`. Ele somente cria
+evidências **candidatas**; não possui API web, não altera a governança, não
+executa comandos arbitrários e não concede o selo oficial.
+
+O fluxo seguro é dividido em quatro comandos:
+
+```bash
+RUNNER=/root/SetupLowCodeMno/.control/homologation-package/homologation_runner.py
+python3 "$RUNNER" list
+python3 "$RUNNER" init --setup-id navidrome --architecture amd64 \
+  --output-dir /root/setupmno-homologation-candidates
+python3 "$RUNNER" record --session CAMINHO_SESSION_JSON \
+  --check deploy --status passed --evidence "Descrição sanitizada do resultado."
+python3 "$RUNNER" finalize --session CAMINHO_SESSION_JSON \
+  --image 'repositorio@sha256:DIGEST' --tester 'Nome público do testador'
+```
+
+`record` aceita somente os nove checks fixos do contrato e nunca recebe shell.
+`finalize` exige todos os checks operacionais essenciais aprovados, imagens por
+digest e rejeita e-mails, IPs, tokens, chaves e credenciais. O bundle resultante
+declara obrigatoriamente `pending-maintainer-review`, `automaticPromotion:false`
+e `officialSeal:false`.
+
+O mantenedor usa `verify` para conferir a integridade e, após revisar as provas
+fora do bundle, pode executar `review` para criar um JSON compatível com a
+evidência canônica. Mesmo essa conversão não edita `governance.json`: inclusão,
+hash, promoção, gates, commit e release continuam explícitos e revisáveis.
+
 ```bash
 python3 -B tools/knowledge_quality.py \
   --write-report registry/quality-report.json \

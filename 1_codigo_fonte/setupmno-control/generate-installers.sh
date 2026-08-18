@@ -8,6 +8,7 @@ x86_target="$source_root/x86/SetupLowCodeMno/setupmno_control.sh"
 arm_target="$source_root/arm/SetupLowCodeMno/setupmno_control.sh"
 x86_runtime_package="$source_root/x86/SetupLowCodeMno/.control-package"
 arm_runtime_package="$source_root/arm/SetupLowCodeMno/.control-package"
+homologation_package="$project_dir/homologation-package"
 temporary_dir=$(mktemp -d)
 trap 'rm -rf "$temporary_dir"' EXIT
 
@@ -89,6 +90,7 @@ bash "$project_dir/cloudflare-route-guard_test.sh"
 bash "$project_dir/wsl-docker-preflight_test.sh"
 bash "$project_dir/debian13-apt-recovery_test.sh"
 bash "$project_dir/catalog-html-count_test.sh"
+python3 -B "$source_root/setupmno-knowledge/tools/test_homologation_runner.py"
 
 for architecture in x86 arm; do
     install_script="$source_root/$architecture/SetupLowCodeMno/install.sh"
@@ -103,6 +105,11 @@ for architecture in x86 arm; do
     bash -n "$security_diagnostic_script"
     bash -n "$foundation_script"
     bash -n "$start_script"
+    grep -Fq 'apt-get install -y wget curl unzip zip jq python3 build-essential' "$start_script" || {
+        printf 'ERRO: %s não instala o Python 3 exigido pelo Homologation Runner.\n' \
+            "$architecture" >&2
+        exit 1
+    }
     install_script_bytes=$(stat -c '%s' "$install_script")
     security_diagnostic_bytes=$(stat -c '%s' "$security_diagnostic_script")
     [ "$install_script_bytes" -le 122880 ] || {
@@ -577,6 +584,35 @@ grep -Fq "/assistant-route.js?v=$control_version" "$project_dir/web/index.html"
 grep -Fq "/app.js?v=$control_version" "$project_dir/web/index.html"
 
 knowledge_package="$project_dir/knowledge-package"
+python3 -B "$source_root/setupmno-knowledge/tools/generate_homologation_package.py" \
+    --root "$source_root/setupmno-knowledge" \
+    --output "$homologation_package" \
+    --setup-version "$x86_version" >/dev/null
+[ -f "$homologation_package/manifest.json" ] &&
+[ ! -L "$homologation_package/manifest.json" ] &&
+[ -f "$homologation_package/homologation_runner.py" ] &&
+[ ! -L "$homologation_package/homologation_runner.py" ] &&
+[ -f "$homologation_package/homologation-candidate.schema.json" ] &&
+[ ! -L "$homologation_package/homologation-candidate.schema.json" ] &&
+[ -f "$homologation_package/runner-registry.json" ] &&
+[ ! -L "$homologation_package/runner-registry.json" ] || {
+    printf 'ERRO: pacote do Homologation Runner ausente ou inseguro.\n' >&2
+    exit 1
+}
+homologation_runner_version=$(jq -r '.runnerVersion // empty' "$homologation_package/manifest.json")
+homologation_candidate_schema=$(jq -r '.candidateSchemaVersion // 0' "$homologation_package/manifest.json")
+homologation_registry_entries=$(jq -r '.registryEntries // 0' "$homologation_package/manifest.json")
+homologation_setup_version=$(jq -r '.setupVersion // empty' "$homologation_package/manifest.json")
+homologation_manifest_sha=$(sha256sum "$homologation_package/manifest.json" | awk '{print $1}')
+[ "$homologation_runner_version" = "1.0.0" ] &&
+[ "$homologation_candidate_schema" = "1" ] &&
+[ "$homologation_registry_entries" = "$(jq -r 'length' "$project_dir/catalog.json")" ] &&
+[ "$homologation_setup_version" = "$x86_version" ] &&
+python3 -B "$homologation_package/homologation_runner.py" \
+    --package-dir "$homologation_package" list >/dev/null || {
+    printf 'ERRO: pacote do Homologation Runner falhou na autoverificação.\n' >&2
+    exit 1
+}
 python3 -B "$source_root/setupmno-knowledge/tools/knowledge_coverage.py" \
     --root "$source_root/setupmno-knowledge" \
     --catalog "$project_dir/catalog.json" \
@@ -623,6 +659,8 @@ blueprint_fixture_entries=$(jq -r '.blueprintFixtureEntries // 0' "$knowledge_pa
 quality_schema=$(jq -r '.qualitySchemaVersion // 0' "$knowledge_package/manifest.json")
 quality_report_sha=$(jq -r '.qualityReportSHA256 // empty' "$knowledge_package/manifest.json")
 quality_evidence_schema=$(jq -r '.evidenceSchemaVersion // 0' "$source_root/setupmno-knowledge/registry/quality-report.json")
+knowledge_candidate_schema=$(jq -r '.homologationCandidateSchemaVersion // 0' "$knowledge_package/manifest.json")
+knowledge_runner_version=$(jq -r '.homologationRunnerVersion // empty' "$knowledge_package/manifest.json")
 quality_setup_entries=$(jq -r '.qualitySummary.setupEntries // 0' "$knowledge_package/manifest.json")
 quality_installer_homologated_entries=$(jq -r '.qualitySummary.installationStatuses["maintainer-homologated"] // -1' "$knowledge_package/manifest.json")
 quality_integration_not_mapped_entries=$(jq -r '.qualitySummary.integrationMaturityLevels["not-mapped"] // -1' "$knowledge_package/manifest.json")
@@ -667,6 +705,8 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "${#blueprint_index_sha}" -eq 64 ] &&
 [ "$quality_schema" = "2" ] &&
 [ "$quality_evidence_schema" = "1" ] &&
+[ "$knowledge_candidate_schema" = "$homologation_candidate_schema" ] &&
+[ "$knowledge_runner_version" = "$homologation_runner_version" ] &&
 [ "${#quality_report_sha}" -eq 64 ] &&
 [ "$quality_setup_entries" = "$catalog_expected_entries" ] &&
 [ "$quality_installer_homologated_entries" = "$quality_setup_entries" ] &&
@@ -689,6 +729,8 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 tar -tzf "$knowledge_package/knowledge-package.tar.gz" |
     grep -Fx 'schema/operational-evidence.schema.json' >/dev/null &&
 tar -tzf "$knowledge_package/knowledge-package.tar.gz" |
+    grep -Fx 'schema/homologation-candidate.schema.json' >/dev/null &&
+tar -tzf "$knowledge_package/knowledge-package.tar.gz" |
     grep -Fx 'evidence/navidrome/amd64/2026-08-14-wsl2.json' >/dev/null || {
     printf 'ERRO: pacote de conhecimento sem o contrato ou a evidência piloto do selo.\n' >&2
     exit 1
@@ -708,6 +750,7 @@ for runtime_gate_file in "${runtime_gate_files[@]}"; do
     grep -Fq '[ "$blueprint_factory_version" != "$EXPECTED_BLUEPRINT_FACTORY_VERSION" ]' "$runtime_gate_file" &&
     grep -Fq '[ "$blueprint_fixture_entries" != "$EXPECTED_BLUEPRINT_FIXTURE_ENTRIES" ]' "$runtime_gate_file" &&
     grep -Fq '[ "$quality_schema_version" != "$EXPECTED_QUALITY_SCHEMA_VERSION" ]' "$runtime_gate_file" &&
+    grep -Fq '[ "$homologation_runner_version" != "$EXPECTED_HOMOLOGATION_RUNNER_VERSION" ]' "$runtime_gate_file" &&
     grep -Fq '[ "$control_catalog_entries" != "$EXPECTED_CATALOG_ENTRIES" ]' "$runtime_gate_file" &&
     grep -Fq '[ "$quality_setup_entries" != "$EXPECTED_CATALOG_ENTRIES" ]' "$runtime_gate_file" || {
         printf 'ERRO: gate de Blueprint/qualidade não usa as expectativas versionadas em %s.\n' \
@@ -720,6 +763,7 @@ for runtime_gate_file in "${runtime_gate_files[@]}"; do
     gate_blueprint_factory_version=$(sed -n 's/^EXPECTED_BLUEPRINT_FACTORY_VERSION="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
     gate_blueprint_fixture_entries=$(sed -n 's/^EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
     gate_quality_schema=$(sed -n 's/^EXPECTED_QUALITY_SCHEMA_VERSION="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
+    gate_homologation_runner=$(sed -n 's/^EXPECTED_HOMOLOGATION_RUNNER_VERSION="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
     gate_catalog_entries=$(sed -n 's/^EXPECTED_CATALOG_ENTRIES="\([^"]*\)"/\1/p' "$runtime_gate_file" | head -n1)
     [ "$gate_eval_dataset_version" = "$eval_dataset_version" ] &&
     [ "$gate_eval_grader_version" = "$eval_grader_version" ] &&
@@ -727,6 +771,7 @@ for runtime_gate_file in "${runtime_gate_files[@]}"; do
     [ "$gate_blueprint_factory_version" = "$blueprint_factory_version" ] &&
     [ "$gate_blueprint_fixture_entries" = "$blueprint_fixture_entries" ] &&
     [ "$gate_quality_schema" = "$quality_schema" ] &&
+    [ "$gate_homologation_runner" = "$homologation_runner_version" ] &&
     [ "$gate_catalog_entries" = "$catalog_expected_entries" ] || {
         printf 'ERRO: gate runtime divergente em %s (esperado catálogo=%s, evals=%s/%s/%s, blueprint=%s/%s, qualidade=%s; encontrado catálogo=%s, evals=%s/%s/%s, blueprint=%s/%s, qualidade=%s).\n' \
             "$runtime_gate_file" \
@@ -901,6 +946,16 @@ generate_runtime_package() {
         "$target/knowledge-package/manifest.json"
     install -m 0644 "$knowledge_package/knowledge-package.tar.gz" \
         "$target/knowledge-package/knowledge-package.tar.gz"
+    rm -rf "$target/homologation-package"
+    mkdir -p "$target/homologation-package"
+    install -m 0644 "$homologation_package/manifest.json" \
+        "$target/homologation-package/manifest.json"
+    install -m 0644 "$homologation_package/homologation_runner.py" \
+        "$target/homologation-package/homologation_runner.py"
+    install -m 0644 "$homologation_package/homologation-candidate.schema.json" \
+        "$target/homologation-package/homologation-candidate.schema.json"
+    install -m 0644 "$homologation_package/runner-registry.json" \
+        "$target/homologation-package/runner-registry.json"
     temporary_manifest="$target/release.json.tmp"
     jq -n \
         --arg setup_version "$x86_version" \
@@ -915,6 +970,8 @@ generate_runtime_package() {
         --arg blueprint_index_sha "$blueprint_index_sha" \
         --arg quality_report_sha "$quality_report_sha" \
         --arg control_source_sha "$bundle_sha" \
+        --arg homologation_runner_version "$homologation_runner_version" \
+        --arg homologation_package_manifest_sha "$homologation_manifest_sha" \
         --argjson catalog_entries "$catalog_entries" \
         --argjson knowledge_entries "$knowledge_entries" \
         --argjson eval_schema "$eval_schema" \
@@ -932,6 +989,8 @@ generate_runtime_package() {
         --argjson quality_homologated_entries "$quality_homologated_entries" \
         --argjson quality_unresolved_issues "$quality_unresolved_issues" \
         --argjson control_source_bytes "$bundle_bytes" \
+        --argjson homologation_candidate_schema "$homologation_candidate_schema" \
+        --argjson homologation_registry_entries "$homologation_registry_entries" \
         '{
             schemaVersion: 1,
             setupVersion: $setup_version,
@@ -963,7 +1022,12 @@ generate_runtime_package() {
             qualityScriptReviewedEntries: $quality_script_reviewed_entries,
             qualityOperationalEntries: $quality_operational_entries,
             qualityHomologatedEntries: $quality_homologated_entries,
-            qualityUnresolvedIssues: $quality_unresolved_issues
+            qualityUnresolvedIssues: $quality_unresolved_issues,
+            homologationRunnerVersion: $homologation_runner_version,
+            homologationCandidateSchemaVersion: $homologation_candidate_schema,
+            homologationRegistryEntries: $homologation_registry_entries,
+            homologationPackageManifestSHA256: $homologation_package_manifest_sha,
+            homologationAutomaticPromotion: false
         }' >"$temporary_manifest"
     chmod 0644 "$temporary_manifest"
     mv -f "$temporary_manifest" "$target/release.json"
@@ -978,13 +1042,20 @@ cmp -s "$x86_runtime_package/knowledge-package/knowledge-package.tar.gz" \
     "$arm_runtime_package/knowledge-package/knowledge-package.tar.gz"
 cmp -s "$x86_runtime_package/control-source.tar.gz" \
     "$arm_runtime_package/control-source.tar.gz"
+cmp -s "$x86_runtime_package/homologation-package/manifest.json" \
+    "$arm_runtime_package/homologation-package/manifest.json"
 for runtime_package in "$x86_runtime_package" "$arm_runtime_package"; do
     packaged_source_sha=$(sha256sum "$runtime_package/control-source.tar.gz" | awk '{print $1}')
     packaged_source_bytes=$(stat -c '%s' "$runtime_package/control-source.tar.gz")
     manifest_source_sha=$(jq -r '.controlSourceSHA256 // empty' "$runtime_package/release.json")
     manifest_source_bytes=$(jq -r '.controlSourceBytes // 0' "$runtime_package/release.json")
+    packaged_homologation_manifest_sha=$(sha256sum "$runtime_package/homologation-package/manifest.json" | awk '{print $1}')
+    manifest_homologation_manifest_sha=$(jq -r '.homologationPackageManifestSHA256 // empty' "$runtime_package/release.json")
     [ "$packaged_source_sha" = "$manifest_source_sha" ] &&
-    [ "$packaged_source_bytes" = "$manifest_source_bytes" ] || {
+    [ "$packaged_source_bytes" = "$manifest_source_bytes" ] &&
+    [ "$packaged_homologation_manifest_sha" = "$manifest_homologation_manifest_sha" ] &&
+    python3 -B "$runtime_package/homologation-package/homologation_runner.py" \
+        --package-dir "$runtime_package/homologation-package" list >/dev/null || {
         printf 'ERRO: bundle de fontes diverge do manifesto runtime em %s.\n' \
             "$runtime_package" >&2
         exit 1

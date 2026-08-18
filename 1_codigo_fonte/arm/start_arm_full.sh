@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.20.0"
+VERSIONSETUP="7.21.0"
 EXPECTED_CATALOG_ENTRIES="158"
 EXPECTED_EVAL_DATASET_VERSION="1.17.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
@@ -8,6 +8,7 @@ EXPECTED_EVAL_CASE_ENTRIES="878"
 EXPECTED_BLUEPRINT_FACTORY_VERSION="2.1.0"
 EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="0"
 EXPECTED_QUALITY_SCHEMA_VERSION="2"
+EXPECTED_HOMOLOGATION_RUNNER_VERSION="1.0.0"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -484,7 +485,7 @@ echo -e "XXX\n25\nSETUPMNO: INSTALANDO DEPENDÊNCIAS... 2/8 \nXXX"
 
 # 2. Atualizar lista de pacotes e instalar dependências essenciais
 apt-get update -y >/dev/null 2>&1
-apt-get install -y wget curl unzip zip jq build-essential >/dev/null 2>&1
+apt-get install -y wget curl unzip zip jq python3 build-essential >/dev/null 2>&1
 if [ $? -ne 0 ]; then
     echo "Falha na instalação das dependências." >&2
     exit 1
@@ -531,6 +532,7 @@ rm -f SetupLowCodeMno.zip
 
 control_package="/root/SetupLowCodeMno/.control-package"
 control_target="/root/SetupLowCodeMno/.control"
+homologation_package="$control_package/homologation-package"
 if [ ! -s "$control_package/release.json" ] ||
    [ ! -s "$control_package/catalog.json" ] ||
    [ ! -f "$control_package/control-source.tar.gz" ] ||
@@ -538,7 +540,15 @@ if [ ! -s "$control_package/release.json" ] ||
    [ ! -f "$control_package/knowledge-package/manifest.json" ] ||
    [ -L "$control_package/knowledge-package/manifest.json" ] ||
    [ ! -f "$control_package/knowledge-package/knowledge-package.tar.gz" ] ||
-   [ -L "$control_package/knowledge-package/knowledge-package.tar.gz" ]; then
+   [ -L "$control_package/knowledge-package/knowledge-package.tar.gz" ] ||
+   [ ! -f "$homologation_package/manifest.json" ] ||
+   [ -L "$homologation_package/manifest.json" ] ||
+   [ ! -f "$homologation_package/homologation_runner.py" ] ||
+   [ -L "$homologation_package/homologation_runner.py" ] ||
+   [ ! -f "$homologation_package/homologation-candidate.schema.json" ] ||
+   [ -L "$homologation_package/homologation-candidate.schema.json" ] ||
+   [ ! -f "$homologation_package/runner-registry.json" ] ||
+   [ -L "$homologation_package/runner-registry.json" ]; then
     printf 'O pacote não contém o catálogo, os fontes e o conhecimento runtime do Control Center.\n' >"$control_state_error"
     exit 40
 fi
@@ -605,6 +615,29 @@ runtime_quality_source_reviewed_entries=$(jq -r '.qualitySourceReviewedEntries /
 runtime_quality_script_reviewed_entries=$(jq -r '.qualityScriptReviewedEntries // -1' "$control_package/release.json" 2>/dev/null)
 runtime_quality_operational_entries=$(jq -r '.qualityOperationalEntries // -1' "$control_package/release.json" 2>/dev/null)
 runtime_quality_homologated_entries=$(jq -r '.qualityHomologatedEntries // -1' "$control_package/release.json" 2>/dev/null)
+homologation_manifest="$homologation_package/manifest.json"
+homologation_manifest_expected_sha=$(jq -r '.homologationPackageManifestSHA256 // empty' "$control_package/release.json" 2>/dev/null)
+homologation_manifest_actual_sha=$(sha256sum "$homologation_manifest" | awk '{print $1}')
+homologation_runner_version=$(jq -r '.runnerVersion // empty' "$homologation_manifest" 2>/dev/null)
+homologation_runtime_runner_version=$(jq -r '.homologationRunnerVersion // empty' "$control_package/release.json" 2>/dev/null)
+homologation_candidate_schema=$(jq -r '.candidateSchemaVersion // 0' "$homologation_manifest" 2>/dev/null)
+homologation_runtime_candidate_schema=$(jq -r '.homologationCandidateSchemaVersion // 0' "$control_package/release.json" 2>/dev/null)
+homologation_registry_entries=$(jq -r '.registryEntries // 0' "$homologation_manifest" 2>/dev/null)
+homologation_runtime_registry_entries=$(jq -r '.homologationRegistryEntries // 0' "$control_package/release.json" 2>/dev/null)
+homologation_setup_version=$(jq -r '.setupVersion // empty' "$homologation_manifest" 2>/dev/null)
+homologation_automatic_promotion=$(jq -r '.homologationAutomaticPromotion // true' "$control_package/release.json" 2>/dev/null)
+homologation_runner_expected_sha=$(jq -r '.files[] | select(.path == "homologation_runner.py") | .sha256' "$homologation_manifest" 2>/dev/null)
+homologation_runner_expected_bytes=$(jq -r '.files[] | select(.path == "homologation_runner.py") | .size' "$homologation_manifest" 2>/dev/null)
+homologation_schema_expected_sha=$(jq -r '.files[] | select(.path == "homologation-candidate.schema.json") | .sha256' "$homologation_manifest" 2>/dev/null)
+homologation_schema_expected_bytes=$(jq -r '.files[] | select(.path == "homologation-candidate.schema.json") | .size' "$homologation_manifest" 2>/dev/null)
+homologation_registry_expected_sha=$(jq -r '.files[] | select(.path == "runner-registry.json") | .sha256' "$homologation_manifest" 2>/dev/null)
+homologation_registry_expected_bytes=$(jq -r '.files[] | select(.path == "runner-registry.json") | .size' "$homologation_manifest" 2>/dev/null)
+homologation_runner_actual_sha=$(sha256sum "$homologation_package/homologation_runner.py" | awk '{print $1}')
+homologation_runner_actual_bytes=$(stat -c '%s' "$homologation_package/homologation_runner.py" 2>/dev/null)
+homologation_schema_actual_sha=$(sha256sum "$homologation_package/homologation-candidate.schema.json" | awk '{print $1}')
+homologation_schema_actual_bytes=$(stat -c '%s' "$homologation_package/homologation-candidate.schema.json" 2>/dev/null)
+homologation_registry_actual_sha=$(sha256sum "$homologation_package/runner-registry.json" | awk '{print $1}')
+homologation_registry_actual_bytes=$(stat -c '%s' "$homologation_package/runner-registry.json" 2>/dev/null)
 if [ "$control_catalog_entries" != "$EXPECTED_CATALOG_ENTRIES" ] ||
    [ "$control_actual_entries" != "$EXPECTED_CATALOG_ENTRIES" ] ||
    [ "$quality_setup_entries" != "$EXPECTED_CATALOG_ENTRIES" ] ||
@@ -668,6 +701,21 @@ if [ "$control_schema" != "1" ] ||
    [ "$quality_script_reviewed_entries" != "$runtime_quality_script_reviewed_entries" ] ||
    [ "$quality_operational_entries" != "$runtime_quality_operational_entries" ] ||
    [ "$quality_homologated_entries" != "$runtime_quality_homologated_entries" ] ||
+   [ "$homologation_manifest_expected_sha" != "$homologation_manifest_actual_sha" ] ||
+   [ "$homologation_runner_version" != "$EXPECTED_HOMOLOGATION_RUNNER_VERSION" ] ||
+   [ "$homologation_runner_version" != "$homologation_runtime_runner_version" ] ||
+   [ "$homologation_candidate_schema" != "1" ] ||
+   [ "$homologation_candidate_schema" != "$homologation_runtime_candidate_schema" ] ||
+   [ "$homologation_registry_entries" != "$EXPECTED_CATALOG_ENTRIES" ] ||
+   [ "$homologation_registry_entries" != "$homologation_runtime_registry_entries" ] ||
+   [ "$homologation_setup_version" != "$VERSIONSETUP" ] ||
+   [ "$homologation_automatic_promotion" != "false" ] ||
+   [ "$homologation_runner_expected_sha" != "$homologation_runner_actual_sha" ] ||
+   [ "$homologation_runner_expected_bytes" != "$homologation_runner_actual_bytes" ] ||
+   [ "$homologation_schema_expected_sha" != "$homologation_schema_actual_sha" ] ||
+   [ "$homologation_schema_expected_bytes" != "$homologation_schema_actual_bytes" ] ||
+   [ "$homologation_registry_expected_sha" != "$homologation_registry_actual_sha" ] ||
+   [ "$homologation_registry_expected_bytes" != "$homologation_registry_actual_bytes" ] ||
    [ "$knowledge_expected_sha" != "$knowledge_actual_sha" ] ||
    [ "$knowledge_expected_sha" != "$runtime_knowledge_sha" ] ||
    [ "$knowledge_expected_bytes" != "$knowledge_actual_bytes" ] ||
@@ -681,6 +729,7 @@ if [ "$control_schema" != "1" ] ||
 fi
 mkdir -p "$control_target"
 mkdir -p "$control_target/knowledge-package"
+mkdir -p "$control_target/homologation-package"
 install -m 0644 "$control_package/catalog.json" "$control_target/catalog.json.tmp"
 install -m 0644 "$control_package/release.json" "$control_target/release.json.tmp"
 install -m 0644 "$control_source_archive" "$control_target/control-source.tar.gz.tmp"
@@ -688,12 +737,28 @@ install -m 0644 "$knowledge_archive" \
     "$control_target/knowledge-package/knowledge-package.tar.gz.tmp"
 install -m 0644 "$knowledge_manifest" \
     "$control_target/knowledge-package/manifest.json.tmp"
+install -m 0644 "$homologation_package/manifest.json" \
+    "$control_target/homologation-package/manifest.json.tmp"
+install -m 0644 "$homologation_package/homologation_runner.py" \
+    "$control_target/homologation-package/homologation_runner.py.tmp"
+install -m 0644 "$homologation_package/homologation-candidate.schema.json" \
+    "$control_target/homologation-package/homologation-candidate.schema.json.tmp"
+install -m 0644 "$homologation_package/runner-registry.json" \
+    "$control_target/homologation-package/runner-registry.json.tmp"
 mv -f "$control_target/catalog.json.tmp" "$control_target/catalog.json"
 mv -f "$control_target/control-source.tar.gz.tmp" "$control_target/control-source.tar.gz"
 mv -f "$control_target/knowledge-package/knowledge-package.tar.gz.tmp" \
     "$control_target/knowledge-package/knowledge-package.tar.gz"
 mv -f "$control_target/knowledge-package/manifest.json.tmp" \
     "$control_target/knowledge-package/manifest.json"
+mv -f "$control_target/homologation-package/manifest.json.tmp" \
+    "$control_target/homologation-package/manifest.json"
+mv -f "$control_target/homologation-package/homologation_runner.py.tmp" \
+    "$control_target/homologation-package/homologation_runner.py"
+mv -f "$control_target/homologation-package/homologation-candidate.schema.json.tmp" \
+    "$control_target/homologation-package/homologation-candidate.schema.json"
+mv -f "$control_target/homologation-package/runner-registry.json.tmp" \
+    "$control_target/homologation-package/runner-registry.json"
 mv -f "$control_target/release.json.tmp" "$control_target/release.json"
 rm -rf "$control_package"
 
