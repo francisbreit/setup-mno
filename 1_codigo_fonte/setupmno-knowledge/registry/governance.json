@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "setupVersion": "7.19.9",
-  "knowledgeVersion": "3.21.1",
+  "setupVersion": "7.20.0",
+  "knowledgeVersion": "3.22.0",
   "installationAssurance": {
     "status": "maintainer-homologated",
     "attestedBy": "Francis MNO",
@@ -30,7 +30,18 @@
       "reason": "Produto interno do Setup MNO; código-fonte, arquitetura e homologação mantidos neste repositório são as fontes primárias."
     }
   ],
-  "promotions": {},
+  "promotions": {
+    "navidrome": {
+      "maturity": "operational-reviewed",
+      "architectureScope": "partial",
+      "evidenceRefs": [
+        {
+          "path": "evidence/navidrome/amd64/2026-08-14-wsl2.json",
+          "sha256": "83ce079e3fb3058a177dea02961d0fb9ad2603c7f46120cdf1dd78f0ebcdb8f5"
+        }
+      ]
+    }
+  },
   "knownIssues": [
     {
       "setupId": "plane",

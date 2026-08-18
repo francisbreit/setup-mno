@@ -108,27 +108,32 @@ type knowledgeQualitySummary struct {
 }
 
 type knowledgeQualityEntry struct {
-	SetupID              string   `json:"setupId"`
-	CatalogName          string   `json:"catalogName"`
-	EditorialStatus      string   `json:"editorialStatus"`
-	Maturity             string   `json:"maturity"`
-	SourceClassification string   `json:"sourceClassification"`
-	ScriptSourceDeclared bool     `json:"scriptSourceDeclared"`
-	OperationalEvidence  bool     `json:"operationalEvidence"`
-	HomologationEvidence bool     `json:"homologationEvidence"`
-	InstallationStatus   string   `json:"installationStatus"`
-	TestedArchitectures  []string `json:"testedArchitectures"`
-	IntegrationMaturity  string   `json:"integrationMaturity"`
-	Issues               []string `json:"issues"`
+	SetupID                     string   `json:"setupId"`
+	CatalogName                 string   `json:"catalogName"`
+	EditorialStatus             string   `json:"editorialStatus"`
+	Maturity                    string   `json:"maturity"`
+	SourceClassification        string   `json:"sourceClassification"`
+	ScriptSourceDeclared        bool     `json:"scriptSourceDeclared"`
+	OperationalEvidence         bool     `json:"operationalEvidence"`
+	OperationalCoverage         string   `json:"operationalCoverage"`
+	OperationalArchitectures    []string `json:"operationalArchitectures"`
+	OperationalEvidenceIDs      []string `json:"operationalEvidenceIds"`
+	LastOperationalVerification string   `json:"lastOperationalVerification"`
+	HomologationEvidence        bool     `json:"homologationEvidence"`
+	InstallationStatus          string   `json:"installationStatus"`
+	TestedArchitectures         []string `json:"testedArchitectures"`
+	IntegrationMaturity         string   `json:"integrationMaturity"`
+	Issues                      []string `json:"issues"`
 }
 
 type knowledgeQualityReport struct {
-	SchemaVersion    int                     `json:"schemaVersion"`
-	SetupVersion     string                  `json:"setupVersion"`
-	KnowledgeVersion string                  `json:"knowledgeVersion"`
-	GeneratedAt      string                  `json:"generatedAt"`
-	Summary          knowledgeQualitySummary `json:"summary"`
-	Entries          []knowledgeQualityEntry `json:"entries"`
+	SchemaVersion         int                     `json:"schemaVersion"`
+	EvidenceSchemaVersion int                     `json:"evidenceSchemaVersion"`
+	SetupVersion          string                  `json:"setupVersion"`
+	KnowledgeVersion      string                  `json:"knowledgeVersion"`
+	GeneratedAt           string                  `json:"generatedAt"`
+	Summary               knowledgeQualitySummary `json:"summary"`
+	Entries               []knowledgeQualityEntry `json:"entries"`
 }
 
 type knowledgeIndexEntry struct {
@@ -721,6 +726,7 @@ func validateKnowledgePackage(
 
 func validateKnowledgeQualityReport(report knowledgeQualityReport, manifest knowledgeManifest) error {
 	if report.SchemaVersion != manifest.QualitySchemaVersion ||
+		report.EvidenceSchemaVersion != 1 ||
 		report.SetupVersion != manifest.SetupVersion ||
 		report.KnowledgeVersion != manifest.KnowledgeVersion ||
 		report.GeneratedAt == "" ||
@@ -789,6 +795,7 @@ func validateKnowledgeQualityReport(report knowledgeQualityReport, manifest know
 	seen := make(map[string]struct{}, len(report.Entries))
 	issueEntries := 0
 	issueCount := 0
+	operationalEntries := 0
 	for _, entry := range report.Entries {
 		if entry.SetupID == "" || entry.CatalogName == "" ||
 			!expectedMaturity[entry.Maturity] || !expectedStatuses[entry.EditorialStatus] ||
@@ -804,6 +811,44 @@ func validateKnowledgeQualityReport(report knowledgeQualityReport, manifest know
 			}
 			architectureSeen[architecture] = true
 		}
+		operationalSeen := make(map[string]bool, len(entry.OperationalArchitectures))
+		for _, architecture := range entry.OperationalArchitectures {
+			if !architectureSeen[architecture] || operationalSeen[architecture] {
+				return errors.New("cobertura operacional inválida no relatório de qualidade")
+			}
+			operationalSeen[architecture] = true
+		}
+		coverage := "none"
+		if len(operationalSeen) > 0 && len(operationalSeen) < len(architectureSeen) {
+			coverage = "partial"
+		} else if len(operationalSeen) == len(architectureSeen) {
+			coverage = "complete"
+		}
+		if entry.OperationalCoverage != coverage ||
+			entry.OperationalEvidence != (len(operationalSeen) > 0) ||
+			len(entry.OperationalEvidenceIDs) != len(operationalSeen) {
+			return errors.New("evidências operacionais inconsistentes no relatório de qualidade")
+		}
+		if entry.OperationalEvidence {
+			operationalEntries++
+			if _, err := time.Parse(time.RFC3339, entry.LastOperationalVerification); err != nil {
+				return errors.New("data da evidência operacional inválida")
+			}
+		} else if entry.LastOperationalVerification != "" || len(entry.OperationalEvidenceIDs) != 0 {
+			return errors.New("entrada sem evidência contém metadados operacionais")
+		}
+		maturityRank := map[string]int{
+			"structural": 0, "source-reviewed": 1, "script-reviewed": 2,
+			"operational-reviewed": 3, "homologated": 4,
+		}
+		if maturityRank[entry.Maturity] >= maturityRank["operational-reviewed"] &&
+			!entry.OperationalEvidence {
+			return errors.New("maturidade operacional sem evidência")
+		}
+		if entry.Maturity == "homologated" &&
+			(entry.OperationalCoverage != "complete" || !entry.HomologationEvidence) {
+			return errors.New("homologação sem cobertura completa")
+		}
 		if entry.SourceClassification != "official-and-internal" &&
 			entry.SourceClassification != "internal-only" &&
 			entry.SourceClassification != "exception-approved" {
@@ -818,7 +863,9 @@ func validateKnowledgeQualityReport(report knowledgeQualityReport, manifest know
 		}
 		issueCount += len(entry.Issues)
 	}
-	if issueEntries != report.Summary.IssueEntries || issueCount != report.Summary.UnresolvedIssueCount {
+	if issueEntries != report.Summary.IssueEntries ||
+		issueCount != report.Summary.UnresolvedIssueCount ||
+		operationalEntries != report.Summary.OperationalEvidenceEntries {
 		return errors.New("pendências do relatório de qualidade divergentes")
 	}
 	return nil

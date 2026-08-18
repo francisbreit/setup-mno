@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Glance no Setup MNO",
   "setupId": "glance",
-  "setupVersion": "7.19.9",
+  "setupVersion": "7.20.0",
   "architectures": [
     "amd64",
     "arm64"

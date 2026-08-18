@@ -37,6 +37,7 @@ from knowledge_coverage import build_report, evaluate_baseline
 from knowledge_quality import (
     build_report as build_quality_report,
     evaluate_baseline as evaluate_quality_baseline,
+    load_operational_evidence,
 )
 
 
@@ -264,8 +265,9 @@ class KnowledgeFactoryTests(unittest.TestCase):
             summary["installationStatuses"]["maintainer-homologated"], 158
         )
         self.assertEqual(summary["integrationMaturityLevels"]["not-mapped"], 158)
-        self.assertEqual(summary["maturityLevels"]["structural"], 158)
-        self.assertEqual(summary["maturityLevels"]["operational-reviewed"], 0)
+        self.assertEqual(summary["maturityLevels"]["structural"], 157)
+        self.assertEqual(summary["maturityLevels"]["operational-reviewed"], 1)
+        self.assertEqual(summary["operationalEvidenceEntries"], 1)
         self.assertEqual(summary["homologatedEntries"], 0)
         self.assertEqual(summary["officialSourceEntries"], 138)
         self.assertEqual(summary["officialSourceExceptions"], 1)
@@ -279,6 +281,17 @@ class KnowledgeFactoryTests(unittest.TestCase):
                 for entry in report["entries"]
             )
         )
+        navidrome = next(
+            entry for entry in report["entries"] if entry["setupId"] == "navidrome"
+        )
+        self.assertEqual(navidrome["maturity"], "operational-reviewed")
+        self.assertEqual(navidrome["operationalCoverage"], "partial")
+        self.assertEqual(navidrome["operationalArchitectures"], ["amd64"])
+        self.assertEqual(
+            navidrome["operationalEvidenceIds"],
+            ["navidrome-amd64-20260814-wsl2"],
+        )
+        self.assertFalse(navidrome["homologationEvidence"])
         baseline = load_json(ROOT / "quality-baseline.json")
         self.assertEqual(evaluate_quality_baseline(report, baseline), [])
 
@@ -286,6 +299,22 @@ class KnowledgeFactoryTests(unittest.TestCase):
         regressed["summary"]["unresolvedIssueCount"] = 30
         errors = evaluate_quality_baseline(regressed, baseline)
         self.assertTrue(any("pendências" in error for error in errors), errors)
+
+    def test_operational_evidence_hash_and_inline_claims_are_blocking(self) -> None:
+        registry = load_json(ROOT / "registry" / "setups.json")
+        navidrome = next(
+            entry for entry in registry["setups"] if entry["setupId"] == "navidrome"
+        )
+        governance = load_json(ROOT / "registry" / "governance.json")
+        promotion = copy.deepcopy(governance["promotions"]["navidrome"])
+        promotion["evidenceRefs"][0]["sha256"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "SHA-256"):
+            load_operational_evidence(ROOT, "navidrome", navidrome, promotion)
+
+        promotion = copy.deepcopy(governance["promotions"]["navidrome"])
+        promotion["operationalEvidence"] = {"checks": ["deploy"]}
+        with self.assertRaisesRegex(ValueError, "campos não suportados"):
+            load_operational_evidence(ROOT, "navidrome", navidrome, promotion)
 
     def test_catalog_coverage_is_explicit_and_internally_consistent(self) -> None:
         report = build_report(
@@ -480,6 +509,13 @@ class KnowledgeFactoryTests(unittest.TestCase):
                         package.extractfile("blueprints/index.json")
                     )
                     eval_dataset = json.load(package.extractfile("evals/dataset.json"))
+                    evidence = json.load(
+                        package.extractfile(
+                            "evidence/navidrome/amd64/2026-08-14-wsl2.json"
+                        )
+                    )
+                    self.assertEqual(evidence["schemaVersion"], 1)
+                    self.assertTrue(evidence["sanitized"])
                     self.assertEqual(eval_dataset["caseCount"], EXPECTED_CASES)
                     self.assertEqual(eval_dataset["setupVersion"], registry["setupVersion"])
                     self.assertEqual(blueprint_index["schemaVersion"], 2)

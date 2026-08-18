@@ -83,6 +83,7 @@ type webApp struct {
 	blueprints       blueprintCatalogResponse
 	blueprintBundles map[string]blueprintBundleDownload
 	evals            evalReport
+	quality          knowledgeQualityReport
 
 	sessionMu sync.Mutex
 	sessions  map[string]*session
@@ -261,6 +262,13 @@ type catalogResponse struct {
 	Source         string            `json:"source"`
 	Stale          bool              `json:"stale"`
 	Warning        string            `json:"warning,omitempty"`
+}
+
+type knowledgeQualityResponse struct {
+	knowledgeQualityReport
+	Source  string `json:"source"`
+	Stale   bool   `json:"stale"`
+	Warning string `json:"warning,omitempty"`
 }
 
 type overview struct {
@@ -553,6 +561,7 @@ func runWeb() error {
 		evals:            evalReport,
 		providerEvalRuns: make(map[string]providerEvalRunRecord),
 		feedback:         feedback,
+		quality:          blueprintKnowledge.Quality,
 		feedbackTokens:   make(map[string]feedbackTokenRecord),
 	}
 	app.passwordHash = pbkdf2SHA256(passwordSecret, app.passwordSalt, 310000, 32)
@@ -569,6 +578,7 @@ func runWeb() error {
 	mux.Handle("GET /api/apps", app.requireAuth(http.HandlerFunc(app.handleApps)))
 	mux.Handle("GET /api/setup-state", app.requireAuth(http.HandlerFunc(app.handleSetupState)))
 	mux.Handle("GET /api/catalog", app.requireAuth(http.HandlerFunc(app.handleCatalog)))
+	mux.Handle("GET /api/quality", app.requireAuth(http.HandlerFunc(app.handleQuality)))
 	mux.Handle("GET /api/blueprints", app.requireAuth(http.HandlerFunc(app.handleBlueprints)))
 	mux.Handle("GET /api/blueprints/{blueprintId}/download", app.requireAuth(http.HandlerFunc(app.handleBlueprintDownload)))
 	mux.Handle("GET /api/evals", app.requireAuth(http.HandlerFunc(app.handleEvals)))
@@ -693,6 +703,17 @@ func runAgent() error {
 			return
 		}
 		writeJSON(w, http.StatusOK, catalogFromSnapshot(snapshot, "runtime"))
+	}))
+	mux.HandleFunc("GET /quality", authorize(func(w http.ResponseWriter, _ *http.Request) {
+		knowledge, err := loadRuntimeBlueprintKnowledge(setupStateDir)
+		if err != nil {
+			writeError(w, http.StatusServiceUnavailable, "qualidade runtime indisponível")
+			return
+		}
+		writeJSON(w, http.StatusOK, knowledgeQualityResponse{
+			knowledgeQualityReport: knowledge.Quality,
+			Source:                 "runtime-read-only",
+		})
 	}))
 	mux.HandleFunc("GET /blueprints", authorize(func(w http.ResponseWriter, _ *http.Request) {
 		knowledge, err := loadRuntimeBlueprintKnowledge(setupStateDir)
@@ -2138,6 +2159,29 @@ func (a *webApp) handleCatalog(w http.ResponseWriter, r *http.Request) {
 	}
 	a.addAudit("catalog_fallback", "Catálogo runtime inválido ou indisponível; contingência ativada", clientAddress(r))
 	writeJSON(w, http.StatusOK, fallback)
+}
+
+func (a *webApp) handleQuality(w http.ResponseWriter, r *http.Request) {
+	var result knowledgeQualityResponse
+	if err := a.agentRequest(r.Context(), "/quality", &result); err == nil &&
+		result.Source == "runtime-read-only" &&
+		result.SetupVersion != "" &&
+		len(result.Entries) == result.Summary.SetupEntries {
+		writeJSON(w, http.StatusOK, result)
+		return
+	}
+
+	a.addAudit(
+		"quality_fallback",
+		"Relatório runtime de homologação indisponível; contingência ativada",
+		clientAddress(r),
+	)
+	writeJSON(w, http.StatusOK, knowledgeQualityResponse{
+		knowledgeQualityReport: a.quality,
+		Source:                 "control-image-fallback",
+		Stale:                  true,
+		Warning:                "O selo exibido pertence ao pacote embutido no Control Center.",
+	})
 }
 
 func (a *webApp) handleBlueprints(w http.ResponseWriter, r *http.Request) {

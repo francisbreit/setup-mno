@@ -1,11 +1,11 @@
 {
   "schemaVersion": 2,
-  "baselineRelease": "v7.7.22",
+  "baselineRelease": "v7.20.0",
   "minimumSetupEntries": 151,
   "minimumOfficialSourceEntries": 131,
-  "minimumSourceReviewedEntries": 0,
-  "minimumScriptReviewedEntries": 0,
-  "minimumOperationalReviewedEntries": 0,
+  "minimumSourceReviewedEntries": 1,
+  "minimumScriptReviewedEntries": 1,
+  "minimumOperationalReviewedEntries": 1,
   "minimumHomologatedEntries": 0,
   "maximumUnresolvedIssueCount": 29
 }

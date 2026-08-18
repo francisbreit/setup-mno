@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 import datetime as dt
+import hashlib
 import json
 import os
 import re
@@ -18,6 +19,7 @@ from lint_knowledge import load_json, parse_document
 
 
 SCHEMA_VERSION = 2
+EVIDENCE_SCHEMA_VERSION = 1
 MATURITY_LEVELS = (
     "structural",
     "source-reviewed",
@@ -30,6 +32,39 @@ INSTALLATION_STATUSES = ("maintainer-homologated",)
 INTEGRATION_MATURITY_LEVELS = ("not-mapped", "suggested", "documented", "validated")
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 CJK_RE = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff]")
+EVIDENCE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+SHA256_RE = re.compile(r"^[a-f0-9]{64}$")
+SENSITIVE_FIELD_RE = re.compile(
+    r"(?:password|passwd|senha|token|secret|credential|authorization|hostname|ipaddress)",
+    re.IGNORECASE,
+)
+SENSITIVE_VALUE_PATTERNS = (
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+    re.compile(r"\bBearer\s+[A-Za-z0-9._~+/-]{12,}", re.IGNORECASE),
+    re.compile(r"\b(?:sk|cfut)_[A-Za-z0-9_-]{12,}\b"),
+    re.compile(r"\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b"),
+)
+EVIDENCE_CHECKS = (
+    "deploy",
+    "convergence",
+    "health",
+    "persistence",
+    "restart",
+    "update",
+    "backup",
+    "restore",
+    "cleanup",
+)
+OPERATIONAL_CHECKS = (
+    "deploy",
+    "convergence",
+    "health",
+    "persistence",
+    "restart",
+    "cleanup",
+)
+HOMOLOGATION_CHECKS = EVIDENCE_CHECKS
+EVIDENCE_STATUSES = {"passed", "not-tested", "not-applicable"}
 
 
 def catalog_architectures(value: Any) -> set[str]:
@@ -49,6 +84,190 @@ def evidence_for_promotion(promotion: Any) -> dict[str, Any]:
     if not isinstance(promotion, dict):
         raise ValueError("promoção deve ser um objeto")
     return promotion
+
+
+def sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def parse_utc_datetime(value: Any, label: str) -> dt.datetime:
+    if not isinstance(value, str) or not value.endswith("Z"):
+        raise ValueError(f"{label} deve usar data e hora UTC terminada em Z")
+    try:
+        parsed = dt.datetime.fromisoformat(value[:-1] + "+00:00")
+    except ValueError as exc:
+        raise ValueError(f"{label} inválido") from exc
+    return parsed
+
+
+def reject_sensitive_evidence(value: Any, context: str = "evidência") -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if SENSITIVE_FIELD_RE.search(str(key)):
+                raise ValueError(f"{context}: campo sensível proibido: {key}")
+            reject_sensitive_evidence(child, context)
+        return
+    if isinstance(value, list):
+        for child in value:
+            reject_sensitive_evidence(child, context)
+        return
+    if isinstance(value, str):
+        for pattern in SENSITIVE_VALUE_PATTERNS:
+            if pattern.search(value):
+                raise ValueError(f"{context}: conteúdo sensível proibido")
+
+
+def require_exact_keys(value: Any, keys: set[str], label: str) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != keys:
+        raise ValueError(f"{label} possui campos ausentes ou desconhecidos")
+    return value
+
+
+def load_operational_evidence(
+    root: Path,
+    setup_id: str,
+    registry_entry: dict[str, Any],
+    promotion: dict[str, Any],
+) -> list[dict[str, Any]]:
+    allowed_promotion_keys = {"maturity", "architectureScope", "evidenceRefs"}
+    if set(promotion) - allowed_promotion_keys:
+        raise ValueError(f"{setup_id}: promoção contém campos não suportados")
+    references = promotion.get("evidenceRefs", [])
+    if not isinstance(references, list):
+        raise ValueError(f"{setup_id}: evidenceRefs deve ser uma lista")
+    records: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    seen_paths: set[str] = set()
+    seen_architectures: set[str] = set()
+    for reference in references:
+        reference = require_exact_keys(reference, {"path", "sha256"}, f"{setup_id}: evidenceRef")
+        relative = reference.get("path")
+        expected_hash = reference.get("sha256")
+        if not isinstance(relative, str) or not SHA256_RE.fullmatch(str(expected_hash)):
+            raise ValueError(f"{setup_id}: referência de evidência inválida")
+        parts = Path(relative).parts
+        if (
+            len(parts) != 4
+            or parts[0] != "evidence"
+            or parts[1] != setup_id
+            or parts[2] not in {"amd64", "arm64"}
+            or not parts[3].endswith(".json")
+            or ".." in parts
+            or relative in seen_paths
+        ):
+            raise ValueError(f"{setup_id}: caminho de evidência inválido: {relative}")
+        seen_paths.add(relative)
+        path = root / relative
+        evidence_parents = [
+            root / Path(*parts[:index])
+            for index in range(1, len(parts))
+        ]
+        if (
+            any(parent.is_symlink() for parent in evidence_parents)
+            or path.is_symlink()
+            or not path.is_file()
+            or path.stat().st_size > 65536
+        ):
+            raise ValueError(f"{setup_id}: evidência ausente, não regular ou muito grande: {relative}")
+        if sha256_file(path) != expected_hash:
+            raise ValueError(f"{setup_id}: SHA-256 da evidência diverge: {relative}")
+        record = load_json(path)
+        required = {
+            "schemaVersion", "evidenceId", "setupId", "setupVersion", "architecture",
+            "verifiedAt", "environment", "artifact", "images", "checks", "result",
+            "sanitized", "review",
+        }
+        record = require_exact_keys(record, required, f"{setup_id}: evidência")
+        if record.get("schemaVersion") != EVIDENCE_SCHEMA_VERSION:
+            raise ValueError(f"{setup_id}: schema de evidência incompatível")
+        evidence_id = record.get("evidenceId")
+        architecture = record.get("architecture")
+        if (
+            not isinstance(evidence_id, str)
+            or not EVIDENCE_ID_RE.fullmatch(evidence_id)
+            or evidence_id in seen_ids
+            or record.get("setupId") != setup_id
+            or architecture != parts[2]
+            or architecture not in registry_entry["architectures"]
+            or architecture in seen_architectures
+            or not SEMVER_RE.fullmatch(str(record.get("setupVersion", "")))
+        ):
+            raise ValueError(f"{setup_id}: identidade da evidência inválida")
+        seen_ids.add(evidence_id)
+        seen_architectures.add(architecture)
+        verified_at = parse_utc_datetime(record.get("verifiedAt"), f"{setup_id}: verifiedAt")
+
+        environment = require_exact_keys(
+            record.get("environment"), {"platform", "orchestrator", "isolation"},
+            f"{setup_id}: environment",
+        )
+        if (
+            environment.get("platform") not in {"linux-vps", "wsl2-docker-desktop", "linux-emulated"}
+            or environment.get("orchestrator") != "docker-swarm"
+            or environment.get("isolation") != "setupmno-hml"
+        ):
+            raise ValueError(f"{setup_id}: ambiente de evidência inválido")
+
+        artifact = require_exact_keys(
+            record.get("artifact"), {"path", "sha256"}, f"{setup_id}: artifact",
+        )
+        expected_prefix = "x86" if architecture == "amd64" else "arm"
+        expected_script = f"{expected_prefix}/SetupLowCodeMno/{registry_entry['script']}"
+        source_script = root.parent / expected_script
+        if (
+            artifact.get("path") != expected_script
+            or not SHA256_RE.fullmatch(str(artifact.get("sha256", "")))
+            or not source_script.is_file()
+            or source_script.is_symlink()
+            or sha256_file(source_script) != artifact.get("sha256")
+        ):
+            raise ValueError(f"{setup_id}: instalador divergiu da evidência {evidence_id}")
+
+        images = record.get("images")
+        if (
+            not isinstance(images, list)
+            or not images
+            or len(images) != len(set(images))
+            or not all(
+                isinstance(image, str)
+                and re.fullmatch(r"\S+@sha256:[a-f0-9]{64}", image)
+                for image in images
+            )
+        ):
+            raise ValueError(f"{setup_id}: imagens da evidência devem usar digest")
+
+        checks = require_exact_keys(record.get("checks"), set(EVIDENCE_CHECKS), f"{setup_id}: checks")
+        for check_name, check in checks.items():
+            check = require_exact_keys(check, {"status", "evidence"}, f"{setup_id}: check {check_name}")
+            if (
+                check.get("status") not in EVIDENCE_STATUSES
+                or not isinstance(check.get("evidence"), str)
+                or not 1 <= len(check["evidence"].strip()) <= 240
+            ):
+                raise ValueError(f"{setup_id}: check operacional inválido: {check_name}")
+        if any(checks[name]["status"] != "passed" for name in OPERATIONAL_CHECKS):
+            raise ValueError(f"{setup_id}: evidência não passou todos os checks operacionais")
+
+        review = require_exact_keys(
+            record.get("review"), {"decision", "reviewedBy", "reviewedAt"},
+            f"{setup_id}: review",
+        )
+        try:
+            reviewed_at = dt.date.fromisoformat(review.get("reviewedAt"))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{setup_id}: data de revisão da evidência inválida") from exc
+        if (
+            record.get("result") != "passed"
+            or record.get("sanitized") is not True
+            or review.get("decision") != "approved"
+            or not isinstance(review.get("reviewedBy"), str)
+            or not review["reviewedBy"].strip()
+            or reviewed_at < verified_at.date()
+        ):
+            raise ValueError(f"{setup_id}: aprovação da evidência inválida")
+        reject_sensitive_evidence(record, f"{setup_id}: evidência")
+        records.append({**record, "sha256": expected_hash, "path": relative})
+    return records
 
 
 def build_report(root: Path, catalog_path: Path) -> dict[str, Any]:
@@ -127,6 +346,7 @@ def build_report(root: Path, catalog_path: Path) -> dict[str, Any]:
         raise ValueError("governança referencia setupId desconhecido")
 
     entries: list[dict[str, Any]] = []
+    referenced_evidence_paths: set[str] = set()
     latest_date = ""
     for registry_entry in sorted(registry_entries, key=lambda item: item["setupId"]):
         setup_id = registry_entry["setupId"]
@@ -167,28 +387,49 @@ def build_report(root: Path, catalog_path: Path) -> dict[str, Any]:
         if maturity_index >= MATURITY_LEVELS.index("script-reviewed") and not script_source:
             raise ValueError(f"{setup_id}: promoção exige fonte do instalador real")
 
-        operational = promotion.get("operationalEvidence")
-        has_operational = isinstance(operational, dict) and bool(operational)
+        evidence_records = load_operational_evidence(
+            root, setup_id, registry_entry, promotion
+        )
+        referenced_evidence_paths.update(record["path"] for record in evidence_records)
+        operational_architectures = sorted(
+            {record["architecture"] for record in evidence_records}
+        )
+        declared_architectures = set(registry_entry["architectures"])
+        evidence_architectures = set(operational_architectures)
+        if not evidence_architectures:
+            operational_coverage = "none"
+        elif evidence_architectures == declared_architectures:
+            operational_coverage = "complete"
+        else:
+            operational_coverage = "partial"
+        has_operational = bool(evidence_records)
         if maturity_index >= MATURITY_LEVELS.index("operational-reviewed"):
             if not has_operational:
                 raise ValueError(f"{setup_id}: promoção exige evidência operacional")
-            verified_at = operational.get("verifiedAt")
-            try:
-                dt.date.fromisoformat(verified_at)
-            except (TypeError, ValueError) as exc:
-                raise ValueError(f"{setup_id}: verifiedAt operacional inválido") from exc
-            architectures = operational.get("architectures")
-            checks = operational.get("checks")
-            if set(architectures or []) != set(registry_entry["architectures"]):
-                raise ValueError(f"{setup_id}: evidência operacional não cobre as arquiteturas")
-            if not isinstance(checks, list) or not checks or not all(isinstance(check, str) and check.strip() for check in checks):
-                raise ValueError(f"{setup_id}: checks operacionais ausentes")
+            scope = promotion.get("architectureScope", "complete")
+            if scope not in {"complete", "partial"}:
+                raise ValueError(f"{setup_id}: architectureScope inválido")
+            if operational_coverage != "complete" and scope != "partial":
+                raise ValueError(
+                    f"{setup_id}: promoção operacional não cobre todas as arquiteturas"
+                )
+        elif promotion.get("architectureScope") is not None:
+            raise ValueError(f"{setup_id}: architectureScope exige promoção operacional")
 
         homologation = metadata.get("homologation", {})
-        has_homologation = bool(
+        document_homologation = bool(
             homologation.get("verifiedAt")
             and homologation.get("verifiedPorts")
             and homologation.get("verifiedImages")
+        )
+        has_homologation = bool(
+            operational_coverage == "complete"
+            and evidence_records
+            and all(
+                all(record["checks"][name]["status"] == "passed" for name in HOMOLOGATION_CHECKS)
+                for record in evidence_records
+            )
+            and document_homologation
         )
         if maturity == "homologated" and (editorial_status != "homologated" or not has_homologation):
             raise ValueError(f"{setup_id}: homologação exige status e evidências completas")
@@ -220,6 +461,15 @@ def build_report(root: Path, catalog_path: Path) -> dict[str, Any]:
                 "sourceClassification": source_classification,
                 "scriptSourceDeclared": script_source,
                 "operationalEvidence": has_operational,
+                "operationalCoverage": operational_coverage,
+                "operationalArchitectures": operational_architectures,
+                "operationalEvidenceIds": sorted(
+                    record["evidenceId"] for record in evidence_records
+                ),
+                "lastOperationalVerification": max(
+                    (record["verifiedAt"] for record in evidence_records),
+                    default="",
+                ),
                 "homologationEvidence": has_homologation,
                 "installationStatus": assurance["status"],
                 "testedArchitectures": sorted(registry_entry["architectures"]),
@@ -231,6 +481,18 @@ def build_report(root: Path, catalog_path: Path) -> dict[str, Any]:
 
     if set(documents) != registry_ids:
         raise ValueError("documentos e registro de setups divergem")
+    actual_evidence_paths = {
+        path.relative_to(root).as_posix()
+        for path in (root / "evidence").glob("*/*/*.json")
+        if path.is_file()
+    }
+    if actual_evidence_paths != referenced_evidence_paths:
+        missing = sorted(referenced_evidence_paths - actual_evidence_paths)
+        orphaned = sorted(actual_evidence_paths - referenced_evidence_paths)
+        raise ValueError(
+            "inventário de evidências diverge da governança"
+            f"; ausentes={missing}; órfãs={orphaned}"
+        )
     editorial_counts = Counter(entry["editorialStatus"] for entry in entries)
     maturity_counts = Counter(entry["maturity"] for entry in entries)
     installation_counts = Counter(entry["installationStatus"] for entry in entries)
@@ -247,6 +509,7 @@ def build_report(root: Path, catalog_path: Path) -> dict[str, Any]:
     issue_count = sum(len(entry["issues"]) for entry in entries)
     return {
         "schemaVersion": SCHEMA_VERSION,
+        "evidenceSchemaVersion": EVIDENCE_SCHEMA_VERSION,
         "setupVersion": registry["setupVersion"],
         "knowledgeVersion": knowledge_version,
         "generatedAt": latest_date + "T00:00:00Z",

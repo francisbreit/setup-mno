@@ -155,24 +155,26 @@ type retrievalPromptSource struct {
 }
 
 type retrievalQualityContext struct {
-	Active                  bool     `json:"active"`
-	Maturity                string   `json:"maturity"`
-	MaturityLabel           string   `json:"maturityLabel"`
-	SetupIDs                []string `json:"setupIds"`
-	CatalogNames            []string `json:"catalogNames"`
-	SourceClassifications   []string `json:"sourceClassifications"`
-	Issues                  []string `json:"issues"`
-	IssueLabels             []string `json:"issueLabels"`
-	ClaimPolicy             string   `json:"claimPolicy"`
-	InstallationStatus      string   `json:"installationStatus"`
-	InstallationLabel       string   `json:"installationLabel"`
-	TestedArchitectures     []string `json:"testedArchitectures"`
-	IntegrationMaturity     string   `json:"integrationMaturity"`
-	IntegrationLabel        string   `json:"integrationLabel"`
-	DefinitiveAnswerBlocked bool     `json:"definitiveAnswerBlocked"`
-	BlockingIssues          []string `json:"blockingIssues,omitempty"`
-	BlockingIssueLabels     []string `json:"blockingIssueLabels,omitempty"`
-	DeterministicAnswer     bool     `json:"deterministicAnswer"`
+	Active                   bool     `json:"active"`
+	Maturity                 string   `json:"maturity"`
+	MaturityLabel            string   `json:"maturityLabel"`
+	SetupIDs                 []string `json:"setupIds"`
+	CatalogNames             []string `json:"catalogNames"`
+	SourceClassifications    []string `json:"sourceClassifications"`
+	Issues                   []string `json:"issues"`
+	IssueLabels              []string `json:"issueLabels"`
+	ClaimPolicy              string   `json:"claimPolicy"`
+	InstallationStatus       string   `json:"installationStatus"`
+	InstallationLabel        string   `json:"installationLabel"`
+	TestedArchitectures      []string `json:"testedArchitectures"`
+	OperationalCoverage      string   `json:"operationalCoverage"`
+	OperationalArchitectures []string `json:"operationalArchitectures"`
+	IntegrationMaturity      string   `json:"integrationMaturity"`
+	IntegrationLabel         string   `json:"integrationLabel"`
+	DefinitiveAnswerBlocked  bool     `json:"definitiveAnswerBlocked"`
+	BlockingIssues           []string `json:"blockingIssues,omitempty"`
+	BlockingIssueLabels      []string `json:"blockingIssueLabels,omitempty"`
+	DeterministicAnswer      bool     `json:"deterministicAnswer"`
 }
 
 type retrievalPromptOptions struct {
@@ -1082,6 +1084,9 @@ func buildRetrievalQualityContext(
 	classifications := make(map[string]struct{})
 	issues := make(map[string]struct{})
 	architectures := make(map[string]struct{})
+	operationalArchitectures := make(map[string]struct{})
+	operationalCoverage := "complete"
+	operationalCoverageRank := map[string]int{"none": 0, "partial": 1, "complete": 2}
 	installationStatus := ""
 	integrationMaturity := "validated"
 	integrationRank := map[string]int{"not-mapped": 0, "suggested": 1, "documented": 2, "validated": 3}
@@ -1103,6 +1108,16 @@ func buildRetrievalQualityContext(
 		for _, architecture := range entry.TestedArchitectures {
 			architectures[architecture] = struct{}{}
 		}
+		for _, architecture := range entry.OperationalArchitectures {
+			operationalArchitectures[architecture] = struct{}{}
+		}
+		entryCoverage := entry.OperationalCoverage
+		if _, known := operationalCoverageRank[entryCoverage]; !known {
+			entryCoverage = "none"
+		}
+		if operationalCoverageRank[entryCoverage] < operationalCoverageRank[operationalCoverage] {
+			operationalCoverage = entryCoverage
+		}
 		if integrationRank[entry.IntegrationMaturity] < integrationRank[integrationMaturity] {
 			integrationMaturity = entry.IntegrationMaturity
 		}
@@ -1117,6 +1132,10 @@ func buildRetrievalQualityContext(
 	}
 	if len(setupIDs) == 0 || knowledgeMaturityLabel(worstMaturity) == "" {
 		return nil
+	}
+	maturityLabel := knowledgeMaturityLabel(worstMaturity)
+	if worstMaturity == "operational-reviewed" && operationalCoverage == "partial" {
+		maturityLabel = "Validação operacional parcial"
 	}
 	issueList := sortedStringKeys(issues)
 	issueLabels := make([]string, 0, len(issueList))
@@ -1133,24 +1152,26 @@ func buildRetrievalQualityContext(
 	// editoriais recebem resposta determinística local.
 	deterministic := questionAsksKnowledgeMaturity(question)
 	return &retrievalQualityContext{
-		Active:                  true,
-		Maturity:                worstMaturity,
-		MaturityLabel:           knowledgeMaturityLabel(worstMaturity),
-		SetupIDs:                sortedStringKeys(setupIDs),
-		CatalogNames:            sortedStringKeys(catalogNames),
-		SourceClassifications:   sortedStringKeys(classifications),
-		Issues:                  issueList,
-		IssueLabels:             issueLabels,
-		ClaimPolicy:             knowledgeClaimPolicy(worstMaturity),
-		InstallationStatus:      installationStatus,
-		InstallationLabel:       installationAssuranceLabel(installationStatus),
-		TestedArchitectures:     sortedStringKeys(architectures),
-		IntegrationMaturity:     integrationMaturity,
-		IntegrationLabel:        integrationMaturityLabel(integrationMaturity),
-		DefinitiveAnswerBlocked: len(blocking) > 0,
-		BlockingIssues:          blocking,
-		BlockingIssueLabels:     blockingLabels,
-		DeterministicAnswer:     deterministic,
+		Active:                   true,
+		Maturity:                 worstMaturity,
+		MaturityLabel:            maturityLabel,
+		SetupIDs:                 sortedStringKeys(setupIDs),
+		CatalogNames:             sortedStringKeys(catalogNames),
+		SourceClassifications:    sortedStringKeys(classifications),
+		Issues:                   issueList,
+		IssueLabels:              issueLabels,
+		ClaimPolicy:              knowledgeClaimPolicy(worstMaturity),
+		InstallationStatus:       installationStatus,
+		InstallationLabel:        installationAssuranceLabel(installationStatus),
+		TestedArchitectures:      sortedStringKeys(architectures),
+		OperationalCoverage:      operationalCoverage,
+		OperationalArchitectures: sortedStringKeys(operationalArchitectures),
+		IntegrationMaturity:      integrationMaturity,
+		IntegrationLabel:         integrationMaturityLabel(integrationMaturity),
+		DefinitiveAnswerBlocked:  len(blocking) > 0,
+		BlockingIssues:           blocking,
+		BlockingIssueLabels:      blockingLabels,
+		DeterministicAnswer:      deterministic,
 	}
 }
 

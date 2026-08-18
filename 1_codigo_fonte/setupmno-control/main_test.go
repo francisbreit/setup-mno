@@ -205,6 +205,42 @@ func TestRuntimeAllowsLLMOnlyForValidatedProPlan(t *testing.T) {
 	}
 }
 
+func TestHandleQualityUsesFixedReadOnlyAgentEndpoint(t *testing.T) {
+	report := knowledgeQualityReport{
+		SchemaVersion: 2, EvidenceSchemaVersion: 1,
+		SetupVersion: "7.20.0", KnowledgeVersion: "3.22.0",
+		GeneratedAt: "2026-08-17T00:00:00Z",
+		Summary:     knowledgeQualitySummary{SetupEntries: 1},
+		Entries:     []knowledgeQualityEntry{{SetupID: "navidrome", CatalogName: "NAVIDROME"}},
+	}
+	agent := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/quality" || r.Method != http.MethodGet {
+			t.Fatalf("endpoint inesperado: %s %s", r.Method, r.URL.Path)
+		}
+		if r.Header.Get("X-SetupMNO-Agent-Token") != "token-teste" {
+			t.Fatal("token do agente ausente")
+		}
+		_ = json.NewEncoder(w).Encode(knowledgeQualityResponse{
+			knowledgeQualityReport: report,
+			Source:                 "runtime-read-only",
+		})
+	}))
+	defer agent.Close()
+	app := webApp{agentURL: agent.URL, agentToken: "token-teste", httpClient: agent.Client()}
+	recorder := httptest.NewRecorder()
+	app.handleQuality(recorder, httptest.NewRequest(http.MethodGet, "/api/quality", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status inesperado: %d", recorder.Code)
+	}
+	var response knowledgeQualityResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Source != "runtime-read-only" || response.SetupVersion != "7.20.0" || len(response.Entries) != 1 {
+		t.Fatalf("relatório runtime foi alterado: %#v", response)
+	}
+}
+
 func TestAssistantConfigurationForPlan(t *testing.T) {
 	for _, plan := range []string{"free", "free1", "free2", "", "premium"} {
 		mode, model, endpoint := assistantConfigurationForPlan(

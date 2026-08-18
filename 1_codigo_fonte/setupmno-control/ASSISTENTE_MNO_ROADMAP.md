@@ -14,9 +14,9 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.19.9` em preparação de release
-- Control Center: `4.19.3`
-- Conhecimento canônico: `3.21.1`
+- Setup MNO: `7.20.0` em preparação de release
+- Control Center: `4.20.0`
+- Conhecimento canônico: `3.22.0`
 - Catálogo runtime: 158 entradas
 - Cobertura canônica dedicada: 158 de 158 entradas (`100%`)
 - Blueprints: cinco guias Beta editáveis, consultáveis e baixáveis; ainda não homologados
@@ -25,6 +25,20 @@ de produto, com trabalho incremental e gates próprios.
 A tag `v7.2.0` é imutável e permanece como baseline beta. Correções e
 implementações futuras devem receber nova versão; é proibido reescrever a tag
 ou apresentar a cobertura parcial como conhecimento completo.
+
+### Release v7.20.0 — Fundação do Selo de Homologação
+
+Cria o contrato auditável de evidências operacionais. Cada prova passa a ser um
+arquivo JSON sanitizado e versionado por setup e arquitetura, ligado à
+governança por SHA-256 e ao hash exato do instalador testado. O gate bloqueia
+evidência adulterada, inline, órfã, com imagem sem digest, check obrigatório
+ausente, dado sensível ou script alterado depois do teste.
+
+O Control Center recebe um endpoint fixo e somente leitura para o relatório de
+qualidade e exibe a maturidade real em cada card do catálogo. A primeira prova
+é do Navidrome em AMD64 e aparece explicitamente como cobertura parcial; ARM64,
+update, backup e restore ainda não foram anexados. Assim, esta release possui
+uma entrada `operational-reviewed` e nenhuma entrada `homologated`.
 
 ### Hotfix v7.2.8 Beta
 

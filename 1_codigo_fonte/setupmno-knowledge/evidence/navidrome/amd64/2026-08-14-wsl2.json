@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "evidenceId": "navidrome-amd64-20260814-wsl2",
+  "setupId": "navidrome",
+  "setupVersion": "7.19.9",
+  "architecture": "amd64",
+  "verifiedAt": "2026-08-14T00:00:00Z",
+  "environment": {
+    "platform": "wsl2-docker-desktop",
+    "orchestrator": "docker-swarm",
+    "isolation": "setupmno-hml"
+  },
+  "artifact": {
+    "path": "x86/SetupLowCodeMno/navidrome.sh",
+    "sha256": "f374cded83003c1340651bbe7db62eb1ac539a4557925ddf995053b21153143e"
+  },
+  "images": [
+    "deluan/navidrome:0.63.2@sha256:9012939114fbb1bb641b81cf96dec5ded15f0aafefe8d47a511d7cb919658e40"
+  ],
+  "checks": {
+    "deploy": {
+      "status": "passed",
+      "evidence": "Stack isolada criada sem reutilizar recursos da instalação de referência."
+    },
+    "convergence": {
+      "status": "passed",
+      "evidence": "Serviço convergiu para uma de uma réplica."
+    },
+    "health": {
+      "status": "passed",
+      "evidence": "Endpoint interno de saúde respondeu com sucesso e o container permaneceu saudável."
+    },
+    "persistence": {
+      "status": "passed",
+      "evidence": "Banco SQLite persistente foi criado com proprietário UID 1000."
+    },
+    "restart": {
+      "status": "passed",
+      "evidence": "Aplicação voltou saudável após reinício preservando o banco."
+    },
+    "update": {
+      "status": "not-tested",
+      "evidence": "Atualização entre versões será coberta por uma etapa posterior do selo."
+    },
+    "backup": {
+      "status": "not-tested",
+      "evidence": "Procedimento documentado; execução de backup ainda não anexada."
+    },
+    "restore": {
+      "status": "not-tested",
+      "evidence": "Restauração será requisito para promoção ao nível homologado."
+    },
+    "cleanup": {
+      "status": "passed",
+      "evidence": "Stack, rede, volume e diretório exclusivos da execução foram removidos."
+    }
+  },
+  "result": "passed",
+  "sanitized": true,
+  "review": {
+    "decision": "approved",
+    "reviewedBy": "Setup MNO QA canônico",
+    "reviewedAt": "2026-08-14"
+  }
+}

@@ -3,11 +3,11 @@
   "schemaVersion": 1,
   "documentId": "setup-navidrome-overview",
   "documentVersion": "1.0.0",
-  "contentSHA256": "b7efefa612ad54d106e73c247dbf925ec43a2fb60fc6ab848dbd6b9b54f2b63e",
+  "contentSHA256": "a6ed2cd87d369ca53f2675b0720d207a6db80028e01fdcefc839985bc5260890",
   "documentType": "setup",
   "title": "Navidrome no Setup MNO",
   "setupId": "navidrome",
-  "setupVersion": "7.19.9",
+  "setupVersion": "7.20.0",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
@@ -86,6 +86,12 @@ O instalador valida comandos, Swarm, redes, credenciais, imagens, YAML, réplica
 endpoint e banco persistente antes de configurar DNS e Tunnel. A prova HTTP usa
 um serviço efêmero do Swarm sem porta publicada, filesystem somente leitura e
 capabilities removidas; ele é apagado no sucesso, erro e rollback.
+
+Na fundação do Selo de Homologação da v7.20.0, essa execução AMD64 foi anexada
+como evidência operacional sanitizada. A cobertura permanece parcial: ARM64
+tem manifesto confirmado, mas ainda não possui execução operacional anexada;
+update, backup e restore também continuam pendentes. Portanto, o Navidrome não
+recebe o nível `homologated` nesta release.
 
 ## Riscos e limites
 

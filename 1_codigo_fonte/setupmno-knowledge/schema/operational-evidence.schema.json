@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://setupmno.local/schemas/operational-evidence.schema.json",
+  "title": "Setup MNO Operational Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "evidenceId",
+    "setupId",
+    "setupVersion",
+    "architecture",
+    "verifiedAt",
+    "environment",
+    "artifact",
+    "images",
+    "checks",
+    "result",
+    "sanitized",
+    "review"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "evidenceId": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+    "setupId": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+    "setupVersion": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "architecture": {"enum": ["amd64", "arm64"]},
+    "verifiedAt": {"type": "string", "format": "date-time"},
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "orchestrator", "isolation"],
+      "properties": {
+        "platform": {"enum": ["linux-vps", "wsl2-docker-desktop", "linux-emulated"]},
+        "orchestrator": {"const": "docker-swarm"},
+        "isolation": {"const": "setupmno-hml"}
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^(x86|arm)/SetupLowCodeMno/[a-z0-9_-]+\\.sh$"},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "images": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^\\S+@sha256:[a-f0-9]{64}$"
+      }
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deploy",
+        "convergence",
+        "health",
+        "persistence",
+        "restart",
+        "update",
+        "backup",
+        "restore",
+        "cleanup"
+      ],
+      "properties": {
+        "deploy": {"$ref": "#/$defs/check"},
+        "convergence": {"$ref": "#/$defs/check"},
+        "health": {"$ref": "#/$defs/check"},
+        "persistence": {"$ref": "#/$defs/check"},
+        "restart": {"$ref": "#/$defs/check"},
+        "update": {"$ref": "#/$defs/check"},
+        "backup": {"$ref": "#/$defs/check"},
+        "restore": {"$ref": "#/$defs/check"},
+        "cleanup": {"$ref": "#/$defs/check"}
+      }
+    },
+    "result": {"const": "passed"},
+    "sanitized": {"const": true},
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision", "reviewedBy", "reviewedAt"],
+      "properties": {
+        "decision": {"const": "approved"},
+        "reviewedBy": {"type": "string", "minLength": 1, "maxLength": 80},
+        "reviewedAt": {"type": "string", "format": "date"}
+      }
+    }
+  },
+  "$defs": {
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "evidence"],
+      "properties": {
+        "status": {"enum": ["passed", "not-tested", "not-applicable"]},
+        "evidence": {"type": "string", "minLength": 1, "maxLength": 240}
+      }
+    }
+  }
+}

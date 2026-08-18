@@ -622,6 +622,7 @@ blueprint_knowledge_entries=$(jq -r '.blueprintKnowledgeEntries // 0' "$knowledg
 blueprint_fixture_entries=$(jq -r '.blueprintFixtureEntries // 0' "$knowledge_package/manifest.json")
 quality_schema=$(jq -r '.qualitySchemaVersion // 0' "$knowledge_package/manifest.json")
 quality_report_sha=$(jq -r '.qualityReportSHA256 // empty' "$knowledge_package/manifest.json")
+quality_evidence_schema=$(jq -r '.evidenceSchemaVersion // 0' "$source_root/setupmno-knowledge/registry/quality-report.json")
 quality_setup_entries=$(jq -r '.qualitySummary.setupEntries // 0' "$knowledge_package/manifest.json")
 quality_installer_homologated_entries=$(jq -r '.qualitySummary.installationStatuses["maintainer-homologated"] // -1' "$knowledge_package/manifest.json")
 quality_integration_not_mapped_entries=$(jq -r '.qualitySummary.integrationMaturityLevels["not-mapped"] // -1' "$knowledge_package/manifest.json")
@@ -665,6 +666,7 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$blueprint_fixture_entries" -le "$blueprint_knowledge_entries" ] &&
 [ "${#blueprint_index_sha}" -eq 64 ] &&
 [ "$quality_schema" = "2" ] &&
+[ "$quality_evidence_schema" = "1" ] &&
 [ "${#quality_report_sha}" -eq 64 ] &&
 [ "$quality_setup_entries" = "$catalog_expected_entries" ] &&
 [ "$quality_installer_homologated_entries" = "$quality_setup_entries" ] &&
@@ -673,7 +675,7 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$quality_structural_entries" -ge 0 ] &&
 [ "$quality_source_reviewed_entries" -ge 0 ] &&
 [ "$quality_script_reviewed_entries" -ge 0 ] &&
-[ "$quality_operational_entries" -ge 0 ] &&
+[ "$quality_operational_entries" -ge 1 ] &&
 [ "$quality_homologated_entries" -ge 0 ] &&
 [ "$quality_official_entries" -ge 131 ] &&
 [ "$quality_unresolved_issues" -le 29 ] &&
@@ -681,6 +683,20 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$knowledge_archive_bytes" = "$knowledge_actual_bytes" ] &&
 [ "$knowledge_archive_bytes" -le $((8 * 1024 * 1024)) ] || {
     printf 'ERRO: manifesto do conhecimento inválido ou incompatível.\n' >&2
+    exit 1
+}
+
+tar -tzf "$knowledge_package/knowledge-package.tar.gz" |
+    grep -Fx 'schema/operational-evidence.schema.json' >/dev/null &&
+tar -tzf "$knowledge_package/knowledge-package.tar.gz" |
+    grep -Fx 'evidence/navidrome/amd64/2026-08-14-wsl2.json' >/dev/null || {
+    printf 'ERRO: pacote de conhecimento sem o contrato ou a evidência piloto do selo.\n' >&2
+    exit 1
+}
+grep -Fq 'mux.HandleFunc("GET /quality"' "$project_dir/main.go" &&
+grep -Fq 'mux.Handle("GET /api/quality"' "$project_dir/main.go" &&
+grep -Fq 'homologation-badge' "$project_dir/web/app.js" || {
+    printf 'ERRO: Control Center não expõe o selo pelo endpoint fixo e pelo catálogo.\n' >&2
     exit 1
 }
 

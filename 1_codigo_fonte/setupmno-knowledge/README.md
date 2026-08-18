@@ -77,6 +77,25 @@ Promoções são recusadas quando faltam fontes, script, arquiteturas, checks,
 imagens, portas ou data de verificação. Pendências conhecidas também bloqueiam
 promoção e não são ocultadas por uma contagem de cobertura.
 
+### Selo de Homologação e evidências operacionais
+
+O selo não é atribuído por texto editorial. Cada execução aceita deve produzir
+um JSON regular em `evidence/<setupId>/<arquitetura>/`, conforme
+`schema/operational-evidence.schema.json`. A governança referencia o arquivo e
+seu SHA-256; alteração no arquivo, no instalador testado ou no digest da imagem
+bloqueia a promoção.
+
+O registro contém somente metadados sanitizados: versão, arquitetura, ambiente
+isolado, hashes e resultado dos checks de deploy, convergência, saúde,
+persistência, reinício, atualização, backup, restore e limpeza. Logs brutos,
+hostnames, IPs, domínios, senhas, tokens e secrets são proibidos.
+
+Uma validação em apenas parte das arquiteturas declaradas pode alcançar
+`operational-reviewed` somente com `architectureScope: partial` explícito e
+deve aparecer como parcial na interface. O nível `homologated` exige cobertura
+completa de arquiteturas e todos os checks aprovados, inclusive update, backup
+e restore.
+
 ```bash
 python3 -B tools/knowledge_quality.py \
   --write-report registry/quality-report.json \

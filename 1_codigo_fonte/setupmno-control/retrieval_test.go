@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -628,6 +629,26 @@ func TestKnowledgeMaturityQuestionUsesDeterministicPolicy(t *testing.T) {
 		quality.DefinitiveAnswerBlocked || quality.MaturityLabel != "Conhecimento básico" ||
 		quality.InstallationStatus != "maintainer-homologated" {
 		t.Fatalf("consulta de maturidade não foi resolvida pela política local: %#v", quality)
+	}
+}
+
+func TestOperationalMaturityExposesPartialArchitectureCoverage(t *testing.T) {
+	sources := []retrievalPromptSource{{SetupID: "navidrome"}}
+	entries := map[string]knowledgeQualityEntry{"navidrome": {
+		SetupID: "navidrome", CatalogName: "NAVIDROME",
+		Maturity: "operational-reviewed", SourceClassification: "official-and-internal",
+		OperationalEvidence: true, OperationalCoverage: "partial",
+		OperationalArchitectures: []string{"amd64"},
+		OperationalEvidenceIDs:   []string{"navidrome-amd64-20260814-wsl2"},
+		InstallationStatus:       "maintainer-homologated",
+		TestedArchitectures:      []string{"amd64", "arm64"},
+		IntegrationMaturity:      "not-mapped",
+	}}
+	quality := buildRetrievalQualityContext(sources, entries, "O Navidrome foi validado?")
+	if quality == nil || quality.MaturityLabel != "Validação operacional parcial" ||
+		quality.OperationalCoverage != "partial" ||
+		!reflect.DeepEqual(quality.OperationalArchitectures, []string{"amd64"}) {
+		t.Fatalf("cobertura parcial foi ocultada: %#v", quality)
 	}
 }
 

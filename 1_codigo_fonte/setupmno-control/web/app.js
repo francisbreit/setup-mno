@@ -7,6 +7,8 @@ const state = {
   overview: null,
   apps: [],
   catalog: [],
+  quality: null,
+  qualityByCatalog: {},
   blueprints: [],
   blueprintCatalog: null,
   blueprintRecommendation: null,
@@ -330,7 +332,7 @@ async function refreshAll() {
 
 async function refreshReleaseData() {
   await refreshSetupState();
-  await Promise.allSettled([refreshCatalog(), refreshBlueprints()]);
+  await Promise.allSettled([refreshCatalog(), refreshQuality(), refreshBlueprints()]);
 }
 
 async function refreshOverview() {
@@ -364,6 +366,33 @@ async function refreshCatalog() {
     renderCatalog();
   } catch (error) {
     setCatalogSyncStatus(true, error.message);
+  }
+}
+
+async function refreshQuality() {
+  const status = $("catalog-quality-status");
+  try {
+    const data = await api("/api/quality");
+    state.quality = data;
+    state.qualityByCatalog = Object.fromEntries(
+      (Array.isArray(data.entries) ? data.entries : [])
+        .filter(entry => entry && typeof entry.catalogName === "string")
+        .map(entry => [entry.catalogName, entry])
+    );
+    const summary = data.summary || {};
+    const operational = Number(summary.operationalEvidenceEntries) || 0;
+    const homologated = Number(summary.homologatedEntries) || 0;
+    status.className = `sync-status ${data.stale ? "stale" : "current"}`;
+    status.textContent = data.stale
+      ? data.warning || "Relatório de homologação em contingência."
+      : `Selo de Homologação validado · ${operational} operacional · ${homologated} homologado · evidências somente leitura`;
+    renderCatalog();
+  } catch (error) {
+    state.quality = null;
+    state.qualityByCatalog = {};
+    status.className = "sync-status stale";
+    status.textContent = `Selo de Homologação indisponível: ${error.message}`;
+    renderCatalog();
   }
 }
 
@@ -752,14 +781,37 @@ function renderCatalog() {
   });
   $("catalog-total").textContent = state.catalog.length;
   $("catalog-result").textContent = `${items.length} de ${state.catalog.length} setups encontrados`;
-  $("catalog-grid").innerHTML = items.length ? items.map(item => `
+  $("catalog-grid").innerHTML = items.length ? items.map(item => {
+    const quality = state.qualityByCatalog[item.name] || {};
+    const maturity = [
+      "structural", "source-reviewed", "script-reviewed",
+      "operational-reviewed", "homologated"
+    ].includes(quality.maturity) ? quality.maturity : "structural";
+    const architectureLabels = (quality.operationalArchitectures || []).map(value =>
+      value === "amd64" ? "X86" : value === "arm64" ? "ARM" : value
+    );
+    const maturityLabel = ({
+      structural: "Catalogado",
+      "source-reviewed": "Fontes revisadas",
+      "script-reviewed": "Instalador revisado",
+      "operational-reviewed": quality.operationalCoverage === "partial"
+        ? `Validado em ${architectureLabels.join(" + ") || "arquitetura registrada"}`
+        : "Validado operacionalmente",
+      homologated: "Selo homologado"
+    })[maturity];
+    const evidenceTitle = quality.operationalEvidence
+      ? `${quality.operationalEvidenceIds?.length || 0} evidência(s) validada(s) · última verificação ${quality.lastOperationalVerification?.slice(0, 10) || "N/I"}`
+      : "Ainda sem evidência operacional anexada.";
+    return `
     <article class="catalog-card">
       <div class="catalog-card-top"><h3>${escapeHTML(item.name)}</h3><span class="type-label">${escapeHTML(item.type || "Setup")}</span></div>
+      <span class="homologation-badge maturity-${maturity}" title="${escapeHTML(evidenceTitle)}">${escapeHTML(maturityLabel)}</span>
       <div class="catalog-tags">${String(item.cats || "").split(",").slice(0,4).map(tag => `<span>${escapeHTML(tag.trim())}</span>`).join("")}</div>
       <p class="catalog-description">${escapeHTML(item.desc || "Setup disponível no catálogo MNO.")}</p>
       <div class="catalog-facts"><span><b>RAM</b> ${escapeHTML(item.ramLabel || "N/I")}</span><span><b>Arquitetura</b> ${item.arch === "x86-arm" ? "X86 + ARM" : "X86"}</span></div>
       <button class="light-button" data-action="terminal">Abrir no instalador <b>→</b></button>
-    </article>`).join("") : `<div class="empty-state">Nenhum setup corresponde aos filtros selecionados.</div>`;
+    </article>`;
+  }).join("") : `<div class="empty-state">Nenhum setup corresponde aos filtros selecionados.</div>`;
   applyTerminalAccessState();
 }
 
@@ -1246,7 +1298,9 @@ function renderAnswerQuality(target, quality) {
     : [];
   badge.title = issues.length
     ? `Maturidade do conhecimento. Pontos em revisão: ${issues.join("; ")}`
-    : "Maturidade do conhecimento canônico usado nesta resposta.";
+    : quality.operationalCoverage === "partial"
+      ? `Evidência operacional parcial: ${(quality.operationalArchitectures || []).join(" e ") || "arquitetura informada"}.`
+      : "Maturidade do conhecimento canônico usado nesta resposta.";
 
   const integration = ensureBadge("message-route-integration");
   const integrationMaturity = ["not-mapped", "suggested", "documented", "validated"]

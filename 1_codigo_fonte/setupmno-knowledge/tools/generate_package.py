@@ -460,12 +460,17 @@ def build_package_files(
         (root / "schema" / "taxonomy.json", "schema/taxonomy.json"),
         (root / "schema" / "eval-dataset.schema.json", "schema/eval-dataset.schema.json"),
         (root / "schema" / "quality-report.schema.json", "schema/quality-report.schema.json"),
+        (root / "schema" / "operational-evidence.schema.json", "schema/operational-evidence.schema.json"),
         (root / "registry" / "setups.json", "registry/setups.json"),
         (root / "registry" / "governance.json", "registry/governance.json"),
         (root / "registry" / "quality-report.json", "registry/quality-report.json"),
         (root / "quality-baseline.json", "quality-baseline.json"),
     ):
         add_package_file(files, target, ensure_regular_source(source, root))
+
+    for evidence_path in sorted((root / "evidence").glob("*/*/*.json")):
+        relative = evidence_path.relative_to(root).as_posix()
+        add_package_file(files, relative, ensure_regular_source(evidence_path, root, 65536))
 
     eval_dataset_data = ensure_regular_source(
         root / "evals" / "dataset.json",
