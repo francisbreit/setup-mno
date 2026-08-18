@@ -546,6 +546,8 @@ grep -Fq '"/api/terminal/reauth"' "$project_dir/web/app.js" &&
 grep -Fq 'id="terminal-reauth-dialog"' "$project_dir/web/index.html" &&
 grep -Fq 'rendererType: "dom"' "$project_dir/web/app.js" &&
 grep -Fq 'loadTerminalAfterDialogLayout' "$project_dir/web/app.js" &&
+grep -Fq 'title: "Assistente de Homologação"' "$project_dir/web/app.js" &&
+grep -Fq '}[intent] || {' "$project_dir/web/app.js" &&
 grep -Fq 'data-action="gateway"' "$project_dir/web/index.html" || {
     printf 'ERRO: painel sem roteamento contextual, renderização DOM ou abertura segura do Terminal.\n' >&2
     exit 1

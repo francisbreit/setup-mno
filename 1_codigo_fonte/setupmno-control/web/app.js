@@ -2051,12 +2051,21 @@ function openAuthorizedTerminal(intent) {
       subtitle: "Conta e provedores · confirmação obrigatória",
       warning: "O menu de configurações será aberto diretamente. Senhas e chaves nunca passam pelo navegador."
     },
+    homologation: {
+      title: "Assistente de Homologação",
+      subtitle: "Laboratório guiado · revisão do mantenedor obrigatória",
+      warning: "O assistente visual será aberto diretamente. Ele cria somente candidatos e nunca concede selo ou altera a governança automaticamente."
+    },
     gateway: {
       title: "Terminal Seguro",
       subtitle: "Setup MNO · sessão administrativa",
       warning: "Escolha entre Instalador, Configurações ou encerrar a sessão no menu protegido."
     }
-  }[intent];
+  }[intent] || {
+    title: "Terminal Seguro",
+    subtitle: "Setup MNO · sessão administrativa",
+    warning: "A intenção visual não foi reconhecida. O menu seguro será aberto sem executar comandos automaticamente."
+  };
   $("terminal-title").textContent = presentation.title;
   $("terminal-subtitle").textContent = presentation.subtitle;
   $("terminal-warning").innerHTML = `<span>◎</span> ${presentation.warning}`;

@@ -3365,7 +3365,7 @@
   "generatedAt": "2026-08-17T00:00:00Z",
   "knowledgeVersion": "3.24.1",
   "schemaVersion": 2,
-  "setupVersion": "7.22.2",
+  "setupVersion": "7.22.3",
   "summary": {
     "editorialStatuses": {
       "deprecated": 0,

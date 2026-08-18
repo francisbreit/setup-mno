@@ -2,6 +2,7 @@
 
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const vm = require("node:vm");
 
 require("./web/markdown.js");
 require("./web/assistant-route.js");
@@ -246,7 +247,54 @@ assert.match(app, /function renderHomologationRunner/);
 assert.match(app, /candidate-requires-maintainer-review|revisão do mantenedor obrigatória/);
 assert.match(app, /openTerminal\("homologation"\)/);
 assert.match(app, /"installer", "settings", "homologation", "gateway"/);
+assert.match(app, /homologation:\s*\{\s*title:\s*"Assistente de Homologação"/);
+assert.match(app, /Laboratório guiado · revisão do mantenedor obrigatória/);
+assert.match(app, /\}\[intent\]\s*\|\|\s*\{/);
 assert.match(styles, /\.homologation-runner-card\.available/);
 assert.doesNotMatch(html + app, /homologationAutomaticPromotion\s*[:=]\s*true/);
+
+const terminalElements = new Map();
+function terminalElement(id) {
+  if (!terminalElements.has(id)) {
+    terminalElements.set(id, {
+      id,
+      open: false,
+      src: "",
+      textContent: "",
+      innerHTML: "",
+      style: { setProperty() {}, removeProperty() {} },
+      showModal() { this.open = true; },
+      close() { this.open = false; }
+    });
+  }
+  return terminalElements.get(id);
+}
+const terminalContext = vm.createContext({
+  console,
+  Intl,
+  URLSearchParams,
+  setTimeout,
+  clearTimeout,
+  document: {
+    addEventListener() {},
+    getElementById: terminalElement,
+    querySelectorAll() { return []; }
+  },
+  window: {
+    matchMedia() { return { matches: false }; },
+    requestAnimationFrame(callback) { callback(); },
+    visualViewport: { height: 800, addEventListener() {} },
+    innerHeight: 800,
+    addEventListener() {},
+    scrollTo() {},
+    location: { origin: "https://control.example.com" }
+  }
+});
+vm.runInContext(app, terminalContext, { filename: "web/app.js" });
+vm.runInContext('openAuthorizedTerminal("homologation")', terminalContext);
+assert.equal(terminalElement("terminal-dialog").open, true);
+assert.equal(terminalElement("terminal-title").textContent, "Assistente de Homologação");
+assert.match(terminalElement("terminal-frame").src, /^\/terminal\/\?arg=homologation&/);
+assert.match(terminalElement("terminal-warning").innerHTML, /nunca concede selo/);
 
 console.log("Markdown, RAG, Blueprints, evals e feedback privado conferidos.");

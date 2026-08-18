@@ -1,6 +1,6 @@
 # Roadmap do Assistente MNO Especialista
 
-## v7.22.2 — Correção do gate booleano do manifesto runtime
+## v7.22.3 — Correção do gate booleano do manifesto runtime
 
 - Corrige a leitura de `homologationAutomaticPromotion:false` no `jq`, que era
   convertida incorretamente para `true` pelo operador de fallback `//`.
@@ -46,9 +46,9 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.22.2` em preparação de release
+- Setup MNO: `7.22.3` em preparação de release
 - Última versão estável homologada: `7.20.0`
-- Control Center: `4.22.2`
+- Control Center: `4.22.3`
 - Conhecimento canônico: `3.24.1`
 - Catálogo runtime: 158 entradas
 - Cobertura canônica dedicada: 158 de 158 entradas (`100%`)
