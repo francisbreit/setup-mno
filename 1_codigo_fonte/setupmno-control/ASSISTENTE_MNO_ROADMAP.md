@@ -1,5 +1,16 @@
 # Roadmap do Assistente MNO Especialista
 
+## v7.22.0 — Assistente Visual de Homologação
+
+- Botão dedicado no Control Center com reautenticação administrativa.
+- Intenção fixa `homologation` no proxy e no Terminal Seguro, sem shell genérico.
+- Wizard Whiptail guiando aplicação, arquitetura, ambiente e nove checks.
+- Sessões retomáveis em diretório restrito, com seleção segura de candidatos.
+- Coleta de imagens exclusivamente por digest e rejeição de dados sensíveis.
+- Verificação e revisão humana visuais, sempre mantendo `officialSeal:false`.
+- Wizard incluído no pacote runtime e preso ao manifesto por tamanho e SHA-256.
+- Teste automatizado da navegação Whiptail, cancelamento e persistência da sessão.
+
 ## v7.21.0 — Homologation Runner controlado
 
 - Runner v1 somente local, distribuído pelo pacote runtime autenticado.
@@ -25,10 +36,10 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.21.0` em preparação de release
+- Setup MNO: `7.22.0` em preparação de release
 - Última versão estável homologada: `7.20.0`
-- Control Center: `4.21.0`
-- Conhecimento canônico: `3.23.0`
+- Control Center: `4.22.0`
+- Conhecimento canônico: `3.24.0`
 - Catálogo runtime: 158 entradas
 - Cobertura canônica dedicada: 158 de 158 entradas (`100%`)
 - Blueprints: cinco guias Beta editáveis, consultáveis e baixáveis; ainda não homologados

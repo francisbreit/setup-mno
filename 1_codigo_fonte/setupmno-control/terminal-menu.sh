@@ -10,7 +10,7 @@ if [ "$#" -gt 1 ]; then
 fi
 
 case "$intent" in
-    installer|settings|gateway) ;;
+    installer|settings|homologation|gateway) ;;
     *)
         printf 'Terminal Seguro: intenção recusada.\n' >&2
         exit 64
@@ -77,6 +77,10 @@ case "$intent" in
         export SETUPMNO_TERMINAL_MODE="direct"
         exec /usr/local/bin/setupmno-control-configure
         ;;
+    homologation)
+        exec /usr/bin/bash \
+            /root/SetupLowCodeMno/.control/homologation-package/homologation_wizard.sh
+        ;;
     gateway)
         ;;
 esac
@@ -86,11 +90,12 @@ while true; do
     menu_width=$(dialog_width 84)
     menu_rows=$((menu_height - 8))
     [ "$menu_rows" -ge 1 ] || menu_rows=1
-    [ "$menu_rows" -le 4 ] || menu_rows=4
+    [ "$menu_rows" -le 5 ] || menu_rows=5
     choice=$(whiptail --title "SETUP MNO — TERMINAL SEGURO" --menu \
         "Escolha a operação. Configurações administrativas exigem nova confirmação da senha atual e nunca são executadas pelo painel web." \
         "$menu_height" "$menu_width" "$menu_rows" \
         "INSTALLER" "Abrir o Instalador Setup MNO" \
+        "HOMOLOGATION" "Abrir o Assistente de Homologação" \
         "SETTINGS" "Configurar conta e provedor do Control Center" \
         "EXIT" "Encerrar esta sessão do terminal" \
         3>&1 1>&2 2>&3)
@@ -100,6 +105,10 @@ while true; do
     case "$choice" in
         INSTALLER)
             exec /root/SetupLowCodeMno/install
+            ;;
+        HOMOLOGATION)
+            /usr/bin/bash \
+                /root/SetupLowCodeMno/.control/homologation-package/homologation_wizard.sh
             ;;
         SETTINGS)
             SETUPMNO_TERMINAL_MODE="gateway" \

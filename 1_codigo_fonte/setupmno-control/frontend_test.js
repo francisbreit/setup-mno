@@ -241,8 +241,11 @@ assert.match(styles, /\.feedback-dialog::backdrop/);
 assert.match(styles, /@media \(max-width: 650px\)[\s\S]*\.feedback-dialog\[open\]/);
 assert.match(html, /id="homologation-runner-card"/);
 assert.match(html, /Nenhum candidato concede selo ou altera a governança automaticamente/);
+assert.match(html, /data-action="homologation"/);
 assert.match(app, /function renderHomologationRunner/);
 assert.match(app, /candidate-requires-maintainer-review|revisão do mantenedor obrigatória/);
+assert.match(app, /openTerminal\("homologation"\)/);
+assert.match(app, /"installer", "settings", "homologation", "gateway"/);
 assert.match(styles, /\.homologation-runner-card\.available/);
 assert.doesNotMatch(html + app, /homologationAutomaticPromotion\s*[:=]\s*true/);
 

@@ -122,6 +122,12 @@ class HomologationRunnerTests(unittest.TestCase):
         result = self.run_runner("list", expected=2)
         self.assertIn("integridade divergente", result.stderr)
 
+    def test_tampered_visual_wizard_is_rejected(self) -> None:
+        wizard = self.package / "homologation_wizard.sh"
+        wizard.write_bytes(wizard.read_bytes() + b"\n")
+        result = self.run_runner("list", expected=2)
+        self.assertIn("integridade divergente", result.stderr)
+
     def test_tampered_bundle_is_rejected(self) -> None:
         session = self.create_operational_session()
         bundle = self.base / "candidate.tar.gz"

@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.21.0"
+VERSIONSETUP="7.22.0"
 EXPECTED_CATALOG_ENTRIES="158"
 EXPECTED_EVAL_DATASET_VERSION="1.17.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
@@ -8,7 +8,7 @@ EXPECTED_EVAL_CASE_ENTRIES="878"
 EXPECTED_BLUEPRINT_FACTORY_VERSION="2.1.0"
 EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="0"
 EXPECTED_QUALITY_SCHEMA_VERSION="2"
-EXPECTED_HOMOLOGATION_RUNNER_VERSION="1.0.0"
+EXPECTED_HOMOLOGATION_RUNNER_VERSION="1.1.0"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -532,6 +532,8 @@ if [ ! -s "$control_package/release.json" ] ||
    [ -L "$homologation_package/manifest.json" ] ||
    [ ! -f "$homologation_package/homologation_runner.py" ] ||
    [ -L "$homologation_package/homologation_runner.py" ] ||
+   [ ! -f "$homologation_package/homologation_wizard.sh" ] ||
+   [ -L "$homologation_package/homologation_wizard.sh" ] ||
    [ ! -f "$homologation_package/homologation-candidate.schema.json" ] ||
    [ -L "$homologation_package/homologation-candidate.schema.json" ] ||
    [ ! -f "$homologation_package/runner-registry.json" ] ||
@@ -615,12 +617,16 @@ homologation_setup_version=$(jq -r '.setupVersion // empty' "$homologation_manif
 homologation_automatic_promotion=$(jq -r '.homologationAutomaticPromotion // true' "$control_package/release.json" 2>/dev/null)
 homologation_runner_expected_sha=$(jq -r '.files[] | select(.path == "homologation_runner.py") | .sha256' "$homologation_manifest" 2>/dev/null)
 homologation_runner_expected_bytes=$(jq -r '.files[] | select(.path == "homologation_runner.py") | .size' "$homologation_manifest" 2>/dev/null)
+homologation_wizard_expected_sha=$(jq -r '.files[] | select(.path == "homologation_wizard.sh") | .sha256' "$homologation_manifest" 2>/dev/null)
+homologation_wizard_expected_bytes=$(jq -r '.files[] | select(.path == "homologation_wizard.sh") | .size' "$homologation_manifest" 2>/dev/null)
 homologation_schema_expected_sha=$(jq -r '.files[] | select(.path == "homologation-candidate.schema.json") | .sha256' "$homologation_manifest" 2>/dev/null)
 homologation_schema_expected_bytes=$(jq -r '.files[] | select(.path == "homologation-candidate.schema.json") | .size' "$homologation_manifest" 2>/dev/null)
 homologation_registry_expected_sha=$(jq -r '.files[] | select(.path == "runner-registry.json") | .sha256' "$homologation_manifest" 2>/dev/null)
 homologation_registry_expected_bytes=$(jq -r '.files[] | select(.path == "runner-registry.json") | .size' "$homologation_manifest" 2>/dev/null)
 homologation_runner_actual_sha=$(sha256sum "$homologation_package/homologation_runner.py" | awk '{print $1}')
 homologation_runner_actual_bytes=$(stat -c '%s' "$homologation_package/homologation_runner.py" 2>/dev/null)
+homologation_wizard_actual_sha=$(sha256sum "$homologation_package/homologation_wizard.sh" | awk '{print $1}')
+homologation_wizard_actual_bytes=$(stat -c '%s' "$homologation_package/homologation_wizard.sh" 2>/dev/null)
 homologation_schema_actual_sha=$(sha256sum "$homologation_package/homologation-candidate.schema.json" | awk '{print $1}')
 homologation_schema_actual_bytes=$(stat -c '%s' "$homologation_package/homologation-candidate.schema.json" 2>/dev/null)
 homologation_registry_actual_sha=$(sha256sum "$homologation_package/runner-registry.json" | awk '{print $1}')
@@ -699,6 +705,8 @@ if [ "$control_schema" != "1" ] ||
    [ "$homologation_automatic_promotion" != "false" ] ||
    [ "$homologation_runner_expected_sha" != "$homologation_runner_actual_sha" ] ||
    [ "$homologation_runner_expected_bytes" != "$homologation_runner_actual_bytes" ] ||
+   [ "$homologation_wizard_expected_sha" != "$homologation_wizard_actual_sha" ] ||
+   [ "$homologation_wizard_expected_bytes" != "$homologation_wizard_actual_bytes" ] ||
    [ "$homologation_schema_expected_sha" != "$homologation_schema_actual_sha" ] ||
    [ "$homologation_schema_expected_bytes" != "$homologation_schema_actual_bytes" ] ||
    [ "$homologation_registry_expected_sha" != "$homologation_registry_actual_sha" ] ||
@@ -728,6 +736,8 @@ install -m 0644 "$homologation_package/manifest.json" \
     "$control_target/homologation-package/manifest.json.tmp"
 install -m 0644 "$homologation_package/homologation_runner.py" \
     "$control_target/homologation-package/homologation_runner.py.tmp"
+install -m 0755 "$homologation_package/homologation_wizard.sh" \
+    "$control_target/homologation-package/homologation_wizard.sh.tmp"
 install -m 0644 "$homologation_package/homologation-candidate.schema.json" \
     "$control_target/homologation-package/homologation-candidate.schema.json.tmp"
 install -m 0644 "$homologation_package/runner-registry.json" \
@@ -742,6 +752,8 @@ mv -f "$control_target/homologation-package/manifest.json.tmp" \
     "$control_target/homologation-package/manifest.json"
 mv -f "$control_target/homologation-package/homologation_runner.py.tmp" \
     "$control_target/homologation-package/homologation_runner.py"
+mv -f "$control_target/homologation-package/homologation_wizard.sh.tmp" \
+    "$control_target/homologation-package/homologation_wizard.sh"
 mv -f "$control_target/homologation-package/homologation-candidate.schema.json.tmp" \
     "$control_target/homologation-package/homologation-candidate.schema.json"
 mv -f "$control_target/homologation-package/runner-registry.json.tmp" \

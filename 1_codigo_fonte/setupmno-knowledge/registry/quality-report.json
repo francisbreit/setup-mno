@@ -3363,9 +3363,9 @@
   ],
   "evidenceSchemaVersion": 1,
   "generatedAt": "2026-08-17T00:00:00Z",
-  "knowledgeVersion": "3.23.0",
+  "knowledgeVersion": "3.24.0",
   "schemaVersion": 2,
-  "setupVersion": "7.21.0",
+  "setupVersion": "7.22.0",
   "summary": {
     "editorialStatuses": {
       "deprecated": 0,

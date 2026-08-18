@@ -2820,7 +2820,7 @@ func terminalIntentAllowed(values []string) bool {
 		return false
 	}
 	switch values[0] {
-	case "installer", "settings", "gateway":
+	case "installer", "settings", "homologation", "gateway":
 		return true
 	default:
 		return false

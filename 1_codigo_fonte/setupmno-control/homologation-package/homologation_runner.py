@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any
 
 
-RUNNER_VERSION = "1.0.0"
+RUNNER_VERSION = "1.1.0"
 RUNNER_RELEASE_DATE = "2026-08-18"
 CANDIDATE_SCHEMA_VERSION = 1
 PACKAGE_SCHEMA_VERSION = 1
@@ -186,10 +186,11 @@ def validate_package(directory: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         raise RunnerError("manifesto do runner é incompatível")
     parse_datetime(manifest["generatedAt"])
     files = manifest.get("files")
-    if not isinstance(files, list) or len(files) != 3:
+    if not isinstance(files, list) or len(files) != 4:
         raise RunnerError("inventário do runner inválido")
     expected_names = {
         "homologation_runner.py",
+        "homologation_wizard.sh",
         "homologation-candidate.schema.json",
         "runner-registry.json",
     }

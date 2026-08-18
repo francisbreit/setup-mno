@@ -91,6 +91,20 @@ bash "$project_dir/wsl-docker-preflight_test.sh"
 bash "$project_dir/debian13-apt-recovery_test.sh"
 bash "$project_dir/catalog-html-count_test.sh"
 python3 -B "$source_root/setupmno-knowledge/tools/test_homologation_runner.py"
+bash "$project_dir/homologation-wizard_test.sh"
+homologation_wizard="$source_root/setupmno-knowledge/tools/homologation_wizard.sh"
+bash -n "$homologation_wizard"
+[ "$(SETUPMNO_HOMOLOGATION_WIZARD_SMOKE_TEST=1 bash "$homologation_wizard")" = \
+    "setupmno-homologation-wizard-ok" ] || {
+    printf 'ERRO: smoke test do assistente visual de homologação falhou.\n' >&2
+    exit 1
+}
+grep -Fq '1>&2' "$homologation_wizard" &&
+grep -Fq 'automaticPromotion' "$source_root/setupmno-knowledge/schema/homologation-candidate.schema.json" &&
+! grep -Eq '(^|[[:space:]])(eval|bash -c|sh -c)[[:space:]]' "$homologation_wizard" || {
+    printf 'ERRO: assistente visual sem stderr, fronteira de confiança ou allowlist de comandos.\n' >&2
+    exit 1
+}
 
 for architecture in x86 arm; do
     install_script="$source_root/$architecture/SetupLowCodeMno/install.sh"
@@ -487,6 +501,8 @@ grep -Fq -- '- -a' "$template" || {
 grep -Fq 'case "$intent" in' "$project_dir/terminal-menu.sh" &&
 grep -Fq 'installer)' "$project_dir/terminal-menu.sh" &&
 grep -Fq 'settings)' "$project_dir/terminal-menu.sh" &&
+grep -Fq 'homologation)' "$project_dir/terminal-menu.sh" &&
+grep -Fq 'HOMOLOGATION)' "$project_dir/terminal-menu.sh" &&
 grep -Fq 'gateway)' "$project_dir/terminal-menu.sh" || {
     printf 'ERRO: launcher do Terminal Seguro sem allowlist contextual completa.\n' >&2
     exit 1
@@ -500,7 +516,7 @@ grep -Fq 'POST /api/terminal/reauth' "$project_dir/main.go" &&
 grep -Fq 'handleTerminalReauth' "$project_dir/main.go" &&
 grep -Fq 'TerminalUntil' "$project_dir/main.go" &&
 grep -Fq 'terminalAccessAllowed' "$project_dir/main.go" &&
-grep -Fq '"installer", "settings", "gateway"' "$project_dir/main.go" || {
+grep -Fq '"installer", "settings", "homologation", "gateway"' "$project_dir/main.go" || {
     printf 'ERRO: proxy web não valida as intenções fixas do Terminal Seguro.\n' >&2
     exit 1
 }
@@ -529,6 +545,7 @@ grep -Fq 'event.clipboardData?.getData("text/plain")' "$project_dir/web/terminal
 grep -Fq 'pastedText.length > 16384' "$project_dir/web/terminal-bridge.js" &&
 grep -Fq 'if (touchLayout() || !terminalHasFocus(event.target)) return;' "$project_dir/web/terminal-bridge.js" &&
 grep -Fq 'LANG=C.UTF-8' "$project_dir/terminal.Dockerfile" &&
+grep -Fq 'python3' "$project_dir/terminal.Dockerfile" &&
 grep -Fq 'LC_ALL=C.UTF-8' "$template" || {
     printf 'ERRO: terminal sem locale UTF-8 ou colagem desktop segura.\n' >&2
     exit 1
@@ -592,6 +609,8 @@ python3 -B "$source_root/setupmno-knowledge/tools/generate_homologation_package.
 [ ! -L "$homologation_package/manifest.json" ] &&
 [ -f "$homologation_package/homologation_runner.py" ] &&
 [ ! -L "$homologation_package/homologation_runner.py" ] &&
+[ -f "$homologation_package/homologation_wizard.sh" ] &&
+[ ! -L "$homologation_package/homologation_wizard.sh" ] &&
 [ -f "$homologation_package/homologation-candidate.schema.json" ] &&
 [ ! -L "$homologation_package/homologation-candidate.schema.json" ] &&
 [ -f "$homologation_package/runner-registry.json" ] &&
@@ -604,7 +623,7 @@ homologation_candidate_schema=$(jq -r '.candidateSchemaVersion // 0' "$homologat
 homologation_registry_entries=$(jq -r '.registryEntries // 0' "$homologation_package/manifest.json")
 homologation_setup_version=$(jq -r '.setupVersion // empty' "$homologation_package/manifest.json")
 homologation_manifest_sha=$(sha256sum "$homologation_package/manifest.json" | awk '{print $1}')
-[ "$homologation_runner_version" = "1.0.0" ] &&
+[ "$homologation_runner_version" = "1.1.0" ] &&
 [ "$homologation_candidate_schema" = "1" ] &&
 [ "$homologation_registry_entries" = "$(jq -r 'length' "$project_dir/catalog.json")" ] &&
 [ "$homologation_setup_version" = "$x86_version" ] &&
@@ -952,6 +971,8 @@ generate_runtime_package() {
         "$target/homologation-package/manifest.json"
     install -m 0644 "$homologation_package/homologation_runner.py" \
         "$target/homologation-package/homologation_runner.py"
+    install -m 0755 "$homologation_package/homologation_wizard.sh" \
+        "$target/homologation-package/homologation_wizard.sh"
     install -m 0644 "$homologation_package/homologation-candidate.schema.json" \
         "$target/homologation-package/homologation-candidate.schema.json"
     install -m 0644 "$homologation_package/runner-registry.json" \

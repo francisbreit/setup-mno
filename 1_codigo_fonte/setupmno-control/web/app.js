@@ -24,6 +24,7 @@ const state = {
   assistantModel: "",
   setupPlan: "",
   llmAllowed: false,
+  homologationRunnerAvailable: false,
   assistantHistory: [],
   assistantRoute: null,
   view: "dashboard",
@@ -88,6 +89,7 @@ function bindEvents() {
     if (action.dataset.action === "terminal") openTerminal();
     if (action.dataset.action === "assistant") navigate("assistant");
     if (action.dataset.action === "settings") openTerminal("settings");
+    if (action.dataset.action === "homologation") openTerminal("homologation");
     if (action.dataset.action === "gateway") openTerminal("gateway");
     if (action.dataset.action === "blueprint") openBlueprint(action.dataset.blueprintId);
     if (action.dataset.action === "quality-report") navigate("evals");
@@ -661,10 +663,12 @@ function renderHomologationRunner(data) {
   const status = $("homologation-runner-status");
   if (!card || !status) return;
   const available = data.homologationRunnerAvailable === true;
+  state.homologationRunnerAvailable = available;
   card.className = `homologation-runner-card ${available ? "available" : "pending"}`;
   status.textContent = available
     ? `Runner v${data.homologationRunnerVersion} disponível · schema candidato v${data.homologationCandidateSchemaVersion} · revisão do mantenedor obrigatória`
     : "Runner ainda não foi confirmado no runtime desta instalação";
+  applyTerminalAccessState();
 }
 
 function terminalAccessAllowed() {
@@ -674,10 +678,11 @@ function terminalAccessAllowed() {
 function applyTerminalAccessState() {
   const allowed = terminalAccessAllowed();
   const note = "Recurso disponível apenas quando é usado Cloudflare Tunnel.";
-  document.querySelectorAll('[data-action="terminal"], [data-action="settings"], [data-action="gateway"]').forEach(button => {
-    button.disabled = !allowed;
-    button.classList.toggle("terminal-locked", !allowed);
-    button.title = allowed ? "" : note;
+  document.querySelectorAll('[data-action="terminal"], [data-action="settings"], [data-action="homologation"], [data-action="gateway"]').forEach(button => {
+    const runnerUnavailable = button.dataset.action === "homologation" && !state.homologationRunnerAvailable;
+    button.disabled = !allowed || runnerUnavailable;
+    button.classList.toggle("terminal-locked", !allowed || runnerUnavailable);
+    button.title = !allowed ? note : runnerUnavailable ? "Homologation Runner indisponível nesta release." : "";
   });
   $("terminal-access-notice").hidden = allowed;
 }
@@ -1979,9 +1984,13 @@ function navigate(view) {
 
 function openTerminal(intent = "installer") {
   intent = typeof intent === "string" ? intent : "installer";
-  if (!["installer", "settings", "gateway"].includes(intent)) intent = "gateway";
+  if (!["installer", "settings", "homologation", "gateway"].includes(intent)) intent = "gateway";
   if (!terminalAccessAllowed()) {
     showAlert("🔒 Recurso disponível apenas quando é usado Cloudflare Tunnel.");
+    return;
+  }
+  if (intent === "homologation" && !state.homologationRunnerAvailable) {
+    showAlert("O Homologation Runner ainda não foi confirmado no runtime desta instalação.");
     return;
   }
   pendingTerminalIntent = intent;

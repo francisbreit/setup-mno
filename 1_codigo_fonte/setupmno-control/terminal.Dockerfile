@@ -23,6 +23,7 @@ RUN apt-get update \
         ncurses-bin \
         openssl \
         procps \
+        python3 \
         sed \
         tmux \
         util-linux \

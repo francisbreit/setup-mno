@@ -103,7 +103,21 @@ O Homologation Runner v1 é distribuído no runtime autenticado em
 evidências **candidatas**; não possui API web, não altera a governança, não
 executa comandos arbitrários e não concede o selo oficial.
 
-O fluxo seguro é dividido em quatro comandos:
+O fluxo principal da v7.22.0 é visual. Em instalações Cloudflare Tunnel, abra
+`Control Center → Qualidade do catálogo → Abrir assistente guiado`, confirme a
+senha administrativa e siga o Whiptail do Terminal Seguro. Em VPS tradicional
+ou manutenção por SSH, execute o mesmo wizard localmente:
+
+```bash
+bash /root/SetupLowCodeMno/.control/homologation-package/homologation_wizard.sh
+```
+
+O assistente permite iniciar ou retomar uma sessão, percorre os nove checks,
+coleta somente evidência sanitizada, exige imagens por digest, finaliza e
+verifica o candidato e registra a revisão humana. Cancelar ou escolher
+`Salvar e sair` preserva a sessão sem converter checks pendentes em aprovação.
+
+A CLI permanece disponível como interface avançada e reproduzível:
 
 ```bash
 RUNNER=/root/SetupLowCodeMno/.control/homologation-package/homologation_runner.py
@@ -122,7 +136,7 @@ digest e rejeita e-mails, IPs, tokens, chaves e credenciais. O bundle resultante
 declara obrigatoriamente `pending-maintainer-review`, `automaticPromotion:false`
 e `officialSeal:false`.
 
-O mantenedor usa `verify` para conferir a integridade e, após revisar as provas
+O mantenedor usa a opção visual de verificação ou `verify` para conferir a integridade e, após revisar as provas
 fora do bundle, pode executar `review` para criar um JSON compatível com a
 evidência canônica. Mesmo essa conversão não edita `governance.json`: inclusão,
 hash, promoção, gates, commit e release continuam explícitos e revisáveis.
