@@ -103,7 +103,7 @@ O Homologation Runner v1 é distribuído no runtime autenticado em
 evidências **candidatas**; não possui API web, não altera a governança, não
 executa comandos arbitrários e não concede o selo oficial.
 
-O fluxo principal da v7.22.0 é visual. Em instalações Cloudflare Tunnel, abra
+O fluxo principal da v7.22.1 é visual. Em instalações Cloudflare Tunnel, abra
 `Control Center → Qualidade do catálogo → Abrir assistente guiado`, confirme a
 senha administrativa e siga o Whiptail do Terminal Seguro. Em VPS tradicional
 ou manutenção por SSH, execute o mesmo wizard localmente:

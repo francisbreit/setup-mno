@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Linkwarden no Setup MNO",
   "setupId": "linkwarden",
-  "setupVersion": "7.22.0",
+  "setupVersion": "7.22.1",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

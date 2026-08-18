@@ -771,7 +771,10 @@ for runtime_gate_file in "${runtime_gate_files[@]}"; do
     grep -Fq '[ "$quality_schema_version" != "$EXPECTED_QUALITY_SCHEMA_VERSION" ]' "$runtime_gate_file" &&
     grep -Fq '[ "$homologation_runner_version" != "$EXPECTED_HOMOLOGATION_RUNNER_VERSION" ]' "$runtime_gate_file" &&
     grep -Fq '[ "$control_catalog_entries" != "$EXPECTED_CATALOG_ENTRIES" ]' "$runtime_gate_file" &&
-    grep -Fq '[ "$quality_setup_entries" != "$EXPECTED_CATALOG_ENTRIES" ]' "$runtime_gate_file" || {
+    grep -Fq '[ "$quality_setup_entries" != "$EXPECTED_CATALOG_ENTRIES" ]' "$runtime_gate_file" &&
+    grep -Fq 'if has("homologationAutomaticPromotion")' "$runtime_gate_file" &&
+    grep -Fq '[ "$homologation_automatic_promotion" != "false" ]' "$runtime_gate_file" &&
+    ! grep -Fq '.homologationAutomaticPromotion // true' "$runtime_gate_file" || {
         printf 'ERRO: gate de Blueprint/qualidade não usa as expectativas versionadas em %s.\n' \
             "$runtime_gate_file" >&2
         exit 1
@@ -1072,9 +1075,16 @@ for runtime_package in "$x86_runtime_package" "$arm_runtime_package"; do
     manifest_source_bytes=$(jq -r '.controlSourceBytes // 0' "$runtime_package/release.json")
     packaged_homologation_manifest_sha=$(sha256sum "$runtime_package/homologation-package/manifest.json" | awk '{print $1}')
     manifest_homologation_manifest_sha=$(jq -r '.homologationPackageManifestSHA256 // empty' "$runtime_package/release.json")
+    manifest_homologation_automatic_promotion=$(jq -r '
+        if has("homologationAutomaticPromotion")
+        then .homologationAutomaticPromotion
+        else "missing"
+        end
+    ' "$runtime_package/release.json")
     [ "$packaged_source_sha" = "$manifest_source_sha" ] &&
     [ "$packaged_source_bytes" = "$manifest_source_bytes" ] &&
     [ "$packaged_homologation_manifest_sha" = "$manifest_homologation_manifest_sha" ] &&
+    [ "$manifest_homologation_automatic_promotion" = "false" ] &&
     python3 -B "$runtime_package/homologation-package/homologation_runner.py" \
         --package-dir "$runtime_package/homologation-package" list >/dev/null || {
         printf 'ERRO: bundle de fontes diverge do manifesto runtime em %s.\n' \

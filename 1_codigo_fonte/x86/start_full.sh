@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.22.0"
+VERSIONSETUP="7.22.1"
 EXPECTED_CATALOG_ENTRIES="158"
 EXPECTED_EVAL_DATASET_VERSION="1.17.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
@@ -614,7 +614,12 @@ homologation_runtime_candidate_schema=$(jq -r '.homologationCandidateSchemaVersi
 homologation_registry_entries=$(jq -r '.registryEntries // 0' "$homologation_manifest" 2>/dev/null)
 homologation_runtime_registry_entries=$(jq -r '.homologationRegistryEntries // 0' "$control_package/release.json" 2>/dev/null)
 homologation_setup_version=$(jq -r '.setupVersion // empty' "$homologation_manifest" 2>/dev/null)
-homologation_automatic_promotion=$(jq -r '.homologationAutomaticPromotion // true' "$control_package/release.json" 2>/dev/null)
+homologation_automatic_promotion=$(jq -r '
+    if has("homologationAutomaticPromotion")
+    then .homologationAutomaticPromotion
+    else "missing"
+    end
+' "$control_package/release.json" 2>/dev/null)
 homologation_runner_expected_sha=$(jq -r '.files[] | select(.path == "homologation_runner.py") | .sha256' "$homologation_manifest" 2>/dev/null)
 homologation_runner_expected_bytes=$(jq -r '.files[] | select(.path == "homologation_runner.py") | .size' "$homologation_manifest" 2>/dev/null)
 homologation_wizard_expected_sha=$(jq -r '.files[] | select(.path == "homologation_wizard.sh") | .sha256' "$homologation_manifest" 2>/dev/null)
@@ -638,6 +643,11 @@ if [ "$control_catalog_entries" != "$EXPECTED_CATALOG_ENTRIES" ] ||
     printf 'A quantidade de setups do pacote diverge da release: esperado=%s, catálogo=%s/%s, conhecimento=%s, runtime=%s.\n' \
         "$EXPECTED_CATALOG_ENTRIES" "$control_catalog_entries" "${control_actual_entries:-inválido}" \
         "$quality_setup_entries" "$runtime_quality_setup_entries" >"$control_state_error"
+    exit 41
+fi
+if [ "$homologation_automatic_promotion" != "false" ]; then
+    printf 'O campo homologationAutomaticPromotion do manifesto runtime deve existir e ser false; valor encontrado: %s.\n' \
+        "${homologation_automatic_promotion:-inválido}" >"$control_state_error"
     exit 41
 fi
 if [ "$control_schema" != "1" ] ||
@@ -702,7 +712,6 @@ if [ "$control_schema" != "1" ] ||
    [ "$homologation_registry_entries" != "$EXPECTED_CATALOG_ENTRIES" ] ||
    [ "$homologation_registry_entries" != "$homologation_runtime_registry_entries" ] ||
    [ "$homologation_setup_version" != "$VERSIONSETUP" ] ||
-   [ "$homologation_automatic_promotion" != "false" ] ||
    [ "$homologation_runner_expected_sha" != "$homologation_runner_actual_sha" ] ||
    [ "$homologation_runner_expected_bytes" != "$homologation_runner_actual_bytes" ] ||
    [ "$homologation_wizard_expected_sha" != "$homologation_wizard_actual_sha" ] ||

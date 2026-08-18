@@ -208,7 +208,7 @@ func TestRuntimeAllowsLLMOnlyForValidatedProPlan(t *testing.T) {
 func TestHandleQualityUsesFixedReadOnlyAgentEndpoint(t *testing.T) {
 	report := knowledgeQualityReport{
 		SchemaVersion: 2, EvidenceSchemaVersion: 1,
-		SetupVersion: "7.22.0", KnowledgeVersion: "3.24.0",
+		SetupVersion: "7.22.1", KnowledgeVersion: "3.24.1",
 		GeneratedAt: "2026-08-17T00:00:00Z",
 		Summary:     knowledgeQualitySummary{SetupEntries: 1},
 		Entries:     []knowledgeQualityEntry{{SetupID: "navidrome", CatalogName: "NAVIDROME"}},
@@ -236,7 +236,7 @@ func TestHandleQualityUsesFixedReadOnlyAgentEndpoint(t *testing.T) {
 	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
 		t.Fatal(err)
 	}
-	if response.Source != "runtime-read-only" || response.SetupVersion != "7.22.0" || len(response.Entries) != 1 {
+	if response.Source != "runtime-read-only" || response.SetupVersion != "7.22.1" || len(response.Entries) != 1 {
 		t.Fatalf("relatório runtime foi alterado: %#v", response)
 	}
 }
@@ -1417,7 +1417,7 @@ func TestKnowledgePackageUsesEmbeddedFallback(t *testing.T) {
 func TestReleaseAcceptsRunnerWithoutAutomaticPromotion(t *testing.T) {
 	release := setupRelease{
 		CatalogEntries:              158,
-		KnowledgeVersion:            "3.24.0",
+		KnowledgeVersion:            "3.24.1",
 		KnowledgeArchiveSHA256:      strings.Repeat("a", 64),
 		KnowledgeEntries:            177,
 		HomologationRunnerVersion:   "1.1.0",
@@ -1438,8 +1438,8 @@ func TestReleaseAcceptsRunnerWithoutAutomaticPromotion(t *testing.T) {
 func TestSetupStateExposesCandidateOnlyRunner(t *testing.T) {
 	release := setupRelease{
 		SchemaVersion:               runtimeSchema,
-		SetupVersion:                "7.22.0",
-		CatalogVersion:              "7.22.0",
+		SetupVersion:                "7.22.1",
+		CatalogVersion:              "7.22.1",
 		CatalogEntries:              158,
 		Architecture:                "amd64",
 		HomologationRunnerVersion:   "1.1.0",
