@@ -58,6 +58,25 @@ const app = fs.readFileSync("./web/app.js", "utf8");
 const routeSource = fs.readFileSync("./web/assistant-route.js", "utf8");
 const styles = fs.readFileSync("./web/styles.css", "utf8");
 assert.match(html, /data-view="audit"[\s\S]*data-view="settings"/);
+assert.match(html, /data-view="settings"[\s\S]*data-view="help"/);
+assert.match(html, /id="view-help"/);
+assert.match(html, /Central de Ajuda/);
+assert.match(html, /Seus primeiros 10 minutos/);
+assert.match(html, /Manual de Blueprints[\s\S]*Em breve|Em breve[\s\S]*Manual de Blueprints/);
+assert.match(html, /Assistente MNO[\s\S]*diagnóstico local sem LLM/);
+assert.match(html, /Um candidato nunca concede o Selo de Homologação/);
+assert.match(html, /No modo Tradicional, conecte-se ao servidor por SSH/);
+assert.match(html, /No Windows com WSL2, abra o Docker Desktop/);
+assert.match(html, /id="help-search"/);
+assert.match(html, /data-help-filter="start"/);
+assert.match(html, /data-help-topic/);
+assert.match(app, /function bindHelpCenter/);
+assert.match(app, /function filterHelpTopics/);
+assert.match(app, /normalize\("NFD"\)/);
+assert.match(app, /state\.view !== "help"/);
+assert.match(styles, /\.help-search-panel/);
+assert.match(styles, /\.help-start-card/);
+assert.match(styles, /@media \(max-width: 650px\)[\s\S]*\.help-feature-grid/);
 assert.match(html, /Central de Configurações/);
 assert.match(html, /data-action="settings"/);
 assert.doesNotMatch(html, /type="password"[^>]*settings/i);
@@ -254,6 +273,10 @@ assert.match(styles, /\.homologation-runner-card\.available/);
 assert.doesNotMatch(html + app, /homologationAutomaticPromotion\s*[:=]\s*true/);
 
 const terminalElements = new Map();
+const helpTopics = [
+  { dataset: { helpCategory: "solve", helpSearch: "docker desktop wsl2" }, textContent: "Docker não responde", tagName: "ARTICLE", hidden: false, open: false },
+  { dataset: { helpCategory: "operate", helpSearch: "assistente diagnóstico" }, textContent: "Assistente MNO", tagName: "DETAILS", hidden: false, open: false }
+];
 function terminalElement(id) {
   if (!terminalElements.has(id)) {
     terminalElements.set(id, {
@@ -278,7 +301,8 @@ const terminalContext = vm.createContext({
   document: {
     addEventListener() {},
     getElementById: terminalElement,
-    querySelectorAll() { return []; }
+    querySelectorAll(selector) { return selector === "[data-help-topic]" ? helpTopics : []; },
+    activeElement: null
   },
   window: {
     matchMedia() { return { matches: false }; },
@@ -291,6 +315,12 @@ const terminalContext = vm.createContext({
   }
 });
 vm.runInContext(app, terminalContext, { filename: "web/app.js" });
+assert.equal(vm.runInContext('normalizeHelpText("Configurações e Aplicação")', terminalContext), "configuracoes e aplicacao");
+terminalElement("help-search").value = "WSL2";
+vm.runInContext("filterHelpTopics()", terminalContext);
+assert.equal(helpTopics[0].hidden, false);
+assert.equal(helpTopics[1].hidden, true);
+assert.equal(terminalElement("help-result-count").textContent, "1 tópico encontrado");
 vm.runInContext('openAuthorizedTerminal("homologation")', terminalContext);
 assert.equal(terminalElement("terminal-dialog").open, true);
 assert.equal(terminalElement("terminal-title").textContent, "Assistente de Homologação");

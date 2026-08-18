@@ -52,8 +52,11 @@ const titles = {
   assistant: ["Diagnóstico assistido", "Assistente MNO"],
   evals: ["Relatório técnico", "Qualidade do Assistente"],
   audit: ["Rastreabilidade da sessão", "Auditoria"],
-  settings: ["Administração protegida", "Configurações"]
+  settings: ["Administração protegida", "Configurações"],
+  help: ["Aprenda no seu ritmo", "Help · Instruções de uso"]
 };
+
+let helpFilter = "all";
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -77,6 +80,7 @@ function bindEvents() {
   });
   $("logout-button").addEventListener("click", logout);
   $("refresh-button").addEventListener("click", refreshAll);
+  bindHelpCenter();
   $("navigation").addEventListener("click", event => {
     const button = event.target.closest("[data-view]");
     if (button) navigate(button.dataset.view);
@@ -175,6 +179,66 @@ function bindEvents() {
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && state.csrf) refreshReleaseData();
   });
+}
+
+function normalizeHelpText(value) {
+  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").trim();
+}
+
+function bindHelpCenter() {
+  const search = $("help-search");
+  if (!search) return;
+  search.addEventListener("input", filterHelpTopics);
+  $("help-filters")?.addEventListener("click", event => {
+    const button = event.target.closest("[data-help-filter]");
+    if (!button) return;
+    helpFilter = button.dataset.helpFilter || "all";
+    document.querySelectorAll("[data-help-filter]").forEach(item => item.classList.toggle("active", item === button));
+    filterHelpTopics();
+  });
+  $("help-clear-search")?.addEventListener("click", () => {
+    search.value = "";
+    helpFilter = "all";
+    document.querySelectorAll("[data-help-filter]").forEach(item => item.classList.toggle("active", item.dataset.helpFilter === "all"));
+    filterHelpTopics();
+    search.focus();
+  });
+  document.addEventListener("keydown", event => {
+    if (state.view !== "help") return;
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName || "");
+    if (event.key === "/" && !typing) {
+      event.preventDefault();
+      search.focus();
+    } else if (event.key === "Escape" && document.activeElement === search && search.value) {
+      search.value = "";
+      filterHelpTopics();
+    }
+  });
+  filterHelpTopics();
+}
+
+function filterHelpTopics() {
+  const search = $("help-search");
+  if (!search) return;
+  const query = normalizeHelpText(search.value);
+  const topics = [...document.querySelectorAll("[data-help-topic]")];
+  let visible = 0;
+  topics.forEach(topic => {
+    const categories = String(topic.dataset.helpCategory || "").split(/\s+/);
+    const categoryMatch = helpFilter === "all" || categories.includes(helpFilter);
+    const haystack = normalizeHelpText(`${topic.dataset.helpSearch || ""} ${topic.textContent || ""}`);
+    const queryMatch = !query || haystack.includes(query);
+    const show = categoryMatch && queryMatch;
+    topic.hidden = !show;
+    if (show) {
+      visible += 1;
+      if (query.length >= 3 && topic.tagName === "DETAILS") topic.open = true;
+    }
+  });
+  const count = $("help-result-count");
+  if (count) count.textContent = `${visible} ${visible === 1 ? "tópico encontrado" : "tópicos encontrados"}`;
+  const empty = $("help-no-results");
+  if (empty) empty.hidden = visible !== 0;
 }
 
 async function login(event) {

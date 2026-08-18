@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Windmill no Setup MNO",
   "setupId": "windmill",
-  "setupVersion": "7.22.3",
+  "setupVersion": "7.23.0",
   "architectures": [
     "amd64",
     "arm64"

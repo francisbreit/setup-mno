@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#070a0f">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=4.22.3">
+  <link rel="stylesheet" href="/styles.css?v=4.23.0">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -64,6 +64,7 @@
         <button class="nav-item" data-view="assistant"><span class="nav-icon">✦</span><span>Assistente MNO</span><em>Beta</em></button>
         <button class="nav-item" data-view="audit"><span class="nav-icon">≡</span><span>Auditoria</span></button>
         <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span><span>Configurações</span></button>
+        <button class="nav-item" data-view="help"><span class="nav-icon">?</span><span>Help</span><em>Guia</em></button>
       </nav>
       <div class="sidebar-bottom">
         <div class="server-mini">
@@ -414,6 +415,155 @@
             </div>
           </article>
         </section>
+
+        <section id="view-help" class="view">
+          <div class="help-intro">
+            <div>
+              <p class="eyebrow">Instruções de uso</p>
+              <h2>Central de Ajuda</h2>
+              <p>Aprenda o essencial, conclua tarefas com segurança e descubra o que cada área do Setup MNO Control Center pode fazer.</p>
+            </div>
+            <span class="secure-pill"><i></i> Guia local e seguro</span>
+          </div>
+
+          <div class="help-search-panel" role="search" aria-label="Pesquisar nas instruções de uso">
+            <div class="help-search-box"><span aria-hidden="true">⌕</span><input id="help-search" type="search" autocomplete="off" placeholder="Busque: instalar aplicação, WSL2, Assistente, senha..." aria-describedby="help-search-hint"></div>
+            <p id="help-search-hint">Digite uma dúvida ou escolha um assunto. Pressione <kbd>/</kbd> para pesquisar nesta página.</p>
+            <div id="help-filters" class="help-filters" aria-label="Filtrar assuntos">
+              <button type="button" class="active" data-help-filter="all">Todos</button>
+              <button type="button" data-help-filter="start">Primeiros passos</button>
+              <button type="button" data-help-filter="operate">Usar o painel</button>
+              <button type="button" data-help-filter="solve">Resolver problemas</button>
+              <button type="button" data-help-filter="concept">Entender conceitos</button>
+            </div>
+            <p id="help-result-count" class="help-result-count" aria-live="polite"></p>
+          </div>
+
+          <article class="help-start-card help-topic" data-help-topic data-help-category="start" data-help-search="começar primeiros passos início login visão geral instalar aplicação terminal catálogo">
+            <div class="help-start-copy">
+              <span class="help-step-badge">Comece aqui</span>
+              <h3>Seus primeiros 10 minutos</h3>
+              <p>Este é o caminho mais curto para conhecer o servidor e instalar seu primeiro setup sem se perder.</p>
+            </div>
+            <ol class="help-journey">
+              <li><button type="button" data-nav="dashboard"><b>1</b><span><strong>Confira a Visão geral</strong><small>Veja RAM, armazenamento, processamento e saúde dos serviços.</small></span></button></li>
+              <li><button type="button" data-nav="catalog"><b>2</b><span><strong>Escolha no Catálogo</strong><small>Pesquise a solução e confira RAM e arquitetura antes de instalar.</small></span></button></li>
+              <li><button type="button" data-action="terminal"><b>3</b><span><strong>Abra o Instalador Seguro</strong><small>Confirme sua senha e responda às etapas visuais do Whiptail.</small></span></button></li>
+              <li><button type="button" data-nav="installed"><b>4</b><span><strong>Valide a instalação</strong><small>Confirme se a nova stack aparece saudável em Aplicações instaladas.</small></span></button></li>
+            </ol>
+            <div class="help-safety-note"><span>◎</span><p><strong>Regra de segurança:</strong> leia a confirmação final antes de prosseguir. O painel informa e abre fluxos protegidos; operações administrativas continuam exigindo ação humana.</p></div>
+          </article>
+
+          <div class="help-section-heading help-topic" data-help-topic data-help-category="operate" data-help-search="áreas telas menu painel recursos">
+            <div><p class="eyebrow">Referência rápida</p><h3>O que existe em cada área</h3></div>
+            <p>Use estes cartões como mapa do Control Center.</p>
+          </div>
+          <div class="help-feature-grid">
+            <article class="help-feature-card help-topic" data-help-topic data-help-category="operate" data-help-search="visão geral dashboard cpu ram memória disco armazenamento serviços saúde servidor">
+              <span class="help-feature-icon orange">⌂</span><div><h3>Visão geral</h3><p>Mostra o estado do servidor, consumo de recursos, aplicações e atalhos. Use-a antes de qualquer deploy para conferir se existe capacidade disponível.</p></div><button type="button" data-nav="dashboard">Abrir Visão geral <b>→</b></button>
+            </article>
+            <article class="help-feature-card help-topic" data-help-topic data-help-category="operate" data-help-search="aplicações instaladas stacks serviços réplicas online falha degradado docker swarm">
+              <span class="help-feature-icon green">◫</span><div><h3>Aplicações instaladas</h3><p>É o inventário somente leitura das stacks e dos serviços do Docker Swarm. “Com atenção” indica que uma réplica não atingiu o estado esperado e precisa de diagnóstico.</p></div><button type="button" data-nav="installed">Ver aplicações <b>→</b></button>
+            </article>
+            <article class="help-feature-card help-topic" data-help-topic data-help-category="operate" data-help-search="catálogo setups pesquisar categorias ram arquitetura selo homologação instalar deploy">
+              <span class="help-feature-icon violet">◇</span><div><h3>Catálogo de setups</h3><p>Lista configurações instaláveis. Um setup pode ser uma aplicação individual, uma variante ou um combo. Confira RAM, arquitetura e maturidade antes de abrir o instalador.</p></div><button type="button" data-nav="catalog">Explorar catálogo <b>→</b></button>
+            </article>
+            <article class="help-feature-card help-topic coming-soon" data-help-topic data-help-category="operate" data-help-search="blueprints arquitetura receita integração passo a passo em breve">
+              <span class="help-feature-icon cyan">⌘</span><div><span class="help-status">Em breve</span><h3>Manual de Blueprints</h3><p>A documentação completa explicará como uma receita combina vários setups, integrações, validações e rollback. Até lá, trate os guias Beta como material de consulta, nunca como deploy automático homologado.</p></div><button type="button" data-nav="blueprints">Conhecer a área <b>→</b></button>
+            </article>
+            <article class="help-feature-card help-topic" data-help-topic data-help-category="operate" data-help-search="assistente mno ia llm diagnóstico básico openai openrouter deepseek ollama perguntas recomendação">
+              <span class="help-feature-icon violet">✦</span><div><h3>Assistente MNO</h3><p>Ajuda a interpretar saúde, capacidade, setups, segurança, integrações e falhas. No modo Básico, executa diagnóstico local sem LLM. Com provedor opcional, responde com conhecimento do Setup MNO e contexto minimizado.</p></div><button type="button" data-nav="assistant">Abrir Assistente <b>→</b></button>
+            </article>
+            <article class="help-feature-card help-topic" data-help-topic data-help-category="operate" data-help-search="auditoria eventos login terminal rastreabilidade feedback segurança histórico">
+              <span class="help-feature-icon orange">≡</span><div><h3>Auditoria</h3><p>Registra eventos administrativos e de segurança sem armazenar senhas nem o texto das conversas. Use a trilha para entender quando uma sessão ou recurso protegido foi acessado.</p></div><button type="button" data-nav="audit">Ver auditoria <b>→</b></button>
+            </article>
+            <article class="help-feature-card help-topic" data-help-topic data-help-category="operate" data-help-search="configurações alterar usuário senha provedor modelo secret terminal seguro">
+              <span class="help-feature-icon cyan">⚙</span><div><h3>Configurações</h3><p>Permite alterar usuário, senha e provedor do Assistente pelo terminal autenticado. Credenciais são coletadas fora do navegador e mantidas em Docker Secrets.</p></div><button type="button" data-nav="settings">Abrir Configurações <b>→</b></button>
+            </article>
+          </div>
+
+          <div class="help-section-heading help-topic" data-help-topic data-help-category="operate" data-help-search="guias tarefas instalar atualizar reinstalar terminal assistente">
+            <div><p class="eyebrow">Guias de tarefa</p><h3>Faça com segurança</h3></div>
+            <p>Abra somente o procedimento de que precisa.</p>
+          </div>
+          <div class="help-guides">
+            <details class="help-guide help-topic" data-help-topic data-help-category="operate start" data-help-search="instalar nova aplicação setup deploy catálogo terminal url domínio portainer docker">
+              <summary><span class="help-guide-number">01</span><span><strong>Instalar uma nova aplicação</strong><small>Do catálogo até a validação da stack.</small></span><b>＋</b></summary>
+              <div class="help-guide-body"><ol><li>Abra <button type="button" data-nav="dashboard">Visão geral</button> e confirme que RAM, disco e serviços estão saudáveis.</li><li>Em <button type="button" data-nav="catalog">Catálogo de setups</button>, pesquise a aplicação e confira a RAM e a arquitetura indicadas.</li><li>Selecione <strong>Instalar</strong> ou <strong>Abrir assistente guiado</strong>. Redigite sua senha administrativa quando solicitado.</li><li>No Whiptail, leia cada pergunta, informe o domínio solicitado e escolha Portainer ou Docker conforme sua operação.</li><li>Aguarde a confirmação de conclusão. Não feche a sessão durante uma pergunta; etapas demoradas mostram progresso.</li><li>Abra <button type="button" data-nav="installed">Aplicações instaladas</button> e confirme que as réplicas estão online. Depois, teste a URL da aplicação.</li></ol><div class="help-callout warn"><strong>Antes de confirmar</strong><span>Tenha um subdomínio livre, revise o consumo de RAM e não reutilize uma URL que pertence a outra aplicação.</span></div></div>
+            </details>
+            <details class="help-guide help-topic" data-help-topic data-help-category="operate" data-help-search="terminal seguro cloudflare tunnel senha reconectar sessão tmux fechar navegador continuar instalação">
+              <summary><span class="help-guide-number">02</span><span><strong>Usar o Terminal Seguro</strong><small>Autenticação, sessão e retomada.</small></span><b>＋</b></summary>
+              <div class="help-guide-body"><ol><li>Selecione <strong>Novo deploy</strong> ou um botão que abra o terminal.</li><li>Redigite a senha administrativa. Essa confirmação tem duração limitada e não é registrada.</li><li>Navegue pelo Whiptail com setas, <kbd>Tab</kbd>, <kbd>Enter</kbd> e <kbd>Esc</kbd>. Em celular, use os controles exibidos no próprio terminal.</li><li>Se o navegador desconectar, autentique novamente e retome a sessão. Processos iniciados no tmux podem continuar no servidor.</li><li>Feche o terminal ao concluir para liberar a sessão única para outro dispositivo.</li></ol><div class="help-callout"><strong>Disponibilidade</strong><span>O terminal incorporado é oferecido nas instalações com Cloudflare Tunnel. No modo Tradicional, conecte-se ao servidor por SSH e execute o Setup MNO no terminal do sistema.</span></div></div>
+            </details>
+            <details class="help-guide help-topic" data-help-topic data-help-category="operate" data-help-search="assistente mno básico llm provedor perguntar diagnóstico local limites executar ações">
+              <summary><span class="help-guide-number">03</span><span><strong>Pedir ajuda ao Assistente MNO</strong><small>Quando usar o modo Básico ou uma LLM.</small></span><b>＋</b></summary>
+              <div class="help-guide-body"><ol><li>No modo <strong>Básico</strong>, selecione <strong>Executar diagnóstico do sistema</strong> para obter uma leitura local de capacidade e serviços.</li><li>Com OpenAI, OpenRouter, DeepSeek ou Ollama configurado, faça uma pergunta objetiva: informe a aplicação, o sintoma e o resultado esperado.</li><li>Confira as etiquetas de especialista, risco e fundamentação exibidas junto à resposta.</li><li>Trate recomendações como orientação. O Assistente não executa comandos, não cria stacks e não altera o Docker.</li><li>Se uma resposta não ajudar, use a avaliação estruturada. O texto da conversa não é armazenado nesse feedback.</li></ol><div class="help-examples"><strong>Boas perguntas</strong><span>“Tenho 3 GB de RAM livre. Posso instalar o N8N?”</span><span>“Uma réplica está 0/1. Quais verificações devo fazer?”</span><span>“Qual setup atende formulários internos com PostgreSQL?”</span></div></div>
+            </details>
+            <details class="help-guide help-topic" data-help-topic data-help-category="operate" data-help-search="atualizar reinstalar setup mno versão dados volumes backup docker desktop wsl2">
+              <summary><span class="help-guide-number">04</span><span><strong>Atualizar ou reinstalar o Setup MNO</strong><small>Preparação e cuidados essenciais.</small></span><b>＋</b></summary>
+              <div class="help-guide-body"><ol><li>Confirme que possui backup dos dados importantes e acesso administrativo ao servidor.</li><li>No Windows com WSL2, abra o Docker Desktop, aguarde o motor iniciar e confirme a integração com a distribuição Ubuntu antes de executar o bootstrap.</li><li>Use somente o bootstrap oficial correspondente ao ambiente e acompanhe as validações iniciais.</li><li>Durante a reconciliação, não interrompa builds, atualização do painel ou validação de manifestos.</li><li>Ao terminar, atualize o Control Center e confira separadamente as versões do Setup MNO e do painel.</li></ol><div class="help-callout warn"><strong>Não confunda reinstalação com exclusão</strong><span>Atualizar o Setup MNO não é autorização para remover stacks, volumes ou bancos existentes.</span></div></div>
+            </details>
+            <details class="help-guide help-topic" data-help-topic data-help-category="operate" data-help-search="homologação runner candidato selo nove checks digest mantenedor aplicação">
+              <summary><span class="help-guide-number">05</span><span><strong>Entender o Homologation Runner</strong><small>O que o assistente guiado registra — e o que ele não aprova.</small></span><b>＋</b></summary>
+              <div class="help-guide-body"><p>O Runner conduz uma sessão de teste e gera um <strong>candidato de homologação</strong>. Você escolhe a aplicação e a arquitetura, registra os nove checks, informa imagens por digest e pode salvar para continuar depois.</p><ol><li>Use <strong>NEW</strong> para iniciar ou <strong>RESUME</strong> para retomar.</li><li>Marque cada check como aprovado, reprovado ou não testado somente após executar o teste real no laboratório.</li><li>Registre evidências e digests exatos das imagens avaliadas.</li><li>Finalize o candidato e encaminhe-o para revisão do mantenedor.</li></ol><div class="help-callout warn"><strong>Fronteira de confiança</strong><span>Um candidato nunca concede o Selo de Homologação, não altera o catálogo e não publica uma aplicação automaticamente.</span></div></div>
+            </details>
+          </div>
+
+          <div class="help-section-heading help-topic" data-help-topic data-help-category="solve" data-help-search="problemas diagnóstico erro falha ajuda">
+            <div><p class="eyebrow">Diagnóstico orientado</p><h3>Quando algo não funciona</h3></div>
+            <p>Comece pelo sintoma visível e avance sem apagar dados.</p>
+          </div>
+          <div class="help-troubleshooting-grid">
+            <article class="help-trouble help-topic" data-help-topic data-help-category="solve" data-help-search="aplicação com atenção 0/1 réplica serviço falha logs recursos ram">
+              <span>0/1</span><h3>Aplicação “Com atenção”</h3><ol><li>Confirme RAM e disco na Visão geral.</li><li>Identifique a stack e o serviço afetado.</li><li>Peça ao Assistente um roteiro de diagnóstico.</li><li>Consulte logs pelo Portainer ou terminal.</li></ol><p>Não remova o volume para “tentar de novo”. Ele pode conter os dados da aplicação.</p>
+            </article>
+            <article class="help-trouble help-topic" data-help-topic data-help-category="solve" data-help-search="url não abre dns nxdomain ssl https www cloudflare tunnel tradicional cname propagação">
+              <span>DNS</span><h3>A URL não abre</h3><ol><li><strong>NXDOMAIN:</strong> o hostname não possui DNS válido.</li><li><strong>Erro 502/504:</strong> DNS existe, mas o serviço de origem não respondeu.</li><li><strong>Certificado:</strong> confira se a nuvem está ativa e o modo SSL/TLS está correto.</li><li><strong>www:</strong> exige registro e rota próprios ou um redirecionamento que já possa ser alcançado por DNS.</li></ol><p>No Tunnel, DNS e ingresso precisam apontar para o mesmo hostname. No modo Tradicional, confira DNS, Traefik e a porta 443.</p>
+            </article>
+            <article class="help-trouble help-topic" data-help-topic data-help-category="solve" data-help-search="wsl2 docker desktop desligado não encontrado daemon swarm ubuntu integração powershell">
+              <span>WSL2</span><h3>Docker não responde no Windows</h3><ol><li>Abra o Docker Desktop e aguarde “Engine running”.</li><li>Confirme que o backend WSL2 está habilitado.</li><li>Em Resources > WSL Integration, habilite a distribuição Ubuntu usada.</li><li>Feche e abra novamente o Ubuntu.</li><li>Só então execute ou atualize o Setup MNO.</li></ol><p>Se o Docker estiver desligado, interrompa a instalação. Não tente recriar o Swarm antes de restabelecer a integração.</p>
+            </article>
+            <article class="help-trouble help-topic" data-help-topic data-help-category="solve" data-help-search="senha login acesso cloudflare access mfa sessão expirada credencial usuário">
+              <span>LOGIN</span><h3>Não consigo entrar</h3><ol><li>Confirme se está na URL atual do Control Center.</li><li>Conclua o Cloudflare Access quando ele estiver habilitado.</li><li>Use o usuário e a senha administrativos do painel.</li><li>Se a sessão expirou, autentique novamente.</li><li>Para alterar a credencial, use Configurações Seguras.</li></ol><p>Não envie senha, token de API ou código MFA em capturas de tela e mensagens de suporte.</p>
+            </article>
+          </div>
+
+          <div class="help-section-heading help-topic" data-help-topic data-help-category="concept" data-help-search="conceitos glossário termos setup aplicação stack serviço blueprint selo">
+            <div><p class="eyebrow">Entenda os termos</p><h3>Glossário essencial</h3></div>
+            <p>Palavras parecidas representam objetos diferentes.</p>
+          </div>
+          <dl class="help-glossary help-topic" data-help-topic data-help-category="concept" data-help-search="setup aplicação stack serviço blueprint selo homologação beta">
+            <div><dt>Aplicação</dt><dd>O produto ou software, como N8N, WordPress ou Uptime Kuma.</dd></div>
+            <div><dt>Setup</dt><dd>Uma configuração instalável. A mesma aplicação pode ter variantes e aparecer em combos diferentes.</dd></div>
+            <div><dt>Stack</dt><dd>Conjunto implantado no Docker Swarm, formado por um ou mais serviços.</dd></div>
+            <div><dt>Serviço</dt><dd>Unidade executada pelo Swarm com imagem, rede, volumes, limites e quantidade de réplicas.</dd></div>
+            <div><dt>Blueprint</dt><dd>Receita orientada a um resultado, combinando setups, ordem, integrações, validações e rollback.</dd></div>
+            <div><dt>Selo de Homologação</dt><dd>Evidência de que uma versão passou pelos gates definidos. Não significa que qualquer combinação futura está automaticamente aprovada.</dd></div>
+          </dl>
+
+          <div class="help-section-heading help-topic" data-help-topic data-help-category="concept" data-help-search="vídeo gif animação tutorial mídia em breve">
+            <div><p class="eyebrow">Aprendizado visual</p><h3>GIFs e vídeos</h3></div>
+            <span class="help-status">Em breve</span>
+          </div>
+          <div class="help-media-grid help-topic" data-help-topic data-help-category="concept" data-help-search="gif vídeo primeiros passos instalar aplicação terminal seguro">
+            <article><span>▶</span><div><strong>Tour do Control Center</strong><small>Vídeo curto · Em breve</small></div></article>
+            <article><span>GIF</span><div><strong>Instalando pelo catálogo</strong><small>Passo a passo visual · Em breve</small></div></article>
+            <article><span>▶</span><div><strong>Diagnóstico com o Assistente</strong><small>Vídeo curto · Em breve</small></div></article>
+          </div>
+
+          <div class="help-section-heading help-topic" data-help-topic data-help-category="solve concept" data-help-search="perguntas frequentes faq dúvida suporte">
+            <div><p class="eyebrow">Perguntas frequentes</p><h3>Respostas rápidas</h3></div>
+          </div>
+          <div class="help-faq">
+            <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="painel instala sozinho automático confirmação"><summary>O Control Center instala aplicações sozinho?<b>＋</b></summary><p>Não. Ele abre o Instalador Seguro e apresenta informações. O usuário continua responsável por escolher, revisar e confirmar as operações.</p></details>
+            <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="assistente executa comando docker apagar alterar"><summary>O Assistente MNO executa comandos no servidor?<b>＋</b></summary><p>Não. Ele é consultivo: analisa informações permitidas e sugere verificações. Não possui shell, Docker socket nem ferramenta de escrita.</p></details>
+            <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="fechar navegador instalação continua tmux terminal"><summary>Se eu fechar o navegador, a instalação para?<b>＋</b></summary><p>Uma operação já iniciada no tmux pode continuar. Autentique-se novamente e retome a sessão. Se o instalador ainda aguardava uma resposta, volte antes do timeout.</p></details>
+            <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="atualizar apaga dados volumes backup"><summary>Atualizar o Setup MNO apaga minhas aplicações?<b>＋</b></summary><p>O fluxo de atualização foi desenhado para reconciliar o Setup e preservar recursos existentes. Ainda assim, mantenha backups e leia todas as confirmações antes de qualquer operação administrativa.</p></details>
+            <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="setup aplicação contagem catálogo números diferentes"><summary>Por que “setups” não significa “aplicações únicas”?<b>＋</b></summary><p>Porque o catálogo conta opções instaláveis. Variantes, versões e combos podem usar a mesma aplicação em configurações diferentes.</p></details>
+            <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="suporte pedir ajuda evidência print log segredo token senha"><summary>O que devo enviar ao suporte?<b>＋</b></summary><p>Informe a versão, o ambiente, a etapa, a mensagem exata e o horário aproximado. Envie apenas trechos de log sem senhas, tokens, cookies, chaves ou dados pessoais.</p></details>
+          </div>
+          <div id="help-no-results" class="help-no-results" hidden><span>⌕</span><h3>Nenhum tópico encontrado</h3><p>Tente termos mais simples, como “instalar”, “URL”, “WSL2”, “senha” ou “Assistente”.</p><button id="help-clear-search" class="light-button" type="button">Limpar pesquisa</button></div>
+        </section>
       </div>
     </section>
   </div>
@@ -496,8 +646,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=4.22.3" defer></script>
-  <script src="/assistant-route.js?v=4.22.3" defer></script>
-  <script src="/app.js?v=4.22.3" defer></script>
+  <script src="/markdown.js?v=4.23.0" defer></script>
+  <script src="/assistant-route.js?v=4.23.0" defer></script>
+  <script src="/app.js?v=4.23.0" defer></script>
 </body>
 </html>

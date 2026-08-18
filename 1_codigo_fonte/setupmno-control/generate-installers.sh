@@ -588,6 +588,17 @@ grep -Fq 'function renderAssistantAvailability' "$project_dir/web/app.js" || {
     printf 'ERRO: modos BASIC/LATER ainda expõem chat sem LLM ou não oferecem diagnóstico local.\n' >&2
     exit 1
 }
+grep -Fq 'data-view="help"' "$project_dir/web/index.html" &&
+grep -Fq 'id="view-help"' "$project_dir/web/index.html" &&
+grep -Fq 'id="help-search"' "$project_dir/web/index.html" &&
+grep -Fq 'Manual de Blueprints' "$project_dir/web/index.html" &&
+grep -Fq 'Em breve' "$project_dir/web/index.html" &&
+grep -Fq 'function bindHelpCenter' "$project_dir/web/app.js" &&
+grep -Fq 'function filterHelpTopics' "$project_dir/web/app.js" &&
+grep -Fq '.help-search-panel' "$project_dir/web/styles.css" || {
+    printf 'ERRO: Central de Ajuda ausente, sem pesquisa local ou sem layout responsivo.\n' >&2
+    exit 1
+}
 
 x86_version=$(sed -n 's/^VERSIONSETUP="\([^"]*\)"/\1/p' "$source_root/x86/SetupLowCodeMno/install.sh" | head -n1)
 [ -n "$x86_version" ] || {

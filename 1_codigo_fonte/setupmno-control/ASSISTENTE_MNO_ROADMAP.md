@@ -1,14 +1,16 @@
 # Roadmap do Assistente MNO Especialista
 
-## v7.22.3 — Correção do gate booleano do manifesto runtime
+## v7.23.0 — Central de Ajuda integrada
 
-- Corrige a leitura de `homologationAutomaticPromotion:false` no `jq`, que era
-  convertida incorretamente para `true` pelo operador de fallback `//`.
-- Mantém a política fail-closed: campo ausente, inválido ou diferente de
-  `false` continua bloqueando a promoção do runtime.
-- Exibe diagnóstico específico para esse campo antes da falha 41 genérica.
-- Adiciona gates estático e dinâmico no gerador para impedir regressão em x86
-  e ARM.
+- Adiciona Help abaixo de Configurações no menu principal do Control Center.
+- Organiza o manual em primeiros passos, guias de tarefa, referência das telas,
+  diagnóstico por sintoma, conceitos e perguntas frequentes.
+- Inclui pesquisa local tolerante a acentos, filtros por intenção, atalhos de
+  teclado e navegação contextual sem enviar consultas para o servidor.
+- Explica claramente os limites do Assistente MNO, do Homologation Runner e do
+  Terminal Seguro, incluindo os fluxos Cloudflare Tunnel, Tradicional e WSL2.
+- Reserva componentes responsivos para GIFs e vídeos futuros; o manual completo
+  de Blueprints permanece marcado como “Em breve”.
 
 ## v7.22.0 — Assistente Visual de Homologação
 
@@ -46,9 +48,9 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.22.3` em preparação de release
+- Setup MNO: `7.23.0` em preparação de release
 - Última versão estável homologada: `7.20.0`
-- Control Center: `4.22.3`
+- Control Center: `4.23.0`
 - Conhecimento canônico: `3.24.1`
 - Catálogo runtime: 158 entradas
 - Cobertura canônica dedicada: 158 de 158 entradas (`100%`)

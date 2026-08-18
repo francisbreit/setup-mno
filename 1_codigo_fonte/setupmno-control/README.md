@@ -202,6 +202,24 @@ caso de falha. A reinicialização do painel invalida as sessões abertas. Essa
 capacidade não adiciona socket Docker, shell ou endpoint de escrita ao painel
 web nem ao Assistente.
 
+## Central de Ajuda
+
+A área Help aparece imediatamente abaixo de Configurações e funciona sem API,
+LLM ou dependência externa. O conteúdo é organizado para atender iniciantes e
+usuários em operação: primeiros passos, referência das telas, procedimentos,
+diagnóstico por sintoma, glossário e perguntas frequentes.
+
+A pesquisa é processada somente no navegador, aceita termos com ou sem acentos,
+possui filtros por intenção e pode ser focada pela tecla `/`. Os guias usam
+elementos `details` nativos e botões contextuais para levar o usuário à área
+correta. GIFs e vídeos futuros entram em cartões próprios, mas todo procedimento
+continua compreensível em texto. A documentação completa de Blueprints permanece
+marcada como “Em breve”.
+
+O manual reforça as fronteiras de segurança existentes: o Assistente é
+consultivo, candidatos do Homologation Runner não concedem selo e operações
+administrativas continuam no Terminal Seguro com confirmação humana.
+
 O plano completo para transformar o Beta em um especialista de infraestrutura,
 setups e Blueprints está registrado em
 [`ASSISTENTE_MNO_ROADMAP.md`](ASSISTENTE_MNO_ROADMAP.md).
