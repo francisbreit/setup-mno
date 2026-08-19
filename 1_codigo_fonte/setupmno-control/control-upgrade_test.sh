@@ -31,7 +31,10 @@ for forbidden in 'docker stack deploy' 'docker service create' 'docker secret cr
 done
 
 test_dir=$(mktemp -d)
-trap 'rm -rf -- "$test_dir"' EXIT
+cleanup_test_dir() {
+    rm -rf -- "$test_dir"
+}
+trap cleanup_test_dir EXIT
 log_file="$test_dir/upgrade.log"
 docker_log="$test_dir/docker.log"
 : >"$log_file"
@@ -58,7 +61,12 @@ heartbeat_success() {
     command sleep 0.12
     printf 'comando monitorado concluído\n'
 }
+# O Bash 5.3 pode herdar o trap EXIT no job em background do heartbeat e
+# remover o diretório do processo pai. Suspenda o trap somente enquanto o job
+# monitorado estiver vivo e restaure-o imediatamente depois.
+trap - EXIT
 run_with_heartbeat 84 "ATUALIZANDO O PAINEL..." heartbeat_success >"$heartbeat_output"
+trap cleanup_test_dir EXIT
 grep -Fq '[|]' "$heartbeat_output"
 grep -Fq '[/]' "$heartbeat_output"
 grep -Fq '[\]' "$heartbeat_output"
@@ -71,8 +79,10 @@ heartbeat_failure() {
     return 37
 }
 set +e
+trap - EXIT
 run_with_heartbeat 45 "CONSTRUINDO O TERMINAL..." heartbeat_failure >"$heartbeat_output"
 heartbeat_status=$?
+trap cleanup_test_dir EXIT
 set -e
 [ "$heartbeat_status" -eq 37 ]
 [ -z "$heartbeat_pid" ]

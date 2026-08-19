@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Focalboard no Setup MNO",
   "setupId": "focalboard",
-  "setupVersion": "7.24.0",
+  "setupVersion": "7.24.1",
   "architectures": [
     "amd64"
   ],

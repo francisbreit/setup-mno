@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "OpenProject no Setup MNO",
   "setupId": "openproject",
-  "setupVersion": "7.24.0",
+  "setupVersion": "7.24.1",
   "architectures": [
     "amd64",
     "arm64"

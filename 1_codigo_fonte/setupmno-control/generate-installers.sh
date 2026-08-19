@@ -670,6 +670,25 @@ python3 -B "$source_root/setupmno-knowledge/tools/generate_homologation_package.
     printf 'ERRO: pacote do Homologation Runner ausente ou inseguro.\n' >&2
     exit 1
 }
+for promotion_script in \
+    "$source_root/x86/start_full.sh" \
+    "$source_root/arm/start_arm_full.sh"; do
+    for review_schema in \
+        homologation-review-decision.schema.json \
+        homologation-review-pack.schema.json; do
+        grep -Fq "[ ! -f \"\$homologation_package/$review_schema\" ]" "$promotion_script" &&
+        grep -Fq "[ -L \"\$homologation_package/$review_schema\" ]" "$promotion_script" &&
+        grep -Fq "select(.path == \"$review_schema\") | .sha256" "$promotion_script" &&
+        grep -Fq "select(.path == \"$review_schema\") | .size" "$promotion_script" &&
+        grep -Fq "install -m 0644 \"\$homologation_package/$review_schema\"" "$promotion_script" &&
+        grep -Fq "\$control_target/homologation-package/$review_schema.tmp" "$promotion_script" &&
+        grep -Fq "\$control_target/homologation-package/$review_schema\"" "$promotion_script" || {
+            printf 'ERRO: promoção segura de %s ausente em %s.\n' \
+                "$review_schema" "$promotion_script" >&2
+            exit 1
+        }
+    done
+done
 homologation_runner_version=$(jq -r '.runnerVersion // empty' "$homologation_package/manifest.json")
 homologation_candidate_schema=$(jq -r '.candidateSchemaVersion // 0' "$homologation_package/manifest.json")
 homologation_registry_entries=$(jq -r '.registryEntries // 0' "$homologation_package/manifest.json")
@@ -1123,6 +1142,7 @@ generate_runtime_package() {
 
 generate_runtime_package "$x86_runtime_package" "amd64"
 generate_runtime_package "$arm_runtime_package" "arm64"
+"$project_dir/runtime-promotion_test.sh" >/dev/null
 
 cmp -s "$x86_runtime_package/knowledge-package/manifest.json" \
     "$arm_runtime_package/knowledge-package/manifest.json"

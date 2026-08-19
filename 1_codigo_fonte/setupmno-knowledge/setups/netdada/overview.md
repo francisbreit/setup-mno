@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "NETDADA no Setup MNO",
   "setupId": "netdada",
-  "setupVersion": "7.24.0",
+  "setupVersion": "7.24.1",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

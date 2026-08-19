@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.24.0"
+VERSIONSETUP="7.24.1"
 EXPECTED_CATALOG_ENTRIES="158"
 EXPECTED_EVAL_DATASET_VERSION="1.17.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
@@ -549,6 +549,10 @@ if [ ! -s "$control_package/release.json" ] ||
    [ -L "$homologation_package/homologation_wizard.sh" ] ||
    [ ! -f "$homologation_package/homologation-candidate.schema.json" ] ||
    [ -L "$homologation_package/homologation-candidate.schema.json" ] ||
+   [ ! -f "$homologation_package/homologation-review-decision.schema.json" ] ||
+   [ -L "$homologation_package/homologation-review-decision.schema.json" ] ||
+   [ ! -f "$homologation_package/homologation-review-pack.schema.json" ] ||
+   [ -L "$homologation_package/homologation-review-pack.schema.json" ] ||
    [ ! -f "$homologation_package/runner-registry.json" ] ||
    [ -L "$homologation_package/runner-registry.json" ]; then
     printf 'O pacote não contém o catálogo, os fontes e o conhecimento runtime do Control Center.\n' >"$control_state_error"
@@ -639,6 +643,10 @@ homologation_wizard_expected_sha=$(jq -r '.files[] | select(.path == "homologati
 homologation_wizard_expected_bytes=$(jq -r '.files[] | select(.path == "homologation_wizard.sh") | .size' "$homologation_manifest" 2>/dev/null)
 homologation_schema_expected_sha=$(jq -r '.files[] | select(.path == "homologation-candidate.schema.json") | .sha256' "$homologation_manifest" 2>/dev/null)
 homologation_schema_expected_bytes=$(jq -r '.files[] | select(.path == "homologation-candidate.schema.json") | .size' "$homologation_manifest" 2>/dev/null)
+homologation_decision_schema_expected_sha=$(jq -r '.files[] | select(.path == "homologation-review-decision.schema.json") | .sha256' "$homologation_manifest" 2>/dev/null)
+homologation_decision_schema_expected_bytes=$(jq -r '.files[] | select(.path == "homologation-review-decision.schema.json") | .size' "$homologation_manifest" 2>/dev/null)
+homologation_review_pack_schema_expected_sha=$(jq -r '.files[] | select(.path == "homologation-review-pack.schema.json") | .sha256' "$homologation_manifest" 2>/dev/null)
+homologation_review_pack_schema_expected_bytes=$(jq -r '.files[] | select(.path == "homologation-review-pack.schema.json") | .size' "$homologation_manifest" 2>/dev/null)
 homologation_registry_expected_sha=$(jq -r '.files[] | select(.path == "runner-registry.json") | .sha256' "$homologation_manifest" 2>/dev/null)
 homologation_registry_expected_bytes=$(jq -r '.files[] | select(.path == "runner-registry.json") | .size' "$homologation_manifest" 2>/dev/null)
 homologation_runner_actual_sha=$(sha256sum "$homologation_package/homologation_runner.py" | awk '{print $1}')
@@ -647,6 +655,10 @@ homologation_wizard_actual_sha=$(sha256sum "$homologation_package/homologation_w
 homologation_wizard_actual_bytes=$(stat -c '%s' "$homologation_package/homologation_wizard.sh" 2>/dev/null)
 homologation_schema_actual_sha=$(sha256sum "$homologation_package/homologation-candidate.schema.json" | awk '{print $1}')
 homologation_schema_actual_bytes=$(stat -c '%s' "$homologation_package/homologation-candidate.schema.json" 2>/dev/null)
+homologation_decision_schema_actual_sha=$(sha256sum "$homologation_package/homologation-review-decision.schema.json" | awk '{print $1}')
+homologation_decision_schema_actual_bytes=$(stat -c '%s' "$homologation_package/homologation-review-decision.schema.json" 2>/dev/null)
+homologation_review_pack_schema_actual_sha=$(sha256sum "$homologation_package/homologation-review-pack.schema.json" | awk '{print $1}')
+homologation_review_pack_schema_actual_bytes=$(stat -c '%s' "$homologation_package/homologation-review-pack.schema.json" 2>/dev/null)
 homologation_registry_actual_sha=$(sha256sum "$homologation_package/runner-registry.json" | awk '{print $1}')
 homologation_registry_actual_bytes=$(stat -c '%s' "$homologation_package/runner-registry.json" 2>/dev/null)
 if [ "$control_catalog_entries" != "$EXPECTED_CATALOG_ENTRIES" ] ||
@@ -731,6 +743,10 @@ if [ "$control_schema" != "1" ] ||
    [ "$homologation_wizard_expected_bytes" != "$homologation_wizard_actual_bytes" ] ||
    [ "$homologation_schema_expected_sha" != "$homologation_schema_actual_sha" ] ||
    [ "$homologation_schema_expected_bytes" != "$homologation_schema_actual_bytes" ] ||
+   [ "$homologation_decision_schema_expected_sha" != "$homologation_decision_schema_actual_sha" ] ||
+   [ "$homologation_decision_schema_expected_bytes" != "$homologation_decision_schema_actual_bytes" ] ||
+   [ "$homologation_review_pack_schema_expected_sha" != "$homologation_review_pack_schema_actual_sha" ] ||
+   [ "$homologation_review_pack_schema_expected_bytes" != "$homologation_review_pack_schema_actual_bytes" ] ||
    [ "$homologation_registry_expected_sha" != "$homologation_registry_actual_sha" ] ||
    [ "$homologation_registry_expected_bytes" != "$homologation_registry_actual_bytes" ] ||
    [ "$knowledge_expected_sha" != "$knowledge_actual_sha" ] ||
@@ -762,6 +778,10 @@ install -m 0755 "$homologation_package/homologation_wizard.sh" \
     "$control_target/homologation-package/homologation_wizard.sh.tmp"
 install -m 0644 "$homologation_package/homologation-candidate.schema.json" \
     "$control_target/homologation-package/homologation-candidate.schema.json.tmp"
+install -m 0644 "$homologation_package/homologation-review-decision.schema.json" \
+    "$control_target/homologation-package/homologation-review-decision.schema.json.tmp"
+install -m 0644 "$homologation_package/homologation-review-pack.schema.json" \
+    "$control_target/homologation-package/homologation-review-pack.schema.json.tmp"
 install -m 0644 "$homologation_package/runner-registry.json" \
     "$control_target/homologation-package/runner-registry.json.tmp"
 mv -f "$control_target/catalog.json.tmp" "$control_target/catalog.json"
@@ -778,6 +798,10 @@ mv -f "$control_target/homologation-package/homologation_wizard.sh.tmp" \
     "$control_target/homologation-package/homologation_wizard.sh"
 mv -f "$control_target/homologation-package/homologation-candidate.schema.json.tmp" \
     "$control_target/homologation-package/homologation-candidate.schema.json"
+mv -f "$control_target/homologation-package/homologation-review-decision.schema.json.tmp" \
+    "$control_target/homologation-package/homologation-review-decision.schema.json"
+mv -f "$control_target/homologation-package/homologation-review-pack.schema.json.tmp" \
+    "$control_target/homologation-package/homologation-review-pack.schema.json"
 mv -f "$control_target/homologation-package/runner-registry.json.tmp" \
     "$control_target/homologation-package/runner-registry.json"
 mv -f "$control_target/release.json.tmp" "$control_target/release.json"

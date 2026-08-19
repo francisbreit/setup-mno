@@ -1,5 +1,16 @@
 # Roadmap do Assistente MNO Especialista
 
+## v7.24.1 — Correção da promoção do pacote de homologação
+
+- promove atomicamente os schemas de decisão e pacote de revisão para o
+  runtime `.control/homologation-package` em instalações x86 e ARM;
+- valida existência, ausência de symlink, tamanho e SHA-256 dos dois schemas
+  antes de aceitar o runtime;
+- adiciona gate no gerador para impedir que novos arquivos autenticados sejam
+  empacotados sem também integrarem a promoção do instalador;
+- corrige o erro “Pacote do Homologation Runner ausente ou inseguro” ao abrir
+  o Assistente Visual da Central de Revisão.
+
 ## v7.24.0 — Central de Revisão de Homologação
 
 - fila visual somente leitura para sessões, candidatos e decisões locais;
@@ -69,10 +80,10 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.24.0` em preparação de release
+- Setup MNO: `7.24.1` em preparação de release
 - Última versão estável homologada: `7.20.0`
-- Control Center: `4.24.0`
-- Conhecimento canônico: `3.25.0`
+- Control Center: `4.24.1`
+- Conhecimento canônico: `3.25.1`
 - Catálogo runtime: 158 entradas
 - Cobertura canônica dedicada: 158 de 158 entradas (`100%`)
 - Blueprints: cinco guias Beta editáveis, consultáveis e baixáveis; ainda não homologados

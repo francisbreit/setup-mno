@@ -68,7 +68,7 @@ func homologationTestCandidate() map[string]any {
 	return map[string]any{
 		"schemaVersion": 1, "kind": "setupmno-homologation-candidate",
 		"candidateId": "navidrome-amd64-260819120000-candidate", "runId": "setupmno-hml-navidrome-260819120000",
-		"runnerVersion": "1.2.0", "setupId": "navidrome", "setupVersion": "7.24.0", "architecture": "amd64",
+		"runnerVersion": "1.2.0", "setupId": "navidrome", "setupVersion": "7.24.1", "architecture": "amd64",
 		"createdAt": "2026-08-19T12:00:00Z", "tester": map[string]any{"displayName": "Revisor MNO", "attestation": "self-attested"},
 		"environment": map[string]any{"platform": "wsl2-docker-desktop", "orchestrator": "docker-swarm", "isolation": "setupmno-hml"},
 		"artifact":    map[string]any{"path": "x86/SetupLowCodeMno/navidrome.sh", "sha256": string(bytes.Repeat([]byte("a"), 64))},
@@ -85,7 +85,7 @@ func prepareHomologationQueueTest(t *testing.T) (string, string, string) {
 		t.Fatal(err)
 	}
 	registry := map[string]any{
-		"runnerVersion": "1.2.0", "setupVersion": "7.24.0",
+		"runnerVersion": "1.2.0", "setupVersion": "7.24.1",
 		"entries": []any{map[string]any{"setupId": "navidrome", "artifacts": map[string]any{"amd64": map[string]any{"path": "x86/SetupLowCodeMno/navidrome.sh", "sha256": string(bytes.Repeat([]byte("a"), 64))}}}},
 	}
 	if err := os.WriteFile(filepath.Join(state, "homologation-package", "runner-registry.json"), homologationTestJSON(t, registry), 0600); err != nil {
