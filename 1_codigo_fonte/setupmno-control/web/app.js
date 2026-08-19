@@ -25,6 +25,8 @@ const state = {
   setupPlan: "",
   llmAllowed: false,
   homologationRunnerAvailable: false,
+  homologation: null,
+  homologationItems: [],
   assistantHistory: [],
   assistantRoute: null,
   view: "dashboard",
@@ -51,6 +53,7 @@ const titles = {
   blueprints: ["Arquiteturas compostas", "Blueprints MNO"],
   assistant: ["Diagnóstico assistido", "Assistente MNO"],
   evals: ["Relatório técnico", "Qualidade do Assistente"],
+  homologation: ["Evidências operacionais", "Revisão de Homologação"],
   audit: ["Rastreabilidade da sessão", "Auditoria"],
   settings: ["Administração protegida", "Configurações"],
   help: ["Aprenda no seu ritmo", "Help · Instruções de uso"]
@@ -132,6 +135,9 @@ function bindEvents() {
   $("catalog-search").addEventListener("input", renderCatalog);
   $("catalog-category").addEventListener("change", renderCatalog);
   $("catalog-arch").addEventListener("change", renderCatalog);
+  $("homologation-search").addEventListener("input", renderHomologation);
+  $("homologation-filter").addEventListener("change", renderHomologation);
+  $("homologation-arch").addEventListener("change", renderHomologation);
   $("blueprint-search").addEventListener("input", renderBlueprints);
   $("blueprint-status").addEventListener("change", renderBlueprints);
   $("blueprint-arch").addEventListener("change", renderBlueprints);
@@ -392,7 +398,7 @@ function closeIdleWarning() {
 
 async function refreshAll() {
   $("refresh-button").classList.add("spinning");
-  await Promise.allSettled([refreshOverview(), refreshApps(), refreshReleaseData(), refreshEvals()]);
+  await Promise.allSettled([refreshOverview(), refreshApps(), refreshReleaseData(), refreshEvals(), refreshHomologation()]);
   $("refresh-button").classList.remove("spinning");
 }
 
@@ -460,6 +466,65 @@ async function refreshQuality() {
     status.textContent = `Selo de Homologação indisponível: ${error.message}`;
     renderCatalog();
   }
+}
+
+async function refreshHomologation() {
+  const status = $("homologation-review-status");
+  try {
+    const data = await api("/api/homologation");
+    state.homologation = data;
+    state.homologationItems = Array.isArray(data.items) ? data.items : [];
+    status.className = "sync-status current";
+    status.textContent = `Inventário somente leitura · Runner v${data.runnerVersion || "—"} · Setup MNO v${data.setupVersion || "—"}`;
+    renderHomologation();
+  } catch (error) {
+    state.homologation = null;
+    state.homologationItems = [];
+    status.className = "sync-status stale";
+    status.textContent = error.message;
+    renderHomologation();
+  }
+}
+
+function homologationStatusLabel(status) {
+  return ({
+    pending: "Aguardando revisão",
+    approved: "Aprovado localmente",
+    rejected: "Recusado",
+    draft: "Checklist em andamento",
+    incompatible: "Artefato incompatível",
+    quarantine: "Quarentena"
+  })[status] || "Estado desconhecido";
+}
+
+function renderHomologation() {
+  const summary = state.homologation?.summary || {};
+  ["pending", "approved", "rejected", "draft", "incompatible", "quarantine"].forEach(key => {
+    const target = $(`homologation-${key}`);
+    if (target) target.textContent = Number(summary[key]) || 0;
+  });
+  const reviewCount = (Number(summary.pending) || 0) + (Number(summary.incompatible) || 0) + (Number(summary.quarantine) || 0);
+  $("nav-homologation-count").textContent = reviewCount;
+  const query = ($("homologation-search")?.value || "").trim().toLowerCase();
+  const filter = $("homologation-filter")?.value || "";
+  const arch = $("homologation-arch")?.value || "";
+  const items = state.homologationItems.filter(item => {
+    const searchable = `${item.setupId || ""} ${item.runId || ""} ${item.candidateId || ""}`.toLowerCase();
+    return (!query || searchable.includes(query)) && (!filter || item.status === filter) && (!arch || item.architecture === arch);
+  });
+  $("homologation-result").textContent = `${items.length} de ${state.homologationItems.length} registros encontrados`;
+  $("homologation-list").innerHTML = items.length ? items.map(item => {
+    const checks = Object.entries(item.checks || {});
+    const checkMarkup = checks.length ? `<div class="homologation-checks">${checks.map(([name, check]) => `<span class="check-${escapeHTML(check.status)}"><b>${escapeHTML(name)}</b>${escapeHTML(check.status)}</span>`).join("")}</div>` : "";
+    const decision = item.decision ? `<div class="homologation-decision"><strong>Decisão imutável</strong><span>${escapeHTML(item.decision.reviewedBy)} · ${escapeHTML(String(item.decision.reviewedAt || "").slice(0, 10))}</span><p>${escapeHTML(item.decision.reason)}</p></div>` : "";
+    return `<article class="homologation-review-card status-${escapeHTML(item.status)}">
+      <div class="homologation-review-head"><div><span class="type-label">${item.kind === "candidate" ? "Candidato" : "Sessão"}</span><h3>${escapeHTML(item.setupId || item.id)}</h3></div><span class="homologation-state">${escapeHTML(homologationStatusLabel(item.status))}</span></div>
+      <div class="homologation-metadata"><span><b>Execução</b>${escapeHTML(item.runId || "—")}</span><span><b>Arquitetura</b>${item.architecture === "arm64" ? "ARM64" : item.architecture === "amd64" ? "X86_64" : "—"}</span><span><b>Setup / Runner</b>${escapeHTML(item.setupVersion || "—")} / ${escapeHTML(item.runnerVersion || "—")}</span><span><b>Compatibilidade</b>${escapeHTML(item.compatibility || "—")}</span></div>
+      ${item.warning ? `<p class="homologation-warning">${escapeHTML(item.warning)}</p>` : ""}${decision}
+      <details><summary>Ver evidências e checks</summary>${checkMarkup || "<p class=\"muted\">O checklist ainda está em elaboração.</p>"}<p class="homologation-seal-boundary">Governança canônica alterada: não · Selo oficial: não</p></details>
+    </article>`;
+  }).join("") : `<div class="empty-state">Nenhum registro corresponde aos filtros. Use o Terminal Seguro para iniciar uma sessão.</div>`;
+  applyTerminalAccessState();
 }
 
 async function refreshBlueprints() {
@@ -2041,6 +2106,7 @@ function navigate(view) {
   $("page-kicker").textContent = titles[view][0];
   $("page-title").textContent = titles[view][1];
   if (view === "audit") loadAudit();
+  if (view === "homologation") refreshHomologation();
   if (view === "evals" && !state.evals) refreshEvals();
   closeSidebar();
   window.scrollTo({ top: 0, behavior: "smooth" });

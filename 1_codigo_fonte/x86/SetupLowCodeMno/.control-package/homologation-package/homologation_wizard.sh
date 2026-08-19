@@ -88,7 +88,9 @@ validate_runtime() {
         }
     done
     for file_name in manifest.json homologation_runner.py \
-        homologation_wizard.sh homologation-candidate.schema.json runner-registry.json; do
+        homologation_wizard.sh homologation-candidate.schema.json \
+        homologation-review-decision.schema.json homologation-review-pack.schema.json \
+        runner-registry.json; do
         [ -f "$RUNNER_DIR/$file_name" ] && [ ! -L "$RUNNER_DIR/$file_name" ] || {
             show_error "Pacote do Homologation Runner ausente ou inseguro: $file_name."
             return 1
@@ -358,27 +360,60 @@ verify_candidate() {
         "$(printf '%s' "$output" | jq -r '"Aplicação: \(.setupId)\nVersão: \(.setupVersion)\nArquitetura: \(.architecture)\nResultado: \(.result)\nStatus: \(.status)\nSelo oficial: \(.officialSeal)\nSHA-256: \(.bundleSHA256)"')\n\nA integridade foi confirmada, mas o selo oficial continua bloqueado."
 }
 
-review_candidate() {
-    local candidate_path reviewer output_path output
+decide_candidate() {
+    local candidate_path reviewer decision reason_code reason decision_path evidence_path review_pack_path output
     candidate_path=$(select_candidate) || return 0
     verify_candidate "$candidate_path" || return 1
-    confirm "REVISÃO HUMANA" \
-        "A revisão confirma apenas que o bundle foi analisado. Ela não altera a governança e não concede o selo oficial.\n\nDeseja continuar?" || return 0
+    decision=$(whiptail --title "DECISÃO HUMANA IMUTÁVEL" --menu \
+        "A decisão local não altera a governança e não concede o selo oficial. Escolha o resultado da revisão." \
+        "$(dialog_height 16)" "$(dialog_width 92)" 4 \
+        "approved" "Aprovar evidência operacional" \
+        "rejected" "Rejeitar ou devolver para novos testes" \
+        3>&1 1>&2 2>&3) || return 130
+    if [ "$decision" = "approved" ]; then
+        reason_code="operational-evidence-accepted"
+    else
+        reason_code=$(whiptail --title "MOTIVO DA RECUSA" --menu \
+            "Escolha o principal motivo. Nenhuma informação sensível deve ser registrada." \
+            "$(dialog_height 19)" "$(dialog_width 96)" 7 \
+            "artifact-mismatch" "Artefato diferente do instalador atual" \
+            "incomplete-evidence" "Checklist ou evidência incompleta" \
+            "unsafe-data" "Dados sensíveis ou inseguros" \
+            "check-failed" "Falha funcional reproduzida" \
+            "rerun-required" "Nova execução obrigatória" \
+            "other" "Outro motivo documentado" \
+            3>&1 1>&2 2>&3) || return 130
+    fi
     reviewer=$(whiptail --title "REVISOR" --inputbox \
         "Informe o nome público do revisor responsável." \
         "$(dialog_height 11)" "$(dialog_width 80)" 3>&1 1>&2 2>&3) || return 130
-    output_path="${candidate_path%.tar.gz}-reviewed.json"
-    if [ -e "$output_path" ]; then
-        show_error "A evidência revisada já existe e não será sobrescrita."
+    reason=$(whiptail --title "JUSTIFICATIVA SANITIZADA" --inputbox \
+        "Resuma a decisão em 3 a 240 caracteres. Não informe IP, domínio, e-mail, credencial ou secret." \
+        "$(dialog_height 13)" "$(dialog_width 94)" 3>&1 1>&2 2>&3) || return 130
+    decision_path="${candidate_path%.tar.gz}-decision.json"
+    evidence_path="${candidate_path%.tar.gz}-reviewed.json"
+    review_pack_path="${candidate_path%.tar.gz}-review-pack.tar.gz"
+    if [ -e "$decision_path" ]; then
+        show_error "Este candidato já possui uma decisão imutável e não será sobrescrito."
         return 1
     fi
-    if ! output=$("${RUNNER_COMMAND[@]}" review --bundle "$candidate_path" \
-        --reviewer "$reviewer" --output "$output_path" 2>&1); then
+    local -a decision_args=(decide --bundle "$candidate_path" --reviewer "$reviewer"
+        --decision "$decision" --reason-code "$reason_code" --reason "$reason"
+        --decision-output "$decision_path")
+    if [ "$decision" = "approved" ]; then
+        decision_args+=(--evidence-output "$evidence_path" --review-pack-output "$review_pack_path")
+    fi
+    if ! output=$("${RUNNER_COMMAND[@]}" "${decision_args[@]}" 2>&1); then
         show_error "$output"
         return 1
     fi
-    message "REVISÃO REGISTRADA" \
-        "Evidência revisada:\n$output_path\n\nSHA-256: $(printf '%s' "$output" | jq -r '.sha256')\n\nPróximo passo obrigatório: incluir a evidência no repositório canônico, atualizar a governança, executar os gates e publicar uma nova release. O selo oficial ainda é falso."
+    if [ "$decision" = "approved" ]; then
+        message "APROVAÇÃO LOCAL REGISTRADA" \
+            "Decisão imutável:\n$decision_path\n\nPacote para revisão canônica:\n$review_pack_path\n\nPróximo passo: o mantenedor importa o pacote no repositório, executa os gates e publica uma release. Governança alterada: NÃO. Selo oficial: NÃO."
+    else
+        message "RECUSA REGISTRADA" \
+            "Decisão imutável:\n$decision_path\n\nO candidato foi recusado localmente. Nenhuma evidência canônica, governança ou selo foi criado."
+    fi
 }
 
 main_menu() {
@@ -390,7 +425,7 @@ main_menu() {
             "NEW" "Iniciar nova sessão guiada" \
             "CONTINUE" "Continuar checklist salvo" \
             "VERIFY" "Verificar integridade de candidato" \
-            "REVIEW" "Registrar revisão humana do candidato" \
+            "REVIEW" "Registrar decisão humana imutável" \
             "ABOUT" "Entender candidato, revisão e selo oficial" \
             "EXIT" "Voltar ao Terminal Seguro" \
             3>&1 1>&2 2>&3) || return 0
@@ -401,10 +436,10 @@ main_menu() {
                 run_checklist "$session_path" || true
                 ;;
             VERIFY) verify_candidate || true ;;
-            REVIEW) review_candidate || true ;;
+            REVIEW) decide_candidate || true ;;
             ABOUT)
                 message "FRONTEIRA DE CONFIANÇA" \
-                    "CANDIDATO: declaração sanitizada produzida no laboratório.\n\nREVISADO: candidato analisado por uma pessoa, ainda fora da governança canônica.\n\nSELO OFICIAL: somente existe após evidência incorporada ao código-fonte, SHA-256 registrado, gates aprovados, commit e nova release do Setup MNO."
+                    "CANDIDATO: declaração sanitizada produzida no laboratório.\n\nDECISÃO LOCAL: aprovação ou recusa imutável, ainda fora da governança canônica.\n\nCENTRAL DE REVISÃO: inventário somente leitura dos candidatos e decisões deste servidor.\n\nSELO OFICIAL: somente existe após importação explícita pelo mantenedor, gates aprovados, commit e nova release do Setup MNO."
                 ;;
             EXIT) return 0 ;;
         esac

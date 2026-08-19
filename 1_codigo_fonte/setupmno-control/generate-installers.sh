@@ -109,9 +109,20 @@ bash -n "$homologation_wizard"
     exit 1
 }
 grep -Fq '1>&2' "$homologation_wizard" &&
+grep -Fq 'decide --bundle' "$homologation_wizard" &&
 grep -Fq 'automaticPromotion' "$source_root/setupmno-knowledge/schema/homologation-candidate.schema.json" &&
 ! grep -Eq '(^|[[:space:]])(eval|bash -c|sh -c)[[:space:]]' "$homologation_wizard" || {
     printf 'ERRO: assistente visual sem stderr, fronteira de confiança ou allowlist de comandos.\n' >&2
+    exit 1
+}
+python3 -B -c 'import pathlib,sys; compile(pathlib.Path(sys.argv[1]).read_text(), sys.argv[1], "exec")' \
+    "$source_root/setupmno-knowledge/tools/import_homologation_review.py"
+grep -Fq 'mux.HandleFunc("GET /homologation", authorize' "$project_dir/main.go" &&
+grep -Fq 'mux.Handle("GET /api/homologation"' "$project_dir/main.go" &&
+grep -Fq 'Central de Revisão de Homologação' "$project_dir/web/index.html" &&
+grep -Fq 'function renderHomologation()' "$project_dir/web/app.js" &&
+grep -Fq '"officialSeal": False' "$source_root/setupmno-knowledge/tools/import_homologation_review.py" || {
+    printf 'ERRO: Central de Revisão sem endpoint fixo, interface ou fronteira de selo.\n' >&2
     exit 1
 }
 
@@ -244,6 +255,12 @@ grep -Fq -- '- /root/SetupLowCodeMno/.control:/runtime-control:ro' "$template" |
     printf 'ERRO: o agente precisa montar somente o estado runtime do Control Center.\n' >&2
     exit 1
 }
+grep -Fq -- '- /root/setupmno-homologation-candidates:/homologation-candidates:ro' "$template" &&
+grep -Fq 'HOMOLOGATION_CANDIDATE_DIR=/homologation-candidates' "$project_dir/control-upgrade.sh" &&
+grep -Fq -- '--mount-add type=bind,src=/root/setupmno-homologation-candidates,dst=/homologation-candidates,readonly' "$project_dir/control-upgrade.sh" || {
+    printf 'ERRO: a Central de Revisão não possui mount somente leitura no agente.\n' >&2
+    exit 1
+}
 if grep -Fq -- '- /root:/hostfs' "$template"; then
     printf 'ERRO: o agente não pode montar o diretório /root inteiro.\n' >&2
     exit 1
@@ -300,7 +317,7 @@ grep -Fq 'COPY --from=builder /src/knowledge-package /knowledge-package' \
     printf 'ERRO: a imagem final não contém o pacote de conhecimento somente leitura.\n' >&2
     exit 1
 }
-grep -Fq 'COPY go.mod main.go access.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go ./' \
+grep -Fq 'COPY go.mod main.go access.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go homologation.go ./' \
     "$project_dir/Dockerfile" || {
     printf 'ERRO: o build não inclui retrieval, roteador, prompts, Blueprints e evals.\n' >&2
     exit 1
@@ -644,6 +661,10 @@ python3 -B "$source_root/setupmno-knowledge/tools/generate_homologation_package.
 [ ! -L "$homologation_package/homologation_wizard.sh" ] &&
 [ -f "$homologation_package/homologation-candidate.schema.json" ] &&
 [ ! -L "$homologation_package/homologation-candidate.schema.json" ] &&
+[ -f "$homologation_package/homologation-review-decision.schema.json" ] &&
+[ ! -L "$homologation_package/homologation-review-decision.schema.json" ] &&
+[ -f "$homologation_package/homologation-review-pack.schema.json" ] &&
+[ ! -L "$homologation_package/homologation-review-pack.schema.json" ] &&
 [ -f "$homologation_package/runner-registry.json" ] &&
 [ ! -L "$homologation_package/runner-registry.json" ] || {
     printf 'ERRO: pacote do Homologation Runner ausente ou inseguro.\n' >&2
@@ -654,7 +675,7 @@ homologation_candidate_schema=$(jq -r '.candidateSchemaVersion // 0' "$homologat
 homologation_registry_entries=$(jq -r '.registryEntries // 0' "$homologation_package/manifest.json")
 homologation_setup_version=$(jq -r '.setupVersion // empty' "$homologation_package/manifest.json")
 homologation_manifest_sha=$(sha256sum "$homologation_package/manifest.json" | awk '{print $1}')
-[ "$homologation_runner_version" = "1.1.0" ] &&
+[ "$homologation_runner_version" = "1.2.0" ] &&
 [ "$homologation_candidate_schema" = "1" ] &&
 [ "$homologation_registry_entries" = "$(jq -r 'length' "$project_dir/catalog.json")" ] &&
 [ "$homologation_setup_version" = "$x86_version" ] &&
@@ -850,7 +871,7 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
         terminal-menu.sh configure-control.sh control-upgrade.sh cloudflare-mfa.sh \
         cloudflare-route-guard.sh cloudflare-access-reconcile.sh \
         main.go access.go knowledge.go retrieval.go routing.go prompts.go \
-        blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go web |
+        blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go homologation.go web |
         gzip -9n >"$bundle"
 )
 if ! tar -tzf "$bundle" | grep -Fx 'blueprint_recommendation.go' >/dev/null; then
@@ -875,6 +896,10 @@ if ! tar -tzf "$bundle" | grep -Fx 'audit.go' >/dev/null; then
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'access.go' >/dev/null; then
     echo "Bundle do Control Center não contém o validador Cloudflare Access." >&2
+    exit 1
+fi
+if ! tar -tzf "$bundle" | grep -Fx 'homologation.go' >/dev/null; then
+    printf 'ERRO: bundle de fontes sem a Central de Revisão de Homologação.\n' >&2
     exit 1
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'control-upgrade.sh' >/dev/null; then
@@ -1013,6 +1038,10 @@ generate_runtime_package() {
         "$target/homologation-package/homologation_wizard.sh"
     install -m 0644 "$homologation_package/homologation-candidate.schema.json" \
         "$target/homologation-package/homologation-candidate.schema.json"
+    install -m 0644 "$homologation_package/homologation-review-decision.schema.json" \
+        "$target/homologation-package/homologation-review-decision.schema.json"
+    install -m 0644 "$homologation_package/homologation-review-pack.schema.json" \
+        "$target/homologation-package/homologation-review-pack.schema.json"
     install -m 0644 "$homologation_package/runner-registry.json" \
         "$target/homologation-package/runner-registry.json"
     temporary_manifest="$target/release.json.tmp"

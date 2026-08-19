@@ -88,11 +88,15 @@ def generate(root: Path, output: Path, setup_version: str) -> dict[str, Any]:
     runner_data = read_regular(tools / "homologation_runner.py")
     wizard_data = read_regular(tools / "homologation_wizard.sh")
     schema_data = read_regular(root / "schema" / "homologation-candidate.schema.json")
+    decision_schema_data = read_regular(root / "schema" / "homologation-review-decision.schema.json")
+    review_pack_schema_data = read_regular(root / "schema" / "homologation-review-pack.schema.json")
     registry_data = canonical_json(build_registry(root, setup_version))
     files = {
         "homologation_runner.py": runner_data,
         "homologation_wizard.sh": wizard_data,
         "homologation-candidate.schema.json": schema_data,
+        "homologation-review-decision.schema.json": decision_schema_data,
+        "homologation-review-pack.schema.json": review_pack_schema_data,
         "runner-registry.json": registry_data,
     }
     manifest = {

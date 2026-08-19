@@ -108,6 +108,12 @@ update_agent() {
     if ! service_has_mount_target "$service" /runtime-control; then
         args+=(--mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly)
     fi
+    if ! service_has_mount_target "$service" /homologation-candidates; then
+        args+=(--mount-add type=bind,src=/root/setupmno-homologation-candidates,dst=/homologation-candidates,readonly)
+    fi
+    service_has_env_key "$service" HOMOLOGATION_CANDIDATE_DIR &&
+        args+=(--env-rm HOMOLOGATION_CANDIDATE_DIR)
+    args+=(--env-add HOMOLOGATION_CANDIDATE_DIR=/homologation-candidates)
     docker "${args[@]}" "$service" >>"$log_file" 2>&1
 }
 
@@ -204,10 +210,12 @@ if [ "$(service_image "$web_service")" = "$control_image" ] &&
 fi
 
 progress 10 "VALIDANDO O PACOTE DO CONTROL CENTER $target_version..."
+install -d -m 0700 /root/setupmno-homologation-candidates ||
+    fail_upgrade 20 "Não foi possível preparar o diretório privado da Central de Revisão."
 for required_source in go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
     terminal-menu.sh configure-control.sh control-upgrade.sh main.go access.go knowledge.go \
     retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go \
-    provider_evals.go feedback.go web/index.html web/app.js web/assistant-route.js \
+    provider_evals.go feedback.go audit.go homologation.go web/index.html web/app.js web/assistant-route.js \
     web/styles.css web/terminal-bridge.js; do
     [ -s "$source_dir/$required_source" ] && [ ! -L "$source_dir/$required_source" ] ||
         fail_upgrade 20 "Bundle incompleto ou inseguro: $required_source."

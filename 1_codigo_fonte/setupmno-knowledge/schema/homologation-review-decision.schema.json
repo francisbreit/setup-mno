@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://manualnegocioonline.com.br/schemas/homologation-review-decision.schema.json",
+  "title": "Setup MNO Homologation Review Decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "decisionId",
+    "candidateId",
+    "candidateBundleSHA256",
+    "decision",
+    "reasonCode",
+    "reason",
+    "reviewedBy",
+    "reviewedAt",
+    "immutable",
+    "governanceUpdated",
+    "officialSeal"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "kind": {"const": "setupmno-homologation-review-decision"},
+    "decisionId": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*-review-[0-9]{12}$"},
+    "candidateId": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*-candidate$"},
+    "candidateBundleSHA256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "decision": {"enum": ["approved", "rejected"]},
+    "reasonCode": {
+      "enum": [
+        "operational-evidence-accepted",
+        "incomplete-evidence",
+        "artifact-mismatch",
+        "unsafe-data",
+        "check-failed",
+        "rerun-required",
+        "other"
+      ]
+    },
+    "reason": {"type": "string", "minLength": 3, "maxLength": 240},
+    "reviewedBy": {"type": "string", "minLength": 2, "maxLength": 80},
+    "reviewedAt": {"type": "string", "format": "date-time"},
+    "immutable": {"const": true},
+    "governanceUpdated": {"const": false},
+    "officialSeal": {"const": false}
+  }
+}

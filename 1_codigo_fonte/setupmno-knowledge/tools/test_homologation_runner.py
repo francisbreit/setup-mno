@@ -12,6 +12,7 @@ import unittest
 from pathlib import Path
 
 from generate_homologation_package import generate
+from import_homologation_review import load_review_pack
 
 
 TOOLS = Path(__file__).resolve().parent
@@ -106,6 +107,83 @@ class HomologationRunnerTests(unittest.TestCase):
         self.assertFalse(summary["officialSeal"])
         reviewed = json.loads(evidence.read_text(encoding="utf-8"))
         self.assertEqual(reviewed["review"]["decision"], "approved")
+
+    def test_immutable_approval_creates_review_pack_without_seal(self) -> None:
+        session = self.create_operational_session()
+        bundle = self.base / "candidate.tar.gz"
+        decision = self.base / "decision.json"
+        evidence = self.base / "evidence.json"
+        review_pack = self.base / "review-pack.tar.gz"
+        self.run_runner(
+            "finalize", "--session", str(session),
+            "--image", "example/navidrome@sha256:" + "d" * 64,
+            "--tester", "Operador QA", "--output", str(bundle),
+        )
+        result = self.run_runner(
+            "decide", "--bundle", str(bundle), "--reviewer", "Revisor MNO",
+            "--decision", "approved", "--reason-code", "operational-evidence-accepted",
+            "--reason", "Evidência operacional conferida integralmente.",
+            "--reviewed-at", "2026-08-19T12:00:00Z",
+            "--decision-output", str(decision), "--evidence-output", str(evidence),
+            "--review-pack-output", str(review_pack),
+        )
+        summary = json.loads(result.stdout)
+        self.assertFalse(summary["officialSeal"])
+        self.assertFalse(summary["governanceUpdated"])
+        self.assertTrue(decision.is_file())
+        self.assertTrue(evidence.is_file())
+        with tarfile.open(review_pack, "r:gz") as archive:
+            self.assertEqual(
+                archive.getnames(),
+                ["candidate.tar.gz", "decision.json", "operational-evidence.json", "manifest.json"],
+            )
+            manifest = json.load(archive.extractfile("manifest.json"))
+        self.assertFalse(manifest["officialSeal"])
+        imported_candidate, imported_decision, imported_evidence, _ = load_review_pack(review_pack)
+        self.assertEqual(imported_candidate["candidateId"], imported_decision["candidateId"])
+        self.assertEqual(imported_evidence["result"], "passed")
+        self.assertFalse(imported_decision["officialSeal"])
+        dry_run = subprocess.run(
+            [
+                sys.executable, str(TOOLS / "import_homologation_review.py"),
+                "--pack", str(review_pack), "--root", str(ROOT),
+                "--catalog", str(ROOT.parent / "setupmno-control" / "catalog.json"),
+                "--package-dir", str(self.package),
+            ],
+            check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        self.assertEqual(dry_run.returncode, 0, dry_run.stderr)
+        preview = json.loads(dry_run.stdout)
+        self.assertEqual(preview["mode"], "dry-run")
+        self.assertEqual(preview["targetMaturity"], "operational-reviewed")
+        self.assertFalse(preview["officialSeal"])
+        self.run_runner(
+            "decide", "--bundle", str(bundle), "--reviewer", "Outro Revisor",
+            "--decision", "rejected", "--reason-code", "rerun-required",
+            "--reason", "Nova execução necessária.",
+            "--decision-output", str(decision), expected=2,
+        )
+
+    def test_rejection_records_reason_without_evidence(self) -> None:
+        session = self.create_operational_session()
+        bundle = self.base / "candidate.tar.gz"
+        decision = self.base / "decision.json"
+        self.run_runner(
+            "finalize", "--session", str(session),
+            "--image", "example/navidrome@sha256:" + "e" * 64,
+            "--tester", "Operador QA", "--output", str(bundle),
+        )
+        self.run_runner(
+            "decide", "--bundle", str(bundle), "--reviewer", "Revisor MNO",
+            "--decision", "rejected", "--reason-code", "incomplete-evidence",
+            "--reason", "A evidência de persistência não é conclusiva.",
+            "--reviewed-at", "2026-08-19T12:00:00Z",
+            "--decision-output", str(decision),
+        )
+        stored = json.loads(decision.read_text(encoding="utf-8"))
+        self.assertEqual(stored["decision"], "rejected")
+        self.assertFalse(stored["officialSeal"])
+        self.assertEqual(list(self.base.glob("*review-pack*")), [])
 
     def test_sensitive_evidence_is_rejected(self) -> None:
         session = self.create_operational_session()

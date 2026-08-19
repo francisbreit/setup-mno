@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#070a0f">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=4.23.0">
+  <link rel="stylesheet" href="/styles.css?v=4.24.0">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -62,6 +62,7 @@
         <button class="nav-item" data-view="catalog"><span class="nav-icon">◇</span><span>Catálogo de setups</span></button>
         <button class="nav-item" data-view="blueprints"><span class="nav-icon">⌘</span><span>Blueprints</span><b id="nav-blueprint-count">0</b></button>
         <button class="nav-item" data-view="assistant"><span class="nav-icon">✦</span><span>Assistente MNO</span><em>Beta</em></button>
+        <button class="nav-item" data-view="homologation"><span class="nav-icon">✓</span><span>Revisão de Homologação</span><b id="nav-homologation-count">0</b></button>
         <button class="nav-item" data-view="audit"><span class="nav-icon">≡</span><span>Auditoria</span></button>
         <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span><span>Configurações</span></button>
         <button class="nav-item" data-view="help"><span class="nav-icon">?</span><span>Help</span><em>Guia</em></button>
@@ -299,6 +300,33 @@
           </div>
         </section>
 
+        <section id="view-homologation" class="view">
+          <div class="homologation-review-intro">
+            <div><p class="eyebrow">Fronteira de confiança auditável</p><h2>Central de Revisão de Homologação</h2><p>Veja sessões, candidatos e decisões locais sem entregar ao painel acesso de escrita. Um candidato nunca concede o Selo de Homologação.</p></div>
+            <button class="primary-button" data-action="homologation">Abrir revisão segura <b>→</b></button>
+          </div>
+          <div id="homologation-review-status" class="sync-status">Lendo o inventário privado pelo agente somente leitura...</div>
+          <div class="homologation-summary-grid">
+            <article><small>Aguardando revisão</small><strong id="homologation-pending">—</strong></article>
+            <article><small>Aprovados localmente</small><strong id="homologation-approved">—</strong></article>
+            <article><small>Recusados</small><strong id="homologation-rejected">—</strong></article>
+            <article><small>Rascunhos</small><strong id="homologation-draft">—</strong></article>
+            <article><small>Incompatíveis</small><strong id="homologation-incompatible">—</strong></article>
+            <article><small>Quarentena</small><strong id="homologation-quarantine">—</strong></article>
+          </div>
+          <article class="homologation-trust-note">
+            <strong>O que esta central garante</strong>
+            <span>Leitura limitada a bundles sanitizados</span><span>Decisão imutável no Terminal Seguro</span><span>Sem socket Docker no painel</span><span>Selo oficial somente em release canônica</span>
+          </article>
+          <div class="section-tools sticky-tools">
+            <div class="search-box grow"><span>⌕</span><input id="homologation-search" placeholder="Buscar por aplicação, execução ou candidato..."></div>
+            <select id="homologation-filter"><option value="">Todos os estados</option><option value="pending">Aguardando revisão</option><option value="approved">Aprovado localmente</option><option value="rejected">Recusado</option><option value="draft">Rascunho</option><option value="incompatible">Incompatível</option><option value="quarantine">Quarentena</option></select>
+            <select id="homologation-arch"><option value="">X86 e ARM</option><option value="amd64">X86</option><option value="arm64">ARM</option></select>
+          </div>
+          <p id="homologation-result" class="result-count"></p>
+          <div id="homologation-list" class="homologation-review-list"></div>
+        </section>
+
         <section id="view-audit" class="view">
           <article class="panel">
             <div class="panel-head"><div><p class="eyebrow">Segurança e rastreabilidade</p><h3>Auditoria durável</h3></div><span id="audit-integrity" class="secure-pill"><i></i> Verificando</span></div>
@@ -503,9 +531,9 @@
               <summary><span class="help-guide-number">04</span><span><strong>Atualizar ou reinstalar o Setup MNO</strong><small>Preparação e cuidados essenciais.</small></span><b>＋</b></summary>
               <div class="help-guide-body"><ol><li>Confirme que possui backup dos dados importantes e acesso administrativo ao servidor.</li><li>No Windows com WSL2, abra o Docker Desktop, aguarde o motor iniciar e confirme a integração com a distribuição Ubuntu antes de executar o bootstrap.</li><li>Use somente o bootstrap oficial correspondente ao ambiente e acompanhe as validações iniciais.</li><li>Durante a reconciliação, não interrompa builds, atualização do painel ou validação de manifestos.</li><li>Ao terminar, atualize o Control Center e confira separadamente as versões do Setup MNO e do painel.</li></ol><div class="help-callout warn"><strong>Não confunda reinstalação com exclusão</strong><span>Atualizar o Setup MNO não é autorização para remover stacks, volumes ou bancos existentes.</span></div></div>
             </details>
-            <details class="help-guide help-topic" data-help-topic data-help-category="operate" data-help-search="homologação runner candidato selo nove checks digest mantenedor aplicação">
-              <summary><span class="help-guide-number">05</span><span><strong>Entender o Homologation Runner</strong><small>O que o assistente guiado registra — e o que ele não aprova.</small></span><b>＋</b></summary>
-              <div class="help-guide-body"><p>O Runner conduz uma sessão de teste e gera um <strong>candidato de homologação</strong>. Você escolhe a aplicação e a arquitetura, registra os nove checks, informa imagens por digest e pode salvar para continuar depois.</p><ol><li>Use <strong>NEW</strong> para iniciar ou <strong>RESUME</strong> para retomar.</li><li>Marque cada check como aprovado, reprovado ou não testado somente após executar o teste real no laboratório.</li><li>Registre evidências e digests exatos das imagens avaliadas.</li><li>Finalize o candidato e encaminhe-o para revisão do mantenedor.</li></ol><div class="help-callout warn"><strong>Fronteira de confiança</strong><span>Um candidato nunca concede o Selo de Homologação, não altera o catálogo e não publica uma aplicação automaticamente.</span></div></div>
+            <details class="help-guide help-topic" data-help-topic data-help-category="operate" data-help-search="homologação runner central revisão candidato decisão aprovado recusado quarentena incompatível selo nove checks digest mantenedor aplicação">
+              <summary><span class="help-guide-number">05</span><span><strong>Homologar e revisar uma aplicação</strong><small>Do checklist local à revisão canônica do mantenedor.</small></span><b>＋</b></summary>
+              <div class="help-guide-body"><p>O Runner conduz uma sessão de teste e gera um <strong>candidato de homologação</strong>. A Central organiza sessões, candidatos, incompatibilidades e decisões sem permitir escrita pelo navegador.</p><ol><li>Abra <strong>Revisão de Homologação</strong> para consultar a fila e verificar se há rascunhos, candidatos pendentes ou itens em quarentena.</li><li>Use <strong>Abrir revisão segura</strong>, redigite a senha e escolha <strong>NEW</strong> para iniciar ou <strong>CONTINUE</strong> para retomar.</li><li>Registre os nove checks somente depois do teste real e informe cada imagem no formato <strong>repositório@sha256:digest</strong>.</li><li>Finalize e verifique o candidato. Se o instalador atual divergir do artefato testado, repita a homologação; a Central não aceita a versão por semelhança.</li><li>Em <strong>REVIEW</strong>, o revisor pode aprovar ou recusar e documentar o motivo. A decisão é imutável: para mudar o resultado, gere um novo candidato.</li><li>Uma aprovação local gera um pacote de revisão. Somente o mantenedor pode importá-lo no repositório canônico, executar os gates e publicar outra release.</li></ol><div class="help-callout warn"><strong>Fronteira de confiança</strong><span>Aprovação local não altera governança, catálogo ou Selo de Homologação. O selo oficial continua reservado a uma release assinada e homologada pelo mantenedor.</span></div></div>
             </details>
           </div>
 
@@ -646,8 +674,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=4.23.0" defer></script>
-  <script src="/assistant-route.js?v=4.23.0" defer></script>
-  <script src="/app.js?v=4.23.0" defer></script>
+  <script src="/markdown.js?v=4.24.0" defer></script>
+  <script src="/assistant-route.js?v=4.24.0" defer></script>
+  <script src="/app.js?v=4.24.0" defer></script>
 </body>
 </html>

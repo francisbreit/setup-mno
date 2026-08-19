@@ -24,12 +24,14 @@ from pathlib import Path
 from typing import Any
 
 
-RUNNER_VERSION = "1.1.0"
-RUNNER_RELEASE_DATE = "2026-08-18"
+RUNNER_VERSION = "1.2.0"
+RUNNER_RELEASE_DATE = "2026-08-19"
 CANDIDATE_SCHEMA_VERSION = 1
 PACKAGE_SCHEMA_VERSION = 1
 MAX_JSON_BYTES = 128 << 10
 MAX_BUNDLE_BYTES = 512 << 10
+MAX_REVIEW_PACK_BYTES = 2 << 20
+SUPPORTED_RUNNER_VERSIONS = {"1.1.0", RUNNER_VERSION}
 CHECKS = (
     "deploy",
     "convergence",
@@ -58,6 +60,15 @@ SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 SHA256_RE = re.compile(r"^[a-f0-9]{64}$")
 IMAGE_RE = re.compile(r"^\S+@sha256:[a-f0-9]{64}$")
 DISPLAY_NAME_RE = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ0-9][A-Za-zÀ-ÖØ-öø-ÿ0-9 ._-]*$")
+REASON_CODES = {
+    "operational-evidence-accepted",
+    "incomplete-evidence",
+    "artifact-mismatch",
+    "unsafe-data",
+    "check-failed",
+    "rerun-required",
+    "other",
+}
 SENSITIVE_PATTERNS = (
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
     re.compile(r"\bBearer\s+[A-Za-z0-9._~+/-]{12,}", re.IGNORECASE),
@@ -168,6 +179,8 @@ def validate_package(directory: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     manifest_path = directory / "manifest.json"
     registry_path = directory / "runner-registry.json"
     schema_path = directory / "homologation-candidate.schema.json"
+    decision_schema_path = directory / "homologation-review-decision.schema.json"
+    review_pack_schema_path = directory / "homologation-review-pack.schema.json"
     manifest = load_json(manifest_path)
     expected_keys = {
         "schemaVersion", "runnerVersion", "candidateSchemaVersion", "setupVersion",
@@ -186,12 +199,14 @@ def validate_package(directory: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         raise RunnerError("manifesto do runner é incompatível")
     parse_datetime(manifest["generatedAt"])
     files = manifest.get("files")
-    if not isinstance(files, list) or len(files) != 4:
+    if not isinstance(files, list) or len(files) != 6:
         raise RunnerError("inventário do runner inválido")
     expected_names = {
         "homologation_runner.py",
         "homologation_wizard.sh",
         "homologation-candidate.schema.json",
+        "homologation-review-decision.schema.json",
+        "homologation-review-pack.schema.json",
         "runner-registry.json",
     }
     found_names: set[str] = set()
@@ -222,6 +237,12 @@ def validate_package(directory: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     schema = load_json(schema_path)
     if schema.get("properties", {}).get("schemaVersion", {}).get("const") != CANDIDATE_SCHEMA_VERSION:
         raise RunnerError("schema de candidato incompatível")
+    decision_schema = load_json(decision_schema_path)
+    review_pack_schema = load_json(review_pack_schema_path)
+    if decision_schema.get("properties", {}).get("officialSeal", {}).get("const") is not False:
+        raise RunnerError("schema de decisão ultrapassa a fronteira de confiança")
+    if review_pack_schema.get("properties", {}).get("officialSeal", {}).get("const") is not False:
+        raise RunnerError("schema do pacote de revisão ultrapassa a fronteira de confiança")
     return manifest, registry
 
 
@@ -312,7 +333,7 @@ def validate_candidate(candidate: Any) -> dict[str, Any]:
         or candidate["kind"] != "setupmno-homologation-candidate"
         or not ID_RE.fullmatch(str(candidate["candidateId"]))
         or not RUN_ID_RE.fullmatch(str(candidate["runId"]))
-        or candidate["runnerVersion"] != RUNNER_VERSION
+        or candidate["runnerVersion"] not in SUPPORTED_RUNNER_VERSIONS
         or not ID_RE.fullmatch(str(candidate["setupId"]))
         or not SEMVER_RE.fullmatch(str(candidate["setupVersion"]))
         or candidate["architecture"] not in ARCHITECTURES
@@ -428,7 +449,8 @@ def read_bundle(path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     if (
         manifest["schemaVersion"] != 1
         or manifest["kind"] != "setupmno-homologation-candidate-bundle"
-        or manifest["runnerVersion"] != RUNNER_VERSION
+        or manifest["runnerVersion"] not in SUPPORTED_RUNNER_VERSIONS
+        or manifest["runnerVersion"] != candidate.get("runnerVersion")
         or manifest["candidateSHA256"] != sha256_bytes(payloads["candidate.json"])
         or manifest["candidateBytes"] != len(payloads["candidate.json"])
         or manifest["automaticPromotion"] is not False
@@ -684,6 +706,152 @@ def command_review(args: argparse.Namespace) -> None:
     }, ensure_ascii=False, sort_keys=True))
 
 
+def deterministic_review_pack(entries: list[tuple[str, bytes]]) -> bytes:
+    memory = io.BytesIO()
+    with tarfile.open(fileobj=memory, mode="w", format=tarfile.PAX_FORMAT) as archive:
+        for name, data in entries:
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            info.mode = 0o600
+            info.mtime = 0
+            info.uid = 0
+            info.gid = 0
+            info.uname = ""
+            info.gname = ""
+            archive.addfile(info, io.BytesIO(data))
+    compressed = io.BytesIO()
+    with gzip.GzipFile(filename="", mode="wb", fileobj=compressed, mtime=0, compresslevel=9) as stream:
+        stream.write(memory.getvalue())
+    payload = compressed.getvalue()
+    if len(payload) > MAX_REVIEW_PACK_BYTES:
+        raise RunnerError("pacote de revisão excede o limite de tamanho")
+    return payload
+
+
+def command_decide(args: argparse.Namespace) -> None:
+    bundle_path = Path(args.bundle).resolve()
+    candidate, _ = read_bundle(bundle_path)
+    package_manifest, registry = validate_package(package_directory(args))
+    entry = registry_by_id(registry).get(candidate["setupId"])
+    if entry is None or candidate["artifact"] != entry["artifacts"].get(candidate["architecture"]):
+        raise RunnerError("decisão recusada: o instalador atual diverge do artefato testado")
+    reviewer = " ".join(args.reviewer.split())
+    reason = " ".join(args.reason.split())
+    if not 2 <= len(reviewer) <= 80 or not DISPLAY_NAME_RE.fullmatch(reviewer):
+        raise RunnerError("identidade pública do revisor inválida")
+    if args.reason_code not in REASON_CODES or not 3 <= len(reason) <= 240:
+        raise RunnerError("decisão exige motivo permitido e justificativa entre 3 e 240 caracteres")
+    if args.decision == "approved" and args.reason_code != "operational-evidence-accepted":
+        raise RunnerError("aprovação exige o motivo operational-evidence-accepted")
+    if args.decision == "rejected" and args.reason_code == "operational-evidence-accepted":
+        raise RunnerError("rejeição exige um motivo de recusa")
+    reject_sensitive(reason, "justificativa da decisão")
+    reviewed_at = parse_datetime(args.reviewed_at) if args.reviewed_at else utc_now()
+    verified_at = parse_datetime(candidate["createdAt"])
+    if reviewed_at < verified_at:
+        raise RunnerError("decisão não pode anteceder a execução")
+    decision_id = f"{candidate['candidateId'].removesuffix('-candidate')}-review-{reviewed_at.strftime('%y%m%d%H%M%S')}"
+    decision = {
+        "schemaVersion": 1,
+        "kind": "setupmno-homologation-review-decision",
+        "decisionId": decision_id,
+        "candidateId": candidate["candidateId"],
+        "candidateBundleSHA256": sha256_file(bundle_path),
+        "decision": args.decision,
+        "reasonCode": args.reason_code,
+        "reason": reason,
+        "reviewedBy": reviewer,
+        "reviewedAt": iso_z(reviewed_at),
+        "immutable": True,
+        "governanceUpdated": False,
+        "officialSeal": False,
+    }
+    reject_sensitive(decision, "decisão")
+    decision_data = canonical_json(decision)
+    decision_output = Path(args.decision_output).resolve()
+    if decision_output.exists():
+        raise RunnerError("já existe uma decisão imutável para este candidato")
+
+    evidence_output: Path | None = None
+    review_pack_output: Path | None = None
+    evidence_data = b""
+    if args.decision == "approved":
+        if not args.evidence_output or not args.review_pack_output:
+            raise RunnerError("aprovação exige saídas para evidência e pacote de revisão")
+        evidence_output = Path(args.evidence_output).resolve()
+        review_pack_output = Path(args.review_pack_output).resolve()
+        if evidence_output.exists() or review_pack_output.exists():
+            raise RunnerError("evidência ou pacote de revisão já existe; não haverá sobrescrita")
+        evidence = {
+            "schemaVersion": 1,
+            "evidenceId": candidate["candidateId"].removesuffix("-candidate"),
+            "setupId": candidate["setupId"],
+            "setupVersion": candidate["setupVersion"],
+            "architecture": candidate["architecture"],
+            "verifiedAt": candidate["createdAt"],
+            "environment": candidate["environment"],
+            "artifact": candidate["artifact"],
+            "images": candidate["images"],
+            "checks": candidate["checks"],
+            "result": "passed",
+            "sanitized": True,
+            "review": {
+                "decision": "approved",
+                "reviewedBy": reviewer,
+                "reviewedAt": reviewed_at.date().isoformat(),
+            },
+        }
+        reject_sensitive(evidence, "evidência revisada")
+        evidence_data = canonical_json(evidence)
+        bundle_data = ensure_regular(bundle_path, MAX_BUNDLE_BYTES)
+        manifest = {
+            "schemaVersion": 1,
+            "kind": "setupmno-homologation-review-pack",
+            "candidateId": candidate["candidateId"],
+            "createdAt": iso_z(reviewed_at),
+            "files": [
+                {"path": "candidate.tar.gz", "sha256": sha256_bytes(bundle_data), "size": len(bundle_data)},
+                {"path": "decision.json", "sha256": sha256_bytes(decision_data), "size": len(decision_data)},
+                {"path": "operational-evidence.json", "sha256": sha256_bytes(evidence_data), "size": len(evidence_data)},
+            ],
+            "automaticPromotion": False,
+            "governanceUpdated": False,
+            "officialSeal": False,
+        }
+        manifest_data = canonical_json(manifest)
+        review_pack_data = deterministic_review_pack([
+            ("candidate.tar.gz", bundle_data),
+            ("decision.json", decision_data),
+            ("operational-evidence.json", evidence_data),
+            ("manifest.json", manifest_data),
+        ])
+        atomic_write(evidence_output, evidence_data)
+        try:
+            atomic_write(review_pack_output, review_pack_data)
+        except Exception:
+            evidence_output.unlink(missing_ok=True)
+            raise
+
+    try:
+        atomic_write(decision_output, decision_data)
+    except Exception:
+        if evidence_output is not None:
+            evidence_output.unlink(missing_ok=True)
+        if review_pack_output is not None:
+            review_pack_output.unlink(missing_ok=True)
+        raise
+    print(json.dumps({
+        "candidateId": candidate["candidateId"],
+        "decision": args.decision,
+        "decisionFile": str(decision_output),
+        "evidence": str(evidence_output) if evidence_output else None,
+        "reviewPack": str(review_pack_output) if review_pack_output else None,
+        "governanceUpdated": False,
+        "officialSeal": False,
+        "nextStep": "importação canônica com dry-run" if evidence_output else "corrigir e executar uma nova sessão",
+    }, ensure_ascii=False, sort_keys=True))
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(
         description="Homologation Runner do Setup MNO: gera candidatos, nunca concede o selo oficial."
@@ -727,6 +895,18 @@ def parser() -> argparse.ArgumentParser:
     review_parser.add_argument("--reviewed-at")
     review_parser.add_argument("--output", required=True)
     review_parser.set_defaults(handler=command_review)
+
+    decide_parser = subparsers.add_parser("decide", help="registrar decisão imutável e gerar pacote revisado")
+    decide_parser.add_argument("--bundle", required=True)
+    decide_parser.add_argument("--reviewer", required=True)
+    decide_parser.add_argument("--decision", choices=["approved", "rejected"], required=True)
+    decide_parser.add_argument("--reason-code", choices=sorted(REASON_CODES), required=True)
+    decide_parser.add_argument("--reason", required=True)
+    decide_parser.add_argument("--reviewed-at", help=argparse.SUPPRESS)
+    decide_parser.add_argument("--decision-output", required=True)
+    decide_parser.add_argument("--evidence-output")
+    decide_parser.add_argument("--review-pack-output")
+    decide_parser.set_defaults(handler=command_decide)
     return root
 
 

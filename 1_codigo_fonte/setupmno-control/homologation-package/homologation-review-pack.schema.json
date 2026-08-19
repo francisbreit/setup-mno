@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://manualnegocioonline.com.br/schemas/homologation-review-pack.schema.json",
+  "title": "Setup MNO Homologation Review Pack Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "candidateId",
+    "createdAt",
+    "files",
+    "automaticPromotion",
+    "governanceUpdated",
+    "officialSeal"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "kind": {"const": "setupmno-homologation-review-pack"},
+    "candidateId": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*-candidate$"},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "files": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "size"],
+        "properties": {
+          "path": {"enum": ["candidate.tar.gz", "decision.json", "operational-evidence.json"]},
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "size": {"type": "integer", "minimum": 2, "maximum": 524288}
+        }
+      }
+    },
+    "automaticPromotion": {"const": false},
+    "governanceUpdated": {"const": false},
+    "officialSeal": {"const": false}
+  }
+}

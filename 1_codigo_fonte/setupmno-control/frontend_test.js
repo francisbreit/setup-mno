@@ -271,6 +271,15 @@ assert.match(app, /Laboratório guiado · revisão do mantenedor obrigatória/);
 assert.match(app, /\}\[intent\]\s*\|\|\s*\{/);
 assert.match(styles, /\.homologation-runner-card\.available/);
 assert.doesNotMatch(html + app, /homologationAutomaticPromotion\s*[:=]\s*true/);
+assert.match(html, /Central de Revisão de Homologação/);
+assert.match(html, /id="view-homologation"/);
+assert.match(html, /id="homologation-quarantine"/);
+assert.match(html, /Selo oficial somente em release canônica/);
+assert.match(app, /\/api\/homologation/);
+assert.match(app, /function refreshHomologation/);
+assert.match(app, /function renderHomologation/);
+assert.match(app, /Governança canônica alterada: não · Selo oficial: não/);
+assert.match(styles, /\.homologation-review-card\.status-quarantine/);
 
 const terminalElements = new Map();
 const helpTopics = [

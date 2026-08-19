@@ -1,5 +1,26 @@
 # Roadmap do Assistente MNO Especialista
 
+## v7.24.0 — Central de Revisão de Homologação
+
+- fila visual somente leitura para sessões, candidatos e decisões locais;
+- classificação explícita de rascunhos, pendências, aprovações, recusas,
+  incompatibilidades e quarentena;
+- compatibilidade de sessões antigas decidida pelo hash do artefato atual, e
+  não apenas pelo número da release;
+- decisão humana imutável no Terminal Seguro, sem escrita pelo painel web;
+- pacote revisado autenticado para importação canônica pelo mantenedor;
+- importador em dry-run por padrão, promoção limitada a
+  `operational-reviewed` e rollback quando qualquer gate falha;
+- fronteira preservada: aprovação local nunca concede selo oficial nem altera
+  automaticamente a governança.
+
+Baseline desta etapa:
+
+- Setup MNO: `7.24.0` em preparação de release
+- Control Center: `4.24.0`
+- Conhecimento canônico: `3.25.0`
+- Homologation Runner: `1.2.0`
+
 ## v7.23.0 — Central de Ajuda integrada
 
 - Adiciona Help abaixo de Configurações no menu principal do Control Center.
@@ -48,10 +69,10 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.23.0` em preparação de release
+- Setup MNO: `7.24.0` em preparação de release
 - Última versão estável homologada: `7.20.0`
-- Control Center: `4.23.0`
-- Conhecimento canônico: `3.24.1`
+- Control Center: `4.24.0`
+- Conhecimento canônico: `3.25.0`
 - Catálogo runtime: 158 entradas
 - Cobertura canônica dedicada: 158 de 158 entradas (`100%`)
 - Blueprints: cinco guias Beta editáveis, consultáveis e baixáveis; ainda não homologados

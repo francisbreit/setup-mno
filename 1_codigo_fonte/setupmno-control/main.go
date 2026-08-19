@@ -588,6 +588,7 @@ func runWeb() error {
 	mux.Handle("GET /api/setup-state", app.requireAuth(http.HandlerFunc(app.handleSetupState)))
 	mux.Handle("GET /api/catalog", app.requireAuth(http.HandlerFunc(app.handleCatalog)))
 	mux.Handle("GET /api/quality", app.requireAuth(http.HandlerFunc(app.handleQuality)))
+	mux.Handle("GET /api/homologation", app.requireAuth(http.HandlerFunc(app.handleHomologation)))
 	mux.Handle("GET /api/blueprints", app.requireAuth(http.HandlerFunc(app.handleBlueprints)))
 	mux.Handle("GET /api/blueprints/{blueprintId}/download", app.requireAuth(http.HandlerFunc(app.handleBlueprintDownload)))
 	mux.Handle("GET /api/evals", app.requireAuth(http.HandlerFunc(app.handleEvals)))
@@ -652,6 +653,7 @@ func runAgent() error {
 	dockerClient := &http.Client{Transport: transport, Timeout: 10 * time.Second}
 	token := string(agentToken)
 	setupStateDir := envDefault("SETUP_STATE_DIR", defaultSetupStateDir)
+	homologationCandidateDir := envDefault("HOMOLOGATION_CANDIDATE_DIR", "/homologation-candidates")
 
 	authorize := func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -723,6 +725,14 @@ func runAgent() error {
 			knowledgeQualityReport: knowledge.Quality,
 			Source:                 "runtime-read-only",
 		})
+	}))
+	mux.HandleFunc("GET /homologation", authorize(func(w http.ResponseWriter, _ *http.Request) {
+		queue, err := collectHomologationQueue(homologationCandidateDir, setupStateDir)
+		if err != nil {
+			writeError(w, http.StatusServiceUnavailable, "central de revisão indisponível")
+			return
+		}
+		writeJSON(w, http.StatusOK, queue)
 	}))
 	mux.HandleFunc("GET /blueprints", authorize(func(w http.ResponseWriter, _ *http.Request) {
 		knowledge, err := loadRuntimeBlueprintKnowledge(setupStateDir)
@@ -2191,6 +2201,16 @@ func (a *webApp) handleQuality(w http.ResponseWriter, r *http.Request) {
 		Stale:                  true,
 		Warning:                "O selo exibido pertence ao pacote embutido no Control Center.",
 	})
+}
+
+func (a *webApp) handleHomologation(w http.ResponseWriter, r *http.Request) {
+	var result homologationQueueResponse
+	if err := a.agentRequest(r.Context(), "/homologation", &result); err != nil ||
+		result.Source != "runtime-read-only" || result.SchemaVersion != 1 {
+		writeError(w, http.StatusServiceUnavailable, "central de revisão indisponível")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (a *webApp) handleBlueprints(w http.ResponseWriter, r *http.Request) {
