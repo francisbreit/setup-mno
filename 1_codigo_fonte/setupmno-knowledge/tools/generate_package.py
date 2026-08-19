@@ -463,8 +463,11 @@ def build_package_files(
         (root / "schema" / "quality-report.schema.json", "schema/quality-report.schema.json"),
         (root / "schema" / "operational-evidence.schema.json", "schema/operational-evidence.schema.json"),
         (root / "schema" / "homologation-candidate.schema.json", "schema/homologation-candidate.schema.json"),
+        (root / "schema" / "official-homologation-seal.schema.json", "schema/official-homologation-seal.schema.json"),
+        (root / "schema" / "certification-ledger.schema.json", "schema/certification-ledger.schema.json"),
         (root / "registry" / "setups.json", "registry/setups.json"),
         (root / "registry" / "governance.json", "registry/governance.json"),
+        (root / "registry" / "certification-ledger.json", "registry/certification-ledger.json"),
         (root / "registry" / "quality-report.json", "registry/quality-report.json"),
         (root / "quality-baseline.json", "quality-baseline.json"),
     ):
@@ -473,6 +476,13 @@ def build_package_files(
     for evidence_path in sorted((root / "evidence").glob("*/*/*.json")):
         relative = evidence_path.relative_to(root).as_posix()
         add_package_file(files, relative, ensure_regular_source(evidence_path, root, 65536))
+
+    for certification_path in sorted((root / "certifications").glob("*/*.json")):
+        relative = certification_path.relative_to(root).as_posix()
+        add_package_file(files, relative, ensure_regular_source(certification_path, root, 262144))
+    for decision_path in sorted((root / "certifications").glob("*/decisions/*.json")):
+        relative = decision_path.relative_to(root).as_posix()
+        add_package_file(files, relative, ensure_regular_source(decision_path, root, 65536))
 
     eval_dataset_data = ensure_regular_source(
         root / "evals" / "dataset.json",

@@ -20,6 +20,8 @@ from lint_knowledge import load_json, parse_document
 
 SCHEMA_VERSION = 2
 EVIDENCE_SCHEMA_VERSION = 1
+SEAL_SCHEMA_VERSION = 1
+CERTIFICATION_LEDGER_SCHEMA_VERSION = 1
 MATURITY_LEVELS = (
     "structural",
     "source-reviewed",
@@ -129,7 +131,7 @@ def load_operational_evidence(
     registry_entry: dict[str, Any],
     promotion: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    allowed_promotion_keys = {"maturity", "architectureScope", "evidenceRefs"}
+    allowed_promotion_keys = {"maturity", "architectureScope", "evidenceRefs", "sealRef"}
     if set(promotion) - allowed_promotion_keys:
         raise ValueError(f"{setup_id}: promoção contém campos não suportados")
     references = promotion.get("evidenceRefs", [])
@@ -270,10 +272,265 @@ def load_operational_evidence(
     return records
 
 
+def load_certification_ledger(root: Path) -> dict[str, dict[str, Any]]:
+    ledger_path = root / "registry" / "certification-ledger.json"
+    ledger = load_json(ledger_path)
+    ledger = require_exact_keys(
+        ledger, {"schemaVersion", "kind", "entries"}, "ledger de certificação",
+    )
+    if (
+        ledger.get("schemaVersion") != CERTIFICATION_LEDGER_SCHEMA_VERSION
+        or ledger.get("kind") != "setupmno-certification-ledger"
+        or not isinstance(ledger.get("entries"), list)
+    ):
+        raise ValueError("ledger de certificação incompatível")
+    indexed: dict[str, dict[str, Any]] = {}
+    seen_ids: set[str] = set()
+    referenced_decisions: set[str] = set()
+    previous_key: tuple[str, str] | None = None
+    for entry in ledger["entries"]:
+        entry = require_exact_keys(
+            entry, {"sealId", "setupId", "setupVersion", "issuedAt", "path", "sha256"},
+            "entrada do ledger de certificação",
+        )
+        seal_id = entry.get("sealId")
+        setup_id = entry.get("setupId")
+        relative = entry.get("path")
+        digest = entry.get("sha256")
+        if (
+            not isinstance(seal_id, str)
+            or not EVIDENCE_ID_RE.fullmatch(seal_id)
+            or not seal_id.endswith("-official")
+            or not isinstance(setup_id, str)
+            or not EVIDENCE_ID_RE.fullmatch(setup_id)
+            or not SEMVER_RE.fullmatch(str(entry.get("setupVersion", "")))
+            or not isinstance(relative, str)
+            or relative != f"certifications/{setup_id}/{seal_id}.json"
+            or not SHA256_RE.fullmatch(str(digest))
+            or seal_id in seen_ids
+            or relative in indexed
+        ):
+            raise ValueError("identidade inválida no ledger de certificação")
+        parse_utc_datetime(entry.get("issuedAt"), "issuedAt do ledger")
+        key = (entry["issuedAt"], seal_id)
+        if previous_key is not None and key < previous_key:
+            raise ValueError("ledger de certificação fora da ordem cronológica")
+        previous_key = key
+        path = root / relative
+        parents = [root / Path(*Path(relative).parts[:index]) for index in range(1, len(Path(relative).parts))]
+        if (
+            any(parent.is_symlink() for parent in parents)
+            or path.is_symlink()
+            or not path.is_file()
+            or not 1 < path.stat().st_size <= 262144
+            or sha256_file(path) != digest
+        ):
+            raise ValueError(f"selo ausente, inseguro ou divergente no ledger: {relative}")
+        indexed[relative] = entry
+        seen_ids.add(seal_id)
+        seal = load_json(path)
+        seal_keys = {
+            "schemaVersion", "kind", "sealId", "setupId", "setupVersion", "issuedAt",
+            "issuedBy", "reason", "architectures", "artifacts", "images",
+            "evidenceRefs", "decisionRefs", "reviewPacks", "status", "immutable",
+            "automaticPromotion", "officialSeal",
+        }
+        seal = require_exact_keys(seal, seal_keys, f"selo do ledger {seal_id}")
+        if (
+            seal.get("schemaVersion") != SEAL_SCHEMA_VERSION
+            or seal.get("kind") != "setupmno-official-homologation-seal"
+            or seal.get("sealId") != seal_id
+            or seal.get("setupId") != setup_id
+            or seal.get("setupVersion") != entry.get("setupVersion")
+            or seal.get("issuedAt") != entry.get("issuedAt")
+            or seal.get("status") != "issued"
+            or seal.get("immutable") is not True
+            or seal.get("automaticPromotion") is not False
+            or seal.get("officialSeal") is not True
+            or not isinstance(seal.get("decisionRefs"), list)
+        ):
+            raise ValueError(f"selo incompatível no ledger: {seal_id}")
+        for decision_reference in seal["decisionRefs"]:
+            decision_reference = require_exact_keys(
+                decision_reference, {"architecture", "path", "sha256"},
+                f"decisão do selo {seal_id}",
+            )
+            decision_relative = decision_reference.get("path")
+            decision_hash = decision_reference.get("sha256")
+            expected_prefix = f"certifications/{setup_id}/decisions/"
+            if (
+                not isinstance(decision_relative, str)
+                or not decision_relative.startswith(expected_prefix)
+                or not decision_relative.endswith(".json")
+                or not SHA256_RE.fullmatch(str(decision_hash))
+                or decision_relative in referenced_decisions
+            ):
+                raise ValueError(f"decisão inválida no selo {seal_id}")
+            decision_path = root / decision_relative
+            if (
+                decision_path.is_symlink()
+                or not decision_path.is_file()
+                or not 1 < decision_path.stat().st_size <= 65536
+                or sha256_file(decision_path) != decision_hash
+            ):
+                raise ValueError(f"decisão ausente ou divergente: {decision_relative}")
+            referenced_decisions.add(decision_relative)
+    actual_paths = {
+        path.relative_to(root).as_posix()
+        for path in (root / "certifications").glob("*/*-official.json")
+        if path.is_file()
+    }
+    if actual_paths != set(indexed):
+        raise ValueError(
+            "inventário de selos diverge do ledger"
+            f"; ausentes={sorted(set(indexed) - actual_paths)}"
+            f"; órfãos={sorted(actual_paths - set(indexed))}"
+        )
+    actual_decisions = {
+        path.relative_to(root).as_posix()
+        for path in (root / "certifications").glob("*/decisions/*.json")
+        if path.is_file()
+    }
+    if actual_decisions != referenced_decisions:
+        raise ValueError(
+            "inventário de decisões diverge dos selos"
+            f"; ausentes={sorted(referenced_decisions - actual_decisions)}"
+            f"; órfãs={sorted(actual_decisions - referenced_decisions)}"
+        )
+    return indexed
+
+
+def validate_official_seal(
+    root: Path,
+    setup_id: str,
+    registry_entry: dict[str, Any],
+    promotion: dict[str, Any],
+    evidence_records: list[dict[str, Any]],
+    ledger: dict[str, dict[str, Any]],
+) -> str:
+    reference = require_exact_keys(
+        promotion.get("sealRef"), {"path", "sha256"}, f"{setup_id}: sealRef",
+    )
+    relative = reference.get("path")
+    digest = reference.get("sha256")
+    if (
+        not isinstance(relative, str)
+        or not SHA256_RE.fullmatch(str(digest))
+        or relative not in ledger
+        or ledger[relative].get("sha256") != digest
+    ):
+        raise ValueError(f"{setup_id}: referência do selo não consta no ledger")
+    seal_path = root / relative
+    seal = load_json(seal_path)
+    required = {
+        "schemaVersion", "kind", "sealId", "setupId", "setupVersion", "issuedAt",
+        "issuedBy", "reason", "architectures", "artifacts", "images",
+        "evidenceRefs", "decisionRefs", "reviewPacks", "status", "immutable",
+        "automaticPromotion", "officialSeal",
+    }
+    seal = require_exact_keys(seal, required, f"{setup_id}: selo oficial")
+    seal_id = seal.get("sealId")
+    issued_at = parse_utc_datetime(seal.get("issuedAt"), f"{setup_id}: issuedAt do selo")
+    if (
+        seal.get("schemaVersion") != SEAL_SCHEMA_VERSION
+        or seal.get("kind") != "setupmno-official-homologation-seal"
+        or not isinstance(seal_id, str)
+        or not EVIDENCE_ID_RE.fullmatch(seal_id)
+        or not seal_id.endswith("-official")
+        or seal.get("setupId") != setup_id
+        or seal.get("setupVersion") != evidence_records[0]["setupVersion"]
+        or relative != f"certifications/{setup_id}/{seal_id}.json"
+        or ledger[relative].get("sealId") != seal_id
+        or ledger[relative].get("setupId") != setup_id
+        or ledger[relative].get("setupVersion") != seal.get("setupVersion")
+        or ledger[relative].get("issuedAt") != seal.get("issuedAt")
+        or seal.get("status") != "issued"
+        or seal.get("immutable") is not True
+        or seal.get("automaticPromotion") is not False
+        or seal.get("officialSeal") is not True
+        or not isinstance(seal.get("issuedBy"), str)
+        or not 2 <= len(seal["issuedBy"].strip()) <= 80
+        or not isinstance(seal.get("reason"), str)
+        or not 3 <= len(seal["reason"].strip()) <= 240
+    ):
+        raise ValueError(f"{setup_id}: identidade ou fronteira de confiança do selo é inválida")
+    declared = sorted(registry_entry["architectures"])
+    if seal.get("architectures") != declared:
+        raise ValueError(f"{setup_id}: selo não cobre todas as arquiteturas declaradas")
+
+    evidence_by_arch = {record["architecture"]: record for record in evidence_records}
+    promotion_refs = {item["path"]: item["sha256"] for item in promotion.get("evidenceRefs", [])}
+    seen_architectures: dict[str, set[str]] = {
+        "artifacts": set(), "evidenceRefs": set(), "decisionRefs": set(), "reviewPacks": set(),
+    }
+    for field in seen_architectures:
+        values = seal.get(field)
+        if not isinstance(values, list) or len(values) != len(declared):
+            raise ValueError(f"{setup_id}: {field} não cobre todas as arquiteturas")
+        for value in values:
+            expected_keys = {"architecture", "sha256"} if field == "reviewPacks" else {"architecture", "path", "sha256"}
+            value = require_exact_keys(value, expected_keys, f"{setup_id}: {field}")
+            architecture = value.get("architecture")
+            if architecture not in declared or architecture in seen_architectures[field]:
+                raise ValueError(f"{setup_id}: arquitetura inválida ou duplicada em {field}")
+            seen_architectures[field].add(architecture)
+            if not SHA256_RE.fullmatch(str(value.get("sha256", ""))):
+                raise ValueError(f"{setup_id}: SHA-256 inválido em {field}")
+            evidence = evidence_by_arch[architecture]
+            if field == "artifacts":
+                if value.get("path") != evidence["artifact"]["path"] or value.get("sha256") != evidence["artifact"]["sha256"]:
+                    raise ValueError(f"{setup_id}: artefato do selo diverge da evidência")
+            elif field == "evidenceRefs":
+                if (
+                    value.get("path") != evidence["path"]
+                    or value.get("sha256") != evidence["sha256"]
+                    or promotion_refs.get(value.get("path")) != value.get("sha256")
+                ):
+                    raise ValueError(f"{setup_id}: evidência do selo diverge da promoção")
+            elif field == "decisionRefs":
+                decision_path = value.get("path")
+                expected_prefix = f"certifications/{setup_id}/decisions/"
+                if not isinstance(decision_path, str) or not decision_path.startswith(expected_prefix) or not decision_path.endswith(".json"):
+                    raise ValueError(f"{setup_id}: caminho de decisão inválido")
+                path = root / decision_path
+                if path.is_symlink() or not path.is_file() or path.stat().st_size > 65536 or sha256_file(path) != value["sha256"]:
+                    raise ValueError(f"{setup_id}: decisão imutável ausente ou divergente")
+                decision = load_json(path)
+                decision_keys = {
+                    "schemaVersion", "kind", "decisionId", "candidateId", "candidateBundleSHA256",
+                    "decision", "reasonCode", "reason", "reviewedBy", "reviewedAt", "immutable",
+                    "governanceUpdated", "officialSeal",
+                }
+                decision = require_exact_keys(decision, decision_keys, f"{setup_id}: decisão")
+                if (
+                    decision.get("schemaVersion") != 1
+                    or decision.get("kind") != "setupmno-homologation-review-decision"
+                    or decision.get("decision") != "approved"
+                    or decision.get("reasonCode") != "operational-evidence-accepted"
+                    or decision.get("immutable") is not True
+                    or decision.get("governanceUpdated") is not False
+                    or decision.get("officialSeal") is not False
+                    or decision.get("reviewedBy") != evidence["review"]["reviewedBy"]
+                    or parse_utc_datetime(decision.get("reviewedAt"), f"{setup_id}: reviewedAt da decisão") > issued_at
+                ):
+                    raise ValueError(f"{setup_id}: decisão não autoriza a emissão do selo")
+                reject_sensitive_evidence(decision, f"{setup_id}: decisão")
+    if any(seen != set(declared) for seen in seen_architectures.values()):
+        raise ValueError(f"{setup_id}: inventário do selo está incompleto")
+    expected_images = sorted({image for record in evidence_records for image in record["images"]})
+    if seal.get("images") != expected_images:
+        raise ValueError(f"{setup_id}: digests do selo divergem das evidências")
+    if any(parse_utc_datetime(record["verifiedAt"], f"{setup_id}: verifiedAt") > issued_at for record in evidence_records):
+        raise ValueError(f"{setup_id}: selo é anterior às evidências")
+    reject_sensitive_evidence(seal, f"{setup_id}: selo")
+    return seal_id
+
+
 def build_report(root: Path, catalog_path: Path) -> dict[str, Any]:
     governance = load_json(root / "registry" / "governance.json")
     registry = load_json(root / "registry" / "setups.json")
     catalog = load_json(catalog_path)
+    certification_ledger = load_certification_ledger(root)
     knowledge_version = (root / "VERSION").read_text(encoding="utf-8").strip()
     if governance.get("schemaVersion") != SCHEMA_VERSION:
         raise ValueError("registry/governance.json possui schemaVersion incompatível")
@@ -433,6 +690,13 @@ def build_report(root: Path, catalog_path: Path) -> dict[str, Any]:
         )
         if maturity == "homologated" and (editorial_status != "homologated" or not has_homologation):
             raise ValueError(f"{setup_id}: homologação exige status e evidências completas")
+        if maturity == "homologated":
+            validate_official_seal(
+                root, setup_id, registry_entry, promotion, evidence_records,
+                certification_ledger,
+            )
+        elif promotion.get("sealRef") is not None:
+            raise ValueError(f"{setup_id}: sealRef exige maturidade homologated")
 
         issues = set(known_issues.get(setup_id, set()))
         if source_classification == "internal-only":

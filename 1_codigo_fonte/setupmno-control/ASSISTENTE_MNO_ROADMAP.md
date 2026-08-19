@@ -1,5 +1,29 @@
 # Roadmap do Assistente MNO Especialista
 
+## v7.25.0 — Esteira Oficial do Selo de Homologação
+
+- ferramenta administrativa local, ausente do runtime do cliente e sem API de
+  escrita no Control Center;
+- dry-run obrigatório com token vinculado ao conteúdo da certificação;
+- cobertura exata de todas as arquiteturas e aprovação dos nove checks;
+- validação de digests, hashes do código vivo, documentação editorial,
+  pendências e pacote autenticado do Runner;
+- decisões, evidências e selo imutáveis, inventariados por SHA-256 em ledger
+  canônico;
+- atualização transacional de ledger e governança, com rollback byte a byte se
+  o gate final ou a baseline falhar;
+- assistente Whiptail exclusivo do mantenedor, sem comandos livres e sem criar
+  commit, tag ou release automaticamente;
+- Control Center continua somente leitura e distingue candidato local de selo
+  oficial validado pela governança canônica.
+
+Baseline desta etapa:
+
+- Setup MNO: `7.25.0` em preparação de release
+- Control Center: `4.25.0`
+- Conhecimento canônico: `3.26.0`
+- Homologation Runner: `1.2.0`
+
 ## v7.24.1 — Correção da promoção do pacote de homologação
 
 - promove atomicamente os schemas de decisão e pacote de revisão para o
@@ -80,10 +104,10 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.24.1` homologado
+- Setup MNO: `7.25.0` em preparação de release
 - Última versão estável homologada: `7.24.1`
-- Control Center: `4.24.1`
-- Conhecimento canônico: `3.25.1`
+- Control Center: `4.25.0`
+- Conhecimento canônico: `3.26.0`
 - Catálogo runtime: 158 entradas
 - Cobertura canônica dedicada: 158 de 158 entradas (`100%`)
 - Blueprints: cinco guias Beta editáveis, consultáveis e baixáveis; ainda não homologados

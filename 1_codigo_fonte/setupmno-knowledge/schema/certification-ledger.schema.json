@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://manualnegocioonline.com.br/schemas/certification-ledger.schema.json",
+  "title": "Setup MNO Certification Ledger",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "entries"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "kind": {"const": "setupmno-certification-ledger"},
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sealId", "setupId", "setupVersion", "issuedAt", "path", "sha256"],
+        "properties": {
+          "sealId": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*-official$"},
+          "setupId": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+          "setupVersion": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+          "issuedAt": {"type": "string", "format": "date-time"},
+          "path": {"type": "string", "pattern": "^certifications/[a-z0-9]+(?:-[a-z0-9]+)*/[a-z0-9]+(?:-[a-z0-9]+)*-official\\.json$"},
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+        }
+      }
+    }
+  }
+}

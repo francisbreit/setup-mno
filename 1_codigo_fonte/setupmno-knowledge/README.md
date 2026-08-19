@@ -96,6 +96,35 @@ deve aparecer como parcial na interface. O nível `homologated` exige cobertura
 completa de arquiteturas e todos os checks aprovados, inclusive update, backup
 e restore.
 
+Na v7.25.0, `homologated` também exige um selo imutável em
+`certifications/<setupId>/`, referenciado por hash na governança e inventariado
+em `registry/certification-ledger.json`. O gate recusa selo órfão, adulterado,
+fora do ledger, sem decisão humana, com arquitetura incompleta ou ligado a um
+artefato diferente do código vivo.
+
+### Esteira administrativa do selo oficial
+
+A emissão é exclusiva do repositório do mantenedor. O certifier e seu wizard
+não são incluídos no pacote do Homologation Runner instalado nos servidores de
+clientes. A interface administrativa local inicia sempre em dry-run:
+
+```bash
+bash tools/certification_wizard.sh
+```
+
+O dry-run cruza os review-packs aprovados com as arquiteturas declaradas, os
+nove checks, os digests das imagens, os hashes dos instaladores atuais, o
+documento editorial `homologated`, as pendências e o ledger. Se tudo estiver
+correto, ele produz um token vinculado ao conteúdo exato da transação. A
+digitação desse token é obrigatória para gravar decisões, evidências, selo,
+ledger e promoção. Qualquer falha no gate final restaura byte a byte o estado
+anterior.
+
+A ferramenta nunca cria commit, tag, release, deploy, DNS ou alteração no
+Docker. Depois da emissão, o mantenedor ainda precisa revisar o diff e executar
+todo o workflow de produção. Isso separa coleta, decisão, certificação e
+publicação em fronteiras auditáveis.
+
 ### Homologation Runner e submissões externas
 
 O Homologation Runner v1 é distribuído no runtime autenticado em
@@ -103,7 +132,7 @@ O Homologation Runner v1 é distribuído no runtime autenticado em
 evidências **candidatas**; não possui API web, não altera a governança, não
 executa comandos arbitrários e não concede o selo oficial.
 
-O fluxo principal da v7.24.1 é visual. Em instalações Cloudflare Tunnel, abra
+O fluxo de coleta da v7.25.0 é visual. Em instalações Cloudflare Tunnel, abra
 `Control Center → Qualidade do catálogo → Abrir assistente guiado`, confirme a
 senha administrativa e siga o Whiptail do Terminal Seguro. Em VPS tradicional
 ou manutenção por SSH, execute o mesmo wizard localmente:
@@ -227,6 +256,7 @@ Testes de regressão:
 
 ```bash
 python3 -B tools/test_knowledge.py
+python3 -B tools/test_certification.py
 python3 -B tools/test_blueprints.py
 python3 -B tools/knowledge_coverage.py
 python3 -B tools/knowledge_quality.py --enforce-baseline

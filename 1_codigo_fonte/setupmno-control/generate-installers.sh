@@ -100,6 +100,7 @@ bash "$project_dir/wsl-docker-preflight_test.sh"
 bash "$project_dir/debian13-apt-recovery_test.sh"
 bash "$project_dir/catalog-html-count_test.sh"
 python3 -B "$source_root/setupmno-knowledge/tools/test_homologation_runner.py"
+python3 -B "$source_root/setupmno-knowledge/tools/test_certification.py"
 bash "$project_dir/homologation-wizard_test.sh"
 homologation_wizard="$source_root/setupmno-knowledge/tools/homologation_wizard.sh"
 bash -n "$homologation_wizard"
@@ -113,6 +114,26 @@ grep -Fq 'decide --bundle' "$homologation_wizard" &&
 grep -Fq 'automaticPromotion' "$source_root/setupmno-knowledge/schema/homologation-candidate.schema.json" &&
 ! grep -Eq '(^|[[:space:]])(eval|bash -c|sh -c)[[:space:]]' "$homologation_wizard" || {
     printf 'ERRO: assistente visual sem stderr, fronteira de confiança ou allowlist de comandos.\n' >&2
+    exit 1
+}
+certification_wizard="$source_root/setupmno-knowledge/tools/certification_wizard.sh"
+certifier="$source_root/setupmno-knowledge/tools/certify_homologation.py"
+bash -n "$certification_wizard"
+[ "$(SETUPMNO_CERTIFICATION_WIZARD_SMOKE_TEST=1 bash "$certification_wizard")" = \
+    "setupmno-certification-wizard-ok" ] || {
+    printf 'ERRO: smoke test do assistente administrativo de certificação falhou.\n' >&2
+    exit 1
+}
+python3 -B -c 'import pathlib,sys; compile(pathlib.Path(sys.argv[1]).read_text(), sys.argv[1], "exec")' \
+    "$certifier"
+grep -Fq 'confirmationToken' "$certifier" &&
+grep -Fq 'automaticPromotion": False' "$certifier" &&
+grep -Fq 'officialSeal": True' "$certifier" &&
+grep -Fq 'CERTIFICAÇÃO INTERROMPIDA' "$certification_wizard" &&
+grep -Fq 'dry-run' "$certification_wizard" &&
+grep -Fq 'rollback' "$certification_wizard" &&
+! grep -Eq '(^|[[:space:]])(eval|bash -c|sh -c)[[:space:]]' "$certification_wizard" || {
+    printf 'ERRO: esteira oficial do selo sem confirmação, rollback ou fronteira administrativa.\n' >&2
     exit 1
 }
 python3 -B -c 'import pathlib,sys; compile(pathlib.Path(sys.argv[1]).read_text(), sys.argv[1], "exec")' \
@@ -666,7 +687,9 @@ python3 -B "$source_root/setupmno-knowledge/tools/generate_homologation_package.
 [ -f "$homologation_package/homologation-review-pack.schema.json" ] &&
 [ ! -L "$homologation_package/homologation-review-pack.schema.json" ] &&
 [ -f "$homologation_package/runner-registry.json" ] &&
-[ ! -L "$homologation_package/runner-registry.json" ] || {
+[ ! -L "$homologation_package/runner-registry.json" ] &&
+[ ! -e "$homologation_package/certify_homologation.py" ] &&
+[ ! -e "$homologation_package/certification_wizard.sh" ] || {
     printf 'ERRO: pacote do Homologation Runner ausente ou inseguro.\n' >&2
     exit 1
 }

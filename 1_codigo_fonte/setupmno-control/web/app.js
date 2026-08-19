@@ -945,9 +945,11 @@ function renderCatalog() {
       "operational-reviewed": quality.operationalCoverage === "partial"
         ? `Validado em ${architectureLabels.join(" + ") || "arquitetura registrada"}`
         : "Validado operacionalmente",
-      homologated: "Selo homologado"
+      homologated: "Selo oficial homologado"
     })[maturity];
-    const evidenceTitle = quality.operationalEvidence
+    const evidenceTitle = maturity === "homologated"
+      ? `Selo oficial validado pela governança canônica · ${quality.operationalEvidenceIds?.length || 0} evidência(s) · cobertura ${architectureLabels.join(" + ") || "completa"}`
+      : quality.operationalEvidence
       ? `${quality.operationalEvidenceIds?.length || 0} evidência(s) validada(s) · última verificação ${quality.lastOperationalVerification?.slice(0, 10) || "N/I"}`
       : "Ainda sem evidência operacional anexada.";
     return `
