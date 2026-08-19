@@ -80,8 +80,8 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.24.1` em preparação de release
-- Última versão estável homologada: `7.20.0`
+- Setup MNO: `7.24.1` homologado
+- Última versão estável homologada: `7.24.1`
 - Control Center: `4.24.1`
 - Conhecimento canônico: `3.25.1`
 - Catálogo runtime: 158 entradas
