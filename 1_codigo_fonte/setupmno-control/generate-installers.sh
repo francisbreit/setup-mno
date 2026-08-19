@@ -102,6 +102,7 @@ bash "$project_dir/catalog-html-count_test.sh"
 python3 -B "$source_root/setupmno-knowledge/tools/test_homologation_runner.py"
 python3 -B "$source_root/setupmno-knowledge/tools/test_certification.py"
 bash "$project_dir/homologation-wizard_test.sh"
+bash "$project_dir/terminal-authorization_test.sh"
 homologation_wizard="$source_root/setupmno-knowledge/tools/homologation_wizard.sh"
 bash -n "$homologation_wizard"
 [ "$(SETUPMNO_HOMOLOGATION_WIZARD_SMOKE_TEST=1 bash "$homologation_wizard")" = \
@@ -376,7 +377,8 @@ grep -Fq 'auditPage' "$project_dir/audit.go" || {
     exit 1
 }
 grep -Fq 'CONTROL_PLAN=$(jq -er' "$template" &&
-grep -Fq 'if [ "$CONTROL_PLAN" != "pro" ]; then' "$template" &&
+grep -Fq 'if [ "$CONTROL_PLAN" != "pro" ] && [ "$CONTROL_PLAN" != "pro-master" ]; then' "$template" &&
+grep -Fq '. == "pro-master"' "$template" &&
 grep -Fq 'SETUPMNO_PLAN=$CONTROL_PLAN' "$template" &&
 grep -Fq 'control_plan=$(read_control_plan) || return 1' "$project_dir/configure-control.sh" &&
 grep -Fq -- '--env-rm SETUPMNO_PLAN --env-add "SETUPMNO_PLAN=$control_plan"' "$project_dir/configure-control.sh" &&
@@ -546,6 +548,17 @@ grep -Fq 'tmux -L setupmno-control new-session -A' "$project_dir/terminal-menu.s
     printf 'ERRO: sessão inteligente ou persistência tmux do Terminal Seguro ausente.\n' >&2
     exit 1
 }
+grep -Fq 'setupmno-terminal-$intent' "$project_dir/terminal-menu.sh" &&
+grep -Fq 'acesso remoto bloqueado em instalações TRADICIONAIS' "$project_dir/terminal-menu.sh" &&
+grep -Fq 'homologação exclusiva do plano PRO MASTER' "$project_dir/terminal-menu.sh" &&
+grep -Fq 'requireMaintainer' "$project_dir/main.go" &&
+grep -Fq 'planHasMaintainerAccess' "$project_dir/main.go" &&
+grep -Fq 'HomologationFinalApproval' "$project_dir/main.go" &&
+grep -Fq 'data-maintainer-only' "$project_dir/web/index.html" &&
+grep -Fq 'applyMaintainerAccessState' "$project_dir/web/app.js" || {
+    printf 'ERRO: fronteira PRO MASTER ou bloqueio TRADICIONAL ausente/incompleto.\n' >&2
+    exit 1
+}
 grep -Fq -- '- /usr/local/bin/setupmno-terminal-menu' "$template" || {
     printf 'ERRO: o terminal não inicia pelo menu seguro permitido.\n' >&2
     exit 1
@@ -711,6 +724,17 @@ for promotion_script in \
             exit 1
         }
     done
+done
+for entitlement_script in \
+    "$source_root/x86/start_full.sh" \
+    "$source_root/arm/start_arm_full.sh"; do
+    grep -Fq 'if [ "$PLANO" != "pro-master" ]; then' "$entitlement_script" &&
+    grep -Fq '"$control_target/homologation-package/homologation_runner.py"' "$entitlement_script" &&
+    grep -Fq 'rmdir -- "$control_target/homologation-package"' "$entitlement_script" || {
+        printf 'ERRO: runtime de homologação não está restrito ao plano PRO MASTER em %s.\n' \
+            "$entitlement_script" >&2
+        exit 1
+    }
 done
 homologation_runner_version=$(jq -r '.runnerVersion // empty' "$homologation_package/manifest.json")
 homologation_candidate_schema=$(jq -r '.candidateSchemaVersion // 0' "$homologation_package/manifest.json")

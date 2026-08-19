@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#070a0f">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=4.25.0">
+  <link rel="stylesheet" href="/styles.css?v=4.26.0">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -62,7 +62,7 @@
         <button class="nav-item" data-view="catalog"><span class="nav-icon">◇</span><span>Catálogo de setups</span></button>
         <button class="nav-item" data-view="blueprints"><span class="nav-icon">⌘</span><span>Blueprints</span><b id="nav-blueprint-count">0</b></button>
         <button class="nav-item" data-view="assistant"><span class="nav-icon">✦</span><span>Assistente MNO</span><em>Beta</em></button>
-        <button class="nav-item" data-view="homologation"><span class="nav-icon">✓</span><span>Revisão de Homologação</span><b id="nav-homologation-count">0</b></button>
+        <button class="nav-item maintainer-only" data-view="homologation" data-maintainer-only hidden><span class="nav-icon">✓</span><span>Revisão de Homologação</span><em>PRO MASTER</em><b id="nav-homologation-count">0</b></button>
         <button class="nav-item" data-view="audit"><span class="nav-icon">≡</span><span>Auditoria</span></button>
         <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span><span>Configurações</span></button>
         <button class="nav-item" data-view="help"><span class="nav-icon">?</span><span>Help</span><em>Guia</em></button>
@@ -182,8 +182,8 @@
           </div>
           <div id="catalog-sync-status" class="sync-status">Sincronizando catálogo instalado...</div>
           <div id="catalog-quality-status" class="sync-status">Validando evidências do Selo de Homologação...</div>
-          <article id="homologation-runner-card" class="homologation-runner-card pending">
-            <div><p class="eyebrow">Colaboração com fronteira de confiança</p><h3>Homologation Runner</h3></div>
+          <article id="homologation-runner-card" class="homologation-runner-card pending maintainer-only" data-maintainer-only hidden>
+            <div><p class="eyebrow">Governança exclusiva · PRO MASTER</p><h3>Homologation Runner</h3></div>
             <strong id="homologation-runner-status">Verificando disponibilidade...</strong>
             <p>O assistente conduz aplicação, arquitetura, nove checks, imagens por digest, retomada da sessão e revisão. Nenhum candidato concede selo ou altera a governança automaticamente.</p>
             <button class="light-button" data-action="homologation" disabled>Abrir assistente guiado <b>→</b></button>
@@ -300,9 +300,9 @@
           </div>
         </section>
 
-        <section id="view-homologation" class="view">
+        <section id="view-homologation" class="view maintainer-only" data-maintainer-only hidden>
           <div class="homologation-review-intro">
-            <div><p class="eyebrow">Fronteira de confiança auditável</p><h2>Central de Revisão de Homologação</h2><p>Veja sessões, candidatos e decisões locais sem entregar ao painel acesso de escrita. Um candidato nunca concede o Selo de Homologação.</p></div>
+            <div><p class="eyebrow">Governança exclusiva · PRO MASTER</p><h2>Central de Revisão de Homologação</h2><p>Área reservada aos mantenedores. Veja sessões, candidatos e decisões locais sem entregar ao painel acesso de escrita. Um candidato nunca concede o Selo de Homologação.</p></div>
             <button class="primary-button" data-action="homologation">Abrir revisão segura <b>→</b></button>
           </div>
           <div id="homologation-review-status" class="sync-status">Lendo o inventário privado pelo agente somente leitura...</div>
@@ -316,7 +316,7 @@
           </div>
           <article class="homologation-trust-note">
             <strong>O que esta central garante</strong>
-            <span>Leitura limitada a bundles sanitizados</span><span>Decisão imutável no Terminal Seguro</span><span>Sem socket Docker no painel</span><span>Selo emitido por esteira administrativa transacional</span>
+            <span>Leitura limitada a bundles sanitizados</span><span>Decisão imutável no Terminal Seguro</span><span>Sem socket Docker no painel</span><span>Selo oficial somente em release canônica</span>
           </article>
           <div class="section-tools sticky-tools">
             <div class="search-box grow"><span>⌕</span><input id="homologation-search" placeholder="Buscar por aplicação, execução ou candidato..."></div>
@@ -674,8 +674,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=4.25.0" defer></script>
-  <script src="/assistant-route.js?v=4.25.0" defer></script>
-  <script src="/app.js?v=4.25.0" defer></script>
+  <script src="/markdown.js?v=4.26.0" defer></script>
+  <script src="/assistant-route.js?v=4.26.0" defer></script>
+  <script src="/app.js?v=4.26.0" defer></script>
 </body>
 </html>

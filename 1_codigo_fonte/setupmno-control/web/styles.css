@@ -213,6 +213,7 @@ nav { width: 100%; min-width: 0; display: grid; gap: 5px; }
 .homologation-runner-card h3, .homologation-runner-card p { margin: 0; }
 .homologation-runner-card strong { color: var(--text); }
 .homologation-runner-card code { overflow-wrap: anywhere; padding: 10px 12px; border-radius: 10px; background: rgba(0,0,0,.28); color: var(--cyan); font-size: .78rem; }
+.maintainer-only[hidden] { display: none !important; }
 .result-count { margin: 16px 2px 12px; color: var(--muted); font-size: 10px; }
 .catalog-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 13px; }
 .catalog-card { min-height: 255px; display: flex; flex-direction: column; padding: 20px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); transition: transform .2s, border-color .2s; }

@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.25.0"
+VERSIONSETUP="7.26.0"
 EXPECTED_CATALOG_ENTRIES="158"
 EXPECTED_EVAL_DATASET_VERSION="1.17.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
@@ -120,7 +120,7 @@ clear
 
 valid_setup_plan() {
     case "$1" in
-        pro|"trial pro"|trial|free|free1|free2) return 0 ;;
+        pro-master|pro|"trial pro"|trial|free|free1|free2) return 0 ;;
         *) return 1 ;;
     esac
 }
@@ -158,6 +158,7 @@ write_control_environment() {
     valid_setup_plan "$plan" || return 1
     case "$plan" in
         free|free1|free2) public_plan="$plan" ;;
+        pro-master) public_plan="pro-master" ;;
         *) public_plan="pro" ;;
     esac
 
@@ -804,6 +805,17 @@ mv -f "$control_target/homologation-package/homologation-review-pack.schema.json
     "$control_target/homologation-package/homologation-review-pack.schema.json"
 mv -f "$control_target/homologation-package/runner-registry.json.tmp" \
     "$control_target/homologation-package/runner-registry.json"
+if [ "$PLANO" != "pro-master" ]; then
+    rm -f -- \
+        "$control_target/homologation-package/manifest.json" \
+        "$control_target/homologation-package/homologation_runner.py" \
+        "$control_target/homologation-package/homologation_wizard.sh" \
+        "$control_target/homologation-package/homologation-candidate.schema.json" \
+        "$control_target/homologation-package/homologation-review-decision.schema.json" \
+        "$control_target/homologation-package/homologation-review-pack.schema.json" \
+        "$control_target/homologation-package/runner-registry.json"
+    rmdir -- "$control_target/homologation-package" 2>/dev/null || true
+fi
 mv -f "$control_target/release.json.tmp" "$control_target/release.json"
 rm -rf "$control_package"
 
@@ -867,7 +879,7 @@ if ! reconcile_control_center_plan_services "$PLANO"; then
 fi
 
 
-if [ "$PLANO" = "pro" ] || [ "$PLANO" == "free" ] || [ "$PLANO" == "free1" ] || [ "$PLANO" == "free2" ] ; then
+if [ "$PLANO" = "pro-master" ] || [ "$PLANO" = "pro" ] || [ "$PLANO" == "free" ] || [ "$PLANO" == "free1" ] || [ "$PLANO" == "free2" ] ; then
 
 data_expiracao=$(date +'%d/%m/%Y' -d "+7 days")
     else

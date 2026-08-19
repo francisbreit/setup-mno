@@ -186,6 +186,16 @@ O projeto utiliza Git para rastrear todas as alterações. Regras obrigatórias:
   test "$(sha256sum 1_codigo_fonte/x86/SetupLowCodeMno/.control-package/catalog.json | awk '{print $1}')" = "$(jq -r '.catalogSHA256' 1_codigo_fonte/x86/SetupLowCodeMno/.control-package/release.json)"
   test "$(jq length 1_codigo_fonte/setupmno-control/catalog.json)" = "$(jq -r '.catalogEntries' 1_codigo_fonte/x86/SetupLowCodeMno/.control-package/release.json)"
   ```
+
+### Plano PRO MASTER e autorização de mantenedor
+- O identificador técnico do nível acima do PRO é `pro-master`; a interface deve exibi-lo como **PRO MASTER**.
+- `pro-master` herda integralmente todas as permissões e recursos do plano `pro`.
+- Central de Revisão, Homologation Runner e qualquer tela, rota ou ação de aprovação final são exclusivas de `pro-master`.
+- A autorização deve existir no backend, agente e launcher do terminal. Ocultar botões no frontend nunca é controle suficiente.
+- O runtime promovido do Homologation Runner deve existir somente em instalações `pro-master` e ser removido em downgrade para `pro`, `free`, `free1` ou `free2`.
+- Todo Terminal Seguro remoto é proibido quando `installationType` for `TRADICIONAL`, inclusive para `pro-master`. A administração tradicional ocorre por SSH.
+- Estado de plano ou tipo de instalação ausente, inválido ou indisponível deve resultar em negação de acesso, nunca em fallback permissivo.
+- Toda mudança de planos deve testar a matriz `free`, `free1`, `free2`, `pro` e `pro-master`, incluindo upgrade, downgrade, herança PRO e os modos `TRADICIONAL` e `CLOUDFLARE_TUNNEL`.
 - A quantidade de objetos do `catalog.json`, a quantidade exibida por `ferramentas.html` e os menus PRO devem estar sincronizadas. Não empacote se houver divergência.
 - Arquitetura de segurança obrigatória: painel web, agente de métricas e terminal são stacks separadas; somente o agente e o terminal recebem o socket Docker. O painel web **nunca** monta `/var/run/docker.sock`.
 - O agente interno permanece somente leitura e com endpoints permitidos explicitamente. É proibido adicionar ao agente uma API genérica de comandos Docker, shell remoto, criação, alteração ou exclusão de recursos.

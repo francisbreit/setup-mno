@@ -38,8 +38,8 @@ for architecture in x86 arm; do
     done
     eval "$functions"
 
-    for previous_plan in free free1 free2 pro; do
-      for target_plan in free free1 free2 pro; do
+    for previous_plan in free free1 free2 pro pro-master; do
+      for target_plan in free free1 free2 pro pro-master; do
         case_dir="$test_dir/$architecture-$previous_plan-$target_plan"
         live_dir="$case_dir/SetupLowCodeMno/.control"
         mkdir -p "$live_dir"
@@ -164,7 +164,7 @@ unset MOCK_SERVICE_PS_FAIL
 
 for legacy in false true; do
   export MOCK_LEGACY="$legacy"
-  for target_plan in free free1 free2 pro; do
+  for target_plan in free free1 free2 pro pro-master; do
       rm -rf "$MOCK_DOCKER_STATE_DIR"
       mkdir -p "$MOCK_DOCKER_STATE_DIR"
       : >"$docker_log"
@@ -185,7 +185,7 @@ for legacy in false true; do
           ! grep -Fq -- '--mount-rm /runtime-control' "$docker_log"
           grep -Fq -- '--env-rm SETUPMNO_PLAN' "$docker_log"
       fi
-      if [ "$target_plan" = "pro" ]; then
+      if [ "$target_plan" = "pro" ] || [ "$target_plan" = "pro-master" ]; then
           expected_replicas="1"
       else
           expected_replicas="0"
@@ -207,4 +207,4 @@ grep -Fq -- '--mount-rm /runtime-control' "$docker_log"
 grep -Fq -- '--mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly' "$docker_log"
 export MOCK_AGENT_RUNNING=true
 
-printf 'Instalação limpa sem Swarm, matriz de planos, agente saudável preservado, recuperação legada e remount WSL2 aprovados.\n'
+printf 'Instalação limpa sem Swarm, matriz de cinco planos, herança PRO MASTER, agente saudável, recuperação legada e remount WSL2 aprovados.\n'

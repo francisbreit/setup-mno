@@ -1115,7 +1115,7 @@ TRIAL_FILE="$TRIAL_DIR/trial_info"
 
 valid_setup_plan() {
     case "$1" in
-        pro|"trial pro"|trial|free|free1|free2) return 0 ;;
+        pro-master|pro|"trial pro"|trial|free|free1|free2) return 0 ;;
         *) return 1 ;;
     esac
 }
@@ -1128,7 +1128,7 @@ sync_control_center_installation_type() {
     temporary_file=$(mktemp "${environment_file}.tmp.XXXXXX") || return 1
     chmod 0644 "$temporary_file" || { rm -f "$temporary_file"; return 1; }
     jq --arg installation_type "$INSTALL_CHOICE" \
-        'if .schemaVersion == 1 and (.plan == "pro" or .plan == "free" or .plan == "free1" or .plan == "free2")
+        'if .schemaVersion == 1 and (.plan == "pro-master" or .plan == "pro" or .plan == "free" or .plan == "free1" or .plan == "free2")
          then .installationType = $installation_type
          else error("estado runtime inválido")
          end' \

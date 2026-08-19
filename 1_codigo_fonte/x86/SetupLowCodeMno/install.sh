@@ -217,7 +217,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.25.0"
+VERSIONSETUP="7.26.0"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -364,7 +364,7 @@ TRIAL_FILE="$TRIAL_DIR/trial_info"
 
 valid_setup_plan() {
     case "$1" in
-        pro|"trial pro"|trial|free|free1|free2) return 0 ;;
+        pro-master|pro|"trial pro"|trial|free|free1|free2) return 0 ;;
         *) return 1 ;;
     esac
 }

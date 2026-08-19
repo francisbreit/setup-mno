@@ -188,11 +188,11 @@ assistant_exists="false"
 docker service inspect "$assistant_service" >>"$log_file" 2>&1 && assistant_exists="true"
 
 plan=$(jq -er 'select(.schemaVersion == 1) | .plan |
-    select(. == "pro" or . == "free" or . == "free1" or . == "free2")' \
+    select(. == "pro-master" or . == "pro" or . == "free" or . == "free1" or . == "free2")' \
     "$runtime_dir/environment.json" 2>>"$log_file") ||
     fail_upgrade 14 "O plano canônico do Control Center está ausente ou inválido."
 case "$plan" in
-    pro) assistant_replicas=1 ;;
+    pro-master|pro) assistant_replicas=1 ;;
     *) assistant_replicas=0 ;;
 esac
 

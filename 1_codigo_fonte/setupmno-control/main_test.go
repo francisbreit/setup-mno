@@ -62,6 +62,24 @@ func TestReadRuntimeEnvironment(t *testing.T) {
 	}
 }
 
+func TestReadRuntimeEnvironmentAcceptsProMaster(t *testing.T) {
+	directory := t.TempDir()
+	data := []byte(`{"schemaVersion":1,"plan":"pro-master","installationType":"CLOUDFLARE_TUNNEL"}`)
+	if err := os.WriteFile(filepath.Join(directory, "environment.json"), data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	environment, err := readRuntimeEnvironment(directory)
+	if err != nil {
+		t.Fatalf("plano PRO MASTER válido foi recusado: %v", err)
+	}
+	capabilities := capabilitiesForEnvironment(environment)
+	if !capabilities.ProAccess || !capabilities.Maintainer ||
+		!capabilities.HomologationReview || !capabilities.HomologationExecute ||
+		!capabilities.HomologationFinalApproval || !capabilities.RemoteTerminal {
+		t.Fatalf("capacidades PRO MASTER incompletas: %#v", capabilities)
+	}
+}
+
 func TestReadRuntimeEnvironmentRejectsInvalidEntitlement(t *testing.T) {
 	for name, data := range map[string]string{
 		"plano":   `{"schemaVersion":1,"plan":"premium","installationType":"TRADICIONAL"}`,
@@ -186,6 +204,7 @@ func TestRuntimeAllowsLLMOnlyForValidatedProPlan(t *testing.T) {
 		expect  bool
 	}{
 		{name: "pro", plan: "pro", allowed: true, expect: true},
+		{name: "pro-master", plan: "pro-master", allowed: true, expect: true},
 		{name: "free", plan: "free", allowed: false, expect: false},
 		{name: "free-com-flag-residual", plan: "free", allowed: true, expect: false},
 	} {
@@ -255,6 +274,69 @@ func TestAssistantConfigurationForPlan(t *testing.T) {
 	)
 	if mode != "openrouter" || model != "openai/gpt-4o-mini" || endpoint != "https://openrouter.ai/api/v1" {
 		t.Fatalf("configuração PRO alterada indevidamente: %q %q %q", mode, model, endpoint)
+	}
+	mode, model, endpoint = assistantConfigurationForPlan(
+		" pro-master ", " OpenRouter ", " openai/gpt-4o-mini ", "https://openrouter.ai/api/v1/",
+	)
+	if mode != "openrouter" || model != "openai/gpt-4o-mini" || endpoint != "https://openrouter.ai/api/v1" {
+		t.Fatalf("PRO MASTER não herdou a configuração PRO: %q %q %q", mode, model, endpoint)
+	}
+}
+
+func TestCapabilitiesSeparateMaintainerAndTraditionalTerminal(t *testing.T) {
+	tests := []struct {
+		name        string
+		environment runtimeEnvironment
+		pro         bool
+		maintainer  bool
+		remote      bool
+	}{
+		{"free-tunnel", runtimeEnvironment{Plan: "free", InstallationType: "CLOUDFLARE_TUNNEL"}, false, false, true},
+		{"pro-tunnel", runtimeEnvironment{Plan: "pro", InstallationType: "CLOUDFLARE_TUNNEL"}, true, false, true},
+		{"pro-master-tunnel", runtimeEnvironment{Plan: "pro-master", InstallationType: "CLOUDFLARE_TUNNEL"}, true, true, true},
+		{"pro-master-tradicional", runtimeEnvironment{Plan: "pro-master", InstallationType: "TRADICIONAL"}, true, true, false},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			capabilities := capabilitiesForEnvironment(testCase.environment)
+			if capabilities.ProAccess != testCase.pro || capabilities.Maintainer != testCase.maintainer ||
+				capabilities.RemoteTerminal != testCase.remote {
+				t.Fatalf("matriz de capacidades divergente: %#v", capabilities)
+			}
+			if capabilities.HomologationReview != testCase.maintainer ||
+				capabilities.HomologationExecute != testCase.maintainer ||
+				capabilities.HomologationFinalApproval != testCase.maintainer {
+				t.Fatalf("capacidades de mantenedor divergentes: %#v", capabilities)
+			}
+		})
+	}
+}
+
+func TestMaintainerAndTerminalAuthorizationFailClosed(t *testing.T) {
+	for _, testCase := range []struct {
+		name       string
+		state      setupStateResponse
+		maintainer bool
+		terminal   bool
+	}{
+		{"pro-tunnel", setupStateResponse{Plan: "pro", InstallationType: "CLOUDFLARE_TUNNEL", Capabilities: planCapabilities{ProAccess: true, RemoteTerminal: true}}, false, true},
+		{"pro-master-tunnel", setupStateResponse{Plan: "pro-master", InstallationType: "CLOUDFLARE_TUNNEL", Capabilities: planCapabilities{ProAccess: true, Maintainer: true, RemoteTerminal: true}}, true, true},
+		{"pro-master-tradicional", setupStateResponse{Plan: "pro-master", InstallationType: "TRADICIONAL", Capabilities: planCapabilities{ProAccess: true, Maintainer: true}}, true, false},
+		{"estado-incompleto", setupStateResponse{Plan: "pro-master", InstallationType: "CLOUDFLARE_TUNNEL"}, false, false},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			agent := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_ = json.NewEncoder(w).Encode(testCase.state)
+			}))
+			defer agent.Close()
+			app := webApp{agentURL: agent.URL, agentToken: "token-teste", httpClient: agent.Client()}
+			if got := app.maintainerAccessAllowed(context.Background()); got != testCase.maintainer {
+				t.Fatalf("autorização de mantenedor inesperada: %v", got)
+			}
+			if got := app.terminalAccessAllowed(context.Background()); got != testCase.terminal {
+				t.Fatalf("autorização de terminal inesperada: %v", got)
+			}
+		})
 	}
 }
 

@@ -17,13 +17,47 @@ case "$intent" in
         ;;
 esac
 
+CONTROL_ENVIRONMENT_FILE="/root/SetupLowCodeMno/.control/environment.json"
+if [ "${SETUPMNO_TERMINAL_AUTH_SMOKE_TEST:-0}" = "1" ]; then
+    CONTROL_ENVIRONMENT_FILE="${SETUPMNO_TERMINAL_TEST_ENVIRONMENT_FILE:-$CONTROL_ENVIRONMENT_FILE}"
+fi
+[ -f "$CONTROL_ENVIRONMENT_FILE" ] && [ ! -L "$CONTROL_ENVIRONMENT_FILE" ] &&
+    [ "$(stat -c '%s' "$CONTROL_ENVIRONMENT_FILE" 2>/dev/null || printf '0')" -le 4096 ] || {
+    printf 'Terminal Seguro: estado de autorização indisponível.\n' >&2
+    exit 77
+}
+CONTROL_INSTALLATION_TYPE=$(jq -er \
+    'select(.schemaVersion == 1) | .installationType | select(. == "CLOUDFLARE_TUNNEL" or . == "TRADICIONAL")' \
+    "$CONTROL_ENVIRONMENT_FILE") || {
+    printf 'Terminal Seguro: tipo de instalação inválido.\n' >&2
+    exit 77
+}
+CONTROL_PLAN=$(jq -er \
+    'select(.schemaVersion == 1) | .plan | select(. == "pro-master" or . == "pro" or . == "free" or . == "free1" or . == "free2")' \
+    "$CONTROL_ENVIRONMENT_FILE") || {
+    printf 'Terminal Seguro: plano inválido.\n' >&2
+    exit 77
+}
+[ "$CONTROL_INSTALLATION_TYPE" = "CLOUDFLARE_TUNNEL" ] || {
+    printf 'Terminal Seguro: acesso remoto bloqueado em instalações TRADICIONAIS.\n' >&2
+    exit 77
+}
+if [ "$intent" = "homologation" ] && [ "$CONTROL_PLAN" != "pro-master" ]; then
+    printf 'Terminal Seguro: homologação exclusiva do plano PRO MASTER.\n' >&2
+    exit 77
+fi
+if [ "${SETUPMNO_TERMINAL_AUTH_SMOKE_TEST:-0}" = "1" ]; then
+    printf 'setupmno-terminal-authorized:%s:%s:%s\n' "$CONTROL_PLAN" "$CONTROL_INSTALLATION_TYPE" "$intent"
+    exit 0
+fi
+
 # O navegador é apenas um cliente do terminal. A sessão tmux permanece viva
 # quando o WebSocket fecha, permitindo retomar uploads, pulls e instalações
 # depois de uma nova autenticação. O socket dedicado evita colisão com tmux do
 # host e o ttyd continua limitando o acesso a um único cliente por vez.
 if [ -z "${TMUX:-}" ] && [ "${SETUPMNO_TMUX_CHILD:-0}" != "1" ]; then
     exec tmux -L setupmno-control new-session -A \
-        -s setupmno-terminal \
+        -s "setupmno-terminal-$intent" \
         -e SETUPMNO_TMUX_CHILD=1 \
         /usr/local/bin/setupmno-terminal-menu "$intent"
 fi
@@ -91,13 +125,18 @@ while true; do
     menu_rows=$((menu_height - 8))
     [ "$menu_rows" -ge 1 ] || menu_rows=1
     [ "$menu_rows" -le 5 ] || menu_rows=5
+    menu_entries=(
+        "INSTALLER" "Abrir o Instalador Setup MNO"
+        "SETTINGS" "Configurar conta e provedor do Control Center"
+    )
+    if [ "$CONTROL_PLAN" = "pro-master" ]; then
+        menu_entries+=("HOMOLOGATION" "Abrir o Assistente de Homologação · PRO MASTER")
+    fi
+    menu_entries+=("EXIT" "Encerrar esta sessão do terminal")
     choice=$(whiptail --title "SETUP MNO — TERMINAL SEGURO" --menu \
         "Escolha a operação. Configurações administrativas exigem nova confirmação da senha atual e nunca são executadas pelo painel web." \
         "$menu_height" "$menu_width" "$menu_rows" \
-        "INSTALLER" "Abrir o Instalador Setup MNO" \
-        "HOMOLOGATION" "Abrir o Assistente de Homologação" \
-        "SETTINGS" "Configurar conta e provedor do Control Center" \
-        "EXIT" "Encerrar esta sessão do terminal" \
+        "${menu_entries[@]}" \
         3>&1 1>&2 2>&3)
     status=$?
     [ "$status" -ne 0 ] && exit 0

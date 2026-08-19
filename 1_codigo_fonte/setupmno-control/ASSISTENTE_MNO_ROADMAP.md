@@ -1,5 +1,30 @@
 # Roadmap do Assistente MNO Especialista
 
+## v7.26.0 — Plano PRO MASTER e fronteira de mantenedor
+
+- novo plano técnico `pro-master`, exibido como **PRO MASTER**, acima do PRO;
+- herança integral dos recursos PRO, inclusive catálogo completo e conectores
+  opcionais de LLM;
+- Central de Revisão, Homologation Runner e capacidade de aprovação final
+  declaradas exclusivamente para mantenedores PRO MASTER;
+- autorização dinâmica e fail closed no painel, backend, agente somente leitura
+  e launcher do terminal, sem depender de ocultação visual;
+- runtime do Homologation Runner promovido somente no PRO MASTER e removido
+  atomicamente em downgrade para qualquer outro plano;
+- sessões tmux separadas por intenção, impedindo que uma sessão de homologação
+  seja retomada por uma URL genérica de terminal;
+- instalações `TRADICIONAL` recusam todo Terminal Seguro remoto em qualquer
+  plano, inclusive PRO MASTER; administração tradicional continua por SSH;
+- matriz automatizada cobrindo os cinco planos, herança PRO, upgrades,
+  downgrades, intenções fixas e os dois tipos de instalação.
+
+Baseline desta etapa:
+
+- Setup MNO: `7.26.0` em preparação de release
+- Control Center: `4.26.0`
+- Conhecimento canônico: `3.27.0`
+- Homologation Runner: `1.2.0`
+
 ## v7.25.0 — Esteira Oficial do Selo de Homologação
 
 - ferramenta administrativa local, ausente do runtime do cliente e sem API de
@@ -104,10 +129,10 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.25.0` em preparação de release
+- Setup MNO: `7.26.0` em preparação de release
 - Última versão estável homologada: `7.24.1`
-- Control Center: `4.25.0`
-- Conhecimento canônico: `3.26.0`
+- Control Center: `4.26.0`
+- Conhecimento canônico: `3.27.0`
 - Catálogo runtime: 158 entradas
 - Cobertura canônica dedicada: 158 de 158 entradas (`100%`)
 - Blueprints: cinco guias Beta editáveis, consultáveis e baixáveis; ainda não homologados

@@ -24,6 +24,7 @@ const state = {
   assistantModel: "",
   setupPlan: "",
   llmAllowed: false,
+  maintainerAccess: false,
   homologationRunnerAvailable: false,
   homologation: null,
   homologationItems: [],
@@ -470,6 +471,7 @@ async function refreshQuality() {
 
 async function refreshHomologation() {
   const status = $("homologation-review-status");
+  if (!state.maintainerAccess) return;
   try {
     const data = await api("/api/homologation");
     state.homologation = data;
@@ -774,13 +776,15 @@ function applyReleaseMetadata(data) {
   if (data.plan) {
     state.setupPlan = data.plan;
     state.llmAllowed = data.llmAllowed === true;
-    $("setup-plan").textContent = data.plan;
+    state.maintainerAccess = data.plan === "pro-master" && data.capabilities?.maintainer === true;
+    $("setup-plan").textContent = data.plan === "pro-master" ? "PRO MASTER" : data.plan;
     if (!state.llmAllowed) {
       state.assistantMode = "basic";
       state.assistantModel = "";
       renderAssistantMode();
     }
   }
+  applyMaintainerAccessState();
   if (Object.prototype.hasOwnProperty.call(data, "homologationRunnerAvailable")) {
     renderHomologationRunner(data);
   }
@@ -801,7 +805,19 @@ function renderHomologationRunner(data) {
 }
 
 function terminalAccessAllowed() {
-  return state.setupState?.installationType === "CLOUDFLARE_TUNNEL";
+  return state.setupState?.installationType === "CLOUDFLARE_TUNNEL" && state.setupState?.capabilities?.remoteTerminal === true;
+}
+
+function applyMaintainerAccessState() {
+  document.querySelectorAll("[data-maintainer-only]").forEach(element => {
+    element.hidden = !state.maintainerAccess;
+  });
+  if (!state.maintainerAccess) {
+    state.homologation = null;
+    state.homologationItems = [];
+    if (state.view === "homologation") navigate("dashboard");
+  }
+  applyTerminalAccessState();
 }
 
 function applyTerminalAccessState() {
@@ -809,9 +825,10 @@ function applyTerminalAccessState() {
   const note = "Recurso disponível apenas quando é usado Cloudflare Tunnel.";
   document.querySelectorAll('[data-action="terminal"], [data-action="settings"], [data-action="homologation"], [data-action="gateway"]').forEach(button => {
     const runnerUnavailable = button.dataset.action === "homologation" && !state.homologationRunnerAvailable;
-    button.disabled = !allowed || runnerUnavailable;
-    button.classList.toggle("terminal-locked", !allowed || runnerUnavailable);
-    button.title = !allowed ? note : runnerUnavailable ? "Homologation Runner indisponível nesta release." : "";
+    const maintainerRequired = button.dataset.action === "homologation" && !state.maintainerAccess;
+    button.disabled = !allowed || runnerUnavailable || maintainerRequired;
+    button.classList.toggle("terminal-locked", !allowed || runnerUnavailable || maintainerRequired);
+    button.title = !allowed ? note : maintainerRequired ? "Recurso exclusivo do plano PRO MASTER." : runnerUnavailable ? "Homologation Runner indisponível nesta release." : "";
   });
   $("terminal-access-notice").hidden = allowed;
 }
@@ -2102,6 +2119,10 @@ async function deleteFeedbackRecord(feedbackId) {
 }
 
 function navigate(view) {
+  if (view === "homologation" && !state.maintainerAccess) {
+    showAlert("🔒 A Central de Revisão é exclusiva do plano PRO MASTER.");
+    view = "dashboard";
+  }
   state.view = view;
   document.querySelectorAll(".view").forEach(element => element.classList.toggle("active", element.id === `view-${view}`));
   document.querySelectorAll(".nav-item").forEach(element => element.classList.toggle("active", element.dataset.view === view));
@@ -2125,6 +2146,10 @@ function openTerminal(intent = "installer") {
     showAlert("O Homologation Runner ainda não foi confirmado no runtime desta instalação.");
     return;
   }
+  if (intent === "homologation" && !state.maintainerAccess) {
+    showAlert("🔒 O Homologation Runner é exclusivo do plano PRO MASTER.");
+    return;
+  }
   pendingTerminalIntent = intent;
   const dialog = $("terminal-reauth-dialog");
   $("terminal-reauth-error").textContent = "";
@@ -2146,7 +2171,7 @@ async function confirmTerminalAccess(event) {
   submit.disabled = true;
   $("terminal-reauth-error").textContent = "";
   try {
-    await api("/api/terminal/reauth", { method: "POST", body: JSON.stringify({ password }) });
+    await api("/api/terminal/reauth", { method: "POST", body: JSON.stringify({ password, intent: pendingTerminalIntent || "installer" }) });
     passwordInput.value = "";
     const intent = pendingTerminalIntent || "installer";
     pendingTerminalIntent = "";

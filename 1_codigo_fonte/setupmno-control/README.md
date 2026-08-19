@@ -18,6 +18,25 @@ comandos. O único componente com acesso ao
 instalador original é o terminal, protegido pela autenticação e pela sessão do
 painel.
 
+## Planos e fronteira de mantenedor
+
+O plano **PRO MASTER** usa o identificador técnico `pro-master`. Ele herda
+integralmente o PRO e acrescenta capacidades de governança reservadas aos
+mantenedores: Central de Revisão, execução do Homologation Runner e a
+permissão declarada para aprovação final. `free`, `free1`, `free2` e `pro` não
+recebem essas telas, não acessam os endpoints correspondentes e não mantêm o
+runtime do Runner promovido em `.control`.
+
+Essa separação não depende do HTML. O backend consulta o estado runtime a cada
+acesso privilegiado, o agente recusa a leitura da fila para planos inferiores,
+o proxy valida a intenção do terminal e o launcher confere novamente plano e
+tipo de instalação. Estado ausente, divergente ou inválido é sempre recusado.
+
+O Terminal Seguro remoto existe somente em instalações `CLOUDFLARE_TUNNEL`.
+No método `TRADICIONAL`, reautenticação, proxy e launcher permanecem
+bloqueados para todos os planos, inclusive PRO MASTER. Nesse cenário, a
+administração continua exclusivamente pelo SSH normal do servidor.
+
 ## Barreira P0 de identidade e continuidade
 
 Em instalações novas por Cloudflare Tunnel, o usuário escolhe uma única vez,

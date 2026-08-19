@@ -202,4 +202,10 @@ grep -Fq -- '--env-rm ASSISTANT_MODEL --env-add ASSISTANT_MODEL=openai/gpt-5.4' 
 grep -Fq -- '--env-rm ASSISTANT_URL --env-add ASSISTANT_URL=http://assistant:7070' "$docker_log"
 grep -Fq -- '--env-rm SETUPMNO_PLAN --env-add SETUPMNO_PLAN=pro' "$docker_log"
 
-printf 'Persistência Portainer e ativação do provedor condicionada ao plano PRO aprovadas.\n'
+printf '%s\n' '{"schemaVersion":1,"plan":"pro-master","installationType":"CLOUDFLARE_TUNNEL"}' \
+    >"$control_environment_file"
+: >"$docker_log"
+update_web_assistant openrouter openai/gpt-5.4 http://assistant:7070
+grep -Fq -- '--env-rm SETUPMNO_PLAN --env-add SETUPMNO_PLAN=pro-master' "$docker_log"
+
+printf 'Persistência Portainer e herança PRO do plano PRO MASTER aprovadas.\n'

@@ -236,23 +236,33 @@ type runtimeSnapshot struct {
 }
 
 type setupStateResponse struct {
-	SchemaVersion               int    `json:"schemaVersion"`
-	SetupVersion                string `json:"setupVersion"`
-	ControlVersion              string `json:"controlVersion,omitempty"`
-	CatalogVersion              string `json:"catalogVersion"`
-	CatalogSHA256               string `json:"catalogSHA256"`
-	CatalogEntries              int    `json:"catalogEntries"`
-	Architecture                string `json:"architecture"`
-	Source                      string `json:"source"`
-	Stale                       bool   `json:"stale"`
-	Warning                     string `json:"warning,omitempty"`
-	Plan                        string `json:"plan,omitempty"`
-	InstallationType            string `json:"installationType,omitempty"`
-	LLMAllowed                  bool   `json:"llmAllowed"`
-	HomologationRunnerAvailable bool   `json:"homologationRunnerAvailable"`
-	HomologationRunnerVersion   string `json:"homologationRunnerVersion,omitempty"`
-	HomologationCandidateSchema int    `json:"homologationCandidateSchemaVersion,omitempty"`
-	HomologationWorkflow        string `json:"homologationWorkflow,omitempty"`
+	SchemaVersion               int              `json:"schemaVersion"`
+	SetupVersion                string           `json:"setupVersion"`
+	ControlVersion              string           `json:"controlVersion,omitempty"`
+	CatalogVersion              string           `json:"catalogVersion"`
+	CatalogSHA256               string           `json:"catalogSHA256"`
+	CatalogEntries              int              `json:"catalogEntries"`
+	Architecture                string           `json:"architecture"`
+	Source                      string           `json:"source"`
+	Stale                       bool             `json:"stale"`
+	Warning                     string           `json:"warning,omitempty"`
+	Plan                        string           `json:"plan,omitempty"`
+	InstallationType            string           `json:"installationType,omitempty"`
+	LLMAllowed                  bool             `json:"llmAllowed"`
+	Capabilities                planCapabilities `json:"capabilities"`
+	HomologationRunnerAvailable bool             `json:"homologationRunnerAvailable"`
+	HomologationRunnerVersion   string           `json:"homologationRunnerVersion,omitempty"`
+	HomologationCandidateSchema int              `json:"homologationCandidateSchemaVersion,omitempty"`
+	HomologationWorkflow        string           `json:"homologationWorkflow,omitempty"`
+}
+
+type planCapabilities struct {
+	ProAccess                 bool `json:"proAccess"`
+	Maintainer                bool `json:"maintainer"`
+	HomologationReview        bool `json:"homologationReview"`
+	HomologationExecute       bool `json:"homologationExecute"`
+	HomologationFinalApproval bool `json:"homologationFinalApproval"`
+	RemoteTerminal            bool `json:"remoteTerminal"`
 }
 
 type runtimeEnvironment struct {
@@ -588,7 +598,7 @@ func runWeb() error {
 	mux.Handle("GET /api/setup-state", app.requireAuth(http.HandlerFunc(app.handleSetupState)))
 	mux.Handle("GET /api/catalog", app.requireAuth(http.HandlerFunc(app.handleCatalog)))
 	mux.Handle("GET /api/quality", app.requireAuth(http.HandlerFunc(app.handleQuality)))
-	mux.Handle("GET /api/homologation", app.requireAuth(http.HandlerFunc(app.handleHomologation)))
+	mux.Handle("GET /api/homologation", app.requireAuth(app.requireMaintainer(http.HandlerFunc(app.handleHomologation))))
 	mux.Handle("GET /api/blueprints", app.requireAuth(http.HandlerFunc(app.handleBlueprints)))
 	mux.Handle("GET /api/blueprints/{blueprintId}/download", app.requireAuth(http.HandlerFunc(app.handleBlueprintDownload)))
 	mux.Handle("GET /api/evals", app.requireAuth(http.HandlerFunc(app.handleEvals)))
@@ -704,7 +714,9 @@ func runAgent() error {
 		state := stateFromSnapshot(snapshot, "runtime")
 		state.Plan = environment.Plan
 		state.InstallationType = environment.InstallationType
-		state.LLMAllowed = environment.Plan == "pro"
+		state.Capabilities = capabilitiesForEnvironment(environment)
+		state.LLMAllowed = state.Capabilities.ProAccess
+		state.HomologationRunnerAvailable = state.HomologationRunnerAvailable && state.Capabilities.HomologationExecute
 		writeJSON(w, http.StatusOK, state)
 	}))
 	mux.HandleFunc("GET /catalog", authorize(func(w http.ResponseWriter, _ *http.Request) {
@@ -727,6 +739,11 @@ func runAgent() error {
 		})
 	}))
 	mux.HandleFunc("GET /homologation", authorize(func(w http.ResponseWriter, _ *http.Request) {
+		environment, environmentErr := readRuntimeEnvironment(setupStateDir)
+		if environmentErr != nil || !planHasMaintainerAccess(environment.Plan) {
+			writeError(w, http.StatusForbidden, "recurso exclusivo do plano PRO MASTER")
+			return
+		}
 		queue, err := collectHomologationQueue(homologationCandidateDir, setupStateDir)
 		if err != nil {
 			writeError(w, http.StatusServiceUnavailable, "central de revisão indisponível")
@@ -2001,8 +2018,24 @@ func (a *webApp) handleTerminalReauth(w http.ResponseWriter, r *http.Request) {
 
 	var input struct {
 		Password string `json:"password"`
+		Intent   string `json:"intent"`
 	}
 	if err := decodeJSON(w, r, &input, 4096); err != nil {
+		return
+	}
+	input.Intent = strings.ToLower(strings.TrimSpace(input.Intent))
+	if input.Intent == "" {
+		input.Intent = "installer"
+	}
+	if !terminalIntentAllowed([]string{input.Intent}) {
+		input.Password = ""
+		writeError(w, http.StatusBadRequest, "intenção do Terminal Seguro inválida")
+		return
+	}
+	if input.Intent == "homologation" && !a.maintainerAccessAllowed(r.Context()) {
+		input.Password = ""
+		a.addAudit("homologation_blocked_plan", "Homologação recusada: requer plano PRO MASTER", address)
+		writeError(w, http.StatusForbidden, "recurso exclusivo do plano PRO MASTER")
 		return
 	}
 	candidate := pbkdf2SHA256([]byte(input.Password), a.passwordSalt, 310000, 32)
@@ -2490,11 +2523,11 @@ func (a *webApp) runtimeAllowsLLM(ctx context.Context) bool {
 	if err := a.agentRequest(ctx, "/setup-state", &state); err != nil {
 		return false
 	}
-	return state.Plan == "pro" && state.LLMAllowed
+	return planHasProAccess(state.Plan) && state.LLMAllowed
 }
 
 func assistantConfigurationForPlan(plan, mode, model, endpoint string) (string, string, string) {
-	if strings.ToLower(strings.TrimSpace(plan)) != "pro" {
+	if !planHasProAccess(plan) {
 		return "basic", "", ""
 	}
 	return strings.ToLower(strings.TrimSpace(mode)), strings.TrimSpace(model), strings.TrimRight(strings.TrimSpace(endpoint), "/")
@@ -2797,6 +2830,11 @@ func (a *webApp) terminalProxy() http.Handler {
 			writeError(w, http.StatusForbidden, "recurso disponível apenas quando é usado Cloudflare Tunnel")
 			return
 		}
+		if terminalIntent(r.URL.Query()["arg"]) == "homologation" && !a.maintainerAccessAllowed(r.Context()) {
+			a.addAudit("homologation_blocked_plan", "Terminal de homologação recusado: requer plano PRO MASTER", clientAddress(r))
+			writeError(w, http.StatusForbidden, "recurso exclusivo do plano PRO MASTER")
+			return
+		}
 		if !a.terminalAuthorized(r) {
 			writeError(w, http.StatusForbidden, "confirme a senha administrativa antes de abrir o Terminal Seguro")
 			return
@@ -2810,7 +2848,15 @@ func (a *webApp) terminalAccessAllowed(ctx context.Context) bool {
 	if err := a.agentRequest(ctx, "/setup-state", &state); err != nil {
 		return false
 	}
-	return state.InstallationType == "CLOUDFLARE_TUNNEL"
+	return state.InstallationType == "CLOUDFLARE_TUNNEL" && state.Capabilities.RemoteTerminal
+}
+
+func (a *webApp) maintainerAccessAllowed(ctx context.Context) bool {
+	var state setupStateResponse
+	if err := a.agentRequest(ctx, "/setup-state", &state); err != nil {
+		return false
+	}
+	return planHasMaintainerAccess(state.Plan) && state.Capabilities.Maintainer
 }
 
 func (a *webApp) terminalAuthorized(r *http.Request) bool {
@@ -2845,6 +2891,56 @@ func terminalIntentAllowed(values []string) bool {
 	default:
 		return false
 	}
+}
+
+func terminalIntent(values []string) string {
+	if len(values) == 0 {
+		return "gateway"
+	}
+	if len(values) == 1 {
+		return values[0]
+	}
+	return ""
+}
+
+func normalizeSetupPlan(plan string) string {
+	return strings.ToLower(strings.TrimSpace(plan))
+}
+
+func planHasProAccess(plan string) bool {
+	switch normalizeSetupPlan(plan) {
+	case "pro", "pro-master":
+		return true
+	default:
+		return false
+	}
+}
+
+func planHasMaintainerAccess(plan string) bool {
+	return normalizeSetupPlan(plan) == "pro-master"
+}
+
+func capabilitiesForEnvironment(environment runtimeEnvironment) planCapabilities {
+	maintainer := planHasMaintainerAccess(environment.Plan)
+	return planCapabilities{
+		ProAccess:                 planHasProAccess(environment.Plan),
+		Maintainer:                maintainer,
+		HomologationReview:        maintainer,
+		HomologationExecute:       maintainer,
+		HomologationFinalApproval: maintainer,
+		RemoteTerminal:            environment.InstallationType == "CLOUDFLARE_TUNNEL",
+	}
+}
+
+func (a *webApp) requireMaintainer(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !a.maintainerAccessAllowed(r.Context()) {
+			a.addAudit("maintainer_route_denied", "Rota exclusiva de mantenedor recusada", clientAddress(r))
+			writeError(w, http.StatusForbidden, "recurso exclusivo do plano PRO MASTER")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (a *webApp) requireAuth(next http.Handler) http.Handler {
@@ -3075,7 +3171,7 @@ func readRuntimeEnvironment(directory string) (runtimeEnvironment, error) {
 		return runtimeEnvironment{}, errors.New("schema do ambiente runtime inválido")
 	}
 	switch environment.Plan {
-	case "pro", "free", "free1", "free2":
+	case "pro-master", "pro", "free", "free1", "free2":
 	default:
 		return runtimeEnvironment{}, errors.New("plano runtime inválido")
 	}

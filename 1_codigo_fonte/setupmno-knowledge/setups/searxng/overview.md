@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "SearXNG no Setup MNO",
   "setupId": "searxng",
-  "setupVersion": "7.25.0",
+  "setupVersion": "7.26.0",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

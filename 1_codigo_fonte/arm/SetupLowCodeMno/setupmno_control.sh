@@ -3,7 +3,7 @@
 set -o pipefail
 umask 077
 
-CONTROL_VERSION="4.25.0"
+CONTROL_VERSION="4.26.0"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -62,7 +62,7 @@ CONTROL_ENVIRONMENT_FILE="/root/SetupLowCodeMno/.control/environment.json"
     exit 1
 }
 CONTROL_PLAN=$(jq -er \
-    'select(.schemaVersion == 1) | .plan | select(. == "pro" or . == "free" or . == "free1" or . == "free2")' \
+    'select(.schemaVersion == 1) | .plan | select(. == "pro-master" or . == "pro" or . == "free" or . == "free1" or . == "free2")' \
     "$CONTROL_ENVIRONMENT_FILE") || {
     printf '%s\n' "Estado de plano do Control Center inválido." >&2
     exit 1
@@ -709,7 +709,7 @@ reconcile_existing_control_center() {
     [[ "$terminal_service" =~ ^mnoctrl[[:alnum:]]+-terminal_mnoctrl[[:alnum:]]+-terminal$ ]] || return 1
     [[ "$terminal_image" =~ ^mnoctrl[[:alnum:]]+-terminal:[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
     [[ "$control_image" =~ ^mnoctrl[[:alnum:]]+-app:[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
-    [[ "$plan" =~ ^(pro|free|free1|free2)$ ]] || return 1
+    [[ "$plan" =~ ^(pro-master|pro|free|free1|free2)$ ]] || return 1
 
     terminal_update_args=(--image "$terminal_image")
     [ "$has_image_env" = "true" ] && terminal_update_args+=(--env-rm SETUPMNO_CONTROL_IMAGE)
@@ -1377,7 +1377,7 @@ assistant_model=""
 assistant_base_url=""
 llm_api_key=""
 
-if [ "$CONTROL_PLAN" != "pro" ]; then
+if [ "$CONTROL_PLAN" != "pro" ] && [ "$CONTROL_PLAN" != "pro-master" ]; then
     msg "O plano $CONTROL_PLAN inclui o Control Center com diagnóstico básico local.\n\nO Assistente com IA permanece desativado neste plano, mesmo que exista uma configuração antiga de provedor. Nenhuma chave ou stack de LLM será criada."
 elif [ "${mem_total_mb:-0}" -lt 4096 ] || [ "${mem_available_mb:-0}" -lt 1536 ]; then
     msg "O Control Center será instalado com o diagnóstico básico.\n\nMemória total: ${mem_total_mb:-0} MB\nMemória disponível: ${mem_available_mb:-0} MB\n\nO Copiloto com LLM é opcional e foi desativado para proteger este servidor. Você poderá configurá-lo futuramente após ampliar os recursos."

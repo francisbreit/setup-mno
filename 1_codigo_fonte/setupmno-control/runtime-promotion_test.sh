@@ -34,7 +34,7 @@ for architecture in x86 arm; do
         "$promotion_script"
     chmod 0700 "$promotion_script"
 
-    SETUPMNO_PROMOTION_TEST_ROOT="$test_root" bash "$promotion_script"
+    PLANO=pro-master SETUPMNO_PROMOTION_TEST_ROOT="$test_root" bash "$promotion_script"
     [ ! -e "$test_root/.control-package" ]
     [ ! -s "$test_root/control-state-error.log" ]
 
@@ -52,6 +52,12 @@ for architecture in x86 arm; do
         cmp -s "$runtime_package/knowledge-package/$knowledge_file" \
             "$test_root/.control/knowledge-package/$knowledge_file"
     done
+
+    mkdir -p "$test_root/.control-package"
+    cp -a "$runtime_package/." "$test_root/.control-package/"
+    PLANO=pro SETUPMNO_PROMOTION_TEST_ROOT="$test_root" bash "$promotion_script"
+    [ ! -e "$test_root/.control-package" ]
+    [ ! -e "$test_root/.control/homologation-package" ]
 done
 
-printf 'Promoção atômica do runtime de homologação x86/ARM aprovada.\n'
+printf 'Promoção PRO MASTER e remoção do runtime de homologação nos demais planos aprovadas em x86/ARM.\n'

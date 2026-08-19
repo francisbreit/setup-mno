@@ -132,10 +132,12 @@ O Homologation Runner v1 é distribuído no runtime autenticado em
 evidências **candidatas**; não possui API web, não altera a governança, não
 executa comandos arbitrários e não concede o selo oficial.
 
-O fluxo de coleta da v7.25.0 é visual. Em instalações Cloudflare Tunnel, abra
-`Control Center → Qualidade do catálogo → Abrir assistente guiado`, confirme a
-senha administrativa e siga o Whiptail do Terminal Seguro. Em VPS tradicional
-ou manutenção por SSH, execute o mesmo wizard localmente:
+O fluxo de coleta é visual e exclusivo do plano PRO MASTER. Em instalações
+Cloudflare Tunnel, abra `Control Center → Qualidade do catálogo → Abrir
+assistente guiado`, confirme a senha administrativa e siga o Whiptail do
+Terminal Seguro. Em instalações tradicionais não existe Terminal Seguro
+remoto; um mantenedor PRO MASTER pode executar o mesmo wizard localmente pela
+sessão SSH do servidor:
 
 ```bash
 bash /root/SetupLowCodeMno/.control/homologation-package/homologation_wizard.sh
