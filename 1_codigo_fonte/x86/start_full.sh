@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.26.0"
+VERSIONSETUP="7.27.0"
 EXPECTED_CATALOG_ENTRIES="158"
 EXPECTED_EVAL_DATASET_VERSION="1.17.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
@@ -521,6 +521,10 @@ rm -f SetupLowCodeMno.zip
 control_package="/root/SetupLowCodeMno/.control-package"
 control_target="/root/SetupLowCodeMno/.control"
 homologation_package="$control_package/homologation-package"
+maintainer_runtime_files=(
+    maintainer_console.sh maintainer_workspace.sh maintainer_validation_wizard.sh
+    certification_wizard.sh maintainer-workspace.tar.gz
+)
 if [ ! -s "$control_package/release.json" ] ||
    [ ! -s "$control_package/catalog.json" ] ||
    [ ! -f "$control_package/control-source.tar.gz" ] ||
@@ -546,6 +550,13 @@ if [ ! -s "$control_package/release.json" ] ||
     printf 'O pacote não contém o catálogo, os fontes e o conhecimento runtime do Control Center.\n' >"$control_state_error"
     exit 40
 fi
+for maintainer_file in "${maintainer_runtime_files[@]}"; do
+    if [ ! -f "$homologation_package/$maintainer_file" ] ||
+       [ -L "$homologation_package/$maintainer_file" ]; then
+        printf 'O pacote PRO MASTER não contém o componente seguro %s.\n' "$maintainer_file" >"$control_state_error"
+        exit 40
+    fi
+done
 control_schema=$(jq -r '.schemaVersion // 0' "$control_package/release.json" 2>/dev/null)
 control_version=$(jq -r '.setupVersion // empty' "$control_package/release.json" 2>/dev/null)
 control_arch=$(jq -r '.architecture // empty' "$control_package/release.json" 2>/dev/null)
@@ -619,6 +630,7 @@ homologation_runtime_candidate_schema=$(jq -r '.homologationCandidateSchemaVersi
 homologation_registry_entries=$(jq -r '.registryEntries // 0' "$homologation_manifest" 2>/dev/null)
 homologation_runtime_registry_entries=$(jq -r '.homologationRegistryEntries // 0' "$control_package/release.json" 2>/dev/null)
 homologation_setup_version=$(jq -r '.setupVersion // empty' "$homologation_manifest" 2>/dev/null)
+homologation_remote_certification=$(jq -r '.remoteCertification // false' "$homologation_manifest" 2>/dev/null)
 homologation_automatic_promotion=$(jq -r '
     if has("homologationAutomaticPromotion")
     then .homologationAutomaticPromotion
@@ -649,6 +661,17 @@ homologation_review_pack_schema_actual_sha=$(sha256sum "$homologation_package/ho
 homologation_review_pack_schema_actual_bytes=$(stat -c '%s' "$homologation_package/homologation-review-pack.schema.json" 2>/dev/null)
 homologation_registry_actual_sha=$(sha256sum "$homologation_package/runner-registry.json" | awk '{print $1}')
 homologation_registry_actual_bytes=$(stat -c '%s' "$homologation_package/runner-registry.json" 2>/dev/null)
+maintainer_runtime_valid="true"
+for maintainer_file in "${maintainer_runtime_files[@]}"; do
+    maintainer_expected_sha=$(jq -r --arg path "$maintainer_file" '.files[] | select(.path == $path) | .sha256' "$homologation_manifest" 2>/dev/null)
+    maintainer_expected_bytes=$(jq -r --arg path "$maintainer_file" '.files[] | select(.path == $path) | .size' "$homologation_manifest" 2>/dev/null)
+    maintainer_actual_sha=$(sha256sum "$homologation_package/$maintainer_file" | awk '{print $1}')
+    maintainer_actual_bytes=$(stat -c '%s' "$homologation_package/$maintainer_file" 2>/dev/null)
+    if [ "$maintainer_expected_sha" != "$maintainer_actual_sha" ] ||
+       [ "$maintainer_expected_bytes" != "$maintainer_actual_bytes" ]; then
+        maintainer_runtime_valid="false"
+    fi
+done
 if [ "$control_catalog_entries" != "$EXPECTED_CATALOG_ENTRIES" ] ||
    [ "$control_actual_entries" != "$EXPECTED_CATALOG_ENTRIES" ] ||
    [ "$quality_setup_entries" != "$EXPECTED_CATALOG_ENTRIES" ] ||
@@ -725,6 +748,7 @@ if [ "$control_schema" != "1" ] ||
    [ "$homologation_registry_entries" != "$EXPECTED_CATALOG_ENTRIES" ] ||
    [ "$homologation_registry_entries" != "$homologation_runtime_registry_entries" ] ||
    [ "$homologation_setup_version" != "$VERSIONSETUP" ] ||
+   [ "$homologation_remote_certification" != "true" ] ||
    [ "$homologation_runner_expected_sha" != "$homologation_runner_actual_sha" ] ||
    [ "$homologation_runner_expected_bytes" != "$homologation_runner_actual_bytes" ] ||
    [ "$homologation_wizard_expected_sha" != "$homologation_wizard_actual_sha" ] ||
@@ -737,6 +761,7 @@ if [ "$control_schema" != "1" ] ||
    [ "$homologation_review_pack_schema_expected_bytes" != "$homologation_review_pack_schema_actual_bytes" ] ||
    [ "$homologation_registry_expected_sha" != "$homologation_registry_actual_sha" ] ||
    [ "$homologation_registry_expected_bytes" != "$homologation_registry_actual_bytes" ] ||
+   [ "$maintainer_runtime_valid" != "true" ] ||
    [ "$knowledge_expected_sha" != "$knowledge_actual_sha" ] ||
    [ "$knowledge_expected_sha" != "$runtime_knowledge_sha" ] ||
    [ "$knowledge_expected_bytes" != "$knowledge_actual_bytes" ] ||
@@ -772,6 +797,14 @@ install -m 0644 "$homologation_package/homologation-review-pack.schema.json" \
     "$control_target/homologation-package/homologation-review-pack.schema.json.tmp"
 install -m 0644 "$homologation_package/runner-registry.json" \
     "$control_target/homologation-package/runner-registry.json.tmp"
+for maintainer_file in "${maintainer_runtime_files[@]}"; do
+    maintainer_mode=0644
+    case "$maintainer_file" in
+        maintainer_console.sh|maintainer_validation_wizard.sh|certification_wizard.sh) maintainer_mode=0755 ;;
+    esac
+    install -m "$maintainer_mode" "$homologation_package/$maintainer_file" \
+        "$control_target/homologation-package/$maintainer_file.tmp"
+done
 mv -f "$control_target/catalog.json.tmp" "$control_target/catalog.json"
 mv -f "$control_target/control-source.tar.gz.tmp" "$control_target/control-source.tar.gz"
 mv -f "$control_target/knowledge-package/knowledge-package.tar.gz.tmp" \
@@ -792,6 +825,10 @@ mv -f "$control_target/homologation-package/homologation-review-pack.schema.json
     "$control_target/homologation-package/homologation-review-pack.schema.json"
 mv -f "$control_target/homologation-package/runner-registry.json.tmp" \
     "$control_target/homologation-package/runner-registry.json"
+for maintainer_file in "${maintainer_runtime_files[@]}"; do
+    mv -f "$control_target/homologation-package/$maintainer_file.tmp" \
+        "$control_target/homologation-package/$maintainer_file"
+done
 if [ "$PLANO" != "pro-master" ]; then
     rm -f -- \
         "$control_target/homologation-package/manifest.json" \
@@ -800,7 +837,12 @@ if [ "$PLANO" != "pro-master" ]; then
         "$control_target/homologation-package/homologation-candidate.schema.json" \
         "$control_target/homologation-package/homologation-review-decision.schema.json" \
         "$control_target/homologation-package/homologation-review-pack.schema.json" \
-        "$control_target/homologation-package/runner-registry.json"
+        "$control_target/homologation-package/runner-registry.json" \
+        "$control_target/homologation-package/maintainer_console.sh" \
+        "$control_target/homologation-package/maintainer_workspace.sh" \
+        "$control_target/homologation-package/maintainer_validation_wizard.sh" \
+        "$control_target/homologation-package/certification_wizard.sh" \
+        "$control_target/homologation-package/maintainer-workspace.tar.gz"
     rmdir -- "$control_target/homologation-package" 2>/dev/null || true
 fi
 mv -f "$control_target/release.json.tmp" "$control_target/release.json"

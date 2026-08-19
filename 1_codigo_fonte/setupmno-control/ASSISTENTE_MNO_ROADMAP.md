@@ -1,5 +1,28 @@
 # Roadmap do Assistente MNO Especialista
 
+## v7.27.0 — Central remota de certificação PRO MASTER
+
+- Central do Mantenedor no Terminal Seguro, reunindo Runner, revisão,
+  preparação editorial, validadores e Esteira Oficial do Selo;
+- emissão remota exclusiva do PRO MASTER em instalações Cloudflare Tunnel,
+  com as mesmas regras de dry-run, tokens humanos e rollback do CLI;
+- workspace persistente derivado de arquivo autenticado pela release, sem
+  distribuir o código-fonte dos instaladores protegidos por SHC;
+- atestação runtime por versão, catálogo, manifesto e registro de artefatos;
+- preparação editorial guiada e separada da emissão do selo;
+- pacote determinístico exportável para incorporação canônica, sem commit,
+  tag, release ou publicação automática;
+- validadores guiados para qualidade, Blueprints e registro do Runner;
+- Help passo a passo visível somente para mantenedores PRO MASTER.
+
+Baseline desta etapa:
+
+- Setup MNO: `7.27.0` em preparação de release
+- Última versão estável homologada: `7.26.0`
+- Control Center: `4.27.0`
+- Conhecimento canônico: `3.28.0`
+- Homologation Runner: `1.2.0`
+
 ## v7.26.0 — Plano PRO MASTER e fronteira de mantenedor
 
 - novo plano técnico `pro-master`, exibido como **PRO MASTER**, acima do PRO;
@@ -129,10 +152,10 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.26.0` em preparação de release
-- Última versão estável homologada: `7.24.1`
-- Control Center: `4.26.0`
-- Conhecimento canônico: `3.27.0`
+- Setup MNO: `7.27.0` em preparação de release
+- Última versão estável homologada: `7.26.0`
+- Control Center: `4.27.0`
+- Conhecimento canônico: `3.28.0`
 - Catálogo runtime: 158 entradas
 - Cobertura canônica dedicada: 158 de 158 entradas (`100%`)
 - Blueprints: cinco guias Beta editáveis, consultáveis e baixáveis; ainda não homologados

@@ -31,6 +31,7 @@ PACKAGE_SCHEMA_VERSION = 1
 MAX_JSON_BYTES = 128 << 10
 MAX_BUNDLE_BYTES = 512 << 10
 MAX_REVIEW_PACK_BYTES = 2 << 20
+MAX_MAINTAINER_WORKSPACE_BYTES = 8 << 20
 SUPPORTED_RUNNER_VERSIONS = {"1.1.0", RUNNER_VERSION}
 CHECKS = (
     "deploy",
@@ -184,7 +185,8 @@ def validate_package(directory: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     manifest = load_json(manifest_path)
     expected_keys = {
         "schemaVersion", "runnerVersion", "candidateSchemaVersion", "setupVersion",
-        "generatedAt", "registryEntries", "files",
+        "generatedAt", "registryEntries", "maintainerWorkspaceBytes",
+        "maintainerWorkspaceSHA256", "remoteCertification", "files",
     }
     if not isinstance(manifest, dict) or set(manifest) != expected_keys:
         raise RunnerError("manifesto do runner possui campos inesperados")
@@ -195,11 +197,15 @@ def validate_package(directory: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         or not SEMVER_RE.fullmatch(str(manifest["setupVersion"]))
         or not isinstance(manifest["registryEntries"], int)
         or manifest["registryEntries"] < 1
+        or manifest["remoteCertification"] is not True
+        or not SHA256_RE.fullmatch(str(manifest["maintainerWorkspaceSHA256"]))
+        or not isinstance(manifest["maintainerWorkspaceBytes"], int)
+        or not 0 < manifest["maintainerWorkspaceBytes"] <= MAX_MAINTAINER_WORKSPACE_BYTES
     ):
         raise RunnerError("manifesto do runner é incompatível")
     parse_datetime(manifest["generatedAt"])
     files = manifest.get("files")
-    if not isinstance(files, list) or len(files) != 6:
+    if not isinstance(files, list) or len(files) != 11:
         raise RunnerError("inventário do runner inválido")
     expected_names = {
         "homologation_runner.py",
@@ -208,6 +214,11 @@ def validate_package(directory: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         "homologation-review-decision.schema.json",
         "homologation-review-pack.schema.json",
         "runner-registry.json",
+        "maintainer_console.sh",
+        "maintainer_workspace.sh",
+        "maintainer_validation_wizard.sh",
+        "certification_wizard.sh",
+        "maintainer-workspace.tar.gz",
     }
     found_names: set[str] = set()
     for item in files:
@@ -218,11 +229,18 @@ def validate_package(directory: Path) -> tuple[dict[str, Any], dict[str, Any]]:
             raise RunnerError("arquivo inesperado no pacote do runner")
         found_names.add(name)
         file_path = directory / name
-        data = ensure_regular(file_path)
+        limit = MAX_MAINTAINER_WORKSPACE_BYTES if name == "maintainer-workspace.tar.gz" else MAX_JSON_BYTES
+        data = ensure_regular(file_path, limit)
         if item["size"] != len(data) or item["sha256"] != sha256_bytes(data):
             raise RunnerError(f"integridade divergente no runner: {name}")
     if found_names != expected_names:
         raise RunnerError("pacote do runner incompleto")
+    workspace = ensure_regular(directory / "maintainer-workspace.tar.gz", MAX_MAINTAINER_WORKSPACE_BYTES)
+    if (
+        manifest["maintainerWorkspaceBytes"] != len(workspace)
+        or manifest["maintainerWorkspaceSHA256"] != sha256_bytes(workspace)
+    ):
+        raise RunnerError("workspace do mantenedor diverge do manifesto")
     registry = load_json(registry_path)
     if (
         not isinstance(registry, dict)

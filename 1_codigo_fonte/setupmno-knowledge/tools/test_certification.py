@@ -4,14 +4,17 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
 
 from generate_homologation_package import generate
+from lint_knowledge import parse_document
 
 
 TOOLS = Path(__file__).resolve().parent
@@ -123,6 +126,18 @@ class CertificationTests(unittest.TestCase):
         self.assertEqual(result.returncode, expected, result.stderr)
         return result
 
+    def runtime_release(self) -> Path:
+        release = self.base / "release.json"
+        manifest_data = (self.package / "manifest.json").read_bytes()
+        catalog_data = (self.source / "setupmno-control" / "catalog.json").read_bytes()
+        release.write_text(json.dumps({
+            "schemaVersion": 1,
+            "setupVersion": SETUP_VERSION,
+            "catalogSHA256": hashlib.sha256(catalog_data).hexdigest(),
+            "homologationPackageManifestSHA256": hashlib.sha256(manifest_data).hexdigest(),
+        }), encoding="utf-8")
+        return release
+
     def test_dry_run_does_not_mutate_and_apply_issues_seal(self) -> None:
         governance_path = self.root / "registry" / "governance.json"
         ledger_path = self.root / "registry" / "certification-ledger.json"
@@ -176,6 +191,61 @@ class CertificationTests(unittest.TestCase):
         self.assertEqual(before, {path: path.read_bytes() for path in watched})
         self.assertFalse((self.root / "certifications").exists())
         self.assertFalse((self.root / "evidence" / "navidrome").exists())
+
+    def test_runtime_attestation_and_export_release_pack(self) -> None:
+        release = self.runtime_release()
+        export_dir = self.base / "exports"
+        preview = json.loads(self.run_certifier(
+            None, "--runtime-release", str(release), "--export-dir", str(export_dir)
+        ).stdout)
+        applied = json.loads(self.run_certifier(
+            None, "--runtime-release", str(release), "--export-dir", str(export_dir),
+            "--apply", "--confirm", preview["confirmationToken"],
+        ).stdout)
+        package = Path(applied["exportPath"])
+        self.assertTrue(package.is_file())
+        with tarfile.open(package, "r:gz") as archive:
+            manifest = json.load(archive.extractfile("manifest.json"))
+        self.assertTrue(manifest["officialSeal"])
+        self.assertFalse(manifest["automaticPublication"])
+        self.assertTrue(manifest["requiresCanonicalImport"])
+
+    def test_runtime_attestation_rejects_tampered_release(self) -> None:
+        release = self.runtime_release()
+        data = json.loads(release.read_text(encoding="utf-8"))
+        data["catalogSHA256"] = "0" * 64
+        release.write_text(json.dumps(data), encoding="utf-8")
+        result = self.run_certifier(None, "--runtime-release", str(release), expected=2)
+        self.assertIn("atestação runtime", result.stderr)
+
+    def test_guided_document_preparation_requires_token(self) -> None:
+        path = self.root / "setups" / "navidrome" / "overview.md"
+        lines = path.read_text(encoding="utf-8").splitlines()
+        closing = lines.index("---", 1)
+        metadata = json.loads("\n".join(lines[1:closing]))
+        metadata["status"] = "reviewed"
+        path.write_text(
+            "---\n" + json.dumps(metadata, ensure_ascii=False, indent=2) +
+            "\n---\n" + "\n".join(lines[closing + 1:]) + "\n",
+            encoding="utf-8",
+        )
+        command = [sys.executable, str(TOOLS / "prepare_homologation_document.py")]
+        for pack in self.packs:
+            command.extend(["--pack", str(pack)])
+        command.extend(["--root", str(self.root), "--package-dir", str(self.package)])
+        preview_result = subprocess.run(command, check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.assertEqual(preview_result.returncode, 0, preview_result.stderr)
+        preview = json.loads(preview_result.stdout)
+        self.assertFalse(preview["documentPrepared"])
+        wrong = subprocess.run(command + ["--apply", "--confirm", "ERRADO"], check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.assertEqual(wrong.returncode, 2)
+        applied_result = subprocess.run(
+            command + ["--apply", "--confirm", preview["confirmationToken"]],
+            check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        self.assertEqual(applied_result.returncode, 0, applied_result.stderr)
+        self.assertTrue(json.loads(applied_result.stdout)["documentPrepared"])
+        self.assertEqual(parse_document(path).metadata["status"], "homologated")
 
 
 if __name__ == "__main__":

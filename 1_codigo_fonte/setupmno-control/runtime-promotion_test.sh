@@ -48,6 +48,13 @@ for architecture in x86 arm; do
     for runtime_file in catalog.json release.json control-source.tar.gz; do
         cmp -s "$runtime_package/$runtime_file" "$test_root/.control/$runtime_file"
     done
+    for runtime_file in maintainer_console.sh maintainer_workspace.sh \
+        maintainer_validation_wizard.sh certification_wizard.sh maintainer-workspace.tar.gz; do
+        [ -f "$test_root/.control/homologation-package/$runtime_file" ] || {
+            printf 'PRO MASTER não promoveu %s em %s.\n' "$runtime_file" "$architecture" >&2
+            exit 1
+        }
+    done
     for knowledge_file in manifest.json knowledge-package.tar.gz; do
         cmp -s "$runtime_package/knowledge-package/$knowledge_file" \
             "$test_root/.control/knowledge-package/$knowledge_file"

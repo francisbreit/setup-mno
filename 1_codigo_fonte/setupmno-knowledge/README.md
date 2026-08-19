@@ -143,6 +143,14 @@ sessão SSH do servidor:
 bash /root/SetupLowCodeMno/.control/homologation-package/homologation_wizard.sh
 ```
 
+Na v7.27.0, o Terminal Seguro abre a Central do Mantenedor. Depois da revisão
+do candidato, `CERTIFY` prepara os metadados editoriais em uma cópia de
+trabalho autenticada, executa o dry-run oficial, exige tokens humanos e gera o
+pacote exportável em
+`/root/setupmno-homologation-candidates/official-seals/`. `VALIDATE` executa
+os gates de qualidade, Blueprints e integridade do Runner. Nada é publicado
+automaticamente: o pacote precisa ser incorporado e revisado no repositório.
+
 O assistente permite iniciar ou retomar uma sessão, percorre os nove checks,
 coleta somente evidência sanitizada, exige imagens por digest, finaliza e
 verifica o candidato e registra a revisão humana. Cancelar ou escolher

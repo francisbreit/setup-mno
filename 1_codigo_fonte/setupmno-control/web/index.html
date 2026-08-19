@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#070a0f">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=4.26.0">
+  <link rel="stylesheet" href="/styles.css?v=4.27.0">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -186,7 +186,7 @@
             <div><p class="eyebrow">Governança exclusiva · PRO MASTER</p><h3>Homologation Runner</h3></div>
             <strong id="homologation-runner-status">Verificando disponibilidade...</strong>
             <p>O assistente conduz aplicação, arquitetura, nove checks, imagens por digest, retomada da sessão e revisão. Nenhum candidato concede selo ou altera a governança automaticamente.</p>
-            <button class="light-button" data-action="homologation" disabled>Abrir assistente guiado <b>→</b></button>
+            <button class="light-button" data-action="homologation" disabled>Abrir Central do Mantenedor <b>→</b></button>
           </article>
           <div class="section-tools sticky-tools">
             <div class="search-box grow"><span>⌕</span><input id="catalog-search" placeholder="Buscar por nome, categoria ou finalidade..."></div>
@@ -303,7 +303,7 @@
         <section id="view-homologation" class="view maintainer-only" data-maintainer-only hidden>
           <div class="homologation-review-intro">
             <div><p class="eyebrow">Governança exclusiva · PRO MASTER</p><h2>Central de Revisão de Homologação</h2><p>Área reservada aos mantenedores. Veja sessões, candidatos e decisões locais sem entregar ao painel acesso de escrita. Um candidato nunca concede o Selo de Homologação.</p></div>
-            <button class="primary-button" data-action="homologation">Abrir revisão segura <b>→</b></button>
+            <button class="primary-button" data-action="homologation">Abrir Central do Mantenedor <b>→</b></button>
           </div>
           <div id="homologation-review-status" class="sync-status">Lendo o inventário privado pelo agente somente leitura...</div>
           <div class="homologation-summary-grid">
@@ -531,9 +531,27 @@
               <summary><span class="help-guide-number">04</span><span><strong>Atualizar ou reinstalar o Setup MNO</strong><small>Preparação e cuidados essenciais.</small></span><b>＋</b></summary>
               <div class="help-guide-body"><ol><li>Confirme que possui backup dos dados importantes e acesso administrativo ao servidor.</li><li>No Windows com WSL2, abra o Docker Desktop, aguarde o motor iniciar e confirme a integração com a distribuição Ubuntu antes de executar o bootstrap.</li><li>Use somente o bootstrap oficial correspondente ao ambiente e acompanhe as validações iniciais.</li><li>Durante a reconciliação, não interrompa builds, atualização do painel ou validação de manifestos.</li><li>Ao terminar, atualize o Control Center e confira separadamente as versões do Setup MNO e do painel.</li></ol><div class="help-callout warn"><strong>Não confunda reinstalação com exclusão</strong><span>Atualizar o Setup MNO não é autorização para remover stacks, volumes ou bancos existentes.</span></div></div>
             </details>
-            <details class="help-guide help-topic" data-help-topic data-help-category="operate" data-help-search="homologação runner central revisão candidato decisão aprovado recusado quarentena incompatível selo nove checks digest mantenedor aplicação">
-              <summary><span class="help-guide-number">05</span><span><strong>Homologar e revisar uma aplicação</strong><small>Do checklist local à revisão canônica do mantenedor.</small></span><b>＋</b></summary>
-              <div class="help-guide-body"><p>O Runner conduz uma sessão de teste e gera um <strong>candidato de homologação</strong>. A Central organiza sessões, candidatos, incompatibilidades e decisões sem permitir escrita pelo navegador.</p><ol><li>Abra <strong>Revisão de Homologação</strong> para consultar a fila e verificar se há rascunhos, candidatos pendentes ou itens em quarentena.</li><li>Use <strong>Abrir revisão segura</strong>, redigite a senha e escolha <strong>NEW</strong> para iniciar ou <strong>CONTINUE</strong> para retomar.</li><li>Registre os nove checks somente depois do teste real e informe cada imagem no formato <strong>repositório@sha256:digest</strong>.</li><li>Finalize e verifique o candidato. Se o instalador atual divergir do artefato testado, repita a homologação; a Central não aceita a versão por semelhança.</li><li>Em <strong>REVIEW</strong>, o revisor pode aprovar ou recusar e documentar o motivo. A decisão é imutável: para mudar o resultado, gere um novo candidato.</li><li>Uma aprovação local gera um pacote de revisão, ainda sem selo. Fora do painel do cliente, o mantenedor executa a Esteira Oficial do Selo: primeiro um dry-run valida todas as arquiteturas, nove checks, digests, documentação, pendências e ledger; depois exige a digitação de um token para aplicar uma transação com rollback.</li><li>Somente após revisar o diff e executar os gates do workflow de produção o mantenedor cria commit, tag e release. A ferramenta de certificação nunca publica automaticamente.</li></ol><div class="help-callout warn"><strong>Fronteira de confiança</strong><span>Aprovação local não altera governança, catálogo ou Selo de Homologação. O painel permanece somente leitura; o selo oficial só pode ser emitido pela ferramenta administrativa local e entregue em uma release homologada pelo mantenedor.</span></div></div>
+            <details class="help-guide help-topic maintainer-only" data-maintainer-only hidden data-help-topic data-help-category="operate" data-help-search="homologação runner central revisão candidato decisão selo nove checks digest pro master mantenedor ferramenta blueprint validação">
+              <summary><span class="help-guide-number">05</span><span><strong>Homologar, revisar e liberar o selo</strong><small>Guia completo e exclusivo para mantenedores PRO MASTER.</small></span><b>＋</b></summary>
+              <div class="help-guide-body">
+                <p>A <strong>Central do Mantenedor</strong> reúne o Homologation Runner, a revisão humana, os validadores e a Esteira Oficial do Selo. Você não precisa programar: leia cada tela, use as setas, <kbd>Tab</kbd> e <kbd>Enter</kbd> e só aprove o que realmente testou.</p>
+                <ol>
+                  <li><strong>Prepare um laboratório isolado.</strong> Use nomes iniciados por <code>setupmno-hml-</code>, nunca reutilize volumes ou bancos reais e anote a aplicação e a arquitetura testadas.</li>
+                  <li><strong>Abra a fila.</strong> Entre em <button type="button" data-nav="homologation">Revisão de Homologação</button> para ver rascunhos, pendências, aprovados, recusados, incompatíveis e itens em quarentena.</li>
+                  <li><strong>Abra o terminal.</strong> Clique em <strong>Abrir Central do Mantenedor</strong>, redigite a senha e escolha <strong>RUNNER</strong>. Esse acesso existe somente no PRO MASTER com Cloudflare Tunnel; em instalação Tradicional, faça o mesmo por SSH.</li>
+                  <li><strong>Crie a sessão.</strong> Escolha <strong>NEW</strong>, selecione a ferramenta, a arquitetura e o ambiente. Para continuar uma coleta salva, escolha <strong>CONTINUE</strong>.</li>
+                  <li><strong>Execute os nove checks.</strong> Confirme deploy, convergência, saúde, persistência, reinício, atualização, backup, restauração e limpeza. Marque “aprovado” somente após observar o resultado real; explique de forma curta e sem IP, domínio, senha ou token.</li>
+                  <li><strong>Informe imagens imutáveis.</strong> Use o formato <code>repositorio/imagem:versao@sha256:digest</code>. Exemplo: <code>empresa/app:1.2.0@sha256:abc…</code>. Uma tag sem digest não serve como evidência final.</li>
+                  <li><strong>Finalize e verifique.</strong> O Runner cria um candidato, mas ainda não cria selo. Use <strong>VERIFY</strong> para conferir a integridade. Se houver duas arquiteturas, repita o teste em amd64 e arm64.</li>
+                  <li><strong>Faça a revisão humana.</strong> Em <strong>REVIEW</strong>, compare o candidato com o teste executado. Aprove com justificativa ou recuse indicando o motivo. A decisão é imutável; uma correção exige novo candidato.</li>
+                  <li><strong>Prepare a documentação.</strong> Volte à Central, escolha <strong>CERTIFY</strong>, selecione os pacotes aprovados das arquiteturas solicitadas e confira o primeiro dry-run. Digite o token editorial apenas se portas, imagens e data estiverem corretas.</li>
+                  <li><strong>Emita o selo.</strong> O segundo dry-run valida todas as arquiteturas, nove checks, registro autenticado da release, documento, pendências, qualidade e ledger. Confira o resumo e digite o token final. Em caso de falha, a transação restaura os arquivos anteriores.</li>
+                  <li><strong>Valide ferramentas e Blueprints.</strong> Em <strong>VALIDATE</strong>, execute os gates de qualidade, Blueprints e autoverificação do Runner. “Aprovado” significa que o gate passou; não significa que a release já foi publicada.</li>
+                  <li><strong>Entregue o pacote.</strong> O selo emitido fica em <code>/root/setupmno-homologation-candidates/official-seals/</code>. Envie esse pacote ao mantenedor principal para importar no repositório, revisar o diff, executar o Workflow de Produção e publicar uma nova versão.</li>
+                </ol>
+                <div class="help-examples"><strong>Exemplo prático: homologar “Minha Ferramenta”</strong><span>RUNNER → NEW → Minha Ferramenta → amd64 → registrar os nove resultados → finalizar com imagens por digest.</span><span>RUNNER → REVIEW → aprovar com a justificativa “Checklist e persistência conferidos no laboratório isolado”.</span><span>CERTIFY → selecionar o pacote amd64 e, se exigido, arm64 → confirmar token editorial → conferir dry-run → confirmar token do selo.</span><span>VALIDATE → Qualidade → Blueprints → Runner. Depois, encaminhar o release-pack ao mantenedor principal.</span></div>
+                <div class="help-callout warn"><strong>O que o selo não faz</strong><span>Ele não cria commit, tag, release, deploy ou DNS e não publica o catálogo automaticamente. O pacote precisa passar pela revisão canônica e pelo Workflow de Produção.</span></div>
+              </div>
             </details>
           </div>
 
@@ -674,8 +692,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=4.26.0" defer></script>
-  <script src="/assistant-route.js?v=4.26.0" defer></script>
-  <script src="/app.js?v=4.26.0" defer></script>
+  <script src="/markdown.js?v=4.27.0" defer></script>
+  <script src="/assistant-route.js?v=4.27.0" defer></script>
+  <script src="/app.js?v=4.27.0" defer></script>
 </body>
 </html>

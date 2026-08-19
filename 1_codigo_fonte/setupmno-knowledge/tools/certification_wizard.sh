@@ -1,8 +1,8 @@
 #!/usr/bin/bash
 set -Eeuo pipefail
 
-# Assistente administrativo local. Não integra o runtime do cliente e não
-# cria commit, tag, release ou publicação automaticamente.
+# Assistente administrativo do mantenedor. No runtime, permanece restrito ao
+# PRO MASTER e não cria commit, tag, release ou publicação automaticamente.
 umask 077
 
 TOOLS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -12,6 +12,28 @@ CERTIFIER="$TOOLS_DIR/certify_homologation.py"
 CATALOG="${SETUPMNO_CERTIFICATION_CATALOG:-$SOURCE_ROOT/setupmno-control/catalog.json}"
 PACKAGE_DIR="${SETUPMNO_CERTIFICATION_PACKAGE_DIR:-$SOURCE_ROOT/setupmno-control/homologation-package}"
 PACK_ROOT="${SETUPMNO_CERTIFICATION_PACK_ROOT:-/root/setupmno-homologation-candidates}"
+RUNTIME_MODE="${SETUPMNO_CERTIFICATION_RUNTIME:-0}"
+DOCUMENT_PREPARER="$TOOLS_DIR/prepare_homologation_document.py"
+RUNTIME_RELEASE=""
+EXPORT_DIR=""
+
+initialize_runtime_mode() {
+    local runtime_runner_dir
+    [ "$RUNTIME_MODE" = "1" ] || return 0
+    runtime_runner_dir="${SETUPMNO_HOMOLOGATION_PACKAGE_DIR:-/root/SetupLowCodeMno/.control/homologation-package}"
+    # shellcheck source=/dev/null
+    source "$runtime_runner_dir/maintainer_workspace.sh"
+    setupmno_prepare_maintainer_workspace || return 1
+    KNOWLEDGE_ROOT="$SETUPMNO_MAINTAINER_KNOWLEDGE_ROOT"
+    SOURCE_ROOT="$SETUPMNO_MAINTAINER_WORKSPACE"
+    TOOLS_DIR="$KNOWLEDGE_ROOT/tools"
+    CERTIFIER="$TOOLS_DIR/certify_homologation.py"
+    DOCUMENT_PREPARER="$TOOLS_DIR/prepare_homologation_document.py"
+    CATALOG="$SETUPMNO_MAINTAINER_CATALOG"
+    PACKAGE_DIR="$SETUPMNO_MAINTAINER_RUNNER_DIR"
+    RUNTIME_RELEASE="$SETUPMNO_MAINTAINER_RUNTIME_RELEASE"
+    EXPORT_DIR="$PACK_ROOT/official-seals"
+}
 
 dialog_height() {
     local requested="$1" available
@@ -47,7 +69,7 @@ validate_runtime() {
             return 1
         }
     done
-    for path in "$CERTIFIER" "$TOOLS_DIR/import_homologation_review.py" \
+    for path in "$CERTIFIER" "$DOCUMENT_PREPARER" "$TOOLS_DIR/import_homologation_review.py" \
         "$TOOLS_DIR/homologation_runner.py" "$TOOLS_DIR/knowledge_quality.py" \
         "$KNOWLEDGE_ROOT/registry/certification-ledger.json" "$CATALOG" \
         "$PACKAGE_DIR/manifest.json"; do
@@ -67,6 +89,35 @@ validate_runtime() {
         show_error "Diretório de pacotes ausente ou inseguro:\n$PACK_ROOT"
         return 1
     }
+}
+
+prepare_document() {
+    local preview token typed output text
+    local -a args=(python3 -B "$DOCUMENT_PREPARER" "${CERTIFICATION_PACKS[@]}"
+        --root "$KNOWLEDGE_ROOT" --package-dir "$PACKAGE_DIR")
+    if ! preview=$("${args[@]}" 2>&1); then
+        show_error "$preview"
+        return 1
+    fi
+    token=$(printf '%s' "$preview" | jq -r '.confirmationToken // empty')
+    [ -n "$token" ] || return 1
+    text=$(printf '%s' "$preview" | jq -r '
+        "Aplicação: \(.setupId)\nArquiteturas: \(.architectures | join(\", \"))\nDocumento: \(.documentPath)\nData verificada: \(.verifiedAt)\nPortas preservadas: \(.verifiedPorts | map(tostring) | join(\", \"))\nImagens por digest: \(.verifiedImages | length)\n\nToken editorial: \(.confirmationToken)"')
+    message "PREPARAÇÃO EDITORIAL — DRY-RUN" \
+        "$text\n\nNenhum arquivo foi alterado. Confira os dados antes de prosseguir."
+    typed=$(whiptail --title "CONFIRMAR DOCUMENTAÇÃO" --inputbox \
+        "Digite o token para marcar a cópia de trabalho como homologated. Isso ainda NÃO emite o selo:\n\n$token" \
+        "$(dialog_height 15)" "$(dialog_width 92)" 3>&1 1>&2 2>&3) || return 130
+    [ "$typed" = "$token" ] || {
+        show_error "Token editorial divergente. Nenhuma alteração foi aplicada."
+        return 1
+    }
+    if ! output=$("${args[@]}" --apply --confirm "$typed" 2>&1); then
+        show_error "$output"
+        return 1
+    fi
+    message "DOCUMENTAÇÃO PREPARADA" \
+        "A cópia de trabalho foi atualizada e será submetida novamente a todos os gates durante a certificação.\n\nSelo oficial emitido: NÃO."
 }
 
 select_pack() {
@@ -108,6 +159,7 @@ collect_packs() {
 run_certification() {
     local maintainer reason issued_at preview token typed output preview_text
     collect_packs || return 0
+    prepare_document || return 0
     maintainer=$(whiptail --title "MANTENEDOR RESPONSÁVEL" --inputbox \
         "Informe um nome público entre 2 e 80 caracteres. Não use e-mail, hostname ou credencial." \
         "$(dialog_height 12)" "$(dialog_width 88)" 3>&1 1>&2 2>&3) || return 0
@@ -118,6 +170,9 @@ run_certification() {
     local -a base_args=(python3 -B "$CERTIFIER" "${CERTIFICATION_PACKS[@]}"
         --root "$KNOWLEDGE_ROOT" --catalog "$CATALOG" --package-dir "$PACKAGE_DIR"
         --maintainer "$maintainer" --reason "$reason" --issued-at "$issued_at")
+    if [ "$RUNTIME_MODE" = "1" ]; then
+        base_args+=(--runtime-release "$RUNTIME_RELEASE" --export-dir "$EXPORT_DIR")
+    fi
     if ! preview=$("${base_args[@]}" 2>&1); then
         show_error "$preview"
         return 1
@@ -143,14 +198,14 @@ run_certification() {
         return 1
     fi
     message "SELO OFICIAL EMITIDO" \
-        "$(printf '%s' "$output" | jq -r '"Aplicação: \(.setupId)\nSelo: \(.sealId)\nSHA-256: \(.sealSHA256)\nMaturidade: \(.targetMaturity)\nGovernança atualizada: \(.governanceUpdated)\nSelo oficial: \(.officialSeal)"')\n\nA alteração permanece apenas no código-fonte local. Revise o diff, execute os gates e publique a release pelo workflow de produção."
+        "$(printf '%s' "$output" | jq -r '"Aplicação: \(.setupId)\nSelo: \(.sealId)\nSHA-256: \(.sealSHA256)\nMaturidade: \(.targetMaturity)\nGovernança atualizada: \(.governanceUpdated)\nSelo oficial: \(.officialSeal)\nPacote exportável: \(.exportPath // \"não solicitado\")"')\n\nA emissão permanece na cópia de trabalho. Importe o pacote no repositório, revise o diff, execute os gates e publique a release pelo workflow de produção."
 }
 
 main_menu() {
     local choice
     while true; do
         choice=$(whiptail --title "SETUP MNO — ESTEIRA OFICIAL DO SELO" --menu \
-            "Ferramenta administrativa local. Toda emissão exige dry-run, cobertura completa, confirmação humana e rollback automático." \
+            "Ferramenta do mantenedor PRO MASTER. Toda emissão exige preparação editorial, dry-run, cobertura completa, confirmação humana e rollback automático." \
             "$(dialog_height 19)" "$(dialog_width 102)" 7 \
             "CERTIFY" "Validar evidências e emitir selo oficial" \
             "ABOUT" "Entender a fronteira de confiança" \
@@ -160,7 +215,7 @@ main_menu() {
             CERTIFY) run_certification || true ;;
             ABOUT)
                 message "FRONTEIRA DE CONFIANÇA" \
-                    "O Homologation Runner do cliente cria candidatos e decisões locais, sempre sem selo.\n\nEsta ferramenta existe somente no repositório do mantenedor. Ela valida os nove checks, todas as arquiteturas, os hashes do código vivo, a documentação, o ledger e as pendências.\n\nSomente após o dry-run e a digitação do token ela grava evidências, decisões, selo e governança de forma transacional.\n\nEla nunca cria commit, tag, release, deploy, DNS ou comando Docker."
+                    "O Homologation Runner cria candidatos e decisões locais, sempre sem selo.\n\nA Esteira Oficial é exclusiva do PRO MASTER. Ela valida os nove checks, todas as arquiteturas, o registro autenticado da release, a documentação, o ledger e as pendências.\n\nSomente após dois dry-runs e tokens humanos ela prepara o documento e grava evidências, decisões, selo e governança de forma transacional.\n\nNo terminal remoto, o resultado vira um pacote exportável. Ela nunca cria commit, tag, release, deploy ou DNS."
                 ;;
             EXIT) return 0 ;;
         esac
@@ -172,5 +227,9 @@ if [ "${SETUPMNO_CERTIFICATION_WIZARD_SMOKE_TEST:-0}" = "1" ]; then
     exit 0
 fi
 
+initialize_runtime_mode || {
+    show_error "O workspace PRO MASTER não pôde ser inicializado com segurança."
+    exit 2
+}
 validate_runtime || exit 2
 main_menu

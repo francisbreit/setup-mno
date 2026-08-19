@@ -409,7 +409,7 @@ decide_candidate() {
     fi
     if [ "$decision" = "approved" ]; then
         message "APROVAÇÃO LOCAL REGISTRADA" \
-            "Decisão imutável:\n$decision_path\n\nPacote para revisão canônica:\n$review_pack_path\n\nPróximo passo: o mantenedor importa o pacote no repositório, executa os gates e publica uma release. Governança alterada: NÃO. Selo oficial: NÃO."
+            "Decisão imutável:\n$decision_path\n\nPacote para certificação:\n$review_pack_path\n\nPróximo passo PRO MASTER: volte à Central do Mantenedor, escolha CERTIFY, execute os dry-runs e confirme os tokens. Governança alterada: NÃO. Selo oficial: NÃO."
     else
         message "RECUSA REGISTRADA" \
             "Decisão imutável:\n$decision_path\n\nO candidato foi recusado localmente. Nenhuma evidência canônica, governança ou selo foi criado."
@@ -439,7 +439,7 @@ main_menu() {
             REVIEW) decide_candidate || true ;;
             ABOUT)
                 message "FRONTEIRA DE CONFIANÇA" \
-                    "CANDIDATO: declaração sanitizada produzida no laboratório.\n\nDECISÃO LOCAL: aprovação ou recusa imutável, ainda fora da governança canônica.\n\nCENTRAL DE REVISÃO: inventário somente leitura dos candidatos e decisões deste servidor.\n\nSELO OFICIAL: somente existe após importação explícita pelo mantenedor, gates aprovados, commit e nova release do Setup MNO."
+                    "CANDIDATO: declaração sanitizada produzida no laboratório.\n\nDECISÃO LOCAL: aprovação ou recusa imutável, ainda sem selo.\n\nCENTRAL DE REVISÃO: inventário somente leitura dos candidatos e decisões deste servidor.\n\nSELO OFICIAL: o PRO MASTER pode emiti-lo na Central do Mantenedor somente após preparação editorial, dry-runs, cobertura completa, gates aprovados e tokens humanos. A publicação ainda exige importação do pacote, commit e nova release do Setup MNO."
                 ;;
             EXIT) return 0 ;;
         esac

@@ -5,12 +5,15 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import gzip
 import hashlib
+import io
 import json
 import os
 import re
 import subprocess
 import sys
+import tarfile
 from pathlib import Path
 from typing import Any
 
@@ -157,7 +160,7 @@ def validate_document(root: Path, setup_id: str, entry: dict[str, Any], evidence
 
 def prepare_certification(
     packs: list[Path], root: Path, catalog: Path, package_dir: Path,
-    maintainer: str, reason: str, issued_at: str,
+    maintainer: str, reason: str, issued_at: str, runtime_attested: bool = False,
 ) -> dict[str, Any]:
     if root.is_symlink() or not root.is_dir():
         raise ValueError("raiz canônica ausente ou insegura")
@@ -202,9 +205,10 @@ def prepare_certification(
         entry = package_entries.get(setup_id)
         if entry is None or candidate["artifact"] != entry["artifacts"].get(architecture):
             raise ValueError(f"{architecture}: pacote do runner diverge do artefato aprovado")
-        source_script = root.parent / candidate["artifact"]["path"]
-        if runner.sha256_file(source_script) != candidate["artifact"]["sha256"]:
-            raise ValueError(f"{architecture}: código vivo mudou após a homologação")
+        if not runtime_attested:
+            source_script = root.parent / candidate["artifact"]["path"]
+            if runner.sha256_file(source_script) != candidate["artifact"]["sha256"]:
+                raise ValueError(f"{architecture}: código vivo mudou após a homologação")
         records.append({
             "pack": pack,
             "packSHA256": sha256(read_regular(pack, MAX_PACK_BYTES)),
@@ -382,8 +386,8 @@ def write_transaction(prepared: dict[str, Any], root: Path) -> None:
         raise
 
 
-def public_result(prepared: dict[str, Any], applied: bool) -> dict[str, Any]:
-    return {
+def public_result(prepared: dict[str, Any], applied: bool, export_path: str = "") -> dict[str, Any]:
+    result = {
         "mode": "apply" if applied else "dry-run",
         "setupId": prepared["setupId"],
         "setupVersion": prepared["setupVersion"],
@@ -407,6 +411,79 @@ def public_result(prepared: dict[str, Any], applied: bool) -> dict[str, Any]:
         "gitChanged": False,
         "releaseCreated": False,
     }
+    if export_path:
+        result["exportPath"] = export_path
+    return result
+
+
+def validate_runtime_attestation(release_path: Path, root: Path, catalog: Path, package_dir: Path) -> None:
+    release = load_json_regular(release_path, 32 << 10)
+    manifest_path = package_dir / "manifest.json"
+    manifest_data = read_regular(manifest_path, 256 << 10)
+    manifest = json.loads(manifest_data)
+    registry = load_json_regular(root / "registry" / "setups.json")
+    if (
+        release.get("schemaVersion") != 1
+        or release.get("setupVersion") != registry.get("setupVersion")
+        or manifest.get("setupVersion") != release.get("setupVersion")
+        or manifest.get("remoteCertification") is not True
+        or release.get("catalogSHA256") != runner.sha256_file(catalog)
+        or release.get("homologationPackageManifestSHA256") != sha256(manifest_data)
+    ):
+        raise ValueError("atestação runtime não corresponde à release promovida")
+
+
+def export_release_pack(prepared: dict[str, Any], root: Path, export_dir: Path) -> Path:
+    if export_dir.is_symlink():
+        raise ValueError("diretório de exportação não pode ser symlink")
+    export_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    paths = {
+        prepared["sealPath"],
+        str(prepared["governancePath"].relative_to(root)),
+        str(prepared["ledgerPath"].relative_to(root)),
+        "registry/quality-report.json",
+        f"setups/{prepared['setupId']}/overview.md",
+    }
+    for item in prepared["seal"]["evidenceRefs"] + prepared["seal"]["decisionRefs"]:
+        paths.add(item["path"])
+    payloads: dict[str, bytes] = {}
+    for relative in sorted(paths):
+        data = read_regular(root / relative, 8 << 20)
+        payloads[f"setupmno-knowledge/{relative}"] = data
+    manifest = {
+        "schemaVersion": 1,
+        "kind": "setupmno-official-seal-release-pack",
+        "setupId": prepared["setupId"],
+        "setupVersion": prepared["setupVersion"],
+        "sealId": prepared["seal"]["sealId"],
+        "sealSHA256": prepared["sealSHA256"],
+        "officialSeal": True,
+        "automaticPublication": False,
+        "requiresCanonicalImport": True,
+        "files": [
+            {"path": name, "sha256": sha256(data), "size": len(data)}
+            for name, data in sorted(payloads.items())
+        ],
+    }
+    payloads["manifest.json"] = canonical_json(manifest)
+    tar_buffer = io.BytesIO()
+    with tarfile.open(fileobj=tar_buffer, mode="w", format=tarfile.PAX_FORMAT) as archive:
+        for name, data in sorted(payloads.items()):
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            info.mode = 0o644
+            info.mtime = 0
+            info.uid = info.gid = 0
+            info.uname = info.gname = ""
+            archive.addfile(info, io.BytesIO(data))
+    compressed = io.BytesIO()
+    with gzip.GzipFile(filename="", mode="wb", fileobj=compressed, mtime=0, compresslevel=9) as stream:
+        stream.write(tar_buffer.getvalue())
+    output = export_dir / f"{prepared['seal']['sealId']}-release-pack.tar.gz"
+    if output.exists():
+        raise ValueError("pacote exportável já existe")
+    runner.atomic_write(output, compressed.getvalue(), 0o600)
+    return output
 
 
 def validate_destination(root: Path, path: Path) -> None:
@@ -433,11 +510,19 @@ def main() -> int:
     parser.add_argument("--issued-at", default=now_utc())
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--confirm", default="")
+    parser.add_argument("--runtime-release", type=Path)
+    parser.add_argument("--export-dir", type=Path)
     arguments = parser.parse_args()
     root = arguments.root.resolve()
+    runtime_attested = arguments.runtime_release is not None
+    if runtime_attested:
+        validate_runtime_attestation(
+            arguments.runtime_release.resolve(), root, arguments.catalog.resolve(),
+            arguments.package_dir.resolve(),
+        )
     prepared = prepare_certification(
         arguments.pack, root, arguments.catalog.resolve(), arguments.package_dir.resolve(),
-        arguments.maintainer, arguments.reason, arguments.issued_at,
+        arguments.maintainer, arguments.reason, arguments.issued_at, runtime_attested,
     )
     if not arguments.apply:
         print(json.dumps(public_result(prepared, False), ensure_ascii=False, sort_keys=True))
@@ -445,7 +530,10 @@ def main() -> int:
     if arguments.confirm != prepared["confirmationToken"]:
         raise ValueError("confirmação inválida; execute o dry-run e informe o token exibido")
     write_transaction(prepared, root)
-    print(json.dumps(public_result(prepared, True), ensure_ascii=False, sort_keys=True))
+    export_path = ""
+    if arguments.export_dir is not None:
+        export_path = str(export_release_pack(prepared, root, arguments.export_dir.resolve()))
+    print(json.dumps(public_result(prepared, True, export_path), ensure_ascii=False, sort_keys=True))
     return 0
 
 

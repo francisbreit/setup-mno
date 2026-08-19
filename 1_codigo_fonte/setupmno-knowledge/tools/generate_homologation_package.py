@@ -4,11 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
+import io
 import json
 import os
 import re
 import shutil
+import tarfile
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -21,6 +24,7 @@ from homologation_runner import (
 
 
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
+MAX_MAINTAINER_WORKSPACE_BYTES = 8 << 20
 
 
 def canonical_json(value: Any) -> bytes:
@@ -81,6 +85,55 @@ def build_registry(root: Path, setup_version: str) -> dict[str, Any]:
     }
 
 
+def build_maintainer_workspace(root: Path) -> bytes:
+    """Empacota a base editável necessária à certificação, sem fontes dos instaladores."""
+    selected = (
+        "VERSION", "quality-baseline.json", "blueprints", "evals", "evidence",
+        "glossary", "infra", "policies", "registry", "schema", "setups",
+        "templates", "troubleshooting", "tools",
+    )
+    files: dict[str, bytes] = {}
+    for name in selected:
+        source = root / name
+        candidates = [source] if source.is_file() else sorted(source.rglob("*"))
+        for candidate in candidates:
+            if candidate.is_symlink():
+                raise ValueError(f"workspace contém symlink: {candidate}")
+            if not candidate.is_file():
+                continue
+            relative = candidate.relative_to(root)
+            if "__pycache__" in relative.parts or candidate.suffix in {".pyc", ".pyo"}:
+                continue
+            if candidate.name.startswith("test_") or candidate.name.endswith("_test.sh"):
+                continue
+            data = candidate.read_bytes()
+            if len(data) > 2 << 20:
+                raise ValueError(f"arquivo do workspace excede 2 MiB: {relative}")
+            files[f"setupmno-knowledge/{relative.as_posix()}"] = data
+    catalog = root.parent / "setupmno-control" / "catalog.json"
+    files["setupmno-control/catalog.json"] = read_regular(catalog, 2 << 20)
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w", format=tarfile.PAX_FORMAT) as archive:
+        for name in sorted(files):
+            data = files[name]
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            info.mode = 0o755 if name.endswith(".sh") or "/tools/" in name and name.endswith(".py") else 0o644
+            info.mtime = 0
+            info.uid = 0
+            info.gid = 0
+            info.uname = ""
+            info.gname = ""
+            archive.addfile(info, io.BytesIO(data))
+    compressed = io.BytesIO()
+    with gzip.GzipFile(filename="", mode="wb", fileobj=compressed, mtime=0, compresslevel=9) as stream:
+        stream.write(buffer.getvalue())
+    result = compressed.getvalue()
+    if not result or len(result) > MAX_MAINTAINER_WORKSPACE_BYTES:
+        raise ValueError("workspace do mantenedor fora do limite de 8 MiB")
+    return result
+
+
 def generate(root: Path, output: Path, setup_version: str) -> dict[str, Any]:
     if not SEMVER_RE.fullmatch(setup_version):
         raise ValueError("versão do Setup MNO inválida")
@@ -91,6 +144,7 @@ def generate(root: Path, output: Path, setup_version: str) -> dict[str, Any]:
     decision_schema_data = read_regular(root / "schema" / "homologation-review-decision.schema.json")
     review_pack_schema_data = read_regular(root / "schema" / "homologation-review-pack.schema.json")
     registry_data = canonical_json(build_registry(root, setup_version))
+    maintainer_workspace_data = build_maintainer_workspace(root)
     files = {
         "homologation_runner.py": runner_data,
         "homologation_wizard.sh": wizard_data,
@@ -98,6 +152,11 @@ def generate(root: Path, output: Path, setup_version: str) -> dict[str, Any]:
         "homologation-review-decision.schema.json": decision_schema_data,
         "homologation-review-pack.schema.json": review_pack_schema_data,
         "runner-registry.json": registry_data,
+        "maintainer_console.sh": read_regular(tools / "maintainer_console.sh"),
+        "maintainer_workspace.sh": read_regular(tools / "maintainer_workspace.sh"),
+        "maintainer_validation_wizard.sh": read_regular(tools / "maintainer_validation_wizard.sh"),
+        "certification_wizard.sh": read_regular(tools / "certification_wizard.sh"),
+        "maintainer-workspace.tar.gz": maintainer_workspace_data,
     }
     manifest = {
         "schemaVersion": 1,
@@ -106,6 +165,9 @@ def generate(root: Path, output: Path, setup_version: str) -> dict[str, Any]:
         "setupVersion": setup_version,
         "generatedAt": f"{RUNNER_RELEASE_DATE}T00:00:00Z",
         "registryEntries": len(json.loads(registry_data)["entries"]),
+        "maintainerWorkspaceBytes": len(maintainer_workspace_data),
+        "maintainerWorkspaceSHA256": sha256_bytes(maintainer_workspace_data),
+        "remoteCertification": True,
         "files": [
             {"path": name, "sha256": sha256_bytes(data), "size": len(data)}
             for name, data in sorted(files.items())

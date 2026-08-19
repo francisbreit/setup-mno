@@ -96,9 +96,9 @@ Ative este modo quando o usuário disser **“Modo Homologação”**, **“Modo
 ## CONTEXTO DOS AMBIENTES DO SETUP MNO
 
 ### Versão estável vigente
-- A última versão estável homologada do Setup MNO é **v7.24.1**.
-- Tag Git: `v7.24.1`.
-- Commit de release: `4d1f1e31` (`release: v7.24.1 - correcao do runtime de homologacao`).
+- A última versão estável homologada do Setup MNO é **v7.26.0**.
+- Tag Git: `v7.26.0`.
+- Commit de release: `cd826baf` (`release: v7.26.0 - plano PRO MASTER e fronteira de mantenedor`).
 - Este registro somente deve ser alterado quando o usuário declarar explicitamente uma nova versão como estável após a homologação.
 
 ### Projeto de construção
@@ -191,6 +191,9 @@ O projeto utiliza Git para rastrear todas as alterações. Regras obrigatórias:
 - O identificador técnico do nível acima do PRO é `pro-master`; a interface deve exibi-lo como **PRO MASTER**.
 - `pro-master` herda integralmente todas as permissões e recursos do plano `pro`.
 - Central de Revisão, Homologation Runner e qualquer tela, rota ou ação de aprovação final são exclusivas de `pro-master`.
+- O usuário `pro-master` possui acesso a todos os processos disponíveis de homologação e validação do Setup MNO: criação e retomada de sessões, nove checks, verificação de candidatos, revisão humana, preparação editorial, validação da base e de Blueprints, dry-run da certificação, emissão transacional do selo e geração do pacote para a release.
+- A Central do Mantenedor pode ser executada pelo CLI local e pelo Terminal Seguro remoto quando a instalação for `CLOUDFLARE_TUNNEL`. O fluxo remoto deve usar os mesmos manifestos, hashes, gates, tokens de confirmação e rollback do CLI.
+- A emissão remota do selo altera somente uma cópia de trabalho persistente e gera um pacote exportável. Ela nunca publica o catálogo, cria commit, tag ou release automaticamente; a incorporação canônica continua exigindo revisão do diff e Workflow de Produção.
 - A autorização deve existir no backend, agente e launcher do terminal. Ocultar botões no frontend nunca é controle suficiente.
 - O runtime promovido do Homologation Runner deve existir somente em instalações `pro-master` e ser removido em downgrade para `pro`, `free`, `free1` ou `free2`.
 - Todo Terminal Seguro remoto é proibido quando `installationType` for `TRADICIONAL`, inclusive para `pro-master`. A administração tradicional ocorre por SSH.

@@ -103,6 +103,7 @@ python3 -B "$source_root/setupmno-knowledge/tools/test_homologation_runner.py"
 python3 -B "$source_root/setupmno-knowledge/tools/test_certification.py"
 bash "$project_dir/homologation-wizard_test.sh"
 bash "$project_dir/terminal-authorization_test.sh"
+bash "$project_dir/maintainer-runtime_test.sh"
 homologation_wizard="$source_root/setupmno-knowledge/tools/homologation_wizard.sh"
 bash -n "$homologation_wizard"
 [ "$(SETUPMNO_HOMOLOGATION_WIZARD_SMOKE_TEST=1 bash "$homologation_wizard")" = \
@@ -119,20 +120,38 @@ grep -Fq 'automaticPromotion' "$source_root/setupmno-knowledge/schema/homologati
 }
 certification_wizard="$source_root/setupmno-knowledge/tools/certification_wizard.sh"
 certifier="$source_root/setupmno-knowledge/tools/certify_homologation.py"
+document_preparer="$source_root/setupmno-knowledge/tools/prepare_homologation_document.py"
+maintainer_console="$source_root/setupmno-knowledge/tools/maintainer_console.sh"
+maintainer_workspace="$source_root/setupmno-knowledge/tools/maintainer_workspace.sh"
+maintainer_validator="$source_root/setupmno-knowledge/tools/maintainer_validation_wizard.sh"
 bash -n "$certification_wizard"
+bash -n "$maintainer_console"
+bash -n "$maintainer_workspace"
+bash -n "$maintainer_validator"
 [ "$(SETUPMNO_CERTIFICATION_WIZARD_SMOKE_TEST=1 bash "$certification_wizard")" = \
     "setupmno-certification-wizard-ok" ] || {
     printf 'ERRO: smoke test do assistente administrativo de certificação falhou.\n' >&2
     exit 1
 }
+[ "$(SETUPMNO_MAINTAINER_CONSOLE_SMOKE_TEST=1 bash "$maintainer_console")" = \
+    "setupmno-maintainer-console-ok" ] || {
+    printf 'ERRO: smoke test da Central do Mantenedor falhou.\n' >&2
+    exit 1
+}
 python3 -B -c 'import pathlib,sys; compile(pathlib.Path(sys.argv[1]).read_text(), sys.argv[1], "exec")' \
     "$certifier"
+python3 -B -c 'import pathlib,sys; compile(pathlib.Path(sys.argv[1]).read_text(), sys.argv[1], "exec")' \
+    "$document_preparer"
 grep -Fq 'confirmationToken' "$certifier" &&
 grep -Fq 'automaticPromotion": False' "$certifier" &&
 grep -Fq 'officialSeal": True' "$certifier" &&
 grep -Fq 'CERTIFICAÇÃO INTERROMPIDA' "$certification_wizard" &&
 grep -Fq 'dry-run' "$certification_wizard" &&
 grep -Fq 'rollback' "$certification_wizard" &&
+grep -Fq 'prepare_document' "$certification_wizard" &&
+grep -Fq -- '--runtime-release' "$certification_wizard" &&
+grep -Fq 'requiresCanonicalImport' "$certifier" &&
+grep -Fq 'maintainer_console.sh' "$project_dir/terminal-menu.sh" &&
 ! grep -Eq '(^|[[:space:]])(eval|bash -c|sh -c)[[:space:]]' "$certification_wizard" || {
     printf 'ERRO: esteira oficial do selo sem confirmação, rollback ou fronteira administrativa.\n' >&2
     exit 1
@@ -597,7 +616,7 @@ grep -Fq '"/api/terminal/reauth"' "$project_dir/web/app.js" &&
 grep -Fq 'id="terminal-reauth-dialog"' "$project_dir/web/index.html" &&
 grep -Fq 'rendererType: "dom"' "$project_dir/web/app.js" &&
 grep -Fq 'loadTerminalAfterDialogLayout' "$project_dir/web/app.js" &&
-grep -Fq 'title: "Assistente de Homologação"' "$project_dir/web/app.js" &&
+grep -Fq 'title: "Central do Mantenedor"' "$project_dir/web/app.js" &&
 grep -Fq '}[intent] || {' "$project_dir/web/app.js" &&
 grep -Fq 'data-action="gateway"' "$project_dir/web/index.html" || {
     printf 'ERRO: painel sem roteamento contextual, renderização DOM ou abertura segura do Terminal.\n' >&2
@@ -701,8 +720,16 @@ python3 -B "$source_root/setupmno-knowledge/tools/generate_homologation_package.
 [ ! -L "$homologation_package/homologation-review-pack.schema.json" ] &&
 [ -f "$homologation_package/runner-registry.json" ] &&
 [ ! -L "$homologation_package/runner-registry.json" ] &&
-[ ! -e "$homologation_package/certify_homologation.py" ] &&
-[ ! -e "$homologation_package/certification_wizard.sh" ] || {
+[ -f "$homologation_package/maintainer_console.sh" ] &&
+[ ! -L "$homologation_package/maintainer_console.sh" ] &&
+[ -f "$homologation_package/maintainer_workspace.sh" ] &&
+[ ! -L "$homologation_package/maintainer_workspace.sh" ] &&
+[ -f "$homologation_package/maintainer_validation_wizard.sh" ] &&
+[ ! -L "$homologation_package/maintainer_validation_wizard.sh" ] &&
+[ -f "$homologation_package/certification_wizard.sh" ] &&
+[ ! -L "$homologation_package/certification_wizard.sh" ] &&
+[ -f "$homologation_package/maintainer-workspace.tar.gz" ] &&
+[ ! -L "$homologation_package/maintainer-workspace.tar.gz" ] || {
     printf 'ERRO: pacote do Homologation Runner ausente ou inseguro.\n' >&2
     exit 1
 }
@@ -730,6 +757,7 @@ for entitlement_script in \
     "$source_root/arm/start_arm_full.sh"; do
     grep -Fq 'if [ "$PLANO" != "pro-master" ]; then' "$entitlement_script" &&
     grep -Fq '"$control_target/homologation-package/homologation_runner.py"' "$entitlement_script" &&
+    grep -Fq '"$control_target/homologation-package/maintainer_console.sh"' "$entitlement_script" &&
     grep -Fq 'rmdir -- "$control_target/homologation-package"' "$entitlement_script" || {
         printf 'ERRO: runtime de homologação não está restrito ao plano PRO MASTER em %s.\n' \
             "$entitlement_script" >&2
@@ -745,6 +773,8 @@ homologation_manifest_sha=$(sha256sum "$homologation_package/manifest.json" | aw
 [ "$homologation_candidate_schema" = "1" ] &&
 [ "$homologation_registry_entries" = "$(jq -r 'length' "$project_dir/catalog.json")" ] &&
 [ "$homologation_setup_version" = "$x86_version" ] &&
+[ "$(jq -r '.remoteCertification // false' "$homologation_package/manifest.json")" = "true" ] &&
+[ "$(jq -r '.maintainerWorkspaceSHA256 // empty' "$homologation_package/manifest.json")" = "$(sha256sum "$homologation_package/maintainer-workspace.tar.gz" | awk '{print $1}')" ] &&
 python3 -B "$homologation_package/homologation_runner.py" \
     --package-dir "$homologation_package" list >/dev/null || {
     printf 'ERRO: pacote do Homologation Runner falhou na autoverificação.\n' >&2
@@ -1110,6 +1140,16 @@ generate_runtime_package() {
         "$target/homologation-package/homologation-review-pack.schema.json"
     install -m 0644 "$homologation_package/runner-registry.json" \
         "$target/homologation-package/runner-registry.json"
+    install -m 0755 "$homologation_package/maintainer_console.sh" \
+        "$target/homologation-package/maintainer_console.sh"
+    install -m 0644 "$homologation_package/maintainer_workspace.sh" \
+        "$target/homologation-package/maintainer_workspace.sh"
+    install -m 0755 "$homologation_package/maintainer_validation_wizard.sh" \
+        "$target/homologation-package/maintainer_validation_wizard.sh"
+    install -m 0755 "$homologation_package/certification_wizard.sh" \
+        "$target/homologation-package/certification_wizard.sh"
+    install -m 0644 "$homologation_package/maintainer-workspace.tar.gz" \
+        "$target/homologation-package/maintainer-workspace.tar.gz"
     temporary_manifest="$target/release.json.tmp"
     jq -n \
         --arg setup_version "$x86_version" \

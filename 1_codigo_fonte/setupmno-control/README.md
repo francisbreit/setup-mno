@@ -37,6 +37,19 @@ No método `TRADICIONAL`, reautenticação, proxy e launcher permanecem
 bloqueados para todos os planos, inclusive PRO MASTER. Nesse cenário, a
 administração continua exclusivamente pelo SSH normal do servidor.
 
+No PRO MASTER, a intenção `homologation` abre a **Central do Mantenedor**. Ela
+oferece o Runner, revisão humana, preparação editorial, validações de
+qualidade/Blueprints e a Esteira Oficial do Selo. O workspace é extraído de um
+arquivo versionado e autenticado pela release para
+`/root/setupmno-maintainer-workspace/vX.Y.Z`; candidatos e pacotes exportáveis
+permanecem em `/root/setupmno-homologation-candidates/`.
+
+A emissão remota usa dois dry-runs e dois tokens: um prepara a documentação da
+cópia de trabalho e outro confirma a transação do selo. O resultado é um
+`release-pack.tar.gz` determinístico. O pacote ainda precisa ser importado no
+repositório, revisado e publicado pelo Workflow de Produção; o terminal não
+cria commit, tag ou release.
+
 ## Barreira P0 de identidade e continuidade
 
 Em instalações novas por Cloudflare Tunnel, o usuário escolhe uma única vez,

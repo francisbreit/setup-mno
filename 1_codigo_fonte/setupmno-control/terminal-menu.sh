@@ -113,7 +113,7 @@ case "$intent" in
         ;;
     homologation)
         exec /usr/bin/bash \
-            /root/SetupLowCodeMno/.control/homologation-package/homologation_wizard.sh
+            /root/SetupLowCodeMno/.control/homologation-package/maintainer_console.sh
         ;;
     gateway)
         ;;
@@ -130,7 +130,7 @@ while true; do
         "SETTINGS" "Configurar conta e provedor do Control Center"
     )
     if [ "$CONTROL_PLAN" = "pro-master" ]; then
-        menu_entries+=("HOMOLOGATION" "Abrir o Assistente de Homologação · PRO MASTER")
+        menu_entries+=("HOMOLOGATION" "Abrir a Central do Mantenedor · PRO MASTER")
     fi
     menu_entries+=("EXIT" "Encerrar esta sessão do terminal")
     choice=$(whiptail --title "SETUP MNO — TERMINAL SEGURO" --menu \
@@ -147,7 +147,7 @@ while true; do
             ;;
         HOMOLOGATION)
             /usr/bin/bash \
-                /root/SetupLowCodeMno/.control/homologation-package/homologation_wizard.sh
+                /root/SetupLowCodeMno/.control/homologation-package/maintainer_console.sh
             ;;
         SETTINGS)
             SETUPMNO_TERMINAL_MODE="gateway" \

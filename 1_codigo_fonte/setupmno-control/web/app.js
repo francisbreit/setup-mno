@@ -2209,14 +2209,14 @@ function openAuthorizedTerminal(intent) {
       warning: "O menu de configurações será aberto diretamente. Senhas e chaves nunca passam pelo navegador."
     },
     homologation: {
-      title: "Assistente de Homologação",
-      subtitle: "Laboratório guiado · revisão do mantenedor obrigatória",
-      warning: "O assistente visual será aberto diretamente. Ele cria somente candidatos e nunca concede selo ou altera a governança automaticamente."
+      title: "Central do Mantenedor",
+      subtitle: "Homologação, validação e selo · PRO MASTER",
+      warning: "A Central PRO MASTER exige dry-runs e confirmações humanas. Ela nunca publica commit, tag ou release automaticamente."
     },
     gateway: {
       title: "Terminal Seguro",
       subtitle: "Setup MNO · sessão administrativa",
-      warning: "Escolha entre Instalador, Configurações ou encerrar a sessão no menu protegido."
+      warning: "Escolha entre Instalador, Configurações, Central do Mantenedor ou encerrar a sessão no menu protegido."
     }
   }[intent] || {
     title: "Terminal Seguro",
