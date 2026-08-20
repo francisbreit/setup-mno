@@ -17,11 +17,56 @@
 
 Baseline desta etapa:
 
-- Setup MNO: `7.27.0` em preparação de release
-- Última versão estável homologada: `7.26.0`
+- Setup MNO: `7.27.0`
+- Última versão estável homologada: `7.27.0`
 - Control Center: `4.27.0`
 - Conhecimento canônico: `3.28.0`
 - Homologation Runner: `1.2.0`
+
+## Ponto de retomada após a v7.27.0
+
+A v7.27.0 foi homologada e promovida a última versão estável. As etapas
+v7.20.0 a v7.27.0 formam uma cadeia concluída: selo auditável, Runner,
+assistente visual, Help, revisão humana, certificação transacional, fronteira
+PRO MASTER e operação remota com pacote exportável.
+
+Frase pactuada para retomar este trabalho após demandas intermediárias:
+
+> Modo Setup MNO Upgrade. Vamos voltar ao roadmap de melhoria de qualidade e
+> segurança e continuar pelo próximo item pendente.
+
+Ao receber essa frase, não reiniciar as etapas concluídas. O próximo item é:
+
+### v7.28.0 — Importador Canônico de Pacotes PRO MASTER e Gate de Release
+
+**Impacto:** crítico
+
+**Tipo:** segurança, governança, confiabilidade e manutenção
+
+**Esforço:** estrutural
+
+Objetivo: fechar com segurança o caminho entre o pacote exportado pela Central
+do Mantenedor e o repositório canônico. O importador deve operar em dry-run por
+padrão, validar proveniência, versão, catálogo, manifestos, hashes, decisões,
+evidências e selo, mostrar um diff inteligível e aplicar uma transação atômica
+com rollback. A importação nunca cria commit, tag, release, publicação, DNS ou
+deploy automaticamente.
+
+Ordem macro posterior:
+
+1. atestação da cadeia de suprimentos, inventário SBOM e rastreabilidade de
+   imagens e dependências;
+2. revalidação contínua, expiração de evidências, detecção de drift e revogação
+   controlada de selos;
+3. resiliência operacional mensurável para backup, restauração, atualização e
+   rollback;
+4. onboarding, acessibilidade, desktop/Android e convergência UX para produção;
+5. primeiros Blueprints reais submetidos, homologados e versionados;
+6. RAG semântico ou fine-tuning apenas quando métricas demonstrarem benefício
+   superior à baseline local.
+
+Demandas avulsas não alteram esta fila. O ponto de retomada só avança quando a
+etapa correspondente for implementada, homologada e registrada neste arquivo.
 
 ## v7.26.0 — Plano PRO MASTER e fronteira de mantenedor
 
@@ -152,8 +197,8 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.27.0` em preparação de release
-- Última versão estável homologada: `7.26.0`
+- Setup MNO: `7.27.0`
+- Última versão estável homologada: `7.27.0`
 - Control Center: `4.27.0`
 - Conhecimento canônico: `3.28.0`
 - Catálogo runtime: 158 entradas

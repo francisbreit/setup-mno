@@ -96,10 +96,18 @@ Ative este modo quando o usuário disser **“Modo Homologação”**, **“Modo
 ## CONTEXTO DOS AMBIENTES DO SETUP MNO
 
 ### Versão estável vigente
-- A última versão estável homologada do Setup MNO é **v7.26.0**.
-- Tag Git: `v7.26.0`.
-- Commit de release: `cd826baf` (`release: v7.26.0 - plano PRO MASTER e fronteira de mantenedor`).
+- A última versão estável homologada do Setup MNO é **v7.27.0**.
+- Tag Git: `v7.27.0`.
+- Commit de release: `a325faed` (`release: v7.27.0 - central remota de certificacao PRO MASTER`).
 - Este registro somente deve ser alterado quando o usuário declarar explicitamente uma nova versão como estável após a homologação.
+
+### Retomada pactuada do roadmap de profissionalização
+- O arquivo canônico do planejamento é `1_codigo_fonte/setupmno-control/ASSISTENTE_MNO_ROADMAP.md`.
+- As releases `v7.20.0` a `v7.27.0` concluíram a fundação do selo, Runner controlado, assistente visual, Help, Central de Revisão, esteira oficial, plano PRO MASTER e certificação remota exportável. Não reinicie nem repita essas etapas.
+- Quando o usuário disser **“Modo Setup MNO Upgrade. Vamos voltar ao roadmap de melhoria de qualidade e segurança e continuar pelo próximo item pendente.”**, ative o Modo Setup MNO Upgrade, leia o roadmap canônico e retome diretamente do primeiro item ainda pendente.
+- O primeiro item pendente é a **v7.28.0 — Importador Canônico de Pacotes PRO MASTER e Gate de Release**: receber o release-pack exportado pela Central do Mantenedor, validar origem, hashes, versão, catálogo, evidências, decisões e selo; apresentar dry-run e diff; importar transacionalmente com rollback; nunca publicar, commitar, criar tag ou release sem confirmação e Workflow de Produção.
+- Depois da v7.28.0, preserve esta ordem macro: atestação de cadeia de suprimentos e SBOM; revalidação contínua, expiração, drift e revogação de selos; resiliência operacional com backup/restore/update/rollback; onboarding e convergência UX para produção; primeiros Blueprints reais homologados; otimizações semânticas ou fine-tuning somente se métricas demonstrarem ganho.
+- Novas demandas avulsas não apagam, reordenam ou marcam esse backlog como concluído. Somente uma implementação validada e registrada no roadmap pode avançar o ponto de retomada.
 
 ### Projeto de construção
 - Este repositório é o ambiente que mantém o código-fonte, monta, protege com SHC, criptografa e empacota o instalador do Setup MNO.
