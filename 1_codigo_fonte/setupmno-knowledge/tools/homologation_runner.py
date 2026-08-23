@@ -20,19 +20,20 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
 
-RUNNER_VERSION = "1.2.0"
-RUNNER_RELEASE_DATE = "2026-08-19"
+RUNNER_VERSION = "1.3.0"
+RUNNER_RELEASE_DATE = "2026-08-23"
 CANDIDATE_SCHEMA_VERSION = 1
 PACKAGE_SCHEMA_VERSION = 1
 MAX_JSON_BYTES = 128 << 10
 MAX_BUNDLE_BYTES = 512 << 10
 MAX_REVIEW_PACK_BYTES = 2 << 20
 MAX_MAINTAINER_WORKSPACE_BYTES = 8 << 20
-SUPPORTED_RUNNER_VERSIONS = {"1.1.0", RUNNER_VERSION}
+SUPPORTED_RUNNER_VERSIONS = {"1.1.0", "1.2.0", RUNNER_VERSION}
 CHECKS = (
     "deploy",
     "convergence",
@@ -48,9 +49,6 @@ OPERATIONAL_CHECKS = (
     "deploy",
     "convergence",
     "health",
-    "persistence",
-    "restart",
-    "cleanup",
 )
 STATUSES = {"passed", "not-tested", "not-applicable"}
 PLATFORMS = {"linux-vps", "wsl2-docker-desktop", "linux-emulated"}
@@ -61,6 +59,13 @@ SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 SHA256_RE = re.compile(r"^[a-f0-9]{64}$")
 IMAGE_RE = re.compile(r"^\S+@sha256:[a-f0-9]{64}$")
 DISPLAY_NAME_RE = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ0-9][A-Za-zÀ-ÖØ-öø-ÿ0-9 ._-]*$")
+SERVICE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+URL_RE = re.compile(r"^https?://[^\s/]+(?::[0-9]{1,5})?(?:/[^\s]*)?$")
+CRITICAL_LOG_RE = re.compile(
+    r"(?:\bfatal\b|\bpanic\b|segmentation fault|uncaught exception|"
+    r"permission denied|address already in use)",
+    re.IGNORECASE,
+)
 REASON_CODES = {
     "operational-evidence-accepted",
     "incomplete-evidence",
@@ -320,6 +325,174 @@ def docker_preflight(expected_architecture: str) -> None:
         raise RunnerError(
             f"arquitetura Docker {detected_architecture} diverge da seleção {expected_architecture}"
         )
+
+
+def run_fixed_command(arguments: list[str], timeout: int = 20) -> subprocess.CompletedProcess[str]:
+    """Executa somente argumentos construídos pelo Runner, nunca texto de shell."""
+    try:
+        return subprocess.run(
+            arguments,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=timeout,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+        raise RunnerError(f"comando controlado indisponível: {arguments[0]}") from exc
+
+
+def load_service(service_name: str) -> dict[str, Any]:
+    if not SERVICE_RE.fullmatch(service_name):
+        raise RunnerError("nome de serviço Docker inválido")
+    result = run_fixed_command(["docker", "service", "inspect", service_name])
+    if result.returncode != 0:
+        raise RunnerError("serviço Docker não foi encontrado")
+    try:
+        values = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise RunnerError("Docker retornou inspeção de serviço inválida") from exc
+    if not isinstance(values, list) or len(values) != 1 or not isinstance(values[0], dict):
+        raise RunnerError("Docker retornou uma quantidade inesperada de serviços")
+    return values[0]
+
+
+def resolved_image(image: str) -> str:
+    if IMAGE_RE.fullmatch(image):
+        return image
+    result = run_fixed_command(
+        ["docker", "image", "inspect", image, "--format", "{{json .RepoDigests}}"]
+    )
+    if result.returncode == 0:
+        try:
+            digests = json.loads(result.stdout.strip())
+        except json.JSONDecodeError:
+            digests = []
+        if isinstance(digests, list):
+            matches = sorted(value for value in digests if isinstance(value, str) and IMAGE_RE.fullmatch(value))
+            if matches:
+                return matches[0]
+    raise RunnerError("a imagem do serviço ainda não possui digest verificável")
+
+
+def service_url(service: dict[str, Any]) -> str:
+    spec = service.get("Spec", {})
+    labels = spec.get("Labels", {}) if isinstance(spec, dict) else {}
+    if isinstance(labels, dict):
+        for key, value in sorted(labels.items()):
+            if key.endswith(".rule") and isinstance(value, str):
+                match = re.search(r"Host\(`([^`]+)`\)", value)
+                if match:
+                    return f"https://{match.group(1)}"
+    container = spec.get("TaskTemplate", {}).get("ContainerSpec", {}) if isinstance(spec, dict) else {}
+    environment = container.get("Env", []) if isinstance(container, dict) else []
+    for value in environment if isinstance(environment, list) else []:
+        if isinstance(value, str) and value.startswith("VIRTUAL_HOST="):
+            host = value.split("=", 1)[1].strip()
+            if host and not re.search(r"[\s/]", host):
+                return f"https://{host}"
+    return ""
+
+
+def service_task_sample(service_name: str) -> tuple[int, int, list[str]]:
+    result = run_fixed_command([
+        "docker", "service", "ps",
+        "--filter", "desired-state=running",
+        "--format", "{{.CurrentState}}\t{{.Error}}",
+        service_name,
+    ])
+    if result.returncode != 0:
+        raise RunnerError("não foi possível consultar as tarefas do serviço")
+    rows = [line.split("\t", 1) for line in result.stdout.splitlines() if line.strip()]
+    desired = len(rows)
+    running = sum(parts[0].startswith("Running ") or parts[0] == "Running" for parts in rows)
+    errors = [parts[1].strip() for parts in rows if len(parts) == 2 and parts[1].strip()]
+    return desired, running, errors
+
+
+def command_inspect(args: argparse.Namespace) -> None:
+    """Produz os gates essenciais sem alterar, reiniciar ou remover recursos Docker."""
+    session_path = Path(args.session).resolve()
+    session = load_session(session_path)
+    report_path = session_path.parent / "essential-inspection.json"
+    if report_path.exists():
+        raise RunnerError("esta sessão já possui inspeção essencial")
+    docker_preflight(session["architecture"])
+    service = load_service(args.service)
+    container = service.get("Spec", {}).get("TaskTemplate", {}).get("ContainerSpec", {})
+    image = resolved_image(str(container.get("Image", "")))
+    first_desired, first_running, first_errors = service_task_sample(args.service)
+    if first_desired < 1 or first_running != first_desired or first_errors:
+        raise RunnerError(
+            f"serviço ainda não convergiu: executando={first_running}, esperado={first_desired}"
+        )
+    time.sleep(3)
+    second_desired, second_running, second_errors = service_task_sample(args.service)
+    if (
+        second_desired != first_desired
+        or second_running != second_desired
+        or second_errors
+    ):
+        raise RunnerError("o serviço não permaneceu estável durante a verificação")
+
+    logs = run_fixed_command([
+        "docker", "service", "logs",
+        "--raw", "--since", "10m", "--tail", "200", args.service,
+    ], timeout=30)
+    if logs.returncode != 0:
+        raise RunnerError("os logs recentes do serviço não puderam ser verificados")
+    combined_logs = (logs.stdout + "\n" + logs.stderr)[: 256 << 10]
+    critical_matches = len(CRITICAL_LOG_RE.findall(combined_logs))
+    if critical_matches:
+        raise RunnerError("os logs recentes contêm indicador crítico; revise o serviço")
+
+    target_url = args.url or service_url(service)
+    if not target_url or not URL_RE.fullmatch(target_url):
+        raise RunnerError("não foi possível detectar a URL; informe http:// ou https://")
+    response = run_fixed_command([
+        "curl", "-L", "-sS", "-o", "/dev/null", "-w", "%{http_code}",
+        "--connect-timeout", "10", "--max-time", "20", target_url,
+    ], timeout=25)
+    status_text = response.stdout.strip()
+    valid_http_status = status_text.isdigit() and (
+        200 <= int(status_text) < 400 or int(status_text) in {401, 403}
+    )
+    if response.returncode != 0 or not valid_http_status:
+        raise RunnerError("a aplicação não respondeu de forma válida por HTTP/HTTPS")
+
+    session["checks"]["deploy"] = check_record(
+        "passed", "Serviço Docker encontrado e imagem imutável identificada automaticamente."
+    )
+    session["checks"]["convergence"] = check_record(
+        "passed", f"Serviço convergiu automaticamente com {second_running} de {second_desired} tarefas em execução."
+    )
+    session["checks"]["health"] = check_record(
+        "passed", f"Aplicação respondeu por HTTP com status {status_text}; logs recentes sem indicador crítico."
+    )
+    for name in ("persistence", "restart", "update", "backup", "restore", "cleanup"):
+        session["checks"][name] = check_record(
+            "not-applicable", "Fora do escopo do Selo Essencial; disponível na homologação avançada."
+        )
+    atomic_write(session_path, canonical_json(session))
+    report = {
+        "schemaVersion": 1,
+        "kind": "setupmno-essential-inspection",
+        "runId": session["runId"],
+        "setupId": session["setupId"],
+        "setupVersion": session["setupVersion"],
+        "architecture": session["architecture"],
+        "checkedAt": iso_z(utc_now()),
+        "desiredTasks": second_desired,
+        "runningTasks": second_running,
+        "httpStatus": int(status_text),
+        "criticalLogIndicators": critical_matches,
+        "images": [image],
+        "result": "passed",
+        "mutationsPerformed": False,
+    }
+    reject_sensitive(report, "inspeção essencial")
+    atomic_write(report_path, canonical_json(report))
+    print(json.dumps(report | {"report": str(report_path)}, ensure_ascii=False, sort_keys=True))
 
 
 def default_platform() -> str:
@@ -870,9 +1043,92 @@ def command_decide(args: argparse.Namespace) -> None:
     }, ensure_ascii=False, sort_keys=True))
 
 
+def command_seal_essential(args: argparse.Namespace) -> None:
+    """Concede selo operacional por arquitetura após gates automáticos e atestação."""
+    bundle_path = Path(args.bundle).resolve()
+    decision_path = Path(args.decision).resolve()
+    candidate, _ = read_bundle(bundle_path)
+    decision = load_json(decision_path)
+    expected_decision_keys = {
+        "schemaVersion", "kind", "decisionId", "candidateId",
+        "candidateBundleSHA256", "decision", "reasonCode", "reason",
+        "reviewedBy", "reviewedAt", "immutable", "governanceUpdated",
+        "officialSeal",
+    }
+    if (
+        not isinstance(decision, dict)
+        or set(decision) != expected_decision_keys
+        or decision.get("schemaVersion") != 1
+        or decision.get("kind") != "setupmno-homologation-review-decision"
+        or decision.get("candidateId") != candidate["candidateId"]
+        or decision.get("candidateBundleSHA256") != sha256_file(bundle_path)
+        or decision.get("decision") != "approved"
+        or decision.get("reasonCode") != "operational-evidence-accepted"
+        or decision.get("immutable") is not True
+        or decision.get("governanceUpdated") is not False
+        or decision.get("officialSeal") is not False
+    ):
+        raise RunnerError("decisão aprovada não corresponde ao candidato")
+    if any(candidate["checks"][name]["status"] != "passed" for name in OPERATIONAL_CHECKS):
+        raise RunnerError("os gates essenciais não estão aprovados")
+    maintainer = " ".join(args.maintainer.split())
+    if not 2 <= len(maintainer) <= 80 or not DISPLAY_NAME_RE.fullmatch(maintainer):
+        raise RunnerError("identificação pública do mantenedor inválida")
+    package_manifest, registry = validate_package(package_directory(args))
+    entry = registry_by_id(registry).get(candidate["setupId"])
+    if (
+        entry is None
+        or candidate["setupVersion"] != package_manifest["setupVersion"]
+        or candidate["artifact"] != entry["artifacts"].get(candidate["architecture"])
+    ):
+        raise RunnerError("o candidato não corresponde ao instalador atual")
+    issued_at = iso_z(utc_now())
+    seal_id = candidate["candidateId"].removesuffix("-candidate") + "-essential-seal"
+    seal = {
+        "schemaVersion": 1,
+        "kind": "setupmno-essential-homologation-seal",
+        "sealId": seal_id,
+        "candidateId": candidate["candidateId"],
+        "setupId": candidate["setupId"],
+        "setupVersion": candidate["setupVersion"],
+        "architecture": candidate["architecture"],
+        "issuedAt": issued_at,
+        "issuedBy": maintainer,
+        "scope": "essential-startup",
+        "artifact": candidate["artifact"],
+        "images": candidate["images"],
+        "checks": {name: candidate["checks"][name] for name in OPERATIONAL_CHECKS},
+        "candidateBundleSHA256": sha256_file(bundle_path),
+        "decisionSHA256": sha256_file(decision_path),
+        "status": "issued",
+        "immutable": True,
+        "maintainerAttested": True,
+        "automaticPublication": False,
+        "officialSeal": True,
+    }
+    reject_sensitive(seal, "selo essencial")
+    output = Path(args.output).resolve()
+    if output.exists():
+        raise RunnerError("selo essencial já existe; não haverá sobrescrita")
+    if output.parent != bundle_path.parent:
+        raise RunnerError("selo essencial deve permanecer junto do candidato")
+    atomic_write(output, canonical_json(seal))
+    print(json.dumps({
+        "seal": str(output),
+        "sealId": seal_id,
+        "sha256": sha256_file(output),
+        "setupId": candidate["setupId"],
+        "setupVersion": candidate["setupVersion"],
+        "architecture": candidate["architecture"],
+        "scope": "essential-startup",
+        "officialSeal": True,
+        "automaticPublication": False,
+    }, ensure_ascii=False, sort_keys=True))
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(
-        description="Homologation Runner do Setup MNO: gera candidatos, nunca concede o selo oficial."
+        description="Homologation Runner do Setup MNO: concede Selo Essencial por arquitetura sem publicar releases."
     )
     root.add_argument("--package-dir", help="pacote canônico do runner; padrão: diretório deste arquivo")
     subparsers = root.add_subparsers(dest="command", required=True)
@@ -895,6 +1151,14 @@ def parser() -> argparse.ArgumentParser:
     record_parser.add_argument("--status", choices=sorted(STATUSES), required=True)
     record_parser.add_argument("--evidence", required=True)
     record_parser.set_defaults(handler=command_record)
+
+    inspect_parser = subparsers.add_parser(
+        "inspect", help="executar gates essenciais automáticos e somente leitura"
+    )
+    inspect_parser.add_argument("--session", required=True)
+    inspect_parser.add_argument("--service", required=True)
+    inspect_parser.add_argument("--url", default="")
+    inspect_parser.set_defaults(handler=command_inspect)
 
     finalize_parser = subparsers.add_parser("finalize", help="gerar bundle candidato sanitizado")
     finalize_parser.add_argument("--session", required=True)
@@ -925,6 +1189,15 @@ def parser() -> argparse.ArgumentParser:
     decide_parser.add_argument("--evidence-output")
     decide_parser.add_argument("--review-pack-output")
     decide_parser.set_defaults(handler=command_decide)
+
+    seal_parser = subparsers.add_parser(
+        "seal-essential", help="conceder selo essencial por arquitetura"
+    )
+    seal_parser.add_argument("--bundle", required=True)
+    seal_parser.add_argument("--decision", required=True)
+    seal_parser.add_argument("--maintainer", required=True)
+    seal_parser.add_argument("--output", required=True)
+    seal_parser.set_defaults(handler=command_seal_essential)
     return root
 
 

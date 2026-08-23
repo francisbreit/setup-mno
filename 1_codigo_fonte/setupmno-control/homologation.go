@@ -93,6 +93,29 @@ type homologationDecision struct {
 	OfficialSeal          bool   `json:"officialSeal"`
 }
 
+type essentialHomologationSeal struct {
+	SchemaVersion         int                          `json:"schemaVersion"`
+	Kind                  string                       `json:"kind"`
+	SealID                string                       `json:"sealId"`
+	CandidateID           string                       `json:"candidateId"`
+	SetupID               string                       `json:"setupId"`
+	SetupVersion          string                       `json:"setupVersion"`
+	Architecture          string                       `json:"architecture"`
+	IssuedAt              string                       `json:"issuedAt"`
+	IssuedBy              string                       `json:"issuedBy"`
+	Scope                 string                       `json:"scope"`
+	Artifact              homologationArtifact         `json:"artifact"`
+	Images                []string                     `json:"images"`
+	Checks                map[string]homologationCheck `json:"checks"`
+	CandidateBundleSHA256 string                       `json:"candidateBundleSHA256"`
+	DecisionSHA256        string                       `json:"decisionSHA256"`
+	Status                string                       `json:"status"`
+	Immutable             bool                         `json:"immutable"`
+	MaintainerAttested    bool                         `json:"maintainerAttested"`
+	AutomaticPublication  bool                         `json:"automaticPublication"`
+	OfficialSeal          bool                         `json:"officialSeal"`
+}
+
 type homologationQueueItem struct {
 	Kind          string                       `json:"kind"`
 	ID            string                       `json:"id"`
@@ -111,6 +134,9 @@ type homologationQueueItem struct {
 	Images        []string                     `json:"images,omitempty"`
 	Checks        map[string]homologationCheck `json:"checks,omitempty"`
 	Decision      *homologationDecision        `json:"decision,omitempty"`
+	SealID        string                       `json:"sealId,omitempty"`
+	SealScope     string                       `json:"sealScope,omitempty"`
+	OfficialSeal  bool                         `json:"officialSeal"`
 	Warning       string                       `json:"warning,omitempty"`
 }
 
@@ -138,7 +164,7 @@ func collectHomologationQueue(candidateRoot, setupStateDir string) (homologation
 		SchemaVersion: 1,
 		Source:        "runtime-read-only",
 		GeneratedAt:   time.Now().UTC(),
-		Summary:       map[string]int{"pending": 0, "approved": 0, "rejected": 0, "draft": 0, "incompatible": 0, "quarantine": 0},
+		Summary:       map[string]int{"pending": 0, "approved": 0, "sealed": 0, "rejected": 0, "draft": 0, "incompatible": 0, "quarantine": 0},
 		Items:         []homologationQueueItem{},
 	}
 	registryData, err := homologationReadRegular(filepath.Join(setupStateDir, "homologation-package", "runner-registry.json"), homologationMaxJSON)
@@ -272,11 +298,60 @@ func inspectHomologationCandidate(filename string, artifacts map[string]homologa
 	if decision, decisionErr := homologationDecisionFromFile(decisionPath, candidate.CandidateID, item.BundleSHA256); decisionErr == nil {
 		item.Decision = decision
 		item.Status = decision.Decision
+		sealPath := strings.TrimSuffix(filename, ".tar.gz") + "-essential-seal.json"
+		if seal, sealErr := essentialSealFromFile(sealPath, candidate, decision, item.BundleSHA256, decisionPath); sealErr == nil {
+			item.SealID, item.SealScope, item.OfficialSeal = seal.SealID, seal.Scope, true
+			item.Status = "sealed"
+		} else if !errors.Is(sealErr, os.ErrNotExist) {
+			item.Status = "quarantine"
+			item.Warning = "Selo essencial associado inválido"
+		}
 	} else if !errors.Is(decisionErr, os.ErrNotExist) {
 		item.Status = "quarantine"
 		item.Warning = "Decisão associada inválida"
 	}
 	return item
+}
+
+func essentialSealFromFile(filename string, candidate homologationCandidate, decision *homologationDecision, bundleSHA, decisionPath string) (*essentialHomologationSeal, error) {
+	data, err := homologationReadRegular(filename, homologationMaxJSON)
+	if err != nil {
+		return nil, err
+	}
+	decisionData, err := homologationReadRegular(decisionPath, homologationMaxJSON)
+	if err != nil {
+		return nil, err
+	}
+	decisionDigest := sha256.Sum256(decisionData)
+	var seal essentialHomologationSeal
+	if homologationDecodeStrict(data, &seal) != nil || seal.SchemaVersion != 1 ||
+		seal.Kind != "setupmno-essential-homologation-seal" || !homologationID.MatchString(seal.SealID) ||
+		seal.CandidateID != candidate.CandidateID || seal.SetupID != candidate.SetupID ||
+		seal.SetupVersion != candidate.SetupVersion || seal.Architecture != candidate.Architecture ||
+		seal.Scope != "essential-startup" || seal.Artifact != candidate.Artifact ||
+		seal.CandidateBundleSHA256 != bundleSHA || seal.DecisionSHA256 != hex.EncodeToString(decisionDigest[:]) ||
+		seal.Status != "issued" || !seal.Immutable || !seal.MaintainerAttested ||
+		seal.AutomaticPublication || !seal.OfficialSeal || decision.Decision != "approved" {
+		return nil, errors.New("selo essencial inválido")
+	}
+	if _, err := time.Parse(time.RFC3339, seal.IssuedAt); err != nil || len(seal.IssuedBy) < 2 || len(seal.IssuedBy) > 80 {
+		return nil, errors.New("identidade temporal do selo essencial inválida")
+	}
+	if len(seal.Images) != len(candidate.Images) || len(seal.Checks) != 3 {
+		return nil, errors.New("escopo do selo essencial divergente")
+	}
+	for index := range seal.Images {
+		if seal.Images[index] != candidate.Images[index] {
+			return nil, errors.New("imagem do selo essencial divergente")
+		}
+	}
+	for _, name := range []string{"deploy", "convergence", "health"} {
+		check, ok := seal.Checks[name]
+		if !ok || check != candidate.Checks[name] || check.Status != "passed" {
+			return nil, errors.New("gate essencial divergente")
+		}
+	}
+	return &seal, nil
 }
 
 func homologationCandidateFromBundle(bundle []byte) ([]byte, error) {
@@ -354,7 +429,7 @@ func validHomologationCandidate(candidate homologationCandidate) bool {
 	if candidate.SchemaVersion != 1 || candidate.Kind != "setupmno-homologation-candidate" ||
 		!homologationID.MatchString(candidate.CandidateID) || !homologationRunID.MatchString(candidate.RunID) ||
 		!homologationID.MatchString(candidate.SetupID) || (candidate.Architecture != "amd64" && candidate.Architecture != "arm64") ||
-		(candidate.RunnerVersion != "1.1.0" && candidate.RunnerVersion != "1.2.0") ||
+		(candidate.RunnerVersion != "1.1.0" && candidate.RunnerVersion != "1.2.0" && candidate.RunnerVersion != "1.3.0") ||
 		!homologationPath.MatchString(candidate.Artifact.Path) || !homologationSHA.MatchString(candidate.Artifact.SHA256) || len(candidate.Images) == 0 ||
 		!candidate.Sanitized || candidate.Submission.Status != "pending-maintainer-review" || candidate.Submission.AutomaticPromotion || candidate.Submission.OfficialSeal {
 		return false
@@ -387,7 +462,7 @@ func validHomologationCandidate(candidate homologationCandidate) bool {
 			return false
 		}
 	}
-	for _, name := range []string{"deploy", "convergence", "health", "persistence", "restart", "cleanup"} {
+	for _, name := range []string{"deploy", "convergence", "health"} {
 		if candidate.Checks[name].Status != "passed" {
 			return false
 		}

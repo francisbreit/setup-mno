@@ -127,10 +127,12 @@ publicação em fronteiras auditáveis.
 
 ### Homologation Runner e submissões externas
 
-O Homologation Runner v1 é distribuído no runtime autenticado em
-`/root/SetupLowCodeMno/.control/homologation-package/`. Ele somente cria
-evidências **candidatas**; não possui API web, não altera a governança, não
-executa comandos arbitrários e não concede o selo oficial.
+O Homologation Runner v1.3 é distribuído no runtime autenticado em
+`/root/SetupLowCodeMno/.control/homologation-package/`. O fluxo recomendado
+executa somente inspeções Docker predefinidas, nunca recebe comandos livres e
+concede um Selo Essencial por arquitetura após a confirmação do PRO MASTER.
+Esse selo comprova instalação, inicialização e resposta web; não publica o
+catálogo nem equivale à certificação técnica avançada de backup e restauração.
 
 O fluxo de coleta é visual e exclusivo do plano PRO MASTER. Em instalações
 Cloudflare Tunnel, abra `Control Center → Qualidade do catálogo → Abrir
@@ -151,10 +153,11 @@ pacote exportável em
 os gates de qualidade, Blueprints e integridade do Runner. Nada é publicado
 automaticamente: o pacote precisa ser incorporado e revisado no repositório.
 
-O assistente permite iniciar ou retomar uma sessão, percorre os nove checks,
-coleta somente evidência sanitizada, exige imagens por digest, finaliza e
-verifica o candidato e registra a revisão humana. Cancelar ou escolher
-`Salvar e sair` preserva a sessão sem converter checks pendentes em aprovação.
+No modo recomendado, o assistente seleciona aplicação, arquitetura e serviço,
+detecta ou solicita a URL e verifica automaticamente arquitetura, réplicas,
+estabilidade, logs, resposta HTTP/HTTPS e digest da imagem. O mantenedor apenas
+confirma que viu a aplicação abrir sem erro e informa seu nome público. O modo
+avançado preserva os nove checks para testes técnicos opcionais.
 
 A CLI permanece disponível como interface avançada e reproduzível:
 
@@ -169,11 +172,11 @@ python3 "$RUNNER" finalize --session CAMINHO_SESSION_JSON \
   --image 'repositorio@sha256:DIGEST' --tester 'Nome público do testador'
 ```
 
-`record` aceita somente os nove checks fixos do contrato e nunca recebe shell.
-`finalize` exige todos os checks operacionais essenciais aprovados, imagens por
-digest e rejeita e-mails, IPs, tokens, chaves e credenciais. O bundle resultante
-declara obrigatoriamente `pending-maintainer-review`, `automaticPromotion:false`
-e `officialSeal:false`.
+`inspect` recebe somente o nome validado de um serviço Docker e uma URL HTTP ou
+HTTPS opcional. Ele não reinicia, atualiza ou remove recursos. `record` continua
+disponível somente para os nove checks fixos do modo avançado. `finalize` exige
+deploy, convergência e saúde aprovados, imagens por digest e rejeita e-mails,
+IPs, tokens, chaves e credenciais.
 
 O mantenedor usa a opção visual de verificação ou `verify` para conferir a integridade e, após revisar as provas
 fora do bundle, pode executar `review` para criar um JSON compatível com a

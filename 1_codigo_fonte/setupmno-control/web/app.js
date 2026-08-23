@@ -492,6 +492,7 @@ function homologationStatusLabel(status) {
   return ({
     pending: "Aguardando revisão",
     approved: "Aprovado localmente",
+    sealed: "Selo essencial concedido",
     rejected: "Recusado",
     draft: "Checklist em andamento",
     incompatible: "Artefato incompatível",
@@ -501,7 +502,7 @@ function homologationStatusLabel(status) {
 
 function renderHomologation() {
   const summary = state.homologation?.summary || {};
-  ["pending", "approved", "rejected", "draft", "incompatible", "quarantine"].forEach(key => {
+  ["pending", "approved", "sealed", "rejected", "draft", "incompatible", "quarantine"].forEach(key => {
     const target = $(`homologation-${key}`);
     if (target) target.textContent = Number(summary[key]) || 0;
   });
@@ -523,7 +524,7 @@ function renderHomologation() {
       <div class="homologation-review-head"><div><span class="type-label">${item.kind === "candidate" ? "Candidato" : "Sessão"}</span><h3>${escapeHTML(item.setupId || item.id)}</h3></div><span class="homologation-state">${escapeHTML(homologationStatusLabel(item.status))}</span></div>
       <div class="homologation-metadata"><span><b>Execução</b>${escapeHTML(item.runId || "—")}</span><span><b>Arquitetura</b>${item.architecture === "arm64" ? "ARM64" : item.architecture === "amd64" ? "X86_64" : "—"}</span><span><b>Setup / Runner</b>${escapeHTML(item.setupVersion || "—")} / ${escapeHTML(item.runnerVersion || "—")}</span><span><b>Compatibilidade</b>${escapeHTML(item.compatibility || "—")}</span></div>
       ${item.warning ? `<p class="homologation-warning">${escapeHTML(item.warning)}</p>` : ""}${decision}
-      <details><summary>Ver evidências e checks</summary>${checkMarkup || "<p class=\"muted\">O checklist ainda está em elaboração.</p>"}<p class="homologation-seal-boundary">Governança canônica alterada: não · Selo oficial: não</p></details>
+      <details><summary>Ver evidências e checks</summary>${checkMarkup || "<p class=\"muted\">O checklist ainda está em elaboração.</p>"}<p class="homologation-seal-boundary">${item.officialSeal ? `Selo Essencial: concedido · Escopo: instalação e inicialização · ID: ${escapeHTML(item.sealId || "—")}` : "Selo Essencial: ainda não concedido"} · Publicação automática: não</p></details>
     </article>`;
   }).join("") : `<div class="empty-state">Nenhum registro corresponde aos filtros. Use o Terminal Seguro para iniciar uma sessão.</div>`;
   applyTerminalAccessState();
@@ -799,7 +800,7 @@ function renderHomologationRunner(data) {
   state.homologationRunnerAvailable = available;
   card.className = `homologation-runner-card ${available ? "available" : "pending"}`;
   status.textContent = available
-    ? `Runner v${data.homologationRunnerVersion} disponível · schema candidato v${data.homologationCandidateSchemaVersion} · revisão do mantenedor obrigatória`
+    ? `Runner v${data.homologationRunnerVersion} disponível · homologação essencial automática por arquitetura`
     : "Runner ainda não foi confirmado no runtime desta instalação";
   applyTerminalAccessState();
 }

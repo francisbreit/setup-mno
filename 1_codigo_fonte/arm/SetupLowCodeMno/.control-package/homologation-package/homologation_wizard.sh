@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 # Interface guiada para o Homologation Runner. Este arquivo nunca executa
-# texto informado pelo usuário como comando e nunca concede o selo oficial.
+# texto informado pelo usuário como comando e nunca publica catálogo ou release.
 umask 077
 
 RUNNER_DIR="${SETUPMNO_HOMOLOGATION_PACKAGE_DIR:-/root/SetupLowCodeMno/.control/homologation-package}"
@@ -23,7 +23,7 @@ declare -A CHECK_LABELS=(
     [cleanup]="Limpeza do laboratório confirmada"
 )
 CHECK_ORDER=(deploy convergence health persistence restart update backup restore cleanup)
-CORE_CHECKS=(deploy convergence health persistence restart cleanup)
+CORE_CHECKS=(deploy convergence health)
 
 dialog_height() {
     local requested="$1" available
@@ -191,6 +191,108 @@ start_session() {
     run_checklist "$session_path"
 }
 
+select_docker_service() {
+    local service_name image replicas
+    local -a preferred=() remaining=()
+    while IFS=$'\t' read -r service_name image replicas; do
+        [[ "$service_name" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$ ]] || continue
+        [ -n "$image" ] || continue
+        if [[ "${service_name,,} ${image,,}" == *"${QUICK_SETUP_ID//-/_}"* ]] || \
+           [[ "${service_name,,} ${image,,}" == *"${QUICK_SETUP_ID}"* ]]; then
+            preferred+=("$service_name" "$replicas · ${image:0:54}")
+        else
+            remaining+=("$service_name" "$replicas · ${image:0:54}")
+        fi
+    done < <(docker service ls --format '{{.Name}}\t{{.Image}}\t{{.Replicas}}' 2>/dev/null | sort)
+    local -a entries=("${preferred[@]}" "${remaining[@]}")
+    [ "${#entries[@]}" -gt 0 ] || {
+        message "SERVIÇO NÃO ENCONTRADO" "Nenhum serviço Docker Swarm está disponível. Instale a aplicação antes de homologar."
+        return 1
+    }
+    whiptail --title "SERVIÇO INSTALADO" --menu \
+        "Selecione o serviço principal da aplicação. As sugestões compatíveis aparecem primeiro." \
+        "$(dialog_height 24)" "$(dialog_width 108)" "$(menu_rows 24)" \
+        "${entries[@]}" 3>&1 1>&2 2>&3
+}
+
+run_quick_homologation() {
+    local setup_id architecture platform output session_path service_name target_url
+    local tester candidate_path decision_path evidence_path review_pack_path seal_path
+    local result_text seal_output
+    setup_id=$(select_setup) || return 130
+    architecture=$(select_architecture "$setup_id") || return 130
+    platform=$(select_platform) || return 130
+    QUICK_SETUP_ID="$setup_id"
+    service_name=$(select_docker_service) || return 130
+    target_url=$(whiptail --title "URL DA APLICAÇÃO" --inputbox \
+        "Se o Setup MNO conseguir detectar a URL, deixe em branco. Caso contrário, informe http:// ou https:// seguido do endereço da aplicação." \
+        "$(dialog_height 13)" "$(dialog_width 96)" 3>&1 1>&2 2>&3) || return 130
+    confirm "HOMOLOGAÇÃO ESSENCIAL" \
+        "Aplicação: $setup_id\nArquitetura: $architecture\nAmbiente: $platform\nServiço: $service_name\n\nO sistema verificará arquitetura, serviço, réplicas, estabilidade, logs, resposta web e imagem. Nenhum recurso será reiniciado, alterado ou removido.\n\nIniciar?" || return 130
+    if ! output=$("${RUNNER_COMMAND[@]}" init \
+        --setup-id "$setup_id" --architecture "$architecture" \
+        --platform "$platform" --output-dir "$WORK_ROOT" 2>&1); then
+        show_error "$output"
+        return 1
+    fi
+    session_path=$(printf '%s\n' "$output" | tail -n 1)
+    case "$session_path" in
+        "$WORK_ROOT"/setupmno-hml-*/session.json) ;;
+        *) show_error "O Runner retornou uma sessão inesperada."; return 1 ;;
+    esac
+    local -a inspect_args=(inspect --session "$session_path" --service "$service_name")
+    [ -z "$target_url" ] || inspect_args+=(--url "$target_url")
+    if ! output=$("${RUNNER_COMMAND[@]}" "${inspect_args[@]}" 2>&1); then
+        show_error "$output\n\nNenhum selo foi concedido. Corrija a aplicação e inicie uma nova homologação."
+        return 1
+    fi
+    result_text=$(printf '%s' "$output" | jq -r '
+        "✓ Arquitetura " + .architecture + " confirmada\n" +
+        "✓ Serviço estável: " + (.runningTasks|tostring) + "/" + (.desiredTasks|tostring) + "\n" +
+        "✓ Resposta web: HTTP " + (.httpStatus|tostring) + "\n" +
+        "✓ Logs recentes sem indicador crítico\n" +
+        "✓ Imagem registrada por digest"')
+    if ! confirm "RESULTADO AUTOMÁTICO APROVADO" \
+        "$result_text\n\nConfirma que abriu a aplicação nesta arquitetura e não observou erro visível?"; then
+        message "SEM SELO" "A inspeção automática foi preservada, mas nenhum selo foi concedido porque faltou a confirmação do mantenedor."
+        return 0
+    fi
+    tester=$(whiptail --title "MANTENEDOR RESPONSÁVEL" --inputbox \
+        "Informe apenas o seu nome público. Não use e-mail, hostname ou credencial." \
+        "$(dialog_height 12)" "$(dialog_width 86)" 3>&1 1>&2 2>&3) || return 130
+    candidate_path="${session_path%/session.json}/$(jq -r '.setupId + "-" + .architecture + "-" + (.runId | split("-")[-1]) + "-candidate.tar.gz"' "$session_path")"
+    mapfile -t HOMOLOGATION_IMAGES < <(printf '%s' "$output" | jq -r '.images[]')
+    local -a image_args=()
+    local image_ref
+    for image_ref in "${HOMOLOGATION_IMAGES[@]}"; do image_args+=(--image "$image_ref"); done
+    if ! output=$("${RUNNER_COMMAND[@]}" finalize --session "$session_path" \
+        "${image_args[@]}" --tester "$tester" --output "$candidate_path" 2>&1); then
+        show_error "$output"
+        return 1
+    fi
+    decision_path="${candidate_path%.tar.gz}-decision.json"
+    evidence_path="${candidate_path%.tar.gz}-reviewed.json"
+    review_pack_path="${candidate_path%.tar.gz}-review-pack.tar.gz"
+    if ! output=$("${RUNNER_COMMAND[@]}" decide --bundle "$candidate_path" \
+        --reviewer "$tester" --decision approved \
+        --reason-code operational-evidence-accepted \
+        --reason "Gates essenciais automáticos aprovados e funcionamento visual confirmado pelo mantenedor." \
+        --decision-output "$decision_path" --evidence-output "$evidence_path" \
+        --review-pack-output "$review_pack_path" 2>&1); then
+        show_error "$output"
+        return 1
+    fi
+    seal_path="${candidate_path%.tar.gz}-essential-seal.json"
+    if ! seal_output=$("${RUNNER_COMMAND[@]}" seal-essential \
+        --bundle "$candidate_path" --decision "$decision_path" \
+        --maintainer "$tester" --output "$seal_path" 2>&1); then
+        show_error "$seal_output"
+        return 1
+    fi
+    message "SELO ESSENCIAL CONCEDIDO" \
+        "Aplicação: $setup_id\nArquitetura: $architecture\nEscopo: instalação, inicialização e resposta web\nSHA-256: $(printf '%s' "$seal_output" | jq -r '.sha256')\n\nSelo:\n$seal_path\n\nA publicação no catálogo continua separada e nunca cria commit, tag ou release automaticamente."
+}
+
 select_session() {
     local session_file run_id setup_id created_at status
     local -a entries=()
@@ -299,7 +401,7 @@ finalize_candidate() {
     local session_path="$1" tester output candidate_path result status bundle_sha
     if ! core_checks_passed "$session_path"; then
         message "CANDIDATO AINDA INCOMPLETO" \
-            "Deploy, convergência, saúde, persistência, reinício e limpeza precisam estar aprovados. A sessão foi salva para continuação."
+            "Deploy, convergência e saúde precisam estar aprovados. A sessão foi salva para continuação."
         return 0
     fi
     tester=$(whiptail --title "IDENTIFICAÇÃO DO TESTADOR" --inputbox \
@@ -420,9 +522,10 @@ main_menu() {
     local choice session_path
     while true; do
         choice=$(whiptail --title "SETUP MNO — ASSISTENTE DE HOMOLOGAÇÃO" --menu \
-            "Gere candidatos auditáveis sem executar comandos livres e sem conceder selo automaticamente." \
-            "$(dialog_height 20)" "$(dialog_width 94)" 8 \
-            "NEW" "Iniciar nova sessão guiada" \
+            "Escolha o fluxo simples recomendado ou o checklist técnico opcional." \
+            "$(dialog_height 21)" "$(dialog_width 100)" 9 \
+            "QUICK" "Homologar automaticamente e conceder selo essencial — RECOMENDADO" \
+            "ADVANCED" "Executar checklist técnico avançado opcional" \
             "CONTINUE" "Continuar checklist salvo" \
             "VERIFY" "Verificar integridade de candidato" \
             "REVIEW" "Registrar decisão humana imutável" \
@@ -430,7 +533,8 @@ main_menu() {
             "EXIT" "Voltar ao Terminal Seguro" \
             3>&1 1>&2 2>&3) || return 0
         case "$choice" in
-            NEW) start_session || true ;;
+            QUICK) run_quick_homologation || true ;;
+            ADVANCED) start_session || true ;;
             CONTINUE)
                 session_path=$(select_session) || continue
                 run_checklist "$session_path" || true
@@ -439,7 +543,7 @@ main_menu() {
             REVIEW) decide_candidate || true ;;
             ABOUT)
                 message "FRONTEIRA DE CONFIANÇA" \
-                    "CANDIDATO: declaração sanitizada produzida no laboratório.\n\nDECISÃO LOCAL: aprovação ou recusa imutável, ainda sem selo.\n\nCENTRAL DE REVISÃO: inventário somente leitura dos candidatos e decisões deste servidor.\n\nSELO OFICIAL: o PRO MASTER pode emiti-lo na Central do Mantenedor somente após preparação editorial, dry-runs, cobertura completa, gates aprovados e tokens humanos. A publicação ainda exige importação do pacote, commit e nova release do Setup MNO."
+                    "SELO ESSENCIAL: concedido por arquitetura quando o serviço converge, permanece estável, responde pela web, não apresenta indicador crítico nos logs e o mantenedor confirma visualmente o funcionamento.\n\nHOMOLOGAÇÃO AVANÇADA: checklist técnico opcional para persistência, reinício, atualização, backup, restauração e limpeza.\n\nPUBLICAÇÃO: sempre separada. Nenhum fluxo cria commit, tag, release, deploy ou DNS automaticamente."
                 ;;
             EXIT) return 0 ;;
         esac

@@ -30,10 +30,10 @@ main_menu() {
     local choice
     while true; do
         choice=$(whiptail --title "SETUP MNO — CENTRAL DO MANTENEDOR · PRO MASTER" --menu \
-            "Execute coleta, revisão, validações e emissão do selo. Toda ação final exige confirmação humana e nunca publica uma release automaticamente." \
+            "Homologue aplicações com inspeção automática ou use os validadores técnicos opcionais. Nenhuma ação publica uma release automaticamente." \
             "$(dialog_size height 22)" "$(dialog_size width 108)" 10 \
-            "RUNNER" "Criar, continuar, verificar ou revisar uma homologação" \
-            "CERTIFY" "Preparar documentação e emitir o Selo Oficial" \
+            "RUNNER" "Homologar automaticamente e conceder selo essencial por arquitetura" \
+            "CERTIFY" "Executar certificação técnica avançada opcional" \
             "VALIDATE" "Validar base, qualidade e Blueprints" \
             "EXPORTS" "Localizar pacotes de selo prontos para o repositório" \
             "ABOUT" "Entender o fluxo e a fronteira de confiança" \
@@ -49,7 +49,7 @@ main_menu() {
                 ;;
             ABOUT)
                 message "COMO FUNCIONA" \
-                    "1. RUNNER registra nove checks e imagens por digest.\n2. REVIEW grava uma decisão humana imutável.\n3. CERTIFY prepara a documentação da cópia de trabalho.\n4. O dry-run confere arquiteturas, artefatos, pendências e ledger.\n5. O token confirma a emissão transacional.\n6. Um pacote exportável é gerado para revisão e release.\n\nNenhuma etapa cria commit, tag, publicação, DNS ou deploy automaticamente."
+                    "FLUXO RECOMENDADO:\n1. RUNNER seleciona aplicação, arquitetura e serviço.\n2. O sistema verifica réplicas, estabilidade, logs, URL e imagem automaticamente.\n3. Você confirma que a aplicação abriu sem erro.\n4. O Selo Essencial é concedido para aquela arquitetura.\n\nFLUXO AVANÇADO:\nCERTIFY preserva a certificação técnica completa para quem quiser validar persistência, atualização, backup e restauração.\n\nNenhuma etapa cria commit, tag, publicação, DNS ou deploy automaticamente."
                 ;;
             EXIT) return 0 ;;
         esac

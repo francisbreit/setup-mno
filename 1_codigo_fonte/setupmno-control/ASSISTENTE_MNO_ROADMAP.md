@@ -1,5 +1,28 @@
 # Roadmap do Assistente MNO Especialista
 
+## v7.29.0 — Homologação Essencial Automática por Arquitetura
+
+- fluxo recomendado reduzido a aplicação, arquitetura, serviço e confirmação
+  visual do mantenedor PRO MASTER;
+- inspeção automática e somente leitura de arquitetura Docker, convergência,
+  estabilidade, logs recentes, resposta HTTP/HTTPS e imagem por digest;
+- concessão imediata do Selo Essencial para a arquitetura testada, sem exigir
+  criação de conteúdo interno na aplicação, nove textos ou revisão duplicada;
+- checklist de persistência, reinício, atualização, backup, restauração e
+  limpeza preservado como homologação avançada opcional;
+- Central e Help distinguem o escopo do Selo Essencial da certificação técnica
+  avançada e da publicação no catálogo;
+- nenhuma etapa reinicia ou altera containers, cria commit, tag, release, DNS
+  ou publicação automática.
+
+Baseline desta etapa:
+
+- Setup MNO: `7.29.0` em preparação de release
+- Última versão estável homologada: `7.27.0`
+- Control Center: `4.29.0`
+- Conhecimento canônico: `3.30.0`
+- Homologation Runner: `1.3.0`
+
 ## v7.28.0 — Importador Canônico de Pacotes PRO MASTER e Gate de Release
 
 - importador exclusivo do repositório de construção, ausente do runtime dos

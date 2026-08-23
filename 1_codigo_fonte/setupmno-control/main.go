@@ -3325,7 +3325,7 @@ func stateFromSnapshot(snapshot runtimeSnapshot, source string) setupStateRespon
 	release := snapshot.Release
 	homologationWorkflow := ""
 	if release.HomologationRunnerVersion != "" {
-		homologationWorkflow = "candidate-requires-maintainer-review"
+		homologationWorkflow = "essential-auto-with-maintainer-attestation"
 	}
 	return setupStateResponse{
 		SchemaVersion:               release.SchemaVersion,

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -68,7 +69,7 @@ func homologationTestCandidate() map[string]any {
 	return map[string]any{
 		"schemaVersion": 1, "kind": "setupmno-homologation-candidate",
 		"candidateId": "navidrome-amd64-260819120000-candidate", "runId": "setupmno-hml-navidrome-260819120000",
-		"runnerVersion": "1.2.0", "setupId": "navidrome", "setupVersion": "7.26.0", "architecture": "amd64",
+		"runnerVersion": "1.3.0", "setupId": "navidrome", "setupVersion": "7.29.0", "architecture": "amd64",
 		"createdAt": "2026-08-19T12:00:00Z", "tester": map[string]any{"displayName": "Revisor MNO", "attestation": "self-attested"},
 		"environment": map[string]any{"platform": "wsl2-docker-desktop", "orchestrator": "docker-swarm", "isolation": "setupmno-hml"},
 		"artifact":    map[string]any{"path": "x86/SetupLowCodeMno/navidrome.sh", "sha256": string(bytes.Repeat([]byte("a"), 64))},
@@ -85,7 +86,7 @@ func prepareHomologationQueueTest(t *testing.T) (string, string, string) {
 		t.Fatal(err)
 	}
 	registry := map[string]any{
-		"runnerVersion": "1.2.0", "setupVersion": "7.26.0",
+		"runnerVersion": "1.3.0", "setupVersion": "7.29.0",
 		"entries": []any{map[string]any{"setupId": "navidrome", "artifacts": map[string]any{"amd64": map[string]any{"path": "x86/SetupLowCodeMno/navidrome.sh", "sha256": string(bytes.Repeat([]byte("a"), 64))}}}},
 	}
 	if err := os.WriteFile(filepath.Join(state, "homologation-package", "runner-registry.json"), homologationTestJSON(t, registry), 0600); err != nil {
@@ -125,6 +126,27 @@ func TestHomologationQueuePendingAndApproved(t *testing.T) {
 	queue, err = collectHomologationQueue(root, state)
 	if err != nil || queue.Items[0].Status != "approved" || queue.Items[0].Decision == nil || queue.Summary["approved"] != 1 {
 		t.Fatalf("decisão não classificada: %#v %v", queue, err)
+	}
+	decisionData := homologationTestJSON(t, decision)
+	decisionDigest := sha256.Sum256(decisionData)
+	checks := candidate["checks"].(map[string]any)
+	seal := map[string]any{
+		"schemaVersion": 1, "kind": "setupmno-essential-homologation-seal",
+		"sealId": "navidrome-amd64-260819120000-essential-seal", "candidateId": candidate["candidateId"],
+		"setupId": "navidrome", "setupVersion": "7.29.0", "architecture": "amd64",
+		"issuedAt": "2026-08-19T13:01:00Z", "issuedBy": "Mantenedor MNO", "scope": "essential-startup",
+		"artifact": candidate["artifact"], "images": candidate["images"],
+		"checks":                map[string]any{"deploy": checks["deploy"], "convergence": checks["convergence"], "health": checks["health"]},
+		"candidateBundleSHA256": hex.EncodeToString(digest[:]), "decisionSHA256": hex.EncodeToString(decisionDigest[:]),
+		"status": "issued", "immutable": true, "maintainerAttested": true,
+		"automaticPublication": false, "officialSeal": true,
+	}
+	if err := os.WriteFile(strings.TrimSuffix(bundlePath, ".tar.gz")+"-essential-seal.json", homologationTestJSON(t, seal), 0600); err != nil {
+		t.Fatal(err)
+	}
+	queue, err = collectHomologationQueue(root, state)
+	if err != nil || queue.Items[0].Status != "sealed" || !queue.Items[0].OfficialSeal || queue.Summary["sealed"] != 1 {
+		t.Fatalf("selo essencial não classificado: %#v %v", queue, err)
 	}
 }
 

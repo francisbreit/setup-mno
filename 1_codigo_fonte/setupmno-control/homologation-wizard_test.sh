@@ -27,7 +27,28 @@ if [ "${1:-}" = "info" ]; then
     printf 'active x86_64\n'
     exit 0
 fi
+if [ "${1:-}" = "service" ] && [ "${2:-}" = "ls" ]; then
+    printf 'navidrome_app\texample/navidrome@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\t1/1\n'
+    exit 0
+fi
+if [ "${1:-}" = "service" ] && [ "${2:-}" = "inspect" ]; then
+    printf '[{"Spec":{"Labels":{"traefik.http.routers.navidrome.rule":"Host(`music.example.test`)"},"TaskTemplate":{"ContainerSpec":{"Image":"example/navidrome@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","Env":[]}}}}]\n'
+    exit 0
+fi
+if [ "${1:-}" = "service" ] && [ "${2:-}" = "ps" ]; then
+    printf 'Running 1 second ago\t\n'
+    exit 0
+fi
+if [ "${1:-}" = "service" ] && [ "${2:-}" = "logs" ]; then
+    printf 'server ready\n'
+    exit 0
+fi
 exit 64
+EOF
+
+cat >"$fake_bin/curl" <<'EOF'
+#!/usr/bin/bash
+printf '200'
 EOF
 
 cat >"$fake_bin/whiptail" <<EOF
@@ -35,9 +56,20 @@ cat >"$fake_bin/whiptail" <<EOF
 counter=\$(cat "$counter_file")
 counter=\$((counter + 1))
 printf '%s\n' "\$counter" >"$counter_file"
-if [ "\${WIZARD_SCENARIO:-save}" = "full" ]; then
+if [ "\${WIZARD_SCENARIO:-save}" = "quick" ]; then
     case "\$counter" in
-        1) printf 'NEW' >&2 ;;
+        1) printf 'QUICK' >&2 ;;
+        2) printf 'navidrome' >&2 ;;
+        3) printf 'amd64' >&2 ;;
+        4) printf 'linux-emulated' >&2 ;;
+        5) printf 'navidrome_app' >&2 ;;
+        6) printf 'https://music.example.test' >&2 ;;
+        9) printf 'Setup MNO QA' >&2 ;;
+        11) printf 'EXIT' >&2 ;;
+    esac
+elif [ "\${WIZARD_SCENARIO:-save}" = "full" ]; then
+    case "\$counter" in
+        1) printf 'ADVANCED' >&2 ;;
         2) printf 'navidrome' >&2 ;;
         3) printf 'amd64' >&2 ;;
         4) printf 'linux-emulated' >&2 ;;
@@ -50,7 +82,7 @@ if [ "\${WIZARD_SCENARIO:-save}" = "full" ]; then
     esac
 else
     case "\$counter" in
-        1) printf 'NEW' >&2 ;;
+        1) printf 'ADVANCED' >&2 ;;
         2) printf 'navidrome' >&2 ;;
         3) printf 'amd64' >&2 ;;
         4) printf 'linux-emulated' >&2 ;;
@@ -60,7 +92,7 @@ else
 fi
 exit 0
 EOF
-chmod 0755 "$fake_bin/docker" "$fake_bin/whiptail"
+chmod 0755 "$fake_bin/docker" "$fake_bin/curl" "$fake_bin/whiptail"
 
 PATH="$fake_bin:$PATH" \
 SETUPMNO_HOMOLOGATION_PACKAGE_DIR="$package_dir" \
@@ -94,4 +126,23 @@ candidate_result=$(python3 -B "$package_dir/homologation_runner.py" \
 [ "$(printf '%s' "$candidate_result" | jq -r '.result')" = "candidate-full" ]
 [ "$(printf '%s' "$candidate_result" | jq -r '.officialSeal')" = "false" ]
 
-printf 'Assistente Whiptail: navegação, retomada, checklist completo e candidato sem selo aprovados.\n'
+printf '0\n' >"$counter_file"
+quick_work_root="$temporary_dir/quick-runs"
+PATH="$fake_bin:$PATH" \
+WIZARD_SCENARIO=quick \
+SETUPMNO_HOMOLOGATION_PACKAGE_DIR="$package_dir" \
+SETUPMNO_HOMOLOGATION_WORK_ROOT="$quick_work_root" \
+    bash "$wizard_source"
+
+seal_count=$(find "$quick_work_root" -mindepth 2 -maxdepth 2 -type f -name '*-essential-seal.json' | wc -l)
+[ "$seal_count" -eq 1 ]
+seal_file=$(find "$quick_work_root" -mindepth 2 -maxdepth 2 -type f -name '*-essential-seal.json' | head -n1)
+jq -e '
+    .officialSeal == true and
+    .scope == "essential-startup" and
+    .architecture == "amd64" and
+    .maintainerAttested == true and
+    .automaticPublication == false
+' "$seal_file" >/dev/null
+
+printf 'Assistente Whiptail: fluxo essencial automático, checklist avançado e fronteira de publicação aprovados.\n'

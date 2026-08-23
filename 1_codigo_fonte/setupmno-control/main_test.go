@@ -1517,7 +1517,7 @@ func TestReleaseAcceptsRunnerWithoutAutomaticPromotion(t *testing.T) {
 	}
 }
 
-func TestSetupStateExposesCandidateOnlyRunner(t *testing.T) {
+func TestSetupStateExposesEssentialAutomaticRunner(t *testing.T) {
 	release := setupRelease{
 		SchemaVersion:               runtimeSchema,
 		SetupVersion:                "7.23.0",
@@ -1529,7 +1529,7 @@ func TestSetupStateExposesCandidateOnlyRunner(t *testing.T) {
 	}
 	state := stateFromSnapshot(runtimeSnapshot{Release: release}, "runtime")
 	if !state.HomologationRunnerAvailable || state.HomologationRunnerVersion != "1.1.0" ||
-		state.HomologationWorkflow != "candidate-requires-maintainer-review" {
+		state.HomologationWorkflow != "essential-auto-with-maintainer-attestation" {
 		t.Fatalf("estado do runner incorreto: %#v", state)
 	}
 }

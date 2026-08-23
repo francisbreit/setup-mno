@@ -29,7 +29,7 @@ const (
 	knowledgeQualitySchema      = 2
 	blueprintSchema             = 2
 	homologationCandidateSchema = 1
-	homologationRunnerVersion   = "1.2.0"
+	homologationRunnerVersion   = "1.3.0"
 	maxBlueprintEntries         = 64
 	maxKnowledgeArchiveBytes    = 8 << 20
 	maxKnowledgeManifest        = 1 << 20
