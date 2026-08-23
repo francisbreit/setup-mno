@@ -1,5 +1,44 @@
 # Roadmap do Assistente MNO Especialista
 
+## Trilha estratégica — AI Safe Mode
+
+O projeto detalhado do AI Safe Mode foi registrado em
+`../setupmno-docs/architecture/ai-safe-mode.md`. Ele responde ao uso crescente
+de Codex, Claude Code, Hermes Agent, OpenClaw e ferramentas semelhantes em VPS
+e WSL2, sem transformar esses agentes em administradores root da produção.
+
+Contrato aprovado para o planejamento:
+
+- IA interpreta, explica e prepara propostas;
+- gates determinísticos verificam políticas, supply chain, arquitetura,
+  privacidade, segurança e rollback;
+- qualquer execução ocorre primeiro em workspace e homologação isolados;
+- produção continua exclusiva do Instalador Seguro e do Workflow de Produção,
+  com confirmação humana;
+- Assistente, painel e sandbox não recebem Docker socket, root ou shell de
+  produção;
+- proteções críticas valem para todos os planos; governança, exceções,
+  homologação final e promoção canônica permanecem exclusivas do PRO MASTER;
+- o Help não recebe automaticamente toda a documentação. A fonte humana passa
+  a viver em `1_codigo_fonte/setupmno-docs/` e será publicada seletivamente em
+  etapa editorial futura.
+
+Fases da trilha:
+
+1. `AI-0` — projeto, FAQ, manual preliminar e política documental: concluído
+   documentalmente, sem mudança de runtime;
+2. `AI-1` — consumir atestação de cadeia de suprimentos e SBOM;
+3. `AI-2` — diagnóstico seguro, somente leitura e sanitizado;
+4. `AI-3` — workspace isolado para propostas;
+5. `AI-4` — ponte controlada para o Homologation Runner;
+6. `AI-5` — handoff ao Instalador Seguro com backup, gates e rollback;
+7. `AI-6` — Central de Segurança e Scale Advisor consultivo.
+
+Esta trilha não marca nenhum recurso como implementado e não reordena
+silenciosamente o backlog. O próximo item técnico pendente continua sendo a
+atestação de cadeia de suprimentos e SBOM; ela passa também a ser pré-requisito
+do primeiro pacote executável do AI Safe Mode.
+
 ## v7.29.0 — Homologação Essencial Automática por Arquitetura
 
 - fluxo recomendado reduzido a aplicação, arquitetura, serviço e confirmação

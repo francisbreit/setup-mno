@@ -109,6 +109,27 @@ Ative este modo quando o usuário disser **“Modo Homologação”**, **“Modo
 - O primeiro item pendente passou a ser a **atestação de cadeia de suprimentos e SBOM**, preservando depois esta ordem macro: revalidação contínua, expiração, drift e revogação de selos; resiliência operacional com backup/restore/update/rollback; onboarding e convergência UX para produção; primeiros Blueprints reais homologados; otimizações semânticas ou fine-tuning somente se métricas demonstrarem ganho.
 - Novas demandas avulsas não apagam, reordenam ou marcam esse backlog como concluído. Somente uma implementação validada e registrada no roadmap pode avançar o ponto de retomada.
 
+### Documentação contínua e base de conhecimento humana
+- A fonte versionada de manuais, FAQ, arquitetura e notas humanas passa a ser `1_codigo_fonte/setupmno-docs/`.
+- Essa pasta é separada de `setupmno-knowledge/` e do Help embarcado. Ela não deve ser empacotada nem publicada automaticamente no Control Center.
+- A partir desta regra, toda nova etapa ou feature deve documentar no mesmo ciclo: objetivo, público e planos, jornada para leigos, arquitetura, permissões, segurança, gates, evidências, falhas conhecidas, limitações e rollback.
+- Correções pequenas podem concentrar os itens na nota de release. Features estruturais devem também atualizar `architecture/`, `manual/` ou `faq/` conforme o impacto.
+- O template canônico é `1_codigo_fonte/setupmno-docs/templates/feature.md`; a Definition of Done documental está em `1_codigo_fonte/setupmno-docs/README.md`.
+- Nunca registrar credenciais, tokens, IPs, hostnames, e-mails ou dados reais de clientes. Imagens, GIFs e vídeos devem usar ambiente fictício ou de homologação sanitizado.
+- O conteúdo só entra no Help após seleção editorial, adaptação didática, revisão de segurança e validação de interface. Não copie a base completa para o runtime.
+- Estado documental (`draft`, `implemented`, `validated`, `published`, `outdated`) não substitui tag, versão estável, selo ou evidência técnica.
+
+### AI Safe Mode — contrato arquitetural
+- O projeto canônico está em `1_codigo_fonte/setupmno-docs/architecture/ai-safe-mode.md`; enquanto marcado `draft`, não apresente nenhum componente como disponível.
+- Agentes como Codex, Claude Code, Hermes Agent e OpenClaw devem operar como copilotos: interpretam, diagnosticam e preparam propostas, mas não administram a produção diretamente.
+- É permanentemente proibido conceder ao Assistente ou sandbox: root, sudo, grupo `docker`, `/var/run/docker.sock`, shell de produção, mounts sensíveis ou credenciais globais.
+- Prompt, RAG, memória, modo de aprovação do agente e confirmação textual nunca são controles de autorização. Políticas e permissões devem ser determinísticas e aplicadas fora do modelo.
+- Proteções críticas valem para todos os planos. Somente o PRO MASTER pode governar políticas, aprovar exceções, homologar para incorporação canônica ou promover artefatos.
+- Toda proposta executável deve atravessar schema fechado, sanitização, policy gate, supply chain/SBOM, dry-run, homologação isolada, confirmação humana e handoff ao Instalador Seguro.
+- A IA nunca publica catálogo, cria commit, tag, release, DNS, Cloudflare ou deploy automaticamente.
+- Mudanças stateful sem backup consistente e restore comprovável são bloqueadas; rollback de imagem não deve ser confundido com rollback de dados.
+- O próximo item técnico do roadmap permanece supply chain e SBOM, agora também pré-requisito do primeiro pacote executável do AI Safe Mode.
+
 ### Projeto de construção
 - Este repositório é o ambiente que mantém o código-fonte, monta, protege com SHC, criptografa e empacota o instalador do Setup MNO.
 - O código editável permanece em `1_codigo_fonte/`; `2_empacotador/` constrói os artefatos e `3_distribuicao/` contém a saída de release.
