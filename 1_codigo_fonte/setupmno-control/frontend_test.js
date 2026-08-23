@@ -262,6 +262,8 @@ assert.match(styles, /@media \(max-width: 650px\)[\s\S]*\.feedback-dialog\[open\
 assert.match(html, /id="homologation-runner-card"/);
 assert.match(html, /data-maintainer-only/);
 assert.match(html, /PRO MASTER/);
+assert.match(html, /canonical_import_wizard\.sh/);
+assert.match(html, /Leia o dry-run/);
 assert.match(html, /Nenhum candidato concede selo ou altera a governança automaticamente/);
 assert.match(html, /data-action="homologation"/);
 assert.match(app, /function renderHomologationRunner/);

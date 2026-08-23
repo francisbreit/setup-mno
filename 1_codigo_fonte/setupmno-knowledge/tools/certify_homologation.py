@@ -416,7 +416,25 @@ def public_result(prepared: dict[str, Any], applied: bool, export_path: str = ""
     return result
 
 
-def validate_runtime_attestation(release_path: Path, root: Path, catalog: Path, package_dir: Path) -> None:
+def build_source_attestation(
+    root: Path, catalog: Path, package_dir: Path, provenance: str,
+) -> dict[str, str]:
+    manifest_path = package_dir / "manifest.json"
+    registry_path = package_dir / "runner-registry.json"
+    registry = load_json_regular(root / "registry" / "setups.json")
+    return {
+        "kind": provenance,
+        "setupVersion": registry["setupVersion"],
+        "catalogSHA256": runner.sha256_file(catalog),
+        "homologationPackageManifestSHA256": sha256(read_regular(manifest_path, 256 << 10)),
+        "runnerRegistrySHA256": sha256(read_regular(registry_path, 4 << 20)),
+        "canonicalRegistrySHA256": runner.sha256_file(root / "registry" / "setups.json"),
+    }
+
+
+def validate_runtime_attestation(
+    release_path: Path, root: Path, catalog: Path, package_dir: Path,
+) -> dict[str, str]:
     release = load_json_regular(release_path, 32 << 10)
     manifest_path = package_dir / "manifest.json"
     manifest_data = read_regular(manifest_path, 256 << 10)
@@ -431,9 +449,13 @@ def validate_runtime_attestation(release_path: Path, root: Path, catalog: Path, 
         or release.get("homologationPackageManifestSHA256") != sha256(manifest_data)
     ):
         raise ValueError("atestação runtime não corresponde à release promovida")
+    return build_source_attestation(root, catalog, package_dir, "runtime-attested")
 
 
-def export_release_pack(prepared: dict[str, Any], root: Path, export_dir: Path) -> Path:
+def export_release_pack(
+    prepared: dict[str, Any], root: Path, export_dir: Path,
+    source_attestation: dict[str, str],
+) -> Path:
     if export_dir.is_symlink():
         raise ValueError("diretório de exportação não pode ser symlink")
     export_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -451,7 +473,7 @@ def export_release_pack(prepared: dict[str, Any], root: Path, export_dir: Path) 
         data = read_regular(root / relative, 8 << 20)
         payloads[f"setupmno-knowledge/{relative}"] = data
     manifest = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "kind": "setupmno-official-seal-release-pack",
         "setupId": prepared["setupId"],
         "setupVersion": prepared["setupVersion"],
@@ -460,6 +482,7 @@ def export_release_pack(prepared: dict[str, Any], root: Path, export_dir: Path) 
         "officialSeal": True,
         "automaticPublication": False,
         "requiresCanonicalImport": True,
+        "sourceAttestation": source_attestation,
         "files": [
             {"path": name, "sha256": sha256(data), "size": len(data)}
             for name, data in sorted(payloads.items())
@@ -515,8 +538,12 @@ def main() -> int:
     arguments = parser.parse_args()
     root = arguments.root.resolve()
     runtime_attested = arguments.runtime_release is not None
+    source_attestation = build_source_attestation(
+        root, arguments.catalog.resolve(), arguments.package_dir.resolve(),
+        "canonical-source",
+    )
     if runtime_attested:
-        validate_runtime_attestation(
+        source_attestation = validate_runtime_attestation(
             arguments.runtime_release.resolve(), root, arguments.catalog.resolve(),
             arguments.package_dir.resolve(),
         )
@@ -532,7 +559,9 @@ def main() -> int:
     write_transaction(prepared, root)
     export_path = ""
     if arguments.export_dir is not None:
-        export_path = str(export_release_pack(prepared, root, arguments.export_dir.resolve()))
+        export_path = str(export_release_pack(
+            prepared, root, arguments.export_dir.resolve(), source_attestation,
+        ))
     print(json.dumps(public_result(prepared, True, export_path), ensure_ascii=False, sort_keys=True))
     return 0
 

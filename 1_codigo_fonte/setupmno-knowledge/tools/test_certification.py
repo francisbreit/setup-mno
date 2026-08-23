@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import io
 import shutil
 import subprocess
 import sys
@@ -138,6 +139,36 @@ class CertificationTests(unittest.TestCase):
         }), encoding="utf-8")
         return release
 
+    def create_canonical_repository(self) -> tuple[Path, Path, Path]:
+        repository = self.base / "canonical-repository"
+        source = repository / "1_codigo_fonte"
+        root = source / "setupmno-knowledge"
+        shutil.copytree(ROOT, root, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+        control = source / "setupmno-control"
+        shutil.copytree(ROOT.parent / "setupmno-control", control, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+        for architecture in ("x86", "arm"):
+            shutil.copytree(ROOT.parent / architecture, source / architecture)
+        for bootstrap in ("setup-mno.sh", "setup-mno-oracle.sh"):
+            shutil.copy2(ROOT.parent / bootstrap, source / bootstrap)
+        subprocess.run(["git", "init", "-q", str(repository)], check=True)
+        subprocess.run(["git", "-C", str(repository), "config", "user.email", "tests@setupmno.invalid"], check=True)
+        subprocess.run(["git", "-C", str(repository), "config", "user.name", "Setup MNO Tests"], check=True)
+        subprocess.run(["git", "-C", str(repository), "add", "."], check=True)
+        subprocess.run(["git", "-C", str(repository), "commit", "-qm", "fixture"], check=True)
+        return repository, root, control / "catalog.json"
+
+    def run_importer(
+        self, pack: Path, root: Path, catalog: Path, *extra: str, expected: int = 0,
+    ) -> subprocess.CompletedProcess[str]:
+        result = subprocess.run([
+            sys.executable, str(TOOLS / "import_official_seal_pack.py"),
+            "--pack", str(pack), "--root", str(root), "--catalog", str(catalog),
+            "--package-dir", str(self.package), "--imported-by", "Mantenedor Principal",
+            "--imported-at", "2026-08-19T13:00:00Z", *extra,
+        ], check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.assertEqual(result.returncode, expected, result.stderr)
+        return result
+
     def test_dry_run_does_not_mutate_and_apply_issues_seal(self) -> None:
         governance_path = self.root / "registry" / "governance.json"
         ledger_path = self.root / "registry" / "certification-ledger.json"
@@ -206,9 +237,114 @@ class CertificationTests(unittest.TestCase):
         self.assertTrue(package.is_file())
         with tarfile.open(package, "r:gz") as archive:
             manifest = json.load(archive.extractfile("manifest.json"))
+        self.assertEqual(manifest["schemaVersion"], 2)
+        self.assertEqual(manifest["sourceAttestation"]["kind"], "runtime-attested")
         self.assertTrue(manifest["officialSeal"])
         self.assertFalse(manifest["automaticPublication"])
         self.assertTrue(manifest["requiresCanonicalImport"])
+
+    def test_canonical_import_dry_run_apply_and_idempotency(self) -> None:
+        release = self.runtime_release()
+        export_dir = self.base / "canonical-export"
+        preview = json.loads(self.run_certifier(
+            None, "--runtime-release", str(release), "--export-dir", str(export_dir)
+        ).stdout)
+        issued = json.loads(self.run_certifier(
+            None, "--runtime-release", str(release), "--export-dir", str(export_dir),
+            "--apply", "--confirm", preview["confirmationToken"],
+        ).stdout)
+        pack = Path(issued["exportPath"])
+        repository, canonical_root, catalog = self.create_canonical_repository()
+        before = subprocess.run(
+            ["git", "-C", str(repository), "status", "--porcelain"], check=True,
+            capture_output=True, text=True,
+        ).stdout
+        import_preview = json.loads(self.run_importer(pack, canonical_root, catalog).stdout)
+        self.assertEqual(import_preview["mode"], "dry-run")
+        self.assertTrue(import_preview["gitClean"])
+        self.assertEqual(import_preview["provenance"], "runtime-attested")
+        self.assertFalse(import_preview["canonicalImported"])
+        self.assertEqual(before, subprocess.run(
+            ["git", "-C", str(repository), "status", "--porcelain"], check=True,
+            capture_output=True, text=True,
+        ).stdout)
+        applied = json.loads(self.run_importer(
+            pack, canonical_root, catalog, "--apply", "--confirm",
+            import_preview["confirmationToken"],
+        ).stdout)
+        self.assertTrue(applied["canonicalImported"])
+        self.assertTrue(applied["releaseReady"])
+        ledger = json.loads((canonical_root / "registry" / "certification-ledger.json").read_text(encoding="utf-8"))
+        self.assertEqual(len(ledger["entries"]), 1)
+        import_ledger = json.loads((canonical_root / "registry" / "canonical-import-ledger.json").read_text(encoding="utf-8"))
+        self.assertEqual(import_ledger["entries"][0]["packageSHA256"], applied["packageSHA256"])
+        repeated = self.run_importer(pack, canonical_root, catalog, expected=2)
+        self.assertIn("já foi importado", repeated.stderr)
+
+    def test_canonical_import_rejects_tampered_pack_without_mutation(self) -> None:
+        release = self.runtime_release()
+        export_dir = self.base / "tamper-export"
+        preview = json.loads(self.run_certifier(
+            None, "--runtime-release", str(release), "--export-dir", str(export_dir)
+        ).stdout)
+        issued = json.loads(self.run_certifier(
+            None, "--runtime-release", str(release), "--export-dir", str(export_dir),
+            "--apply", "--confirm", preview["confirmationToken"],
+        ).stdout)
+        original = Path(issued["exportPath"])
+        tampered = self.base / "tampered-release-pack.tar.gz"
+        payloads: dict[str, bytes] = {}
+        with tarfile.open(original, "r:gz") as archive:
+            for member in archive.getmembers():
+                payloads[member.name] = archive.extractfile(member).read()
+        seal_name = next(name for name in payloads if name.startswith("setupmno-knowledge/certifications/") and name.endswith("-official.json"))
+        payloads[seal_name] = payloads[seal_name] + b" "
+        with tarfile.open(tampered, "w:gz") as archive:
+            for name in sorted(payloads):
+                info = tarfile.TarInfo(name)
+                info.size = len(payloads[name])
+                archive.addfile(info, io.BytesIO(payloads[name]))
+        repository, canonical_root, catalog = self.create_canonical_repository()
+        before = subprocess.run(
+            ["git", "-C", str(repository), "status", "--porcelain"], check=True,
+            capture_output=True, text=True,
+        ).stdout
+        result = self.run_importer(tampered, canonical_root, catalog, expected=2)
+        self.assertIn("integridade divergente", result.stderr)
+        self.assertEqual(before, subprocess.run(
+            ["git", "-C", str(repository), "status", "--porcelain"], check=True,
+            capture_output=True, text=True,
+        ).stdout)
+
+    def test_canonical_import_final_gate_failure_rolls_back(self) -> None:
+        release = self.runtime_release()
+        export_dir = self.base / "rollback-export"
+        preview = json.loads(self.run_certifier(
+            None, "--runtime-release", str(release), "--export-dir", str(export_dir)
+        ).stdout)
+        issued = json.loads(self.run_certifier(
+            None, "--runtime-release", str(release), "--export-dir", str(export_dir),
+            "--apply", "--confirm", preview["confirmationToken"],
+        ).stdout)
+        repository, canonical_root, catalog = self.create_canonical_repository()
+        baseline_path = canonical_root / "quality-baseline.json"
+        baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+        baseline["minimumHomologatedEntries"] = 2
+        baseline_path.write_text(json.dumps(baseline, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(repository), "add", "."], check=True)
+        subprocess.run(["git", "-C", str(repository), "commit", "-qm", "force gate failure"], check=True)
+        import_preview = json.loads(self.run_importer(Path(issued["exportPath"]), canonical_root, catalog).stdout)
+        result = self.run_importer(
+            Path(issued["exportPath"]), canonical_root, catalog,
+            "--apply", "--confirm", import_preview["confirmationToken"], expected=2,
+        )
+        self.assertIn("homologações regrediram", result.stderr)
+        self.assertEqual("", subprocess.run(
+            ["git", "-C", str(repository), "status", "--porcelain"], check=True,
+            capture_output=True, text=True,
+        ).stdout)
+        import_ledger = json.loads((canonical_root / "registry" / "canonical-import-ledger.json").read_text(encoding="utf-8"))
+        self.assertEqual(import_ledger["entries"], [])
 
     def test_runtime_attestation_rejects_tampered_release(self) -> None:
         release = self.runtime_release()

@@ -25,6 +25,10 @@ from homologation_runner import (
 
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 MAX_MAINTAINER_WORKSPACE_BYTES = 8 << 20
+CANONICAL_ONLY_TOOLS = {
+    "canonical_import_wizard.sh",
+    "import_official_seal_pack.py",
+}
 
 
 def canonical_json(value: Any) -> bytes:
@@ -105,6 +109,8 @@ def build_maintainer_workspace(root: Path) -> bytes:
             if "__pycache__" in relative.parts or candidate.suffix in {".pyc", ".pyo"}:
                 continue
             if candidate.name.startswith("test_") or candidate.name.endswith("_test.sh"):
+                continue
+            if relative.parts[:1] == ("tools",) and candidate.name in CANONICAL_ONLY_TOOLS:
                 continue
             data = candidate.read_bytes()
             if len(data) > 2 << 20:

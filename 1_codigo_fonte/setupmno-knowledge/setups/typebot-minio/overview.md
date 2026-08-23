@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Typebot com MinIO no Setup MNO",
   "setupId": "typebot-minio",
-  "setupVersion": "7.27.0",
+  "setupVersion": "7.28.0",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

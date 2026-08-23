@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#070a0f">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=4.27.0">
+  <link rel="stylesheet" href="/styles.css?v=4.28.0">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -548,9 +548,13 @@
                   <li><strong>Emita o selo.</strong> O segundo dry-run valida todas as arquiteturas, nove checks, registro autenticado da release, documento, pendências, qualidade e ledger. Confira o resumo e digite o token final. Em caso de falha, a transação restaura os arquivos anteriores.</li>
                   <li><strong>Valide ferramentas e Blueprints.</strong> Em <strong>VALIDATE</strong>, execute os gates de qualidade, Blueprints e autoverificação do Runner. “Aprovado” significa que o gate passou; não significa que a release já foi publicada.</li>
                   <li><strong>Entregue o pacote.</strong> O selo emitido fica em <code>/root/setupmno-homologation-candidates/official-seals/</code>. Envie esse pacote ao mantenedor principal para importar no repositório, revisar o diff, executar o Workflow de Produção e publicar uma nova versão.</li>
+                  <li><strong>Receba no repositório canônico.</strong> O mantenedor principal salva o arquivo <code>*-release-pack.tar.gz</code> fora do Git, confere o canal de origem e inicia <code>./1_codigo_fonte/setupmno-knowledge/tools/canonical_import_wizard.sh</code>. Esse assistente existe apenas no projeto de construção.</li>
+                  <li><strong>Leia o dry-run.</strong> Confirme setup, versão de origem, ID do selo, SHA-256 do pacote, proveniência, commit-base e cada item do diff. <code>CREATE</code> cria, <code>UPDATE</code> altera e <code>DELETE</code> substitui somente uma evidência anterior da mesma aplicação.</li>
+                  <li><strong>Confirme o delta.</strong> O Git deve estar limpo. Digite o token somente quando o diff estiver correto. Se o pacote, o commit ou qualquer arquivo-base mudar, o token deixa de valer e um novo dry-run é obrigatório.</li>
+                  <li><strong>Revise e publique conscientemente.</strong> Após os gates, execute <code>git diff</code>, confira o ledger de importação e siga o Workflow de Produção. O importador não faz commit, tag, release, upload, DNS ou deploy.</li>
                 </ol>
                 <div class="help-examples"><strong>Exemplo prático: homologar “Minha Ferramenta”</strong><span>RUNNER → NEW → Minha Ferramenta → amd64 → registrar os nove resultados → finalizar com imagens por digest.</span><span>RUNNER → REVIEW → aprovar com a justificativa “Checklist e persistência conferidos no laboratório isolado”.</span><span>CERTIFY → selecionar o pacote amd64 e, se exigido, arm64 → confirmar token editorial → conferir dry-run → confirmar token do selo.</span><span>VALIDATE → Qualidade → Blueprints → Runner. Depois, encaminhar o release-pack ao mantenedor principal.</span></div>
-                <div class="help-callout warn"><strong>O que o selo não faz</strong><span>Ele não cria commit, tag, release, deploy ou DNS e não publica o catálogo automaticamente. O pacote precisa passar pela revisão canônica e pelo Workflow de Produção.</span></div>
+                <div class="help-callout warn"><strong>O que o selo e o importador não fazem</strong><span>Eles não criam commit, tag, release, deploy ou DNS e não publicam o catálogo automaticamente. O pacote passa por revisão canônica, confirmação humana e Workflow de Produção.</span></div>
               </div>
             </details>
           </div>
@@ -692,8 +696,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=4.27.0" defer></script>
-  <script src="/assistant-route.js?v=4.27.0" defer></script>
-  <script src="/app.js?v=4.27.0" defer></script>
+  <script src="/markdown.js?v=4.28.0" defer></script>
+  <script src="/assistant-route.js?v=4.28.0" defer></script>
+  <script src="/app.js?v=4.28.0" defer></script>
 </body>
 </html>

@@ -124,10 +124,13 @@ document_preparer="$source_root/setupmno-knowledge/tools/prepare_homologation_do
 maintainer_console="$source_root/setupmno-knowledge/tools/maintainer_console.sh"
 maintainer_workspace="$source_root/setupmno-knowledge/tools/maintainer_workspace.sh"
 maintainer_validator="$source_root/setupmno-knowledge/tools/maintainer_validation_wizard.sh"
+canonical_importer="$source_root/setupmno-knowledge/tools/import_official_seal_pack.py"
+canonical_import_wizard="$source_root/setupmno-knowledge/tools/canonical_import_wizard.sh"
 bash -n "$certification_wizard"
 bash -n "$maintainer_console"
 bash -n "$maintainer_workspace"
 bash -n "$maintainer_validator"
+bash -n "$canonical_import_wizard"
 [ "$(SETUPMNO_CERTIFICATION_WIZARD_SMOKE_TEST=1 bash "$certification_wizard")" = \
     "setupmno-certification-wizard-ok" ] || {
     printf 'ERRO: smoke test do assistente administrativo de certificação falhou.\n' >&2
@@ -138,10 +141,17 @@ bash -n "$maintainer_validator"
     printf 'ERRO: smoke test da Central do Mantenedor falhou.\n' >&2
     exit 1
 }
+[ "$(SETUPMNO_CANONICAL_IMPORT_WIZARD_SMOKE_TEST=1 bash "$canonical_import_wizard")" = \
+    "setupmno-canonical-import-wizard-ok" ] || {
+    printf 'ERRO: smoke test do Importador Canônico falhou.\n' >&2
+    exit 1
+}
 python3 -B -c 'import pathlib,sys; compile(pathlib.Path(sys.argv[1]).read_text(), sys.argv[1], "exec")' \
     "$certifier"
 python3 -B -c 'import pathlib,sys; compile(pathlib.Path(sys.argv[1]).read_text(), sys.argv[1], "exec")' \
     "$document_preparer"
+python3 -B -c 'import pathlib,sys; compile(pathlib.Path(sys.argv[1]).read_text(), sys.argv[1], "exec")' \
+    "$canonical_importer"
 grep -Fq 'confirmationToken' "$certifier" &&
 grep -Fq 'automaticPromotion": False' "$certifier" &&
 grep -Fq 'officialSeal": True' "$certifier" &&
@@ -151,6 +161,10 @@ grep -Fq 'rollback' "$certification_wizard" &&
 grep -Fq 'prepare_document' "$certification_wizard" &&
 grep -Fq -- '--runtime-release' "$certification_wizard" &&
 grep -Fq 'requiresCanonicalImport' "$certifier" &&
+grep -Fq 'transactionalRollback' "$canonical_importer" &&
+grep -Fq 'automaticPublication": False' "$canonical_importer" &&
+grep -Fq 'gitDirty' "$canonical_importer" &&
+grep -Fq '1>&2' "$canonical_import_wizard" &&
 grep -Fq 'maintainer_console.sh' "$project_dir/terminal-menu.sh" &&
 ! grep -Eq '(^|[[:space:]])(eval|bash -c|sh -c)[[:space:]]' "$certification_wizard" || {
     printf 'ERRO: esteira oficial do selo sem confirmação, rollback ou fronteira administrativa.\n' >&2
@@ -733,6 +747,11 @@ python3 -B "$source_root/setupmno-knowledge/tools/generate_homologation_package.
     printf 'ERRO: pacote do Homologation Runner ausente ou inseguro.\n' >&2
     exit 1
 }
+if tar -tzf "$homologation_package/maintainer-workspace.tar.gz" | \
+    grep -Eq '(^|/)(import_official_seal_pack\.py|canonical_import_wizard\.sh)$'; then
+    printf 'ERRO: ferramenta canônica foi exposta no runtime PRO MASTER.\n' >&2
+    exit 1
+fi
 for promotion_script in \
     "$source_root/x86/start_full.sh" \
     "$source_root/arm/start_arm_full.sh"; do

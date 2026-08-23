@@ -1,5 +1,43 @@
 # Roadmap do Assistente MNO Especialista
 
+## v7.28.0 — Importador Canônico de Pacotes PRO MASTER e Gate de Release
+
+- importador exclusivo do repositório de construção, ausente do runtime dos
+  clientes e do workspace remoto PRO MASTER;
+- validação estrita do tar, inventário autenticado, tamanhos, caminhos,
+  hashes, origem, catálogo, manifesto, registro, selo, evidências e decisões;
+- pacotes v2 ligados por SHA-256 ao catálogo, manifesto do Homologation Runner,
+  registro do Runner e registro canônico; compatibilidade explícita e limitada
+  com pacotes legados da v7.27.0;
+- dry-run padrão com diff por arquivo, hash do pacote, commit-base e token de
+  confirmação vinculado ao estado exato do repositório;
+- merge por delta: snapshots globais do pacote servem como asserções e nunca
+  sobrescrevem homologações canônicas importadas posteriormente;
+- transação atômica com rollback byte a byte, substituição controlada das
+  evidências anteriores da mesma aplicação e preservação das demais;
+- ledger append-only da importação, idempotência e bloqueio quando o Git está
+  sujo ou muda após o dry-run;
+- gates finais de qualidade, lint e escopo do diff antes de declarar a cópia de
+  trabalho pronta para o Workflow de Produção;
+- assistente Whiptail guiado para o mantenedor principal, sem commit, tag,
+  release, publicação, DNS ou deploy automáticos.
+
+Baseline desta etapa:
+
+- Setup MNO: `7.28.0` em preparação de release
+- Última versão estável homologada: `7.27.0`
+- Control Center: `4.28.0`
+- Conhecimento canônico: `3.29.0`
+- Homologation Runner: `1.2.0`
+
+## Próximo ponto de retomada após a v7.28.0
+
+O próximo item pendente é a **atestação da cadeia de suprimentos, inventário
+SBOM e rastreabilidade de imagens e dependências**. A ordem posterior permanece:
+revalidação e revogação de selos; resiliência de backup/restore/update/rollback;
+convergência UX; primeiros Blueprints reais; otimizações semânticas somente se
+as métricas justificarem.
+
 ## v7.27.0 — Central remota de certificação PRO MASTER
 
 - Central do Mantenedor no Terminal Seguro, reunindo Runner, revisão,
@@ -37,7 +75,7 @@ Frase pactuada para retomar este trabalho após demandas intermediárias:
 
 Ao receber essa frase, não reiniciar as etapas concluídas. O próximo item é:
 
-### v7.28.0 — Importador Canônico de Pacotes PRO MASTER e Gate de Release
+### v7.28.0 — Importador Canônico de Pacotes PRO MASTER e Gate de Release (concluída)
 
 **Impacto:** crítico
 
@@ -45,7 +83,7 @@ Ao receber essa frase, não reiniciar as etapas concluídas. O próximo item é:
 
 **Esforço:** estrutural
 
-Objetivo: fechar com segurança o caminho entre o pacote exportado pela Central
+Objetivo concluído: fechar com segurança o caminho entre o pacote exportado pela Central
 do Mantenedor e o repositório canônico. O importador deve operar em dry-run por
 padrão, validar proveniência, versão, catálogo, manifestos, hashes, decisões,
 evidências e selo, mostrar um diff inteligível e aplicar uma transação atômica
@@ -197,10 +235,10 @@ de produto, com trabalho incremental e gates próprios.
 
 ## Baseline beta atual
 
-- Setup MNO: `7.27.0`
+- Setup MNO: `7.28.0`
 - Última versão estável homologada: `7.27.0`
-- Control Center: `4.27.0`
-- Conhecimento canônico: `3.28.0`
+- Control Center: `4.28.0`
+- Conhecimento canônico: `3.29.0`
 - Catálogo runtime: 158 entradas
 - Cobertura canônica dedicada: 158 de 158 entradas (`100%`)
 - Blueprints: cinco guias Beta editáveis, consultáveis e baixáveis; ainda não homologados
