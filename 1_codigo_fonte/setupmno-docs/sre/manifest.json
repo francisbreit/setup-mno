@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "knowledgePack": "setup-mno-sre",
+  "knowledgePackVersion": "1.0.0",
+  "status": "implemented",
+  "updatedAt": "2026-08-23",
+  "language": "pt-BR",
+  "runtimePublished": false,
+  "controlCenterPublished": false,
+  "maintainerPlan": "pro-master",
+  "entries": [
+    {
+      "id": "sre-index",
+      "path": "sre/README.md",
+      "title": "Setup MNO SRE Knowledge Pack",
+      "type": "index",
+      "audience": ["pro-master", "help-author"],
+      "environments": ["debian", "ubuntu", "wsl2", "docker-desktop", "docker-swarm"],
+      "topics": ["learning-path", "security-contract", "governance"],
+      "sha256": "6c2a8f86c3ea316b60c37f5b3e555fd7e72b2cf9c890353ca1c730cd4cbfb55b",
+      "sources": []
+    },
+    {
+      "id": "sre-operating-model",
+      "path": "sre/architecture/operating-model.md",
+      "title": "Modelo operacional do especialista SRE",
+      "type": "architecture",
+      "audience": ["pro-master", "help-author"],
+      "environments": ["debian", "ubuntu", "wsl2", "docker-desktop", "docker-swarm"],
+      "topics": ["facts", "diagnosis", "policy-gate", "rollback"],
+      "sha256": "0581148160e2d5c6d1c400e0f39b009b6d16a7bd7d48e30fcb6df55b05783e8e",
+      "sources": [
+        "https://docs.docker.com/engine/swarm/admin_guide/",
+        "https://doc.traefik.io/traefik/reference/routing-configuration/http/routing/router/",
+        "https://developers.cloudflare.com/tunnel/",
+        "https://learn.microsoft.com/en-us/windows/wsl/troubleshooting"
+      ]
+    },
+    {
+      "id": "sre-linux-baseline",
+      "path": "sre/manual/debian-ubuntu-baseline.md",
+      "title": "Baseline seguro para Debian e Ubuntu",
+      "type": "manual",
+      "audience": ["pro-master", "help-author"],
+      "environments": ["debian", "ubuntu"],
+      "topics": ["baseline", "apt", "capacity", "maintenance"],
+      "sha256": "389a228128b46becee3560b9ca8524b78e7cd20259f6bc9614f3e59211a905c2",
+      "sources": [
+        "https://www.debian.org/doc/manuals/securing-debian-manual/",
+        "https://documentation.ubuntu.com/security/security-updates/",
+        "https://documentation.ubuntu.com/server/how-to/software/upgrade-your-release/index.html",
+        "https://docs.docker.com/engine/install/"
+      ]
+    },
+    {
+      "id": "sre-wsl2-docker-desktop",
+      "path": "sre/manual/wsl2-docker-desktop.md",
+      "title": "WSL2 e Docker Desktop sem reinstalações indevidas",
+      "type": "manual",
+      "audience": ["pro-master", "lab-user", "help-author"],
+      "environments": ["windows", "wsl2", "docker-desktop"],
+      "topics": ["integration", "preflight", "troubleshooting"],
+      "sha256": "89719d0451ac0cb71f89cc30fb9725e23bf1562429b27808c8dc4e45d1369366",
+      "sources": [
+        "https://docs.docker.com/desktop/features/wsl/",
+        "https://docs.docker.com/desktop/features/wsl/best-practices/",
+        "https://docs.docker.com/desktop/features/wsl/use-wsl/",
+        "https://learn.microsoft.com/en-us/windows/wsl/troubleshooting"
+      ]
+    },
+    {
+      "id": "sre-swarm-triage",
+      "path": "sre/manual/docker-swarm-triage.md",
+      "title": "Triagem de Docker Swarm",
+      "type": "manual",
+      "audience": ["pro-master", "help-author"],
+      "environments": ["debian", "ubuntu", "wsl2", "docker-swarm"],
+      "topics": ["quorum", "services", "tasks", "logs"],
+      "sha256": "73f848556c740953906c7552dbf156b4d5c08b1096fb13fbf25b44c55a7f4518",
+      "sources": [
+        "https://docs.docker.com/engine/swarm/admin_guide/",
+        "https://docs.docker.com/engine/swarm/services/",
+        "https://docs.docker.com/engine/swarm/how-swarm-mode-works/swarm-task-states/",
+        "https://docs.docker.com/reference/cli/docker/service/logs/"
+      ]
+    },
+    {
+      "id": "sre-edge-routing",
+      "path": "sre/manual/traefik-cloudflare.md",
+      "title": "Diagnóstico de Traefik e Cloudflare por camadas",
+      "type": "manual",
+      "audience": ["pro-master", "help-author"],
+      "environments": ["traditional", "cloudflare-tunnel"],
+      "topics": ["dns", "tls", "traefik", "cloudflare", "www"],
+      "sha256": "2903b47d33863506c3c80f0215f3bbcbb734e2353c477f47ca3c4844f71cac62",
+      "sources": [
+        "https://developers.cloudflare.com/tunnel/",
+        "https://developers.cloudflare.com/tunnel/routing/",
+        "https://doc.traefik.io/traefik/reference/routing-configuration/http/routing/router/",
+        "https://doc.traefik.io/traefik/https/overview/"
+      ]
+    },
+    {
+      "id": "sre-backup-restore",
+      "path": "sre/manual/backup-restore.md",
+      "title": "Backup, restauração e rollback de dados",
+      "type": "manual",
+      "audience": ["pro-master", "help-author"],
+      "environments": ["debian", "ubuntu", "wsl2", "docker-swarm"],
+      "topics": ["backup", "restore", "rpo", "rto", "stateful"],
+      "sha256": "e527ba3773c7f27ce228b19c6f645d8ee108fccfb091d9091bb0f78a9303049d",
+      "sources": [
+        "https://docs.docker.com/engine/swarm/admin_guide/",
+        "https://docs.docker.com/engine/storage/volumes/#back-up-restore-or-migrate-data-volumes",
+        "https://www.postgresql.org/docs/current/backup.html",
+        "https://dev.mysql.com/doc/refman/8.4/en/backup-and-recovery.html"
+      ]
+    },
+    {
+      "id": "sre-incident-response",
+      "path": "sre/manual/incident-response.md",
+      "title": "Resposta a incidentes do Setup MNO",
+      "type": "manual",
+      "audience": ["pro-master", "help-author"],
+      "environments": ["debian", "ubuntu", "wsl2", "docker-swarm", "cloudflare"],
+      "topics": ["incident", "triage", "evidence", "postmortem"],
+      "sha256": "d672a504d2f2c27faa9fb9c3d7722e16b484ae71e868d4823eaa440872dfbdac",
+      "sources": [
+        "https://csrc.nist.gov/pubs/sp/800/61/r3/final",
+        "https://docs.docker.com/engine/swarm/admin_guide/",
+        "https://developers.cloudflare.com/support/troubleshooting/"
+      ]
+    },
+    {
+      "id": "sre-faq-first-steps",
+      "path": "sre/faq/primeiros-passos.md",
+      "title": "FAQ — primeiros passos em SRE no Setup MNO",
+      "type": "faq",
+      "audience": ["pro-master", "help-author"],
+      "environments": ["debian", "ubuntu", "wsl2", "docker-swarm"],
+      "topics": ["ai", "docker", "backup", "cloudflare", "safety"],
+      "sha256": "06c721fcf7f1f53c7da2062123b3b530c5b8d45bb747d9ead6fe24214b1f6e40",
+      "sources": [
+        "https://docs.docker.com/engine/security/",
+        "https://docs.docker.com/desktop/features/wsl/",
+        "https://developers.cloudflare.com/tunnel/",
+        "https://doc.traefik.io/traefik/reference/routing-configuration/http/routing/router/"
+      ]
+    }
+  ]
+}

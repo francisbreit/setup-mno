@@ -48,6 +48,7 @@ complementa as fases `AI-1`, `AI-2` e `AI-6` e não altera, por si só, a ordem 
 próximo item técnico pendente.
 
 1. `SRE-0` — **Setup MNO SRE Knowledge Pack**
+   - concluído na v7.31.0 como base humana separada do runtime e do Help;
    - manter conhecimento versionado sobre Debian, Ubuntu, WSL2, Docker Swarm,
      Traefik, Cloudflare, backup, restauração e resposta a incidentes;
    - registrar fontes, versão, arquitetura, escopo e data de revisão de cada
@@ -113,6 +114,40 @@ diagnóstico compreensível e baseado em fatos, enquanto o mantenedor conserva a
 fronteira de confiança, a aprovação final e a rastreabilidade de toda ação. A
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
 governança operacional.
+
+## v7.31.0 — Fundação do Setup MNO SRE Knowledge Pack
+
+- trilha didática separada em `setupmno-docs/sre/`, sem publicação automática
+  no runtime ou no Help do Control Center;
+- capítulos sobre modelo operacional, Debian/Ubuntu, WSL2 e Docker Desktop,
+  Docker Swarm, Traefik/Cloudflare, backup/restore e resposta a incidentes;
+- FAQ voltada a usuários menos experientes, sem transformar comandos de
+  diagnóstico em autorização operacional;
+- manifesto schema 1 com inventário, fontes oficiais, público, ambiente,
+  tópicos e SHA-256 de cada documento;
+- validador fail closed para symlink, path traversal, arquivos não inventariados,
+  fontes fora da allowlist, metadados ausentes, segredos óbvios e divergência de
+  hash;
+- teste positivo e adulteração negativa reproduzível em WSL2 ou VPS com Python
+  3;
+- nenhuma stack, scanner, endpoint, permissão, Docker socket ou ação de IA foi
+  adicionada por esta etapa.
+
+Baseline desta etapa:
+
+- Setup MNO: `7.31.0` em preparação de release
+- Última versão estável homologada: `7.27.0`
+- Control Center: `4.31.0`
+- Conhecimento canônico: `3.32.0`
+- SRE Knowledge Pack: `1.0.0`
+- Homologation Runner: `1.3.0`
+
+Próximo item da subtrilha SRE:
+
+1. `SRE-1` — Skill Supply Chain Gate.
+
+O backlog macro preserva como primeiro item técnico pendente a revalidação
+contínua, expiração, drift e revogação de selos.
 
 ## v7.30.0 — Fundação de Supply Chain e SBOM Runtime
 

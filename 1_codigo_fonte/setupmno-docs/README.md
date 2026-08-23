@@ -24,7 +24,9 @@ leigos, revisão de segurança e validação em desktop e Android.
   política;
 - `templates/`: modelos obrigatórios para manter a documentação consistente;
 - `assets/`: inventário de imagens, GIFs e vídeos futuros, sem dados reais de
-  clientes.
+  clientes;
+- `sre/`: base didática e versionada do futuro especialista SRE, com manifesto
+  próprio e sem publicação automática no runtime ou no Help.
 
 Documentos atuais de arquitetura e operação:
 
@@ -34,6 +36,16 @@ Documentos atuais de arquitetura e operação:
 - `faq/agentes-de-ia-em-vps.md`;
 - `faq/supply-chain.md`;
 - `releases/v7.30.0-supply-chain-sbom.md`.
+- `sre/README.md`;
+- `sre/manifest.json`;
+- `releases/v7.31.0-sre-knowledge-pack.md`.
+
+Validação específica do SRE Knowledge Pack:
+
+```bash
+python3 1_codigo_fonte/setupmno-docs/tools/validate-sre-knowledge.py
+bash 1_codigo_fonte/setupmno-docs/tools/test-sre-knowledge-validator.sh
+```
 
 ## Regra a partir de agora
 

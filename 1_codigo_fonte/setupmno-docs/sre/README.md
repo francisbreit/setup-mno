@@ -1,0 +1,84 @@
+# Setup MNO SRE Knowledge Pack
+
+- Estado: `implemented`
+- Versão do pack: `1.0.0`
+- Atualizado em: 2026-08-23
+- Público: mantenedor PRO MASTER e futura adaptação didática para clientes
+- Ambientes: Debian, Ubuntu, WSL2, Docker Desktop e Docker Swarm
+- Publicação no Control Center: não publicada
+
+## Resumo para leigos
+
+Este pack ensina a investigar um servidor por camadas, preservar evidências e
+propor uma correção segura antes de executar qualquer mudança. Ele é a fundação
+humana do futuro especialista SRE do Setup MNO, mas ainda não adiciona um agente,
+uma tela nem automação ao produto instalado.
+
+SRE significa cuidar da confiabilidade de um serviço. Na prática, o trabalho
+começa respondendo quatro perguntas:
+
+1. O que deveria estar funcionando?
+2. Qual camada realmente falhou?
+3. Que evidência confirma essa conclusão?
+4. Como voltar atrás se a correção piorar o cenário?
+
+## Trilha recomendada
+
+1. [Modelo operacional](architecture/operating-model.md): fatos, diagnóstico,
+   plano e execução controlada.
+2. [Debian e Ubuntu](manual/debian-ubuntu-baseline.md): baseline do host e
+   atualizações seguras.
+3. [WSL2 e Docker Desktop](manual/wsl2-docker-desktop.md): reconhecer integração
+   desligada ou incorreta.
+4. [Docker Swarm](manual/docker-swarm-triage.md): nós, quorum, serviços e tarefas.
+5. [Traefik e Cloudflare](manual/traefik-cloudflare.md): separar DNS, borda,
+   túnel, TLS, roteamento e aplicação.
+6. [Backup e restauração](manual/backup-restore.md): provar que os dados podem
+   voltar, não apenas que existe um arquivo de backup.
+7. [Resposta a incidentes](manual/incident-response.md): estabilizar, registrar,
+   corrigir e aprender.
+8. [Perguntas frequentes](faq/primeiros-passos.md): dúvidas comuns de quem está
+   começando.
+
+## Limites e segurança
+
+- O pack é documentação versionada, não um executor.
+- Exemplos de diagnóstico são somente leitura, salvo quando o texto identifica
+  claramente uma futura ação controlada.
+- Nenhuma orientação concede `root`, `sudo`, grupo `docker`, Docker socket,
+  shell de produção ou credenciais a um modelo de IA.
+- Diagnóstico de IA é proposta; autorização é política determinística aplicada
+  fora do modelo.
+- Mudanças reais dependerão de runbooks fechados, dry-run, confirmação humana,
+  evidência, backup e rollback nas etapas posteriores do roadmap.
+- Dados reais de clientes, tokens, e-mails, IPs e hostnames não pertencem a esta
+  base.
+
+## Integridade e atualização
+
+O arquivo `manifest.json` registra os documentos, fontes oficiais e SHA-256. O
+validador é executado no repositório de construção:
+
+```bash
+python3 1_codigo_fonte/setupmno-docs/tools/validate-sre-knowledge.py
+```
+
+Uma mudança documental sem atualização do manifesto falha. Essa proteção não é
+uma assinatura criptográfica de release; ela detecta divergência dentro do
+repositório e prepara o terreno para o futuro Skill Supply Chain Gate.
+
+## Limites atuais
+
+- Nenhum endpoint SRE foi criado.
+- Nenhum scanner foi instalado.
+- Nenhuma IA recebeu acesso ao servidor.
+- Nenhum relatório desta pasta entra automaticamente no Help.
+- Nenhum diagnóstico substitui backup, observabilidade ou um profissional em
+  incidentes críticos.
+
+## Publicação futura no Help
+
+Antes da publicação, cada capítulo deverá ser adaptado para telas curtas,
+capturas sanitizadas, GIFs ou vídeos, revisão de segurança e teste de interface.
+O Help não deve copiar o pack inteiro nem expor comandos administrativos fora de
+contexto.
