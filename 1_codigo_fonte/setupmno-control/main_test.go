@@ -359,8 +359,49 @@ func TestReadRuntimeSnapshotAcceptsGeneratedKnowledgeManifest(t *testing.T) {
 		snapshot.Release.EvalDatasetVersion != "1.17.0" ||
 		snapshot.Release.EvalGraderVersion != "1.9.0" ||
 		snapshot.Release.EvalCaseEntries != 878 ||
-		len(snapshot.Release.EvalDatasetSHA256) != 64 {
+		len(snapshot.Release.EvalDatasetSHA256) != 64 ||
+		snapshot.Release.SupplyChainSchemaVersion != 1 ||
+		snapshot.Release.SupplyChainSignatureStatus != "unsigned-sha256-bound" ||
+		snapshot.Release.SupplyChainImageReferences < 1 ||
+		len(snapshot.Release.SupplyChainManifestSHA256) != 64 {
 		t.Fatalf("metadados do conhecimento ausentes: %#v", snapshot.Release)
+	}
+	state := stateFromSnapshot(snapshot, "runtime")
+	if !state.SupplyChainAvailable || state.SupplyChainCompositionFull ||
+		state.SupplyChainImageReferences != snapshot.Release.SupplyChainImageReferences {
+		t.Fatalf("estado supply-chain inesperado: %#v", state)
+	}
+}
+
+func TestRuntimeSupplyChainRejectsTamper(t *testing.T) {
+	source := filepath.Join("..", "x86", "SetupLowCodeMno", ".control-package")
+	releaseData, err := os.ReadFile(filepath.Join(source, "release.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var release setupRelease
+	if err := json.Unmarshal(releaseData, &release); err != nil {
+		t.Fatal(err)
+	}
+	target := t.TempDir()
+	supplyTarget := filepath.Join(target, "supply-chain")
+	if err := os.Mkdir(supplyTarget, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"manifest.json", "sbom.cdx.json", "image-inventory.json", "attestation.intoto.json"} {
+		data, readErr := os.ReadFile(filepath.Join(source, "supply-chain", name))
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if name == "image-inventory.json" {
+			data = append(data, '\n')
+		}
+		if writeErr := os.WriteFile(filepath.Join(supplyTarget, name), data, 0o600); writeErr != nil {
+			t.Fatal(writeErr)
+		}
+	}
+	if err := validateRuntimeSupplyChain(target, release); err == nil {
+		t.Fatal("pacote supply-chain adulterado foi aceito")
 	}
 }
 

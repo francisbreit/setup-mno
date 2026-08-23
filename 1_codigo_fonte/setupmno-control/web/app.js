@@ -789,7 +789,23 @@ function applyReleaseMetadata(data) {
   if (Object.prototype.hasOwnProperty.call(data, "homologationRunnerAvailable")) {
     renderHomologationRunner(data);
   }
+  renderSupplyChainStatus(data);
   setCatalogSyncStatus(Boolean(data.stale), data.warning, data);
+}
+
+function renderSupplyChainStatus(data) {
+  const target = $("supply-chain-status");
+  if (!target) return;
+  const available = data.supplyChainAvailable === true;
+  target.className = `sync-status ${available ? "current" : "stale"}`;
+  if (!available) {
+    target.textContent = "SBOM e evidências de supply chain ainda não estão disponíveis nesta instalação.";
+    return;
+  }
+  const references = Number(data.supplyChainImageReferences || 0);
+  const digestPinned = Number(data.supplyChainDigestPinnedImages || 0);
+  const unresolved = Number(data.supplyChainUnresolvedReferences || 0);
+  target.textContent = `Supply chain validada · CycloneDX 1.6 · ${references} referências de imagem (${digestPinned} por digest) · ${unresolved} expressões não resolvidas · atestação vinculada por SHA-256, ainda sem assinatura independente`;
 }
 
 function renderHomologationRunner(data) {

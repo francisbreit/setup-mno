@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.29.0"
+VERSIONSETUP="7.30.0"
 EXPECTED_CATALOG_ENTRIES="158"
 EXPECTED_EVAL_DATASET_VERSION="1.17.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
@@ -534,6 +534,7 @@ rm -f SetupLowCodeMno.zip
 control_package="/root/SetupLowCodeMno/.control-package"
 control_target="/root/SetupLowCodeMno/.control"
 homologation_package="$control_package/homologation-package"
+supply_chain_package="$control_package/supply-chain"
 maintainer_runtime_files=(
     maintainer_console.sh maintainer_workspace.sh maintainer_validation_wizard.sh
     certification_wizard.sh maintainer-workspace.tar.gz
@@ -559,7 +560,15 @@ if [ ! -s "$control_package/release.json" ] ||
    [ ! -f "$homologation_package/homologation-review-pack.schema.json" ] ||
    [ -L "$homologation_package/homologation-review-pack.schema.json" ] ||
    [ ! -f "$homologation_package/runner-registry.json" ] ||
-   [ -L "$homologation_package/runner-registry.json" ]; then
+   [ -L "$homologation_package/runner-registry.json" ] ||
+   [ ! -f "$supply_chain_package/manifest.json" ] ||
+   [ -L "$supply_chain_package/manifest.json" ] ||
+   [ ! -f "$supply_chain_package/sbom.cdx.json" ] ||
+   [ -L "$supply_chain_package/sbom.cdx.json" ] ||
+   [ ! -f "$supply_chain_package/image-inventory.json" ] ||
+   [ -L "$supply_chain_package/image-inventory.json" ] ||
+   [ ! -f "$supply_chain_package/attestation.intoto.json" ] ||
+   [ -L "$supply_chain_package/attestation.intoto.json" ]; then
     printf 'O pacote não contém o catálogo, os fontes e o conhecimento runtime do Control Center.\n' >"$control_state_error"
     exit 40
 fi
@@ -650,6 +659,57 @@ homologation_automatic_promotion=$(jq -r '
     else "missing"
     end
 ' "$control_package/release.json" 2>/dev/null)
+supply_chain_manifest="$supply_chain_package/manifest.json"
+supply_chain_sbom="$supply_chain_package/sbom.cdx.json"
+supply_chain_inventory="$supply_chain_package/image-inventory.json"
+supply_chain_attestation="$supply_chain_package/attestation.intoto.json"
+supply_chain_schema=$(jq -r '.schemaVersion // 0' "$supply_chain_manifest" 2>/dev/null)
+supply_chain_setup_version=$(jq -r '.setupVersion // empty' "$supply_chain_manifest" 2>/dev/null)
+supply_chain_architecture=$(jq -r '.architecture // empty' "$supply_chain_manifest" 2>/dev/null)
+supply_chain_generator_version=$(jq -r '.generatorVersion // empty' "$supply_chain_manifest" 2>/dev/null)
+supply_chain_signature_status=$(jq -r '.attestation.signatureStatus // empty' "$supply_chain_manifest" 2>/dev/null)
+supply_chain_composition=$(jq -r '.sbom.composition // empty' "$supply_chain_manifest" 2>/dev/null)
+supply_chain_inventory_completeness=$(jq -r '.inventory.completeness // empty' "$supply_chain_manifest" 2>/dev/null)
+supply_chain_file_entries=$(jq -r '.files | length' "$supply_chain_manifest" 2>/dev/null)
+supply_chain_directory_entries=$(find "$supply_chain_package" -mindepth 1 -maxdepth 1 -printf '.' 2>/dev/null | wc -c)
+supply_chain_manifest_actual_sha=$(sha256sum "$supply_chain_manifest" | awk '{print $1}')
+supply_chain_manifest_expected_sha=$(jq -r '.supplyChainManifestSHA256 // empty' "$control_package/release.json" 2>/dev/null)
+supply_chain_sbom_actual_sha=$(sha256sum "$supply_chain_sbom" | awk '{print $1}')
+supply_chain_sbom_expected_sha=$(jq -r '.supplyChainSBOMSHA256 // empty' "$control_package/release.json" 2>/dev/null)
+supply_chain_inventory_actual_sha=$(sha256sum "$supply_chain_inventory" | awk '{print $1}')
+supply_chain_inventory_expected_sha=$(jq -r '.supplyChainImageInventorySHA256 // empty' "$control_package/release.json" 2>/dev/null)
+supply_chain_attestation_actual_sha=$(sha256sum "$supply_chain_attestation" | awk '{print $1}')
+supply_chain_attestation_expected_sha=$(jq -r '.supplyChainAttestationSHA256 // empty' "$control_package/release.json" 2>/dev/null)
+supply_chain_runtime_schema=$(jq -r '.supplyChainSchemaVersion // 0' "$control_package/release.json" 2>/dev/null)
+supply_chain_runtime_signature=$(jq -r '.supplyChainSignatureStatus // empty' "$control_package/release.json" 2>/dev/null)
+supply_chain_runtime_complete=$(jq -r '
+    if has("supplyChainCompositionComplete")
+    then .supplyChainCompositionComplete
+    else "missing"
+    end
+' "$control_package/release.json" 2>/dev/null)
+supply_chain_image_references=$(jq -r '.inventory.imageReferences // -1' "$supply_chain_manifest" 2>/dev/null)
+supply_chain_digest_pinned=$(jq -r '.inventory.digestPinnedImages // -1' "$supply_chain_manifest" 2>/dev/null)
+supply_chain_mutable_tags=$(jq -r '.inventory.mutableTagImages // -1' "$supply_chain_manifest" 2>/dev/null)
+supply_chain_high_risk_tags=$(jq -r '.inventory.highRiskMutableTagImages // -1' "$supply_chain_manifest" 2>/dev/null)
+supply_chain_implicit_latest=$(jq -r '.inventory.implicitLatestImages // -1' "$supply_chain_manifest" 2>/dev/null)
+supply_chain_unresolved=$(jq -r '.inventory.unresolvedExpressions // -1' "$supply_chain_manifest" 2>/dev/null)
+supply_chain_runtime_image_references=$(jq -r '.supplyChainImageReferences // -2' "$control_package/release.json" 2>/dev/null)
+supply_chain_runtime_digest_pinned=$(jq -r '.supplyChainDigestPinnedImages // -2' "$control_package/release.json" 2>/dev/null)
+supply_chain_runtime_mutable_tags=$(jq -r '.supplyChainMutableTagImages // -2' "$control_package/release.json" 2>/dev/null)
+supply_chain_runtime_high_risk_tags=$(jq -r '.supplyChainHighRiskMutableTagImages // -2' "$control_package/release.json" 2>/dev/null)
+supply_chain_runtime_implicit_latest=$(jq -r '.supplyChainImplicitLatestImages // -2' "$control_package/release.json" 2>/dev/null)
+supply_chain_runtime_unresolved=$(jq -r '.supplyChainUnresolvedReferences // -2' "$control_package/release.json" 2>/dev/null)
+supply_chain_files_valid="true"
+for supply_chain_file in sbom.cdx.json image-inventory.json attestation.intoto.json; do
+    expected_sha=$(jq -r --arg path "$supply_chain_file" '.files[] | select(.path == $path) | .sha256' "$supply_chain_manifest" 2>/dev/null)
+    expected_size=$(jq -r --arg path "$supply_chain_file" '.files[] | select(.path == $path) | .size' "$supply_chain_manifest" 2>/dev/null)
+    actual_sha=$(sha256sum "$supply_chain_package/$supply_chain_file" | awk '{print $1}')
+    actual_size=$(stat -c '%s' "$supply_chain_package/$supply_chain_file" 2>/dev/null)
+    if [ "$expected_sha" != "$actual_sha" ] || [ "$expected_size" != "$actual_size" ]; then
+        supply_chain_files_valid="false"
+    fi
+done
 homologation_runner_expected_sha=$(jq -r '.files[] | select(.path == "homologation_runner.py") | .sha256' "$homologation_manifest" 2>/dev/null)
 homologation_runner_expected_bytes=$(jq -r '.files[] | select(.path == "homologation_runner.py") | .size' "$homologation_manifest" 2>/dev/null)
 homologation_wizard_expected_sha=$(jq -r '.files[] | select(.path == "homologation_wizard.sh") | .sha256' "$homologation_manifest" 2>/dev/null)
@@ -775,6 +835,34 @@ if [ "$control_schema" != "1" ] ||
    [ "$homologation_registry_expected_sha" != "$homologation_registry_actual_sha" ] ||
    [ "$homologation_registry_expected_bytes" != "$homologation_registry_actual_bytes" ] ||
    [ "$maintainer_runtime_valid" != "true" ] ||
+   [ "$supply_chain_schema" != "1" ] ||
+   [ "$supply_chain_runtime_schema" != "1" ] ||
+   [ "$supply_chain_setup_version" != "$VERSIONSETUP" ] ||
+   [ "$supply_chain_architecture" != "arm64" ] ||
+   [ "$supply_chain_generator_version" != "1.0.0" ] ||
+   [ "$supply_chain_signature_status" != "unsigned-sha256-bound" ] ||
+   [ "$supply_chain_runtime_signature" != "$supply_chain_signature_status" ] ||
+   [ "$supply_chain_runtime_complete" != "false" ] ||
+   [ "$supply_chain_composition" != "incomplete" ] ||
+   [ "$supply_chain_inventory_completeness" != "partial" ] ||
+   [ "$supply_chain_file_entries" != "3" ] ||
+   [ "$supply_chain_directory_entries" != "4" ] ||
+   [ "$supply_chain_manifest_expected_sha" != "$supply_chain_manifest_actual_sha" ] ||
+   [ "$supply_chain_sbom_expected_sha" != "$supply_chain_sbom_actual_sha" ] ||
+   [ "$supply_chain_inventory_expected_sha" != "$supply_chain_inventory_actual_sha" ] ||
+   [ "$supply_chain_attestation_expected_sha" != "$supply_chain_attestation_actual_sha" ] ||
+   [ "$supply_chain_files_valid" != "true" ] ||
+   [ "$supply_chain_image_references" -lt 1 ] ||
+   [ "$supply_chain_image_references" != "$supply_chain_runtime_image_references" ] ||
+   [ "$supply_chain_digest_pinned" != "$supply_chain_runtime_digest_pinned" ] ||
+   [ "$supply_chain_mutable_tags" != "$supply_chain_runtime_mutable_tags" ] ||
+   [ "$supply_chain_high_risk_tags" != "$supply_chain_runtime_high_risk_tags" ] ||
+   [ "$supply_chain_implicit_latest" != "$supply_chain_runtime_implicit_latest" ] ||
+   [ "$supply_chain_unresolved" != "$supply_chain_runtime_unresolved" ] ||
+   [ "$(jq -r '.bomFormat // empty' "$supply_chain_sbom" 2>/dev/null)" != "CycloneDX" ] ||
+   [ "$(jq -r '.specVersion // empty' "$supply_chain_sbom" 2>/dev/null)" != "1.6" ] ||
+   [ "$(jq -r '._type // empty' "$supply_chain_attestation" 2>/dev/null)" != "https://in-toto.io/Statement/v1" ] ||
+   [ "$(jq -r '.predicateType // empty' "$supply_chain_attestation" 2>/dev/null)" != "https://slsa.dev/provenance/v1" ] ||
    [ "$knowledge_expected_sha" != "$knowledge_actual_sha" ] ||
    [ "$knowledge_expected_sha" != "$runtime_knowledge_sha" ] ||
    [ "$knowledge_expected_bytes" != "$knowledge_actual_bytes" ] ||
@@ -789,6 +877,7 @@ fi
 mkdir -p "$control_target"
 mkdir -p "$control_target/knowledge-package"
 mkdir -p "$control_target/homologation-package"
+mkdir -p "$control_target/supply-chain"
 install -m 0644 "$control_package/catalog.json" "$control_target/catalog.json.tmp"
 install -m 0644 "$control_package/release.json" "$control_target/release.json.tmp"
 install -m 0644 "$control_source_archive" "$control_target/control-source.tar.gz.tmp"
@@ -818,6 +907,10 @@ for maintainer_file in "${maintainer_runtime_files[@]}"; do
     install -m "$maintainer_mode" "$homologation_package/$maintainer_file" \
         "$control_target/homologation-package/$maintainer_file.tmp"
 done
+for supply_chain_file in manifest.json sbom.cdx.json image-inventory.json attestation.intoto.json; do
+    install -m 0644 "$supply_chain_package/$supply_chain_file" \
+        "$control_target/supply-chain/$supply_chain_file.tmp"
+done
 mv -f "$control_target/catalog.json.tmp" "$control_target/catalog.json"
 mv -f "$control_target/control-source.tar.gz.tmp" "$control_target/control-source.tar.gz"
 mv -f "$control_target/knowledge-package/knowledge-package.tar.gz.tmp" \
@@ -841,6 +934,10 @@ mv -f "$control_target/homologation-package/runner-registry.json.tmp" \
 for maintainer_file in "${maintainer_runtime_files[@]}"; do
     mv -f "$control_target/homologation-package/$maintainer_file.tmp" \
         "$control_target/homologation-package/$maintainer_file"
+done
+for supply_chain_file in manifest.json sbom.cdx.json image-inventory.json attestation.intoto.json; do
+    mv -f "$control_target/supply-chain/$supply_chain_file.tmp" \
+        "$control_target/supply-chain/$supply_chain_file"
 done
 if [ "$PLANO" != "pro-master" ]; then
     rm -f -- \

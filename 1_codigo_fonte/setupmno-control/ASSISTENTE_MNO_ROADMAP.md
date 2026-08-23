@@ -27,17 +27,49 @@ Fases da trilha:
 
 1. `AI-0` — projeto, FAQ, manual preliminar e política documental: concluído
    documentalmente, sem mudança de runtime;
-2. `AI-1` — consumir atestação de cadeia de suprimentos e SBOM;
+2. `AI-1` — consumir atestação de cadeia de suprimentos e SBOM: fundação
+   implementada na v7.30.0; uso pelos agentes continua pendente;
 3. `AI-2` — diagnóstico seguro, somente leitura e sanitizado;
 4. `AI-3` — workspace isolado para propostas;
 5. `AI-4` — ponte controlada para o Homologation Runner;
 6. `AI-5` — handoff ao Instalador Seguro com backup, gates e rollback;
 7. `AI-6` — Central de Segurança e Scale Advisor consultivo.
 
-Esta trilha não marca nenhum recurso como implementado e não reordena
-silenciosamente o backlog. O próximo item técnico pendente continua sendo a
-atestação de cadeia de suprimentos e SBOM; ela passa também a ser pré-requisito
-do primeiro pacote executável do AI Safe Mode.
+Esta trilha não reordena silenciosamente o backlog. A fundação de supply chain
+é pré-requisito atendido para o futuro pacote executável do AI Safe Mode, mas
+o agente ainda não recebe autorização para executar ações.
+
+## v7.30.0 — Fundação de Supply Chain e SBOM Runtime
+
+- SBOM determinístico no formato CycloneDX 1.6 para cada arquitetura;
+- inventário conservador de referências de imagens, scripts de origem e
+  expressões ainda não resolvidas, sem fingir cobertura integral;
+- atestação in-toto Statement v1 com predicado SLSA Provenance v1;
+- manifesto supply-chain com SHA-256 e tamanho de cada evidência, ancorado no
+  `release.json` do runtime;
+- promoção atômica e somente leitura para `.control/supply-chain/` em todos os
+  planos, com bloqueio de pacote adulterado em x86 e ARM;
+- validação independente no agente antes de expor somente o resumo fixo ao
+  painel; painel permanece sem Docker socket e sem download arbitrário;
+- estado visual diferencia SBOM incompleto, tags mutáveis e atestação ainda
+  sem assinatura criptográfica independente;
+- nenhuma stack, imagem ou dado do cliente é alterado por esta feature.
+
+Baseline desta etapa:
+
+- Setup MNO: `7.30.0` em preparação de release
+- Última versão estável homologada: `7.27.0`
+- Control Center: `4.30.0`
+- Conhecimento canônico: `3.31.0`
+- Homologation Runner: `1.3.0`
+
+Próximo item técnico pendente após a homologação desta versão:
+
+1. revalidação contínua, expiração, drift e revogação de selos;
+2. resiliência operacional com backup, restore, update e rollback;
+3. onboarding e convergência UX para produção;
+4. primeiros Blueprints reais homologados;
+5. otimização semântica somente após evidência métrica.
 
 ## v7.29.0 — Homologação Essencial Automática por Arquitetura
 

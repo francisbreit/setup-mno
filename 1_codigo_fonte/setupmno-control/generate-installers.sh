@@ -99,6 +99,7 @@ bash "$project_dir/cloudflare-route-guard_test.sh"
 bash "$project_dir/wsl-docker-preflight_test.sh"
 bash "$project_dir/debian13-apt-recovery_test.sh"
 bash "$project_dir/catalog-html-count_test.sh"
+python3 -B "$project_dir/supply_chain_test.py" -v
 python3 -B "$source_root/setupmno-knowledge/tools/test_homologation_runner.py"
 python3 -B "$source_root/setupmno-knowledge/tools/test_certification.py"
 bash "$project_dir/homologation-wizard_test.sh"
@@ -1134,7 +1135,12 @@ arm_menu_entries=$(count_pro_menu "$source_root/arm/SetupLowCodeMno/install.sh")
 }
 
 generate_runtime_package() {
-    local target="$1" architecture="$2" temporary_manifest
+    local target="$1" architecture="$2" temporary_manifest supply_chain_dir
+    local supply_chain_manifest_sha supply_chain_sbom_sha supply_chain_inventory_sha
+    local supply_chain_attestation_sha supply_chain_signature_status
+    local supply_chain_image_references supply_chain_digest_pinned_images
+    local supply_chain_mutable_tag_images supply_chain_high_risk_mutable_tag_images
+    local supply_chain_implicit_latest_images supply_chain_unresolved_references
     mkdir -p "$target"
     install -m 0644 "$project_dir/catalog.json" "$target/catalog.json"
     install -m 0644 "$bundle" "$target/control-source.tar.gz"
@@ -1169,6 +1175,28 @@ generate_runtime_package() {
         "$target/homologation-package/certification_wizard.sh"
     install -m 0644 "$homologation_package/maintainer-workspace.tar.gz" \
         "$target/homologation-package/maintainer-workspace.tar.gz"
+    supply_chain_dir="$target/supply-chain"
+    python3 -B "$project_dir/supply_chain.py" generate \
+        --source-root "$source_root" \
+        --target "$supply_chain_dir" \
+        --architecture "$architecture" \
+        --setup-version "$x86_version" \
+        --artifact "catalog.json=$target/catalog.json" \
+        --artifact "control-source.tar.gz=$target/control-source.tar.gz" \
+        --artifact "knowledge-package/manifest.json=$target/knowledge-package/manifest.json" \
+        --artifact "knowledge-package/knowledge-package.tar.gz=$target/knowledge-package/knowledge-package.tar.gz" \
+        --artifact "homologation-package/manifest.json=$target/homologation-package/manifest.json"
+    supply_chain_manifest_sha=$(sha256sum "$supply_chain_dir/manifest.json" | awk '{print $1}')
+    supply_chain_sbom_sha=$(jq -r '.files[] | select(.path == "sbom.cdx.json") | .sha256' "$supply_chain_dir/manifest.json")
+    supply_chain_inventory_sha=$(jq -r '.files[] | select(.path == "image-inventory.json") | .sha256' "$supply_chain_dir/manifest.json")
+    supply_chain_attestation_sha=$(jq -r '.files[] | select(.path == "attestation.intoto.json") | .sha256' "$supply_chain_dir/manifest.json")
+    supply_chain_signature_status=$(jq -r '.attestation.signatureStatus' "$supply_chain_dir/manifest.json")
+    supply_chain_image_references=$(jq -r '.inventory.imageReferences' "$supply_chain_dir/manifest.json")
+    supply_chain_digest_pinned_images=$(jq -r '.inventory.digestPinnedImages' "$supply_chain_dir/manifest.json")
+    supply_chain_mutable_tag_images=$(jq -r '.inventory.mutableTagImages' "$supply_chain_dir/manifest.json")
+    supply_chain_high_risk_mutable_tag_images=$(jq -r '.inventory.highRiskMutableTagImages' "$supply_chain_dir/manifest.json")
+    supply_chain_implicit_latest_images=$(jq -r '.inventory.implicitLatestImages' "$supply_chain_dir/manifest.json")
+    supply_chain_unresolved_references=$(jq -r '.inventory.unresolvedExpressions' "$supply_chain_dir/manifest.json")
     temporary_manifest="$target/release.json.tmp"
     jq -n \
         --arg setup_version "$x86_version" \
@@ -1185,6 +1213,11 @@ generate_runtime_package() {
         --arg control_source_sha "$bundle_sha" \
         --arg homologation_runner_version "$homologation_runner_version" \
         --arg homologation_package_manifest_sha "$homologation_manifest_sha" \
+        --arg supply_chain_manifest_sha "$supply_chain_manifest_sha" \
+        --arg supply_chain_sbom_sha "$supply_chain_sbom_sha" \
+        --arg supply_chain_inventory_sha "$supply_chain_inventory_sha" \
+        --arg supply_chain_attestation_sha "$supply_chain_attestation_sha" \
+        --arg supply_chain_signature_status "$supply_chain_signature_status" \
         --argjson catalog_entries "$catalog_entries" \
         --argjson knowledge_entries "$knowledge_entries" \
         --argjson eval_schema "$eval_schema" \
@@ -1204,6 +1237,12 @@ generate_runtime_package() {
         --argjson control_source_bytes "$bundle_bytes" \
         --argjson homologation_candidate_schema "$homologation_candidate_schema" \
         --argjson homologation_registry_entries "$homologation_registry_entries" \
+        --argjson supply_chain_image_references "$supply_chain_image_references" \
+        --argjson supply_chain_digest_pinned_images "$supply_chain_digest_pinned_images" \
+        --argjson supply_chain_mutable_tag_images "$supply_chain_mutable_tag_images" \
+        --argjson supply_chain_high_risk_mutable_tag_images "$supply_chain_high_risk_mutable_tag_images" \
+        --argjson supply_chain_implicit_latest_images "$supply_chain_implicit_latest_images" \
+        --argjson supply_chain_unresolved_references "$supply_chain_unresolved_references" \
         '{
             schemaVersion: 1,
             setupVersion: $setup_version,
@@ -1240,7 +1279,20 @@ generate_runtime_package() {
             homologationCandidateSchemaVersion: $homologation_candidate_schema,
             homologationRegistryEntries: $homologation_registry_entries,
             homologationPackageManifestSHA256: $homologation_package_manifest_sha,
-            homologationAutomaticPromotion: false
+            homologationAutomaticPromotion: false,
+            supplyChainSchemaVersion: 1,
+            supplyChainManifestSHA256: $supply_chain_manifest_sha,
+            supplyChainSBOMSHA256: $supply_chain_sbom_sha,
+            supplyChainImageInventorySHA256: $supply_chain_inventory_sha,
+            supplyChainAttestationSHA256: $supply_chain_attestation_sha,
+            supplyChainSignatureStatus: $supply_chain_signature_status,
+            supplyChainCompositionComplete: false,
+            supplyChainImageReferences: $supply_chain_image_references,
+            supplyChainDigestPinnedImages: $supply_chain_digest_pinned_images,
+            supplyChainMutableTagImages: $supply_chain_mutable_tag_images,
+            supplyChainHighRiskMutableTagImages: $supply_chain_high_risk_mutable_tag_images,
+            supplyChainImplicitLatestImages: $supply_chain_implicit_latest_images,
+            supplyChainUnresolvedReferences: $supply_chain_unresolved_references
         }' >"$temporary_manifest"
     chmod 0644 "$temporary_manifest"
     mv -f "$temporary_manifest" "$target/release.json"
@@ -1271,10 +1323,18 @@ for runtime_package in "$x86_runtime_package" "$arm_runtime_package"; do
         else "missing"
         end
     ' "$runtime_package/release.json")
+    runtime_architecture=$(jq -r '.architecture' "$runtime_package/release.json")
+    packaged_supply_chain_manifest_sha=$(sha256sum "$runtime_package/supply-chain/manifest.json" | awk '{print $1}')
+    manifest_supply_chain_manifest_sha=$(jq -r '.supplyChainManifestSHA256 // empty' "$runtime_package/release.json")
     [ "$packaged_source_sha" = "$manifest_source_sha" ] &&
     [ "$packaged_source_bytes" = "$manifest_source_bytes" ] &&
     [ "$packaged_homologation_manifest_sha" = "$manifest_homologation_manifest_sha" ] &&
     [ "$manifest_homologation_automatic_promotion" = "false" ] &&
+    [ "$packaged_supply_chain_manifest_sha" = "$manifest_supply_chain_manifest_sha" ] &&
+    python3 -B "$project_dir/supply_chain.py" validate \
+        --directory "$runtime_package/supply-chain" \
+        --setup-version "$x86_version" \
+        --architecture "$runtime_architecture" &&
     python3 -B "$runtime_package/homologation-package/homologation_runner.py" \
         --package-dir "$runtime_package/homologation-package" list >/dev/null || {
         printf 'ERRO: bundle de fontes diverge do manifesto runtime em %s.\n' \

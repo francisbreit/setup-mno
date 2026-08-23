@@ -26,6 +26,15 @@ leigos, revisão de segurança e validação em desktop e Android.
 - `assets/`: inventário de imagens, GIFs e vídeos futuros, sem dados reais de
   clientes.
 
+Documentos atuais de arquitetura e operação:
+
+- `architecture/ai-safe-mode.md`;
+- `architecture/supply-chain-sbom.md`;
+- `manual/verificar-supply-chain-wsl2.md`;
+- `faq/agentes-de-ia-em-vps.md`;
+- `faq/supply-chain.md`;
+- `releases/v7.30.0-supply-chain-sbom.md`.
+
 ## Regra a partir de agora
 
 Toda nova etapa ou feature do Setup MNO deve atualizar a documentação no mesmo

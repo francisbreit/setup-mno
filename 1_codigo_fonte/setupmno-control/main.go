@@ -228,6 +228,19 @@ type setupRelease struct {
 	HomologationRegistryEntries  int    `json:"homologationRegistryEntries,omitempty"`
 	HomologationManifestSHA256   string `json:"homologationPackageManifestSHA256,omitempty"`
 	HomologationAutoPromotion    bool   `json:"homologationAutomaticPromotion"`
+	SupplyChainSchemaVersion     int    `json:"supplyChainSchemaVersion,omitempty"`
+	SupplyChainManifestSHA256    string `json:"supplyChainManifestSHA256,omitempty"`
+	SupplyChainSBOMSHA256        string `json:"supplyChainSBOMSHA256,omitempty"`
+	SupplyChainImageInventorySHA string `json:"supplyChainImageInventorySHA256,omitempty"`
+	SupplyChainAttestationSHA256 string `json:"supplyChainAttestationSHA256,omitempty"`
+	SupplyChainSignatureStatus   string `json:"supplyChainSignatureStatus,omitempty"`
+	SupplyChainCompositionFull   bool   `json:"supplyChainCompositionComplete"`
+	SupplyChainImageReferences   int    `json:"supplyChainImageReferences,omitempty"`
+	SupplyChainDigestPinned      int    `json:"supplyChainDigestPinnedImages,omitempty"`
+	SupplyChainMutableTags       int    `json:"supplyChainMutableTagImages,omitempty"`
+	SupplyChainHighRiskTags      int    `json:"supplyChainHighRiskMutableTagImages,omitempty"`
+	SupplyChainImplicitLatest    int    `json:"supplyChainImplicitLatestImages,omitempty"`
+	SupplyChainUnresolved        int    `json:"supplyChainUnresolvedReferences,omitempty"`
 }
 
 type runtimeSnapshot struct {
@@ -254,6 +267,49 @@ type setupStateResponse struct {
 	HomologationRunnerVersion   string           `json:"homologationRunnerVersion,omitempty"`
 	HomologationCandidateSchema int              `json:"homologationCandidateSchemaVersion,omitempty"`
 	HomologationWorkflow        string           `json:"homologationWorkflow,omitempty"`
+	SupplyChainAvailable        bool             `json:"supplyChainAvailable"`
+	SupplyChainSchemaVersion    int              `json:"supplyChainSchemaVersion,omitempty"`
+	SupplyChainSignatureStatus  string           `json:"supplyChainSignatureStatus,omitempty"`
+	SupplyChainCompositionFull  bool             `json:"supplyChainCompositionComplete"`
+	SupplyChainImageReferences  int              `json:"supplyChainImageReferences,omitempty"`
+	SupplyChainDigestPinned     int              `json:"supplyChainDigestPinnedImages,omitempty"`
+	SupplyChainMutableTags      int              `json:"supplyChainMutableTagImages,omitempty"`
+	SupplyChainHighRiskTags     int              `json:"supplyChainHighRiskMutableTagImages,omitempty"`
+	SupplyChainImplicitLatest   int              `json:"supplyChainImplicitLatestImages,omitempty"`
+	SupplyChainUnresolved       int              `json:"supplyChainUnresolvedReferences,omitempty"`
+}
+
+type supplyChainFile struct {
+	Path   string `json:"path"`
+	SHA256 string `json:"sha256"`
+	Size   int64  `json:"size"`
+}
+
+type supplyChainManifest struct {
+	SchemaVersion    int    `json:"schemaVersion"`
+	GeneratorVersion string `json:"generatorVersion"`
+	SetupVersion     string `json:"setupVersion"`
+	Architecture     string `json:"architecture"`
+	SBOM             struct {
+		Format      string `json:"format"`
+		SpecVersion string `json:"specVersion"`
+		Composition string `json:"composition"`
+	} `json:"sbom"`
+	Attestation struct {
+		StatementType   string `json:"statementType"`
+		PredicateType   string `json:"predicateType"`
+		SignatureStatus string `json:"signatureStatus"`
+	} `json:"attestation"`
+	Inventory struct {
+		Completeness        string `json:"completeness"`
+		DigestPinnedImages  int    `json:"digestPinnedImages"`
+		HighRiskMutableTags int    `json:"highRiskMutableTagImages"`
+		ImplicitLatest      int    `json:"implicitLatestImages"`
+		ImageReferences     int    `json:"imageReferences"`
+		MutableTags         int    `json:"mutableTagImages"`
+		Unresolved          int    `json:"unresolvedExpressions"`
+	} `json:"inventory"`
+	Files []supplyChainFile `json:"files"`
 }
 
 type planCapabilities struct {
@@ -3130,6 +3186,11 @@ func readRuntimeSnapshot(directory string) (runtimeSnapshot, error) {
 	if err := validateReleaseKnowledge(release); err != nil {
 		return runtimeSnapshot{}, err
 	}
+	if hasSupplyChainMetadata(release) {
+		if err := validateRuntimeSupplyChain(directory, release); err != nil {
+			return runtimeSnapshot{}, err
+		}
+	}
 	expectedHash, err := hex.DecodeString(release.CatalogSHA256)
 	if err != nil || len(expectedHash) != sha256.Size {
 		return runtimeSnapshot{}, errors.New("SHA-256 do catálogo inválido")
@@ -3260,6 +3321,169 @@ func validateReleaseKnowledge(release setupRelease) error {
 	return nil
 }
 
+func hasSupplyChainMetadata(release setupRelease) bool {
+	return release.SupplyChainSchemaVersion != 0 || release.SupplyChainManifestSHA256 != "" ||
+		release.SupplyChainSBOMSHA256 != "" || release.SupplyChainImageInventorySHA != "" ||
+		release.SupplyChainAttestationSHA256 != "" || release.SupplyChainSignatureStatus != ""
+}
+
+func validSHA256(value string) bool {
+	decoded, err := hex.DecodeString(value)
+	return err == nil && len(decoded) == sha256.Size
+}
+
+func validateRuntimeSupplyChain(directory string, release setupRelease) error {
+	if release.SupplyChainSchemaVersion != 1 ||
+		release.SupplyChainSignatureStatus != "unsigned-sha256-bound" ||
+		release.SupplyChainCompositionFull || release.SupplyChainImageReferences < 1 ||
+		release.SupplyChainDigestPinned < 0 || release.SupplyChainMutableTags < 0 ||
+		release.SupplyChainHighRiskTags < 0 || release.SupplyChainImplicitLatest < 0 ||
+		release.SupplyChainUnresolved < 0 ||
+		release.SupplyChainImageReferences != release.SupplyChainDigestPinned+
+			release.SupplyChainMutableTags+release.SupplyChainHighRiskTags+
+			release.SupplyChainImplicitLatest ||
+		!validSHA256(release.SupplyChainManifestSHA256) ||
+		!validSHA256(release.SupplyChainSBOMSHA256) ||
+		!validSHA256(release.SupplyChainImageInventorySHA) ||
+		!validSHA256(release.SupplyChainAttestationSHA256) {
+		return errors.New("metadados supply-chain inconsistentes")
+	}
+
+	supplyDirectory := filepath.Join(directory, "supply-chain")
+	info, err := os.Lstat(supplyDirectory)
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return errors.New("diretório supply-chain inválido")
+	}
+	entries, err := os.ReadDir(supplyDirectory)
+	if err != nil || len(entries) != 4 {
+		return errors.New("inventário do diretório supply-chain divergente")
+	}
+	expectedNames := map[string]bool{
+		"manifest.json": false, "sbom.cdx.json": false,
+		"image-inventory.json": false, "attestation.intoto.json": false,
+	}
+	for _, entry := range entries {
+		if _, ok := expectedNames[entry.Name()]; !ok || entry.IsDir() || entry.Type()&os.ModeSymlink != 0 {
+			return errors.New("arquivo inesperado no diretório supply-chain")
+		}
+		expectedNames[entry.Name()] = true
+	}
+
+	manifestData, err := readRegularFile(filepath.Join(supplyDirectory, "manifest.json"), 64<<10)
+	if err != nil || sha256String(manifestData) != release.SupplyChainManifestSHA256 {
+		return errors.New("manifesto supply-chain inválido ou adulterado")
+	}
+	var manifest supplyChainManifest
+	decoder := json.NewDecoder(bytes.NewReader(manifestData))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&manifest); err != nil {
+		return fmt.Errorf("manifesto supply-chain JSON: %w", err)
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return errors.New("manifesto supply-chain contém dados adicionais")
+	}
+	if manifest.SchemaVersion != 1 || manifest.GeneratorVersion != "1.0.0" ||
+		manifest.SetupVersion != release.SetupVersion || manifest.Architecture != release.Architecture ||
+		manifest.SBOM.Format != "CycloneDX" || manifest.SBOM.SpecVersion != "1.6" ||
+		manifest.SBOM.Composition != "incomplete" || manifest.Inventory.Completeness != "partial" ||
+		manifest.Attestation.StatementType != "https://in-toto.io/Statement/v1" ||
+		manifest.Attestation.PredicateType != "https://slsa.dev/provenance/v1" ||
+		manifest.Attestation.SignatureStatus != release.SupplyChainSignatureStatus ||
+		manifest.Inventory.ImageReferences != release.SupplyChainImageReferences ||
+		manifest.Inventory.DigestPinnedImages != release.SupplyChainDigestPinned ||
+		manifest.Inventory.MutableTags != release.SupplyChainMutableTags ||
+		manifest.Inventory.HighRiskMutableTags != release.SupplyChainHighRiskTags ||
+		manifest.Inventory.ImplicitLatest != release.SupplyChainImplicitLatest ||
+		manifest.Inventory.Unresolved != release.SupplyChainUnresolved || len(manifest.Files) != 3 {
+		return errors.New("manifesto supply-chain não corresponde à release")
+	}
+
+	releaseHashes := map[string]string{
+		"sbom.cdx.json":           release.SupplyChainSBOMSHA256,
+		"image-inventory.json":    release.SupplyChainImageInventorySHA,
+		"attestation.intoto.json": release.SupplyChainAttestationSHA256,
+	}
+	fileData := make(map[string][]byte, 3)
+	seen := make(map[string]bool, 3)
+	for _, file := range manifest.Files {
+		expectedHash, ok := releaseHashes[file.Path]
+		if !ok || seen[file.Path] || !validSHA256(file.SHA256) || file.SHA256 != expectedHash || file.Size < 2 {
+			return errors.New("registro de arquivo supply-chain inválido")
+		}
+		data, readErr := readRegularFile(filepath.Join(supplyDirectory, file.Path), 8<<20)
+		if readErr != nil || int64(len(data)) != file.Size || sha256String(data) != file.SHA256 {
+			return errors.New("integridade de arquivo supply-chain divergente")
+		}
+		fileData[file.Path] = data
+		seen[file.Path] = true
+	}
+	if len(seen) != len(releaseHashes) {
+		return errors.New("inventário supply-chain incompleto")
+	}
+
+	var inventory struct {
+		SchemaVersion int    `json:"schemaVersion"`
+		SetupVersion  string `json:"setupVersion"`
+		Architecture  string `json:"architecture"`
+		Counts        struct {
+			DigestPinned          int `json:"digestPinned"`
+			HighRiskMutableTags   int `json:"highRiskMutableTags"`
+			ImplicitLatest        int `json:"implicitLatest"`
+			MutableTags           int `json:"mutableTags"`
+			References            int `json:"references"`
+			UnresolvedExpressions int `json:"unresolvedExpressions"`
+		} `json:"counts"`
+	}
+	if json.Unmarshal(fileData["image-inventory.json"], &inventory) != nil ||
+		inventory.SchemaVersion != 1 || inventory.SetupVersion != release.SetupVersion ||
+		inventory.Architecture != release.Architecture || inventory.Counts.References != release.SupplyChainImageReferences ||
+		inventory.Counts.DigestPinned != release.SupplyChainDigestPinned ||
+		inventory.Counts.MutableTags != release.SupplyChainMutableTags ||
+		inventory.Counts.HighRiskMutableTags != release.SupplyChainHighRiskTags ||
+		inventory.Counts.ImplicitLatest != release.SupplyChainImplicitLatest ||
+		inventory.Counts.UnresolvedExpressions != release.SupplyChainUnresolved {
+		return errors.New("inventário de imagens supply-chain divergente")
+	}
+
+	var sbom struct {
+		BOMFormat   string `json:"bomFormat"`
+		SpecVersion string `json:"specVersion"`
+		Version     int    `json:"version"`
+		Components  []any  `json:"components"`
+	}
+	if json.Unmarshal(fileData["sbom.cdx.json"], &sbom) != nil || sbom.BOMFormat != "CycloneDX" ||
+		sbom.SpecVersion != "1.6" || sbom.Version != 1 || len(sbom.Components) == 0 {
+		return errors.New("SBOM CycloneDX inválido")
+	}
+
+	var attestation struct {
+		Type          string `json:"_type"`
+		PredicateType string `json:"predicateType"`
+		Subject       []struct {
+			Name   string            `json:"name"`
+			Digest map[string]string `json:"digest"`
+		} `json:"subject"`
+	}
+	if json.Unmarshal(fileData["attestation.intoto.json"], &attestation) != nil ||
+		attestation.Type != "https://in-toto.io/Statement/v1" ||
+		attestation.PredicateType != "https://slsa.dev/provenance/v1" || len(attestation.Subject) != 2 {
+		return errors.New("atestação in-toto inválida")
+	}
+	subjectSeen := make(map[string]bool, 2)
+	for _, subject := range attestation.Subject {
+		name := strings.TrimPrefix(subject.Name, "supply-chain/")
+		expectedHash, ok := releaseHashes[name]
+		if !ok || name == "attestation.intoto.json" || subjectSeen[name] || subject.Digest["sha256"] != expectedHash {
+			return errors.New("subject da atestação in-toto divergente")
+		}
+		subjectSeen[name] = true
+	}
+	if !subjectSeen["sbom.cdx.json"] || !subjectSeen["image-inventory.json"] {
+		return errors.New("subjects da atestação in-toto incompletos")
+	}
+	return nil
+}
+
 func readRegularFile(filename string, limit int64) ([]byte, error) {
 	info, err := os.Lstat(filename)
 	if err != nil {
@@ -3340,6 +3564,16 @@ func stateFromSnapshot(snapshot runtimeSnapshot, source string) setupStateRespon
 		HomologationRunnerVersion:   release.HomologationRunnerVersion,
 		HomologationCandidateSchema: release.HomologationCandidateSchema,
 		HomologationWorkflow:        homologationWorkflow,
+		SupplyChainAvailable:        hasSupplyChainMetadata(release),
+		SupplyChainSchemaVersion:    release.SupplyChainSchemaVersion,
+		SupplyChainSignatureStatus:  release.SupplyChainSignatureStatus,
+		SupplyChainCompositionFull:  release.SupplyChainCompositionFull,
+		SupplyChainImageReferences:  release.SupplyChainImageReferences,
+		SupplyChainDigestPinned:     release.SupplyChainDigestPinned,
+		SupplyChainMutableTags:      release.SupplyChainMutableTags,
+		SupplyChainHighRiskTags:     release.SupplyChainHighRiskTags,
+		SupplyChainImplicitLatest:   release.SupplyChainImplicitLatest,
+		SupplyChainUnresolved:       release.SupplyChainUnresolved,
 	}
 }
 

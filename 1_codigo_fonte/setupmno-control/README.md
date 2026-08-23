@@ -406,7 +406,12 @@ O Setup publica atomicamente em `/root/SetupLowCodeMno/.control/`:
 - `catalog.json`: catálogo correspondente à release.
 - `control-source.tar.gz`: fontes compiláveis do painel, externos ao SHC;
 - `knowledge-package/manifest.json`: manifesto validado do conhecimento;
-- `knowledge-package/knowledge-package.tar.gz`: pacote canônico reproduzível.
+- `knowledge-package/knowledge-package.tar.gz`: pacote canônico reproduzível;
+- `supply-chain/manifest.json`: hashes e contadores por arquitetura;
+- `supply-chain/sbom.cdx.json`: SBOM CycloneDX 1.6 de composição incompleta;
+- `supply-chain/image-inventory.json`: referências de imagens e fontes;
+- `supply-chain/attestation.intoto.json`: Statement in-toto com predicado SLSA,
+  ligado por SHA-256 e ainda sem assinatura DSSE independente.
 
 Ao carregar a página, retornar à aba, usar a atualização manual ou a cada cinco
 minutos, o painel consulta esses arquivos pelo agente. A versão do Setup MNO é

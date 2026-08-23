@@ -267,6 +267,10 @@ assert.match(html, /Leia o dry-run/);
 assert.match(html, /concede o Selo Essencial por arquitetura/);
 assert.match(html, /data-action="homologation"/);
 assert.match(app, /function renderHomologationRunner/);
+assert.match(html, /id="supply-chain-status"/);
+assert.match(app, /function renderSupplyChainStatus/);
+assert.match(app, /CycloneDX 1\.6/);
+assert.match(app, /ainda sem assinatura independente/);
 assert.match(app, /homologação essencial automática por arquitetura/);
 assert.match(app, /openTerminal\("homologation"\)/);
 assert.match(app, /state\.maintainerAccess/);
@@ -337,6 +341,14 @@ const terminalContext = vm.createContext({
   }
 });
 vm.runInContext(app, terminalContext, { filename: "web/app.js" });
+vm.runInContext(`renderSupplyChainStatus({
+  supplyChainAvailable: true,
+  supplyChainImageReferences: 12,
+  supplyChainDigestPinnedImages: 3,
+  supplyChainUnresolvedReferences: 2
+})`, terminalContext);
+assert.match(terminalElement("supply-chain-status").textContent, /12 referências de imagem \(3 por digest\)/);
+assert.match(terminalElement("supply-chain-status").textContent, /2 expressões não resolvidas/);
 assert.equal(vm.runInContext('normalizeHelpText("Configurações e Aplicação")', terminalContext), "configuracoes e aplicacao");
 terminalElement("help-search").value = "WSL2";
 vm.runInContext("filterHelpTopics()", terminalContext);

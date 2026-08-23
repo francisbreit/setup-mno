@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Strapi no Setup MNO",
   "setupId": "strapi",
-  "setupVersion": "7.29.0",
+  "setupVersion": "7.30.0",
   "architectures": [
     "amd64",
     "arm64"

@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Grafana e Prometheus no Setup MNO",
   "setupId": "grafana-prometheus",
-  "setupVersion": "7.29.0",
+  "setupVersion": "7.30.0",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
