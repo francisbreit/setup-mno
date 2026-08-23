@@ -39,6 +39,81 @@ Esta trilha não reordena silenciosamente o backlog. A fundação de supply chai
 é pré-requisito atendido para o futuro pacote executável do AI Safe Mode, mas
 o agente ainda não recebe autorização para executar ações.
 
+## Subtrilha estratégica — Setup MNO SRE Especialista
+
+Esta subtrilha transforma o Assistente MNO em uma camada SRE consultiva,
+baseada em evidências e apropriada para Debian, Ubuntu, WSL2 e Docker Swarm,
+sem entregar acesso root irrestrito a uma LLM ou a skills de terceiros. Ela
+complementa as fases `AI-1`, `AI-2` e `AI-6` e não altera, por si só, a ordem do
+próximo item técnico pendente.
+
+1. `SRE-0` — **Setup MNO SRE Knowledge Pack**
+   - manter conhecimento versionado sobre Debian, Ubuntu, WSL2, Docker Swarm,
+     Traefik, Cloudflare, backup, restauração e resposta a incidentes;
+   - registrar fontes, versão, arquitetura, escopo e data de revisão de cada
+     procedimento;
+   - separar conhecimento explicativo de qualquer capacidade operacional.
+
+2. `SRE-1` — **Skill Supply Chain Gate**
+   - nenhuma skill externa entra diretamente no runtime ou recebe confiança
+     implícita por ter sido publicada em um catálogo público;
+   - exigir licença, versão ou commit fixo, SHA-256, inventário estrito,
+     procedência, análise de scripts, URLs, permissões, dependências e ações
+     possíveis;
+   - produzir dry-run e diff inteligível e exigir aprovação PRO MASTER antes
+     da incorporação canônica;
+   - manter este gate separado da atestação de pacotes do Setup MNO criada na
+     v7.30.0, embora ambos possam reutilizar o mesmo modelo de evidências.
+
+3. `SRE-2` — **Especialista em modo somente leitura**
+   - consultar exclusivamente endpoints fixos e permitidos do agente interno;
+   - limitar o contexto a serviços, réplicas, memória, disco, versões, logs
+     sanitizados e eventos explicitamente autorizados;
+   - negar acesso a Docker socket, shell, secrets, arquivos arbitrários e
+     operações de criação, alteração ou exclusão;
+   - apresentar fatos observados separadamente de hipóteses e inferências.
+
+4. `SRE-3` — **Motores determinísticos**
+   - avaliar e homologar Trivy, Lynis e Docker Bench como coletores de fatos;
+   - fixar versões e hashes, definir limites de recursos e normalizar os
+     resultados antes de entregá-los ao especialista;
+   - impedir que uma conclusão da LLM substitua o resultado determinístico ou
+     esconda falhas, cobertura incompleta e limitações do scanner.
+
+5. `SRE-4` — **Plano de ação consultivo**
+   - toda resposta operacional deve explicar diagnóstico, evidências,
+     confiança, impacto, pré-condições e estratégia de rollback;
+   - a IA não executa a proposta nem transforma texto gerado em shell;
+   - recomendações sem evidência suficiente devem ser marcadas como hipótese e
+     encaminhadas para coleta adicional ou revisão humana.
+
+6. `SRE-5` — **Runbooks homologados**
+   - ações reais somente podem ocorrer por operações previamente escritas,
+     testadas, versionadas, autenticadas e aprovadas;
+   - cada runbook deve possuir escopo, plano mínimo, compatibilidade,
+     pré-checks, dry-run quando aplicável, confirmação humana, timeout,
+     pós-checks, auditoria e rollback;
+   - LLMs podem selecionar e explicar um runbook permitido, mas nunca criar ou
+     executar comandos livres na produção.
+
+7. `SRE-6` — **Laboratório Strix PRO MASTER**
+   - pentest opcional somente contra alvos expressamente autorizados;
+   - execução em ambiente temporário, isolado, inventariado e limitado por
+     rede, tempo, CPU, memória e orçamento de LLM;
+   - proibir Docker socket do host, root de produção, reutilização de dados e
+     alteração automática do alvo;
+   - importar somente relatórios e evidências sanitizadas para a Central de
+     Revisão, sem conceder selo, publicar catálogo ou aplicar correções
+     automaticamente;
+   - exigir validação do upstream, licença, versão, hashes, imagens e diferenças
+     de qualquer fork antes da homologação.
+
+Critério de conclusão da subtrilha: um usuário leigo deve conseguir receber um
+diagnóstico compreensível e baseado em fatos, enquanto o mantenedor conserva a
+fronteira de confiança, a aprovação final e a rastreabilidade de toda ação. A
+capacidade de uma IA executar comandos nunca será tratada como equivalente a
+governança operacional.
+
 ## v7.30.0 — Fundação de Supply Chain e SBOM Runtime
 
 - SBOM determinístico no formato CycloneDX 1.6 para cada arquitetura;
