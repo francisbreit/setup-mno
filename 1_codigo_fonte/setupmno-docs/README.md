@@ -72,6 +72,7 @@ Documentos atuais de arquitetura e operação:
 - `releases/v7.32.2-apt-nao-interativo.md`;
 - `releases/v7.33.1-dockerswarm-apt-nao-interativo.md`;
 - `releases/v7.33.2-reparo-snapshot-sre-upgrade.md`;
+- `releases/v7.33.3-convergencia-control-arm.md`;
 - `sre/architecture/read-only-specialist.md`;
 - `sre/manual/usar-diagnostico-seguro.md`;
 - `releases/v7.33.0-especialista-sre-read-only.md`.

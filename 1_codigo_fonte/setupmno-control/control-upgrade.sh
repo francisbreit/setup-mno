@@ -12,6 +12,9 @@ state_file="${5:?arquivo de estado ausente}"
 runtime_dir="/root/SetupLowCodeMno/.control"
 changed_services=()
 heartbeat_pid=""
+runtime_architecture="unknown"
+service_wait_attempts=40
+service_wait_interval=3
 
 progress() {
     printf 'XXX\n%s\n%s\nXXX\n' "$1" "$2"
@@ -90,15 +93,61 @@ service_image() {
         "$1" 2>>"$log_file" | sed 's/@sha256:.*$//'
 }
 
+configure_service_wait_policy() {
+    runtime_architecture=$(docker info --format '{{.Architecture}}' 2>>"$log_file" |
+        tr '[:upper:]' '[:lower:]' | head -n1)
+    case "$runtime_architecture" in
+        arm64|aarch64)
+            service_wait_attempts=100
+            ;;
+        *)
+            service_wait_attempts=40
+            ;;
+    esac
+    service_wait_interval=3
+    printf '%s política de convergência: arquitetura=%s tentativas=%s intervalo=%ss limite=%ss.\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${runtime_architecture:-unknown}" \
+        "$service_wait_attempts" "$service_wait_interval" \
+        "$((service_wait_attempts * service_wait_interval))" >>"$log_file"
+}
+
+record_service_diagnostics() {
+    local service="$1" expected="$2" container_id
+    {
+        printf '%s diagnóstico de convergência: serviço=%s esperado=%s/%s.\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$service" "$expected" "$expected"
+        docker service ls --filter "name=$service" \
+            --format 'service={{.Name}} image={{.Image}} replicas={{.Replicas}}'
+        docker service ps --no-trunc \
+            --format 'task={{.ID}} image={{.Image}} desired={{.DesiredState}} current={{.CurrentState}} error={{.Error}}' \
+            "$service"
+        while IFS= read -r container_id; do
+            [ -n "$container_id" ] || continue
+            docker inspect --format \
+                'container={{.Id}} image={{.Config.Image}} status={{.State.Status}} exitCode={{.State.ExitCode}} error={{json .State.Error}}{{if .State.Health}} health={{.State.Health.Status}} failingStreak={{.State.Health.FailingStreak}}{{end}}' \
+                "$container_id"
+        done < <(docker ps -aq \
+            --filter "label=com.docker.swarm.service.name=$service" | head -n 3)
+    } >>"$log_file" 2>&1 || true
+}
+
 wait_service() {
-    local service="$1" expected="$2" replicas
+    local service="$1" expected="$2" replicas attempt last_replicas=""
     [ "$expected" = "0" ] && return 0
-    for _ in $(seq 1 40); do
+    for attempt in $(seq 1 "$service_wait_attempts"); do
         replicas=$(docker service ls --filter "name=$service" --format '{{.Replicas}}' \
             2>>"$log_file" | head -n1)
+        replicas=${replicas:-indisponível}
+        if [ "$replicas" != "$last_replicas" ]; then
+            printf '%s convergência: serviço=%s réplicas=%s tentativa=%s/%s.\n' \
+                "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$service" "$replicas" \
+                "$attempt" "$service_wait_attempts" >>"$log_file"
+            last_replicas="$replicas"
+        fi
         [ "$replicas" = "${expected}/${expected}" ] && return 0
-        sleep 3
+        sleep "$service_wait_interval"
     done
+    record_service_diagnostics "$service" "$expected"
     return 1
 }
 
@@ -173,6 +222,7 @@ for command_name in docker jq tar sha256sum stat; do
         fail_upgrade 10 "Dependência ausente durante a reconciliação: $command_name."
 done
 docker info >>"$log_file" 2>&1 || fail_upgrade 11 "Docker ou Swarm indisponível."
+configure_service_wait_policy
 
 mapfile -t web_services < <(docker service ls --format '{{.Name}}' 2>>"$log_file" |
     grep -E '^mnoctrl[[:alnum:]]+-web_mnoctrl[[:alnum:]]+-web$' || true)

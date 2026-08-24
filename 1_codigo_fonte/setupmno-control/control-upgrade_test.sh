@@ -22,6 +22,11 @@ grep -Fq 'run_with_heartbeat 25 "CONSTRUINDO A IMAGEM DO PAINEL' "$updater"
 grep -Fq 'run_with_heartbeat 45 "CONSTRUINDO A IMAGEM DO TERMINAL' "$updater"
 grep -Fq 'run_with_heartbeat 66 "AGUARDANDO O AGENTE ATINGIR 1/1 RÉPLICA' "$updater"
 grep -Fq 'run_with_heartbeat 88 "AGUARDANDO O PAINEL ATINGIR 1/1 RÉPLICA' "$updater"
+grep -Fq 'arm64|aarch64)' "$updater"
+grep -Fq 'service_wait_attempts=100' "$updater"
+grep -Fq 'record_service_diagnostics "$service" "$expected"' "$updater"
+grep -Fq 'docker service ps --no-trunc' "$updater"
+grep -Fq 'health={{.State.Health.Status}}' "$updater"
 
 for forbidden in 'docker stack deploy' 'docker service create' 'docker secret create' \
     'docker volume rm' 'docker stack rm' 'docker service rm' '--label-rm'; do
@@ -43,7 +48,8 @@ docker_log="$test_dir/docker.log"
 
 for function_name in progress heartbeat_loop stop_heartbeat run_with_heartbeat \
     service_has_env_key service_env_value service_has_mount_target update_agent \
-    agent_version_is_current update_web; do
+    agent_version_is_current configure_service_wait_policy record_service_diagnostics \
+    wait_service update_web; do
     function_source=$(awk -v name="$function_name" '
         $0 ~ "^" name "\\(\\) \\{" {capture=1}
         capture {print}
@@ -91,6 +97,18 @@ set -e
 grep -Fq 'falha monitorada' "$log_file"
 
 docker() {
+    if [ "${1:-}" = "info" ] && [ "${2:-}" = "--format" ]; then
+        printf '%s\n' "${MOCK_DOCKER_ARCH:-amd64}"
+        return 0
+    fi
+    if [ "${1:-}" = "service" ] && [ "${2:-}" = "ls" ] &&
+       [ -n "${MOCK_REPLICA_FILE:-}" ]; then
+        head -n1 "$MOCK_REPLICA_FILE"
+        sed '1d' "$MOCK_REPLICA_FILE" >"${MOCK_REPLICA_FILE}.next"
+        mv -f "${MOCK_REPLICA_FILE}.next" "$MOCK_REPLICA_FILE"
+        printf '%s\n' "$*" >>"$docker_log"
+        return 0
+    fi
     if [ "${1:-}" = "service" ] && [ "${2:-}" = "inspect" ]; then
         [ -z "${MOCK_APP_VERSION:-}" ] || printf 'APP_VERSION=%s\n' "$MOCK_APP_VERSION"
         printf '%s\n' 'SETUPMNO_PLAN=pro' 'SETUPMNO_INSTALL_TYPE=CLOUDFLARE_TUNNEL'
@@ -111,8 +129,56 @@ docker() {
         esac
         return 0
     fi
+    if [ "${1:-}" = "service" ] && [ "${2:-}" = "ps" ]; then
+        printf '%s\n' 'task=test image=test-app:4.16.2 desired=Running current=Preparing error='
+        printf '%s\n' "$*" >>"$docker_log"
+        return 0
+    fi
+    if [ "${1:-}" = "ps" ] && [ "${2:-}" = "-aq" ]; then
+        printf '%s\n' 'test-container-id'
+        printf '%s\n' "$*" >>"$docker_log"
+        return 0
+    fi
+    if [ "${1:-}" = "inspect" ]; then
+        printf '%s\n' 'container=test image=test-app:4.16.2 status=running exitCode=0 error="" health=starting failingStreak=0'
+        printf '%s\n' "$*" >>"$docker_log"
+        return 0
+    fi
     printf '%s\n' "$*" >>"$docker_log"
 }
+
+MOCK_DOCKER_ARCH=amd64
+configure_service_wait_policy
+[ "$service_wait_attempts" -eq 40 ]
+[ "$service_wait_interval" -eq 3 ]
+
+MOCK_DOCKER_ARCH=arm64
+configure_service_wait_policy
+[ "$service_wait_attempts" -eq 100 ]
+
+MOCK_DOCKER_ARCH=aarch64
+configure_service_wait_policy
+[ "$service_wait_attempts" -eq 100 ]
+
+service_wait_attempts=3
+service_wait_interval=0
+MOCK_REPLICA_FILE="$test_dir/replicas.txt"
+printf '%s\n' '0/1' '1/1' >"$MOCK_REPLICA_FILE"
+: >"$docker_log"
+wait_service "mnoctrltest-web_mnoctrltest-web" 1
+grep -Fq 'réplicas=0/1 tentativa=1/3' "$log_file"
+grep -Fq 'réplicas=1/1 tentativa=2/3' "$log_file"
+! grep -Fq 'service ps --no-trunc' "$docker_log"
+
+printf '%s\n' '0/1' '0/1' '0/1' >"$MOCK_REPLICA_FILE"
+: >"$docker_log"
+if wait_service "mnoctrltest-web_mnoctrltest-web" 1; then
+    printf 'ERRO: serviço sem convergência foi aceito.\n' >&2
+    exit 1
+fi
+grep -Fq 'service ps --no-trunc' "$docker_log"
+grep -Fq 'health=starting failingStreak=0' "$log_file"
+unset MOCK_REPLICA_FILE
 
 target_version="4.16.2"
 MOCK_APP_VERSION=""

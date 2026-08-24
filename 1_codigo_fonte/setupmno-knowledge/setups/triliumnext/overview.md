@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "TriliumNext no Setup MNO",
   "setupId": "triliumnext",
-  "setupVersion": "7.33.2",
+  "setupVersion": "7.33.3",
   "architectures": [
     "amd64",
     "arm64"

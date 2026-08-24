@@ -120,6 +120,38 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
+## v7.33.3 — Convergência adaptativa do Control Center em ARM64
+
+- preservada a janela original de 120 segundos em x86-64;
+- ampliada para 300 segundos a espera de cada serviço do Control Center em
+  hosts Docker identificados como `arm64` ou `aarch64`;
+- o heartbeat continua exibindo tempo decorrido e percentual real enquanto o
+  Docker Swarm prepara a nova tarefa;
+- o log registra somente mudanças reais de réplicas, com tentativa atual e
+  limite aplicável à arquitetura;
+- antes de um rollback por timeout, o reconciliador registra serviço, imagem,
+  estado das tarefas, código de saída e estado agregado do healthcheck, sem
+  copiar conteúdo bruto dos logs da aplicação;
+- o rollback automático, os serviços existentes, planos, volumes, secrets,
+  domínio e fronteiras de acesso permanecem inalterados;
+- teste determinístico cobre política x86-64, `arm64`, `aarch64`, convergência
+  tardia e coleta de diagnóstico na falha.
+
+Baseline desta correção:
+
+- Setup MNO: `7.33.3` em preparação de release candidata
+- Última versão estável homologada: `7.31.0`
+- Control Center: `4.33.3`
+- Conhecimento canônico: `3.34.2`
+- SRE Knowledge Pack: `1.2.0`
+- Snapshot SRE: `1.0.0 BETA`
+- Skill Supply Chain Gate: `1.0.0 BETA`
+- Homologation Runner: `1.3.0`
+
+Esta correção não conclui nem reordena o roadmap. O próximo item da subtrilha
+SRE permanece `SRE-3` — motores determinísticos, começando por Trivy, Lynis e
+Docker Bench.
+
 ## v7.33.2 — Reparo do snapshot SRE após atualização do Control Center
 
 - corrigido o reconciliador de atualizações para gravar `APP_VERSION` também
