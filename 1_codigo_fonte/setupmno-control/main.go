@@ -428,38 +428,40 @@ type assistantApp struct {
 }
 
 type assistantContext struct {
-	OperationalContextAvailable bool             `json:"operationalContextAvailable"`
-	OperationalContextWarning   string           `json:"operationalContextWarning,omitempty"`
-	KnowledgeDocumentEntries    int              `json:"knowledgeDocumentEntries"`
-	CanonicalSetupEntries       int              `json:"canonicalSetupEntries"`
-	InfrastructureEntries       int              `json:"infrastructureEntries"`
-	BlueprintEntries            int              `json:"blueprintEntries"`
-	BlueprintBetaEntries        int              `json:"blueprintBetaEntries"`
-	BlueprintHomologatedEntries int              `json:"blueprintHomologatedEntries"`
-	SetupTypeEntries            map[string]int   `json:"setupTypeEntries,omitempty"`
-	ApplicationInventoryStatus  string           `json:"applicationInventoryStatus"`
-	SetupVersion                string           `json:"setupVersion"`
-	CatalogVersion              string           `json:"catalogVersion"`
-	CatalogSHA256               string           `json:"catalogSHA256"`
-	CatalogEntries              int              `json:"catalogEntries"`
-	CatalogSource               string           `json:"catalogSource"`
-	CatalogStale                bool             `json:"catalogStale"`
-	Architecture                string           `json:"architecture"`
-	OperatingSystem             string           `json:"operatingSystem"`
-	OSVersion                   string           `json:"osVersion,omitempty"`
-	OSType                      string           `json:"osType"`
-	KernelVersion               string           `json:"kernelVersion"`
-	EngineVersion               string           `json:"engineVersion"`
-	CPUPercent                  float64          `json:"cpuPercent"`
-	MemoryPercent               float64          `json:"memoryPercent"`
-	MemoryAvailableGB           float64          `json:"memoryAvailableGB"`
-	DiskPercent                 float64          `json:"diskPercent"`
-	Services                    int              `json:"services"`
-	DegradedServices            int              `json:"degradedServices"`
-	SwarmNodes                  int              `json:"swarmNodes"`
-	InstalledApps               []assistantApp   `json:"installedApps"`
-	RelevantSetupCount          int              `json:"relevantSetupCount"`
-	RelevantSetups              []map[string]any `json:"relevantSetups"`
+	OperationalContextAvailable bool                   `json:"operationalContextAvailable"`
+	OperationalContextWarning   string                 `json:"operationalContextWarning,omitempty"`
+	KnowledgeDocumentEntries    int                    `json:"knowledgeDocumentEntries"`
+	CanonicalSetupEntries       int                    `json:"canonicalSetupEntries"`
+	InfrastructureEntries       int                    `json:"infrastructureEntries"`
+	BlueprintEntries            int                    `json:"blueprintEntries"`
+	BlueprintBetaEntries        int                    `json:"blueprintBetaEntries"`
+	BlueprintHomologatedEntries int                    `json:"blueprintHomologatedEntries"`
+	SetupTypeEntries            map[string]int         `json:"setupTypeEntries,omitempty"`
+	ApplicationInventoryStatus  string                 `json:"applicationInventoryStatus"`
+	SetupVersion                string                 `json:"setupVersion"`
+	CatalogVersion              string                 `json:"catalogVersion"`
+	CatalogSHA256               string                 `json:"catalogSHA256"`
+	CatalogEntries              int                    `json:"catalogEntries"`
+	CatalogSource               string                 `json:"catalogSource"`
+	CatalogStale                bool                   `json:"catalogStale"`
+	Architecture                string                 `json:"architecture"`
+	OperatingSystem             string                 `json:"operatingSystem"`
+	OSVersion                   string                 `json:"osVersion,omitempty"`
+	OSType                      string                 `json:"osType"`
+	KernelVersion               string                 `json:"kernelVersion"`
+	EngineVersion               string                 `json:"engineVersion"`
+	CPUPercent                  float64                `json:"cpuPercent"`
+	MemoryPercent               float64                `json:"memoryPercent"`
+	MemoryAvailableGB           float64                `json:"memoryAvailableGB"`
+	DiskPercent                 float64                `json:"diskPercent"`
+	Services                    int                    `json:"services"`
+	DegradedServices            int                    `json:"degradedServices"`
+	SwarmNodes                  int                    `json:"swarmNodes"`
+	InstalledApps               []assistantApp         `json:"installedApps"`
+	InstalledApplicationCount   int                    `json:"installedApplicationCount"`
+	RelevantSetupCount          int                    `json:"relevantSetupCount"`
+	RelevantSetups              []map[string]any       `json:"relevantSetups"`
+	SRESnapshot                 *sreDiagnosticSnapshot `json:"sreSnapshot,omitempty"`
 }
 
 type assistantService struct {
@@ -651,6 +653,7 @@ func runWeb() error {
 	mux.Handle("POST /api/logout", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleLogout))))
 	mux.Handle("GET /api/overview", app.requireAuth(http.HandlerFunc(app.handleOverview)))
 	mux.Handle("GET /api/apps", app.requireAuth(http.HandlerFunc(app.handleApps)))
+	mux.Handle("GET /api/sre/snapshot", app.requireAuth(http.HandlerFunc(app.handleSRESnapshot)))
 	mux.Handle("GET /api/setup-state", app.requireAuth(http.HandlerFunc(app.handleSetupState)))
 	mux.Handle("GET /api/catalog", app.requireAuth(http.HandlerFunc(app.handleCatalog)))
 	mux.Handle("GET /api/quality", app.requireAuth(http.HandlerFunc(app.handleQuality)))
@@ -720,6 +723,7 @@ func runAgent() error {
 	token := string(agentToken)
 	setupStateDir := envDefault("SETUP_STATE_DIR", defaultSetupStateDir)
 	homologationCandidateDir := envDefault("HOMOLOGATION_CANDIDATE_DIR", "/homologation-candidates")
+	controlVersion := envDefault("APP_VERSION", "dev")
 
 	authorize := func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -755,6 +759,19 @@ func runAgent() error {
 			"apps":        apps,
 			"generatedAt": time.Now().UTC(),
 		})
+	}))
+	mux.HandleFunc("GET /sre/snapshot", authorize(func(w http.ResponseWriter, _ *http.Request) {
+		runtime, err := readRuntimeSnapshot(setupStateDir)
+		if err != nil {
+			writeError(w, http.StatusServiceUnavailable, "estado runtime indisponível para o diagnóstico SRE")
+			return
+		}
+		result, err := collectSREDiagnosticSnapshot(dockerClient, runtime.Release, controlVersion)
+		if err != nil {
+			writeError(w, http.StatusBadGateway, "snapshot SRE indisponível")
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
 	}))
 	mux.HandleFunc("GET /setup-state", authorize(func(w http.ResponseWriter, _ *http.Request) {
 		snapshot, err := readRuntimeSnapshot(setupStateDir)
@@ -1301,8 +1318,8 @@ func buildDeterministicEcosystemAnswer(question string, contextData assistantCon
 		}
 		fmt.Fprintf(&answer, "Blueprints são outro inventário: existem **%d**, e cada um pode orquestrar vários setups para entregar um sistema com finalidade definida.", contextData.BlueprintEntries)
 	case "installed-applications":
-		fmt.Fprintf(&answer, "O estado observado registra **%d aplicações ou stacks instaladas** acessíveis ao agente neste servidor. Esse número descreve o ambiente em execução e não o catálogo de %d setups disponíveis.\n\n",
-			len(contextData.InstalledApps), contextData.CanonicalSetupEntries)
+		fmt.Fprintf(&answer, "O snapshot sanitizado registra **%d aplicações ou stacks instaladas** neste servidor. Esse número descreve o ambiente em execução e não o catálogo de %d setups disponíveis.\n\n",
+			contextData.InstalledApplicationCount, contextData.CanonicalSetupEntries)
 		answer.WriteString("Uma aplicação instalada pode possuir vários serviços Docker; por isso aplicações, serviços e containers também são contagens diferentes.")
 	case "applications":
 		answer.WriteString("O Setup MNO ainda não publica uma contagem canônica de **aplicações únicas**. O catálogo registra setups, e uma mesma aplicação pode aparecer em variantes ou combos diferentes; somar as entradas produziria um número incorreto.\n\n")
@@ -1416,25 +1433,21 @@ func (s *assistantService) collectContext(
 	question string,
 	exactCatalogName string,
 ) (assistantContext, error) {
-	var current overview
-	var appsPayload struct {
-		Apps []appSummary `json:"apps"`
-	}
+	var sreSnapshot sreDiagnosticSnapshot
 	var setupState setupStateResponse
 	var catalog catalogResponse
 	type callResult struct {
 		name string
 		err  error
 	}
-	results := make(chan callResult, 4)
-	requestErrors := make(map[string]error, 4)
+	results := make(chan callResult, 3)
+	requestErrors := make(map[string]error, 3)
 	requests := []struct {
 		name     string
 		endpoint string
 		target   any
 	}{
-		{"overview", "/overview", &current},
-		{"apps", "/apps", &appsPayload},
+		{"sre-snapshot", "/sre/snapshot", &sreSnapshot},
 		{"setup-state", "/setup-state", &setupState},
 		{"catalog", "/catalog", &catalog},
 	}
@@ -1450,26 +1463,14 @@ func (s *assistantService) collectContext(
 			requestErrors[result.name] = result.err
 		}
 	}
-	if err := requestErrors["overview"]; err != nil {
-		return assistantContext{}, fmt.Errorf("overview: %w", err)
+	if err := requestErrors["sre-snapshot"]; err != nil {
+		return assistantContext{}, fmt.Errorf("snapshot SRE: %w", err)
+	}
+	if err := validateSREDiagnosticSnapshot(sreSnapshot); err != nil {
+		return assistantContext{}, fmt.Errorf("snapshot SRE inválido: %w", err)
 	}
 
-	warnings := make([]string, 0, 2)
-	installed := make([]assistantApp, 0)
-	if err := requestErrors["apps"]; err != nil {
-		log.Printf("Assistente MNO: lista de aplicações indisponível; métricas preservadas: %v", err)
-		warnings = append(warnings, "A lista de aplicações está temporariamente indisponível.")
-	} else {
-		installed = make([]assistantApp, 0, min(len(appsPayload.Apps), 60))
-		for _, app := range appsPayload.Apps {
-			if len(installed) == 60 {
-				break
-			}
-			installed = append(installed, assistantApp{
-				Name: app.Name, Status: app.Status, Running: app.Running, Desired: app.Desired,
-			})
-		}
-	}
+	warnings := make([]string, 0, 1)
 
 	catalogAvailable := requestErrors["setup-state"] == nil && requestErrors["catalog"] == nil
 	if catalogAvailable {
@@ -1488,10 +1489,10 @@ func (s *assistantService) collectContext(
 	}
 
 	available := uint64(0)
-	if current.Metrics.MemoryTotal > current.Metrics.MemoryUsed {
-		available = current.Metrics.MemoryTotal - current.Metrics.MemoryUsed
+	if sreSnapshot.Capacity.MemoryTotal > sreSnapshot.Capacity.MemoryUsed {
+		available = sreSnapshot.Capacity.MemoryTotal - sreSnapshot.Capacity.MemoryUsed
 	}
-	architecture := current.Architecture
+	architecture := sreSnapshot.Versions.Architecture
 	if architecture == "" {
 		architecture = "unknown"
 	}
@@ -1502,19 +1503,21 @@ func (s *assistantService) collectContext(
 		CatalogSource:               "unavailable",
 		CatalogStale:                true,
 		Architecture:                architecture,
-		OperatingSystem:             current.OperatingSystem,
-		OSVersion:                   current.OSVersion,
-		OSType:                      current.OSType,
-		KernelVersion:               current.KernelVersion,
-		EngineVersion:               current.EngineVersion,
-		CPUPercent:                  current.Metrics.CPUPercent,
-		MemoryPercent:               current.Metrics.MemoryPercent,
+		OperatingSystem:             sreSnapshot.Versions.OperatingSystem,
+		OSVersion:                   sreSnapshot.Versions.OSVersion,
+		OSType:                      sreSnapshot.Versions.OSType,
+		KernelVersion:               sreSnapshot.Versions.KernelVersion,
+		EngineVersion:               sreSnapshot.Versions.DockerVersion,
+		CPUPercent:                  sreSnapshot.Capacity.CPUPercent,
+		MemoryPercent:               sreSnapshot.Capacity.MemoryPercent,
 		MemoryAvailableGB:           round(float64(available) / float64(1<<30)),
-		DiskPercent:                 current.Metrics.DiskPercent,
-		Services:                    current.Services,
-		DegradedServices:            current.DegradedServices,
-		SwarmNodes:                  current.SwarmNodes,
-		InstalledApps:               installed,
+		DiskPercent:                 sreSnapshot.Capacity.DiskPercent,
+		Services:                    sreSnapshot.Swarm.Services,
+		DegradedServices:            sreSnapshot.Swarm.DegradedServices,
+		SwarmNodes:                  sreSnapshot.Swarm.Nodes,
+		InstalledApps:               []assistantApp{},
+		InstalledApplicationCount:   sreSnapshot.Swarm.Applications,
+		SRESnapshot:                 &sreSnapshot,
 	}
 	if catalogAvailable {
 		relevantSetups := relevantCatalogItems(catalog.Items, question, exactCatalogName, 12)
@@ -2226,6 +2229,21 @@ func (a *webApp) handleApps(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
+func (a *webApp) handleSRESnapshot(w http.ResponseWriter, r *http.Request) {
+	var result sreDiagnosticSnapshot
+	if err := a.agentRequest(r.Context(), "/sre/snapshot", &result); err != nil ||
+		validateSREDiagnosticSnapshot(result) != nil {
+		writeError(w, http.StatusBadGateway, "diagnóstico SRE somente leitura indisponível")
+		return
+	}
+	a.addAudit(
+		"sre_snapshot_read",
+		"Snapshot SRE BETA sanitizado consultado sem alterações",
+		clientAddress(r),
+	)
+	writeJSON(w, http.StatusOK, result)
+}
+
 func (a *webApp) handleSetupState(w http.ResponseWriter, r *http.Request) {
 	var result setupStateResponse
 	if err := a.agentRequest(r.Context(), "/setup-state", &result); err == nil {
@@ -2823,27 +2841,31 @@ func (a *webApp) streamBasicAssistant(
 	fallback bool,
 	fallbackReason string,
 ) {
-	var current overview
-	if err := a.agentRequest(r.Context(), "/overview", &current); err != nil {
+	var snapshot sreDiagnosticSnapshot
+	if err := a.agentRequest(r.Context(), "/sre/snapshot", &snapshot); err != nil ||
+		validateSREDiagnosticSnapshot(snapshot) != nil {
 		writeError(w, http.StatusBadGateway, "não foi possível consultar o servidor")
 		return
 	}
 	route := routeAssistant(
 		question,
 		retrievalQueryResolution{Query: question},
-		current.Architecture,
+		snapshot.Versions.Architecture,
 	)
-	suggestions := localInsightsForRoute(current, question, route)
+	suggestions := localInsightsForSRESnapshot(snapshot, question, route)
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 	a.sendFeedbackTokenSSE(w, "basic", fallbackReason)
 	sendSSE(w, "meta", map[string]any{
-		"mode":           "basic",
-		"model":          "",
-		"fallback":       fallback,
-		"fallbackReason": fallbackReason,
+		"mode":               "basic",
+		"model":              "",
+		"fallback":           fallback,
+		"fallbackReason":     fallbackReason,
+		"sreSnapshotVersion": snapshot.SnapshotVersion,
+		"sreMaturity":        snapshot.Maturity,
+		"readOnly":           snapshot.ReadOnly,
 	})
 	sendSSE(w, "route", route)
 	sendSSE(w, "delta", map[string]any{"delta": strings.Join(suggestions, "\n\n")})
@@ -4027,6 +4049,58 @@ func localInsightsForRoute(current overview, question string, route assistantRou
 		result = append(result, fmt.Sprintf("Todos os %d serviços monitorados estão atendendo às réplicas desejadas.", current.Services))
 	}
 	result = append(result, "Ações destrutivas e instalações continuam exigindo confirmação humana no Instalador Seguro.")
+	return result
+}
+
+func localInsightsForSRESnapshot(
+	snapshot sreDiagnosticSnapshot,
+	question string,
+	route assistantRoute,
+) []string {
+	if route.Intent == "scope_redirect" {
+		return []string{
+			"Sou especializado em Setup MNO e infraestrutura; não respondo a assuntos gerais fora desse escopo.",
+			"Pergunte sobre setups, servidor, Docker, Swarm, capacidade, segurança, integrações ou Blueprints MNO.",
+		}
+	}
+	result := []string{
+		"**Nenhuma alteração foi realizada — Especialista SRE BETA em modo somente leitura.**",
+		"Diagnóstico seguro concluído para: “" + strings.TrimSpace(question) + "”.",
+		"**Fatos observados**",
+	}
+	for _, finding := range snapshot.Findings {
+		result = append(result, "- "+finding.Observation+" Evidência: `"+finding.Evidence+"`.")
+	}
+	inspected := 0
+	errorsFound := 0
+	warningsFound := 0
+	for _, service := range snapshot.Services {
+		if !service.LogSignals.Inspected {
+			continue
+		}
+		inspected++
+		errorsFound += service.LogSignals.ErrorSignals
+		warningsFound += service.LogSignals.WarningSignals
+	}
+	result = append(result,
+		fmt.Sprintf("- Eventos permitidos consultados: %d; serviços degradados com sinais de log avaliados: %d.", len(snapshot.Events), inspected),
+		"**Hipóteses e limites**",
+	)
+	if snapshot.Swarm.DegradedServices > 0 && (errorsFound > 0 || warningsFound > 0) {
+		result = append(result, fmt.Sprintf(
+			"- Há %d sinal(is) de erro e %d aviso(s) nos logs reduzidos a contagens. Isso ajuda a priorizar a investigação, mas não confirma a causa.",
+			errorsFound, warningsFound,
+		))
+	} else if snapshot.Swarm.DegradedServices > 0 {
+		result = append(result, "- Existem réplicas degradadas, mas o snapshot não possui evidência suficiente para afirmar a causa.")
+	} else {
+		result = append(result, "- Nenhuma hipótese de falha foi criada porque os serviços observados estão convergidos.")
+	}
+	result = append(result,
+		"- Esta é uma fotografia pontual, não um histórico de monitoramento.",
+		"- Hostname, IP, domínio, e-mail, imagens, secrets, variáveis, comandos e conteúdo bruto dos logs não foram incluídos.",
+		"Ações, reinícios e instalações continuam fora deste diagnóstico e exigem o Instalador Seguro e confirmação humana.",
+	)
 	return result
 }
 

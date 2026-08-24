@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "setupVersion": "7.32.2",
-  "knowledgeVersion": "3.33.2",
+  "setupVersion": "7.33.0",
+  "knowledgeVersion": "3.34.0",
   "installationAssurance": {
     "status": "maintainer-homologated",
     "attestedBy": "Francis MNO",

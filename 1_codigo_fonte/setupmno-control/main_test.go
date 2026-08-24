@@ -867,23 +867,17 @@ func TestCollectContextIncludesExactCatalogTotalAndSystem(t *testing.T) {
 			t.Errorf("token do agente ausente")
 		}
 		switch r.URL.Path {
-		case "/overview":
-			_ = json.NewEncoder(w).Encode(overview{
-				Metrics: hostMetrics{
-					MemoryTotal: 8 << 30,
-					MemoryUsed:  3 << 30,
-				},
-				Services:        20,
-				SwarmNodes:      1,
-				EngineVersion:   "29.4.2",
-				Architecture:    "x86_64",
-				OperatingSystem: "Docker Desktop",
-				OSType:          "linux",
-				KernelVersion:   "6.6.87.2-microsoft-standard-WSL2",
-				Hostname:        "hostname-secreto",
-			})
-		case "/apps":
-			_, _ = w.Write([]byte(`{"apps":[]}`))
+		case "/sre/snapshot":
+			snapshot := testSRESnapshot("4.93.2", "4.93.2")
+			snapshot.Capacity.MemoryTotal = 8 << 30
+			snapshot.Capacity.MemoryUsed = 3 << 30
+			snapshot.Swarm.Services = 20
+			snapshot.Versions.DockerVersion = "29.4.2"
+			snapshot.Versions.Architecture = "x86_64"
+			snapshot.Versions.OperatingSystem = "Docker Desktop"
+			snapshot.Versions.OSType = "linux"
+			snapshot.Versions.KernelVersion = "6.6.87.2-microsoft-standard-WSL2"
+			_ = json.NewEncoder(w).Encode(snapshot)
 		case "/setup-state":
 			_ = json.NewEncoder(w).Encode(setupStateResponse{
 				SchemaVersion:  1,
@@ -951,23 +945,19 @@ func TestCollectContextPreservesMetricsWhenRuntimeCatalogIsUnavailable(t *testin
 			t.Errorf("token do agente ausente")
 		}
 		switch r.URL.Path {
-		case "/overview":
-			_ = json.NewEncoder(w).Encode(overview{
-				Metrics: hostMetrics{
-					CPUPercent:    12.5,
-					MemoryPercent: 37.5,
-					MemoryTotal:   8 << 30,
-					MemoryUsed:    3 << 30,
-					DiskPercent:   18.2,
-				},
-				Services:         12,
-				DegradedServices: 1,
-				SwarmNodes:       1,
-				Architecture:     "x86_64",
-				OperatingSystem:  "Docker Desktop",
-			})
-		case "/apps":
-			_, _ = w.Write([]byte(`{"apps":[{"name":"postgres","status":"healthy","running":1,"desired":1}]}`))
+		case "/sre/snapshot":
+			snapshot := testSRESnapshot("7.7.0", "4.7.0")
+			snapshot.Capacity.CPUPercent = 12.5
+			snapshot.Capacity.MemoryPercent = 37.5
+			snapshot.Capacity.MemoryTotal = 8 << 30
+			snapshot.Capacity.MemoryUsed = 3 << 30
+			snapshot.Capacity.DiskPercent = 18.2
+			snapshot.Swarm.Applications = 1
+			snapshot.Swarm.Services = 12
+			snapshot.Swarm.DegradedServices = 1
+			snapshot.Versions.Architecture = "x86_64"
+			snapshot.Versions.OperatingSystem = "Docker Desktop"
+			_ = json.NewEncoder(w).Encode(snapshot)
 		case "/setup-state", "/catalog":
 			writeError(w, http.StatusServiceUnavailable, "estado runtime indisponível")
 		default:
@@ -998,8 +988,8 @@ func TestCollectContextPreservesMetricsWhenRuntimeCatalogIsUnavailable(t *testin
 		!contextData.CatalogStale || !strings.Contains(contextData.OperationalContextWarning, "catálogo runtime") {
 		t.Fatalf("contingência canônica incorreta: %#v", contextData)
 	}
-	if len(contextData.InstalledApps) != 1 || contextData.InstalledApps[0].Name != "postgres" {
-		t.Fatalf("aplicações recuperadas foram descartadas: %#v", contextData.InstalledApps)
+	if len(contextData.InstalledApps) != 0 || contextData.InstalledApplicationCount != 1 {
+		t.Fatalf("inventário sanitizado de aplicações incorreto: %#v", contextData)
 	}
 	if assistantCatalogContextAvailable(contextData) {
 		t.Fatal("catálogo indisponível foi tratado como evidência runtime validada")

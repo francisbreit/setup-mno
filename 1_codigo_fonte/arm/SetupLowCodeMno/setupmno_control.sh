@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 set -o pipefail
 umask 077
-CONTROL_VERSION="4.32.2"
+CONTROL_VERSION="4.33.0"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -1374,9 +1374,9 @@ assistant_base_url=""
 llm_api_key=""
 
 if [ "$CONTROL_PLAN" != "pro" ] && [ "$CONTROL_PLAN" != "pro-master" ]; then
-    msg "O plano $CONTROL_PLAN inclui o Control Center com diagnóstico básico local.\n\nO Assistente com IA permanece desativado neste plano, mesmo que exista uma configuração antiga de provedor. Nenhuma chave ou stack de LLM será criada."
+    msg "O plano $CONTROL_PLAN inclui diagnóstico básico local.\n\nA IA permanece desativada neste plano. Configurações antigas não serão reutilizadas, e nenhuma chave ou stack LLM será criada."
 elif [ "${mem_total_mb:-0}" -lt 4096 ] || [ "${mem_available_mb:-0}" -lt 1536 ]; then
-    msg "O Control Center será instalado com o diagnóstico básico.\n\nMemória total: ${mem_total_mb:-0} MB\nMemória disponível: ${mem_available_mb:-0} MB\n\nO Copiloto com LLM é opcional e foi desativado para proteger este servidor. Você poderá configurá-lo futuramente após ampliar os recursos."
+    msg "O Control Center usará diagnóstico básico.\n\nMemória total: ${mem_total_mb:-0} MB\nMemória disponível: ${mem_available_mb:-0} MB\n\nA LLM opcional foi desativada para proteger o servidor. Amplie os recursos para configurá-la."
 else
     while true; do
         assistant_choice=$(whiptail --title "$assistant_step/$wizard_total — ASSISTENTE MNO" --default-item "OPENAI" --menu \
@@ -1972,6 +1972,7 @@ services:
       - ALL
     environment:
       - MODE=agent
+      - APP_VERSION=$CONTROL_VERSION
       - HEALTHCHECK_URL=http://127.0.0.1:9090/health
       - AGENT_TOKEN_FILE=/run/secrets/$agent_secret
       - SETUP_STATE_DIR=/runtime-control
@@ -2522,7 +2523,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
 fi
 
 whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
-    "Control Center instalado com sucesso.\n\nAcesse: https://$url_control\nUsuário: $usuario_control\nSenha: definida durante a instalação\nCloudflare Access: $access_summary\nAssistente: $assistant_label\n\nStacks:\n- $web_stack\n- $agent_stack\n- $terminal_stack$([ "$assistant_has_llm" = "true" ] && printf '\\n- %s' "$assistant_stack")\n\nAs imagens foram construídas localmente e validadas sem upload pelo Cloudflare.$access_next_step$manual_dns_note" \
+    "Control Center instalado.\n\nAcesse: https://$url_control\nUsuário: $usuario_control\nSenha: definida na instalação\nCloudflare Access: $access_summary\nAssistente: $assistant_label\n\nStacks:\n- $web_stack\n- $agent_stack\n- $terminal_stack$([ "$assistant_has_llm" = "true" ] && printf '\\n- %s' "$assistant_stack")\n\nImagens locais validadas sem upload pelo Cloudflare.$access_next_step$manual_dns_note" \
     24 94
 
 exit 0

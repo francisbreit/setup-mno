@@ -1,7 +1,7 @@
 # Setup MNO SRE Knowledge Pack
 
 - Estado: `implemented`
-- Versão do pack: `1.1.0`
+- Versão do pack: `1.2.0`
 - Atualizado em: 2026-08-24
 - Público: mantenedor PRO MASTER e futura adaptação didática para clientes
 - Ambientes: Debian, Ubuntu, WSL2, Docker Desktop e Docker Swarm
@@ -10,9 +10,9 @@
 ## Resumo para leigos
 
 Este pack ensina a investigar um servidor por camadas, preservar evidências e
-propor uma correção segura antes de executar qualquer mudança. Ele é a fundação
-humana do futuro especialista SRE do Setup MNO, mas ainda não adiciona um agente,
-uma tela nem automação ao produto instalado.
+propor uma correção segura antes de executar qualquer mudança. A v7.33.0
+acrescenta o primeiro Especialista SRE BETA: uma fotografia sanitizada e
+somente leitura, exibida no Assistente MNO sem executar correções.
 
 SRE significa cuidar da confiabilidade de um serviço. Na prática, o trabalho
 começa respondendo quatro perguntas:
@@ -45,6 +45,10 @@ começa respondendo quatro perguntas:
     guiado e interpretação dos resultados.
 11. [FAQ de skills externas — BETA](faq/skills-externas.md): dúvidas sobre
     origem, permissões, hashes e limites.
+12. [Especialista SRE somente leitura — BETA](architecture/read-only-specialist.md):
+    contrato fechado, dados permitidos, privacidade e fronteira de confiança.
+13. [Usar o diagnóstico seguro — BETA](manual/usar-diagnostico-seguro.md):
+    passo a passo para leigos, resultados esperados e sinais de falha.
 
 ## Limites e segurança
 
@@ -78,9 +82,10 @@ pacotes externos, sem instalá-los ou executá-los.
 
 ## Limites atuais
 
-- Nenhum endpoint SRE foi criado.
+- O único endpoint SRE é uma fotografia BETA, fixa, sanitizada e somente
+  leitura; não existe endpoint genérico de Docker ou shell.
 - Nenhum scanner foi instalado.
-- Nenhuma IA recebeu acesso ao servidor.
+- Nenhuma IA recebeu acesso direto ao servidor ou ao Docker socket.
 - Nenhuma skill externa foi instalada ou publicada.
 - Nenhum relatório desta pasta entra automaticamente no Help.
 - Nenhum diagnóstico substitui backup, observabilidade ou um profissional em

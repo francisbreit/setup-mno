@@ -70,6 +70,9 @@ Documentos atuais de arquitetura e operação:
 - `releases/v7.32.0-skill-supply-chain-gate.md`;
 - `releases/v7.32.1-control-install-heartbeat.md`;
 - `releases/v7.32.2-apt-nao-interativo.md`.
+- `sre/architecture/read-only-specialist.md`;
+- `sre/manual/usar-diagnostico-seguro.md`;
+- `releases/v7.33.0-especialista-sre-read-only.md`.
 
 Validação específica do SRE Knowledge Pack:
 

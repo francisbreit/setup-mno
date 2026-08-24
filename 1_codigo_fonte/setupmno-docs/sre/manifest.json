@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "knowledgePack": "setup-mno-sre",
-  "knowledgePackVersion": "1.1.0",
+  "knowledgePackVersion": "1.2.0",
   "status": "implemented",
   "updatedAt": "2026-08-24",
   "language": "pt-BR",
@@ -17,7 +17,7 @@
       "audience": ["pro-master", "help-author"],
       "environments": ["debian", "ubuntu", "wsl2", "docker-desktop", "docker-swarm"],
       "topics": ["learning-path", "security-contract", "governance"],
-      "sha256": "ce62d7547ba7aee34559978fa4e5c6a3641a35c1543941a416091b45b0988a88",
+      "sha256": "e719307febc5317fa89e91a1665c5797d6dd25fe69e29828c8f9e07759cff91d",
       "sources": []
     },
     {
@@ -176,6 +176,37 @@
         "https://spdx.dev/learn/handling-license-info/",
         "https://docs.github.com/en/enterprise-cloud@latest/code-security/tutorials/secure-your-organization/protect-against-threats",
         "https://genai.owasp.org/llmrisk/llm032025-supply-chain/"
+      ]
+    },
+    {
+      "id": "sre-read-only-specialist-architecture",
+      "path": "sre/architecture/read-only-specialist.md",
+      "title": "Especialista SRE em modo somente leitura",
+      "type": "architecture",
+      "audience": ["free", "free1", "free2", "pro", "pro-master", "help-author"],
+      "environments": ["debian", "ubuntu", "wsl2", "docker-desktop", "docker-swarm"],
+      "topics": ["read-only", "sanitization", "facts", "privacy"],
+      "sha256": "a0ade975bf6fc2a375e237abe40fad65ba1cebacf3e3b04818ae64ab304c54a8",
+      "sources": [
+        "https://docs.docker.com/reference/api/engine/",
+        "https://docs.docker.com/engine/security/protect-access/",
+        "https://docs.docker.com/engine/swarm/how-swarm-mode-works/swarm-task-states/",
+        "https://docs.docker.com/reference/cli/docker/service/logs/"
+      ]
+    },
+    {
+      "id": "sre-read-only-specialist-manual",
+      "path": "sre/manual/usar-diagnostico-seguro.md",
+      "title": "Como usar o diagnóstico seguro do Especialista SRE",
+      "type": "manual",
+      "audience": ["free", "free1", "free2", "pro", "pro-master", "help-author"],
+      "environments": ["debian", "ubuntu", "wsl2", "docker-desktop", "docker-swarm"],
+      "topics": ["read-only", "diagnosis", "beginner", "beta"],
+      "sha256": "0b6f2dd1a80c4c248874497a44447971f318e163e9692bf841030ff493c108ee",
+      "sources": [
+        "https://docs.docker.com/engine/swarm/services/",
+        "https://docs.docker.com/engine/swarm/how-swarm-mode-works/swarm-task-states/",
+        "https://docs.docker.com/desktop/features/wsl/"
       ]
     },
     {

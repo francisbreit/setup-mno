@@ -116,6 +116,7 @@ bash "$project_dir/wsl-docker-preflight_test.sh"
 bash "$project_dir/debian13-apt-recovery_test.sh"
 bash "$project_dir/apt-noninteractive_test.sh"
 bash "$project_dir/catalog-html-count_test.sh"
+bash "$project_dir/sre-read-only_test.sh"
 python3 -B "$project_dir/supply_chain_test.py" -v
 python3 -B "$source_root/setupmno-knowledge/tools/test_homologation_runner.py"
 python3 -B "$source_root/setupmno-knowledge/tools/test_certification.py"
@@ -390,7 +391,7 @@ grep -Fq 'COPY --from=builder /src/knowledge-package /knowledge-package' \
     printf 'ERRO: a imagem final não contém o pacote de conhecimento somente leitura.\n' >&2
     exit 1
 }
-grep -Fq 'COPY go.mod main.go access.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go homologation.go ./' \
+grep -Fq 'COPY go.mod main.go access.go knowledge.go retrieval.go routing.go prompts.go sre_snapshot.go blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go homologation.go ./' \
     "$project_dir/Dockerfile" || {
     printf 'ERRO: o build não inclui retrieval, roteador, prompts, Blueprints e evals.\n' >&2
     exit 1
@@ -444,8 +445,8 @@ grep -Fq 'environment.json' "$source_root/arm/start_arm_full.sh" &&
     exit 1
 }
 grep -Eq 'assistantPromptRegistryVersion[[:space:]]*=[[:space:]]*"1.0.0"' "$project_dir/prompts.go" &&
-grep -Eq 'assistantPromptVersion[[:space:]]*=[[:space:]]*"1.7.0"' "$project_dir/prompts.go" &&
-grep -Eq 'assistantResponseContractVersion[[:space:]]*=[[:space:]]*"1.6.0"' "$project_dir/prompts.go" &&
+grep -Eq 'assistantPromptVersion[[:space:]]*=[[:space:]]*"1.8.0"' "$project_dir/prompts.go" &&
+grep -Eq 'assistantResponseContractVersion[[:space:]]*=[[:space:]]*"1.7.0"' "$project_dir/prompts.go" &&
 grep -Eq 'assistantRouterVersion[[:space:]]*=[[:space:]]*"1.4.0"' "$project_dir/routing.go" &&
 grep -Fq 'direct_overview' "$project_dir/routing.go" &&
 grep -Fq 'solution_architect' "$project_dir/routing.go" &&
@@ -1008,12 +1009,16 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
         terminal-menu.sh configure-control.sh control-upgrade.sh cloudflare-mfa.sh \
         install-heartbeat.sh \
         cloudflare-route-guard.sh cloudflare-access-reconcile.sh \
-        main.go access.go knowledge.go retrieval.go routing.go prompts.go \
+        main.go access.go knowledge.go retrieval.go routing.go prompts.go sre_snapshot.go \
         blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go homologation.go web |
         gzip -9n >"$bundle"
 )
 if ! tar -tzf "$bundle" | grep -Fx 'blueprint_recommendation.go' >/dev/null; then
     printf 'ERRO: bundle de fontes sem o recomendador contextual de Blueprints.\n' >&2
+    exit 1
+fi
+if ! tar -tzf "$bundle" | grep -Fx 'sre_snapshot.go' >/dev/null; then
+    printf 'ERRO: bundle de fontes sem o snapshot SRE somente leitura.\n' >&2
     exit 1
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'evals.go' >/dev/null; then

@@ -29,7 +29,8 @@ Fases da trilha:
    documentalmente, sem mudança de runtime;
 2. `AI-1` — consumir atestação de cadeia de suprimentos e SBOM: fundação
    implementada na v7.30.0; uso pelos agentes continua pendente;
-3. `AI-2` — diagnóstico seguro, somente leitura e sanitizado;
+3. `AI-2` — diagnóstico seguro, somente leitura e sanitizado: primeira fundação
+   BETA implementada na v7.33.0; evolução consultiva permanece pendente;
 4. `AI-3` — workspace isolado para propostas;
 5. `AI-4` — ponte controlada para o Homologation Runner;
 6. `AI-5` — handoff ao Instalador Seguro com backup, gates e rollback;
@@ -69,6 +70,8 @@ próximo item técnico pendente.
      v7.30.0, embora ambos possam reutilizar o mesmo modelo de evidências.
 
 3. `SRE-2` — **Especialista em modo somente leitura**
+   - implementado como BETA na v7.33.0 para todos os planos, com governança
+     canônica exclusiva do PRO MASTER;
    - consultar exclusivamente endpoints fixos e permitidos do agente interno;
    - limitar o contexto a serviços, réplicas, memória, disco, versões, logs
      sanitizados e eventos explicitamente autorizados;
@@ -116,6 +119,42 @@ diagnóstico compreensível e baseado em fatos, enquanto o mantenedor conserva a
 fronteira de confiança, a aprovação final e a rastreabilidade de toda ação. A
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
+
+## v7.33.0 — Especialista SRE somente leitura BETA
+
+- snapshot schema 1 produzido pelo agente em endpoint fixo e autenticado;
+- contexto reduzido a capacidade, versões, contagens, réplicas, eventos
+  permitidos e referências opacas temporárias de serviços;
+- logs brutos processados e descartados localmente, expondo somente contagens
+  limitadas de sinais;
+- fatos determinísticos separados de hipóteses, que permanecem vazias no
+  snapshot;
+- painel e Assistente sem Docker socket, shell, secrets, nomes reais ou API
+  genérica de comandos;
+- acesso autenticado em todos os planos, com as mesmas proteções universais;
+- interface e documentação identificadas como BETA antes do uso;
+- testes positivos e negativos de sanitização, autenticação, métodos GET,
+  limites, planos e ausência de mutação.
+
+Baseline desta etapa:
+
+- Setup MNO: `7.33.0` em preparação de release candidata BETA
+- Última versão estável homologada: `7.31.0`
+- Control Center: `4.33.0`
+- Conhecimento canônico: `3.34.0`
+- SRE Knowledge Pack: `1.2.0`
+- Snapshot SRE: `1.0.0 BETA`
+- Skill Supply Chain Gate: `1.0.0 BETA`
+- Homologation Runner: `1.3.0`
+
+Próximo item da subtrilha SRE:
+
+1. `SRE-3` — avaliar e homologar motores determinísticos, começando por Trivy,
+   Lynis e Docker Bench, sem conceder execução à IA.
+
+O backlog macro continua preservado: revalidação contínua, expiração, drift e
+revogação de selos; resiliência operacional; convergência UX; primeiros
+Blueprints reais; otimizações semânticas somente com ganho medido.
 
 ## v7.32.2 — APT não interativo e bootstrap determinístico
 

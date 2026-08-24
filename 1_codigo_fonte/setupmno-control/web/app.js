@@ -1302,7 +1302,7 @@ async function askAssistant(event) {
   input.value = "";
   input.disabled = true;
   button.disabled = true;
-  const pending = addMessage("Analisando métricas atuais...", "assistant", true);
+  const pending = addMessage("Analisando o snapshot seguro atual...", "assistant", true);
   try {
     let answer;
     try {
@@ -1343,9 +1343,9 @@ async function runLocalDiagnostic() {
   const originalLabel = button.innerHTML;
   target.hidden = false;
   target.dataset.feedbackToken = "";
-  content.textContent = "Consultando métricas locais do servidor...";
+  content.textContent = "Criando uma fotografia sanitizada e somente leitura...";
   button.disabled = true;
-  button.textContent = "Executando diagnóstico...";
+  button.textContent = "Coletando fatos sem alterar o servidor...";
   try {
     await streamAssistant(
       "Execute um diagnóstico geral do sistema, incluindo memória, disco, serviços e réplicas.",
@@ -1830,14 +1830,14 @@ function updateAssistantRuntime(runtime = {}) {
     $("assistant-privacy").textContent = "A listagem usa o catálogo validado instalado no servidor e não envia os 151 registros à LLM.";
   } else if (mode === "openai" || mode === "openrouter" || mode === "deepseek") {
     $("assistant-welcome-title").textContent = `Olá! O Copiloto MNO está conectado à ${provider}.`;
-    $("assistant-welcome-text").textContent = "Sou especializado em Setup MNO e infraestrutura. Envio somente contexto operacional minimizado, sem hostname, credenciais, comandos ou acesso direto ao Docker.";
-    $("assistant-privacy").textContent = "A consulta usa uma LLM externa. O Setup envia apenas métricas e dados mínimos necessários para responder.";
+    $("assistant-welcome-text").textContent = "Sou especializado em Setup MNO e infraestrutura. Uso uma fotografia sanitizada, sem hostname, credenciais, comandos, nomes reais de serviços ou logs brutos.";
+    $("assistant-privacy").textContent = "A consulta usa uma LLM externa. O Setup envia somente o snapshot SRE BETA minimizado e o conhecimento necessário para responder.";
     if (!operationalContextAvailable) {
       $("assistant-welcome-text").textContent = "A base canônica continua disponível para explicar aplicações, requisitos e integrações. A leitura de métricas deste servidor está temporariamente indisponível.";
       $("assistant-privacy").textContent = "A resposta usa o conhecimento canônico; nenhuma métrica local foi enviada nesta consulta.";
     } else if (operationalContextPartial) {
       $("assistant-welcome-text").textContent = operationalContextWarning;
-      $("assistant-privacy").textContent = "As métricas agregadas disponíveis são combinadas com o conhecimento canônico; dados ausentes não são inventados.";
+      $("assistant-privacy").textContent = "Os fatos sanitizados disponíveis são combinados com o conhecimento canônico; dados ausentes não são inventados.";
     }
   } else if (mode === "ollama") {
     $("assistant-welcome-title").textContent = "Olá! O Copiloto MNO está conectado ao Ollama.";
@@ -1848,12 +1848,12 @@ function updateAssistantRuntime(runtime = {}) {
       $("assistant-privacy").textContent = "O processamento usa o conhecimento canônico no endpoint Ollama configurado; nenhuma métrica local foi enviada nesta consulta.";
     } else if (operationalContextPartial) {
       $("assistant-welcome-text").textContent = operationalContextWarning;
-      $("assistant-privacy").textContent = "O Ollama recebe somente as métricas agregadas disponíveis e o conhecimento canônico necessário à consulta.";
+      $("assistant-privacy").textContent = "O Ollama recebe somente o snapshot sanitizado disponível e o conhecimento canônico necessário à consulta.";
     }
   } else if (fallback) {
     $("assistant-welcome-title").textContent = `${fallbackLabel}.`;
     $("assistant-welcome-text").textContent = "O diagnóstico básico assumiu esta resposta. O Copiloto tentará restabelecer o modo configurado automaticamente na próxima pergunta.";
-    $("assistant-privacy").textContent = "A contingência interpreta métricas localmente e não envia dados para terceiros.";
+    $("assistant-privacy").textContent = "A contingência interpreta o snapshot sanitizado localmente e não envia dados para terceiros.";
   } else if (mode === "later") {
     $("assistant-model").textContent = "Conector de IA ainda não configurado.";
     $("settings-model").textContent = "Conector de IA ainda não configurado.";
@@ -1862,8 +1862,8 @@ function updateAssistantRuntime(runtime = {}) {
     $("assistant-privacy").textContent = "Nenhuma LLM está conectada e nenhum dado é enviado para terceiros.";
   } else {
     $("assistant-welcome-title").textContent = "Olá! O diagnóstico básico está pronto.";
-    $("assistant-welcome-text").textContent = "Sou especializado em Setup MNO e infraestrutura. Posso avaliar capacidade, serviços degradados e prontidão para novos deploys.";
-    $("assistant-privacy").textContent = "O modo básico interpreta métricas localmente e não envia dados para terceiros.";
+    $("assistant-welcome-text").textContent = "Sou especializado em Setup MNO e infraestrutura. Posso avaliar capacidade, réplicas e sinais agregados sem alterar o servidor.";
+    $("assistant-privacy").textContent = "O modo básico interpreta o snapshot SRE sanitizado localmente e não envia dados para terceiros.";
   }
   renderProviderEvalAvailability();
 }
