@@ -15,6 +15,28 @@ altera instaladores e não deve ser copiado integralmente para o Help. A
 publicação futura no Control Center exige seleção editorial, adaptação para
 leigos, revisão de segurança e validação em desktop e Android.
 
+## Público e camadas de leitura
+
+Esta base é escrita primeiro para **Francis MNO e sua comunidade maker**. Ela
+não pressupõe formação profissional em DevOps. Ao mesmo tempo, deve conservar
+informações suficientes para que uma pessoa experiente possa conferir a
+arquitetura, os riscos e as evidências.
+
+Os documentos devem usar divulgação progressiva:
+
+1. **Para iniciantes:** o problema, o benefício e o resultado em linguagem
+   simples;
+2. **Modelo mental:** uma analogia curta, quando ela realmente ajudar;
+3. **Como funciona por dentro:** a camada técnica, com componentes e decisões;
+4. **Como testar:** passos pequenos, comandos seguros, resultado esperado e
+   sinais de falha;
+5. **Como ensinar:** uma síntese que possa virar aula, postagem, FAQ ou vídeo.
+
+Siglas e jargões devem ser explicados na primeira ocorrência. A linguagem
+simples nunca deve esconder riscos, criar promessas exageradas ou transformar
+uma hipótese em fato. O padrão completo está em
+`manual/padrao-didatico-francis-mno.md`.
+
 ## Estrutura
 
 - `architecture/`: projetos arquiteturais, limites de confiança e decisões;
@@ -30,6 +52,7 @@ leigos, revisão de segurança e validação em desktop e Android.
 
 Documentos atuais de arquitetura e operação:
 
+- `manual/padrao-didatico-francis-mno.md`;
 - `architecture/ai-safe-mode.md`;
 - `architecture/supply-chain-sbom.md`;
 - `manual/verificar-supply-chain-wsl2.md`;
@@ -85,6 +108,10 @@ Antes de declarar uma feature concluída, o mantenedor deve confirmar:
 - [ ] documento sem credenciais, IPs, hostnames ou dados de clientes;
 - [ ] versão, data, estado e público identificados;
 - [ ] comportamento real conferido contra o código distribuído;
+- [ ] resumo compreensível sem conhecimento prévio de DevOps;
+- [ ] termos técnicos explicados e camada de auditoria técnica preservada;
+- [ ] teste contém resultado esperado e sinais claros de falha;
+- [ ] síntese preparada para Francis MNO ensinar o assunto à comunidade;
 - [ ] riscos e limites descritos sem promessas exageradas;
 - [ ] rollback compatível com dados stateful;
 - [ ] FAQ atualizada quando a mudança cria uma dúvida previsível;

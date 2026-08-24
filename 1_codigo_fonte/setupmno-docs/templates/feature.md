@@ -9,9 +9,14 @@
 - Arquiteturas: AMD64, ARM64 ou não aplicável
 - Planos afetados:
 
-## Resumo para leigos
+## Para iniciantes — o que isso resolve
 
 Explique em poucas linhas o problema, o benefício e o que a feature não faz.
+
+## Modelo mental ou analogia
+
+Use uma comparação curta somente se ela facilitar o entendimento. Informe onde
+a analogia deixa de representar o comportamento técnico real.
 
 ## Objetivo e critérios de sucesso
 
@@ -26,6 +31,11 @@ Explique em poucas linhas o problema, o benefício e o que a feature não faz.
 3. Confirmações necessárias.
 4. Resultado visível.
 5. Próximo passo seguro.
+
+## Como funciona por dentro — nota técnica para DevOps
+
+Explique os componentes e o fluxo técnico com precisão. Defina siglas e termos
+especializados na primeira ocorrência e conecte cada detalhe ao efeito prático.
 
 ## Arquitetura e dados
 
@@ -70,6 +80,28 @@ pós-rollback e condição em que rollback automático é proibido.
 - Ambiente:
 - Resultado:
 - Limitação:
+
+## Como testar no WSL2 e na VPS
+
+Para cada ambiente aplicável, informe:
+
+1. pré-requisitos;
+2. comando ou ação segura;
+3. resultado esperado em linguagem simples;
+4. sinal de falha e onde procurar a causa;
+5. limpeza dos recursos temporários criados pelo teste.
+
+## Glossário mínimo
+
+- Termo técnico: explicação curta e efeito prático.
+
+## Como ensinar esta feature
+
+- Objetivo da aula ou conteúdo:
+- Demonstração curta:
+- Resultado que o aluno deve reconhecer:
+- Erro comum ou ideia equivocada a corrigir:
+- Limite de segurança que não pode ser omitido:
 
 ## Publicação futura no Help
 
