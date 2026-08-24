@@ -56,6 +56,8 @@ próximo item técnico pendente.
    - separar conhecimento explicativo de qualquer capacidade operacional.
 
 2. `SRE-1` — **Skill Supply Chain Gate**
+   - implementado como BETA na v7.32.0, exclusivo do repositório de construção
+     e da governança PRO MASTER;
    - nenhuma skill externa entra diretamente no runtime ou recebe confiança
      implícita por ter sido publicada em um catálogo público;
    - exigir licença, versão ou commit fixo, SHA-256, inventário estrito,
@@ -113,7 +115,44 @@ Critério de conclusão da subtrilha: um usuário leigo deve conseguir receber u
 diagnóstico compreensível e baseado em fatos, enquanto o mantenedor conserva a
 fronteira de confiança, a aprovação final e a rastreabilidade de toda ação. A
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
-governança operacional.
+    governança operacional.
+
+## v7.32.0 — Skill Supply Chain Gate BETA
+
+- gate determinístico para candidatos a skills externas, sem execução do
+  entrypoint, dos scripts ou das dependências;
+- manifesto schema 1 com origem GitHub em commit completo, licença SPDX,
+  inventário estrito, SHA-256, modos, URLs, dependências, comandos, permissões
+  e ações;
+- bloqueio fail closed de arquivos extras, symlinks, adulteração, possíveis
+  segredos, URLs ou comandos omitidos, permissões administrativas e ações que
+  alteram o sistema;
+- relatório temporário atômico, dry-run, diff contra baseline opcional e token
+  de confirmação ligado ao conteúdo exato;
+- assistente Whiptail/texto claramente marcado como BETA e exclusivo do
+  mantenedor PRO MASTER;
+- aprovação limitada à revisão canônica, sem instalar, copiar, publicar, criar
+  commit, tag, release, DNS ou deploy;
+- testes reproduzíveis com candidata segura fictícia, candidata bloqueada,
+  aprovação, adulteração e arquivo não inventariado;
+- documentação didática separada do runtime e do Help do Control Center.
+
+Baseline desta etapa:
+
+- Setup MNO: `7.32.0` em preparação de release BETA
+- Última versão estável homologada: `7.31.0`
+- Control Center: `4.32.0`
+- Conhecimento canônico: `3.33.0`
+- SRE Knowledge Pack: `1.1.0`
+- Skill Supply Chain Gate: `1.0.0 BETA`
+- Homologation Runner: `1.3.0`
+
+Próximo item da subtrilha SRE:
+
+1. `SRE-2` — Especialista em modo somente leitura.
+
+O backlog macro preserva como primeiro item técnico pendente a revalidação
+contínua, expiração, drift e revogação de selos.
 
 ## v7.31.0 — Fundação do Setup MNO SRE Knowledge Pack
 
@@ -135,16 +174,16 @@ governança operacional.
 
 Baseline desta etapa:
 
-- Setup MNO: `7.31.0` em preparação de release
-- Última versão estável homologada: `7.27.0`
+- Setup MNO: `7.31.0` homologado e promovido a estável em 2026-08-24
+- Última versão estável homologada: `7.31.0`
 - Control Center: `4.31.0`
 - Conhecimento canônico: `3.32.0`
 - SRE Knowledge Pack: `1.0.0`
 - Homologation Runner: `1.3.0`
 
-Próximo item da subtrilha SRE:
+Item da subtrilha SRE concluído depois desta versão:
 
-1. `SRE-1` — Skill Supply Chain Gate.
+1. `SRE-1` — Skill Supply Chain Gate BETA na v7.32.0.
 
 O backlog macro preserva como primeiro item técnico pendente a revalidação
 contínua, expiração, drift e revogação de selos.

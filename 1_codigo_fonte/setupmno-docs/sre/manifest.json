@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "knowledgePack": "setup-mno-sre",
-  "knowledgePackVersion": "1.0.0",
+  "knowledgePackVersion": "1.1.0",
   "status": "implemented",
-  "updatedAt": "2026-08-23",
+  "updatedAt": "2026-08-24",
   "language": "pt-BR",
   "runtimePublished": false,
   "controlCenterPublished": false,
@@ -17,7 +17,7 @@
       "audience": ["pro-master", "help-author"],
       "environments": ["debian", "ubuntu", "wsl2", "docker-desktop", "docker-swarm"],
       "topics": ["learning-path", "security-contract", "governance"],
-      "sha256": "6c2a8f86c3ea316b60c37f5b3e555fd7e72b2cf9c890353ca1c730cd4cbfb55b",
+      "sha256": "ce62d7547ba7aee34559978fa4e5c6a3641a35c1543941a416091b45b0988a88",
       "sources": []
     },
     {
@@ -129,6 +129,53 @@
         "https://csrc.nist.gov/pubs/sp/800/61/r3/final",
         "https://docs.docker.com/engine/swarm/admin_guide/",
         "https://developers.cloudflare.com/support/troubleshooting/"
+      ]
+    },
+    {
+      "id": "sre-skill-supply-chain-architecture",
+      "path": "sre/architecture/skill-supply-chain-gate.md",
+      "title": "Arquitetura do Skill Supply Chain Gate",
+      "type": "architecture",
+      "audience": ["pro-master", "help-author"],
+      "environments": ["debian", "ubuntu", "wsl2", "build-repository"],
+      "topics": ["skills", "supply-chain", "provenance", "permissions"],
+      "sha256": "70bb267efb596247948b39da8d39b6c543c04a8f5c9feae069580b15a8cff904",
+      "sources": [
+        "https://slsa.dev/spec/v1.0/verifying-artifacts",
+        "https://spdx.dev/learn/handling-license-info/",
+        "https://docs.github.com/en/enterprise-cloud@latest/code-security/tutorials/secure-your-organization/protect-against-threats",
+        "https://genai.owasp.org/llmrisk/llm032025-supply-chain/"
+      ]
+    },
+    {
+      "id": "sre-skill-supply-chain-manual",
+      "path": "sre/manual/avaliar-skill-externa.md",
+      "title": "Como avaliar uma skill externa",
+      "type": "manual",
+      "audience": ["pro-master", "help-author"],
+      "environments": ["debian", "ubuntu", "wsl2", "build-repository"],
+      "topics": ["skills", "dry-run", "review", "rollback"],
+      "sha256": "562431e0520afa610e3731bc991ab763319fe18249ad33a3b9538bc518c53838",
+      "sources": [
+        "https://slsa.dev/spec/v1.0/verifying-artifacts",
+        "https://spdx.dev/learn/handling-license-info/",
+        "https://docs.github.com/en/enterprise-cloud@latest/code-security/tutorials/secure-your-organization/protect-against-threats"
+      ]
+    },
+    {
+      "id": "sre-skill-supply-chain-faq",
+      "path": "sre/faq/skills-externas.md",
+      "title": "FAQ — skills externas e agentes de servidor",
+      "type": "faq",
+      "audience": ["pro-master", "help-author"],
+      "environments": ["debian", "ubuntu", "wsl2", "docker-swarm"],
+      "topics": ["skills", "agents", "docker-socket", "trust"],
+      "sha256": "f4cddc65306f807ff530316d9828173ee26fc3e00c35f55154fd526de1268200",
+      "sources": [
+        "https://slsa.dev/spec/v1.0/verifying-artifacts",
+        "https://spdx.dev/learn/handling-license-info/",
+        "https://docs.github.com/en/enterprise-cloud@latest/code-security/tutorials/secure-your-organization/protect-against-threats",
+        "https://genai.owasp.org/llmrisk/llm032025-supply-chain/"
       ]
     },
     {

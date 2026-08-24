@@ -174,17 +174,17 @@ Ative este modo quando o usuário disser **“Modo Homologação”**, **“Modo
 ## CONTEXTO DOS AMBIENTES DO SETUP MNO
 
 ### Versão estável vigente
-- A última versão estável homologada do Setup MNO é **v7.27.0**.
-- Tag Git: `v7.27.0`.
-- Commit de release: `a325faed` (`release: v7.27.0 - central remota de certificacao PRO MASTER`).
+- A última versão estável homologada do Setup MNO é **v7.31.0**.
+- Tag Git: `v7.31.0`.
+- Commit de release: `8a56b0dd` (`feat: v7.31.0 - funda knowledge pack SRE`).
 - Este registro somente deve ser alterado quando o usuário declarar explicitamente uma nova versão como estável após a homologação.
 
 ### Retomada pactuada do roadmap de profissionalização
 - O arquivo canônico do planejamento é `1_codigo_fonte/setupmno-control/ASSISTENTE_MNO_ROADMAP.md`.
-- As releases `v7.20.0` a `v7.27.0` concluíram a fundação do selo, Runner controlado, assistente visual, Help, Central de Revisão, esteira oficial, plano PRO MASTER e certificação remota exportável. Não reinicie nem repita essas etapas.
+- As releases `v7.20.0` a `v7.31.0` concluíram a fundação do selo, Runner controlado, assistente visual, Help, Central de Revisão, esteira oficial, plano PRO MASTER, certificação remota, importação canônica, homologação essencial, supply chain/SBOM runtime e fundação do SRE Knowledge Pack. Não reinicie nem repita essas etapas.
 - Quando o usuário disser **“Modo Setup MNO Upgrade. Vamos voltar ao roadmap de melhoria de qualidade e segurança e continuar pelo próximo item pendente.”**, ative o Modo Setup MNO Upgrade, leia o roadmap canônico e retome diretamente do primeiro item ainda pendente.
 - A **v7.28.0 — Importador Canônico de Pacotes PRO MASTER e Gate de Release** foi implementada: release-pack v2 com atestação de origem, compatibilidade limitada com v7.27.0, inventário estrito, dry-run, diff, token ligado ao Git, merge por delta, ledger append-only e rollback. O importador permanece exclusivo do repositório de construção e nunca publica, commita, cria tag ou release automaticamente.
-- O primeiro item pendente passou a ser a **atestação de cadeia de suprimentos e SBOM**, preservando depois esta ordem macro: revalidação contínua, expiração, drift e revogação de selos; resiliência operacional com backup/restore/update/rollback; onboarding e convergência UX para produção; primeiros Blueprints reais homologados; otimizações semânticas ou fine-tuning somente se métricas demonstrarem ganho.
+- A **v7.32.0 — Skill Supply Chain Gate** é a etapa corrente em implementação BETA. Depois de sua validação, o próximo item da subtrilha SRE será o especialista em modo somente leitura. O backlog macro preserva esta ordem: revalidação contínua, expiração, drift e revogação de selos; resiliência operacional com backup/restore/update/rollback; onboarding e convergência UX para produção; primeiros Blueprints reais homologados; otimizações semânticas ou fine-tuning somente se métricas demonstrarem ganho.
 - Novas demandas avulsas não apagam, reordenam ou marcam esse backlog como concluído. Somente uma implementação validada e registrada no roadmap pode avançar o ponto de retomada.
 
 ### Documentação contínua e base de conhecimento humana
@@ -206,7 +206,7 @@ Ative este modo quando o usuário disser **“Modo Homologação”**, **“Modo
 - Toda proposta executável deve atravessar schema fechado, sanitização, policy gate, supply chain/SBOM, dry-run, homologação isolada, confirmação humana e handoff ao Instalador Seguro.
 - A IA nunca publica catálogo, cria commit, tag, release, DNS, Cloudflare ou deploy automaticamente.
 - Mudanças stateful sem backup consistente e restore comprovável são bloqueadas; rollback de imagem não deve ser confundido com rollback de dados.
-- O próximo item técnico do roadmap permanece supply chain e SBOM, agora também pré-requisito do primeiro pacote executável do AI Safe Mode.
+- A fundação de supply chain e SBOM do runtime foi concluída na v7.30.0. O Skill Supply Chain Gate BETA da v7.32.0 protege candidatos externos no repositório de construção; ele não instala skills nem autoriza agentes a executar ações.
 
 ### Projeto de construção
 - Este repositório é o ambiente que mantém o código-fonte, monta, protege com SHC, criptografa e empacota o instalador do Setup MNO.

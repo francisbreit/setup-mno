@@ -1,8 +1,8 @@
 # Setup MNO SRE Knowledge Pack
 
 - Estado: `implemented`
-- Versão do pack: `1.0.0`
-- Atualizado em: 2026-08-23
+- Versão do pack: `1.1.0`
+- Atualizado em: 2026-08-24
 - Público: mantenedor PRO MASTER e futura adaptação didática para clientes
 - Ambientes: Debian, Ubuntu, WSL2, Docker Desktop e Docker Swarm
 - Publicação no Control Center: não publicada
@@ -39,6 +39,12 @@ começa respondendo quatro perguntas:
    corrigir e aprender.
 8. [Perguntas frequentes](faq/primeiros-passos.md): dúvidas comuns de quem está
    começando.
+9. [Skill Supply Chain Gate — BETA](architecture/skill-supply-chain-gate.md):
+   arquitetura da alfândega de skills externas.
+10. [Avaliar uma skill — BETA](manual/avaliar-skill-externa.md): assistente
+    guiado e interpretação dos resultados.
+11. [FAQ de skills externas — BETA](faq/skills-externas.md): dúvidas sobre
+    origem, permissões, hashes e limites.
 
 ## Limites e segurança
 
@@ -61,17 +67,21 @@ validador é executado no repositório de construção:
 
 ```bash
 python3 1_codigo_fonte/setupmno-docs/tools/validate-sre-knowledge.py
+bash 1_codigo_fonte/setupmno-docs/tools/test-sre-knowledge-validator.sh
+bash 1_codigo_fonte/setupmno-docs/tools/test-skill-supply-chain-gate.sh
 ```
 
 Uma mudança documental sem atualização do manifesto falha. Essa proteção não é
 uma assinatura criptográfica de release; ela detecta divergência dentro do
-repositório e prepara o terreno para o futuro Skill Supply Chain Gate.
+repositório. O Skill Supply Chain Gate BETA aplica um contrato adicional aos
+pacotes externos, sem instalá-los ou executá-los.
 
 ## Limites atuais
 
 - Nenhum endpoint SRE foi criado.
 - Nenhum scanner foi instalado.
 - Nenhuma IA recebeu acesso ao servidor.
+- Nenhuma skill externa foi instalada ou publicada.
 - Nenhum relatório desta pasta entra automaticamente no Help.
 - Nenhum diagnóstico substitui backup, observabilidade ou um profissional em
   incidentes críticos.

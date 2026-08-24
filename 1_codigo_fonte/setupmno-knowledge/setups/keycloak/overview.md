@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Keycloak no Setup MNO",
   "setupId": "keycloak",
-  "setupVersion": "7.31.0",
+  "setupVersion": "7.32.0",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

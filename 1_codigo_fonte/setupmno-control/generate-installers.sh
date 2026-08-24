@@ -12,6 +12,22 @@ homologation_package="$project_dir/homologation-package"
 temporary_dir=$(mktemp -d)
 trap 'rm -rf "$temporary_dir"' EXIT
 
+sre_docs="$source_root/setupmno-docs"
+python3 -B "$sre_docs/tools/validate-sre-knowledge.py"
+bash "$sre_docs/tools/test-sre-knowledge-validator.sh"
+bash "$sre_docs/tools/test-skill-supply-chain-gate.sh"
+jq -e '
+    ."$schema" == "https://json-schema.org/draft/2020-12/schema" and
+    .properties.source.required == ["repository", "commit", "license", "licenseFile"] and
+    .properties.permissions.required == [
+        "networkAccess", "filesystemRead", "filesystemWrite", "commands",
+        "root", "sudo", "dockerSocket", "privileged", "hostNetwork", "secrets"
+    ]
+' "$sre_docs/sre/schema/external-skill-candidate.schema.json" >/dev/null || {
+    printf 'ERRO: schema do Skill Supply Chain Gate BETA é inválido.\n' >&2
+    exit 1
+}
+
 scrolltext_flag='--scrolltext'
 msgbox_flag='--msgbox'
 if grep -R -F --include='*.sh' --exclude='setupmno_control.sh' \

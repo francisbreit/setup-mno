@@ -59,17 +59,22 @@ Documentos atuais de arquitetura e operação:
 - `manual/verificar-supply-chain-wsl2.md`;
 - `faq/agentes-de-ia-em-vps.md`;
 - `faq/supply-chain.md`;
-- `releases/v7.30.0-supply-chain-sbom.md`.
+- `releases/v7.30.0-supply-chain-sbom.md`;
 - `sre/README.md`;
 - `sre/manifest.json`;
-- `releases/v7.31.0-sre-knowledge-pack.md`.
-- `releases/control-v4.31.1-visibilidade-beta.md`.
+- `releases/v7.31.0-sre-knowledge-pack.md`;
+- `releases/control-v4.31.1-visibilidade-beta.md`;
+- `sre/architecture/skill-supply-chain-gate.md`;
+- `sre/manual/avaliar-skill-externa.md`;
+- `sre/faq/skills-externas.md`;
+- `releases/v7.32.0-skill-supply-chain-gate.md`.
 
 Validação específica do SRE Knowledge Pack:
 
 ```bash
 python3 1_codigo_fonte/setupmno-docs/tools/validate-sre-knowledge.py
 bash 1_codigo_fonte/setupmno-docs/tools/test-sre-knowledge-validator.sh
+bash 1_codigo_fonte/setupmno-docs/tools/test-skill-supply-chain-gate.sh
 ```
 
 ## Regra a partir de agora

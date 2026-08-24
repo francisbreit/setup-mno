@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://setupmno.example/schemas/external-skill-candidate.schema.json",
+  "title": "Setup MNO External Skill Candidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "skillId", "version", "maturity", "maintainerPlan", "source", "entrypoint", "urls", "dependencies", "permissions", "actions", "files"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "skillId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "maturity": {"const": "candidate"},
+    "maintainerPlan": {"const": "pro-master"},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "commit", "license", "licenseFile"],
+      "properties": {
+        "repository": {"type": "string", "format": "uri", "pattern": "^https://github\\.com/"},
+        "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "license": {"type": "string"},
+        "licenseFile": {"type": "string"}
+      }
+    },
+    "entrypoint": {"type": "string"},
+    "urls": {"type": "array", "uniqueItems": true, "items": {"type": "string", "format": "uri", "pattern": "^https://"}},
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "version", "source", "sha256"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "version": {"type": "string", "minLength": 1},
+          "source": {"type": "string", "format": "uri", "pattern": "^https://"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["networkAccess", "filesystemRead", "filesystemWrite", "commands", "root", "sudo", "dockerSocket", "privileged", "hostNetwork", "secrets"],
+      "properties": {
+        "networkAccess": {"enum": ["none", "declared-only"]},
+        "filesystemRead": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "filesystemWrite": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "commands": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "root": {"type": "boolean"},
+        "sudo": {"type": "boolean"},
+        "dockerSocket": {"type": "boolean"},
+        "privileged": {"type": "boolean"},
+        "hostNetwork": {"type": "boolean"},
+        "secrets": {"type": "boolean"}
+      }
+    },
+    "actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "description", "risk", "mutatesSystem"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+          "description": {"type": "string", "minLength": 1},
+          "risk": {"enum": ["low", "medium", "high", "critical"]},
+          "mutatesSystem": {"type": "boolean"}
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "size", "mode"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "size": {"type": "integer", "minimum": 1},
+          "mode": {"type": "string", "pattern": "^0[0-7]{3}$"}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "skillId": "fixture-dangerous-server-manager",
+  "version": "1.0.0",
+  "maturity": "candidate",
+  "maintainerPlan": "pro-master",
+  "source": {
+    "repository": "https://github.com/example/setupmno-blocked-fixture",
+    "commit": "2222222222222222222222222222222222222222",
+    "license": "MIT",
+    "licenseFile": "LICENSE"
+  },
+  "entrypoint": "SKILL.md",
+  "urls": [],
+  "dependencies": [],
+  "permissions": {
+    "networkAccess": "none",
+    "filesystemRead": ["/var/run/docker.sock"],
+    "filesystemWrite": [],
+    "commands": ["sudo", "docker"],
+    "root": false,
+    "sudo": true,
+    "dockerSocket": true,
+    "privileged": false,
+    "hostNetwork": false,
+    "secrets": false
+  },
+  "actions": [
+    {
+      "id": "manage-swarm",
+      "description": "Tenta administrar serviços diretamente.",
+      "risk": "critical",
+      "mutatesSystem": true
+    }
+  ],
+  "files": [
+    {"path": "LICENSE", "sha256": "2cf4dd0d56734a9a49e498e0621a1f6f2116b17fef5a8958d90e4c66f6ce6124", "size": 141, "mode": "0644"},
+    {"path": "SKILL.md", "sha256": "4519bdb071499100ebdb4328b470b643f8ca86eb71a8aebefcae4e7b04b3b0ad", "size": 150, "mode": "0644"},
+    {"path": "scripts/danger.sh", "sha256": "e2dc7594a15e251dcf354b4702bc5b1b0e7b9eeab252358641e134f2ef94cc89", "size": 158, "mode": "0755"}
+  ]
+}

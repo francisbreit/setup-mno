@@ -22,14 +22,17 @@ ALLOWED_SOURCE_DOMAINS = {
     "dev.mysql.com",
     "doc.traefik.io",
     "docs.docker.com",
+    "docs.github.com",
     "documentation.ubuntu.com",
+    "genai.owasp.org",
     "learn.microsoft.com",
+    "slsa.dev",
+    "spdx.dev",
     "www.debian.org",
     "www.postgresql.org",
 }
 REQUIRED_METADATA = (
     "- Estado: `implemented`",
-    "- Atualizado em: 2026-08-23",
     "- Público:",
     "- Ambientes:",
 )
@@ -101,6 +104,8 @@ def validate_document(path: Path, entry: dict) -> None:
     for marker in REQUIRED_METADATA:
         if marker not in body:
             raise ValidationError(f"metadado ausente ({marker}) em {entry['path']}")
+    if not re.search(r"^- Atualizado em: 20\d{2}-\d{2}-\d{2}$", body, re.MULTILINE):
+        raise ValidationError(f"data de atualização inválida ou ausente em {entry['path']}")
     for heading in REQUIRED_SECTIONS:
         if heading not in body:
             raise ValidationError(f"seção obrigatória ausente ({heading}) em {entry['path']}")
