@@ -120,6 +120,37 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
+## v7.33.1 — APT não interativo no Docker Swarm e heartbeat
+
+- removido o `apt upgrade` completo que ainda existia nos instaladores
+  `dockerswarm.sh` x86 e ARM e podia abrir uma pergunta Debconf invisível;
+- dependências do Docker Swarm instaladas por helper único, não interativo,
+  com espera limitada pelo lock, preservação de configuração e falha
+  bloqueante;
+- atualização do índice separada da manutenção completa da VPS;
+- heartbeat mantém o percentual real da etapa, anima o indicador e mostra o
+  tempo decorrido enquanto o APT trabalha;
+- log técnico dedicado em `/tmp/setupmno-dockerswarm-apt.log`, sem credenciais;
+- teste determinístico cobre espelhamento, variáveis Debconf, ausência de
+  `upgrade`, heartbeat e propagação do código de falha;
+- documentação de diagnóstico evita `ps ... cmd` ou `ps ... args` em processos
+  SHC, pois essas colunas podem revelar o argumento interno entregue ao Bash.
+
+Baseline desta correção:
+
+- Setup MNO: `7.33.1` em preparação de release candidata
+- Última versão estável homologada: `7.31.0`
+- Control Center: `4.33.1`
+- Conhecimento canônico: `3.34.1`
+- SRE Knowledge Pack: `1.2.0`
+- Snapshot SRE: `1.0.0 BETA`
+- Skill Supply Chain Gate: `1.0.0 BETA`
+- Homologation Runner: `1.3.0`
+
+Esta correção não conclui nem reordena o roadmap. O próximo item da subtrilha
+SRE permanece `SRE-3` — motores determinísticos, começando por Trivy, Lynis e
+Docker Bench.
+
 ## v7.33.0 — Especialista SRE somente leitura BETA
 
 - snapshot schema 1 produzido pelo agente em endpoint fixo e autenticado;

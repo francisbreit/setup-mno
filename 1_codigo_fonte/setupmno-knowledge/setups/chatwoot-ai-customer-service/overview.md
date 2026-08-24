@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Chatwoot AI Customer Service no Setup MNO",
   "setupId": "chatwoot-ai-customer-service",
-  "setupVersion": "7.33.0",
+  "setupVersion": "7.33.1",
   "architectures": [
     "amd64",
     "arm64"

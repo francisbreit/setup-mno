@@ -35,6 +35,67 @@ bege="\e[93m"
 vermelho="\e[91m"
 reset="\e[0m"
 
+SETUPMNO_DOCKERSWARM_APT_LOG="/tmp/setupmno-dockerswarm-apt.log"
+setupmno_gauge_heartbeat_pid=""
+
+setupmno_apt() {
+    env \
+        DEBIAN_FRONTEND=noninteractive \
+        DEBCONF_NONINTERACTIVE_SEEN=true \
+        DEBIAN_PRIORITY=critical \
+        NEEDRESTART_MODE=a \
+        APT_LISTCHANGES_FRONTEND=none \
+        UCF_FORCE_CONFFOLD=1 \
+        apt-get -y \
+        -o DPkg::Lock::Timeout=300 \
+        -o Dpkg::Options::=--force-confdef \
+        -o Dpkg::Options::=--force-confold \
+        "$@"
+}
+
+setupmno_gauge_heartbeat_loop() {
+    local percent="$1" message="$2" started now elapsed frame=0
+    local -a frames=('|' '/' '-' '\')
+    printf -v started '%(%s)T' -1
+    while :; do
+        printf -v now '%(%s)T' -1
+        elapsed=$((now - started))
+        printf 'XXX\n%s\n%s  [%s]  Processando há %02d:%02d\nXXX\n' \
+            "$percent" "$message" "${frames[$frame]}" \
+            "$((elapsed / 60))" "$((elapsed % 60))"
+        frame=$(((frame + 1) % ${#frames[@]}))
+        sleep 1
+    done
+}
+
+setupmno_start_gauge_heartbeat() {
+    setupmno_stop_gauge_heartbeat
+    setupmno_gauge_heartbeat_loop "$1" "$2" &
+    setupmno_gauge_heartbeat_pid=$!
+}
+
+setupmno_stop_gauge_heartbeat() {
+    if [ -n "$setupmno_gauge_heartbeat_pid" ]; then
+        kill "$setupmno_gauge_heartbeat_pid" 2>/dev/null || true
+        wait "$setupmno_gauge_heartbeat_pid" 2>/dev/null || true
+        setupmno_gauge_heartbeat_pid=""
+    fi
+}
+
+setupmno_run_apt_step() {
+    local percent="$1" message="$2" status
+    shift 2
+    setupmno_start_gauge_heartbeat "$percent" "$message"
+    setupmno_apt "$@" >>"$SETUPMNO_DOCKERSWARM_APT_LOG" 2>&1
+    status=$?
+    setupmno_stop_gauge_heartbeat
+    if [ "$status" -ne 0 ]; then
+        printf 'XXX\n100\nERRO NO GERENCIADOR DE PACOTES. CONSULTE %s\nXXX\n' \
+            "$SETUPMNO_DOCKERSWARM_APT_LOG"
+    fi
+    return "$status"
+}
+
 control_center_installed() {
     command -v docker >/dev/null 2>&1 || return 1
     docker service ls --format '{{.Name}}' 2>/dev/null |
@@ -1726,37 +1787,36 @@ fi
 cd /
 cd
 
-# Pacotes base
-apt-get install sudo -y >/dev/null 2>&1
-sudo apt-get update -y >/dev/null 2>&1
-sudo apt upgrade -y >/dev/null 2>&1
-sudo apt-get install -y apt-utils >/dev/null 2>&1
-sudo apt-get install -y apparmor-utils >/dev/null 2>&1
-# sudo DEBIAN_FRONTEND=noninteractive apt install -y dnsutils >/dev/null 2>&1
-apt install -y sudo gnupg2 wget ca-certificates apt-transport-https curl gnupg nano htop lsb-release >/dev/null 2>&1
-sudo install -m 0755 -d /etc/apt/keyrings >/dev/null 2>&1
-sudo apt-get install jq -y >/dev/null 2>&1
-sudo apt-get install git -y >/dev/null 2>&1
+: >"$SETUPMNO_DOCKERSWARM_APT_LOG"
+chmod 0600 "$SETUPMNO_DOCKERSWARM_APT_LOG"
+
+# O Setup instala somente suas dependências. A manutenção completa da VPS é
+# uma tarefa separada e nunca deve abrir perguntas escondidas atrás do gauge.
+setupmno_run_apt_step 17 "ATUALIZANDO O ÍNDICE DE PACOTES..." update || exit 1
+setupmno_run_apt_step 20 "INSTALANDO DEPENDÊNCIAS DO SETUP MNO..." install \
+    sudo apt-utils apparmor-utils gnupg2 wget ca-certificates \
+    apt-transport-https curl gnupg nano htop lsb-release jq git \
+    postgresql-client btop || exit 1
+install -m 0755 -d /etc/apt/keyrings >>"$SETUPMNO_DOCKERSWARM_APT_LOG" 2>&1 || exit 1
 
 # Preparar repositório Docker (usa caminho apropriado para debian/ubuntu)
-sudo apt-get update -y >/dev/null 2>&1
-sudo apt-get install -y ca-certificates curl gnupg lsb-release >/dev/null 2>&1
-sudo install -m 0755 -d /etc/apt/keyrings >/dev/null 2>&1
-
 # Baixa a chave e cria keyring no local recomendado
-curl -fsSL "https://download.docker.com/linux/${OS_ID}/gpg" \
-| sudo gpg --batch --yes --dearmor -o /etc/apt/keyrings/docker.gpg >/dev/null 2>&1
+if ! curl -fsSL "https://download.docker.com/linux/${OS_ID}/gpg" \
+    | gpg --batch --yes --dearmor -o /etc/apt/keyrings/docker.gpg \
+        >>"$SETUPMNO_DOCKERSWARM_APT_LOG" 2>&1; then
+    echo -e "XXX\n100\nERRO AO CONFIGURAR O REPOSITÓRIO DO DOCKER. CONSULTE $SETUPMNO_DOCKERSWARM_APT_LOG\nXXX"
+    exit 1
+fi
 
-sudo chmod a+r /etc/apt/keyrings/docker.gpg >/dev/null 2>&1
+chmod a+r /etc/apt/keyrings/docker.gpg >>"$SETUPMNO_DOCKERSWARM_APT_LOG" 2>&1 || exit 1
 
 echo \
 "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
 https://download.docker.com/linux/${OS_ID} \
 ${VERSION_CODENAME} stable" \
-| sudo tee /etc/apt/sources.list.d/docker.list >/dev/null 2>&1
+| tee /etc/apt/sources.list.d/docker.list >>"$SETUPMNO_DOCKERSWARM_APT_LOG" 2>&1 || exit 1
 
-
-sudo apt-get update -y >/dev/null 2>&1
+setupmno_run_apt_step 23 "VALIDANDO O REPOSITÓRIO DO DOCKER..." update || exit 1
 
 
 # Instala o Docker (Se for VPS) ou Pula (Se for WSL2)
@@ -1764,8 +1824,9 @@ echo -e "XXX\n25\nATUALIZANDO PACOTES DO SERVIDOR 1/4 - CONCLUIDO \nXXX"
 
 if [ "$IS_WSL" -eq 0 ]; then
     # --- INSTALAÇÃO NA NUVEM (VPS) ---
-    echo -e "XXX\n25\nINSTALANDO DOCKER ENGINE 2/4 \nXXX"
-    sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin >/dev/null 2>&1
+    setupmno_run_apt_step 25 "INSTALANDO DOCKER ENGINE 2/4..." install \
+        docker-ce docker-ce-cli containerd.io docker-buildx-plugin \
+        docker-compose-plugin || exit 1
 
     # 🔧 CORREÇÃO PARA COMPATIBILIDADE DA API DOCKER
     echo -e "XXX\n28\nCONFIGURANDO COMPATIBILIDADE DA API DOCKER\nXXX"
@@ -1797,7 +1858,6 @@ else
 fi
 
 sudo timedatectl set-timezone America/Sao_Paulo >/dev/null 2>&1
-sudo apt-get install -y postgresql-client >/dev/null 2>&1
 
 sleep 5
 
@@ -1833,8 +1893,6 @@ docker network create --driver=overlay externa >/dev/null 2>&1
 docker network create --driver=overlay interna >/dev/null 2>&1
 
 
-sudo apt install -y ca-certificates curl gnupg >/dev/null 2>&1
-sudo apt install -y btop >/dev/null 2>&1
 cd
 cd
 
@@ -2784,8 +2842,8 @@ INSTALL_GAUGE_STATUS=$?
 set +o pipefail
 if [ "$INSTALL_GAUGE_STATUS" -ne 0 ]; then
     whiptail --title "INSTALAÇÃO INTERROMPIDA COM SEGURANÇA" --msgbox \
-        "Uma etapa obrigatória falhou e o rollback dos recursos automáticos foi executado.\n\nLog técnico: $PRIMARY_TUNNEL_LOG\n\nCorrija a causa indicada no log e execute setup-mno novamente." \
-        15 82
+        "Uma etapa obrigatória falhou e o rollback dos recursos automáticos foi executado quando aplicável.\n\nLog do gerenciador de pacotes:\n$SETUPMNO_DOCKERSWARM_APT_LOG\n\nLog do Cloudflare Tunnel:\n$PRIMARY_TUNNEL_LOG\n\nCorrija a causa indicada no log e execute setup-mno novamente." \
+        19 86
     exit 1
 fi
 
