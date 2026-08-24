@@ -114,6 +114,7 @@ bash "$project_dir/primary-tunnel-bootstrap_test.sh"
 bash "$project_dir/cloudflare-route-guard_test.sh"
 bash "$project_dir/wsl-docker-preflight_test.sh"
 bash "$project_dir/debian13-apt-recovery_test.sh"
+bash "$project_dir/apt-noninteractive_test.sh"
 bash "$project_dir/catalog-html-count_test.sh"
 python3 -B "$project_dir/supply_chain_test.py" -v
 python3 -B "$source_root/setupmno-knowledge/tools/test_homologation_runner.py"
@@ -211,8 +212,8 @@ for architecture in x86 arm; do
     bash -n "$security_diagnostic_script"
     bash -n "$foundation_script"
     bash -n "$start_script"
-    grep -Fq 'apt-get install -y wget curl unzip zip jq python3 build-essential' "$start_script" || {
-        printf 'ERRO: %s não instala o Python 3 exigido pelo Homologation Runner.\n' \
+    grep -Fq 'setupmno_apt install sudo wget curl unzip zip jq python3 build-essential' "$start_script" || {
+        printf 'ERRO: %s não instala as dependências não interativas exigidas pelo Homologation Runner.\n' \
             "$architecture" >&2
         exit 1
     }

@@ -117,6 +117,36 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
+## v7.32.2 — APT não interativo e bootstrap determinístico
+
+- removido o `apt-get upgrade` completo e repetido dos bootstraps padrão,
+  Oracle e gatilhos x86/ARM;
+- `apt-get update` executado uma vez por etapa e instalação limitada às
+  dependências necessárias ao Setup MNO;
+- Debconf em modo não interativo, preservação de arquivos de configuração,
+  espera limitada pelo lock do APT e tratamento automático do `needrestart`;
+- executor do spinner sem `eval`, com argumentos estruturados, log técnico e
+  propagação real do código de saída;
+- falha do APT passa a interromper o fluxo em vez de apenas imprimir `✗` e
+  continuar em estado parcial;
+- teste determinístico simula sucesso e falha sem executar APT real nem alterar
+  o host;
+- manutenção completa do sistema operacional permanece responsabilidade
+  separada do instalador do Setup MNO.
+
+Baseline desta correção:
+
+- Setup MNO: `7.32.2` em preparação de release candidata
+- Última versão estável homologada: `7.31.0`
+- Control Center: `4.32.2`
+- Conhecimento canônico: `3.33.2`
+- SRE Knowledge Pack: `1.1.0`
+- Skill Supply Chain Gate: `1.0.0 BETA`
+- Homologation Runner: `1.3.0`
+
+Esta correção não conclui nem reordena o roadmap. O próximo item da subtrilha
+SRE permanece `SRE-2` — Especialista em modo somente leitura.
+
 ## v7.32.1 — Heartbeat na instalação do Control Center
 
 - heartbeat aplicado às três operações lentas observadas na instalação:

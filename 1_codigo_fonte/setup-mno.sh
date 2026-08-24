@@ -1,6 +1,6 @@
 #!/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 22:39:34
-VERSIONSETUP="7.32.1"
+VERSIONSETUP="7.32.2"
 
 
 
@@ -47,6 +47,17 @@ setupmno_prepare_debian13_apt() {
         rm -f -- "$source_list" || return 1
     fi
     [ ! -f "$keyring" ] || rm -f -- "$keyring"
+}
+
+setupmno_apt() {
+    env \
+        DEBIAN_FRONTEND=noninteractive \
+        DEBCONF_NONINTERACTIVE_SEEN=true \
+        NEEDRESTART_MODE=a \
+        apt-get -y \
+        -o DPkg::Lock::Timeout=300 \
+        -o Dpkg::Options::=--force-confold \
+        "$@"
 }
 
 setupmno_wsl_docker_alert() {
@@ -258,9 +269,9 @@ fix_wsl_clock() {
             sudo rm -rf /var/lib/apt/lists/* >/dev/null 2>&1
             sudo apt-get clean >/dev/null 2>&1
 
-            sudo apt-get update -y >/dev/null 2>&1
+            setupmno_apt update >/dev/null 2>&1
 
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install ntpdate -y >/dev/null 2>&1
+            setupmno_apt install ntpdate >/dev/null 2>&1
 
             sudo ntpdate pool.ntp.org >/dev/null 2>&1
 
@@ -781,7 +792,7 @@ spinner() {
 
     local spinstr='|/-\'
 
-    while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
+    while kill -0 "$pid" 2>/dev/null; do
 
         local temp=${spinstr#?}
 
@@ -804,53 +815,23 @@ spinner() {
 # Função para executar comandos com spinner
 
 execute_with_spinner() {
-
-    local command="$1"
-
-    local message="$2"
-
-    
-
+    local message="$1" pid status
+    local log_file="${SETUPMNO_COMMAND_LOG:-/tmp/setup-mno-bootstrap.log}"
+    shift
     echo -n -e "$branco$message $reset"
-
-    
-
-    # Executa o comando em background
-
-    eval "$command" >/dev/null 2>&1 &
-
-    
-
-    # Captura o PID do processo
-
-    local pid=$!
-
-    
-
-    # Mostra o spinner
-
-    spinner $pid
-
-    
-
-    # Espera o processo terminar
-
-    wait $pid
-
-    
-
-    # Verifica se o comando foi bem sucedido
-
-    if [ $? -eq 0 ]; then
-
+    "$@" >>"$log_file" 2>&1 &
+    pid=$!
+    spinner "$pid"
+    wait "$pid"
+    status=$?
+    if [ "$status" -eq 0 ]; then
         echo -e "$verde✓$reset"
-
     else
-
         echo -e "$vermelho✗$reset"
-
+        printf 'Falha em: %s\nLog técnico: %s\n' "$message" "$log_file" >&2
+        tail -n 20 "$log_file" >&2
     fi
-
+    return "$status"
 }
 
 
@@ -866,30 +847,16 @@ if ! setupmno_prepare_debian13_apt; then
     exit 1
 fi
 
-execute_with_spinner "apt-get update -y" "Atualizando lista de pacotes..."
-
-execute_with_spinner "apt-get upgrade -y" "Atualizando sistema. Aguarde..."
-
-execute_with_spinner "apt-get install sudo -y" "Instalando dependências 1 de 7..."
-
-execute_with_spinner "sudo apt-get update -y" "Instalando dependências 2 de 7..."
-
-execute_with_spinner "sudo apt-get upgrade -y" "Instalando dependências 3 de 7..."
-
-execute_with_spinner "sudo apt-get install -y dnsutils" "Instalando dependências 4 de 7..."
-
-execute_with_spinner "sudo apt-get install dialog -y" "Instalando dependências 5 de 7..."
-
-execute_with_spinner "sudo apt-get install whiptail -y" "Instalando dependências 6 de 7..."
-
-execute_with_spinner "sudo apt-get install jq -y" "Instalando dependências 7 de 7...."
+SETUPMNO_COMMAND_LOG="/tmp/setup-mno-bootstrap-apt.log"
+: >"$SETUPMNO_COMMAND_LOG"
+execute_with_spinner "Atualizando lista de pacotes..." setupmno_apt update || exit 1
+execute_with_spinner "Instalando dependências obrigatórias..." \
+    setupmno_apt install sudo dnsutils dialog whiptail jq tmux || exit 1
 
 
 #########################################################
 # INÍCIO DO CÓDIGO ADICIONADO - INSTALAÇÃO DO TMUX
 #########################################################
-
-execute_with_spinner "sudo apt-get install tmux -y" "Instalando TMUX para proteção da sessão..."
 
 # Confirma se o TMUX foi realmente instalado.
 # O install.sh apenas utiliza o TMUX; a instalação fica centralizada aqui.
@@ -951,14 +918,6 @@ sleep 6
 dialog --title "Baixando o Setup do Instalador do SetupMno - Etapa 2/2" --infobox "1) Verificando as configurações do Linux escolhido e ajustando a performance\n2) Validando as configurações do servidor e instalando\n3)Este processo pode demorar alguns minutos. Por favor, aguarde." 8 70
 
 sleep 6
-
-
-
-# Atualiza o servidor (em silêncio)
-
-sudo apt-get update -y >/dev/null 2>&1
-
-sudo apt-get upgrade -y >/dev/null 2>&1
 
 
 

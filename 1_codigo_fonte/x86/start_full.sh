@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.32.1"
+VERSIONSETUP="7.32.2"
 EXPECTED_CATALOG_ENTRIES="158"
 EXPECTED_EVAL_DATASET_VERSION="1.17.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
@@ -32,6 +32,17 @@ setupmno_prepare_debian13_apt() {
         rm -f -- "$source_list" || return 1
     fi
     [ ! -f "$keyring" ] || rm -f -- "$keyring"
+}
+
+setupmno_apt() {
+    env \
+        DEBIAN_FRONTEND=noninteractive \
+        DEBCONF_NONINTERACTIVE_SEEN=true \
+        NEEDRESTART_MODE=a \
+        apt-get -y \
+        -o DPkg::Lock::Timeout=300 \
+        -o Dpkg::Options::=--force-confold \
+        "$@"
 }
 
 setupmno_prepare_debian13_apt || {
@@ -451,9 +462,6 @@ if ! prepare_setup_directory_preserving_control "/root/SetupLowCodeMno"; then
     printf 'Não foi possível preparar a reinstalação sem remover o estado runtime do Control Center.\n' >"$control_state_error"
     exit 41
 fi
-apt-get install sudo -y >/dev/null 2>&1
-sudo apt-get update -y >/dev/null 2>&1
-sudo apt-get upgrade -y >/dev/null 2>&1
 echo -e "XXX\n25\nSETUPMNO: DESCOMPACTANDO ARQUIVOS 1/8 - CONCLUIDO \nXXX"
 echo -e "XXX\n25\nAGUARDE: ISSO PODE LEVAR ALGUNS MINUTOS... 2/8 \nXXX"
 
@@ -472,11 +480,22 @@ rm -f SetupLowCodeMno.zip
 echo -e "XXX\n25\nSETUPMNO: INSTALANDO DEPENDÊNCIAS... 2/8 \nXXX"
 
 # 2. Atualizar lista de pacotes e instalar dependências essenciais
-apt-get update -y >/dev/null 2>&1
-apt-get install -y wget curl unzip zip jq python3 build-essential >/dev/null 2>&1
-if [ $? -ne 0 ]; then
-    echo "Falha na instalação das dependências." >&2
-    exit 1
+SETUPMNO_APT_LOG="/tmp/setupmno-start-apt.log"
+: >"$SETUPMNO_APT_LOG"
+if ! setupmno_apt update >>"$SETUPMNO_APT_LOG" 2>&1; then
+    {
+        echo "Falha ao atualizar a lista de pacotes sem interação."
+        tail -n 20 "$SETUPMNO_APT_LOG"
+    } >"$control_state_error"
+    exit 42
+fi
+if ! setupmno_apt install sudo wget curl unzip zip jq python3 build-essential \
+    >>"$SETUPMNO_APT_LOG" 2>&1; then
+    {
+        echo "Falha na instalação não interativa das dependências."
+        tail -n 20 "$SETUPMNO_APT_LOG"
+    } >"$control_state_error"
+    exit 42
 fi
 
 echo -e "XXX\n30\nSETUPMNO: DEPENDÊNCIAS INSTALADAS. VERIFICANDO SHC... 2/8 \nXXX"

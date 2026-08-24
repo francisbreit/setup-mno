@@ -95,16 +95,16 @@ done
 
 for script in "$source_root/setup-mno.sh" "$source_root/setup-mno-oracle.sh"; do
     recovery_line=$(grep -n '^if ! setupmno_prepare_debian13_apt; then' "$script" | head -n1 | cut -d: -f1)
-    apt_line=$(grep -n 'execute_with_spinner "apt-get update -y"' "$script" | head -n1 | cut -d: -f1)
+    apt_line=$(grep -n 'execute_with_spinner "Atualizando lista de pacotes..." setupmno_apt update' "$script" | head -n1 | cut -d: -f1)
     [ -n "$recovery_line" ] && [ -n "$apt_line" ] && [ "$recovery_line" -lt "$apt_line" ] || \
-        fail "limpeza não ocorre antes do apt-get update em $script"
+        fail "limpeza não ocorre antes do APT não interativo em $script"
 done
 
 for script in "$source_root/x86/start_full.sh" "$source_root/arm/start_arm_full.sh"; do
     recovery_line=$(grep -n '^setupmno_prepare_debian13_apt || {' "$script" | head -n1 | cut -d: -f1)
-    apt_line=$(grep -n 'apt-get update' "$script" | head -n1 | cut -d: -f1)
+    apt_line=$(grep -n 'setupmno_apt update >>"\$SETUPMNO_APT_LOG"' "$script" | head -n1 | cut -d: -f1)
     [ -n "$recovery_line" ] && [ -n "$apt_line" ] && [ "$recovery_line" -lt "$apt_line" ] || \
-        fail "limpeza não ocorre antes do apt-get update em $script"
+        fail "limpeza não ocorre antes do APT não interativo em $script"
 done
 
 for script in \
