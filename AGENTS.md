@@ -42,6 +42,44 @@ Você é um Arquiteto de DevOps Sênior. Sua missão é manter, evoluir e proteg
   didática de Docker Swarm e instalação de aplicações, sem alegar autoridade
   oficial ou esconder limitações técnicas.
 
+## POLÍTICA DE FUNCIONALIDADES BETA E MATURIDADE DO PRODUTO
+
+- Toda funcionalidade ainda em amadurecimento deve exibir a palavra **BETA** de
+  forma clara e legível. Nunca esconda essa condição somente em nota de release,
+  rodapé, tooltip, documentação técnica ou mensagem apresentada depois da ação.
+- Quando aplicável, a indicação deve aparecer no ponto de entrada da
+  funcionalidade, no cabeçalho da tela, nos cartões ou diálogos que permitem
+  usá-la e no respectivo conteúdo do Help.
+- A explicação para o usuário deve informar, em linguagem simples: o que já
+  funciona, o que ainda não foi homologado, quais cuidados são necessários e
+  como enviar feedback sem revelar credenciais ou dados pessoais.
+- **BETA** significa que a funcionalidade está disponível para testes
+  controlados, mas pode mudar e ainda possui limites conhecidos. **EM BREVE**
+  significa que a funcionalidade ou o material ainda não está disponível. Os
+  dois estados nunca devem ser usados como sinônimos.
+- O estado da funcionalidade é diferente do estado de seus artefatos. A área de
+  Blueprints pode permanecer BETA mesmo que um Blueprint individual possua selo
+  de homologação. Um artefato homologado não promove automaticamente toda a
+  funcionalidade para estável.
+- Funcionalidades BETA recebem os mesmos controles obrigatórios de autenticação,
+  autorização, segregação por plano, proteção de dados, auditoria e fail closed
+  das funcionalidades estáveis. A etiqueta BETA nunca reduz a exigência de
+  segurança.
+- Uma funcionalidade BETA não pode ser apresentada como estável, pronta para
+  produção irrestrita ou totalmente homologada. Textos comerciais, Help,
+  instalador e Control Center devem usar a mesma classificação.
+- A promoção de BETA para estável exige critérios escritos, testes nos ambientes
+  declarados, falhas conhecidas registradas, rollback e declaração explícita de
+  Francis MNO. Remover visualmente a etiqueta sem essas evidências é falha de
+  release.
+- O Assistente MNO e a área de Blueprints permanecem BETA até declaração
+  explícita em contrário. O Help deve diferenciar a área de Blueprints já
+  disponível em BETA do manual completo de Blueprints ainda marcado como
+  **EM BREVE**.
+- Toda nova feature deve declarar sua maturidade como `draft`, `beta`, `stable`,
+  `deprecated` ou `retired`. Estado ausente ou inválido bloqueia sua divulgação
+  como funcionalidade estável.
+
 ## MODOS DE OPERAÇÃO DA IA
 Sempre identifique o modo de trabalho antes de agir. Se não estiver claro, pergunte-me.
 

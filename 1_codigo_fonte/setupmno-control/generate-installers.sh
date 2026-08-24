@@ -676,12 +676,16 @@ grep -Fq 'function renderAssistantAvailability' "$project_dir/web/app.js" || {
 grep -Fq 'data-view="help"' "$project_dir/web/index.html" &&
 grep -Fq 'id="view-help"' "$project_dir/web/index.html" &&
 grep -Fq 'id="help-search"' "$project_dir/web/index.html" &&
-grep -Fq 'Manual de Blueprints' "$project_dir/web/index.html" &&
-grep -Fq 'Em breve' "$project_dir/web/index.html" &&
+grep -Fq '<em>BETA</em><b id="nav-blueprint-count">' "$project_dir/web/index.html" &&
+grep -Fq 'Área BETA · Ecossistemas guiados passo a passo' "$project_dir/web/index.html" &&
+grep -Fq 'MNO Insights · BETA' "$project_dir/web/index.html" &&
+grep -Fq 'BETA · Manual completo em breve' "$project_dir/web/index.html" &&
+grep -Fq 'O que significa a etiqueta BETA?' "$project_dir/web/index.html" &&
+grep -Fq '“Em breve” indica algo que ainda não está disponível' "$project_dir/web/index.html" &&
 grep -Fq 'function bindHelpCenter' "$project_dir/web/app.js" &&
 grep -Fq 'function filterHelpTopics' "$project_dir/web/app.js" &&
 grep -Fq '.help-search-panel' "$project_dir/web/styles.css" || {
-    printf 'ERRO: Central de Ajuda ausente, sem pesquisa local ou sem layout responsivo.\n' >&2
+    printf 'ERRO: Central de Ajuda ausente, sem política Beta, pesquisa local ou layout responsivo.\n' >&2
     exit 1
 }
 

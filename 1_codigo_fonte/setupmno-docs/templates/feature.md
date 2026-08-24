@@ -3,6 +3,7 @@
 - Versão planejada:
 - Versão entregue:
 - Estado: `draft`
+- Maturidade da funcionalidade: `draft`, `beta`, `stable`, `deprecated` ou `retired`
 - Atualizado em:
 - Responsável: mantenedor PRO MASTER
 - Ambientes: VPS Debian/Ubuntu, WSL2 ou ambos
@@ -31,6 +32,15 @@ a analogia deixa de representar o comportamento técnico real.
 3. Confirmações necessárias.
 4. Resultado visível.
 5. Próximo passo seguro.
+
+## Visibilidade da maturidade
+
+- [ ] rótulo visível no ponto de entrada;
+- [ ] estado explicado no cabeçalho ou introdução da tela;
+- [ ] ações, cartões e diálogos não escondem o estado;
+- [ ] Help informa o que funciona e o que ainda não foi homologado;
+- [ ] texto comercial usa a mesma classificação;
+- [ ] promoção para estável possui evidências e aprovação de Francis MNO.
 
 ## Como funciona por dentro — nota técnica para DevOps
 

@@ -53,6 +53,7 @@ uma hipótese em fato. O padrão completo está em
 Documentos atuais de arquitetura e operação:
 
 - `manual/padrao-didatico-francis-mno.md`;
+- `manual/politica-de-funcionalidades-beta.md`;
 - `architecture/ai-safe-mode.md`;
 - `architecture/supply-chain-sbom.md`;
 - `manual/verificar-supply-chain-wsl2.md`;
@@ -62,6 +63,7 @@ Documentos atuais de arquitetura e operação:
 - `sre/README.md`;
 - `sre/manifest.json`;
 - `releases/v7.31.0-sre-knowledge-pack.md`.
+- `releases/control-v4.31.1-visibilidade-beta.md`.
 
 Validação específica do SRE Knowledge Pack:
 
@@ -101,12 +103,29 @@ Uma feature estrutural deve possuir também documento em `architecture/` ou
 O estado documental nunca substitui o estado da release, do selo ou das
 evidências técnicas.
 
+## Maturidade das funcionalidades
+
+O estado editorial de um documento e a maturidade da funcionalidade são
+informações diferentes. Toda feature deve declarar uma destas classificações:
+
+- `draft`: ainda é projeto e não pode ser apresentada como disponível;
+- `beta`: disponível para testes controlados, com limites claramente visíveis;
+- `stable`: passou pelos critérios definidos e foi promovida expressamente;
+- `deprecated`: ainda funciona, mas será substituída ou removida;
+- `retired`: não está mais disponível.
+
+O rótulo BETA deve aparecer antes do uso, dentro da experiência e no Help. O
+guia completo está em `manual/politica-de-funcionalidades-beta.md`.
+
 ## Definition of Done documental
 
 Antes de declarar uma feature concluída, o mantenedor deve confirmar:
 
 - [ ] documento sem credenciais, IPs, hostnames ou dados de clientes;
 - [ ] versão, data, estado e público identificados;
+- [ ] maturidade da funcionalidade declarada e consistente nas interfaces;
+- [ ] recursos Beta possuem aviso visível antes do uso, limites e canal de
+      feedback seguro;
 - [ ] comportamento real conferido contra o código distribuído;
 - [ ] resumo compreensível sem conhecimento prévio de DevOps;
 - [ ] termos técnicos explicados e camada de auditoria técnica preservada;

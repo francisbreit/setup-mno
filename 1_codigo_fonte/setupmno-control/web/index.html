@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#070a0f">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=4.31.0">
+  <link rel="stylesheet" href="/styles.css?v=4.31.1">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -60,8 +60,8 @@
         <button class="nav-item active" data-view="dashboard"><span class="nav-icon">⌂</span><span>Visão geral</span></button>
         <button class="nav-item" data-view="installed"><span class="nav-icon">◫</span><span>Aplicações instaladas</span><b id="nav-app-count">0</b></button>
         <button class="nav-item" data-view="catalog"><span class="nav-icon">◇</span><span>Catálogo de setups</span></button>
-        <button class="nav-item" data-view="blueprints"><span class="nav-icon">⌘</span><span>Blueprints</span><b id="nav-blueprint-count">0</b></button>
-        <button class="nav-item" data-view="assistant"><span class="nav-icon">✦</span><span>Assistente MNO</span><em>Beta</em></button>
+        <button class="nav-item" data-view="blueprints"><span class="nav-icon">⌘</span><span>Blueprints</span><span class="nav-meta"><em>BETA</em><b id="nav-blueprint-count">0</b></span></button>
+        <button class="nav-item" data-view="assistant"><span class="nav-icon">✦</span><span>Assistente MNO</span><em>BETA</em></button>
         <button class="nav-item maintainer-only" data-view="homologation" data-maintainer-only hidden><span class="nav-icon">✓</span><span>Revisão de Homologação</span><em>PRO MASTER</em><b id="nav-homologation-count">0</b></button>
         <button class="nav-item" data-view="audit"><span class="nav-icon">≡</span><span>Auditoria</span></button>
         <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span><span>Configurações</span></button>
@@ -200,7 +200,7 @@
 
         <section id="view-blueprints" class="view">
           <div class="blueprint-intro">
-            <div><p class="eyebrow">Ecossistemas guiados passo a passo</p><h2>Blueprints MNO</h2><p>Escolha um objetivo, siga a instalação na ordem indicada e conecte as ferramentas com validações e rollback claros.</p></div>
+            <div><p class="eyebrow">Área BETA · Ecossistemas guiados passo a passo</p><h2>Blueprints MNO</h2><p>Escolha um objetivo e conecte as ferramentas com validações e rollback claros. Esta área está em amadurecimento: confirme cada etapa e não trate uma recomendação como deploy automático homologado.</p></div>
             <div class="blueprint-totals" aria-label="Resumo do catálogo de Blueprints">
               <span><strong id="blueprint-total">—</strong><small>Total</small></span>
               <span class="homologated"><strong id="blueprint-homologated-total">—</strong><small>Homologados</small></span>
@@ -251,7 +251,7 @@
         <section id="view-assistant" class="view">
           <div class="assistant-layout">
             <article class="assistant-main panel">
-              <div class="assistant-identity"><span>✦</span><div><p class="eyebrow">MNO Insights</p><h2>Copiloto de infraestrutura</h2></div><em id="assistant-mode">Básico</em></div>
+              <div class="assistant-identity"><span>✦</span><div><p class="eyebrow">MNO Insights · BETA</p><h2>Copiloto de infraestrutura</h2></div><em id="assistant-mode">Básico</em></div>
               <div id="assistant-chat">
                 <div id="assistant-conversation" class="conversation">
                   <div class="message assistant-message">
@@ -498,11 +498,11 @@
             <article class="help-feature-card help-topic" data-help-topic data-help-category="operate" data-help-search="catálogo setups pesquisar categorias ram arquitetura selo homologação instalar deploy">
               <span class="help-feature-icon violet">◇</span><div><h3>Catálogo de setups</h3><p>Lista configurações instaláveis. Um setup pode ser uma aplicação individual, uma variante ou um combo. Confira RAM, arquitetura e maturidade antes de abrir o instalador.</p></div><button type="button" data-nav="catalog">Explorar catálogo <b>→</b></button>
             </article>
-            <article class="help-feature-card help-topic coming-soon" data-help-topic data-help-category="operate" data-help-search="blueprints arquitetura receita integração passo a passo em breve">
-              <span class="help-feature-icon cyan">⌘</span><div><span class="help-status">Em breve</span><h3>Manual de Blueprints</h3><p>A documentação completa explicará como uma receita combina vários setups, integrações, validações e rollback. Até lá, trate os guias Beta como material de consulta, nunca como deploy automático homologado.</p></div><button type="button" data-nav="blueprints">Conhecer a área <b>→</b></button>
+            <article class="help-feature-card help-topic coming-soon" data-help-topic data-help-category="operate" data-help-search="blueprints beta arquitetura receita integração passo a passo em breve">
+              <span class="help-feature-icon cyan">⌘</span><div><span class="help-status">BETA · Manual completo em breve</span><h3>Blueprints</h3><p>A área e seus guias Beta já podem ser consultados, mas ainda estão em amadurecimento. Eles não executam deploy automático. O manual completo explicará como combinar setups, integrações, validações e rollback.</p></div><button type="button" data-nav="blueprints">Conhecer a área Beta <b>→</b></button>
             </article>
             <article class="help-feature-card help-topic" data-help-topic data-help-category="operate" data-help-search="assistente mno ia llm diagnóstico básico openai openrouter deepseek ollama perguntas recomendação">
-              <span class="help-feature-icon violet">✦</span><div><h3>Assistente MNO</h3><p>Ajuda a interpretar saúde, capacidade, setups, segurança, integrações e falhas. No modo Básico, executa diagnóstico local sem LLM. Com provedor opcional, responde com conhecimento do Setup MNO e contexto minimizado.</p></div><button type="button" data-nav="assistant">Abrir Assistente <b>→</b></button>
+              <span class="help-feature-icon violet">✦</span><div><span class="help-status">BETA</span><h3>Assistente MNO</h3><p>Ajuda a interpretar saúde, capacidade, setups, segurança, integrações e falhas. Como recurso Beta, suas respostas são orientações e precisam de revisão humana. Ele não executa comandos. No modo Básico, usa diagnóstico local sem LLM.</p></div><button type="button" data-nav="assistant">Abrir Assistente Beta <b>→</b></button>
             </article>
             <article class="help-feature-card help-topic" data-help-topic data-help-category="operate" data-help-search="auditoria eventos login terminal rastreabilidade feedback segurança histórico">
               <span class="help-feature-icon orange">≡</span><div><h3>Auditoria</h3><p>Registra eventos administrativos e de segurança sem armazenar senhas nem o texto das conversas. Use a trilha para entender quando uma sessão ou recurso protegido foi acessado.</p></div><button type="button" data-nav="audit">Ver auditoria <b>→</b></button>
@@ -582,6 +582,7 @@
             <div><dt>Stack</dt><dd>Conjunto implantado no Docker Swarm, formado por um ou mais serviços.</dd></div>
             <div><dt>Serviço</dt><dd>Unidade executada pelo Swarm com imagem, rede, volumes, limites e quantidade de réplicas.</dd></div>
             <div><dt>Blueprint</dt><dd>Receita orientada a um resultado, combinando setups, ordem, integrações, validações e rollback.</dd></div>
+            <div><dt>Beta</dt><dd>Funcionalidade disponível para testes controlados, mas ainda em amadurecimento. Pode mudar e seus limites devem ser lidos antes do uso.</dd></div>
             <div><dt>Selo de Homologação</dt><dd>Evidência de que uma versão passou pelos gates definidos. Não significa que qualquer combinação futura está automaticamente aprovada.</dd></div>
           </dl>
 
@@ -604,6 +605,7 @@
             <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="fechar navegador instalação continua tmux terminal"><summary>Se eu fechar o navegador, a instalação para?<b>＋</b></summary><p>Uma operação já iniciada no tmux pode continuar. Autentique-se novamente e retome a sessão. Se o instalador ainda aguardava uma resposta, volte antes do timeout.</p></details>
             <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="atualizar apaga dados volumes backup"><summary>Atualizar o Setup MNO apaga minhas aplicações?<b>＋</b></summary><p>O fluxo de atualização foi desenhado para reconciliar o Setup e preservar recursos existentes. Ainda assim, mantenha backups e leia todas as confirmações antes de qualquer operação administrativa.</p></details>
             <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="setup aplicação contagem catálogo números diferentes"><summary>Por que “setups” não significa “aplicações únicas”?<b>＋</b></summary><p>Porque o catálogo conta opções instaláveis. Variantes, versões e combos podem usar a mesma aplicação em configurações diferentes.</p></details>
+            <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="beta teste experimental estável produção em breve"><summary>O que significa a etiqueta BETA?<b>＋</b></summary><p>Significa que o recurso já pode ser testado, mas ainda está sendo amadurecido e pode mudar. Leia os limites exibidos e não confunda Beta com homologação completa. “Em breve” indica algo que ainda não está disponível.</p></details>
             <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="suporte pedir ajuda evidência print log segredo token senha"><summary>O que devo enviar ao suporte?<b>＋</b></summary><p>Informe a versão, o ambiente, a etapa, a mensagem exata e o horário aproximado. Envie apenas trechos de log sem senhas, tokens, cookies, chaves ou dados pessoais.</p></details>
           </div>
           <div id="help-no-results" class="help-no-results" hidden><span>⌕</span><h3>Nenhum tópico encontrado</h3><p>Tente termos mais simples, como “instalar”, “URL”, “WSL2”, “senha” ou “Assistente”.</p><button id="help-clear-search" class="light-button" type="button">Limpar pesquisa</button></div>
@@ -690,8 +692,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=4.31.0" defer></script>
-  <script src="/assistant-route.js?v=4.31.0" defer></script>
-  <script src="/app.js?v=4.31.0" defer></script>
+  <script src="/markdown.js?v=4.31.1" defer></script>
+  <script src="/assistant-route.js?v=4.31.1" defer></script>
+  <script src="/app.js?v=4.31.1" defer></script>
 </body>
 </html>

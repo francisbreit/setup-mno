@@ -252,6 +252,23 @@ O manual reforça as fronteiras de segurança existentes: o Assistente é
 consultivo, candidatos do Homologation Runner não concedem selo e operações
 administrativas continuam no Terminal Seguro com confirmação humana.
 
+## Maturidade visível de funcionalidades
+
+O Control Center diferencia recursos estáveis, Beta e ainda não disponíveis.
+Uma funcionalidade Beta deve ser identificada no menu antes do clique, na área
+de uso e no Help. A etiqueta não substitui o texto que explica o que funciona,
+o que ainda não foi homologado e os cuidados necessários.
+
+Atualmente, o **Assistente MNO** e a área de **Blueprints** são recursos Beta.
+Os Blueprints podem possuir estados individuais, inclusive homologado, sem que
+isso promova automaticamente toda a área para estável. O manual completo de
+Blueprints continua “Em breve”; essa informação é diferente da área Beta que já
+pode ser consultada.
+
+Recursos Beta mantêm os mesmos controles de autenticação, autorização, planos,
+auditoria e proteção de dados das demais áreas. A promoção para estável exige
+evidências de teste e declaração explícita de Francis MNO.
+
 O plano completo para transformar o Beta em um especialista de infraestrutura,
 setups e Blueprints está registrado em
 [`ASSISTENTE_MNO_ROADMAP.md`](ASSISTENTE_MNO_ROADMAP.md).

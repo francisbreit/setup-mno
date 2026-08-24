@@ -87,6 +87,7 @@ nav { width: 100%; min-width: 0; display: grid; gap: 5px; }
 .nav-item.active .nav-icon { color: var(--orange); }
 .nav-item b { min-width: 23px; padding: 3px 6px; border-radius: 999px; color: #9fa7b5; background: rgba(255,255,255,.06); font-size: 9px; text-align: center; }
 .nav-item em { padding: 4px 6px; border-radius: 5px; color: var(--violet); background: rgba(147,117,255,.12); font-size: 7px; font-style: normal; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+.nav-meta { display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; }
 .nav-icon { font-size: 18px; font-weight: 400; }
 .sidebar-bottom { margin-top: auto; padding-top: 18px; border-top: 1px solid var(--line); }
 .server-mini { display: flex; align-items: center; gap: 11px; padding: 10px; }
