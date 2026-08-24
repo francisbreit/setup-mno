@@ -9,10 +9,13 @@ fi
 
 title="SETUP MNO — CONFIGURAÇÕES"
 work_dir=$(mktemp -d)
-operation_log="$work_dir/operation.log"
+operation_log="/tmp/setupmno-control-configure-$(date +%Y%m%d-%H%M%S)-$$.log"
+preserve_operation_log=false
 assistant_yaml="$work_dir/assistant.yaml"
 terminal_mode="${SETUPMNO_TERMINAL_MODE:-direct}"
 control_environment_file="/root/SetupLowCodeMno/.control/environment.json"
+: >"$operation_log"
+chmod 0600 "$operation_log"
 
 # Tema exclusivo das Configurações Seguras. O instalador e os scripts das
 # aplicações preservam seus próprios temas; aqui o item em foco é sempre
@@ -60,6 +63,9 @@ dialog_width() {
 cleanup() {
     unset current_password expected_password new_password password_confirmation llm_api_key
     rm -rf "$work_dir"
+    if [ "$preserve_operation_log" != "true" ]; then
+        rm -f "$operation_log"
+    fi
 }
 trap cleanup EXIT
 
@@ -73,6 +79,11 @@ msg() {
 fail() {
     msg "$1"
     return 1
+}
+
+fail_with_log() {
+    preserve_operation_log=true
+    fail "$1\n\nRelatório técnico preservado em:\n$operation_log"
 }
 
 required_environment=(
@@ -210,14 +221,145 @@ wait_service() {
     return 1
 }
 
+configure_assistant_wait_policy() {
+    local architecture
+    architecture=$(docker info --format '{{.Architecture}}' 2>>"$operation_log" |
+        tr '[:upper:]' '[:lower:]' | head -n1)
+    case "$architecture" in
+        arm64|aarch64)
+            assistant_wait_attempts=100
+            ;;
+        *)
+            assistant_wait_attempts=40
+            ;;
+    esac
+    assistant_wait_interval=3
+    printf '%s política de validação do Assistente: arquitetura=%s tentativas=%s intervalo=%ss.\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${architecture:-unknown}" \
+        "$assistant_wait_attempts" "$assistant_wait_interval" >>"$operation_log"
+}
+
+assistant_spec_matches() {
+    local provider="$1" model="$2" provider_secret="$3" inspect_file
+    inspect_file="$work_dir/assistant-service-inspect.json"
+    docker service inspect "$assistant_service" >"$inspect_file" 2>>"$operation_log" || return 1
+    jq -e --arg image "$control_image" --arg provider "$provider" --arg model "$model" \
+        --arg provider_secret "$provider_secret" '
+        .[0].Spec.TaskTemplate.ContainerSpec as $container
+        | (($container.Image | split("@")[0]) == $image)
+        and any($container.Env[]?; . == ("ASSISTANT_PROVIDER=" + $provider))
+        and any($container.Env[]?; . == ("ASSISTANT_MODEL=" + $model))
+        and (if $provider_secret != "" then
+            any($container.Secrets[]?;
+                .SecretName == $provider_secret and .File.Name == "llm_api_key")
+        else
+            all($container.Secrets[]?; .File.Name != "llm_api_key")
+        end)' "$inspect_file" >/dev/null 2>&1
+}
+
+assistant_container_matches() {
+    local provider="$1" model="$2" container_id inspect_file
+    inspect_file="$work_dir/assistant-container-inspect.json"
+    while IFS= read -r container_id; do
+        [ -n "$container_id" ] || continue
+        docker inspect "$container_id" >"$inspect_file" 2>>"$operation_log" || continue
+        if jq -e --arg image "$control_image" --arg provider "$provider" --arg model "$model" '
+            .[0] as $container
+            | (($container.Config.Image | split("@")[0]) == $image)
+            and any($container.Config.Env[]?; . == ("ASSISTANT_PROVIDER=" + $provider))
+            and any($container.Config.Env[]?; . == ("ASSISTANT_MODEL=" + $model))
+            and $container.State.Status == "running"
+            and $container.State.Health.Status == "healthy"' \
+            "$inspect_file" >/dev/null 2>&1; then
+            return 0
+        fi
+    done < <(docker ps -q \
+        --filter "label=com.docker.swarm.service.name=$assistant_service" 2>>"$operation_log")
+    return 1
+}
+
+assistant_health_matches() {
+    local provider="$1" model="$2" health_file="$work_dir/assistant-health.json"
+    curl -fsS --max-time 10 "http://${assistant_service}:7070/health" \
+        -o "$health_file" 2>>"$operation_log" || return 1
+    jq -e --arg provider "$provider" --arg model "$model" \
+        '.status == "ok" and .provider == $provider and .model == $model' \
+        "$health_file" >/dev/null 2>&1
+}
+
+wait_assistant_spec_applied() {
+    local provider="$1" model="$2" provider_secret="$3" attempt
+    for attempt in $(seq 1 10); do
+        if assistant_spec_matches "$provider" "$model" "$provider_secret"; then
+            printf '%s especificação nova confirmada após resposta inconclusiva do gerenciador, tentativa=%s/10.\n' \
+                "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$attempt" >>"$operation_log"
+            return 0
+        fi
+        sleep 1
+    done
+    return 1
+}
+
+wait_assistant_ready() {
+    local provider="$1" model="$2" provider_secret="$3" state replicas attempt
+    configure_assistant_wait_policy
+    for attempt in $(seq 1 "$assistant_wait_attempts"); do
+        state=$(docker service inspect --format \
+            '{{if .UpdateStatus}}{{.UpdateStatus.State}}{{else}}completed{{end}}' \
+            "$assistant_service" 2>/dev/null || true)
+        replicas=$(docker service ls --filter "name=$assistant_service" \
+            --format '{{.Replicas}}' 2>/dev/null | head -n1)
+        if [ "$state" = "completed" ] && [ "$replicas" = "1/1" ] &&
+           assistant_spec_matches "$provider" "$model" "$provider_secret" &&
+           assistant_container_matches "$provider" "$model" &&
+           assistant_health_matches "$provider" "$model"; then
+            printf '%s Assistente validado: imagem=%s provedor=%s modelo=%s tentativa=%s/%s.\n' \
+                "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$control_image" "$provider" \
+                "$model" "$attempt" "$assistant_wait_attempts" >>"$operation_log"
+            return 0
+        fi
+        case "$state" in
+            paused|rollback_paused)
+                printf '%s atualização do Assistente entrou em estado %s.\n' \
+                    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$state" >>"$operation_log"
+                return 1
+                ;;
+        esac
+        sleep "$assistant_wait_interval"
+    done
+    {
+        printf '%s timeout ao validar a identidade da nova tarefa do Assistente.\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        docker service ls --filter "name=$assistant_service" \
+            --format 'service={{.Name}} image={{.Image}} replicas={{.Replicas}}'
+        docker service ps --no-trunc "$assistant_service"
+    } >>"$operation_log" 2>&1
+    return 1
+}
+
 rollback_service() {
     local service_name="$1"
     docker service rollback --detach=true "$service_name" >>"$operation_log" 2>&1 || true
     wait_service "$service_name" || true
 }
 
+ensure_assistant_current_image() {
+    local current_image
+    docker service inspect "$assistant_service" >/dev/null 2>&1 || return 0
+    current_image=$(docker service inspect --format \
+        '{{.Spec.TaskTemplate.ContainerSpec.Image}}' "$assistant_service" \
+        2>>"$operation_log" | sed 's/@sha256:.*$//')
+    [ "$current_image" = "$control_image" ] && return 0
+    printf '%s reparando imagem do Assistente após rollback: atual=%s esperada=%s.\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${current_image:-indisponível}" \
+        "$control_image" >>"$operation_log"
+    docker service update --image "$control_image" --detach=true \
+        "$assistant_service" >>"$operation_log" 2>&1 &&
+        wait_service "$assistant_service"
+}
+
 portainer_request_ok() {
-    local method="$1" url="$2" output_file="$3" payload_file="${4:-}" http_code
+    local method="$1" url="$2" output_file="$3" payload_file="${4:-}" http_code detail
     if [ -n "$payload_file" ]; then
         http_code=$(curl -skS -o "$output_file" -w '%{http_code}' -X "$method" \
             -H "Authorization: Bearer $portainer_token" \
@@ -229,8 +371,10 @@ portainer_request_ok() {
             "$url" 2>>"$operation_log") || return 1
     fi
     [[ "$http_code" =~ ^2[0-9][0-9]$ ]] || {
+        detail=$(jq -r '(.message // empty) | .[0:1000]' "$output_file" 2>/dev/null || true)
         printf 'Portainer HTTP %s ao acessar %s.\n' "${http_code:-indisponível}" "$url" \
             >>"$operation_log"
+        [ -z "$detail" ] || printf 'Portainer: %s\n' "$detail" >>"$operation_log"
         return 1
     }
 }
@@ -340,6 +484,30 @@ portainer_update_stack() {
         "$response" "$payload"
 }
 
+normalize_assistant_rollback_image() {
+    local yaml_file="$1" normalized_file image_count
+    normalized_file="$work_dir/assistant-rollback-normalized.yaml"
+    image_count=$(awk '/^[[:space:]]*image:[[:space:]]*/ {count++} END {print count + 0}' \
+        "$yaml_file")
+    [ "$image_count" -eq 1 ] || {
+        printf '%s rollback recusado: YAML anterior contém %s imagens; esperado=1.\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$image_count" >>"$operation_log"
+        return 1
+    }
+    awk -v image="$control_image" '
+        !replaced && /^[[:space:]]*image:[[:space:]]*/ {
+            match($0, /^[[:space:]]*/)
+            print substr($0, 1, RLENGTH) "image: " image
+            replaced=1
+            next
+        }
+        { print }
+        END { if (!replaced) exit 1 }
+    ' "$yaml_file" >"$normalized_file" || return 1
+    docker stack config -c "$normalized_file" >/dev/null 2>>"$operation_log" || return 1
+    mv -f "$normalized_file" "$yaml_file"
+}
+
 deploy_assistant_through_portainer() {
     local stack_file_response="$work_dir/portainer-assistant-file.json"
     local create_response="$work_dir/portainer-assistant-create.json" http_code
@@ -352,6 +520,10 @@ deploy_assistant_through_portainer() {
             "$portainer_url/api/stacks/$assistant_portainer_stack_id/file" \
             "$stack_file_response" || return 1
         jq -er '.StackFileContent' "$stack_file_response" >"$assistant_portainer_previous_yaml" || return 1
+        # O Portainer pode conservar o YAML da versão em que a stack foi criada,
+        # mesmo após uma atualização in-place do serviço. O rollback preserva a
+        # configuração anterior, mas nunca pode reintroduzir uma imagem obsoleta.
+        normalize_assistant_rollback_image "$assistant_portainer_previous_yaml" || return 1
         jq --arg name "$assistant_stack" \
             '[.[] | select(.Name == $name) | .Env // []][0] // []' \
             "$portainer_stacks" >"$assistant_portainer_previous_env" || return 1
@@ -398,8 +570,9 @@ rollback_assistant_deploy() {
             updated)
                 portainer_update_stack "$assistant_portainer_stack_id" \
                     "$assistant_portainer_endpoint_id" "$assistant_portainer_previous_yaml" \
-                    "$assistant_portainer_previous_env" >>"$operation_log" 2>&1 || true
-                wait_service "$assistant_service" || true
+                    "$assistant_portainer_previous_env" >>"$operation_log" 2>&1 || return 1
+                wait_service "$assistant_service" || return 1
+                ensure_assistant_current_image || return 1
                 ;;
             created)
                 [ -n "$assistant_portainer_stack_id" ] || {
@@ -409,13 +582,16 @@ rollback_assistant_deploy() {
                 [ -z "$assistant_portainer_stack_id" ] ||
                     portainer_request_ok DELETE \
                         "$portainer_url/api/stacks/$assistant_portainer_stack_id?endpointId=$assistant_portainer_endpoint_id" \
-                        "$response" >>"$operation_log" 2>&1 || true
+                        "$response" >>"$operation_log" 2>&1 || return 1
                 ;;
         esac
     elif [ "$previous_exists" = "true" ]; then
-        rollback_service "$assistant_service"
+        docker service rollback --detach=true "$assistant_service" \
+            >>"$operation_log" 2>&1 || return 1
+        wait_service "$assistant_service" || return 1
+        ensure_assistant_current_image || return 1
     else
-        docker stack rm "$assistant_stack" >>"$operation_log" 2>&1 || true
+        docker stack rm "$assistant_stack" >>"$operation_log" 2>&1 || return 1
     fi
 }
 
@@ -679,6 +855,7 @@ EOF
 configure_provider() {
     local provider status model base_url provider_secret="" old_secret="" control_plan
     local previous_exists="false" default_model provider_name timestamp height width menu_rows
+    local failed_stage="" rollback_ok="true"
     control_plan=$(read_control_plan || printf 'free')
     if [ "$control_plan" != "pro" ] && [ "$control_plan" != "pro-master" ]; then
         msg "O Assistente com IA é exclusivo do plano PRO.\n\nO plano $control_plan mantém o diagnóstico básico local, sem LLM, sem consumo de API e sem criação de stack de Assistente. Uma configuração antiga de provedor não será utilizada."
@@ -806,24 +983,41 @@ configure_provider() {
         unset llm_api_key
     fi
 
-    if ! deploy_assistant "$provider" "$model" "$base_url" "$provider_secret" ||
-       ! wait_service "$assistant_service" ||
-       ! curl -fsS --max-time 10 "http://${assistant_service}:7070/health" \
-            >/dev/null 2>>"$operation_log"; then
-        rollback_assistant_deploy "$previous_exists"
-        [ -z "$provider_secret" ] ||
-            docker secret rm "$provider_secret" >>"$operation_log" 2>&1 || true
-        fail "O provedor ou modelo não passou pela validação. A configuração anterior foi preservada."
+    if ! deploy_assistant "$provider" "$model" "$base_url" "$provider_secret"; then
+        printf '%s o gerenciador respondeu com falha; conferindo se o Swarm recebeu a especificação.\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$operation_log"
+        if wait_assistant_spec_applied "$provider" "$model" "$provider_secret"; then
+            wait_assistant_ready "$provider" "$model" "$provider_secret" ||
+                failed_stage="confirmar a nova imagem, o modelo e o healthcheck"
+        else
+            failed_stage="aplicar a nova stack"
+        fi
+    elif ! wait_assistant_ready "$provider" "$model" "$provider_secret"; then
+        failed_stage="confirmar a nova imagem, o modelo e o healthcheck"
+    fi
+    if [ -n "$failed_stage" ]; then
+        rollback_assistant_deploy "$previous_exists" || rollback_ok="false"
+        if [ "$rollback_ok" = "true" ]; then
+            [ -z "$provider_secret" ] ||
+                docker secret rm "$provider_secret" >>"$operation_log" 2>&1 || true
+            fail_with_log "Não foi possível $failed_stage. A configuração anterior foi preservada sem retornar para uma imagem antiga."
+        else
+            fail_with_log "Não foi possível $failed_stage e o rollback não pôde ser confirmado. O novo secret foi preservado para não quebrar uma tarefa ainda ativa. Não tente apagar containers ou secrets manualmente; use o relatório para o reparo seguro."
+        fi
         return
     fi
 
     if ! update_web_assistant "$provider" "$model" \
         "http://${assistant_service}:7070"; then
         rollback_service "$web_service"
-        rollback_assistant_deploy "$previous_exists"
-        [ -z "$provider_secret" ] ||
-            docker secret rm "$provider_secret" >>"$operation_log" 2>&1 || true
-        fail "O painel não confirmou o novo provedor. A configuração anterior foi restaurada."
+        rollback_assistant_deploy "$previous_exists" || rollback_ok="false"
+        if [ "$rollback_ok" = "true" ]; then
+            [ -z "$provider_secret" ] ||
+                docker secret rm "$provider_secret" >>"$operation_log" 2>&1 || true
+            fail_with_log "O painel não confirmou o novo provedor. A configuração anterior foi restaurada sem retornar para uma imagem antiga."
+        else
+            fail_with_log "O painel não confirmou o novo provedor e o rollback não pôde ser confirmado. O novo secret foi preservado para evitar interromper uma tarefa ainda ativa."
+        fi
         return
     fi
 

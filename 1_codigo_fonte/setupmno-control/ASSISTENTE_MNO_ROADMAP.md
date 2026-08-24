@@ -120,6 +120,38 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
+## v7.33.4 — Troca transacional do provedor do Assistente MNO
+
+- a convergência deixa de aceitar a réplica antiga durante uma atualização
+  `start-first` e passa a exigir imagem, provedor, modelo, secret, container
+  saudável e resposta `/health` da configuração nova;
+- respostas inconclusivas do Portainer são reconciliadas com o estado real do
+  Swarm antes de declarar falha;
+- o rollback preserva a configuração anterior, mas normaliza a imagem para a
+  versão atual do Control Center, impedindo downgrade isolado do Assistente;
+- a proteção vale tanto para stacks editáveis no Portainer quanto para deploy
+  direto pelo Docker;
+- o secret novo só é removido depois que o rollback é confirmado;
+- falhas preservam relatório técnico privado em `/tmp`, informando a etapa sem
+  registrar a chave da API;
+- testes determinísticos cobrem YAML antigo do Portainer, rejeição de YAML
+  ambíguo, reparo de imagem, identidade da tarefa nova e latência `start-first`.
+
+Baseline desta correção:
+
+- Setup MNO: `7.33.4` em preparação de release candidata
+- Última versão estável homologada: `7.31.0`
+- Control Center: `4.33.4`
+- Conhecimento canônico: `3.34.2`
+- SRE Knowledge Pack: `1.2.0`
+- Snapshot SRE: `1.0.0 BETA`
+- Skill Supply Chain Gate: `1.0.0 BETA`
+- Homologation Runner: `1.3.0`
+
+Esta correção não conclui nem reordena o roadmap. O próximo item da subtrilha
+SRE permanece `SRE-3` — motores determinísticos, começando por Trivy, Lynis e
+Docker Bench.
+
 ## v7.33.3 — Convergência adaptativa do Control Center em ARM64
 
 - preservada a janela original de 120 segundos em x86-64;

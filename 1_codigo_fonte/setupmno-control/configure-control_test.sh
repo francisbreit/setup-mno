@@ -25,6 +25,7 @@ function_source=$(awk '
     exit 1
 }
 eval "$function_source"
+eval "$(extract_named_function ensure_assistant_current_image)"
 
 mkdir -p "$test_dir/bin"
 cat >"$test_dir/bin/curl" <<'EOF'
@@ -62,7 +63,7 @@ case "$url" in
         printf '200'
         ;;
     */api/stacks/42/file)
-        printf '%s' '{"StackFileContent":"version: old"}' >"$output"
+        printf '%s' '{"StackFileContent":"version: \"3.7\"\nservices:\n  assistant:\n    image: mno-test-app:4.22.2\n    environment:\n      - ASSISTANT_PROVIDER=openrouter\n      - ASSISTANT_MODEL=google/modelo-antigo\n"}' >"$output"
         printf '200'
         ;;
     */api/stacks/42\?endpointId=7)
@@ -120,6 +121,7 @@ printf '%s\n' 'version: new' >"$assistant_yaml"
 portainer_stacks="$work_dir/portainer-stacks.json"
 assistant_portainer_previous_yaml="$work_dir/assistant-previous.yaml"
 assistant_portainer_previous_env="$work_dir/assistant-previous-env.json"
+control_image="mno-test-app:4.33.4"
 assistant_portainer_stack_id=""
 assistant_portainer_endpoint_id=""
 assistant_portainer_swarm_id=""
@@ -130,6 +132,12 @@ portainer_token=""
 stack_manager="portainer"
 wait_service() { return 0; }
 fail() { printf '%s\n' "$1" >&2; return 1; }
+docker() {
+    if [ "$1" = "stack" ] && [ "$2" = "config" ]; then
+        return 0
+    fi
+    return 73
+}
 
 export MOCK_STACK_STATE="existing"
 resolve_stack_manager
@@ -138,11 +146,30 @@ deploy_assistant_through_portainer
 [ "$assistant_portainer_action" = "updated" ]
 jq -e '.stackFileContent == "version: new\n" and .env[0].name == "KEEP" and .prune == true' \
     "$MOCK_CAPTURE/payload.json" >/dev/null
-grep -Fq 'version: old' "$assistant_portainer_previous_yaml"
+grep -Fq 'image: mno-test-app:4.33.4' "$assistant_portainer_previous_yaml"
+! grep -Fq 'mno-test-app:4.22.2' "$assistant_portainer_previous_yaml"
 cp "$MOCK_CAPTURE/payload.json" "$MOCK_CAPTURE/update-payload.json"
 rollback_assistant_deploy true
-jq -e '.stackFileContent == "version: old\n" and .env[0].name == "KEEP"' \
+jq -e '.stackFileContent | contains("image: mno-test-app:4.33.4")' \
     "$MOCK_CAPTURE/payload.json" >/dev/null
+jq -e '.stackFileContent | contains("mno-test-app:4.22.2") | not' \
+    "$MOCK_CAPTURE/payload.json" >/dev/null
+jq -e '.env[0].name == "KEEP"' \
+    "$MOCK_CAPTURE/payload.json" >/dev/null
+
+multi_image_yaml="$work_dir/multi-image.yaml"
+cat >"$multi_image_yaml" <<'EOF'
+version: "3.7"
+services:
+  one:
+    image: example/one:old
+  two:
+    image: example/two:old
+EOF
+if normalize_assistant_rollback_image "$multi_image_yaml"; then
+    printf 'ERRO: rollback aceitou YAML ambíguo com duas imagens.\n' >&2
+    exit 1
+fi
 
 assistant_portainer_action=""
 remove_assistant_stack
@@ -169,6 +196,93 @@ stack_manager="docker"
 assistant_deploy_backend=""
 resolve_stack_manager
 [ "$assistant_deploy_backend" = "docker" ]
+
+image_repair_log="$test_dir/image-repair.log"
+docker() {
+    if [ "$1" = "service" ] && [ "$2" = "inspect" ] && [ "${3:-}" != "--format" ]; then
+        return 0
+    elif [ "$1" = "service" ] && [ "$2" = "inspect" ] && [ "$3" = "--format" ]; then
+        printf '%s\n' 'mno-test-app:4.22.2@sha256:old'
+    elif [ "$1" = "service" ] && [ "$2" = "update" ]; then
+        printf '%s\n' "$*" >>"$image_repair_log"
+    else
+        return 76
+    fi
+}
+ensure_assistant_current_image
+grep -Fq -- '--image mno-test-app:4.33.4' "$image_repair_log"
+
+eval "$(extract_named_function configure_assistant_wait_policy)"
+eval "$(extract_named_function assistant_spec_matches)"
+eval "$(extract_named_function assistant_container_matches)"
+eval "$(extract_named_function assistant_health_matches)"
+eval "$(extract_named_function wait_assistant_ready)"
+
+assistant_service="mno-test-assistant_mno-test-assistant"
+agent_secret="mno-test-agent-token"
+provider_secret="mno-test-llm-openrouter"
+service_inspect_fixture="$test_dir/service-inspect.json"
+container_inspect_fixture="$test_dir/container-inspect.json"
+cat >"$service_inspect_fixture" <<EOF
+[{"Spec":{"TaskTemplate":{"ContainerSpec":{"Image":"$control_image@sha256:abc","Env":["ASSISTANT_PROVIDER=openrouter","ASSISTANT_MODEL=nvidia/modelo-novo"],"Secrets":[{"SecretName":"$provider_secret","File":{"Name":"llm_api_key"}}]}}}}]
+EOF
+cat >"$container_inspect_fixture" <<EOF
+[{"Config":{"Image":"$control_image","Env":["ASSISTANT_PROVIDER=openrouter","ASSISTANT_MODEL=nvidia/modelo-novo"]},"State":{"Status":"running","Health":{"Status":"healthy"}}}]
+EOF
+docker() {
+    if [ "$1" = "service" ] && [ "$2" = "inspect" ] && [ "${3:-}" != "--format" ]; then
+        cat "$service_inspect_fixture"
+    elif [ "$1" = "ps" ]; then
+        printf '%s\n' 'container-new'
+    elif [ "$1" = "inspect" ]; then
+        cat "$container_inspect_fixture"
+    else
+        return 74
+    fi
+}
+curl() {
+    local output=""
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            -o) output="$2"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+    printf '%s' '{"status":"ok","provider":"openrouter","model":"nvidia/modelo-novo"}' >"$output"
+}
+assistant_spec_matches openrouter nvidia/modelo-novo "$provider_secret"
+assistant_container_matches openrouter nvidia/modelo-novo
+assistant_health_matches openrouter nvidia/modelo-novo
+if assistant_spec_matches openrouter google/modelo-antigo "$provider_secret"; then
+    printf 'ERRO: identidade antiga foi aceita como nova especificação.\n' >&2
+    exit 1
+fi
+
+readiness_attempt=0
+configure_assistant_wait_policy() {
+    assistant_wait_attempts=2
+    assistant_wait_interval=0
+}
+docker() {
+    if [ "$1" = "service" ] && [ "$2" = "inspect" ] && [ "$3" = "--format" ]; then
+        printf '%s\n' completed
+    elif [ "$1" = "service" ] && [ "$2" = "ls" ]; then
+        printf '%s\n' '1/1'
+    else
+        return 75
+    fi
+}
+assistant_spec_matches() {
+    readiness_attempt=$((readiness_attempt + 1))
+    [ "$readiness_attempt" -ge 2 ]
+}
+assistant_container_matches() { [ "$readiness_attempt" -ge 2 ]; }
+assistant_health_matches() { [ "$readiness_attempt" -ge 2 ]; }
+wait_assistant_ready openrouter nvidia/modelo-novo "$provider_secret"
+[ "$readiness_attempt" -eq 2 ] || {
+    printf 'ERRO: readiness não aguardou a identidade nova.\n' >&2
+    exit 1
+}
 
 eval "$(extract_named_function read_control_plan)"
 eval "$(extract_named_function update_web_assistant)"
@@ -208,4 +322,4 @@ printf '%s\n' '{"schemaVersion":1,"plan":"pro-master","installationType":"CLOUDF
 update_web_assistant openrouter openai/gpt-5.4 http://assistant:7070
 grep -Fq -- '--env-rm SETUPMNO_PLAN --env-add SETUPMNO_PLAN=pro-master' "$docker_log"
 
-printf 'Persistência Portainer e herança PRO do plano PRO MASTER aprovadas.\n'
+printf 'Identidade forte, rollback sem downgrade, Portainer e herança PRO MASTER aprovados.\n'

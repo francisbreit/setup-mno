@@ -515,6 +515,19 @@ grep -Fq 'SETUPMNO_CONFIG_SMOKE_TEST' "$project_dir/configure-control.sh" || {
     printf 'ERRO: a Central de Configurações não possui smoke test isolado.\n' >&2
     exit 1
 }
+grep -Fq 'normalize_assistant_rollback_image "$assistant_portainer_previous_yaml"' \
+    "$project_dir/configure-control.sh" &&
+grep -Fq 'assistant_spec_matches "$provider" "$model" "$provider_secret"' \
+    "$project_dir/configure-control.sh" &&
+grep -Fq 'assistant_container_matches "$provider" "$model"' \
+    "$project_dir/configure-control.sh" &&
+grep -Fq 'assistant_health_matches "$provider" "$model"' \
+    "$project_dir/configure-control.sh" &&
+grep -Fq 'ensure_assistant_current_image' "$project_dir/configure-control.sh" &&
+grep -Fq 'fail_with_log' "$project_dir/configure-control.sh" || {
+    printf 'ERRO: troca de provedor sem identidade forte, rollback sem downgrade ou log persistente.\n' >&2
+    exit 1
+}
 [ "$(grep -Fc 'O site e o Instalador Seguro poderão ficar inacessíveis por cerca de 2 minutos' "$project_dir/configure-control.sh")" -eq 4 ] || {
     printf 'ERRO: troca de provedor sem aviso completo de reinício e indisponibilidade.\n' >&2
     exit 1
