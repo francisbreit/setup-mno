@@ -1,9 +1,7 @@
 #!/usr/bin/bash
-# SETUP MNO CONTROL CENTER — painel web oficial de deploys e monitoramento.
 set -o pipefail
 umask 077
-
-CONTROL_VERSION="4.32.0"
+CONTROL_VERSION="4.32.1"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -84,8 +82,6 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
 fi
 
 msg() {
-    # As funções de coleta são chamadas por substituição de comando. Direcionar
-    # a interface para stderr mantém o Whiptail visível no terminal/ttyd.
     whiptail --title "SETUP MNO CONTROL CENTER" --msgbox "$1" 14 78 1>&2
 }
 
@@ -1576,6 +1572,7 @@ error_file="/tmp/${nome_app}-error.log"
 
     cleanup_install() {
         local status=$? route_rollback_ok="true" access_delete_ok="true" access_delete_response
+        declare -F stop_install_heartbeat >/dev/null && stop_install_heartbeat
         if [ "$status" -ne 0 ] && [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
             if [ "$route_old_tunnels_mutated" = "true" ]; then
                 cf_route_guard_restore_tunnels "$route_old_tunnel_changes" "$install_log" ||
@@ -1672,6 +1669,8 @@ error_file="/tmp/${nome_app}-error.log"
         tar -xzf - -C "$work_dir/source" >>"$install_log" 2>&1; then
         fail_install 20 "BUNDLE DO PAINEL INVÁLIDO" "Não foi possível validar e extrair os fontes internos do Control Center."
     fi
+    . "$work_dir/source/install-heartbeat.sh" ||
+        fail_install 20 "HEARTBEAT INVÁLIDO" "Indicador de atividade ausente."
     runtime_catalog="/root/SetupLowCodeMno/.control/catalog.json"
     runtime_release="/root/SetupLowCodeMno/.control/release.json"
     [ -f "$runtime_catalog" ] &&
@@ -1686,7 +1685,7 @@ error_file="/tmp/${nome_app}-error.log"
         fail_install 21 "CATÁLOGO RUNTIME INVÁLIDO" "O catálogo não corresponde ao manifesto desta release."
     install -m 0644 "$runtime_catalog" "$work_dir/source/catalog.json"
     for source_file in go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
-        terminal-menu.sh configure-control.sh control-upgrade.sh cloudflare-mfa.sh \
+        terminal-menu.sh configure-control.sh control-upgrade.sh cloudflare-mfa.sh install-heartbeat.sh \
         main.go access.go knowledge.go retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go homologation.go catalog.json \
         web/index.html web/app.js web/assistant-route.js web/styles.css web/terminal-bridge.js; do
         [ -s "$work_dir/source/$source_file" ] ||
@@ -1749,7 +1748,7 @@ error_file="/tmp/${nome_app}-error.log"
     install -m 0644 "$runtime_knowledge_dir/knowledge-package.tar.gz" \
         "$build_knowledge_dir/knowledge-package.tar.gz"
 
-    echo -e "XXX\n20\nCONSTRUINDO O PAINEL WEB... \nXXX"
+    start_install_heartbeat 20 "CONSTRUINDO O PAINEL WEB..."
     if ! docker build --pull -t "$control_image" "$work_dir/source" >>"$install_log" 2>&1; then
         {
             echo "Falha ao construir a imagem do painel."
@@ -1759,6 +1758,7 @@ error_file="/tmp/${nome_app}-error.log"
         echo -e "XXX\n100\nERRO NO BUILD DO PAINEL\nXXX"
         exit 30
     fi
+    stop_install_heartbeat
     if ! docker image inspect --format \
         'Painel: {{.Id}} | Arquitetura: {{.Architecture}} | Tamanho: {{.Size}} bytes' \
         "$control_image" >>"$install_log" 2>&1; then
@@ -1782,7 +1782,7 @@ error_file="/tmp/${nome_app}-error.log"
         fail_install 31 "FALLBACK DE CONHECIMENTO INVÁLIDO" "A imagem não confirmou a base embutida de contingência."
     fi
 
-    echo -e "XXX\n38\nCONSTRUINDO O TERMINAL PROTEGIDO... \nXXX"
+    start_install_heartbeat 38 "CONSTRUINDO O TERMINAL PROTEGIDO..."
     if ! docker build --pull -f "$work_dir/source/terminal.Dockerfile" \
         -t "$terminal_image" "$work_dir/source" >>"$install_log" 2>&1; then
         {
@@ -1793,6 +1793,7 @@ error_file="/tmp/${nome_app}-error.log"
         echo -e "XXX\n100\nERRO NO BUILD DO TERMINAL\nXXX"
         exit 32
     fi
+    stop_install_heartbeat
     if ! docker image inspect --format \
         'Terminal: {{.Id}} | Arquitetura: {{.Architecture}} | Tamanho: {{.Size}} bytes' \
         "$terminal_image" >>"$install_log" 2>&1; then
@@ -2433,7 +2434,6 @@ EOL
             fail_install 95 "ERRO NA STACK DO PAINEL" "Falha ao publicar a stack do painel no Docker."
     fi
 
-    echo -e "XXX\n96\nAGUARDANDO OS SERVIÇOS... \nXXX"
     expected_services=(
         "${terminal_stack}_${terminal_service}"
         "${agent_stack}_${agent_service}"
@@ -2442,6 +2442,7 @@ EOL
         expected_services+=("${assistant_stack}_${assistant_service}")
     fi
     expected_services+=("${web_stack}_${web_service}")
+    start_install_heartbeat 96 "AGUARDANDO OS SERVIÇOS DO CONTROL CENTER..."
     for service_name in "${expected_services[@]}"; do
         ready="false"
         for _ in $(seq 1 100); do
@@ -2465,6 +2466,7 @@ EOL
         fi
         echo "Serviço confirmado: $service_name com 1/1 réplica." >>"$install_log"
     done
+    stop_install_heartbeat
 
     if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] &&
        [ "$access_mfa_enabled" = "false" ] &&

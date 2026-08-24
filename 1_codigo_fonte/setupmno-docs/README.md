@@ -67,7 +67,8 @@ Documentos atuais de arquitetura e operação:
 - `sre/architecture/skill-supply-chain-gate.md`;
 - `sre/manual/avaliar-skill-externa.md`;
 - `sre/faq/skills-externas.md`;
-- `releases/v7.32.0-skill-supply-chain-gate.md`.
+- `releases/v7.32.0-skill-supply-chain-gate.md`;
+- `releases/v7.32.1-control-install-heartbeat.md`.
 
 Validação específica do SRE Knowledge Pack:
 

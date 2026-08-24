@@ -117,6 +117,34 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
+## v7.32.1 — Heartbeat na instalação do Control Center
+
+- heartbeat aplicado às três operações lentas observadas na instalação:
+  construção do painel web em 20%, construção do terminal protegido em 38% e
+  espera pela convergência dos serviços em 96%;
+- spinner ASCII `| / - \`, tempo decorrido em `MM:SS` e descrição da operação
+  atual, sem inventar avanço na porcentagem;
+- saída técnica dos builds e consultas preservada no log de instalação;
+- código de saída, diagnóstico, timeout, rollback e confirmação real de
+  sucesso preservados;
+- teste automático confirma animação, encerramento do heartbeat e propagação
+  intacta de falhas;
+- nenhuma stack, imagem, serviço, plano ou regra de segurança foi alterado por
+  esta correção de experiência de uso.
+
+Baseline desta correção:
+
+- Setup MNO: `7.32.1` em preparação de release candidata
+- Última versão estável homologada: `7.31.0`
+- Control Center: `4.32.1`
+- Conhecimento canônico: `3.33.1`
+- SRE Knowledge Pack: `1.1.0`
+- Skill Supply Chain Gate: `1.0.0 BETA`
+- Homologation Runner: `1.3.0`
+
+Esta correção não conclui nem reordena o roadmap. O próximo item da subtrilha
+SRE permanece `SRE-2` — Especialista em modo somente leitura.
+
 ## v7.32.0 — Skill Supply Chain Gate BETA
 
 - gate determinístico para candidatos a skills externas, sem execução do

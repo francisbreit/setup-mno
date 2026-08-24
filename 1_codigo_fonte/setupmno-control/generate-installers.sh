@@ -1005,6 +1005,7 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
     tar -cf - \
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
         terminal-menu.sh configure-control.sh control-upgrade.sh cloudflare-mfa.sh \
+        install-heartbeat.sh \
         cloudflare-route-guard.sh cloudflare-access-reconcile.sh \
         main.go access.go knowledge.go retrieval.go routing.go prompts.go \
         blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go homologation.go web |
@@ -1044,6 +1045,10 @@ if ! tar -tzf "$bundle" | grep -Fx 'control-upgrade.sh' >/dev/null; then
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'cloudflare-mfa.sh' >/dev/null; then
     printf 'ERRO: bundle de fontes sem o assistente autenticado do Cloudflare MFA.\n' >&2
+    exit 1
+fi
+if ! tar -tzf "$bundle" | grep -Fx 'install-heartbeat.sh' >/dev/null; then
+    printf 'ERRO: bundle de fontes sem o heartbeat da instalação.\n' >&2
     exit 1
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'cloudflare-route-guard.sh' >/dev/null; then

@@ -3,6 +3,7 @@ set -euo pipefail
 
 project_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 template="$project_dir/installer-template.sh"
+heartbeat="$project_dir/install-heartbeat.sh"
 # shellcheck disable=SC1091
 . "$project_dir/cloudflare-route-guard.sh"
 # shellcheck disable=SC1091
@@ -19,6 +20,12 @@ grep -Fq 'if control_center_installed; then' "$template"
 grep -Fq 'somente uma instalação é permitida por servidor' "$template"
 grep -Fq '/root/SetupLowCodeMno/.setupmno-control-install.lock' "$template"
 grep -Fq 'flock -n 9' "$template"
+grep -Fq 'start_install_heartbeat 20 "CONSTRUINDO O PAINEL WEB..."' "$template"
+grep -Fq 'start_install_heartbeat 38 "CONSTRUINDO O TERMINAL PROTEGIDO..."' "$template"
+grep -Fq 'start_install_heartbeat 96 "AGUARDANDO OS SERVIÇOS DO CONTROL CENTER..."' "$template"
+grep -Fq '. "$work_dir/source/install-heartbeat.sh"' "$template"
+grep -Fq 'stop_install_heartbeat' "$template"
+grep -Fq 'Processando há %02d:%02d' "$heartbeat"
 
 initial_mfa_flow=$(awk '
     /^access_email=""$/ { inside=1 }
@@ -37,6 +44,55 @@ grep -Fq 'prepare_cloudflare_mfa_token "$access_token_work" "$access_token_log"'
 }
 test_dir=$(mktemp -d)
 trap 'rm -rf "$test_dir"' EXIT
+
+(
+    # shellcheck disable=SC1090
+    . "$heartbeat"
+
+    install_log="$test_dir/install-heartbeat.log"
+    heartbeat_gauge="$test_dir/install-heartbeat-gauge.log"
+    : >"$install_log"
+
+    sleep() {
+        command sleep 0.02
+    }
+    heartbeat_success() {
+        command sleep 0.12
+        printf '%s\n' 'saída técnica preservada'
+    }
+    heartbeat_failure() {
+        command sleep 0.08
+        printf '%s\n' 'falha técnica preservada'
+        return 37
+    }
+
+    start_install_heartbeat 20 "CONSTRUINDO O PAINEL WEB..." >"$heartbeat_gauge"
+    heartbeat_success >>"$install_log"
+    stop_install_heartbeat
+    [ -z "$install_heartbeat_pid" ]
+    grep -Fq 'CONSTRUINDO O PAINEL WEB...' "$heartbeat_gauge"
+    grep -Fq 'Processando há 00:00' "$heartbeat_gauge"
+    grep -Fq '[|]' "$heartbeat_gauge"
+    grep -Fq '[/]' "$heartbeat_gauge"
+    grep -Fq '[-]' "$heartbeat_gauge"
+    grep -Fq '[\]' "$heartbeat_gauge"
+    grep -Fq 'saída técnica preservada' "$install_log"
+
+    start_install_heartbeat 38 "CONSTRUINDO O TERMINAL PROTEGIDO..." >>"$heartbeat_gauge"
+    heartbeat_status=0
+    heartbeat_failure >>"$install_log" || heartbeat_status=$?
+    stop_install_heartbeat
+    if [ "$heartbeat_status" -eq 0 ]; then
+        printf 'ERRO: heartbeat descartou a falha da operação monitorada.\n' >&2
+        exit 1
+    fi
+    [ "$heartbeat_status" -eq 37 ] || {
+        printf 'ERRO: heartbeat alterou o código de falha da operação.\n' >&2
+        exit 1
+    }
+    [ -z "$install_heartbeat_pid" ]
+    grep -Fq 'falha técnica preservada' "$install_log"
+)
 
 for migration_function in \
     control_mfa_state_valid \
