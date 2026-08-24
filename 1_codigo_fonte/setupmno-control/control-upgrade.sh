@@ -114,7 +114,14 @@ update_agent() {
     service_has_env_key "$service" HOMOLOGATION_CANDIDATE_DIR &&
         args+=(--env-rm HOMOLOGATION_CANDIDATE_DIR)
     args+=(--env-add HOMOLOGATION_CANDIDATE_DIR=/homologation-candidates)
+    service_has_env_key "$service" APP_VERSION && args+=(--env-rm APP_VERSION)
+    args+=(--env-add "APP_VERSION=$target_version")
     docker "${args[@]}" "$service" >>"$log_file" 2>&1
+}
+
+agent_version_is_current() {
+    local service="$1"
+    [ "$(service_env_value "$service" APP_VERSION)" = "$target_version" ]
 }
 
 update_web() {
@@ -200,6 +207,7 @@ control_image="${prefix}-app:${target_version}"
 terminal_image="${prefix}-terminal:${target_version}"
 if [ "$(service_image "$web_service")" = "$control_image" ] &&
    [ "$(service_image "$agent_service")" = "$control_image" ] &&
+   agent_version_is_current "$agent_service" &&
    [ "$(service_image "$terminal_service")" = "$terminal_image" ] &&
    { [ "$assistant_exists" = "false" ] ||
      [ "$(service_image "$assistant_service")" = "$control_image" ]; }; then

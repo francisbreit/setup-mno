@@ -9,6 +9,7 @@ grep -Fq 'mapfile -t web_services' "$updater"
 grep -Fq '[ "${#web_services[@]}" -eq 1 ]' "$updater"
 grep -Fq 'docker service update --rollback' "$updater"
 grep -Fq 'service_has_mount_target "$service" /runtime-control' "$updater"
+grep -Fq 'agent_version_is_current "$agent_service"' "$updater"
 grep -Fq 'control_image="${prefix}-app:${target_version}"' "$updater"
 grep -Fq 'terminal_image="${prefix}-terminal:${target_version}"' "$updater"
 grep -Fq 'knowledgecheck' "$updater"
@@ -41,7 +42,8 @@ docker_log="$test_dir/docker.log"
 : >"$docker_log"
 
 for function_name in progress heartbeat_loop stop_heartbeat run_with_heartbeat \
-    service_has_env_key service_env_value update_web; do
+    service_has_env_key service_env_value service_has_mount_target update_agent \
+    agent_version_is_current update_web; do
     function_source=$(awk -v name="$function_name" '
         $0 ~ "^" name "\\(\\) \\{" {capture=1}
         capture {print}
@@ -90,8 +92,8 @@ grep -Fq 'falha monitorada' "$log_file"
 
 docker() {
     if [ "${1:-}" = "service" ] && [ "${2:-}" = "inspect" ]; then
-        printf '%s\n' 'APP_VERSION=4.15.8' 'SETUPMNO_PLAN=pro' \
-            'SETUPMNO_INSTALL_TYPE=CLOUDFLARE_TUNNEL'
+        [ -z "${MOCK_APP_VERSION:-}" ] || printf 'APP_VERSION=%s\n' "$MOCK_APP_VERSION"
+        printf '%s\n' 'SETUPMNO_PLAN=pro' 'SETUPMNO_INSTALL_TYPE=CLOUDFLARE_TUNNEL'
         case "${MOCK_ACCESS_STATE:-legacy}" in
             original)
                 printf '%s\n' 'ACCESS_JWT_REQUIRED=false' 'ACCESS_TEAM_DOMAIN=' \
@@ -113,6 +115,29 @@ docker() {
 }
 
 target_version="4.16.2"
+MOCK_APP_VERSION=""
+if agent_version_is_current "mnoctrltest-agent_mnoctrltest-agent"; then
+    printf 'ERRO: agente sem APP_VERSION foi aceito como sincronizado.\n' >&2
+    exit 1
+fi
+update_agent "mnoctrltest-agent_mnoctrltest-agent" "mnoctrltest-app:4.16.2"
+grep -Fq -- '--env-add APP_VERSION=4.16.2' "$docker_log"
+! grep -Fq -- '--env-rm APP_VERSION' "$docker_log"
+
+: >"$docker_log"
+MOCK_APP_VERSION="4.15.8"
+if agent_version_is_current "mnoctrltest-agent_mnoctrltest-agent"; then
+    printf 'ERRO: agente com APP_VERSION antiga foi aceito como sincronizado.\n' >&2
+    exit 1
+fi
+update_agent "mnoctrltest-agent_mnoctrltest-agent" "mnoctrltest-app:4.16.2"
+grep -Fq -- '--env-rm APP_VERSION' "$docker_log"
+grep -Fq -- '--env-add APP_VERSION=4.16.2' "$docker_log"
+
+: >"$docker_log"
+MOCK_APP_VERSION="4.16.2"
+agent_version_is_current "mnoctrltest-agent_mnoctrltest-agent"
+
 MOCK_ACCESS_STATE=legacy
 update_web "mnoctrltest-web_mnoctrltest-web" "mnoctrltest-app:4.16.2" pro
 grep -Fq -- '--env-add ACCESS_JWT_REQUIRED=false --env-add ACCESS_MFA_REQUIRED=false' "$docker_log"
@@ -138,4 +163,4 @@ if update_web "mnoctrltest-web_mnoctrltest-web" "mnoctrltest-app:4.16.2" pro; th
 fi
 [ ! -s "$docker_log" ]
 
-printf 'Reconciliação in-place, modo original explícito, MFA preservado e rollback aprovados.\n'
+printf 'Reconciliação in-place, versão do agente, modo original explícito, MFA e rollback aprovados.\n'

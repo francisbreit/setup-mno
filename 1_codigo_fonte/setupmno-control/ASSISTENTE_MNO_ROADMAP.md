@@ -120,6 +120,35 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
+## v7.33.2 — Reparo do snapshot SRE após atualização do Control Center
+
+- corrigido o reconciliador de atualizações para gravar `APP_VERSION` também
+  no agente interno somente leitura;
+- a verificação de “já está sincronizado” passa a exigir que a versão do
+  agente coincida com a versão do Control Center;
+- instalações antigas sem essa informação são reparadas na próxima
+  atualização, mesmo quando a imagem Docker já possui a tag esperada;
+- teste determinístico cobre agente sem versão, versão antiga e versão atual;
+- o erro 502 causado pela rejeição segura de um snapshot identificado como
+  versão `dev` deixa de ocorrer por essa causa;
+- falhas independentes do provedor de LLM, como limite HTTP 429, continuam
+  separadas do diagnóstico local e não são mascaradas.
+
+Baseline desta correção:
+
+- Setup MNO: `7.33.2` em preparação de release candidata
+- Última versão estável homologada: `7.31.0`
+- Control Center: `4.33.2`
+- Conhecimento canônico: `3.34.2`
+- SRE Knowledge Pack: `1.2.0`
+- Snapshot SRE: `1.0.0 BETA`
+- Skill Supply Chain Gate: `1.0.0 BETA`
+- Homologation Runner: `1.3.0`
+
+Esta correção não conclui nem reordena o roadmap. O próximo item da subtrilha
+SRE permanece `SRE-3` — motores determinísticos, começando por Trivy, Lynis e
+Docker Bench.
+
 ## v7.33.1 — APT não interativo no Docker Swarm e heartbeat
 
 - removido o `apt upgrade` completo que ainda existia nos instaladores
