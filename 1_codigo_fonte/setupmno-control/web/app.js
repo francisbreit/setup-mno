@@ -304,8 +304,8 @@ function setAuthenticated(session) {
   state.auditEvents = [];
   state.auditNextBefore = 0;
   $("assistant-quality-card").classList.remove("passed", "failed");
-  $("assistant-quality-title").textContent = "Verificando qualidade";
-  $("assistant-quality-summary").textContent = "Conferindo os testes automatizados desta release.";
+  $("assistant-quality-title").textContent = "Verificando o motor local";
+  $("assistant-quality-summary").textContent = "Os testes da release não substituem a validação da LLM escolhida.";
   $("provider-eval-result").hidden = true;
   $("provider-eval-review-status").textContent = "";
   $("blueprint-recommendation-result").hidden = true;
@@ -572,13 +572,13 @@ function renderEvals() {
   const status = $("eval-status");
   const passed = report.status === "passed";
   status.className = `eval-release-status ${passed ? "passed" : "failed"}`;
-  status.textContent = passed ? "Qualidade verificada" : "Verificação bloqueada";
+  status.textContent = passed ? "Release verificada" : "Verificação bloqueada";
   const qualityCard = $("assistant-quality-card");
   qualityCard.classList.toggle("passed", passed);
   qualityCard.classList.toggle("failed", !passed);
-  $("assistant-quality-title").textContent = passed ? "Qualidade verificada" : "Verificação bloqueada";
+  $("assistant-quality-title").textContent = passed ? "Motor local verificado" : "Verificação bloqueada";
   $("assistant-quality-summary").textContent = passed
-    ? `${report.caseCount || 0} testes automatizados aprovados antes desta release.`
+    ? `${report.caseCount || 0} testes do motor local aprovados. Valide a LLM configurada no canário.`
     : "Os testes de qualidade bloquearam esta release.";
   $("eval-case-count").textContent = report.caseCount || 0;
   $("eval-case-detail").textContent = `${report.retrievalCases || 0} retrieval · ${report.routingCases || 0} routing`;
@@ -1812,6 +1812,18 @@ function updateAssistantRuntime(runtime = {}) {
       : fallback
         ? "Contingência local ativa. O conector será testado novamente na próxima pergunta."
         : "Sem consumo de API ou modelo local.";
+  const modelQualityNote = $("assistant-model-quality-note");
+  modelQualityNote.classList.remove("warning");
+  if (fallback) {
+    modelQualityNote.textContent = "A contingência local respondeu sem usar a LLM configurada. O conector será testado novamente na próxima pergunta.";
+  } else if (mode === "openrouter" && model.endsWith(":free")) {
+    modelQualityNote.classList.add("warning");
+    modelQualityNote.textContent = "Modelo gratuito: recomendado somente para testes. Limites e disponibilidade podem reduzir a consistência; execute o canário e revise a resposta.";
+  } else if (assistantModeUsesLLM(mode) && model) {
+    modelQualityNote.textContent = "A qualidade final depende também deste modelo. Execute o canário de 4 testes após configurar ou trocar a LLM.";
+  } else {
+    modelQualityNote.textContent = "Modo determinístico local; nenhuma LLM participa desta resposta.";
+  }
   if (!fallback && assistantModeUsesLLM(mode) && !operationalContextAvailable) {
     $("assistant-provider").textContent = `${provider} · conhecimento ativo`;
     $("assistant-model").textContent = model

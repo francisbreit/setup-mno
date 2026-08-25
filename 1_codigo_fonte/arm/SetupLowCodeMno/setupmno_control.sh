@@ -1405,7 +1405,7 @@ else
                     exit 0
                 fi
                 if ! assistant_model=$(ask_with_default \
-                    "Modelo OpenAI para o Copiloto:\n\nO padrão equilibra qualidade, latência e custo. Você pode informar outro modelo compatível com a Responses API." \
+                    "Modelo OpenAI (recomendados no Help):\n\nO padrão equilibra qualidade e custo." \
                     "gpt-5.6-terra"); then
                     exit 0
                 fi
@@ -1418,8 +1418,8 @@ else
                     exit 0
                 fi
                 if ! assistant_model=$(ask_with_default \
-                    "Modelo OpenRouter para o Copiloto:\n\nInforme o identificador exato no formato provedor/modelo." \
-                    "openai/gpt-5.4"); then
+                    "Modelo OpenRouter (recomendados no Help):\n\nEvite :free no modo especialista." \
+                    "openai/gpt-5.6-terra"); then
                     exit 0
                 fi
                 assistant_mode="openrouter"
@@ -1431,7 +1431,7 @@ else
                     exit 0
                 fi
                 if ! assistant_model=$(ask_with_default \
-                    "Modelo DeepSeek para o Copiloto:\n\nVocê pode informar outro identificador aceito atualmente pelo provedor." \
+                    "Modelo DeepSeek (recomendados no Help):\n\nUse Pro para qualidade ou Flash para equilíbrio." \
                     "deepseek-v4-flash"); then
                     exit 0
                 fi

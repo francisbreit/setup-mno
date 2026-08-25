@@ -855,7 +855,7 @@ EOF
 configure_provider() {
     local provider status model base_url provider_secret="" old_secret="" control_plan
     local previous_exists="false" default_model provider_name timestamp height width menu_rows
-    local failed_stage="" rollback_ok="true"
+    local failed_stage="" rollback_ok="true" model_guidance=""
     control_plan=$(read_control_plan || printf 'free')
     if [ "$control_plan" != "pro" ] && [ "$control_plan" != "pro-master" ]; then
         msg "O Assistente com IA é exclusivo do plano PRO.\n\nO plano $control_plan mantém o diagnóstico básico local, sem LLM, sem consumo de API e sem criação de stack de Assistente. Uma configuração antiga de provedor não será utilizada."
@@ -906,14 +906,17 @@ configure_provider() {
         openai)
             base_url="https://api.openai.com/v1"
             default_model="gpt-5.6-terra"
+            model_guidance="Recomendados em 25/08/2026: gpt-5.6-sol para maior qualidade, gpt-5.6-terra para equilíbrio ou gpt-5.6-luna para economia."
             ;;
         openrouter)
             base_url="https://openrouter.ai/api/v1"
-            default_model="openai/gpt-5.4"
+            default_model="openai/gpt-5.6-terra"
+            model_guidance="Recomendados em 25/08/2026: openai/gpt-5.6-sol, openai/gpt-5.6-terra ou openai/gpt-5.6-luna. Modelos com :free servem para testes, não para qualidade previsível."
             ;;
         deepseek)
             base_url="https://api.deepseek.com"
             default_model="deepseek-v4-flash"
+            model_guidance="Recomendados em 25/08/2026: deepseek-v4-pro para maior qualidade ou deepseek-v4-flash para equilíbrio."
             ;;
         ollama)
             total_memory=$(docker info --format '{{.MemTotal}}' 2>/dev/null || printf '0')
@@ -932,6 +935,7 @@ configure_provider() {
                 return
             }
             default_model="qwen3:8b"
+            model_guidance="Recomendados em 25/08/2026: qwen3:14b para equilíbrio ou qwen3:30b para maior qualidade, somente com memória livre suficiente. qwen3:8b é a opção mínima."
             ;;
         *)
             fail "Provedor inválido."
@@ -940,7 +944,7 @@ configure_provider() {
     esac
 
     if ! model=$(ask_required \
-        "Modelo exato do provedor $(provider_label "$provider"):" \
+        "Modelo exato do provedor $(provider_label "$provider"):\n\n$model_guidance\n\nA lista é orientativa. Depois da troca, execute o canário de 4 testes no relatório de qualidade." \
         "$default_model"); then
         return 0
     fi
@@ -948,6 +952,11 @@ configure_provider() {
         fail "Identificador de modelo inválido."
         return
     }
+    if [[ "$model" == *:free ]] && ! whiptail --title "$title" --yesno \
+        "O modelo $model é gratuito.\n\nModelos :free podem ter limites baixos, indisponibilidade e respostas menos consistentes. Use apenas para testes e revise toda orientação técnica.\n\nDeseja continuar mesmo assim?" \
+        "$(dialog_height 16)" "$(dialog_width 84)"; then
+        return 0
+    fi
 
     if external_provider "$provider"; then
         if ! llm_api_key=$(ask_secret \

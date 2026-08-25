@@ -6,6 +6,13 @@ source_file="$project_dir/configure-control.sh"
 test_dir=$(mktemp -d)
 trap 'rm -rf "$test_dir"' EXIT
 
+grep -Fq 'default_model="openai/gpt-5.6-terra"' "$source_file"
+grep -Fq 'gpt-5.6-sol para maior qualidade' "$source_file"
+grep -Fq 'deepseek-v4-pro para maior qualidade' "$source_file"
+grep -Fq 'qwen3:30b para maior qualidade' "$source_file"
+grep -Fq 'Modelos :free podem ter limites baixos' "$source_file"
+grep -Fq 'execute o canário de 4 testes' "$source_file"
+
 extract_named_function() {
     local name="$1"
     awk -v name="$name" '

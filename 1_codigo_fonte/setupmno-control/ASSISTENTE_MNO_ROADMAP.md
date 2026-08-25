@@ -139,14 +139,22 @@ capacidade de uma IA executar comandos nunca será tratada como equivalente a
 
 Baseline desta correção:
 
-- Setup MNO: `7.33.4` em preparação de release candidata
-- Última versão estável homologada: `7.31.0`
+- Setup MNO: `7.33.4`, promovida a versão estável em 25/08/2026
+- Última versão estável homologada: `7.33.4`
 - Control Center: `4.33.4`
 - Conhecimento canônico: `3.34.2`
 - SRE Knowledge Pack: `1.2.0`
 - Snapshot SRE: `1.0.0 BETA`
 - Skill Supply Chain Gate: `1.0.0 BETA`
 - Homologation Runner: `1.3.0`
+
+Na promoção estável, a interface e o Help também passaram a distinguir os 878
+testes determinísticos do motor local da qualidade variável da LLM escolhida.
+Uma lista orientativa de modelos, datada e baseada em fontes oficiais, é exibida
+sem transformar disponibilidade externa em garantia. Modelos OpenRouter
+`:free` são marcados para testes, e o canário manual de quatro perguntas críticas
+permanece a validação do modelo realmente configurado. O Assistente MNO continua
+**BETA**.
 
 Esta correção não conclui nem reordena o roadmap. O próximo item da subtrilha
 SRE permanece `SRE-3` — motores determinísticos, começando por Trivy, Lynis e
