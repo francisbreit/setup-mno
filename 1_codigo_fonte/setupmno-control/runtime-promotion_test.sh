@@ -3,6 +3,8 @@ set -euo pipefail
 
 project_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source_root=$(cd "$project_dir/.." && pwd)
+boundary_tool="$project_dir/shc_boundary.py"
+boundary_policy="$project_dir/shc-boundary-policy.json"
 test_dir=$(mktemp -d)
 trap 'rm -rf -- "$test_dir"' EXIT
 
@@ -20,7 +22,7 @@ for architecture in x86 arm; do
 
     {
         printf '%s\n' '#!/usr/bin/bash' 'set -euo pipefail'
-        sed -n '3,11p' "$start_script"
+        sed -n '3,/^umask 077$/p' "$start_script"
         printf '%s\n' 'control_state_error="$SETUPMNO_PROMOTION_TEST_ROOT/control-state-error.log"'
         awk '
             /^control_package="\/root\/SetupLowCodeMno\/\.control-package"$/ { capture=1 }
@@ -49,7 +51,7 @@ for architecture in x86 arm; do
         cmp -s "$runtime_package/homologation-package/$packaged_file" "$promoted_file"
     done < <(jq -r '.files[].path' "$runtime_package/homologation-package/manifest.json")
 
-    for runtime_file in catalog.json release.json control-source.tar.gz; do
+    for runtime_file in catalog.json release.json protection-boundary.json control-source.tar.gz; do
         cmp -s "$runtime_package/$runtime_file" "$test_root/.control/$runtime_file"
     done
     for runtime_file in maintainer_console.sh maintainer_workspace.sh \
@@ -91,6 +93,35 @@ for architecture in x86 arm; do
     fi
     [ -s "$test_root/control-state-error.log" ]
     rm -rf -- "$test_root/.control-package"
+
+    # Simula a tentativa mais forte contra os módulos legíveis: altera um
+    # arquivo, recria seu inventário e também atualiza release.json. Mesmo
+    # assim, o hash do release preso dentro do start protegido por SHC precisa
+    # bloquear a promoção.
+    mkdir -p "$test_root/.control-package"
+    cp -a "$runtime_package/." "$test_root/.control-package/"
+    printf '\nmodulo adulterado\n' >>"$test_root/.control-package/control-source.tar.gz"
+    python3 -B "$boundary_tool" generate \
+        --package "$test_root/.control-package" --policy "$boundary_policy" \
+        --setup-version "$(jq -r '.setupVersion' "$runtime_package/release.json")" \
+        --architecture "$(jq -r '.architecture' "$runtime_package/release.json")" >/dev/null
+    boundary_sha=$(sha256sum "$test_root/.control-package/protection-boundary.json" | awk '{print $1}')
+    boundary_bytes=$(stat -c '%s' "$test_root/.control-package/protection-boundary.json")
+    boundary_entries=$(jq -r '.artifactCount' "$test_root/.control-package/protection-boundary.json")
+    jq --arg sha "$boundary_sha" --argjson bytes "$boundary_bytes" \
+        --argjson entries "$boundary_entries" \
+        '.protectionBoundarySHA256 = $sha |
+         .protectionBoundaryBytes = $bytes |
+         .protectionBoundaryEntries = $entries' \
+        "$test_root/.control-package/release.json" >"$test_root/.control-package/release.json.new"
+    mv -f "$test_root/.control-package/release.json.new" \
+        "$test_root/.control-package/release.json"
+    if PLANO=pro-master SETUPMNO_PROMOTION_TEST_ROOT="$test_root" bash "$promotion_script"; then
+        printf 'Módulo e manifestos adulterados foram aceitos em %s.\n' "$architecture" >&2
+        exit 1
+    fi
+    [ -s "$test_root/control-state-error.log" ]
+    rm -rf -- "$test_root/.control-package"
 done
 
-printf 'Promoção runtime, supply-chain fail-closed e remoção da homologação fora do PRO MASTER aprovadas em x86/ARM.\n'
+printf 'Promoção runtime, fronteira SHC fail-closed, supply-chain e remoção da homologação fora do PRO MASTER aprovadas em x86/ARM.\n'

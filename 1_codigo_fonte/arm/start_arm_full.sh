@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.33.4"
+VERSIONSETUP="7.33.5"
 EXPECTED_CATALOG_ENTRIES="158"
 EXPECTED_EVAL_DATASET_VERSION="1.17.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
@@ -9,6 +9,7 @@ EXPECTED_BLUEPRINT_FACTORY_VERSION="2.1.0"
 EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="0"
 EXPECTED_QUALITY_SCHEMA_VERSION="2"
 EXPECTED_HOMOLOGATION_RUNNER_VERSION="1.3.0"
+EXPECTED_CONTROL_RELEASE_SHA256="ad992b8abb6d3c27f2b6e4525413d6697a7e4c305887fb7f9f0e878e86aee3c8"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -554,11 +555,15 @@ control_package="/root/SetupLowCodeMno/.control-package"
 control_target="/root/SetupLowCodeMno/.control"
 homologation_package="$control_package/homologation-package"
 supply_chain_package="$control_package/supply-chain"
+protection_boundary="$control_package/protection-boundary.json"
 maintainer_runtime_files=(
     maintainer_console.sh maintainer_workspace.sh maintainer_validation_wizard.sh
     certification_wizard.sh maintainer-workspace.tar.gz
 )
 if [ ! -s "$control_package/release.json" ] ||
+   [ -L "$control_package/release.json" ] ||
+   [ ! -s "$protection_boundary" ] ||
+   [ -L "$protection_boundary" ] ||
    [ ! -s "$control_package/catalog.json" ] ||
    [ ! -f "$control_package/control-source.tar.gz" ] ||
    [ -L "$control_package/control-source.tar.gz" ] ||
@@ -590,6 +595,12 @@ if [ ! -s "$control_package/release.json" ] ||
    [ -L "$supply_chain_package/attestation.intoto.json" ]; then
     printf 'O pacote não contém o catálogo, os fontes e o conhecimento runtime do Control Center.\n' >"$control_state_error"
     exit 40
+fi
+control_release_actual_sha=$(sha256sum "$control_package/release.json" | awk '{print $1}')
+if ! [[ "$EXPECTED_CONTROL_RELEASE_SHA256" =~ ^[0-9a-f]{64}$ ]] ||
+   [ "$control_release_actual_sha" != "$EXPECTED_CONTROL_RELEASE_SHA256" ]; then
+    printf 'O manifesto runtime não corresponde à âncora protegida pelo SHC. Nenhum módulo externo foi promovido.\n' >"$control_state_error"
+    exit 41
 fi
 for maintainer_file in "${maintainer_runtime_files[@]}"; do
     if [ ! -f "$homologation_package/$maintainer_file" ] ||
@@ -729,6 +740,26 @@ for supply_chain_file in sbom.cdx.json image-inventory.json attestation.intoto.j
         supply_chain_files_valid="false"
     fi
 done
+boundary_expected_sha=$(jq -r '.protectionBoundarySHA256 // empty' "$control_package/release.json" 2>/dev/null)
+boundary_expected_bytes=$(jq -r '.protectionBoundaryBytes // 0' "$control_package/release.json" 2>/dev/null)
+boundary_expected_entries=$(jq -r '.protectionBoundaryEntries // 0' "$control_package/release.json" 2>/dev/null)
+boundary_actual_sha=$(sha256sum "$protection_boundary" | awk '{print $1}')
+boundary_actual_bytes=$(stat -c '%s' "$protection_boundary" 2>/dev/null)
+boundary_actual_entries=$(jq -r '.artifactCount // 0' "$protection_boundary" 2>/dev/null)
+boundary_file_entries=$(find "$control_package" -type f ! -path "$control_package/release.json" ! -path "$protection_boundary" | wc -l)
+boundary_links=$(find "$control_package" -type l -print -quit)
+boundary_files_valid="true"
+while IFS=$'\t' read -r boundary_path boundary_sha boundary_bytes; do
+    case "$boundary_path" in
+        ""|/*|../*|*/../*|*/..|release.json|protection-boundary.json) boundary_files_valid="false"; continue ;;
+    esac
+    boundary_file="$control_package/$boundary_path"
+    if [ ! -f "$boundary_file" ] || [ -L "$boundary_file" ] ||
+       [ "$(sha256sum "$boundary_file" | awk '{print $1}')" != "$boundary_sha" ] ||
+       [ "$(stat -c '%s' "$boundary_file" 2>/dev/null)" != "$boundary_bytes" ]; then
+        boundary_files_valid="false"
+    fi
+done < <(jq -r '.artifacts[]? | [.path, .sha256, .bytes] | @tsv' "$protection_boundary" 2>/dev/null)
 homologation_runner_expected_sha=$(jq -r '.files[] | select(.path == "homologation_runner.py") | .sha256' "$homologation_manifest" 2>/dev/null)
 homologation_runner_expected_bytes=$(jq -r '.files[] | select(.path == "homologation_runner.py") | .size' "$homologation_manifest" 2>/dev/null)
 homologation_wizard_expected_sha=$(jq -r '.files[] | select(.path == "homologation_wizard.sh") | .sha256' "$homologation_manifest" 2>/dev/null)
@@ -781,6 +812,23 @@ fi
 if [ "$control_schema" != "1" ] ||
    [ "$control_version" != "$VERSIONSETUP" ] ||
    [ "$control_arch" != "arm64" ] ||
+   [ "$boundary_expected_sha" != "$boundary_actual_sha" ] ||
+   [ "$boundary_expected_bytes" != "$boundary_actual_bytes" ] ||
+   [ "$boundary_expected_entries" != "$boundary_actual_entries" ] ||
+   [ "$boundary_actual_entries" != "$boundary_file_entries" ] ||
+   [ "$boundary_files_valid" != "true" ] ||
+   [ -n "$boundary_links" ] ||
+   ! jq -e --arg version "$VERSIONSETUP" '
+       .schemaVersion == 1 and .boundaryVersion == "1.0.0" and
+       .maturity == "beta" and .setupVersion == $version and
+       .architecture == "arm64" and .defaultForNewModules == "external-verified" and
+       .trustAnchor == "shc-embedded-release-sha256" and
+       (.artifactCount > 0) and (.artifactCount == (.artifacts | length)) and
+       ([.artifacts[].path] | length == (unique | length)) and
+       all(.artifacts[]; (.path | type == "string" and length > 0) and
+           (.sha256 | test("^[0-9a-f]{64}$")) and (.bytes | type == "number" and . >= 0) and
+           .mode == "verified-external")
+   ' "$protection_boundary" >/dev/null 2>&1 ||
    [ -z "$control_expected_sha" ] ||
    [ "$control_expected_sha" != "$control_actual_sha" ] ||
    [ -z "$control_source_expected_sha" ] ||
@@ -897,6 +945,7 @@ mkdir -p "$control_target"
 mkdir -p "$control_target/knowledge-package"
 mkdir -p "$control_target/homologation-package"
 mkdir -p "$control_target/supply-chain"
+install -m 0644 "$protection_boundary" "$control_target/protection-boundary.json.tmp"
 install -m 0644 "$control_package/catalog.json" "$control_target/catalog.json.tmp"
 install -m 0644 "$control_package/release.json" "$control_target/release.json.tmp"
 install -m 0644 "$control_source_archive" "$control_target/control-source.tar.gz.tmp"
@@ -931,6 +980,7 @@ for supply_chain_file in manifest.json sbom.cdx.json image-inventory.json attest
         "$control_target/supply-chain/$supply_chain_file.tmp"
 done
 mv -f "$control_target/catalog.json.tmp" "$control_target/catalog.json"
+mv -f "$control_target/protection-boundary.json.tmp" "$control_target/protection-boundary.json"
 mv -f "$control_target/control-source.tar.gz.tmp" "$control_target/control-source.tar.gz"
 mv -f "$control_target/knowledge-package/knowledge-package.tar.gz.tmp" \
     "$control_target/knowledge-package/knowledge-package.tar.gz"

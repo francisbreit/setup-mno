@@ -9,6 +9,8 @@ arm_target="$source_root/arm/SetupLowCodeMno/setupmno_control.sh"
 x86_runtime_package="$source_root/x86/SetupLowCodeMno/.control-package"
 arm_runtime_package="$source_root/arm/SetupLowCodeMno/.control-package"
 homologation_package="$project_dir/homologation-package"
+shc_boundary_tool="$project_dir/shc_boundary.py"
+shc_boundary_policy="$project_dir/shc-boundary-policy.json"
 temporary_dir=$(mktemp -d)
 trap 'rm -rf "$temporary_dir"' EXIT
 
@@ -16,6 +18,7 @@ sre_docs="$source_root/setupmno-docs"
 python3 -B "$sre_docs/tools/validate-sre-knowledge.py"
 bash "$sre_docs/tools/test-sre-knowledge-validator.sh"
 bash "$sre_docs/tools/test-skill-supply-chain-gate.sh"
+bash "$project_dir/shc-boundary_test.sh"
 jq -e '
     ."$schema" == "https://json-schema.org/draft/2020-12/schema" and
     .properties.source.required == ["repository", "commit", "license", "licenseFile"] and
@@ -220,6 +223,7 @@ for architecture in x86 arm; do
     }
     install_script_bytes=$(stat -c '%s' "$install_script")
     security_diagnostic_bytes=$(stat -c '%s' "$security_diagnostic_script")
+    start_script_bytes=$(stat -c '%s' "$start_script")
     [ "$install_script_bytes" -le 122880 ] || {
         printf 'ERRO: %s possui %s bytes e ultrapassa a margem segura de 120 KiB do SHC.\n' \
             "$install_script" "$install_script_bytes" >&2
@@ -228,6 +232,17 @@ for architecture in x86 arm; do
     [ "$security_diagnostic_bytes" -le 122880 ] || {
         printf 'ERRO: %s possui %s bytes e ultrapassa a margem segura de 120 KiB do SHC.\n' \
             "$security_diagnostic_script" "$security_diagnostic_bytes" >&2
+        exit 1
+    }
+    [ "$start_script_bytes" -le 122880 ] || {
+        printf 'ERRO: %s possui %s bytes e ultrapassa a margem segura de 120 KiB do SHC. Novos módulos devem ficar externos.\n' \
+            "$start_script" "$start_script_bytes" >&2
+        exit 1
+    }
+    grep -Eq '^EXPECTED_CONTROL_RELEASE_SHA256="[0-9a-f]{64}"$' "$start_script" &&
+    grep -Fq 'protection-boundary.json' "$start_script" || {
+        printf 'ERRO: %s não possui a âncora protegida da nova fronteira SHC.\n' \
+            "$start_script" >&2
         exit 1
     }
     [ "$(grep -Fc '"DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR" ""' "$install_script")" -eq 4 ]
@@ -1185,7 +1200,9 @@ generate_runtime_package() {
     local supply_chain_image_references supply_chain_digest_pinned_images
     local supply_chain_mutable_tag_images supply_chain_high_risk_mutable_tag_images
     local supply_chain_implicit_latest_images supply_chain_unresolved_references
+    local protection_boundary_sha protection_boundary_bytes protection_boundary_entries
     mkdir -p "$target"
+    rm -f "$target/release.json" "$target/protection-boundary.json"
     install -m 0644 "$project_dir/catalog.json" "$target/catalog.json"
     install -m 0644 "$bundle" "$target/control-source.tar.gz"
     mkdir -p "$target/knowledge-package"
@@ -1241,6 +1258,12 @@ generate_runtime_package() {
     supply_chain_high_risk_mutable_tag_images=$(jq -r '.inventory.highRiskMutableTagImages' "$supply_chain_dir/manifest.json")
     supply_chain_implicit_latest_images=$(jq -r '.inventory.implicitLatestImages' "$supply_chain_dir/manifest.json")
     supply_chain_unresolved_references=$(jq -r '.inventory.unresolvedExpressions' "$supply_chain_dir/manifest.json")
+    python3 -B "$shc_boundary_tool" generate \
+        --package "$target" --policy "$shc_boundary_policy" \
+        --setup-version "$x86_version" --architecture "$architecture" >/dev/null
+    protection_boundary_sha=$(sha256sum "$target/protection-boundary.json" | awk '{print $1}')
+    protection_boundary_bytes=$(stat -c '%s' "$target/protection-boundary.json")
+    protection_boundary_entries=$(jq -r '.artifactCount' "$target/protection-boundary.json")
     temporary_manifest="$target/release.json.tmp"
     jq -n \
         --arg setup_version "$x86_version" \
@@ -1262,6 +1285,7 @@ generate_runtime_package() {
         --arg supply_chain_inventory_sha "$supply_chain_inventory_sha" \
         --arg supply_chain_attestation_sha "$supply_chain_attestation_sha" \
         --arg supply_chain_signature_status "$supply_chain_signature_status" \
+        --arg protection_boundary_sha "$protection_boundary_sha" \
         --argjson catalog_entries "$catalog_entries" \
         --argjson knowledge_entries "$knowledge_entries" \
         --argjson eval_schema "$eval_schema" \
@@ -1287,6 +1311,8 @@ generate_runtime_package() {
         --argjson supply_chain_high_risk_mutable_tag_images "$supply_chain_high_risk_mutable_tag_images" \
         --argjson supply_chain_implicit_latest_images "$supply_chain_implicit_latest_images" \
         --argjson supply_chain_unresolved_references "$supply_chain_unresolved_references" \
+        --argjson protection_boundary_bytes "$protection_boundary_bytes" \
+        --argjson protection_boundary_entries "$protection_boundary_entries" \
         '{
             schemaVersion: 1,
             setupVersion: $setup_version,
@@ -1296,6 +1322,13 @@ generate_runtime_package() {
             architecture: $architecture,
             controlSourceSHA256: $control_source_sha,
             controlSourceBytes: $control_source_bytes,
+            protectionBoundaryVersion: "1.0.0",
+            protectionBoundaryMaturity: "beta",
+            protectionBoundaryDefault: "external-verified",
+            protectionBoundaryTrustAnchor: "shc-embedded-release-sha256",
+            protectionBoundarySHA256: $protection_boundary_sha,
+            protectionBoundaryBytes: $protection_boundary_bytes,
+            protectionBoundaryEntries: $protection_boundary_entries,
             knowledgeVersion: $knowledge_version,
             knowledgeArchiveSHA256: $knowledge_archive_sha,
             knowledgeEntries: $knowledge_entries,
@@ -1344,6 +1377,18 @@ generate_runtime_package() {
 
 generate_runtime_package "$x86_runtime_package" "amd64"
 generate_runtime_package "$arm_runtime_package" "arm64"
+python3 -B "$shc_boundary_tool" bind \
+    --start-script "$source_root/x86/start_full.sh" \
+    --release "$x86_runtime_package/release.json" >/dev/null
+python3 -B "$shc_boundary_tool" bind \
+    --start-script "$source_root/arm/start_arm_full.sh" \
+    --release "$arm_runtime_package/release.json" >/dev/null
+python3 -B "$shc_boundary_tool" assert-anchor \
+    --start-script "$source_root/x86/start_full.sh" \
+    --release "$x86_runtime_package/release.json"
+python3 -B "$shc_boundary_tool" assert-anchor \
+    --start-script "$source_root/arm/start_arm_full.sh" \
+    --release "$arm_runtime_package/release.json"
 "$project_dir/runtime-promotion_test.sh" >/dev/null
 
 cmp -s "$x86_runtime_package/knowledge-package/manifest.json" \
@@ -1355,6 +1400,10 @@ cmp -s "$x86_runtime_package/control-source.tar.gz" \
 cmp -s "$x86_runtime_package/homologation-package/manifest.json" \
     "$arm_runtime_package/homologation-package/manifest.json"
 for runtime_package in "$x86_runtime_package" "$arm_runtime_package"; do
+    runtime_architecture=$(jq -r '.architecture' "$runtime_package/release.json")
+    python3 -B "$shc_boundary_tool" validate \
+        --package "$runtime_package" --policy "$shc_boundary_policy" \
+        --setup-version "$x86_version" --architecture "$runtime_architecture" >/dev/null
     packaged_source_sha=$(sha256sum "$runtime_package/control-source.tar.gz" | awk '{print $1}')
     packaged_source_bytes=$(stat -c '%s' "$runtime_package/control-source.tar.gz")
     manifest_source_sha=$(jq -r '.controlSourceSHA256 // empty' "$runtime_package/release.json")
@@ -1367,7 +1416,6 @@ for runtime_package in "$x86_runtime_package" "$arm_runtime_package"; do
         else "missing"
         end
     ' "$runtime_package/release.json")
-    runtime_architecture=$(jq -r '.architecture' "$runtime_package/release.json")
     packaged_supply_chain_manifest_sha=$(sha256sum "$runtime_package/supply-chain/manifest.json" | awk '{print $1}')
     manifest_supply_chain_manifest_sha=$(jq -r '.supplyChainManifestSHA256 // empty' "$runtime_package/release.json")
     [ "$packaged_source_sha" = "$manifest_source_sha" ] &&

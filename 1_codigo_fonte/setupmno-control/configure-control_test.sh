@@ -128,7 +128,7 @@ printf '%s\n' 'version: new' >"$assistant_yaml"
 portainer_stacks="$work_dir/portainer-stacks.json"
 assistant_portainer_previous_yaml="$work_dir/assistant-previous.yaml"
 assistant_portainer_previous_env="$work_dir/assistant-previous-env.json"
-control_image="mno-test-app:4.33.4"
+control_image="mno-test-app:4.33.5"
 assistant_portainer_stack_id=""
 assistant_portainer_endpoint_id=""
 assistant_portainer_swarm_id=""
@@ -153,11 +153,11 @@ deploy_assistant_through_portainer
 [ "$assistant_portainer_action" = "updated" ]
 jq -e '.stackFileContent == "version: new\n" and .env[0].name == "KEEP" and .prune == true' \
     "$MOCK_CAPTURE/payload.json" >/dev/null
-grep -Fq 'image: mno-test-app:4.33.4' "$assistant_portainer_previous_yaml"
+grep -Fq 'image: mno-test-app:4.33.5' "$assistant_portainer_previous_yaml"
 ! grep -Fq 'mno-test-app:4.22.2' "$assistant_portainer_previous_yaml"
 cp "$MOCK_CAPTURE/payload.json" "$MOCK_CAPTURE/update-payload.json"
 rollback_assistant_deploy true
-jq -e '.stackFileContent | contains("image: mno-test-app:4.33.4")' \
+jq -e '.stackFileContent | contains("image: mno-test-app:4.33.5")' \
     "$MOCK_CAPTURE/payload.json" >/dev/null
 jq -e '.stackFileContent | contains("mno-test-app:4.22.2") | not' \
     "$MOCK_CAPTURE/payload.json" >/dev/null
@@ -217,7 +217,7 @@ docker() {
     fi
 }
 ensure_assistant_current_image
-grep -Fq -- '--image mno-test-app:4.33.4' "$image_repair_log"
+grep -Fq -- '--image mno-test-app:4.33.5' "$image_repair_log"
 
 eval "$(extract_named_function configure_assistant_wait_policy)"
 eval "$(extract_named_function assistant_spec_matches)"

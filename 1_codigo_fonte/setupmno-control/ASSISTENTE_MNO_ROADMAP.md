@@ -120,6 +120,37 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
+## v7.33.5 — Fronteira de proteção SHC para o SRE-3 (BETA, candidata)
+
+- o SHC permanece limitado aos gatilhos, núcleo inicial, instalador e scripts
+  das aplicações canônicas ou legadas já classificados;
+- novos módulos auxiliares usam por padrão o modo `external-verified`, fora do
+  monólito e com caminho, tamanho, escopo e SHA-256 inventariados;
+- futuros coletores Trivy, Lynis, Docker Bench e módulos `sre-*` são proibidos
+  no SHC pelo gate de release;
+- o `release.json` referencia o inventário externo e seu hash exato fica preso
+  ao `start_full.sh` ou `start_arm_full.sh` que será compilado pelo SHC;
+- adulterar o módulo e recalcular ambos os manifestos continua falhando porque
+  a âncora protegida não corresponde ao novo release;
+- promoção continua atômica, segregada por plano e fail closed;
+- paridade x86/ARM, limite de 120 KiB e smoke real do SHC permanecem gates
+  bloqueantes.
+
+Baseline desta candidata:
+
+- Setup MNO: `7.33.5` em preparação de release candidata
+- Última versão estável homologada: `7.33.4`
+- Control Center: `4.33.5`
+- Conhecimento canônico: `3.34.2` (conteúdo inalterado)
+- Fronteira SHC: `1.0.0 BETA`
+- SRE Knowledge Pack: `1.2.0`
+- Snapshot SRE: `1.0.0 BETA`
+- Homologation Runner: `1.3.0`
+
+Esta preparação não instala scanners nem conclui ou reordena o roadmap. O
+próximo item permanece `SRE-3` — motores determinísticos, começando por Trivy,
+Lynis e Docker Bench.
+
 ## v7.33.4 — Troca transacional do provedor do Assistente MNO
 
 - a convergência deixa de aceitar a réplica antiga durante uma atualização

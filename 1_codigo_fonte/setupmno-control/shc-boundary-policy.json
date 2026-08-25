@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "1.0.0",
+  "maturity": "beta",
+  "defaultForNewModules": "external-verified",
+  "trustAnchor": "shc-embedded-release-sha256",
+  "protectedEntrypoints": [
+    "start_full.sh",
+    "start_arm_full.sh"
+  ],
+  "protectedRuntimeCore": [
+    "dockerswarm.sh",
+    "essenciais.sh",
+    "geracloudflare.sh",
+    "install.sh",
+    "restartservice.sh",
+    "securitydiagnostic.sh",
+    "setupmno_control.sh",
+    "uninstall.sh"
+  ],
+  "legacyApplicationInstallers": [
+    "anythingllm.sh",
+    "chatwoot.sh",
+    "chatwootn_evon_rabbitmq.sh",
+    "easyappointments.sh",
+    "lowcoder.sh",
+    "mautic5padrao.sh",
+    "mautic5whatsmkt.sh",
+    "moodle.sh",
+    "quepasa.sh",
+    "toojet.sh",
+    "yourl.sh",
+    "zep.sh"
+  ],
+  "externalScopes": [
+    "control-runtime",
+    "documentation",
+    "homologation",
+    "knowledge",
+    "schemas",
+    "sre-engine",
+    "supply-chain"
+  ],
+  "forbiddenShcPatterns": [
+    "docker-bench*.sh",
+    "lynis*.sh",
+    "sre-*.sh",
+    "trivy*.sh"
+  ],
+  "expectedCurrentShcInputs": 177
+}
