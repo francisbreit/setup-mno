@@ -144,7 +144,7 @@ restante do host. Nenhuma credencial entra nos manifestos ou nos logs do gate.
 
 ## Rollback
 
-O rollback de código é restaurar os arquivos da release estável `v7.33.4`, gerar
+O rollback de código é restaurar os arquivos da release estável anterior `v7.33.4`, gerar
 novamente os instaladores e empacotar. No runtime, uma promoção inválida não
 remove a cópia válida de `.control`; o pacote candidato é rejeitado antes da
 substituição. Esse rollback não altera volumes, bancos, stacks ou dados das

@@ -5,7 +5,7 @@
 - Ambientes: WSL2 com Docker Desktop e VPS Debian/Ubuntu
 - Atualizado em: 2026-08-26
 - Maturidade da funcionalidade: `beta`
-- Versão candidata corretiva: Setup MNO 7.34.3 e Control Center 4.34.2
+- Versão estável homologada: Setup MNO 7.34.3 e Control Center 4.34.2
 
 ## Resumo para leigos
 
@@ -109,6 +109,15 @@ declarados. `failed` significa que o motor não conseguiu produzir a medição.
   sem reconstruir desnecessariamente o painel;
 - a mensagem final diferencia falha de execução de cobertura parcial. O JSON
   continua conservador: qualquer cobertura parcial mantém `complete:false`.
+
+### Evidência de homologação da v7.34.3
+
+- WSL2 x86-64 com Docker Desktop: Trivy, Lynis e Docker Bench executados sem
+  falha, com cobertura parcial visível e supply chain validada no painel;
+- VPS ARM64: os três motores executados sem falha, cobertura parcial preservada
+  e versões Setup MNO 7.34.3 / Control Center 4.34.2 confirmadas;
+- a release foi promovida a estável em 26/08/2026, mas a funcionalidade SRE-3
+  permanece **BETA** e não declara o servidor seguro.
 
 ## Nota técnica para DevOps
 

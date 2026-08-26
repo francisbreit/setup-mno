@@ -80,9 +80,10 @@ próximo item técnico pendente.
    - apresentar fatos observados separadamente de hipóteses e inferências.
 
 4. `SRE-3` — **Motores determinísticos**
-   - implementado como BETA na candidata v7.34.0 com Trivy, Lynis e Docker
-     Bench como coletores de fatos; a candidata corretiva v7.34.1 ajusta a
-     execução dos três motores no WSL2 sem ampliar permissões;
+   - concluído como BETA na versão estável v7.34.3 com Trivy, Lynis e Docker
+     Bench como coletores de fatos; as correções v7.34.1 a v7.34.3 ajustaram a
+     execução no WSL2, o acesso controlado do Terminal Seguro ao Docker Desktop
+     e a exibição do SBOM sem ampliar permissões do Assistente;
    - fixar versões e hashes, definir limites de recursos e normalizar os
      resultados antes de entregá-los ao especialista;
    - impedir que uma conclusão da LLM substitua o resultado determinístico ou
@@ -122,7 +123,7 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
-## v7.34.3 — Estado SBOM e acesso Docker do SRE-3 no WSL2 (BETA, candidata)
+## v7.34.3 — Estado SBOM e acesso Docker do SRE-3 no WSL2 (release estável; SRE-3 BETA)
 
 - o catálogo deixa de substituir o estado válido de supply chain quando a
   resposta específica do catálogo não contém esses campos; SBOM, inventário,
@@ -137,19 +138,20 @@ capacidade de uma IA executar comandos nunca será tratada como equivalente a
 - o diálogo final traduz `partial` para “cobertura parcial”, informa quantos
   motores executaram sem falha e explica que cobertura parcial não confirma
   vulnerabilidade;
-- Setup MNO `7.34.3` e Control Center `4.34.2` permanecem candidatos. A
-  v7.33.4 continua sendo a última versão estável até declaração explícita de
-  Francis MNO.
+- Setup MNO `7.34.3` foi promovido a versão estável em 26/08/2026 após
+  validação no WSL2 x86-64 e em VPS ARM64. O Control Center permanece em
+  `4.34.2`; SRE-3, Assistente MNO e Blueprints continuam **BETA**.
 
-Baseline desta candidata corretiva:
+Baseline homologado:
 
-- Setup MNO: `7.34.3` em preparação de release candidata
-- Última versão estável homologada: `7.33.4`
+- Setup MNO: `7.34.3`, versão estável homologada
+- Última versão estável homologada: `7.34.3`
 - Control Center: `4.34.2`
 - Motores determinísticos: `1.0.0 BETA`
 
-Esta correção não conclui nem reordena a subtrilha SRE. O próximo item continua
-sendo `SRE-4` — plano de ação consultivo.
+Esta promoção conclui o item técnico `SRE-3` sem promover sua maturidade além de
+**BETA** e sem reordenar o roadmap. O próximo item é `SRE-4` — plano de ação
+consultivo.
 
 ## v7.34.2 — Handoff seguro dos bootstraps após autenticação (candidata)
 

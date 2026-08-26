@@ -6,7 +6,7 @@
 - Esforço: estrutural e incremental
 - Atualizado em: 2026-08-23
 - Baseline observada: Setup MNO `v7.29.0`
-- Última versão estável declarada: `v7.27.0`
+- Última versão estável declarada: `v7.34.3`
 - Implementação de runtime: não iniciada
 
 ## 1. Visão executiva

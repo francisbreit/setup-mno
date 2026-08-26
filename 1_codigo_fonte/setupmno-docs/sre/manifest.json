@@ -3,7 +3,7 @@
   "knowledgePack": "setup-mno-sre",
   "knowledgePackVersion": "1.3.0",
   "status": "implemented",
-  "updatedAt": "2026-08-24",
+  "updatedAt": "2026-08-26",
   "language": "pt-BR",
   "runtimePublished": false,
   "controlCenterPublished": false,
@@ -186,7 +186,7 @@
       "audience": ["free", "free1", "free2", "pro", "pro-master", "help-author"],
       "environments": ["debian", "ubuntu", "wsl2", "docker-desktop", "docker-swarm"],
       "topics": ["trivy", "lynis", "docker-bench", "sanitization", "read-only"],
-      "sha256": "100e0edb5bed2919ae90ce373cc655a7dfc2e8926c830732982447a6dd01dbdc",
+      "sha256": "78a4cc259468941c569fe5f6dbc478e2642906772b72d0a9561efec8c24414db",
       "sources": [
         "https://github.com/aquasecurity/trivy/blob/main/docs/getting-started/installation.md",
         "https://cisofy.com/documentation/lynis/get-started/",
