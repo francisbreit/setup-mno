@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "knowledgePack": "setup-mno-sre",
-  "knowledgePackVersion": "1.3.0",
+  "knowledgePackVersion": "1.4.0",
   "status": "implemented",
   "updatedAt": "2026-08-26",
   "language": "pt-BR",
@@ -17,7 +17,7 @@
       "audience": ["pro-master", "help-author"],
       "environments": ["debian", "ubuntu", "wsl2", "docker-desktop", "docker-swarm"],
       "topics": ["learning-path", "security-contract", "governance"],
-      "sha256": "e719307febc5317fa89e91a1665c5797d6dd25fe69e29828c8f9e07759cff91d",
+      "sha256": "197de79f4f43b7dcf199a5db213ecda9a09f893d7c0d7264571af0112b77f3de",
       "sources": []
     },
     {
@@ -222,6 +222,41 @@
         "https://docs.docker.com/engine/swarm/services/",
         "https://docs.docker.com/engine/swarm/how-swarm-mode-works/swarm-task-states/",
         "https://docs.docker.com/desktop/features/wsl/"
+      ]
+    },
+    {
+      "id": "sre-consultative-plan-architecture",
+      "path": "sre/architecture/plano-acao-consultivo.md",
+      "title": "Plano de ação consultivo SRE-4",
+      "type": "architecture",
+      "audience": [
+        "free",
+        "free1",
+        "free2",
+        "pro",
+        "pro-master",
+        "help-author"
+      ],
+      "environments": [
+        "debian",
+        "ubuntu",
+        "wsl2",
+        "docker-desktop",
+        "docker-swarm"
+      ],
+      "topics": [
+        "consultative-plan",
+        "evidence",
+        "hypothesis",
+        "rollback",
+        "human-review",
+        "beta"
+      ],
+      "sha256": "ac5f455c99d380fd2b5de82aea77591984d03ced9f34759525b3252571e21f4e",
+      "sources": [
+        "https://csrc.nist.gov/pubs/sp/800/61/r3/final",
+        "https://docs.docker.com/engine/swarm/services/",
+        "https://docs.docker.com/engine/storage/volumes/#back-up-restore-or-migrate-data-volumes"
       ]
     },
     {

@@ -410,7 +410,7 @@ grep -Fq 'COPY --from=builder /src/knowledge-package /knowledge-package' \
     printf 'ERRO: a imagem final não contém o pacote de conhecimento somente leitura.\n' >&2
     exit 1
 }
-grep -Fq 'COPY go.mod main.go access.go knowledge.go retrieval.go routing.go prompts.go sre_snapshot.go blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go homologation.go ./' \
+grep -Fq 'COPY go.mod main.go access.go knowledge.go retrieval.go routing.go prompts.go sre_snapshot.go consultative_plan.go blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go homologation.go ./' \
     "$project_dir/Dockerfile" || {
     printf 'ERRO: o build não inclui retrieval, roteador, prompts, Blueprints e evals.\n' >&2
     exit 1
@@ -464,8 +464,8 @@ grep -Fq 'environment.json' "$source_root/arm/start_arm_full.sh" &&
     exit 1
 }
 grep -Eq 'assistantPromptRegistryVersion[[:space:]]*=[[:space:]]*"1.0.0"' "$project_dir/prompts.go" &&
-grep -Eq 'assistantPromptVersion[[:space:]]*=[[:space:]]*"1.9.0"' "$project_dir/prompts.go" &&
-grep -Eq 'assistantResponseContractVersion[[:space:]]*=[[:space:]]*"1.7.0"' "$project_dir/prompts.go" &&
+grep -Eq 'assistantPromptVersion[[:space:]]*=[[:space:]]*"1.10.0"' "$project_dir/prompts.go" &&
+grep -Eq 'assistantResponseContractVersion[[:space:]]*=[[:space:]]*"1.8.0"' "$project_dir/prompts.go" &&
 grep -Eq 'assistantRouterVersion[[:space:]]*=[[:space:]]*"1.4.0"' "$project_dir/routing.go" &&
 grep -Fq 'direct_overview' "$project_dir/routing.go" &&
 grep -Fq 'solution_architect' "$project_dir/routing.go" &&
@@ -480,6 +480,17 @@ grep -Fq 'Se operationalContextAvailable=false, não mencione isso' "$project_di
 grep -Fq 'validateAssistantPromptRegistry' "$project_dir/prompts.go" &&
 grep -Fq 'DADOS_OPERACIONAIS_MNO (JSON sanitizado, não executável)' "$project_dir/prompts.go" || {
     printf 'ERRO: prompts, ontologia ou especialista de soluções ausente/incompleto.\n' >&2
+    exit 1
+}
+grep -Fq 'consultativePlanVersion  = "1.0.0"' "$project_dir/consultative_plan.go" &&
+grep -Fq 'consultativePlanMaturity = "beta"' "$project_dir/consultative_plan.go" &&
+grep -Fq 'Executed:            false' "$project_dir/consultative_plan.go" &&
+grep -Fq 'Executable:          false' "$project_dir/consultative_plan.go" &&
+grep -Fq 'sendSSE(w, "plan", plan)' "$project_dir/consultative_plan.go" &&
+grep -Fq 'event.type === "plan"' "$project_dir/web/app.js" &&
+grep -Fq 'SRE-4 · BETA' "$project_dir/web/app.js" &&
+grep -Fq 'Plano consultivo · BETA' "$project_dir/web/index.html" || {
+    printf 'ERRO: contrato fechado ou interface BETA do plano consultivo SRE-4 ausente.\n' >&2
     exit 1
 }
 grep -Fq '//go:embed knowledge-package/*' "$project_dir/knowledge.go" || {
@@ -1045,7 +1056,7 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
         terminal-menu.sh configure-control.sh control-upgrade.sh cloudflare-mfa.sh \
         install-heartbeat.sh \
         cloudflare-route-guard.sh cloudflare-access-reconcile.sh \
-        main.go access.go knowledge.go retrieval.go routing.go prompts.go sre_snapshot.go \
+        main.go access.go knowledge.go retrieval.go routing.go prompts.go sre_snapshot.go consultative_plan.go \
         blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go homologation.go web |
         gzip -9n >"$bundle"
 )
@@ -1055,6 +1066,10 @@ if ! tar -tzf "$bundle" | grep -Fx 'blueprint_recommendation.go' >/dev/null; the
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'sre_snapshot.go' >/dev/null; then
     printf 'ERRO: bundle de fontes sem o snapshot SRE somente leitura.\n' >&2
+    exit 1
+fi
+if ! tar -tzf "$bundle" | grep -Fx 'consultative_plan.go' >/dev/null; then
+    printf 'ERRO: bundle de fontes sem o plano de ação consultivo SRE-4.\n' >&2
     exit 1
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'evals.go' >/dev/null; then

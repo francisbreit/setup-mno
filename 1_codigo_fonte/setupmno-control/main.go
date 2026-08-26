@@ -1231,6 +1231,14 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 		promptContext.Quality.DeterministicAnswer {
 		answer := buildDeterministicQualityAnswer(*promptContext.Quality)
 		sendSSE(w, "delta", map[string]any{"delta": answer})
+		if !sendConsultativePlanSSE(w, route, consultativePlanEvidence{
+			OperationalContextAvailable: contextData.OperationalContextAvailable,
+			CanonicalSourceCount:        len(promptContext.Sources),
+			DeterministicAnswer:         true,
+		}) {
+			sendSSE(w, "error", map[string]any{"error": "O plano consultivo obrigatório não pôde ser validado.", "reason": "policy"})
+			return
+		}
 		sendSSE(w, "done", map[string]any{
 			"ok": true, "policy": "knowledge-quality",
 		})
@@ -1238,6 +1246,13 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 	}
 	if answer, ok := buildDeterministicEcosystemAnswer(input.Question, contextData); ok {
 		sendSSE(w, "delta", map[string]any{"delta": answer})
+		if !sendConsultativePlanSSE(w, route, consultativePlanEvidence{
+			OperationalContextAvailable: contextData.OperationalContextAvailable,
+			DeterministicAnswer:         true,
+		}) {
+			sendSSE(w, "error", map[string]any{"error": "O plano consultivo obrigatório não pôde ser validado.", "reason": "policy"})
+			return
+		}
 		sendSSE(w, "done", map[string]any{
 			"ok": true, "policy": "ecosystem-inventory",
 		})
@@ -1252,16 +1267,29 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Assistente MNO: falha controlada no provedor %s: %v", s.provider, err)
 		return
 	}
+	var grounding *groundingAudit
 	if promptContext != nil {
-		sendSSE(w, "grounding", validateGroundingCitations(
-			answer, len(promptContext.Sources),
-		))
+		audit := validateGroundingCitations(answer, len(promptContext.Sources))
+		grounding = &audit
+		sendSSE(w, "grounding", audit)
 	}
 	if contextData.SRESnapshot != nil {
 		disclosure := deterministicAuditDisclosure(contextData.SRESnapshot.Deterministic)
 		if disclosure != "" {
 			sendSSE(w, "delta", map[string]any{"delta": "\n\n" + disclosure})
 		}
+	}
+	sourceCount := 0
+	if promptContext != nil {
+		sourceCount = len(promptContext.Sources)
+	}
+	if !sendConsultativePlanSSE(w, route, consultativePlanEvidence{
+		OperationalContextAvailable: contextData.OperationalContextAvailable,
+		CanonicalSourceCount:        sourceCount,
+		Grounding:                   grounding,
+	}) {
+		sendSSE(w, "error", map[string]any{"error": "O plano consultivo obrigatório não pôde ser validado.", "reason": "policy"})
+		return
 	}
 	sendSSE(w, "done", map[string]any{"ok": true})
 }
@@ -2749,6 +2777,13 @@ func (a *webApp) streamKnowledgeStatus(w http.ResponseWriter, r *http.Request, q
 	})
 	sendSSE(w, "route", route)
 	sendSSE(w, "delta", map[string]any{"delta": answer})
+	if !sendConsultativePlanSSE(w, route, consultativePlanEvidence{
+		CanonicalSourceCount: 1,
+		DeterministicAnswer:  true,
+	}) {
+		sendSSE(w, "error", map[string]any{"error": "O plano consultivo obrigatório não pôde ser validado.", "reason": "policy"})
+		return
+	}
 	sendSSE(w, "done", map[string]any{"ok": true})
 	a.addAudit("assistant_knowledge_status", "Inventário canônico consultado localmente", clientAddress(r))
 }
@@ -2835,12 +2870,20 @@ func (a *webApp) streamFullCatalog(w http.ResponseWriter, r *http.Request, quest
 		"setupVersion":   catalog.SetupVersion,
 		"catalogEntries": catalog.CatalogEntries,
 	})
-	sendSSE(w, "route", routeAssistant(
+	route := routeAssistant(
 		question,
 		retrievalQueryResolution{Query: question},
 		catalog.Architecture,
-	))
+	)
+	sendSSE(w, "route", route)
 	sendSSE(w, "delta", map[string]any{"delta": answer})
+	if !sendConsultativePlanSSE(w, route, consultativePlanEvidence{
+		CanonicalSourceCount: 1,
+		DeterministicAnswer:  true,
+	}) {
+		sendSSE(w, "error", map[string]any{"error": "O plano consultivo obrigatório não pôde ser validado.", "reason": "policy"})
+		return
+	}
 	sendSSE(w, "done", map[string]any{"ok": true})
 	a.addAudit("assistant_catalog", "Catálogo runtime completo listado localmente", clientAddress(r))
 }
@@ -2880,6 +2923,13 @@ func (a *webApp) streamBasicAssistant(
 	})
 	sendSSE(w, "route", route)
 	sendSSE(w, "delta", map[string]any{"delta": strings.Join(suggestions, "\n\n")})
+	if !sendConsultativePlanSSE(w, route, consultativePlanEvidence{
+		OperationalContextAvailable: true,
+		BasicMode:                   true,
+	}) {
+		sendSSE(w, "error", map[string]any{"error": "O plano consultivo obrigatório não pôde ser validado.", "reason": "policy"})
+		return
+	}
 	sendSSE(w, "done", map[string]any{"ok": true})
 	action := "assistant_basic"
 	detail := "Diagnóstico básico solicitado"

@@ -323,7 +323,7 @@ install -d -m 0700 /root/setupmno-homologation-candidates ||
     fail_upgrade 20 "Não foi possível preparar o diretório privado da Central de Revisão."
 for required_source in go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
     terminal-menu.sh configure-control.sh control-upgrade.sh main.go access.go knowledge.go \
-    retrieval.go routing.go prompts.go blueprint_recommendation.go evals.go \
+    retrieval.go routing.go prompts.go sre_snapshot.go consultative_plan.go blueprint_recommendation.go evals.go \
     provider_evals.go feedback.go audit.go homologation.go web/index.html web/app.js web/assistant-route.js \
     web/styles.css web/terminal-bridge.js; do
     [ -s "$source_dir/$required_source" ] && [ ! -L "$source_dir/$required_source" ] ||

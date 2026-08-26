@@ -90,7 +90,9 @@ próximo item técnico pendente.
      esconda falhas, cobertura incompleta e limitações do scanner.
 
 5. `SRE-4` — **Plano de ação consultivo**
-   - toda resposta operacional deve explicar diagnóstico, evidências,
+   - implementado como BETA na candidata v7.35.0 para todos os planos, com
+     contrato fechado 1.0.0 produzido e validado fora da LLM;
+   - toda resposta operacional passa a explicar diagnóstico, evidências,
      confiança, impacto, pré-condições e estratégia de rollback;
    - a IA não executa a proposta nem transforma texto gerado em shell;
    - recomendações sem evidência suficiente devem ser marcadas como hipótese e
@@ -122,6 +124,36 @@ diagnóstico compreensível e baseado em fatos, enquanto o mantenedor conserva a
 fronteira de confiança, a aprovação final e a rastreabilidade de toda ação. A
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
+
+## v7.35.0 — Plano de ação consultivo SRE-4 (BETA, candidata)
+
+- toda resposta operacional recebe um contrato SRE-4 1.0.0 gerado pelo backend
+  com diagnóstico, evidências observadas e pendentes, confiança, impacto,
+  pré-condições, rollback, validação e próximo passo seguro;
+- o contrato é enviado como evento SSE `plan`, separado do texto da LLM, e
+  falha fechado se estiver incompleto, inválido ou executável;
+- `executed=false` e `executable=false` são invariantes; o plano não contém
+  comandos, não abre shell e não autoriza mudanças;
+- evidência insuficiente força confiança baixa, hipótese explícita e revisão
+  humana; alto risco nunca fica pronto para ação automática;
+- o modo Básico recebe a mesma proteção e informa quando falta documentação
+  canônica, sem inventar confirmação;
+- a interface e o Help mostram `SRE-4 · BETA` antes de qualquer interpretação;
+- Prompt `1.10.0`, contrato adaptativo `1.8.0`, Setup MNO `7.35.0` candidato e
+  Control Center `4.35.0` candidato.
+
+Baseline desta candidata:
+
+- Setup MNO: `7.35.0` em preparação de release candidata
+- Última versão estável homologada: `7.34.3`
+- Control Center: `4.35.0`
+- Plano consultivo: `1.0.0 BETA`
+- Prompt: `1.10.0`
+- Contrato de resposta: `1.8.0`
+
+Esta etapa não cria runbooks nem executa ações. O próximo item da subtrilha é
+`SRE-5` — runbooks homologados. A promoção da v7.35.0 depende de homologação no
+WSL2 e em VPS e de declaração explícita de Francis MNO.
 
 ## v7.34.3 — Estado SBOM e acesso Docker do SRE-3 no WSL2 (release estável; SRE-3 BETA)
 

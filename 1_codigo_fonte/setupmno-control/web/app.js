@@ -1369,6 +1369,7 @@ async function runLocalDiagnostic() {
 async function streamAssistant(question, history, target, basic, fallbackReason = "") {
   clearRetrievalInspection(target);
   clearBlueprintSimulation(target);
+  clearConsultativePlan(target);
   setAssistantMessageRoutePending(target, basic ? "Classificando contingência local..." : "Classificando especialista...");
   updateAssistantRoute(null, "Classificando a intenção localmente...");
   updateRetrievalSummary(null, basic
@@ -1430,6 +1431,8 @@ async function streamAssistant(question, history, target, basic, fallbackReason 
         renderBlueprintSimulation(target, event.data);
       } else if (event.type === "grounding") {
         applyGroundingAudit(target, event.data);
+      } else if (event.type === "plan") {
+        renderConsultativePlan(target, event.data);
       } else if (event.type === "delta") {
         answer += event.data.delta || "";
         renderAssistantContent(content, answer);
@@ -1451,6 +1454,140 @@ function clearRetrievalInspection(target) {
 
 function clearBlueprintSimulation(target) {
   target.querySelector(".blueprint-simulation-banner")?.remove();
+}
+
+function clearConsultativePlan(target) {
+  target?.querySelector(".consultative-plan")?.remove();
+  updateConsultativePlanSummary(null);
+}
+
+function consultativePlanStatusLabel(value) {
+  return {
+    "informational": "Informativo",
+    "needs-evidence": "Coletar evidências",
+    "human-review": "Revisão humana",
+    "review-ready": "Pronto para revisão"
+  }[value] || "Plano indisponível";
+}
+
+function consultativeEvidenceStatusLabel(value) {
+  return {
+    "not-applicable": "Não se aplica",
+    "insufficient": "Evidência insuficiente",
+    "validated": "Evidência validada"
+  }[value] || "Evidência não informada";
+}
+
+function consultativeConfidenceLabel(value) {
+  return { high: "alta", medium: "média", low: "baixa" }[value] || "não informada";
+}
+
+function consultativeList(title, values, emptyLabel) {
+  const section = document.createElement("section");
+  const heading = document.createElement("strong");
+  heading.textContent = title;
+  section.append(heading);
+  const safeValues = Array.isArray(values)
+    ? values.filter(value => typeof value === "string" && value.trim()).slice(0, 20)
+    : [];
+  if (!safeValues.length) {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = emptyLabel;
+    section.append(paragraph);
+    return section;
+  }
+  const list = document.createElement("ul");
+  for (const value of safeValues) {
+    const item = document.createElement("li");
+    item.textContent = value;
+    list.append(item);
+  }
+  section.append(list);
+  return section;
+}
+
+function consultativeText(title, value) {
+  const section = document.createElement("section");
+  const heading = document.createElement("strong");
+  const paragraph = document.createElement("p");
+  heading.textContent = title;
+  paragraph.textContent = typeof value === "string" && value.trim() ? value : "Não informado.";
+  section.append(heading, paragraph);
+  return section;
+}
+
+function renderConsultativePlan(target, plan) {
+  if (!target || plan?.schemaVersion !== 1 || plan?.maturity !== "beta" ||
+      plan?.executed !== false || plan?.executable !== false) return;
+  clearConsultativePlan(target);
+  const card = document.createElement("article");
+  card.className = `consultative-plan plan-${String(plan.status || "unknown")}`;
+  card.setAttribute("aria-label", "Plano consultivo SRE-4 BETA");
+
+  const header = document.createElement("div");
+  header.className = "consultative-plan-head";
+  const identity = document.createElement("div");
+  const kicker = document.createElement("small");
+  const title = document.createElement("strong");
+  kicker.textContent = `SRE-4 · BETA · contrato ${plan.version || "N/I"}`;
+  title.textContent = "Plano de ação consultivo";
+  identity.append(kicker, title);
+  const badge = document.createElement("span");
+  badge.textContent = consultativePlanStatusLabel(plan.status);
+  header.append(identity, badge);
+
+  const facts = document.createElement("div");
+  facts.className = "consultative-plan-facts";
+  for (const value of [
+    consultativeEvidenceStatusLabel(plan.evidenceStatus),
+    `Confiança ${consultativeConfidenceLabel(plan.confidence)}`,
+    `Risco ${riskLabel(plan.riskLevel)}`
+  ]) {
+    const item = document.createElement("span");
+    item.textContent = value;
+    facts.append(item);
+  }
+
+  const grid = document.createElement("div");
+  grid.className = "consultative-plan-grid";
+  grid.append(
+    consultativeText(plan.hypothesis === true ? "Hipótese de diagnóstico" : "Diagnóstico", plan.diagnosis),
+    consultativeText("Impacto", plan.impact),
+    consultativeList("Evidências observadas", plan.observedEvidence, "Nenhuma evidência observada foi declarada."),
+    consultativeList("Evidências pendentes", plan.missingEvidence, "Nenhuma evidência obrigatória está pendente."),
+    consultativeList("Pré-condições", plan.preconditions, "Pré-condições não informadas."),
+    consultativeText("Rollback", plan.rollback),
+    consultativeText("Validação posterior", plan.validation),
+    consultativeText("Próximo passo seguro", plan.nextSafeStep)
+  );
+
+  const footer = document.createElement("p");
+  footer.className = "consultative-plan-footer";
+  footer.textContent = "Nenhuma ação foi executada. Este plano não contém comandos nem autorização de mudança.";
+  card.append(header, facts, grid, footer);
+  target.querySelector(".message-content")?.parentElement.append(card);
+  updateConsultativePlanSummary(plan);
+}
+
+function updateConsultativePlanSummary(plan) {
+  const status = $("assistant-plan-status");
+  const title = $("assistant-plan-title");
+  const summary = $("assistant-plan-summary");
+  const metadata = $("assistant-plan-metadata");
+  if (!status || !title || !summary || !metadata) return;
+  if (!plan) {
+    status.textContent = "Em espera";
+    status.className = "secure-pill";
+    title.textContent = "Aguardando resposta";
+    summary.textContent = "O servidor acrescentará diagnóstico, evidência, confiança, impacto, pré-condições e rollback.";
+    metadata.textContent = "Nenhuma ação pode ser executada pelo plano.";
+    return;
+  }
+  status.textContent = consultativePlanStatusLabel(plan.status);
+  status.className = `secure-pill plan-status-${String(plan.status || "unknown")}`;
+  title.textContent = plan.hypothesis === true ? "Hipótese visível" : "Contrato consultivo validado";
+  summary.textContent = `${consultativeEvidenceStatusLabel(plan.evidenceStatus)} · confiança ${consultativeConfidenceLabel(plan.confidence)} · risco ${riskLabel(plan.riskLevel)}.`;
+  metadata.textContent = `SRE-4 ${plan.version || "N/I"} · BETA · executed=false · executable=false.`;
 }
 
 function renderAnswerQuality(target, quality) {

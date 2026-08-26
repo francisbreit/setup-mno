@@ -1,8 +1,8 @@
 # Setup MNO SRE Knowledge Pack
 
 - Estado: `implemented`
-- Versão do pack: `1.2.0`
-- Atualizado em: 2026-08-24
+- Versão do pack: `1.4.0`
+- Atualizado em: 2026-08-26
 - Público: mantenedor PRO MASTER e futura adaptação didática para clientes
 - Ambientes: Debian, Ubuntu, WSL2, Docker Desktop e Docker Swarm
 - Publicação no Control Center: não publicada
@@ -49,6 +49,11 @@ começa respondendo quatro perguntas:
     contrato fechado, dados permitidos, privacidade e fronteira de confiança.
 13. [Usar o diagnóstico seguro — BETA](manual/usar-diagnostico-seguro.md):
     passo a passo para leigos, resultados esperados e sinais de falha.
+14. [Motores determinísticos — BETA](architecture/motores-deterministicos.md):
+    Trivy, Lynis e Docker Bench com resumo sanitizado e cobertura explícita.
+15. [Plano de ação consultivo SRE-4 — BETA](architecture/plano-acao-consultivo.md):
+    diagnóstico, evidência, confiança, impacto, pré-condições e rollback em um
+    contrato não executável.
 
 ## Limites e segurança
 
@@ -60,7 +65,7 @@ começa respondendo quatro perguntas:
 - Diagnóstico de IA é proposta; autorização é política determinística aplicada
   fora do modelo.
 - Mudanças reais dependerão de runbooks fechados, dry-run, confirmação humana,
-  evidência, backup e rollback nas etapas posteriores do roadmap.
+  evidência, backup e rollback no SRE-5 e nas etapas posteriores do roadmap.
 - Dados reais de clientes, tokens, e-mails, IPs e hostnames não pertencem a esta
   base.
 
@@ -82,9 +87,12 @@ pacotes externos, sem instalá-los ou executá-los.
 
 ## Limites atuais
 
-- O único endpoint SRE é uma fotografia BETA, fixa, sanitizada e somente
+- O endpoint SRE continua sendo uma fotografia BETA, fixa, sanitizada e somente
   leitura; não existe endpoint genérico de Docker ou shell.
-- Nenhum scanner foi instalado.
+- Trivy, Lynis e Docker Bench coletam fatos no fluxo manual SRE-3 BETA; eles não
+  aplicam correções e podem declarar cobertura parcial.
+- O SRE-4 produz um plano consultivo não executável; runbooks reais ainda não
+  existem e pertencem à próxima etapa.
 - Nenhuma IA recebeu acesso direto ao servidor ou ao Docker socket.
 - Nenhuma skill externa foi instalada ou publicada.
 - Nenhum relatório desta pasta entra automaticamente no Help.
