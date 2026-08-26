@@ -771,6 +771,11 @@ func runAgent() error {
 			writeError(w, http.StatusBadGateway, "snapshot SRE indisponível")
 			return
 		}
+		result.Deterministic = loadSREDeterministicAudit(setupStateDir, time.Now().UTC())
+		if err := validateSREDiagnosticSnapshot(result); err != nil {
+			writeError(w, http.StatusBadGateway, "snapshot SRE indisponível")
+			return
+		}
 		writeJSON(w, http.StatusOK, result)
 	}))
 	mux.HandleFunc("GET /setup-state", authorize(func(w http.ResponseWriter, _ *http.Request) {
@@ -1251,6 +1256,12 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 		sendSSE(w, "grounding", validateGroundingCitations(
 			answer, len(promptContext.Sources),
 		))
+	}
+	if contextData.SRESnapshot != nil {
+		disclosure := deterministicAuditDisclosure(contextData.SRESnapshot.Deterministic)
+		if disclosure != "" {
+			sendSSE(w, "delta", map[string]any{"delta": "\n\n" + disclosure})
+		}
 	}
 	sendSSE(w, "done", map[string]any{"ok": true})
 }
@@ -2964,7 +2975,7 @@ func terminalIntentAllowed(values []string) bool {
 		return false
 	}
 	switch values[0] {
-	case "installer", "settings", "homologation", "gateway":
+	case "installer", "settings", "homologation", "sre", "gateway":
 		return true
 	default:
 		return false
@@ -4101,6 +4112,45 @@ func localInsightsForSRESnapshot(
 		"- Hostname, IP, domínio, e-mail, imagens, secrets, variáveis, comandos e conteúdo bruto dos logs não foram incluídos.",
 		"Ações, reinícios e instalações continuam fora deste diagnóstico e exigem o Instalador Seguro e confirmação humana.",
 	)
+	result = append(result, deterministicAuditLines(snapshot.Deterministic)...)
+	return result
+}
+
+func deterministicAuditDisclosure(state sreDeterministicState) string {
+	lines := deterministicAuditLines(state)
+	if len(lines) == 0 {
+		return ""
+	}
+	return strings.Join(lines, "\n")
+}
+
+func deterministicAuditLines(state sreDeterministicState) []string {
+	result := []string{"**Auditoria determinística SRE-3 · BETA**"}
+	switch state.Status {
+	case "not-run":
+		return append(result, "- Não executada. O diagnóstico acima não inclui Trivy, Lynis nem Docker Bench.")
+	case "invalid":
+		return append(result, "- Resultado local recusado por falha de integridade ou formato. Nenhuma conclusão de segurança foi aceita.")
+	case "expired":
+		result = append(result, "- Resultado vencido. As contagens abaixo são históricas e exigem nova execução antes de qualquer decisão.")
+	case "available":
+		result = append(result, "- Resultado válido dentro da janela de 24 horas.")
+	default:
+		return append(result, "- Estado desconhecido recusado. Nenhuma conclusão de segurança foi aceita.")
+	}
+	if state.Result == nil {
+		return result
+	}
+	result = append(result, fmt.Sprintf("- Estado geral: `%s`; cobertura completa: `%t`.", state.Result.OverallStatus, state.Result.Complete))
+	for _, engine := range state.Result.Engines {
+		result = append(result, fmt.Sprintf("- %s %s: `%s`.", engine.ID, engine.Version, engine.Status))
+	}
+	for _, fact := range state.Result.ObservedFacts {
+		result = append(result, "- "+fact.Observation+" Evidência: `"+fact.Evidence+"`.")
+	}
+	for _, limitation := range state.Result.Limitations {
+		result = append(result, "- Limite: "+limitation)
+	}
 	return result
 }
 

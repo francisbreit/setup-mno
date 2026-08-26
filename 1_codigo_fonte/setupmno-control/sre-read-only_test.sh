@@ -15,7 +15,9 @@ if grep -Eq 'mux\.Handle(Func)?\("(POST|PUT|PATCH|DELETE) /sre/' "$main_source";
     exit 1
 fi
 
-grep -Fq 'sreSnapshotSource     = "agent-fixed-read-only"' "$snapshot_source"
+grep -Eq 'sreSnapshotSource[[:space:]]*=[[:space:]]*"agent-fixed-read-only"' "$snapshot_source"
+grep -Eq 'sreSnapshotVersion[[:space:]]*=[[:space:]]*"1.1.0"' "$snapshot_source"
+grep -Fq 'Deterministic' "$snapshot_source"
 grep -Fq 'MutationAllowed: false' "$snapshot_source"
 grep -Fq 'RawLogsIncluded: false' "$snapshot_source"
 grep -Fq 'ServiceNamesUsed: false' "$snapshot_source"

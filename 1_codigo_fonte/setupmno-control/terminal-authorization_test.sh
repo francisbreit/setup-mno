@@ -18,6 +18,8 @@ printf '%s\n' '{"schemaVersion":1,"plan":"pro-master","installationType":"CLOUDF
     "setupmno-terminal-authorized:pro-master:CLOUDFLARE_TUNNEL:homologation" ]
 [ "$(run_launcher installer)" = \
     "setupmno-terminal-authorized:pro-master:CLOUDFLARE_TUNNEL:installer" ]
+[ "$(run_launcher sre)" = \
+    "setupmno-terminal-authorized:pro-master:CLOUDFLARE_TUNNEL:sre" ]
 
 printf '%s\n' '{"schemaVersion":1,"plan":"pro","installationType":"CLOUDFLARE_TUNNEL"}' >"$environment_file"
 if run_launcher homologation >/dev/null 2>&1; then
@@ -26,10 +28,12 @@ if run_launcher homologation >/dev/null 2>&1; then
 fi
 [ "$(run_launcher installer)" = \
     "setupmno-terminal-authorized:pro:CLOUDFLARE_TUNNEL:installer" ]
+[ "$(run_launcher sre)" = \
+    "setupmno-terminal-authorized:pro:CLOUDFLARE_TUNNEL:sre" ]
 
 for plan in free free1 free2 pro pro-master; do
     printf '{"schemaVersion":1,"plan":"%s","installationType":"TRADICIONAL"}\n' "$plan" >"$environment_file"
-    for intent in installer settings homologation gateway; do
+    for intent in installer settings homologation sre gateway; do
         if run_launcher "$intent" >/dev/null 2>&1; then
             printf 'ERRO: terminal %s foi liberado no modo TRADICIONAL para %s.\n' "$intent" "$plan" >&2
             exit 1

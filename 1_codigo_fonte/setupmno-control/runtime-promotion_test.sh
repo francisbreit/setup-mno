@@ -69,6 +69,10 @@ for architecture in x86 arm; do
         cmp -s "$runtime_package/supply-chain/$supply_chain_file" \
             "$test_root/.control/supply-chain/$supply_chain_file"
     done
+    for sre_engine_file in manifest.json run.sh normalize.py tools.json result.schema.json; do
+        cmp -s "$runtime_package/sre-engine/$sre_engine_file" \
+            "$test_root/.control/sre-engine/$sre_engine_file"
+    done
 
     mkdir -p "$test_root/.control-package"
     cp -a "$runtime_package/." "$test_root/.control-package/"
@@ -82,6 +86,10 @@ for architecture in x86 arm; do
     for supply_chain_file in manifest.json sbom.cdx.json image-inventory.json attestation.intoto.json; do
         cmp -s "$runtime_package/supply-chain/$supply_chain_file" \
             "$test_root/.control/supply-chain/$supply_chain_file"
+    done
+    for sre_engine_file in manifest.json run.sh normalize.py tools.json result.schema.json; do
+        cmp -s "$runtime_package/sre-engine/$sre_engine_file" \
+            "$test_root/.control/sre-engine/$sre_engine_file"
     done
 
     mkdir -p "$test_root/.control-package"

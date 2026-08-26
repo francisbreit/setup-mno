@@ -12,22 +12,28 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 )
 
 const (
-	sreSnapshotSchema     = 1
-	sreSnapshotVersion    = "1.0.0"
-	sreSnapshotMaturity   = "beta"
-	sreSnapshotSource     = "agent-fixed-read-only"
-	sreMaxServices        = 60
-	sreMaxEvents          = 40
-	sreMaxLogServices     = 8
-	sreMaxServiceLogBytes = 64 << 10
-	sreMaxServiceLogLines = 200
+	sreSnapshotSchema        = 1
+	sreSnapshotVersion       = "1.1.0"
+	sreSnapshotMaturity      = "beta"
+	sreSnapshotSource        = "agent-fixed-read-only"
+	sreMaxServices           = 60
+	sreMaxEvents             = 40
+	sreMaxLogServices        = 8
+	sreMaxServiceLogBytes    = 64 << 10
+	sreMaxServiceLogLines    = 200
+	sreDeterministicMaxBytes = 32 << 10
 )
+
+var sreDeterministicEvidencePattern = regexp.MustCompile(`^[a-zA-Z]+=[0-9]+(,[a-zA-Z]+=[0-9]+)*$`)
 
 type sreSnapshotPrivacy struct {
 	Sanitized        bool     `json:"sanitized"`
@@ -107,22 +113,61 @@ type sreSnapshotFinding struct {
 	Evidence    string `json:"evidence"`
 }
 
+type sreDeterministicPrivacy struct {
+	Sanitized           bool `json:"sanitized"`
+	RawFindingsIncluded bool `json:"rawFindingsIncluded"`
+	TargetsIncluded     bool `json:"targetsIncluded"`
+	IdentifiersIncluded bool `json:"identifiersIncluded"`
+}
+
+type sreDeterministicEngine struct {
+	ID          string         `json:"id"`
+	Version     string         `json:"version"`
+	Status      string         `json:"status"`
+	Coverage    string         `json:"coverage"`
+	Counts      map[string]int `json:"counts"`
+	Limitations []string       `json:"limitations"`
+}
+
+type sreDeterministicResult struct {
+	SchemaVersion int                      `json:"schemaVersion"`
+	EngineVersion string                   `json:"engineVersion"`
+	Maturity      string                   `json:"maturity"`
+	GeneratedAt   time.Time                `json:"generatedAt"`
+	ExpiresAt     time.Time                `json:"expiresAt"`
+	Execution     string                   `json:"execution"`
+	ReadOnly      bool                     `json:"readOnly"`
+	Complete      bool                     `json:"complete"`
+	OverallStatus string                   `json:"overallStatus"`
+	HostType      string                   `json:"hostType"`
+	Privacy       sreDeterministicPrivacy  `json:"privacy"`
+	Engines       []sreDeterministicEngine `json:"engines"`
+	ObservedFacts []sreSnapshotFinding     `json:"observedFacts"`
+	Limitations   []string                 `json:"limitations"`
+}
+
+type sreDeterministicState struct {
+	Status string                  `json:"status"`
+	Result *sreDeterministicResult `json:"result,omitempty"`
+}
+
 type sreDiagnosticSnapshot struct {
-	SchemaVersion   int                  `json:"schemaVersion"`
-	SnapshotVersion string               `json:"snapshotVersion"`
-	Maturity        string               `json:"maturity"`
-	Source          string               `json:"source"`
-	GeneratedAt     time.Time            `json:"generatedAt"`
-	ReadOnly        bool                 `json:"readOnly"`
-	Privacy         sreSnapshotPrivacy   `json:"privacy"`
-	Versions        sreSnapshotVersions  `json:"versions"`
-	Capacity        sreSnapshotCapacity  `json:"capacity"`
-	Swarm           sreSnapshotSwarm     `json:"swarm"`
-	Services        []sreSnapshotService `json:"services"`
-	Events          []sreSnapshotEvent   `json:"events"`
-	Findings        []sreSnapshotFinding `json:"observedFacts"`
-	Hypotheses      []string             `json:"hypotheses"`
-	Limitations     []string             `json:"limitations"`
+	SchemaVersion   int                   `json:"schemaVersion"`
+	SnapshotVersion string                `json:"snapshotVersion"`
+	Maturity        string                `json:"maturity"`
+	Source          string                `json:"source"`
+	GeneratedAt     time.Time             `json:"generatedAt"`
+	ReadOnly        bool                  `json:"readOnly"`
+	Privacy         sreSnapshotPrivacy    `json:"privacy"`
+	Versions        sreSnapshotVersions   `json:"versions"`
+	Capacity        sreSnapshotCapacity   `json:"capacity"`
+	Swarm           sreSnapshotSwarm      `json:"swarm"`
+	Services        []sreSnapshotService  `json:"services"`
+	Events          []sreSnapshotEvent    `json:"events"`
+	Findings        []sreSnapshotFinding  `json:"observedFacts"`
+	Hypotheses      []string              `json:"hypotheses"`
+	Limitations     []string              `json:"limitations"`
+	Deterministic   sreDeterministicState `json:"deterministicAudit"`
 }
 
 type sreDockerTask struct {
@@ -267,12 +312,90 @@ func collectSREDiagnosticSnapshot(
 			"Logs são reduzidos a contagens de sinais e nunca incluem conteúdo bruto.",
 			"Nenhuma causa provável é promovida a fato sem evidência determinística.",
 		},
+		Deterministic: sreDeterministicState{Status: "not-run"},
 	}
 	snapshot.Findings = sreObservedFindings(snapshot)
 	if err := validateSREDiagnosticSnapshot(snapshot); err != nil {
 		return sreDiagnosticSnapshot{}, err
 	}
 	return snapshot, nil
+}
+
+func loadSREDeterministicAudit(setupStateDir string, now time.Time) sreDeterministicState {
+	invalid := sreDeterministicState{Status: "invalid"}
+	filename := filepath.Join(setupStateDir, "sre-engine", "latest.json")
+	info, err := os.Lstat(filename)
+	if errors.Is(err, os.ErrNotExist) {
+		return sreDeterministicState{Status: "not-run"}
+	}
+	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 ||
+		info.Size() <= 0 || info.Size() > sreDeterministicMaxBytes || info.Mode().Perm()&0o077 != 0 {
+		return invalid
+	}
+	file, err := os.Open(filename)
+	if err != nil {
+		return invalid
+	}
+	defer file.Close()
+	var result sreDeterministicResult
+	decoder := json.NewDecoder(io.LimitReader(file, sreDeterministicMaxBytes+1))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&result) != nil || decoder.Decode(&struct{}{}) != io.EOF ||
+		validateSREDeterministicResult(result) != nil {
+		return invalid
+	}
+	state := sreDeterministicState{Status: "available", Result: &result}
+	if !now.UTC().Before(result.ExpiresAt.UTC()) {
+		state.Status = "expired"
+	}
+	return state
+}
+
+func validateSREDeterministicResult(result sreDeterministicResult) error {
+	if result.SchemaVersion != 1 || result.EngineVersion != "1.0.0" || result.Maturity != "beta" ||
+		result.GeneratedAt.IsZero() || result.ExpiresAt.IsZero() ||
+		!result.ExpiresAt.After(result.GeneratedAt) || result.ExpiresAt.Sub(result.GeneratedAt) > 25*time.Hour ||
+		result.Execution != "human-confirmed-terminal" || !result.ReadOnly ||
+		(result.OverallStatus != "attention" && result.OverallStatus != "incomplete" && result.OverallStatus != "no-critical-signals") ||
+		(result.HostType != "wsl2" && result.HostType != "vps" && result.HostType != "unknown") ||
+		!result.Privacy.Sanitized || result.Privacy.RawFindingsIncluded || result.Privacy.TargetsIncluded ||
+		result.Privacy.IdentifiersIncluded || len(result.Engines) != 3 ||
+		len(result.ObservedFacts) > 12 || len(result.Limitations) == 0 || len(result.Limitations) > 12 {
+		return errors.New("resultado determinístico incompatível")
+	}
+	seen := make(map[string]bool, 3)
+	completed := true
+	for _, engine := range result.Engines {
+		versions := map[string]string{"trivy": "0.73.0", "lynis": "3.1.7", "docker-bench": "1.6.1"}
+		if versions[engine.ID] == "" || seen[engine.ID] || engine.Version != versions[engine.ID] ||
+			(engine.Status != "completed" && engine.Status != "partial" && engine.Status != "failed" && engine.Status != "skipped") ||
+			engine.Coverage == "" || len(engine.Coverage) > 180 || len(engine.Limitations) > 8 {
+			return errors.New("motor determinístico inválido")
+		}
+		seen[engine.ID] = true
+		completed = completed && engine.Status == "completed"
+		for key, value := range engine.Counts {
+			if key == "" || len(key) > 32 || value < 0 || value > 1_000_000 {
+				return errors.New("contagem determinística inválida")
+			}
+		}
+	}
+	if result.Complete != completed || (!completed && result.OverallStatus != "incomplete") {
+		return errors.New("cobertura determinística incoerente")
+	}
+	allowedFacts := map[string]string{
+		"trivy-vulnerability-counts": "O Trivy contou vulnerabilidades nas imagens cobertas sem expor alvos ou CVEs.",
+		"lynis-host-counts":          "O Lynis produziu contagens sanitizadas da auditoria do host.",
+		"docker-bench-counts":        "O Docker Bench produziu contagens sanitizadas dos controles executados.",
+		"audit-coverage-incomplete":  "A auditoria determinística não concluiu toda a cobertura planejada.",
+	}
+	for _, fact := range result.ObservedFacts {
+		if fact.Kind != "" || (fact.Severity != "info" && fact.Severity != "warning" && fact.Severity != "critical") ||
+			allowedFacts[fact.Code] != fact.Observation || !sreDeterministicEvidencePattern.MatchString(fact.Evidence) {
+			return errors.New("fato determinístico inválido")
+		}
+	}
+	return nil
 }
 
 func sreOpaqueReference(serviceID string, salt []byte) string {
@@ -414,6 +537,19 @@ func validateSREDiagnosticSnapshot(snapshot sreDiagnosticSnapshot) error {
 		len(snapshot.Services) > sreMaxServices || len(snapshot.Events) > sreMaxEvents ||
 		len(snapshot.Hypotheses) != 0 {
 		return errors.New("snapshot SRE incompatível com a política somente leitura")
+	}
+	switch snapshot.Deterministic.Status {
+	case "not-run", "invalid":
+		if snapshot.Deterministic.Result != nil {
+			return errors.New("estado determinístico incoerente")
+		}
+	case "available", "expired":
+		if snapshot.Deterministic.Result == nil ||
+			validateSREDeterministicResult(*snapshot.Deterministic.Result) != nil {
+			return errors.New("resultado determinístico inválido")
+		}
+	default:
+		return errors.New("estado determinístico desconhecido")
 	}
 	seen := make(map[string]bool, len(snapshot.Services))
 	for _, service := range snapshot.Services {

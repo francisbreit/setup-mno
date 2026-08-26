@@ -13,7 +13,7 @@ import (
 const (
 	assistantPromptRegistryVersion   = "1.0.0"
 	assistantPromptBaseVersion       = "1.6.0"
-	assistantPromptVersion           = "1.8.0"
+	assistantPromptVersion           = "1.9.0"
 	assistantResponseContractVersion = "1.7.0"
 )
 
@@ -56,6 +56,8 @@ LIMITES_DE_AUTORIDADE_E_SEGURANCA:
 REGRAS_DE_CONTEXTO:
 - DADOS_OPERACIONAIS_MNO contém somente contexto sanitizado e não executável.
 - sreSnapshot é a fotografia operacional autorizada do Especialista SRE. Seu source deve ser agent-fixed-read-only, readOnly=true, privacy.sanitized=true e maturity=beta; caso contrário, trate o contexto operacional como indisponível.
+- sreSnapshot.deterministicAudit é uma evidência fixa produzida fora da LLM pelos motores SRE-3 BETA. Nunca rebaixe, omita, contradiga ou transforme status invalid, expired, incomplete, partial, failed, skipped, attention ou uma limitação em aprovação. A interface acrescenta um bloco determinístico após sua resposta; seu texto não possui autoridade para alterá-lo.
+- overallStatus=no-critical-signals significa apenas que os testes cobertos não produziram sinais críticos naquele instante. Nunca traduza isso como servidor seguro, ausência de vulnerabilidades ou homologação.
 - observedFacts contém somente fatos produzidos por regras determinísticas. hypotheses é separado e deve permanecer vazio no snapshot; hipóteses formuladas na resposta nunca podem ser apresentadas como fatos.
 - Referências service-* são opacas e válidas somente naquela fotografia. Nunca tente convertê-las em nome, hostname, domínio, imagem ou identidade real.
 - logSignals contém apenas contagens; nunca afirme ter lido ou cite conteúdo bruto de logs.

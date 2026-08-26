@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://setupmno.local/schemas/sre-deterministic-result-v1.json",
+  "title": "Setup MNO SRE-3 deterministic audit result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "engineVersion", "maturity", "generatedAt", "expiresAt",
+    "execution", "readOnly", "complete", "overallStatus", "hostType",
+    "privacy", "engines", "observedFacts", "limitations"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "engineVersion": {"const": "1.0.0"},
+    "maturity": {"const": "beta"},
+    "generatedAt": {"type": "string", "format": "date-time"},
+    "expiresAt": {"type": "string", "format": "date-time"},
+    "execution": {"const": "human-confirmed-terminal"},
+    "readOnly": {"const": true},
+    "complete": {"type": "boolean"},
+    "overallStatus": {"enum": ["attention", "incomplete", "no-critical-signals"]},
+    "hostType": {"enum": ["wsl2", "vps", "unknown"]},
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sanitized", "rawFindingsIncluded", "targetsIncluded", "identifiersIncluded"],
+      "properties": {
+        "sanitized": {"const": true},
+        "rawFindingsIncluded": {"const": false},
+        "targetsIncluded": {"const": false},
+        "identifiersIncluded": {"const": false}
+      }
+    },
+    "engines": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "version", "status", "coverage", "counts", "limitations"],
+        "properties": {
+          "id": {"enum": ["trivy", "lynis", "docker-bench"]},
+          "version": {"type": "string", "minLength": 1, "maxLength": 20},
+          "status": {"enum": ["completed", "partial", "failed", "skipped"]},
+          "coverage": {"type": "string", "minLength": 1, "maxLength": 180},
+          "counts": {
+            "type": "object",
+            "additionalProperties": {"type": "integer", "minimum": 0, "maximum": 1000000}
+          },
+          "limitations": {"type": "array", "maxItems": 8, "items": {"type": "string", "maxLength": 240}}
+        }
+      }
+    },
+    "observedFacts": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "code", "observation", "evidence"],
+        "properties": {
+          "severity": {"enum": ["info", "warning", "critical"]},
+          "code": {"type": "string", "pattern": "^[a-z0-9-]{3,48}$"},
+          "observation": {"type": "string", "minLength": 1, "maxLength": 240},
+          "evidence": {"type": "string", "minLength": 1, "maxLength": 180}
+        }
+      }
+    },
+    "limitations": {"type": "array", "minItems": 1, "maxItems": 12, "items": {"type": "string", "maxLength": 260}}
+  }
+}

@@ -17,6 +17,7 @@ MAX_DOCUMENT_BYTES = 256 * 1024
 ALLOWED_STATUS = {"draft", "implemented", "validated", "published", "outdated"}
 ALLOWED_TYPES = {"index", "architecture", "manual", "faq"}
 ALLOWED_SOURCE_DOMAINS = {
+    "cisofy.com",
     "csrc.nist.gov",
     "developers.cloudflare.com",
     "dev.mysql.com",
@@ -25,6 +26,7 @@ ALLOWED_SOURCE_DOMAINS = {
     "docs.github.com",
     "documentation.ubuntu.com",
     "genai.owasp.org",
+    "github.com",
     "learn.microsoft.com",
     "slsa.dev",
     "spdx.dev",

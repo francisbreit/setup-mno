@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -50,8 +51,36 @@ func testSRESnapshot(setupVersion, controlVersion string) sreDiagnosticSnapshot 
 			Kind: "observed", Severity: "info", Code: "services-converged",
 			Observation: "Serviços convergidos.", Evidence: "healthyServices=1",
 		}},
-		Hypotheses:  []string{},
-		Limitations: []string{"Fotografia pontual."},
+		Hypotheses:    []string{},
+		Limitations:   []string{"Fotografia pontual."},
+		Deterministic: sreDeterministicState{Status: "not-run"},
+	}
+}
+
+func testSREDeterministicResult(generatedAt time.Time, complete bool) sreDeterministicResult {
+	status := "incomplete"
+	trivyStatus := "failed"
+	if complete {
+		status = "attention"
+		trivyStatus = "completed"
+	}
+	return sreDeterministicResult{
+		SchemaVersion: 1, EngineVersion: "1.0.0", Maturity: "beta",
+		GeneratedAt: generatedAt.UTC(), ExpiresAt: generatedAt.UTC().Add(24 * time.Hour),
+		Execution: "human-confirmed-terminal", ReadOnly: true, Complete: complete,
+		OverallStatus: status, HostType: "wsl2",
+		Privacy: sreDeterministicPrivacy{Sanitized: true},
+		Engines: []sreDeterministicEngine{
+			{ID: "trivy", Version: "0.73.0", Status: trivyStatus, Coverage: "Imagens locais.", Counts: map[string]int{"critical": 1}},
+			{ID: "lynis", Version: "3.1.7", Status: "completed", Coverage: "Host Linux.", Counts: map[string]int{"warnings": 2}},
+			{ID: "docker-bench", Version: "1.6.1", Status: "completed", Coverage: "Docker CIS.", Counts: map[string]int{"warn": 3}},
+		},
+		ObservedFacts: []sreSnapshotFinding{{
+			Severity: "warning", Code: "audit-coverage-incomplete",
+			Observation: "A auditoria determinística não concluiu toda a cobertura planejada.",
+			Evidence:    "completedEngines=2",
+		}},
+		Limitations: []string{"Contagens exigem revisão humana."},
 	}
 }
 
@@ -194,5 +223,55 @@ func TestAssistantContextContainsOnlyValidatedSRESnapshot(t *testing.T) {
 	if contextData.SRESnapshot == nil || contextData.SRESnapshot.Source != sreSnapshotSource ||
 		len(contextData.InstalledApps) != 0 || contextData.InstalledApplicationCount != 1 {
 		t.Fatalf("contexto SRE sanitizado ausente: %#v", contextData)
+	}
+}
+
+func TestSREDeterministicAuditRejectsTamperAndPreservesIncompleteState(t *testing.T) {
+	directory := t.TempDir()
+	engineDirectory := filepath.Join(directory, "sre-engine")
+	if err := os.Mkdir(engineDirectory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	generatedAt := time.Date(2026, 8, 25, 12, 0, 0, 0, time.UTC)
+	result := testSREDeterministicResult(generatedAt, false)
+	payload, _ := json.Marshal(result)
+	filename := filepath.Join(engineDirectory, "latest.json")
+	if err := os.WriteFile(filename, payload, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	state := loadSREDeterministicAudit(directory, generatedAt.Add(time.Hour))
+	if state.Status != "available" || state.Result == nil || state.Result.Complete ||
+		state.Result.OverallStatus != "incomplete" {
+		t.Fatalf("cobertura incompleta foi ocultada: %#v", state)
+	}
+	disclosure := deterministicAuditDisclosure(state)
+	if !strings.Contains(disclosure, "cobertura completa: `false`") ||
+		!strings.Contains(disclosure, "trivy 0.73.0: `failed`") {
+		t.Fatalf("bloco fixo não preservou a falha: %s", disclosure)
+	}
+	if err := os.Chmod(filename, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if state = loadSREDeterministicAudit(directory, generatedAt.Add(time.Hour)); state.Status != "invalid" {
+		t.Fatalf("resultado com permissão insegura foi aceito: %#v", state)
+	}
+}
+
+func TestSREDeterministicAuditExpiresAndDoesNotBecomeApproval(t *testing.T) {
+	directory := t.TempDir()
+	engineDirectory := filepath.Join(directory, "sre-engine")
+	if err := os.Mkdir(engineDirectory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	generatedAt := time.Date(2026, 8, 25, 12, 0, 0, 0, time.UTC)
+	result := testSREDeterministicResult(generatedAt, true)
+	result.ObservedFacts = nil
+	payload, _ := json.Marshal(result)
+	if err := os.WriteFile(filepath.Join(engineDirectory, "latest.json"), payload, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	state := loadSREDeterministicAudit(directory, generatedAt.Add(25*time.Hour))
+	if state.Status != "expired" || !strings.Contains(deterministicAuditDisclosure(state), "Resultado vencido") {
+		t.Fatalf("resultado vencido não foi bloqueado: %#v", state)
 	}
 }

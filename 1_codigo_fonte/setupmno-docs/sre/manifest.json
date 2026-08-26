@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "knowledgePack": "setup-mno-sre",
-  "knowledgePackVersion": "1.2.0",
+  "knowledgePackVersion": "1.3.0",
   "status": "implemented",
   "updatedAt": "2026-08-24",
   "language": "pt-BR",
@@ -176,6 +176,21 @@
         "https://spdx.dev/learn/handling-license-info/",
         "https://docs.github.com/en/enterprise-cloud@latest/code-security/tutorials/secure-your-organization/protect-against-threats",
         "https://genai.owasp.org/llmrisk/llm032025-supply-chain/"
+      ]
+    },
+    {
+      "id": "sre-deterministic-engines-architecture",
+      "path": "sre/architecture/motores-deterministicos.md",
+      "title": "Motores determinísticos do Especialista SRE",
+      "type": "architecture",
+      "audience": ["free", "free1", "free2", "pro", "pro-master", "help-author"],
+      "environments": ["debian", "ubuntu", "wsl2", "docker-desktop", "docker-swarm"],
+      "topics": ["trivy", "lynis", "docker-bench", "sanitization", "read-only"],
+      "sha256": "a0db35fccf0a6c2c0920a324848c4ff411813cbe7183be6c2b1b933b5e0345e9",
+      "sources": [
+        "https://github.com/aquasecurity/trivy/blob/main/docs/getting-started/installation.md",
+        "https://cisofy.com/documentation/lynis/get-started/",
+        "https://github.com/docker/docker-bench-security/releases/tag/v1.6.1"
       ]
     },
     {

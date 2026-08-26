@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.33.5"
+VERSIONSETUP="7.34.0"
 EXPECTED_CATALOG_ENTRIES="158"
 EXPECTED_EVAL_DATASET_VERSION="1.17.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
@@ -9,7 +9,7 @@ EXPECTED_BLUEPRINT_FACTORY_VERSION="2.1.0"
 EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="0"
 EXPECTED_QUALITY_SCHEMA_VERSION="2"
 EXPECTED_HOMOLOGATION_RUNNER_VERSION="1.3.0"
-EXPECTED_CONTROL_RELEASE_SHA256="ad992b8abb6d3c27f2b6e4525413d6697a7e4c305887fb7f9f0e878e86aee3c8"
+EXPECTED_CONTROL_RELEASE_SHA256="fa6205b5ee3155469ad8da4e36bd73c96d15b7b265892a9f32d5765072d08633"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -554,6 +554,7 @@ rm -f SetupLowCodeMno.zip
 control_package="/root/SetupLowCodeMno/.control-package"
 control_target="/root/SetupLowCodeMno/.control"
 homologation_package="$control_package/homologation-package"
+sre_engine_package="$control_package/sre-engine"
 supply_chain_package="$control_package/supply-chain"
 protection_boundary="$control_package/protection-boundary.json"
 maintainer_runtime_files=(
@@ -585,6 +586,8 @@ if [ ! -s "$control_package/release.json" ] ||
    [ -L "$homologation_package/homologation-review-pack.schema.json" ] ||
    [ ! -f "$homologation_package/runner-registry.json" ] ||
    [ -L "$homologation_package/runner-registry.json" ] ||
+   [ ! -f "$sre_engine_package/manifest.json" ] ||
+   [ -L "$sre_engine_package/manifest.json" ] ||
    [ ! -f "$supply_chain_package/manifest.json" ] ||
    [ -L "$supply_chain_package/manifest.json" ] ||
    [ ! -f "$supply_chain_package/sbom.cdx.json" ] ||
@@ -689,6 +692,27 @@ homologation_automatic_promotion=$(jq -r '
     else "missing"
     end
 ' "$control_package/release.json" 2>/dev/null)
+sre_engine_manifest="$sre_engine_package/manifest.json"
+sre_engine_manifest_expected_sha=$(jq -r '.sreEngineManifestSHA256 // empty' "$control_package/release.json" 2>/dev/null)
+sre_engine_manifest_actual_sha=$(sha256sum "$sre_engine_manifest" | awk '{print $1}')
+sre_engine_version=$(jq -r '.engineVersion // empty' "$sre_engine_manifest" 2>/dev/null)
+sre_engine_runtime_version=$(jq -r '.sreEngineVersion // empty' "$control_package/release.json" 2>/dev/null)
+sre_engine_maturity=$(jq -r '.maturity // empty' "$sre_engine_manifest" 2>/dev/null)
+sre_engine_runtime_maturity=$(jq -r '.sreEngineMaturity // empty' "$control_package/release.json" 2>/dev/null)
+sre_engine_setup_version=$(jq -r '.setupVersion // empty' "$sre_engine_manifest" 2>/dev/null)
+sre_engine_files_valid="true"
+while IFS=$'\t' read -r sre_path sre_sha sre_bytes; do
+    case "$sre_path" in
+        normalize.py|result.schema.json|run.sh|tools.json) ;;
+        *) sre_engine_files_valid="false"; continue ;;
+    esac
+    sre_file="$sre_engine_package/$sre_path"
+    if [ ! -f "$sre_file" ] || [ -L "$sre_file" ] ||
+       [ "$(sha256sum "$sre_file" | awk '{print $1}')" != "$sre_sha" ] ||
+       [ "$(stat -c '%s' "$sre_file" 2>/dev/null)" != "$sre_bytes" ]; then
+        sre_engine_files_valid="false"
+    fi
+done < <(jq -r '.files[]? | [.path, .sha256, .bytes] | @tsv' "$sre_engine_manifest" 2>/dev/null)
 supply_chain_manifest="$supply_chain_package/manifest.json"
 supply_chain_sbom="$supply_chain_package/sbom.cdx.json"
 supply_chain_inventory="$supply_chain_package/image-inventory.json"
@@ -812,6 +836,14 @@ fi
 if [ "$control_schema" != "1" ] ||
    [ "$control_version" != "$VERSIONSETUP" ] ||
    [ "$control_arch" != "arm64" ] ||
+   [ "$sre_engine_manifest_expected_sha" != "$sre_engine_manifest_actual_sha" ] ||
+   [ "$sre_engine_version" != "1.0.0" ] ||
+   [ "$sre_engine_runtime_version" != "$sre_engine_version" ] ||
+   [ "$sre_engine_maturity" != "beta" ] ||
+   [ "$sre_engine_runtime_maturity" != "$sre_engine_maturity" ] ||
+   [ "$sre_engine_setup_version" != "$VERSIONSETUP" ] ||
+   [ "$sre_engine_files_valid" != "true" ] ||
+   [ "$(jq -r '.files | length' "$sre_engine_manifest" 2>/dev/null)" != "4" ] ||
    [ "$boundary_expected_sha" != "$boundary_actual_sha" ] ||
    [ "$boundary_expected_bytes" != "$boundary_actual_bytes" ] ||
    [ "$boundary_expected_entries" != "$boundary_actual_entries" ] ||
@@ -941,10 +973,9 @@ if [ "$control_schema" != "1" ] ||
         "$VERSIONSETUP" >"$control_state_error"
     exit 41
 fi
-mkdir -p "$control_target"
-mkdir -p "$control_target/knowledge-package"
-mkdir -p "$control_target/homologation-package"
-mkdir -p "$control_target/supply-chain"
+mkdir -p "$control_target" "$control_target/knowledge-package" \
+    "$control_target/homologation-package" "$control_target/sre-engine" \
+    "$control_target/supply-chain"
 install -m 0644 "$protection_boundary" "$control_target/protection-boundary.json.tmp"
 install -m 0644 "$control_package/catalog.json" "$control_target/catalog.json.tmp"
 install -m 0644 "$control_package/release.json" "$control_target/release.json.tmp"
@@ -967,6 +998,11 @@ install -m 0644 "$homologation_package/homologation-review-pack.schema.json" \
     "$control_target/homologation-package/homologation-review-pack.schema.json.tmp"
 install -m 0644 "$homologation_package/runner-registry.json" \
     "$control_target/homologation-package/runner-registry.json.tmp"
+install -m 0644 "$sre_engine_package/manifest.json" "$control_target/sre-engine/manifest.json.tmp"
+install -m 0755 "$sre_engine_package/run.sh" "$control_target/sre-engine/run.sh.tmp"
+install -m 0755 "$sre_engine_package/normalize.py" "$control_target/sre-engine/normalize.py.tmp"
+install -m 0644 "$sre_engine_package/tools.json" "$control_target/sre-engine/tools.json.tmp"
+install -m 0644 "$sre_engine_package/result.schema.json" "$control_target/sre-engine/result.schema.json.tmp"
 for maintainer_file in "${maintainer_runtime_files[@]}"; do
     maintainer_mode=0644
     case "$maintainer_file" in
@@ -1000,6 +1036,10 @@ mv -f "$control_target/homologation-package/homologation-review-pack.schema.json
     "$control_target/homologation-package/homologation-review-pack.schema.json"
 mv -f "$control_target/homologation-package/runner-registry.json.tmp" \
     "$control_target/homologation-package/runner-registry.json"
+for sre_engine_file in manifest.json run.sh normalize.py tools.json result.schema.json; do
+    mv -f "$control_target/sre-engine/$sre_engine_file.tmp" \
+        "$control_target/sre-engine/$sre_engine_file"
+done
 for maintainer_file in "${maintainer_runtime_files[@]}"; do
     mv -f "$control_target/homologation-package/$maintainer_file.tmp" \
         "$control_target/homologation-package/$maintainer_file"

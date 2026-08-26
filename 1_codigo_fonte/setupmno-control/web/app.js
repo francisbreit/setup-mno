@@ -98,6 +98,7 @@ function bindEvents() {
     if (action.dataset.action === "assistant") navigate("assistant");
     if (action.dataset.action === "settings") openTerminal("settings");
     if (action.dataset.action === "homologation") openTerminal("homologation");
+    if (action.dataset.action === "sre") openTerminal("sre");
     if (action.dataset.action === "gateway") openTerminal("gateway");
     if (action.dataset.action === "blueprint") openBlueprint(action.dataset.blueprintId);
     if (action.dataset.action === "quality-report") navigate("evals");
@@ -840,7 +841,7 @@ function applyMaintainerAccessState() {
 function applyTerminalAccessState() {
   const allowed = terminalAccessAllowed();
   const note = "Recurso disponível apenas quando é usado Cloudflare Tunnel.";
-  document.querySelectorAll('[data-action="terminal"], [data-action="settings"], [data-action="homologation"], [data-action="gateway"]').forEach(button => {
+  document.querySelectorAll('[data-action="terminal"], [data-action="settings"], [data-action="homologation"], [data-action="sre"], [data-action="gateway"]').forEach(button => {
     const runnerUnavailable = button.dataset.action === "homologation" && !state.homologationRunnerAvailable;
     const maintainerRequired = button.dataset.action === "homologation" && !state.maintainerAccess;
     button.disabled = !allowed || runnerUnavailable || maintainerRequired;
@@ -2166,7 +2167,7 @@ function navigate(view) {
 
 function openTerminal(intent = "installer") {
   intent = typeof intent === "string" ? intent : "installer";
-  if (!["installer", "settings", "homologation", "gateway"].includes(intent)) intent = "gateway";
+  if (!["installer", "settings", "homologation", "sre", "gateway"].includes(intent)) intent = "gateway";
   if (!terminalAccessAllowed()) {
     showAlert("🔒 Recurso disponível apenas quando é usado Cloudflare Tunnel.");
     return;
@@ -2242,10 +2243,15 @@ function openAuthorizedTerminal(intent) {
       subtitle: "Homologação, validação e selo · PRO MASTER",
       warning: "A Central PRO MASTER exige dry-runs e confirmações humanas. Ela nunca publica commit, tag ou release automaticamente."
     },
+    sre: {
+      title: "Auditoria SRE-3 · BETA",
+      subtitle: "Trivy, Lynis e Docker Bench · somente leitura",
+      warning: "A execução exige confirmação humana, pode baixar ferramentas fixadas e salva apenas contagens sanitizadas válidas por 24 horas. Nenhuma correção será aplicada."
+    },
     gateway: {
       title: "Terminal Seguro",
       subtitle: "Setup MNO · sessão administrativa",
-      warning: "Escolha entre Instalador, Configurações, Central do Mantenedor ou encerrar a sessão no menu protegido."
+      warning: "Escolha entre Instalador, Configurações, Auditoria SRE-3 BETA, Central do Mantenedor ou encerrar a sessão no menu protegido."
     }
   }[intent] || {
     title: "Terminal Seguro",

@@ -80,7 +80,8 @@ próximo item técnico pendente.
    - apresentar fatos observados separadamente de hipóteses e inferências.
 
 4. `SRE-3` — **Motores determinísticos**
-   - avaliar e homologar Trivy, Lynis e Docker Bench como coletores de fatos;
+   - implementado como BETA na candidata v7.34.0 com Trivy, Lynis e Docker
+     Bench como coletores de fatos;
    - fixar versões e hashes, definir limites de recursos e normalizar os
      resultados antes de entregá-los ao especialista;
    - impedir que uma conclusão da LLM substitua o resultado determinístico ou
@@ -119,6 +120,41 @@ diagnóstico compreensível e baseado em fatos, enquanto o mantenedor conserva a
 fronteira de confiança, a aprovação final e a rastreabilidade de toda ação. A
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
+
+## v7.34.0 — Motores determinísticos do Especialista SRE (BETA, candidata)
+
+- Trivy `0.73.0`, Lynis `3.1.7` e Docker Bench `1.6.1` são fixados por digest
+  ou SHA-256 e promovidos pela fronteira externa verificada da v7.33.5;
+- a execução exige root, confirmação humana e ocorre somente no Terminal Seguro
+  ou por SSH no modo Tradicional;
+- o Trivy baixa seu banco antes e analisa os arquivos de imagem sem rede e sem
+  Docker socket;
+- Lynis e Docker Bench assumem cobertura parcial quando executados dentro do
+  Terminal Seguro; os checks intrusivos `5.7` e `7.5` do Docker Bench são
+  excluídos explicitamente;
+- resultados brutos são efêmeros e o agente recebe somente um contrato JSON
+  sanitizado, limitado a 32 KiB e válido por 24 horas;
+- ausência, expiração, adulteração ou cobertura incompleta falham de forma
+  fechada e permanecem visíveis;
+- a evidência determinística é anexada pelo servidor depois da resposta da LLM,
+  impedindo que o modelo esconda ou substitua a medição;
+- a interface e o Help identificam a funcionalidade como BETA antes do uso.
+
+Baseline desta candidata:
+
+- Setup MNO: `7.34.0` em preparação de release candidata
+- Última versão estável homologada: `7.33.4`
+- Control Center: `4.34.0`
+- Conhecimento canônico: `3.34.2`
+- SRE Knowledge Pack: `1.3.0`
+- Snapshot SRE: `1.1.0 BETA`
+- Prompt: `1.9.0`
+- Motores determinísticos: `1.0.0 BETA`
+- Homologation Runner: `1.3.0`
+
+Esta etapa não aplica correções, reinicia serviços ou autoriza a IA a executar
+ações. O próximo item da subtrilha passa a ser `SRE-4` — plano de ação
+consultivo, preservando o backlog macro existente.
 
 ## v7.33.5 — Fronteira de proteção SHC para o SRE-3 (BETA, candidata)
 

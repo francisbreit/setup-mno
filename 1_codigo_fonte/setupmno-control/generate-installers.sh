@@ -120,6 +120,8 @@ bash "$project_dir/debian13-apt-recovery_test.sh"
 bash "$project_dir/apt-noninteractive_test.sh"
 bash "$project_dir/catalog-html-count_test.sh"
 bash "$project_dir/sre-read-only_test.sh"
+bash "$project_dir/sre-engine_test.sh"
+bash -n "$project_dir/sre-engine/run.sh"
 python3 -B "$project_dir/supply_chain_test.py" -v
 python3 -B "$source_root/setupmno-knowledge/tools/test_homologation_runner.py"
 python3 -B "$source_root/setupmno-knowledge/tools/test_certification.py"
@@ -460,7 +462,7 @@ grep -Fq 'environment.json' "$source_root/arm/start_arm_full.sh" &&
     exit 1
 }
 grep -Eq 'assistantPromptRegistryVersion[[:space:]]*=[[:space:]]*"1.0.0"' "$project_dir/prompts.go" &&
-grep -Eq 'assistantPromptVersion[[:space:]]*=[[:space:]]*"1.8.0"' "$project_dir/prompts.go" &&
+grep -Eq 'assistantPromptVersion[[:space:]]*=[[:space:]]*"1.9.0"' "$project_dir/prompts.go" &&
 grep -Eq 'assistantResponseContractVersion[[:space:]]*=[[:space:]]*"1.7.0"' "$project_dir/prompts.go" &&
 grep -Eq 'assistantRouterVersion[[:space:]]*=[[:space:]]*"1.4.0"' "$project_dir/routing.go" &&
 grep -Fq 'direct_overview' "$project_dir/routing.go" &&
@@ -652,6 +654,8 @@ grep -Fq 'installer)' "$project_dir/terminal-menu.sh" &&
 grep -Fq 'settings)' "$project_dir/terminal-menu.sh" &&
 grep -Fq 'homologation)' "$project_dir/terminal-menu.sh" &&
 grep -Fq 'HOMOLOGATION)' "$project_dir/terminal-menu.sh" &&
+grep -Fq 'sre)' "$project_dir/terminal-menu.sh" &&
+grep -Fq 'SRE)' "$project_dir/terminal-menu.sh" &&
 grep -Fq 'gateway)' "$project_dir/terminal-menu.sh" || {
     printf 'ERRO: launcher do Terminal Seguro sem allowlist contextual completa.\n' >&2
     exit 1
@@ -665,7 +669,7 @@ grep -Fq 'POST /api/terminal/reauth' "$project_dir/main.go" &&
 grep -Fq 'handleTerminalReauth' "$project_dir/main.go" &&
 grep -Fq 'TerminalUntil' "$project_dir/main.go" &&
 grep -Fq 'terminalAccessAllowed' "$project_dir/main.go" &&
-grep -Fq '"installer", "settings", "homologation", "gateway"' "$project_dir/main.go" || {
+grep -Fq '"installer", "settings", "homologation", "sre", "gateway"' "$project_dir/main.go" || {
     printf 'ERRO: proxy web não valida as intenções fixas do Terminal Seguro.\n' >&2
     exit 1
 }
@@ -679,6 +683,8 @@ grep -Fq 'rendererType: "dom"' "$project_dir/web/app.js" &&
 grep -Fq 'loadTerminalAfterDialogLayout' "$project_dir/web/app.js" &&
 grep -Fq 'title: "Central do Mantenedor"' "$project_dir/web/app.js" &&
 grep -Fq '}[intent] || {' "$project_dir/web/app.js" &&
+grep -Fq 'data-action="sre"' "$project_dir/web/index.html" &&
+grep -Fq 'Motores determinísticos · BETA' "$project_dir/web/index.html" &&
 grep -Fq 'data-action="gateway"' "$project_dir/web/index.html" || {
     printf 'ERRO: painel sem roteamento contextual, renderização DOM ou abertura segura do Terminal.\n' >&2
     exit 1
@@ -1201,6 +1207,7 @@ generate_runtime_package() {
     local supply_chain_mutable_tag_images supply_chain_high_risk_mutable_tag_images
     local supply_chain_implicit_latest_images supply_chain_unresolved_references
     local protection_boundary_sha protection_boundary_bytes protection_boundary_entries
+    local sre_engine_dir sre_engine_manifest_sha
     mkdir -p "$target"
     rm -f "$target/release.json" "$target/protection-boundary.json"
     install -m 0644 "$project_dir/catalog.json" "$target/catalog.json"
@@ -1236,6 +1243,39 @@ generate_runtime_package() {
         "$target/homologation-package/certification_wizard.sh"
     install -m 0644 "$homologation_package/maintainer-workspace.tar.gz" \
         "$target/homologation-package/maintainer-workspace.tar.gz"
+    sre_engine_dir="$target/sre-engine"
+    rm -rf "$sre_engine_dir"
+    mkdir -p "$sre_engine_dir"
+    install -m 0755 "$project_dir/sre-engine/run.sh" "$sre_engine_dir/run.sh"
+    install -m 0755 "$project_dir/sre-engine/normalize.py" "$sre_engine_dir/normalize.py"
+    install -m 0644 "$project_dir/sre-engine/tools.json" "$sre_engine_dir/tools.json"
+    install -m 0644 "$project_dir/sre-engine/result.schema.json" "$sre_engine_dir/result.schema.json"
+    python3 -B - "$sre_engine_dir" "$x86_version" <<'PY'
+import hashlib
+import json
+import os
+import pathlib
+import sys
+
+root = pathlib.Path(sys.argv[1])
+files = []
+for name in ("normalize.py", "result.schema.json", "run.sh", "tools.json"):
+    path = root / name
+    payload = path.read_bytes()
+    files.append({"path": name, "bytes": len(payload), "sha256": hashlib.sha256(payload).hexdigest()})
+manifest = {
+    "schemaVersion": 1,
+    "engineVersion": "1.0.0",
+    "maturity": "beta",
+    "setupVersion": sys.argv[2],
+    "files": files,
+}
+temporary = root / "manifest.json.tmp"
+temporary.write_text(json.dumps(manifest, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+os.chmod(temporary, 0o644)
+os.replace(temporary, root / "manifest.json")
+PY
+    sre_engine_manifest_sha=$(sha256sum "$sre_engine_dir/manifest.json" | awk '{print $1}')
     supply_chain_dir="$target/supply-chain"
     python3 -B "$project_dir/supply_chain.py" generate \
         --source-root "$source_root" \
@@ -1246,7 +1286,8 @@ generate_runtime_package() {
         --artifact "control-source.tar.gz=$target/control-source.tar.gz" \
         --artifact "knowledge-package/manifest.json=$target/knowledge-package/manifest.json" \
         --artifact "knowledge-package/knowledge-package.tar.gz=$target/knowledge-package/knowledge-package.tar.gz" \
-        --artifact "homologation-package/manifest.json=$target/homologation-package/manifest.json"
+        --artifact "homologation-package/manifest.json=$target/homologation-package/manifest.json" \
+        --artifact "sre-engine/manifest.json=$target/sre-engine/manifest.json"
     supply_chain_manifest_sha=$(sha256sum "$supply_chain_dir/manifest.json" | awk '{print $1}')
     supply_chain_sbom_sha=$(jq -r '.files[] | select(.path == "sbom.cdx.json") | .sha256' "$supply_chain_dir/manifest.json")
     supply_chain_inventory_sha=$(jq -r '.files[] | select(.path == "image-inventory.json") | .sha256' "$supply_chain_dir/manifest.json")
@@ -1280,6 +1321,7 @@ generate_runtime_package() {
         --arg control_source_sha "$bundle_sha" \
         --arg homologation_runner_version "$homologation_runner_version" \
         --arg homologation_package_manifest_sha "$homologation_manifest_sha" \
+        --arg sre_engine_manifest_sha "$sre_engine_manifest_sha" \
         --arg supply_chain_manifest_sha "$supply_chain_manifest_sha" \
         --arg supply_chain_sbom_sha "$supply_chain_sbom_sha" \
         --arg supply_chain_inventory_sha "$supply_chain_inventory_sha" \
@@ -1357,6 +1399,11 @@ generate_runtime_package() {
             homologationRegistryEntries: $homologation_registry_entries,
             homologationPackageManifestSHA256: $homologation_package_manifest_sha,
             homologationAutomaticPromotion: false,
+            sreEngineVersion: "1.0.0",
+            sreEngineMaturity: "beta",
+            sreEngineManifestSHA256: $sre_engine_manifest_sha,
+            sreEngineResultSchemaVersion: 1,
+            sreEngineFreshnessHours: 24,
             supplyChainSchemaVersion: 1,
             supplyChainManifestSHA256: $supply_chain_manifest_sha,
             supplyChainSBOMSHA256: $supply_chain_sbom_sha,
@@ -1399,6 +1446,8 @@ cmp -s "$x86_runtime_package/control-source.tar.gz" \
     "$arm_runtime_package/control-source.tar.gz"
 cmp -s "$x86_runtime_package/homologation-package/manifest.json" \
     "$arm_runtime_package/homologation-package/manifest.json"
+cmp -s "$x86_runtime_package/sre-engine/manifest.json" \
+    "$arm_runtime_package/sre-engine/manifest.json"
 for runtime_package in "$x86_runtime_package" "$arm_runtime_package"; do
     runtime_architecture=$(jq -r '.architecture' "$runtime_package/release.json")
     python3 -B "$shc_boundary_tool" validate \
@@ -1410,6 +1459,8 @@ for runtime_package in "$x86_runtime_package" "$arm_runtime_package"; do
     manifest_source_bytes=$(jq -r '.controlSourceBytes // 0' "$runtime_package/release.json")
     packaged_homologation_manifest_sha=$(sha256sum "$runtime_package/homologation-package/manifest.json" | awk '{print $1}')
     manifest_homologation_manifest_sha=$(jq -r '.homologationPackageManifestSHA256 // empty' "$runtime_package/release.json")
+    packaged_sre_engine_manifest_sha=$(sha256sum "$runtime_package/sre-engine/manifest.json" | awk '{print $1}')
+    manifest_sre_engine_manifest_sha=$(jq -r '.sreEngineManifestSHA256 // empty' "$runtime_package/release.json")
     manifest_homologation_automatic_promotion=$(jq -r '
         if has("homologationAutomaticPromotion")
         then .homologationAutomaticPromotion
@@ -1421,6 +1472,9 @@ for runtime_package in "$x86_runtime_package" "$arm_runtime_package"; do
     [ "$packaged_source_sha" = "$manifest_source_sha" ] &&
     [ "$packaged_source_bytes" = "$manifest_source_bytes" ] &&
     [ "$packaged_homologation_manifest_sha" = "$manifest_homologation_manifest_sha" ] &&
+    [ "$packaged_sre_engine_manifest_sha" = "$manifest_sre_engine_manifest_sha" ] &&
+    [ "$(jq -r '.sreEngineVersion // empty' "$runtime_package/release.json")" = "1.0.0" ] &&
+    [ "$(jq -r '.sreEngineMaturity // empty' "$runtime_package/release.json")" = "beta" ] &&
     [ "$manifest_homologation_automatic_promotion" = "false" ] &&
     [ "$packaged_supply_chain_manifest_sha" = "$manifest_supply_chain_manifest_sha" ] &&
     python3 -B "$project_dir/supply_chain.py" validate \

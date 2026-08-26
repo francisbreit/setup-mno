@@ -76,6 +76,8 @@ Documentos atuais de arquitetura e operação:
 - `releases/v7.33.4-configuracao-assistente-transacional.md`;
 - `architecture/fronteira-protecao-shc.md`;
 - `releases/v7.33.5-fronteira-protecao-shc.md`;
+- `sre/architecture/motores-deterministicos.md`;
+- `releases/v7.34.0-motores-deterministicos-sre.md`;
 - `sre/architecture/read-only-specialist.md`;
 - `sre/manual/usar-diagnostico-seguro.md`;
 - `releases/v7.33.0-especialista-sre-read-only.md`.

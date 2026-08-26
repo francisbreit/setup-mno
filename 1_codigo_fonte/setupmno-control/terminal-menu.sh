@@ -10,7 +10,7 @@ if [ "$#" -gt 1 ]; then
 fi
 
 case "$intent" in
-    installer|settings|homologation|gateway) ;;
+    installer|settings|homologation|sre|gateway) ;;
     *)
         printf 'Terminal Seguro: intenção recusada.\n' >&2
         exit 64
@@ -115,6 +115,9 @@ case "$intent" in
         exec /usr/bin/bash \
             /root/SetupLowCodeMno/.control/homologation-package/maintainer_console.sh
         ;;
+    sre)
+        exec /usr/bin/bash /root/SetupLowCodeMno/.control/sre-engine/run.sh
+        ;;
     gateway)
         ;;
 esac
@@ -128,6 +131,7 @@ while true; do
     menu_entries=(
         "INSTALLER" "Abrir o Instalador Setup MNO"
         "SETTINGS" "Configurar conta e provedor do Control Center"
+        "SRE" "Executar auditoria determinística SRE-3 · BETA"
     )
     if [ "$CONTROL_PLAN" = "pro-master" ]; then
         menu_entries+=("HOMOLOGATION" "Abrir a Central do Mantenedor · PRO MASTER")
@@ -152,6 +156,9 @@ while true; do
         SETTINGS)
             SETUPMNO_TERMINAL_MODE="gateway" \
                 /usr/local/bin/setupmno-control-configure
+            ;;
+        SRE)
+            /usr/bin/bash /root/SetupLowCodeMno/.control/sre-engine/run.sh
             ;;
         EXIT)
             exit 0
