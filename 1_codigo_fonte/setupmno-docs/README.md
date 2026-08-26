@@ -78,6 +78,7 @@ Documentos atuais de arquitetura e operação:
 - `releases/v7.33.5-fronteira-protecao-shc.md`;
 - `sre/architecture/motores-deterministicos.md`;
 - `releases/v7.34.0-motores-deterministicos-sre.md`;
+- `releases/v7.34.1-correcao-motores-sre-wsl2.md`;
 - `sre/architecture/read-only-specialist.md`;
 - `sre/manual/usar-diagnostico-seguro.md`;
 - `releases/v7.33.0-especialista-sre-read-only.md`.

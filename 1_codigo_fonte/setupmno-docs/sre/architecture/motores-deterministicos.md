@@ -5,7 +5,7 @@
 - Ambientes: WSL2 com Docker Desktop e VPS Debian/Ubuntu
 - Atualizado em: 2026-08-25
 - Maturidade da funcionalidade: `beta`
-- Versão candidata: Setup MNO 7.34.0 e Control Center 4.34.0
+- Versão candidata corretiva: Setup MNO 7.34.1 e Control Center 4.34.1
 
 ## Resumo para leigos
 
@@ -77,6 +77,24 @@ sudo bash /root/SetupLowCodeMno/.control/sre-engine/run.sh
   chegam ao agente.
 - Um aviso do scanner exige revisão humana; ele não prova exploração nem autoriza
   alteração automática.
+
+### Correções específicas da v7.34.1
+
+- Trivy: a área temporária do download da base passou de 128 MiB para 512 MiB,
+  com limite de memória de 1 GiB. O cache persistente continua contendo apenas
+  a base pública de vulnerabilidades.
+- Lynis: o processo passa a iniciar em `/lynis`, com `--usecwd`, e recebe um
+  `/var/run` efêmero de 4 MiB. O host continua montado somente para leitura.
+- Lynis: o normalizador conta a lista `tests_executed`, campo oficial do
+  relatório 3.1.7, sem persistir seus identificadores e sem confundir auditoria
+  executada com zero testes.
+- Docker Bench: o log próprio passou para `/tmp`, que já é temporário e
+  gravável, e o container recebe a etiqueta `docker.bench.security=true` para
+  não auditar a si mesmo.
+
+Esses ajustes corrigem falhas de execução; não removem a indicação de cobertura
+parcial esperada no WSL2. `partial` significa medição útil com limites
+declarados. `failed` significa que o motor não conseguiu produzir a medição.
 
 ## Nota técnica para DevOps
 

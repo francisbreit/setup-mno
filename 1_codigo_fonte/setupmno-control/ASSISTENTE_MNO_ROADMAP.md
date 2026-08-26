@@ -81,7 +81,8 @@ próximo item técnico pendente.
 
 4. `SRE-3` — **Motores determinísticos**
    - implementado como BETA na candidata v7.34.0 com Trivy, Lynis e Docker
-     Bench como coletores de fatos;
+     Bench como coletores de fatos; a candidata corretiva v7.34.1 ajusta a
+     execução dos três motores no WSL2 sem ampliar permissões;
    - fixar versões e hashes, definir limites de recursos e normalizar os
      resultados antes de entregá-los ao especialista;
    - impedir que uma conclusão da LLM substitua o resultado determinístico ou
@@ -120,6 +121,26 @@ diagnóstico compreensível e baseado em fatos, enquanto o mantenedor conserva a
 fronteira de confiança, a aprovação final e a rastreabilidade de toda ação. A
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
+
+## v7.34.1 — Correção dos motores determinísticos no WSL2 (BETA, candidata)
+
+- o download da base do Trivy recebe 512 MiB de espaço temporário e limite de
+  1 GiB de memória, evitando a interrupção observada por falta de espaço;
+- o Lynis inicia no diretório verificado da ferramenta, usa `--usecwd` e recebe
+  somente um `/var/run` temporário para seu arquivo de processo;
+- o Docker Bench grava seu log interno em `/tmp` e identifica o próprio
+  container com a etiqueta esperada pelo upstream;
+- os limites de rede, leitura do host, confirmação humana, sanitização,
+  expiração e ausência de correção automática permanecem iguais;
+- a v7.33.4 continua sendo a última versão estável até declaração explícita de
+  Francis MNO após a homologação desta candidata.
+
+Baseline desta candidata corretiva:
+
+- Setup MNO: `7.34.1` em preparação de release candidata
+- Última versão estável homologada: `7.33.4`
+- Control Center: `4.34.1`
+- Motores determinísticos: `1.0.0 BETA`
 
 ## v7.34.0 — Motores determinísticos do Especialista SRE (BETA, candidata)
 

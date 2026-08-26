@@ -93,7 +93,7 @@ run_trivy() {
     owned_containers+=("$db_container")
     timeout 300 docker run --rm --name "$db_container" \
         --network bridge --read-only --cap-drop ALL --security-opt no-new-privileges \
-        --pids-limit 128 --cpus 0.50 --memory 512m --tmpfs /tmp:rw,noexec,nosuid,size=128m \
+        --pids-limit 128 --cpus 0.50 --memory 1g --tmpfs /tmp:rw,noexec,nosuid,size=512m \
         -v "$CACHE_DIR/trivy:/root/.cache" \
         "$trivy_image" image --download-db-only --cache-dir /root/.cache \
         --quiet >/dev/null 2>&1 || return 1
@@ -173,9 +173,11 @@ run_lynis() {
             --cap-add DAC_READ_SEARCH --security-opt no-new-privileges \
             --pids-limit 256 --cpus 1 --memory 768m \
             --tmpfs /tmp:rw,noexec,nosuid,size=128m \
+            --tmpfs /var/run:rw,noexec,nosuid,size=4m \
             -v /:/host:ro -v "$source_dir:/lynis:ro" -v "$work_dir:/output" \
+            --workdir /lynis \
             --entrypoint /lynis/lynis "$runtime_image" audit system \
-            --root-dir /host --quick --no-colors --no-log \
+            --root-dir /host --usecwd --quick --no-colors --no-log \
             --report-file /output/lynis-report.dat >/dev/null 2>&1 || return 1
         # O modo root-dir é deliberadamente conservador: ele não equivale a
         # executar o Lynis diretamente no host, logo a cobertura fica parcial.
@@ -225,10 +227,11 @@ run_docker_bench() {
             --tmpfs /tmp:rw,noexec,nosuid,size=128m \
             -v /etc:/etc:ro -v /var/lib:/var/lib:ro \
             -v /var/run/docker.sock:/var/run/docker.sock:ro \
-            -v "$source_dir:/bench:ro" --label docker_bench_security \
+            -v "$source_dir:/bench:ro" --label docker.bench.security=true \
             --workdir /bench \
             --entrypoint /bin/sh "$runtime_image" \
-            /bench/docker-bench-security.sh -b -e check_5_7,check_7_5 \
+            /bench/docker-bench-security.sh -b -l /tmp/docker-bench-security.log \
+            -e check_5_7,check_7_5 \
             >"$work_dir/docker-bench.log" 2>/dev/null || return 1
         # A execução segura mantém a rede desligada e não replica todos os
         # namespaces recomendados pelo upstream; a cobertura é assumidamente parcial.

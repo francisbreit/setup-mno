@@ -14,7 +14,7 @@ cat >"$test_dir/lynis-report.dat" <<'EOF'
 hostname=cliente-secreto
 warning[]=segredo de auditoria
 suggestion[]=caminho privado
-tests_performed=210
+tests_executed=CORE-1000|BOOT-5102|KRNL-6000|
 hardening_index=72
 EOF
 cat >"$test_dir/docker-bench.log" <<'EOF'
@@ -40,7 +40,7 @@ jq -e '
   .expiresAt == "2026-08-26T12:00:00Z" and
   (.engines | length == 3) and
   (.engines[] | select(.id == "trivy") | .counts.critical == 1 and .counts.high == 1) and
-  (.engines[] | select(.id == "lynis") | .counts.warnings == 1 and .counts.hardeningIndex == 72) and
+  (.engines[] | select(.id == "lynis") | .counts.warnings == 1 and .counts.tests == 3 and .counts.hardeningIndex == 72) and
   (.engines[] | select(.id == "docker-bench") | .counts.warn == 1) and
   .privacy.rawFindingsIncluded == false and .privacy.targetsIncluded == false
 ' "$test_dir/latest.json" >/dev/null
@@ -71,6 +71,12 @@ if printf '%s\n%s\n' "$trivy_function" "$lynis_function" |
 fi
 printf '%s\n' "$bench_function" | grep -Fq '/var/run/docker.sock:/var/run/docker.sock:ro'
 printf '%s\n' "$bench_function" | grep -Fq -- '-e check_5_7,check_7_5'
+printf '%s\n' "$trivy_function" | grep -Fq -- '--memory 1g --tmpfs /tmp:rw,noexec,nosuid,size=512m'
+printf '%s\n' "$lynis_function" | grep -Fq -- '--tmpfs /var/run:rw,noexec,nosuid,size=4m'
+printf '%s\n' "$lynis_function" | grep -Fq -- '--workdir /lynis'
+printf '%s\n' "$lynis_function" | grep -Fq -- '--root-dir /host --usecwd'
+printf '%s\n' "$bench_function" | grep -Fq -- '--label docker.bench.security=true'
+printf '%s\n' "$bench_function" | grep -Fq -- '-l /tmp/docker-bench-security.log'
 grep -Fq -- '--network none' "$engine_dir/run.sh"
 
-printf 'SRE3_ENGINE_TESTS_OK engines=3 sanitized=1 incomplete_visible=1 scanner_socket=bench-only\n'
+printf 'SRE3_ENGINE_TESTS_OK engines=3 sanitized=1 incomplete_visible=1 scanner_socket=bench-only wsl_runtime_fixes=3\n'

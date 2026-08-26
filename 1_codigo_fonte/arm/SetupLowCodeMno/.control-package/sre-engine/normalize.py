@@ -79,10 +79,12 @@ def lynis_counts(path: Path) -> dict[str, int]:
                 counts["warnings"] += 1
             elif line.startswith("suggestion[]="):
                 counts["suggestions"] += 1
-            elif line.startswith("tests_performed="):
+            elif line.startswith("tests_executed="):
                 value = line.partition("=")[2]
-                if value.isdigit():
-                    counts["tests"] = min(int(value), 1_000_000)
+                counts["tests"] = min(
+                    sum(1 for test_id in value.split("|") if test_id),
+                    1_000_000,
+                )
             elif line.startswith("hardening_index="):
                 value = line.partition("=")[2]
                 if value.isdigit():
