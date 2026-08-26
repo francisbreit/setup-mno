@@ -273,10 +273,20 @@ python3 -B "$NORMALIZER" \
 
 overall_status=$(jq -r '.overallStatus' "$RESULT_FILE")
 complete=$(jq -r '.complete' "$RESULT_FILE")
+failed_engines=$(jq '[.engines[] | select(.status == "failed")] | length' "$RESULT_FILE")
+partial_engines=$(jq '[.engines[] | select(.status == "partial")] | length' "$RESULT_FILE")
+successful_engines=$(jq '[.engines[] | select(.status == "completed" or .status == "partial")] | length' "$RESULT_FILE")
+if [ "$failed_engines" -gt 0 ]; then
+    human_status="Concluída com ${failed_engines} motor(es) que não puderam executar"
+elif [ "$partial_engines" -gt 0 ]; then
+    human_status="Concluída com cobertura parcial"
+else
+    human_status="Concluída com cobertura completa"
+fi
 printf 'SRE-3 BETA: resultado sanitizado salvo. estado=%s coberturaCompleta=%s\n' \
     "$overall_status" "$complete"
 if [ "${SETUPMNO_SRE3_TEST_MODE:-0}" != "1" ]; then
     whiptail --title "SRE-3 — AUDITORIA CONCLUÍDA (BETA)" --msgbox \
-        "Resultado sanitizado criado.\n\nEstado: ${overall_status}\nCobertura completa: ${complete}\n\nFalhas e cobertura parcial permanecem visíveis. O Assistente apenas poderá ler esse resumo; nenhuma correção foi aplicada." \
-        16 78
+        "Resultado sanitizado criado.\n\n${human_status}.\nMotores executados sem falha: ${successful_engines}/3.\nMotores com cobertura parcial: ${partial_engines}/3.\n\nNo Terminal Seguro, e especialmente no WSL2, alguns controles do host ou imagens não disponíveis localmente podem permanecer parciais. Isso não significa que uma falha de segurança foi confirmada.\n\nFalhas continuam visíveis no relatório. O Assistente apenas poderá ler esse resumo; nenhuma correção foi aplicada." \
+        22 86
 fi

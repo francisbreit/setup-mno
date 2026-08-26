@@ -93,6 +93,47 @@ service_image() {
         "$1" 2>>"$log_file" | sed 's/@sha256:.*$//'
 }
 
+docker_socket_gid() {
+    local socket_gid
+    [ -S /var/run/docker.sock ] || return 1
+    socket_gid=$(stat -c '%g' /var/run/docker.sock 2>>"$log_file") || return 1
+    [[ "$socket_gid" =~ ^[0-9]+$ ]] && [ "$socket_gid" -le 2147483647 ] || return 1
+    printf '%s' "$socket_gid"
+}
+
+service_has_group() {
+    local service="$1" expected_gid="$2"
+    docker service inspect --format '{{range .Spec.TaskTemplate.ContainerSpec.Groups}}{{println .}}{{end}}' \
+        "$service" 2>>"$log_file" | grep -Fxq "$expected_gid"
+}
+
+schedule_terminal_update() {
+    local old_socket_gid finalizer_name has_image_env=false has_plan_env=false
+    local -a args
+    old_socket_gid=$(service_env_value "$terminal_service" SETUPMNO_DOCKER_SOCKET_GID)
+    [ -z "$old_socket_gid" ] || [[ "$old_socket_gid" =~ ^[0-9]+$ ]] || return 1
+    service_has_env_key "$terminal_service" SETUPMNO_CONTROL_IMAGE && has_image_env=true
+    service_has_env_key "$terminal_service" SETUPMNO_CONTROL_PLAN && has_plan_env=true
+    args=(--image "$terminal_image")
+    if [ -n "$old_socket_gid" ] && [ "$old_socket_gid" != "$socket_gid" ] &&
+       service_has_group "$terminal_service" "$old_socket_gid"; then
+        args+=(--group-rm "$old_socket_gid")
+    fi
+    service_has_group "$terminal_service" "$socket_gid" || args+=(--group-add "$socket_gid")
+    [ "$has_image_env" = "false" ] || args+=(--env-rm SETUPMNO_CONTROL_IMAGE)
+    [ "$has_plan_env" = "false" ] || args+=(--env-rm SETUPMNO_CONTROL_PLAN)
+    [ -z "$old_socket_gid" ] || args+=(--env-rm SETUPMNO_DOCKER_SOCKET_GID)
+    args+=(--env-add "SETUPMNO_CONTROL_IMAGE=$control_image")
+    args+=(--env-add "SETUPMNO_CONTROL_PLAN=$plan")
+    args+=(--env-add "SETUPMNO_DOCKER_SOCKET_GID=$socket_gid")
+    args+=(--force --detach=true "$terminal_service")
+    finalizer_name="${terminal_service%%_*}-reconcile-finalizer"
+    docker run -d --rm --network none --group-add "$socket_gid" --name "$finalizer_name" \
+        -v /var/run/docker.sock:/var/run/docker.sock --entrypoint /usr/bin/bash \
+        "$terminal_image" -c 'sleep 4; docker service update "$@"' _ "${args[@]}" \
+        >>"$log_file" 2>&1
+}
+
 configure_service_wait_policy() {
     runtime_architecture=$(docker info --format '{{.Architecture}}' 2>>"$log_file" |
         tr '[:upper:]' '[:lower:]' | head -n1)
@@ -255,14 +296,24 @@ esac
 
 control_image="${prefix}-app:${target_version}"
 terminal_image="${prefix}-terminal:${target_version}"
+socket_gid=$(docker_socket_gid) ||
+    fail_upgrade 15 "O grupo de acesso ao Docker não pôde ser identificado para o Terminal Seguro."
 if [ "$(service_image "$web_service")" = "$control_image" ] &&
    [ "$(service_image "$agent_service")" = "$control_image" ] &&
    agent_version_is_current "$agent_service" &&
    [ "$(service_image "$terminal_service")" = "$terminal_image" ] &&
    { [ "$assistant_exists" = "false" ] ||
      [ "$(service_image "$assistant_service")" = "$control_image" ]; }; then
-    jq -n --arg plan "$plan" '{noop:true,plan:$plan}' >"$state_file"
-    progress 100 "CONTROL CENTER JÁ ESTÁ SINCRONIZADO."
+    if service_has_group "$terminal_service" "$socket_gid" &&
+       [ "$(service_env_value "$terminal_service" SETUPMNO_DOCKER_SOCKET_GID)" = "$socket_gid" ]; then
+        jq -n --arg plan "$plan" '{noop:true,plan:$plan}' >"$state_file"
+        progress 100 "CONTROL CENTER JÁ ESTÁ SINCRONIZADO."
+    else
+        schedule_terminal_update ||
+            fail_upgrade 46 "Falha ao agendar o reparo do acesso Docker no Terminal Seguro."
+        jq -n --arg plan "$plan" '{noop:true,plan:$plan,terminalReconciled:true}' >"$state_file"
+        progress 100 "PAINEL SINCRONIZADO; ACESSO DO TERMINAL AO DOCKER PRONTO PARA REPARO."
+    fi
     changed_services=()
     exit 0
 fi
@@ -346,17 +397,10 @@ changed_services+=("$web_service")
 run_with_heartbeat 88 "AGUARDANDO O PAINEL ATINGIR 1/1 RÉPLICA..." \
     wait_service "$web_service" 1 || fail_upgrade 45 "O painel atualizado não atingiu 1/1 réplica."
 
-terminal_has_image_env=false
-terminal_has_plan_env=false
-service_has_env_key "$terminal_service" SETUPMNO_CONTROL_IMAGE && terminal_has_image_env=true
-service_has_env_key "$terminal_service" SETUPMNO_CONTROL_PLAN && terminal_has_plan_env=true
-jq -n --arg service "$terminal_service" --arg image "$terminal_image" \
-    --arg control_image "$control_image" --arg plan "$plan" \
-    --argjson has_image_env "$terminal_has_image_env" \
-    --argjson has_plan_env "$terminal_has_plan_env" \
-    '{noop:false,service:$service,image:$image,controlImage:$control_image,plan:$plan,
-      hasImageEnv:$has_image_env,hasPlanEnv:$has_plan_env}' >"$state_file" ||
-    fail_upgrade 46 "Falha ao preparar a troca protegida do terminal."
+schedule_terminal_update ||
+    fail_upgrade 46 "Falha ao agendar a troca protegida do terminal."
+jq -n --arg plan "$plan" '{noop:true,plan:$plan,terminalReconciled:true}' >"$state_file" ||
+    fail_upgrade 46 "Falha ao registrar a troca protegida do terminal."
 
 changed_services=()
 progress 100 "PAINEL SINCRONIZADO; TERMINAL PRONTO PARA TROCA CONTROLADA."

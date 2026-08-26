@@ -790,7 +790,9 @@ function applyReleaseMetadata(data) {
   if (Object.prototype.hasOwnProperty.call(data, "homologationRunnerAvailable")) {
     renderHomologationRunner(data);
   }
-  renderSupplyChainStatus(data);
+  if (Object.prototype.hasOwnProperty.call(data, "supplyChainAvailable")) {
+    renderSupplyChainStatus(data);
+  }
   setCatalogSyncStatus(Boolean(data.stale), data.warning, data);
 }
 

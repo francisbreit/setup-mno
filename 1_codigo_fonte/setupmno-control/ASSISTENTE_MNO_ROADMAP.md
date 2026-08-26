@@ -122,6 +122,35 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
+## v7.34.3 — Estado SBOM e acesso Docker do SRE-3 no WSL2 (BETA, candidata)
+
+- o catálogo deixa de substituir o estado válido de supply chain quando a
+  resposta específica do catálogo não contém esses campos; SBOM, inventário,
+  atestação e manifesto existentes voltam a aparecer como disponíveis;
+- o Terminal Seguro recebe somente o grupo numérico atual do socket Docker,
+  detectado no host e persistido no serviço. Isso permite que o executor SRE-3
+  consulte o Docker Desktop no WSL2 sem conceder socket, grupo Docker, root ou
+  shell ao Assistente, agente, painel web ou LLM;
+- a reconciliação repara instalações existentes mesmo quando as imagens já
+  estão na versão esperada e remove o grupo anterior somente quando ele foi
+  registrado pelo próprio Setup MNO;
+- o diálogo final traduz `partial` para “cobertura parcial”, informa quantos
+  motores executaram sem falha e explica que cobertura parcial não confirma
+  vulnerabilidade;
+- Setup MNO `7.34.3` e Control Center `4.34.2` permanecem candidatos. A
+  v7.33.4 continua sendo a última versão estável até declaração explícita de
+  Francis MNO.
+
+Baseline desta candidata corretiva:
+
+- Setup MNO: `7.34.3` em preparação de release candidata
+- Última versão estável homologada: `7.33.4`
+- Control Center: `4.34.2`
+- Motores determinísticos: `1.0.0 BETA`
+
+Esta correção não conclui nem reordena a subtrilha SRE. O próximo item continua
+sendo `SRE-4` — plano de ação consultivo.
+
 ## v7.34.2 — Handoff seguro dos bootstraps após autenticação (candidata)
 
 - `setup-mno.sh` e `setup-mno-oracle.sh` transferem o processo para o gatilho

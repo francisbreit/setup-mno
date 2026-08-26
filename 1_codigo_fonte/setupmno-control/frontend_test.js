@@ -373,6 +373,13 @@ vm.runInContext(`renderSupplyChainStatus({
 })`, terminalContext);
 assert.match(terminalElement("supply-chain-status").textContent, /12 referências de imagem \(3 por digest\)/);
 assert.match(terminalElement("supply-chain-status").textContent, /2 expressões não resolvidas/);
+vm.runInContext(`applyReleaseMetadata({
+  setupVersion: "7.34.3",
+  architecture: "amd64",
+  catalogEntries: 158
+})`, terminalContext);
+assert.match(terminalElement("supply-chain-status").textContent, /12 referências de imagem \(3 por digest\)/);
+assert.doesNotMatch(terminalElement("supply-chain-status").textContent, /ainda não estão disponíveis/);
 assert.equal(vm.runInContext('normalizeHelpText("Configurações e Aplicação")', terminalContext), "configuracoes e aplicacao");
 terminalElement("help-search").value = "WSL2";
 vm.runInContext("filterHelpTopics()", terminalContext);

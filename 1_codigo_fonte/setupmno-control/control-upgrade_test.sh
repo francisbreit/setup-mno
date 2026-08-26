@@ -27,6 +27,11 @@ grep -Fq 'service_wait_attempts=100' "$updater"
 grep -Fq 'record_service_diagnostics "$service" "$expected"' "$updater"
 grep -Fq 'docker service ps --no-trunc' "$updater"
 grep -Fq 'health={{.State.Health.Status}}' "$updater"
+grep -Fq 'docker_socket_gid()' "$updater"
+grep -Fq 'service_has_group "$terminal_service" "$socket_gid"' "$updater"
+grep -Fq 'SETUPMNO_DOCKER_SOCKET_GID' "$updater"
+grep -Fq 'schedule_terminal_update' "$updater"
+grep -Fq -- '--group-add "$socket_gid"' "$updater"
 
 for forbidden in 'docker stack deploy' 'docker service create' 'docker secret create' \
     'docker volume rm' 'docker stack rm' 'docker service rm' '--label-rm'; do
@@ -47,7 +52,8 @@ docker_log="$test_dir/docker.log"
 : >"$docker_log"
 
 for function_name in progress heartbeat_loop stop_heartbeat run_with_heartbeat \
-    service_has_env_key service_env_value service_has_mount_target update_agent \
+    service_has_env_key service_env_value service_has_mount_target docker_socket_gid \
+    service_has_group schedule_terminal_update update_agent \
     agent_version_is_current configure_service_wait_policy record_service_diagnostics \
     wait_service update_web; do
     function_source=$(awk -v name="$function_name" '
@@ -228,5 +234,17 @@ if update_web "mnoctrltest-web_mnoctrltest-web" "mnoctrltest-app:4.16.2" pro; th
     exit 1
 fi
 [ ! -s "$docker_log" ]
+
+: >"$docker_log"
+terminal_service="mnoctrltest-terminal_mnoctrltest-terminal"
+terminal_image="mnoctrltest-terminal:4.16.2"
+control_image="mnoctrltest-app:4.16.2"
+plan="pro"
+socket_gid="1001"
+schedule_terminal_update
+grep -Fq -- 'run -d --rm --network none --group-add 1001' "$docker_log"
+grep -Fq -- '--group-add 1001' "$docker_log"
+grep -Fq -- '--env-add SETUPMNO_DOCKER_SOCKET_GID=1001' "$docker_log"
+grep -Fq -- '--force --detach=true mnoctrltest-terminal_mnoctrltest-terminal' "$docker_log"
 
 printf 'Reconciliação in-place, versão do agente, modo original explícito, MFA e rollback aprovados.\n'

@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 set -o pipefail
 umask 077
-CONTROL_VERSION="4.34.1"
+CONTROL_VERSION="4.34.2"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -637,9 +637,6 @@ restore_existing_access_original_mode() {
 
 reconcile_existing_control_center() {
     local upgrade_dir upgrade_log upgrade_error upgrade_state status detail noop
-    local terminal_service terminal_image control_image plan finalizer_name
-    local has_image_env has_plan_env
-    local -a terminal_update_args
     local existing_web migration_state
 
     upgrade_dir=$(mktemp -d) || return 1
@@ -695,35 +692,9 @@ reconcile_existing_control_center() {
         rm -rf -- "$upgrade_dir"
         return 0
     fi
-
-    terminal_service=$(jq -er '.service' "$upgrade_state") || return 1
-    terminal_image=$(jq -er '.image' "$upgrade_state") || return 1
-    control_image=$(jq -er '.controlImage' "$upgrade_state") || return 1
-    plan=$(jq -er '.plan' "$upgrade_state") || return 1
-    has_image_env=$(jq -r '.hasImageEnv' "$upgrade_state")
-    has_plan_env=$(jq -r '.hasPlanEnv' "$upgrade_state")
-    [[ "$terminal_service" =~ ^mnoctrl[[:alnum:]]+-terminal_mnoctrl[[:alnum:]]+-terminal$ ]] || return 1
-    [[ "$terminal_image" =~ ^mnoctrl[[:alnum:]]+-terminal:[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
-    [[ "$control_image" =~ ^mnoctrl[[:alnum:]]+-app:[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
-    [[ "$plan" =~ ^(pro-master|pro|free|free1|free2)$ ]] || return 1
-
-    terminal_update_args=(--image "$terminal_image")
-    [ "$has_image_env" = "true" ] && terminal_update_args+=(--env-rm SETUPMNO_CONTROL_IMAGE)
-    terminal_update_args+=(--env-add "SETUPMNO_CONTROL_IMAGE=$control_image")
-    [ "$has_plan_env" = "true" ] && terminal_update_args+=(--env-rm SETUPMNO_CONTROL_PLAN)
-    terminal_update_args+=(--env-add "SETUPMNO_CONTROL_PLAN=$plan" --force --detach=true "$terminal_service")
-    finalizer_name="${terminal_service%%_*}-reconcile-finalizer"
-    if ! docker run -d --rm --network none --name "$finalizer_name" \
-        -v /var/run/docker.sock:/var/run/docker.sock \
-        --entrypoint /usr/bin/bash "$terminal_image" \
-        -c 'sleep 4; docker service update "$@"' _ \
-        "${terminal_update_args[@]}" >>"$upgrade_log" 2>&1; then
-        rm -rf -- "$upgrade_dir"
-        msg "Painel e agente foram atualizados, mas o reinício final do Terminal Seguro não pôde ser agendado."
-        return 1
-    fi
+    msg "O reconciliador não confirmou a conclusão do Terminal Seguro. A instalação foi preservada para revisão."
     rm -rf -- "$upgrade_dir"
-    return 0
+    return 1
 }
 
 build_existing_access_policy_payload() {
@@ -1633,6 +1604,10 @@ error_file="/tmp/${nome_app}-error.log"
     done
     docker info >>"$install_log" 2>&1 ||
         fail_install 11 "DOCKER INDISPONÍVEL" "O Docker Engine ou o Swarm não está disponível."
+    docker_socket_gid=$(stat -c '%g' /var/run/docker.sock 2>>"$install_log") ||
+        fail_install 11 "SOCKET DOCKER INDISPONÍVEL" "O socket Docker não está disponível para o Terminal Seguro."
+    [[ "$docker_socket_gid" =~ ^[0-9]+$ ]] && [ "$docker_socket_gid" -le 2147483647 ] ||
+        fail_install 11 "SOCKET DOCKER INDISPONÍVEL" "O grupo de acesso ao Docker não pôde ser identificado para o Terminal Seguro."
     swarm_state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>>"$install_log")
     [ "$swarm_state" = "active" ] ||
         fail_install 11 "SWARM INATIVO" "O Docker Swarm precisa estar ativo antes de instalar o Control Center."
@@ -1888,6 +1863,8 @@ services:
   $terminal_service:
     image: $terminal_image
     hostname: $terminal_service
+    group_add:
+      - "$docker_socket_gid"
     command:
       - -p
       - "7681"
@@ -1919,6 +1896,7 @@ services:
       - SETUPMNO_CONTROL_ADMIN_SECRET=$admin_secret
       - SETUPMNO_CONTROL_ADMIN_USERNAME=$usuario_control
       - SETUPMNO_CONTROL_PLAN=$CONTROL_PLAN
+      - SETUPMNO_DOCKER_SOCKET_GID=$docker_socket_gid
     networks:
       - interna
     volumes:

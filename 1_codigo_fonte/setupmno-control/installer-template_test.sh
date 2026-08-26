@@ -26,6 +26,9 @@ grep -Fq 'start_install_heartbeat 96 "AGUARDANDO OS SERVIÇOS DO CONTROL CENTER.
 grep -Fq '. "$work_dir/source/install-heartbeat.sh"' "$template"
 grep -Fq 'stop_install_heartbeat' "$template"
 grep -Fq 'Processando há %02d:%02d' "$heartbeat"
+grep -Fq 'group_add:' "$template"
+grep -Fq 'SETUPMNO_DOCKER_SOCKET_GID=$docker_socket_gid' "$template"
+grep -Fq "docker_socket_gid=\$(stat -c '%g' /var/run/docker.sock" "$template"
 
 initial_mfa_flow=$(awk '
     /^access_email=""$/ { inside=1 }

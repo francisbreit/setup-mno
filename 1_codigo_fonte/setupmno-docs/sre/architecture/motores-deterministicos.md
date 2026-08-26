@@ -3,9 +3,9 @@
 - Estado: `implemented`
 - Público: usuários dos planos Free, Free1, Free2, PRO e PRO MASTER; governança do mantenedor PRO MASTER
 - Ambientes: WSL2 com Docker Desktop e VPS Debian/Ubuntu
-- Atualizado em: 2026-08-25
+- Atualizado em: 2026-08-26
 - Maturidade da funcionalidade: `beta`
-- Versão candidata corretiva: Setup MNO 7.34.1 e Control Center 4.34.1
+- Versão candidata corretiva: Setup MNO 7.34.3 e Control Center 4.34.2
 
 ## Resumo para leigos
 
@@ -95,6 +95,20 @@ sudo bash /root/SetupLowCodeMno/.control/sre-engine/run.sh
 Esses ajustes corrigem falhas de execução; não removem a indicação de cobertura
 parcial esperada no WSL2. `partial` significa medição útil com limites
 declarados. `failed` significa que o motor não conseguiu produzir a medição.
+
+### Correções específicas da v7.34.3
+
+- no Docker Desktop, o socket Docker pode pertencer a um grupo numérico que não
+  existe dentro da imagem do Terminal Seguro. O instalador identifica esse GID
+  (identificador numérico do grupo), adiciona somente esse grupo ao serviço do
+  terminal e registra o valor para permitir reparos e mudanças futuras;
+- o Assistente, o agente, o painel web, a LLM, Trivy e Lynis continuam sem
+  acesso ao socket. O grupo adicional existe somente no Terminal Seguro, que já
+  é autenticado e exige confirmação humana;
+- a reconciliação repara o grupo mesmo quando as imagens já estão atualizadas,
+  sem reconstruir desnecessariamente o painel;
+- a mensagem final diferencia falha de execução de cobertura parcial. O JSON
+  continua conservador: qualquer cobertura parcial mantém `complete:false`.
 
 ## Nota técnica para DevOps
 

@@ -43,7 +43,7 @@ EOF
     chmod 700 "$installer_dir/fake-installer"
     {
         printf '#!/usr/bin/bash\n'
-        printf 'VERSIONSETUP=7.34.2\n'
+        printf 'VERSIONSETUP=7.34.3\n'
         printf 'dialog() { :; }\n'
         printf 'sleep() { :; }\n'
         printf '%s\n' "$function_body"
