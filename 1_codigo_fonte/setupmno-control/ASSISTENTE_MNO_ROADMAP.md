@@ -122,6 +122,30 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
+## v7.34.2 — Handoff seguro dos bootstraps após autenticação (candidata)
+
+- `setup-mno.sh` e `setup-mno-oracle.sh` transferem o processo para o gatilho
+  protegido usando `exec`; senha incorreta, cancelamento ou outro status do SHC
+  encerram o bootstrap sem retomar comandos residuais;
+- o teste de regressão reproduz um login que retorna código diferente de zero e
+  um fragmento Bash inválido anexado depois do handoff;
+- um gate pós-publicação compara byte a byte os dois arquivos remotos com os
+  artefatos aprovados de `3_distribuicao/`, além de executar `bash -n`;
+- nenhuma regra de login, plano, SHC, senha ou aplicação foi flexibilizada;
+- a candidata corrige somente a cadeia pública de inicialização. O Control
+  Center permanece `4.34.1` e a v7.33.4 permanece a última versão estável até
+  declaração explícita de Francis MNO.
+
+Baseline desta candidata corretiva:
+
+- Setup MNO: `7.34.2` em preparação de release candidata
+- Última versão estável homologada: `7.33.4`
+- Control Center: `4.34.1`
+- Escopo: bootstrap padrão e Oracle, x86 e ARM
+
+Esta demanda avulsa não conclui nem reordena a subtrilha SRE. O próximo item
+continua sendo `SRE-4` — plano de ação consultivo.
+
 ## v7.34.1 — Correção dos motores determinísticos no WSL2 (BETA, candidata)
 
 - o download da base do Trivy recebe 512 MiB de espaço temporário e limite de

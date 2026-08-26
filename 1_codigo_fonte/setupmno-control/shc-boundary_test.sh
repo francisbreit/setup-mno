@@ -16,15 +16,15 @@ printf 'resultado sanitizado\n' >"$package/sre-engine/facts.json"
 printf 'sbom\n' >"$package/supply-chain/sbom.cdx.json"
 python3 -B "$project_dir/shc_boundary.py" generate \
     --package "$package" --policy "$project_dir/shc-boundary-policy.json" \
-    --setup-version 7.34.1 --architecture amd64 >/dev/null
+    --setup-version 7.34.2 --architecture amd64 >/dev/null
 python3 -B "$project_dir/shc_boundary.py" validate \
     --package "$package" --policy "$project_dir/shc-boundary-policy.json" \
-    --setup-version 7.34.1 --architecture amd64 >/dev/null
+    --setup-version 7.34.2 --architecture amd64 >/dev/null
 
 printf 'adulterado\n' >>"$package/sre-engine/facts.json"
 if python3 -B "$project_dir/shc_boundary.py" validate \
     --package "$package" --policy "$project_dir/shc-boundary-policy.json" \
-    --setup-version 7.34.1 --architecture amd64 >/dev/null 2>&1; then
+    --setup-version 7.34.2 --architecture amd64 >/dev/null 2>&1; then
     printf 'ERRO: modulo externo adulterado foi aceito.\n' >&2
     exit 1
 fi

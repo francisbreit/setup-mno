@@ -1,6 +1,6 @@
 #!/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 22:39:34
-VERSIONSETUP="7.34.1"
+VERSIONSETUP="7.34.2"
 
 # Cores
 amarelo="\e[33m"
@@ -104,6 +104,31 @@ setupmno_validate_wsl_docker() {
             return 75
             ;;
     esac
+}
+
+setupmno_handoff_installer() {
+    local installer="$1"
+
+    if [ ! -f "$installer" ]; then
+        dialog --title "Erro" --msgbox "Erro ao baixar o arquivo." 8 70
+        return 1
+    fi
+    if ! chmod 700 -- "$installer" || [ ! -x "$installer" ]; then
+        dialog --title "Erro" --msgbox "O arquivo não é executável." 8 70
+        return 126
+    fi
+
+    dialog --title "Execução do Setup do Instalador do SetupMno v${VERSIONSETUP}" \
+        --infobox "Executando... Atenção, a seguir será necessário o login, para continuar..." 8 70
+    sleep 7
+
+    # O binário de autenticação substitui o bootstrap. Assim, cancelamento,
+    # senha inválida ou outra saída nunca retomam comandos residuais deste
+    # arquivo e preservam exatamente o status devolvido pelo gatilho SHC.
+    exec "./$installer"
+
+    dialog --title "Erro" --msgbox "Não foi possível iniciar o instalador protegido." 8 70
+    return 126
 }
 
 SETUP_MNO_TMUX_SESSION_PREFIX="setup-mno"
@@ -652,20 +677,11 @@ if ! curl --fail --location --silent --show-error \
     exit 1
 fi
 
-# Verificar se o download foi bem-sucedido
-if [ -f "$filename" ]; then
-    dialog --title "Download do Setup do Instalador SetupMno v${VERSIONSETUP}" --infobox "Setup inicial baixado com sucesso." 8 70
-    sleep 5
-    chmod +x $filename
-    # Verificar se o arquivo é executável
-    if [ -x "$filename" ]; then
-        dialog --title "Execução do Setup do Instalador do SetupMno v${VERSIONSETUP}" --infobox "Executando... Atenção, a seguir será necessário o login, para continuar..." 8 70
-        sleep 7
-        ./$filename
-    else
-        dialog --title "Erro" --msgbox "O arquivo não é executável." 8 70
-    fi
-else
-    dialog --title "Erro" --msgbox "Erro ao baixar o arquivo." 8 70
-fi
+dialog --title "Download do Setup do Instalador SetupMno v${VERSIONSETUP}" \
+    --infobox "Setup inicial baixado com sucesso." 8 70
+sleep 5
+
+setupmno_handoff_installer "$filename"
+handoff_status=$?
 clear
+exit "$handoff_status"

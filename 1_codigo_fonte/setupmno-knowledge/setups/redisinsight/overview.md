@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Redis Insight no Setup MNO",
   "setupId": "redisinsight",
-  "setupVersion": "7.34.1",
+  "setupVersion": "7.34.2",
   "architectures": [
     "amd64",
     "arm64"
