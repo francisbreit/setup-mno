@@ -2154,9 +2154,9 @@ func (a *webApp) handleTerminalReauth(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "intenção do Terminal Seguro inválida")
 		return
 	}
-	if input.Intent == "homologation" && !a.maintainerAccessAllowed(r.Context()) {
+	if (input.Intent == "homologation" || input.Intent == "strix") && !a.maintainerAccessAllowed(r.Context()) {
 		input.Password = ""
-		a.addAudit("homologation_blocked_plan", "Homologação recusada: requer plano PRO MASTER", address)
+		a.addAudit("maintainer_terminal_blocked_plan", "Recurso do mantenedor recusado: requer plano PRO MASTER", address)
 		writeError(w, http.StatusForbidden, "recurso exclusivo do plano PRO MASTER")
 		return
 	}
@@ -3016,8 +3016,9 @@ func (a *webApp) terminalProxy() http.Handler {
 			writeError(w, http.StatusForbidden, "recurso disponível apenas quando é usado Cloudflare Tunnel")
 			return
 		}
-		if terminalIntent(r.URL.Query()["arg"]) == "homologation" && !a.maintainerAccessAllowed(r.Context()) {
-			a.addAudit("homologation_blocked_plan", "Terminal de homologação recusado: requer plano PRO MASTER", clientAddress(r))
+		intent := terminalIntent(r.URL.Query()["arg"])
+		if (intent == "homologation" || intent == "strix") && !a.maintainerAccessAllowed(r.Context()) {
+			a.addAudit("maintainer_terminal_blocked_plan", "Terminal do mantenedor recusado: requer plano PRO MASTER", clientAddress(r))
 			writeError(w, http.StatusForbidden, "recurso exclusivo do plano PRO MASTER")
 			return
 		}
@@ -3072,7 +3073,7 @@ func terminalIntentAllowed(values []string) bool {
 		return false
 	}
 	switch values[0] {
-	case "installer", "settings", "homologation", "sre", "gateway":
+	case "installer", "settings", "homologation", "sre", "strix", "gateway":
 		return true
 	default:
 		return false

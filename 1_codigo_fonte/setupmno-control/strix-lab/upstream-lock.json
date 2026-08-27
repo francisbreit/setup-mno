@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "maturity": "beta",
+  "project": "strix-agent",
+  "version": "1.5.3",
+  "license": "Apache-2.0",
+  "pythonRequires": ">=3.12",
+  "developmentStatus": "alpha",
+  "sourceRepository": "https://github.com/usestrix/strix",
+  "sourceTag": "v1.5.3",
+  "artifacts": {
+    "amd64": {
+      "filename": "strix_agent-1.5.3-py3-none-manylinux_2_35_x86_64.whl",
+      "sha256": "ba0b6b13f13f41e45f3eb4dba515641d1bc71363ca6e758d0cd05c20ff56b6ea"
+    },
+    "arm64": {
+      "filename": "strix_agent-1.5.3-py3-none-manylinux_2_35_aarch64.whl",
+      "sha256": "da35ae6e9a6ae0bf5cc662012608cf0aa671479129ba94052a3f893bff74c43f"
+    },
+    "source": {
+      "filename": "strix_agent-1.5.3.tar.gz",
+      "sha256": "a5babe4e6d42cb24a10d4508bcd3c477bd369ff7194c95a7c58de6d6e4c3be18"
+    }
+  },
+  "sandbox": {
+    "status": "pending-homologation",
+    "image": "",
+    "digest": ""
+  },
+  "fork": {
+    "used": false,
+    "commit": "",
+    "diffSHA256": ""
+  },
+  "execution": {
+    "available": false,
+    "reason": "Executor isolado ainda não homologado no WSL2 e na VPS.",
+    "productionDockerSocketAllowed": false,
+    "productionRootMountAllowed": false,
+    "targetMutationAllowed": false,
+    "automaticExecution": false
+  }
+}

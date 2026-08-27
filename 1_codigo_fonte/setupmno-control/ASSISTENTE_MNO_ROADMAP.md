@@ -110,6 +110,9 @@ próximo item técnico pendente.
      executar comandos livres na produção.
 
 7. `SRE-6` — **Laboratório Strix PRO MASTER**
+   - preparação fail closed entregue na candidata v7.37.0: versão upstream,
+     licença e hashes fixados, contratos fechados de autorização e relatório,
+     gate PRO MASTER e interface BETA; o executor permanece bloqueado;
    - pentest opcional somente contra alvos expressamente autorizados;
    - execução em ambiente temporário, isolado, inventariado e limitado por
      rede, tempo, CPU, memória e orçamento de LLM;
@@ -126,6 +129,36 @@ diagnóstico compreensível e baseado em fatos, enquanto o mantenedor conserva a
 fronteira de confiança, a aprovação final e a rastreabilidade de toda ação. A
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
+
+## v7.37.0 — Preparação do Laboratório Strix SRE-6 (candidata; BETA)
+
+- fixa o upstream `strix-agent` 1.5.3, licença Apache-2.0, requisito Python e
+  hashes dos artefatos oficiais sem baixar ou executar o scanner;
+- introduz contratos fechados para autorização escrita e relatório sanitizado,
+  rejeitando plano diferente de PRO MASTER, Docker socket da produção, mount de
+  `/root`, mutação do alvo, correção automática, selo ou publicação;
+- adiciona um ponto de entrada BETA no Assistente e no Terminal Seguro, com
+  autorização repetida no frontend, backend e launcher;
+- o assistente visual termina em estado bloqueado até que uma imagem sandbox
+  por digest seja homologada separadamente no WSL2 e na VPS;
+- nenhum alvo é solicitado, nenhum pentest é iniciado, nenhum laboratório é
+  criado e nenhuma evidência bruta é importada nesta candidata;
+- Setup MNO `7.37.0` e Control Center `4.37.0` são candidatos; a última versão
+  estável homologada continua sendo `7.36.2`.
+
+Baseline da candidata:
+
+- Setup MNO: `7.37.0`, candidata
+- Última versão estável homologada: `7.36.2`
+- Control Center: `4.37.0`
+- Strix upstream fixado: `1.5.3`
+- Executor isolado: bloqueado, pendente de homologação
+- Maturidade: `BETA`
+
+O próximo item permanece `SRE-6`: construir e homologar o executor efêmero em
+ambiente isolado, sem Docker socket ou root da produção, antes de qualquer
+teste autorizado. Esta candidata não deve ser promovida sem validação visual
+no WSL2 x86-64 e em VPS ARM64 e declaração explícita de Francis MNO.
 
 ## v7.36.2 — Correção do build do Control Center (release estável; SRE-5 BETA)
 

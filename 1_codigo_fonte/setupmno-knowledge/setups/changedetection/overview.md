@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "ChangeDetection.io no Setup MNO",
   "setupId": "changedetection",
-  "setupVersion": "7.36.2",
+  "setupVersion": "7.37.0",
   "architectures": [
     "amd64",
     "arm64"

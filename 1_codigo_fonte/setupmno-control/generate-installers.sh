@@ -129,6 +129,7 @@ python3 -B "$source_root/setupmno-knowledge/tools/test_homologation_runner.py"
 python3 -B "$source_root/setupmno-knowledge/tools/test_certification.py"
 bash "$project_dir/homologation-wizard_test.sh"
 bash "$project_dir/terminal-authorization_test.sh"
+bash "$project_dir/strix-lab/test.sh"
 bash "$project_dir/maintainer-runtime_test.sh"
 homologation_wizard="$source_root/setupmno-knowledge/tools/homologation_wizard.sh"
 bash -n "$homologation_wizard"
@@ -665,7 +666,7 @@ grep -Fq 'tmux -L setupmno-control new-session -A' "$project_dir/terminal-menu.s
 }
 grep -Fq 'setupmno-terminal-$intent' "$project_dir/terminal-menu.sh" &&
 grep -Fq 'acesso remoto bloqueado em instalações TRADICIONAIS' "$project_dir/terminal-menu.sh" &&
-grep -Fq 'homologação exclusiva do plano PRO MASTER' "$project_dir/terminal-menu.sh" &&
+grep -Fq 'recurso exclusivo do plano PRO MASTER' "$project_dir/terminal-menu.sh" &&
 grep -Fq 'requireMaintainer' "$project_dir/main.go" &&
 grep -Fq 'planHasMaintainerAccess' "$project_dir/main.go" &&
 grep -Fq 'HomologationFinalApproval' "$project_dir/main.go" &&
@@ -689,6 +690,8 @@ grep -Fq 'homologation)' "$project_dir/terminal-menu.sh" &&
 grep -Fq 'HOMOLOGATION)' "$project_dir/terminal-menu.sh" &&
 grep -Fq 'sre)' "$project_dir/terminal-menu.sh" &&
 grep -Fq 'SRE)' "$project_dir/terminal-menu.sh" &&
+grep -Fq 'strix)' "$project_dir/terminal-menu.sh" &&
+grep -Fq 'STRIX)' "$project_dir/terminal-menu.sh" &&
 grep -Fq 'gateway)' "$project_dir/terminal-menu.sh" || {
     printf 'ERRO: launcher do Terminal Seguro sem allowlist contextual completa.\n' >&2
     exit 1
@@ -702,7 +705,7 @@ grep -Fq 'POST /api/terminal/reauth' "$project_dir/main.go" &&
 grep -Fq 'handleTerminalReauth' "$project_dir/main.go" &&
 grep -Fq 'TerminalUntil' "$project_dir/main.go" &&
 grep -Fq 'terminalAccessAllowed' "$project_dir/main.go" &&
-grep -Fq '"installer", "settings", "homologation", "sre", "gateway"' "$project_dir/main.go" || {
+grep -Fq '"installer", "settings", "homologation", "sre", "strix", "gateway"' "$project_dir/main.go" || {
     printf 'ERRO: proxy web não valida as intenções fixas do Terminal Seguro.\n' >&2
     exit 1
 }
@@ -1076,7 +1079,7 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
         terminal-menu.sh configure-control.sh control-upgrade.sh cloudflare-mfa.sh \
         install-heartbeat.sh \
         cloudflare-route-guard.sh cloudflare-access-reconcile.sh \
-        "${production_go_files[@]}" web |
+        "${production_go_files[@]}" strix-lab web |
         gzip -9n >"$bundle"
 )
 for source_file in "${production_go_files[@]}"; do
@@ -1102,6 +1105,12 @@ if ! tar -tzf "$bundle" | grep -Fx 'runbook_registry.go' >/dev/null; then
     echo "ERRO: pacote Control Center sem registro fechado de runbooks SRE-5." >&2
     exit 1
 fi
+for strix_file in upstream-lock.json authorization.schema.json sanitized-report.schema.json validate.py wizard.sh test.sh; do
+    if ! tar -tzf "$bundle" | grep -Fx "strix-lab/$strix_file" >/dev/null; then
+        printf 'ERRO: bundle de fontes sem o contrato SRE-6 %s.\n' "$strix_file" >&2
+        exit 1
+    fi
+done
 if ! tar -tzf "$bundle" | grep -Fx 'evals.go' >/dev/null; then
     printf 'ERRO: bundle de fontes sem a suíte determinística de evals.\n' >&2
     exit 1

@@ -10,7 +10,7 @@ if [ "$#" -gt 1 ]; then
 fi
 
 case "$intent" in
-    installer|settings|homologation|sre|gateway) ;;
+    installer|settings|homologation|sre|strix|gateway) ;;
     *)
         printf 'Terminal Seguro: intenção recusada.\n' >&2
         exit 64
@@ -42,8 +42,9 @@ CONTROL_PLAN=$(jq -er \
     printf 'Terminal Seguro: acesso remoto bloqueado em instalações TRADICIONAIS.\n' >&2
     exit 77
 }
-if [ "$intent" = "homologation" ] && [ "$CONTROL_PLAN" != "pro-master" ]; then
-    printf 'Terminal Seguro: homologação exclusiva do plano PRO MASTER.\n' >&2
+if { [ "$intent" = "homologation" ] || [ "$intent" = "strix" ]; } &&
+   [ "$CONTROL_PLAN" != "pro-master" ]; then
+    printf 'Terminal Seguro: recurso exclusivo do plano PRO MASTER.\n' >&2
     exit 77
 fi
 if [ "${SETUPMNO_TERMINAL_AUTH_SMOKE_TEST:-0}" = "1" ]; then
@@ -118,6 +119,9 @@ case "$intent" in
     sre)
         exec /usr/bin/bash /root/SetupLowCodeMno/.control/sre-engine/run.sh
         ;;
+    strix)
+        exec /usr/bin/bash /opt/setupmno/strix-lab/wizard.sh
+        ;;
     gateway)
         ;;
 esac
@@ -127,7 +131,7 @@ while true; do
     menu_width=$(dialog_width 84)
     menu_rows=$((menu_height - 8))
     [ "$menu_rows" -ge 1 ] || menu_rows=1
-    [ "$menu_rows" -le 5 ] || menu_rows=5
+    [ "$menu_rows" -le 6 ] || menu_rows=6
     menu_entries=(
         "INSTALLER" "Abrir o Instalador Setup MNO"
         "SETTINGS" "Configurar conta e provedor do Control Center"
@@ -135,6 +139,7 @@ while true; do
     )
     if [ "$CONTROL_PLAN" = "pro-master" ]; then
         menu_entries+=("HOMOLOGATION" "Abrir a Central do Mantenedor · PRO MASTER")
+        menu_entries+=("STRIX" "Preparar o Laboratório Strix SRE-6 · BETA")
     fi
     menu_entries+=("EXIT" "Encerrar esta sessão do terminal")
     choice=$(whiptail --title "SETUP MNO — TERMINAL SEGURO" --menu \
@@ -159,6 +164,9 @@ while true; do
             ;;
         SRE)
             /usr/bin/bash /root/SetupLowCodeMno/.control/sre-engine/run.sh
+            ;;
+        STRIX)
+            /usr/bin/bash /opt/setupmno/strix-lab/wizard.sh
             ;;
         EXIT)
             exit 0

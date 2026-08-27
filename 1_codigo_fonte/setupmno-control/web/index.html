@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#070a0f">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=4.36.2">
+  <link rel="stylesheet" href="/styles.css?v=4.37.0">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -302,6 +302,13 @@
                 <p>Auditoria manual e somente leitura. O resumo sanitizado vale por 24 horas; falhas, cobertura parcial e limitações continuam visíveis.</p>
                 <button class="light-button" data-action="sre">Executar auditoria segura <b>→</b></button>
               </article>
+              <article id="assistant-strix-card" class="panel maintainer-only" data-maintainer-only hidden>
+                <div class="panel-head"><p class="eyebrow">Laboratório Strix · BETA</p><span class="secure-pill">SRE-6</span></div>
+                <h3>Preparação segura · PRO MASTER</h3>
+                <p>Versão e hashes oficiais fixados. O executor isolado ainda não foi homologado; esta candidata não solicita alvo nem inicia pentest.</p>
+                <ul><li>Sem Docker socket ou /root da produção</li><li>Sem mutação ou correção automática</li><li>Somente contratos sanitizados e fail closed</li></ul>
+                <button class="light-button" data-action="strix">Abrir preparação segura <b>→</b></button>
+              </article>
               <article id="assistant-quality-card" class="panel assistant-quality-card" aria-live="polite">
                 <span class="assistant-quality-icon" aria-hidden="true">✓</span>
                 <div><p class="eyebrow">Qualidade do Assistente</p><h3 id="assistant-quality-title">Verificando o motor local</h3><p id="assistant-quality-summary">Os testes da release não substituem a validação da LLM escolhida.</p></div>
@@ -514,6 +521,9 @@
             <article class="help-feature-card help-topic" data-help-topic data-help-category="operate" data-help-search="assistente mno ia llm diagnóstico básico openai openrouter deepseek ollama perguntas recomendação">
               <span class="help-feature-icon violet">✦</span><div><span class="help-status">BETA</span><h3>Assistente MNO</h3><p>Ajuda a interpretar saúde, capacidade, setups, segurança, integrações e falhas. Como recurso Beta, suas respostas são orientações e precisam de revisão humana. Ele não executa comandos. No modo Básico, usa diagnóstico local sem LLM.</p></div><button type="button" data-nav="assistant">Abrir Assistente Beta <b>→</b></button>
             </article>
+            <article class="help-feature-card help-topic maintainer-only" data-maintainer-only hidden data-help-topic data-help-category="operate concept" data-help-search="strix sre-6 laboratório pentest pro master autorização sandbox beta">
+              <span class="help-feature-icon orange">◎</span><div><span class="help-status">SRE-6 · BETA · Preparação</span><h3>Laboratório Strix</h3><p>Prepara contratos fechados para um futuro pentest autorizado e isolado. Nesta candidata o executor ainda está bloqueado: nenhum alvo é solicitado, nenhum scanner é iniciado e nenhuma correção é aplicada.</p></div><button type="button" data-action="strix">Abrir preparação segura <b>→</b></button>
+            </article>
             <article class="help-feature-card help-topic" data-help-topic data-help-category="operate" data-help-search="auditoria eventos login terminal rastreabilidade feedback segurança histórico">
               <span class="help-feature-icon orange">≡</span><div><h3>Auditoria</h3><p>Registra eventos administrativos e de segurança sem armazenar senhas nem o texto das conversas. Use a trilha para entender quando uma sessão ou recurso protegido foi acessado.</p></div><button type="button" data-nav="audit">Ver auditoria <b>→</b></button>
             </article>
@@ -560,6 +570,10 @@
                 <div class="help-examples"><strong>Exemplo: WordPress em servidor ARM</strong><span>RUNNER → Homologação automática → WordPress → ARM64 → serviço WordPress → confirmar resultado.</span><span>Resultado: selo “WordPress · ARM64 · instalação e inicialização aprovadas”.</span></div>
                 <div class="help-callout warn"><strong>Limite do Selo Essencial</strong><span>Ele confirma instalação, inicialização e resposta web. Não afirma que backup, restauração, atualização ou todas as funções internas da aplicação foram testados. A publicação do catálogo continua separada e nunca cria commit, tag ou release automaticamente. Quando houver um pacote de release, use <code>canonical_import_wizard.sh</code>. Leia o dry-run antes de confirmar a importação canônica.</span></div>
               </div>
+            </details>
+            <details class="help-guide help-topic maintainer-only" data-maintainer-only hidden data-help-topic data-help-category="operate solve concept" data-help-search="strix sre-6 laboratório pentest pro master autorização sandbox hashes executor isolado">
+              <summary><span class="help-guide-number">06</span><span><strong>Preparar o Laboratório Strix</strong><small>SRE-6 BETA, exclusivo PRO MASTER e ainda sem execução.</small></span><b>＋</b></summary>
+              <div class="help-guide-body"><ol><li>Abra <strong>Assistente MNO</strong> e localize o cartão <strong>Laboratório Strix · BETA</strong>.</li><li>Selecione <strong>Abrir preparação segura</strong> e redigite a senha administrativa.</li><li>Leia o estado exibido pelo Terminal Seguro. A versão upstream 1.5.3 e seus hashes são validados localmente.</li><li>Confirme que a tela informa <strong>executor ainda não homologado</strong>. Esse bloqueio é o resultado correto desta candidata.</li><li>Não informe domínio, IP, token ou credencial: a preparação não coleta alvos e não executa o Strix.</li></ol><div class="help-callout warn"><strong>O que já funciona</strong><span>Autorização PRO MASTER em três camadas, lock de versão e hashes, schemas fechados, validação fail closed e interface BETA.</span></div><div class="help-callout warn"><strong>O que ainda não funciona</strong><span>O sandbox executor não foi homologado no WSL2 e na VPS. Nenhum pentest, exploração, PoC, correção ou importação de relatório está disponível nesta fase.</span></div><div class="help-callout"><strong>Segurança</strong><span>O futuro executor não poderá usar o Docker socket nem o /root da produção, reaproveitar dados reais, alterar o alvo automaticamente ou conceder selo. Feedback deve conter apenas versão, ambiente e mensagem sanitizada, nunca credenciais ou dados do alvo.</span></div></div>
             </details>
           </div>
 
@@ -702,8 +716,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=4.36.2" defer></script>
-  <script src="/assistant-route.js?v=4.36.2" defer></script>
-  <script src="/app.js?v=4.36.2" defer></script>
+  <script src="/markdown.js?v=4.37.0" defer></script>
+  <script src="/assistant-route.js?v=4.37.0" defer></script>
+  <script src="/app.js?v=4.37.0" defer></script>
 </body>
 </html>

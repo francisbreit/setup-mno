@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://setupmno.local/schemas/strix-sanitized-report-1.0.0.json",
+  "title": "Relatório sanitizado do Laboratório Strix SRE-6 BETA",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "contractVersion", "maturity", "authorizationID", "targetSHA256", "generatedAt", "expiresAt", "status", "counts", "limitations", "execution", "rawEvidenceStored", "sealGranted", "catalogPublished", "remediationApplied"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "contractVersion": {"const": "1.0.0"},
+    "maturity": {"const": "beta"},
+    "authorizationID": {"type": "string", "pattern": "^strix-[a-z0-9]{12,48}$"},
+    "targetSHA256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "generatedAt": {"type": "string", "format": "date-time"},
+    "expiresAt": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["completed", "partial", "failed"]},
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["critical", "high", "medium", "low", "info"],
+      "properties": {
+        "critical": {"type": "integer", "minimum": 0},
+        "high": {"type": "integer", "minimum": 0},
+        "medium": {"type": "integer", "minimum": 0},
+        "low": {"type": "integer", "minimum": 0},
+        "info": {"type": "integer", "minimum": 0}
+      }
+    },
+    "limitations": {"type": "array", "maxItems": 20, "items": {"type": "string", "minLength": 1, "maxLength": 240}},
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["productionDockerSocketUsed", "productionRootMounted", "targetMutated", "automaticExecution"],
+      "properties": {
+        "productionDockerSocketUsed": {"const": false},
+        "productionRootMounted": {"const": false},
+        "targetMutated": {"const": false},
+        "automaticExecution": {"const": false}
+      }
+    },
+    "rawEvidenceStored": {"const": false},
+    "sealGranted": {"const": false},
+    "catalogPublished": {"const": false},
+    "remediationApplied": {"const": false}
+  }
+}

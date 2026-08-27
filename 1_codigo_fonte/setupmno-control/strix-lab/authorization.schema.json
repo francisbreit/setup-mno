@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://setupmno.local/schemas/strix-authorization-1.0.0.json",
+  "title": "Autorização temporária do Laboratório Strix SRE-6 BETA",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "contractVersion", "maturity", "plan", "authorizationID", "targetSHA256", "issuedAt", "expiresAt", "maxDurationMinutes", "limits", "writtenPermission", "automaticExecution", "targetMutationAllowed", "productionDockerSocketAllowed", "productionRootMountAllowed", "state"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "contractVersion": {"const": "1.0.0"},
+    "maturity": {"const": "beta"},
+    "plan": {"const": "pro-master"},
+    "authorizationID": {"type": "string", "pattern": "^strix-[a-z0-9]{12,48}$"},
+    "targetSHA256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "issuedAt": {"type": "string", "format": "date-time"},
+    "expiresAt": {"type": "string", "format": "date-time"},
+    "maxDurationMinutes": {"type": "integer", "minimum": 1, "maximum": 120},
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cpu", "memoryMB", "llmBudgetUSD"],
+      "properties": {
+        "cpu": {"type": "number", "exclusiveMinimum": 0, "maximum": 2},
+        "memoryMB": {"type": "integer", "minimum": 256, "maximum": 4096},
+        "llmBudgetUSD": {"type": "number", "minimum": 0, "maximum": 20}
+      }
+    },
+    "writtenPermission": {"const": true},
+    "automaticExecution": {"const": false},
+    "targetMutationAllowed": {"const": false},
+    "productionDockerSocketAllowed": {"const": false},
+    "productionRootMountAllowed": {"const": false},
+    "state": {"enum": ["draft", "approved", "expired", "revoked"]}
+  }
+}

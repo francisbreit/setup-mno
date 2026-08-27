@@ -99,6 +99,7 @@ function bindEvents() {
     if (action.dataset.action === "settings") openTerminal("settings");
     if (action.dataset.action === "homologation") openTerminal("homologation");
     if (action.dataset.action === "sre") openTerminal("sre");
+    if (action.dataset.action === "strix") openTerminal("strix");
     if (action.dataset.action === "gateway") openTerminal("gateway");
     if (action.dataset.action === "blueprint") openBlueprint(action.dataset.blueprintId);
     if (action.dataset.action === "quality-report") navigate("evals");
@@ -843,9 +844,9 @@ function applyMaintainerAccessState() {
 function applyTerminalAccessState() {
   const allowed = terminalAccessAllowed();
   const note = "Recurso disponível apenas quando é usado Cloudflare Tunnel.";
-  document.querySelectorAll('[data-action="terminal"], [data-action="settings"], [data-action="homologation"], [data-action="sre"], [data-action="gateway"]').forEach(button => {
+  document.querySelectorAll('[data-action="terminal"], [data-action="settings"], [data-action="homologation"], [data-action="sre"], [data-action="strix"], [data-action="gateway"]').forEach(button => {
     const runnerUnavailable = button.dataset.action === "homologation" && !state.homologationRunnerAvailable;
-    const maintainerRequired = button.dataset.action === "homologation" && !state.maintainerAccess;
+    const maintainerRequired = ["homologation", "strix"].includes(button.dataset.action) && !state.maintainerAccess;
     button.disabled = !allowed || runnerUnavailable || maintainerRequired;
     button.classList.toggle("terminal-locked", !allowed || runnerUnavailable || maintainerRequired);
     button.title = !allowed ? note : maintainerRequired ? "Recurso exclusivo do plano PRO MASTER." : runnerUnavailable ? "Homologation Runner indisponível nesta release." : "";
@@ -2412,7 +2413,7 @@ function navigate(view) {
 
 function openTerminal(intent = "installer") {
   intent = typeof intent === "string" ? intent : "installer";
-  if (!["installer", "settings", "homologation", "sre", "gateway"].includes(intent)) intent = "gateway";
+  if (!["installer", "settings", "homologation", "sre", "strix", "gateway"].includes(intent)) intent = "gateway";
   if (!terminalAccessAllowed()) {
     showAlert("🔒 Recurso disponível apenas quando é usado Cloudflare Tunnel.");
     return;
@@ -2423,6 +2424,10 @@ function openTerminal(intent = "installer") {
   }
   if (intent === "homologation" && !state.maintainerAccess) {
     showAlert("🔒 O Homologation Runner é exclusivo do plano PRO MASTER.");
+    return;
+  }
+  if (intent === "strix" && !state.maintainerAccess) {
+    showAlert("🔒 O Laboratório Strix SRE-6 é exclusivo do plano PRO MASTER.");
     return;
   }
   pendingTerminalIntent = intent;
@@ -2493,10 +2498,15 @@ function openAuthorizedTerminal(intent) {
       subtitle: "Trivy, Lynis e Docker Bench · somente leitura",
       warning: "A execução exige confirmação humana, pode baixar ferramentas fixadas e salva apenas contagens sanitizadas válidas por 24 horas. Nenhuma correção será aplicada."
     },
+    strix: {
+      title: "Laboratório Strix SRE-6 · BETA",
+      subtitle: "Preparação segura · PRO MASTER · sem execução",
+      warning: "Esta candidata valida somente contratos e o upstream fixado. O executor isolado ainda não foi homologado; nenhum alvo será solicitado e nenhum pentest será iniciado."
+    },
     gateway: {
       title: "Terminal Seguro",
       subtitle: "Setup MNO · sessão administrativa",
-      warning: "Escolha entre Instalador, Configurações, Auditoria SRE-3 BETA, Central do Mantenedor ou encerrar a sessão no menu protegido."
+      warning: "Escolha entre Instalador, Configurações, Auditoria SRE-3 BETA, preparação SRE-6 BETA, Central do Mantenedor ou encerrar a sessão no menu protegido."
     }
   }[intent] || {
     title: "Terminal Seguro",

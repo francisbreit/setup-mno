@@ -88,6 +88,7 @@ Documentos atuais de arquitetura e operação:
 - `sre/architecture/gate-qualidade-saida-assistente.md`;
 - `releases/v7.36.1-gate-qualidade-saida-assistente.md`;
 - `releases/v7.36.2-correcao-build-control-center.md`;
+- `releases/v7.37.0-preparacao-laboratorio-strix-sre6.md`;
 - `sre/architecture/read-only-specialist.md`;
 - `sre/manual/usar-diagnostico-seguro.md`;
 - `releases/v7.33.0-especialista-sre-read-only.md`.
