@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "knowledgePack": "setup-mno-sre",
-  "knowledgePackVersion": "1.5.0",
+  "knowledgePackVersion": "1.6.0",
   "status": "implemented",
   "updatedAt": "2026-08-27",
   "language": "pt-BR",
@@ -292,6 +292,40 @@
         "https://docs.docker.com/engine/security/",
         "https://docs.docker.com/engine/swarm/services/",
         "https://csrc.nist.gov/pubs/sp/800/61/r3/final"
+      ]
+    },
+    {
+      "id": "sre-assistant-output-quality-gate",
+      "path": "sre/architecture/gate-qualidade-saida-assistente.md",
+      "title": "Gate de qualidade da saída do Assistente MNO",
+      "type": "architecture",
+      "audience": [
+        "free",
+        "free1",
+        "free2",
+        "pro",
+        "pro-master",
+        "help-author"
+      ],
+      "environments": [
+        "debian",
+        "ubuntu",
+        "wsl2",
+        "docker-desktop",
+        "docker-swarm"
+      ],
+      "topics": [
+        "assistant-output",
+        "quality-gate",
+        "local-fallback",
+        "sanitization",
+        "fail-closed",
+        "beta"
+      ],
+      "sha256": "173b47baf56b575961c36ca3f39da639e158dffa7b306b1a0750ada0175d3024",
+      "sources": [
+        "https://genai.owasp.org/llmrisk/llm012025-prompt-injection/",
+        "https://csrc.nist.gov/pubs/sp/800/218/a/final"
       ]
     },
     {

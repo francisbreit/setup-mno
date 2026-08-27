@@ -629,10 +629,8 @@ func TestStreamChatCompletionsUsesSafeProviderContract(t *testing.T) {
 		apiKey:     "segredo-teste",
 		httpClient: server.Client(),
 	}
-	recorder := httptest.NewRecorder()
 	answer, err := service.streamChatCompletions(
 		context.Background(),
-		recorder,
 		"instruções seguras",
 		[]assistantMessage{{Role: "user", Content: "pergunta"}},
 		1400,
@@ -653,10 +651,6 @@ func TestStreamChatCompletionsUsesSafeProviderContract(t *testing.T) {
 	system, ok := messages[0].(map[string]any)
 	if !ok || system["role"] != "system" || system["content"] != "instruções seguras" {
 		t.Fatalf("instruções não foram isoladas como system: %#v", messages[0])
-	}
-	if !strings.Contains(recorder.Body.String(), "Resposta ") ||
-		!strings.Contains(recorder.Body.String(), "segura") {
-		t.Fatalf("deltas SSE ausentes: %s", recorder.Body.String())
 	}
 }
 
@@ -1204,7 +1198,6 @@ func TestStreamProviderUsesResponsesAPIAndForwardsDeltas(t *testing.T) {
 		baseURL:    provider.URL,
 		httpClient: &http.Client{Timeout: 2 * time.Second},
 	}
-	response := httptest.NewRecorder()
 	retrievalContext := &retrievalPromptContext{
 		Mode:             "controlled",
 		RetrievalVersion: "1.0.0",
@@ -1222,7 +1215,6 @@ func TestStreamProviderUsesResponsesAPIAndForwardsDeltas(t *testing.T) {
 	}
 	answer, err := service.streamProvider(
 		context.Background(),
-		response,
 		assistantRequest{Question: "Analise o servidor"},
 		assistantContext{CatalogEntries: 151, RelevantSetupCount: 12},
 		routeAssistant(
@@ -1237,9 +1229,6 @@ func TestStreamProviderUsesResponsesAPIAndForwardsDeltas(t *testing.T) {
 	}
 	if answer != "Tudo saudável." {
 		t.Fatalf("resposta acumulada inesperada: %q", answer)
-	}
-	if !strings.Contains(response.Body.String(), "Tudo saudável.") {
-		t.Fatalf("delta não foi encaminhado: %s", response.Body.String())
 	}
 }
 

@@ -96,20 +96,6 @@ type providerEvalRunRecord struct {
 	CaseIDs  map[string]struct{}
 }
 
-type discardProviderEvalWriter struct {
-	header http.Header
-}
-
-func (w *discardProviderEvalWriter) Header() http.Header {
-	if w.header == nil {
-		w.header = make(http.Header)
-	}
-	return w.header
-}
-
-func (*discardProviderEvalWriter) Write(data []byte) (int, error) { return len(data), nil }
-func (*discardProviderEvalWriter) WriteHeader(int)                {}
-
 func selectCriticalProviderEvalCases(dataset evalDataset) ([]evalCase, error) {
 	canonical := canonicalProviderEvalCases()
 	cases := make([]evalCase, 0, providerEvalCaseCount)
@@ -290,10 +276,8 @@ func (s *assistantService) runProviderEval(ctx context.Context) (providerEvalRep
 			if candidate, status := buildRetrievalPrompt(retrieval); status == "active" {
 				promptContext = candidate
 			}
-			writer := &discardProviderEvalWriter{}
 			answer, callErr := s.streamProviderLimited(
 				caseContext,
-				writer,
 				assistantRequest{Question: item.Question},
 				syntheticProviderEvalContext(item, s.knowledge),
 				route,

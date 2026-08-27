@@ -1369,6 +1369,7 @@ async function runLocalDiagnostic() {
 async function streamAssistant(question, history, target, basic, fallbackReason = "") {
   clearRetrievalInspection(target);
   clearBlueprintSimulation(target);
+  clearAssistantOutputGate(target);
   clearConsultativePlan(target);
   setAssistantMessageRoutePending(target, basic ? "Classificando contingência local..." : "Classificando especialista...");
   updateAssistantRoute(null, "Classificando a intenção localmente...");
@@ -1431,6 +1432,8 @@ async function streamAssistant(question, history, target, basic, fallbackReason 
         renderBlueprintSimulation(target, event.data);
       } else if (event.type === "grounding") {
         applyGroundingAudit(target, event.data);
+      } else if (event.type === "output_gate") {
+        renderAssistantOutputGate(target, event.data);
       } else if (event.type === "plan") {
         renderConsultativePlan(target, event.data);
       } else if (event.type === "runbook") {
@@ -1456,6 +1459,23 @@ function clearRetrievalInspection(target) {
 
 function clearBlueprintSimulation(target) {
   target.querySelector(".blueprint-simulation-banner")?.remove();
+}
+
+function clearAssistantOutputGate(target) {
+  target?.querySelector(".assistant-output-gate")?.remove();
+}
+
+function renderAssistantOutputGate(target, decision) {
+  clearAssistantOutputGate(target);
+  if (!target || decision?.status !== "rejected") return;
+  const banner = document.createElement("div");
+  banner.className = "assistant-output-gate";
+  const title = document.createElement("strong");
+  title.textContent = "Gate de qualidade BETA acionado";
+  const text = document.createElement("span");
+  text.textContent = "A resposta externa não passou pelas verificações locais e foi substituída por um diagnóstico seguro, determinístico e somente leitura.";
+  banner.append(title, text);
+  target.querySelector(".message-content")?.before(banner);
 }
 
 function clearConsultativePlan(target) {

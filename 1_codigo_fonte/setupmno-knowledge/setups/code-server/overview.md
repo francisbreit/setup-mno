@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Code Server no Setup MNO",
   "setupId": "code-server",
-  "setupVersion": "7.36.0",
+  "setupVersion": "7.36.1",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

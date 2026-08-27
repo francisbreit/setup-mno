@@ -1192,6 +1192,7 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Accel-Buffering", "no")
+	w.Header().Add("Trailer", assistantOutputGateTrailer)
 	w.WriteHeader(http.StatusOK)
 	sendSSE(w, "meta", map[string]any{
 		"mode":                        s.provider,
@@ -1258,8 +1259,9 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	answer, err := s.streamProvider(r.Context(), w, input, contextData, route, promptContext)
+	answer, err := s.streamProvider(r.Context(), input, contextData, route, promptContext)
 	if err != nil {
+		w.Header().Set(assistantOutputGateTrailer, "provider-error")
 		sendSSE(w, "error", map[string]any{
 			"error":  "O provedor de IA não concluiu a resposta.",
 			"reason": "provider",
@@ -1271,8 +1273,36 @@ func (s *assistantService) handleChat(w http.ResponseWriter, r *http.Request) {
 	if promptContext != nil {
 		audit := validateGroundingCitations(answer, len(promptContext.Sources))
 		grounding = &audit
-		sendSSE(w, "grounding", audit)
 	}
+	gate := validateAssistantProviderOutput(answer, input.Question, s.provider, contextData)
+	if gate.Status == "accepted" && grounding != nil && !grounding.Grounded {
+		gate = rejectedAssistantOutput("grounding-not-validated")
+	}
+	if grounding != nil {
+		sendSSE(w, "grounding", grounding)
+	}
+	sendSSE(w, "output_gate", gate)
+	if gate.Status != "accepted" {
+		w.Header().Set(assistantOutputGateTrailer, "rejected:"+gate.Reason)
+		fallback := buildAssistantOutputFallback(input.Question, contextData, route)
+		sendSSE(w, "delta", map[string]any{"delta": fallback})
+		if !sendConsultativePlanSSE(w, route, consultativePlanEvidence{
+			OperationalContextAvailable: contextData.OperationalContextAvailable,
+			DeterministicAnswer:         true,
+			BasicMode:                   true,
+		}) {
+			sendSSE(w, "error", map[string]any{"error": "O plano consultivo obrigatório não pôde ser validado.", "reason": "policy"})
+			return
+		}
+		log.Printf(
+			"Assistente MNO: gate de saída %s rejeitou resposta do provedor %s; motivo=%s; contingência local=true",
+			assistantOutputGateVersion, s.provider, gate.Reason,
+		)
+		sendSSE(w, "done", map[string]any{"ok": true, "policy": "output-gate-fallback"})
+		return
+	}
+	w.Header().Set(assistantOutputGateTrailer, "accepted")
+	sendSSE(w, "delta", map[string]any{"delta": answer})
 	if contextData.SRESnapshot != nil {
 		disclosure := deterministicAuditDisclosure(contextData.SRESnapshot.Deterministic)
 		if disclosure != "" {
@@ -1729,14 +1759,13 @@ func assistantSearchTerms(question string) []string {
 
 func (s *assistantService) streamProvider(
 	ctx context.Context,
-	w http.ResponseWriter,
 	input assistantRequest,
 	contextData assistantContext,
 	route assistantRoute,
 	retrievalContext *retrievalPromptContext,
 ) (string, error) {
 	return s.streamProviderLimited(
-		ctx, w, input, contextData, route, retrievalContext, assistantOutputTokenLimit(route),
+		ctx, input, contextData, route, retrievalContext, assistantOutputTokenLimit(route),
 	)
 }
 
@@ -1755,7 +1784,6 @@ func assistantOutputTokenLimit(route assistantRoute) int {
 
 func (s *assistantService) streamProviderLimited(
 	ctx context.Context,
-	w http.ResponseWriter,
 	input assistantRequest,
 	contextData assistantContext,
 	route assistantRoute,
@@ -1784,7 +1812,7 @@ func (s *assistantService) streamProviderLimited(
 	}
 	messages = append(messages, assistantMessage{Role: "user", Content: input.Question})
 	if s.provider == "openrouter" || s.provider == "deepseek" {
-		return s.streamChatCompletions(ctx, w, instructions, messages, maxOutputTokens)
+		return s.streamChatCompletions(ctx, instructions, messages, maxOutputTokens)
 	}
 	payload, err := json.Marshal(map[string]any{
 		"model":             s.model,
@@ -1859,7 +1887,6 @@ func (s *assistantService) streamProviderLimited(
 		switch event.Type {
 		case "response.output_text.delta":
 			if event.Delta != "" {
-				sendSSE(w, "delta", map[string]any{"delta": event.Delta})
 				answer.WriteString(event.Delta)
 				deltas++
 			}
@@ -1876,7 +1903,6 @@ func (s *assistantService) streamProviderLimited(
 				for _, output := range event.Response.Output {
 					for _, content := range output.Content {
 						if content.Type == "output_text" && content.Text != "" {
-							sendSSE(w, "delta", map[string]any{"delta": content.Text})
 							answer.WriteString(content.Text)
 							deltas++
 						}
@@ -1896,7 +1922,6 @@ func (s *assistantService) streamProviderLimited(
 
 func (s *assistantService) streamChatCompletions(
 	ctx context.Context,
-	w http.ResponseWriter,
 	instructions string,
 	messages []assistantMessage,
 	maxOutputTokens int,
@@ -1977,7 +2002,6 @@ func (s *assistantService) streamChatCompletions(
 		}
 		for _, choice := range event.Choices {
 			if choice.Delta.Content != "" {
-				sendSSE(w, "delta", map[string]any{"delta": choice.Delta.Content})
 				answer.WriteString(choice.Delta.Content)
 				deltas++
 			}
@@ -2628,7 +2652,30 @@ func (a *webApp) handleAssistant(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
+	if reason, ok := assistantOutputGateAuditReason(response.Trailer.Get(assistantOutputGateTrailer)); ok {
+		a.addAudit(
+			"assistant_output_rejected",
+			"Gate BETA "+assistantOutputGateVersion+" bloqueou saída externa; motivo="+reason+"; contingência local=true",
+			clientAddress(r),
+		)
+	}
 	a.addAudit("assistant_analysis", "Consulta assistida via "+a.assistantMode, clientAddress(r))
+}
+
+func assistantOutputGateAuditReason(value string) (string, bool) {
+	reason := strings.TrimPrefix(strings.TrimSpace(value), "rejected:")
+	if reason == value {
+		return "", false
+	}
+	switch reason {
+	case "empty-output", "invalid-encoding", "oversized-output", "unknown-token",
+		"prompt-instruction-leak", "token-repetition", "line-repetition",
+		"unexpected-language", "snapshot-contradiction",
+		"provider-identity-contradiction", "grounding-not-validated":
+		return reason, true
+	default:
+		return "", false
+	}
 }
 
 func (a *webApp) runtimeAllowsLLM(ctx context.Context) bool {

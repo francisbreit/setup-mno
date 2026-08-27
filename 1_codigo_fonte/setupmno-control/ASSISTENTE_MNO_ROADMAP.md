@@ -127,6 +127,32 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
+## v7.36.1 — Gate de qualidade da saída do Assistente (candidata; BETA)
+
+- a resposta do provedor fica limitada e retida em memória até a validação;
+- o gate determinístico 1.0.0 bloqueia `<unk>`, prompt interno, repetição,
+  idioma incompatível e contradições objetivas com o snapshot SRE;
+- uma saída rejeitada nunca é misturada à conversa: o usuário recebe um aviso
+  BETA e um diagnóstico local seguro, somente leitura;
+- o proxy registra apenas um motivo estruturado de lista fechada, sem persistir
+  pergunta, resposta externa ou trechos rejeitados;
+- o gate reduz defeitos mensuráveis, mas não certifica toda afirmação aceita;
+  modelo, RAG e revisão humana continuam determinantes para a qualidade;
+- Setup MNO `7.36.1` e Control Center `4.36.1` são candidatos; a última versão
+  estável homologada continua sendo `7.35.0`.
+
+Baseline da candidata:
+
+- Setup MNO: `7.36.1`, candidata
+- Última versão estável homologada: `7.35.0`
+- Control Center: `4.36.1`
+- Gate de saída: `1.0.0 BETA`
+- Runbooks SRE-5: `1.0.0 BETA`
+
+O próximo item da subtrilha permanece `SRE-6` — Laboratório Strix PRO MASTER.
+A v7.36.1 precisa de homologação visual no WSL2 e na VPS antes de qualquer
+declaração de estabilidade.
+
 ## v7.36.0 — Runbooks homologados SRE-5 (candidata; SRE-5 BETA)
 
 - o backend mantém um registro fechado 1.0.0 com coleta de evidências, triagem
