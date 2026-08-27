@@ -99,7 +99,7 @@ próximo item técnico pendente.
      encaminhadas para coleta adicional ou revisão humana.
 
 6. `SRE-5` — **Runbooks homologados**
-   - implementado como BETA na candidata v7.36.0 com registro fechado 1.0.0 e
+   - concluído como BETA na versão estável v7.36.2 com registro fechado 1.0.0 e
      três operações homologadas somente leitura;
    - ações reais somente podem ocorrer por operações previamente escritas,
      testadas, versionadas, autenticadas e aprovadas;
@@ -127,7 +127,7 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
-## v7.36.2 — Correção do build do Control Center (candidata; BETA)
+## v7.36.2 — Correção do build do Control Center (release estável; SRE-5 BETA)
 
 - corrige o inventário de fontes do build Docker e inclui
   `assistant_output_gate.go` na imagem do painel e no pacote de fontes;
@@ -135,20 +135,20 @@ capacidade de uma IA executar comandos nunca será tratada como equivalente a
   o `Dockerfile` e com o arquivo compactado, bloqueando futuras omissões;
 - a reconciliação permanece transacional: se um build falhar, os serviços
   anteriores continuam ativos e a atualização é revertida;
-- Setup MNO `7.36.2` e Control Center `4.36.2` são candidatos; a última versão
-  estável homologada continua sendo `7.35.0`.
+- Setup MNO `7.36.2` e Control Center `4.36.2` foram homologados nesta release.
 
-Baseline da candidata:
+Baseline homologada:
 
-- Setup MNO: `7.36.2`, candidata
-- Última versão estável homologada: `7.35.0`
+- Setup MNO: `7.36.2`, versão estável homologada
+- Última versão estável homologada: `7.36.2`
 - Control Center: `4.36.2`
 - Gate de saída: `1.0.0 BETA`
 - Runbooks SRE-5: `1.0.0 BETA`
 
 O próximo item da subtrilha permanece `SRE-6` — Laboratório Strix PRO MASTER.
-A v7.36.2 precisa de homologação visual no WSL2 e na VPS antes de qualquer
-declaração de estabilidade.
+A v7.36.2 foi promovida em 27/08/2026 após homologação visual no WSL2 x86-64 e
+em VPS ARM64 e declaração explícita de Francis MNO. SRE-5, Assistente MNO e
+Blueprints permanecem BETA.
 
 ## v7.36.1 — Gate de qualidade da saída do Assistente (candidata com falha de empacotamento; BETA)
 

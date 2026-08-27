@@ -287,7 +287,7 @@
         "fail-closed",
         "beta"
       ],
-      "sha256": "e20cbc3d9d37b39db0c61c47018c28d55faab77644c1a4796406b0f0ed24d753",
+      "sha256": "e5540d28f2c096f4bd1c454c7af4661cd1f2d6a666fabb435b6bc7d7b1f9ef81",
       "sources": [
         "https://docs.docker.com/engine/security/",
         "https://docs.docker.com/engine/swarm/services/",

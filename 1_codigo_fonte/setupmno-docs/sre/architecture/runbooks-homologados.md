@@ -1,8 +1,9 @@
 # Runbooks homologados SRE-5
 
 - Versão planejada: Setup MNO 7.36.0 / Control Center 4.36.0
-- Versão entregue: candidata v7.36.0
+- Versão entregue: estável v7.36.2; funcionalidade SRE-5 permanece BETA
 - Estado: `implemented`
+- Homologação da release: `validated`
 - Maturidade da funcionalidade: `beta`
 - Atualizado em: 2026-08-27
 - Responsável: mantenedor PRO MASTER
@@ -54,7 +55,8 @@ mostrar o botão.
 - [x] Help explica o que funciona e o que ainda não existe;
 - [x] ausência de runbook aparece como indisponível, sem improvisação;
 - [x] nenhum texto apresenta a função como automação estável;
-- [ ] promoção depende de teste visual no WSL2 e em VPS e declaração de Francis MNO.
+- [x] release promovida após teste visual no WSL2 x86-64 e em VPS ARM64 e
+  declaração de Francis MNO; a funcionalidade permanece BETA.
 
 ## Como funciona por dentro — nota técnica para DevOps
 
