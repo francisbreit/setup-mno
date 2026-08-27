@@ -59,7 +59,7 @@ def validate_lock(value):
 def validate_authorization(value):
     expected = ["schemaVersion", "contractVersion", "maturity", "plan", "authorizationID", "targetSHA256", "issuedAt", "expiresAt", "maxDurationMinutes", "limits", "writtenPermission", "automaticExecution", "targetMutationAllowed", "productionDockerSocketAllowed", "productionRootMountAllowed", "state"]
     keys(value, expected)
-    if (value["schemaVersion"], value["contractVersion"], value["maturity"], value["plan"]) != (1, "1.0.0", "beta", "pro-master"): fail("contrato ou plano inválido")
+    if (value["schemaVersion"], value["contractVersion"], value["maturity"]) != (1, "1.0.0", "beta") or value["plan"] not in ["pro", "pro-master"]: fail("contrato ou plano inválido")
     if not isinstance(value["authorizationID"], str) or not AUTH_ID.fullmatch(value["authorizationID"]): fail("identificador inválido")
     if not isinstance(value["targetSHA256"], str) or not HEX64.fullmatch(value["targetSHA256"]): fail("alvo não sanitizado")
     issued, expires = instant(value["issuedAt"]), instant(value["expiresAt"])

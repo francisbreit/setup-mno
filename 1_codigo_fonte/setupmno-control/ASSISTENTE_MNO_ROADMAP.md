@@ -109,10 +109,13 @@ próximo item técnico pendente.
    - LLMs podem selecionar e explicar um runbook permitido, mas nunca criar ou
      executar comandos livres na produção.
 
-7. `SRE-6` — **Laboratório Strix PRO MASTER**
+7. `SRE-6` — **Laboratório Strix**
    - preparação fail closed entregue na candidata v7.37.0: versão upstream,
-     licença e hashes fixados, contratos fechados de autorização e relatório,
-     gate PRO MASTER e interface BETA; o executor permanece bloqueado;
+     licença e hashes fixados, contratos fechados de autorização e relatório
+     e interface BETA; o executor permanece bloqueado;
+   - candidata v7.37.1 corrige a matriz: diagnóstico seguro para PRO e
+     PRO MASTER; governança, exceções e homologação continuam exclusivas do
+     PRO MASTER;
    - pentest opcional somente contra alvos expressamente autorizados;
    - execução em ambiente temporário, isolado, inventariado e limitado por
      rede, tempo, CPU, memória e orçamento de LLM;
@@ -129,6 +132,25 @@ diagnóstico compreensível e baseado em fatos, enquanto o mantenedor conserva a
 fronteira de confiança, a aprovação final e a rastreabilidade de toda ação. A
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
+
+## v7.37.1 — Correção da matriz de acesso do Strix SRE-6 (candidata; BETA)
+
+- libera a preparação diagnóstica do SRE-6 para os planos PRO e PRO MASTER;
+- mantém governança, aprovação de exceções e homologação exclusivas do
+  PRO MASTER;
+- repete a autorização no backend, frontend, reautenticação, proxy do Terminal
+  Seguro, launcher e contrato fechado do Strix;
+- planos Free continuam bloqueados e instalações Tradicionais continuam sem o
+  Terminal Seguro incorporado;
+- o executor isolado permanece bloqueado: nenhum alvo é solicitado, nenhum
+  pentest é iniciado e nenhum recurso Docker Strix é criado;
+- Setup MNO `7.37.1` e Control Center `4.37.1` são candidatos; a última versão
+  estável homologada continua sendo `7.36.2`.
+
+O próximo item permanece concluir e homologar isoladamente o executor efêmero
+do `SRE-6`, sem Docker socket nem root da produção. A ausência de containers,
+serviços, stacks, redes e volumes Strix continua sendo o resultado seguro e
+esperado desta candidata.
 
 ## v7.37.0 — Preparação do Laboratório Strix SRE-6 (candidata; BETA)
 

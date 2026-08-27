@@ -42,9 +42,12 @@ CONTROL_PLAN=$(jq -er \
     printf 'Terminal Seguro: acesso remoto bloqueado em instalações TRADICIONAIS.\n' >&2
     exit 77
 }
-if { [ "$intent" = "homologation" ] || [ "$intent" = "strix" ]; } &&
-   [ "$CONTROL_PLAN" != "pro-master" ]; then
+if [ "$intent" = "homologation" ] && [ "$CONTROL_PLAN" != "pro-master" ]; then
     printf 'Terminal Seguro: recurso exclusivo do plano PRO MASTER.\n' >&2
+    exit 77
+fi
+if [ "$intent" = "strix" ] && [ "$CONTROL_PLAN" != "pro" ] && [ "$CONTROL_PLAN" != "pro-master" ]; then
+    printf 'Terminal Seguro: diagnóstico disponível nos planos PRO e PRO MASTER.\n' >&2
     exit 77
 fi
 if [ "${SETUPMNO_TERMINAL_AUTH_SMOKE_TEST:-0}" = "1" ]; then
@@ -139,7 +142,9 @@ while true; do
     )
     if [ "$CONTROL_PLAN" = "pro-master" ]; then
         menu_entries+=("HOMOLOGATION" "Abrir a Central do Mantenedor · PRO MASTER")
-        menu_entries+=("STRIX" "Preparar o Laboratório Strix SRE-6 · BETA")
+    fi
+    if [ "$CONTROL_PLAN" = "pro" ] || [ "$CONTROL_PLAN" = "pro-master" ]; then
+        menu_entries+=("STRIX" "Preparar diagnóstico Strix SRE-6 · BETA")
     fi
     menu_entries+=("EXIT" "Encerrar esta sessão do terminal")
     choice=$(whiptail --title "SETUP MNO — TERMINAL SEGURO" --menu \

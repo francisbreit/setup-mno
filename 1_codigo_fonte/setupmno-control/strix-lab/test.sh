@@ -13,9 +13,11 @@ cat >"$TEMP_DIR/authorization.json" <<'EOF'
 {"schemaVersion":1,"contractVersion":"1.0.0","maturity":"beta","plan":"pro-master","authorizationID":"strix-abcdef123456","targetSHA256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","issuedAt":"2026-08-27T12:00:00Z","expiresAt":"2026-08-27T13:00:00Z","maxDurationMinutes":60,"limits":{"cpu":1,"memoryMB":2048,"llmBudgetUSD":5},"writtenPermission":true,"automaticExecution":false,"targetMutationAllowed":false,"productionDockerSocketAllowed":false,"productionRootMountAllowed":false,"state":"approved"}
 EOF
 python3 "$LAB_DIR/validate.py" authorization "$TEMP_DIR/authorization.json" >/dev/null
-jq '.plan="pro"' "$TEMP_DIR/authorization.json" >"$TEMP_DIR/invalid.json"
+jq '.plan="pro"' "$TEMP_DIR/authorization.json" >"$TEMP_DIR/pro.json"
+python3 "$LAB_DIR/validate.py" authorization "$TEMP_DIR/pro.json" >/dev/null
+jq '.plan="free"' "$TEMP_DIR/authorization.json" >"$TEMP_DIR/invalid.json"
 if python3 "$LAB_DIR/validate.py" authorization "$TEMP_DIR/invalid.json" >/dev/null 2>&1; then
-    printf 'ERRO: autorização fora do PRO MASTER foi aceita.\n' >&2; exit 1
+    printf 'ERRO: autorização fora dos planos PRO e PRO MASTER foi aceita.\n' >&2; exit 1
 fi
 jq '.productionDockerSocketAllowed=true' "$TEMP_DIR/authorization.json" >"$TEMP_DIR/invalid.json"
 if python3 "$LAB_DIR/validate.py" authorization "$TEMP_DIR/invalid.json" >/dev/null 2>&1; then

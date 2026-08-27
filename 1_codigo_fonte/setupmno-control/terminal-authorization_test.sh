@@ -28,14 +28,20 @@ if run_launcher homologation >/dev/null 2>&1; then
     printf 'ERRO: plano PRO acessou o terminal de homologação.\n' >&2
     exit 1
 fi
-if run_launcher strix >/dev/null 2>&1; then
-    printf 'ERRO: plano PRO acessou a preparação do Laboratório Strix.\n' >&2
-    exit 1
-fi
+[ "$(run_launcher strix)" = \
+    "setupmno-terminal-authorized:pro:CLOUDFLARE_TUNNEL:strix" ]
 [ "$(run_launcher installer)" = \
     "setupmno-terminal-authorized:pro:CLOUDFLARE_TUNNEL:installer" ]
 [ "$(run_launcher sre)" = \
     "setupmno-terminal-authorized:pro:CLOUDFLARE_TUNNEL:sre" ]
+
+for plan in free free1 free2; do
+    printf '{"schemaVersion":1,"plan":"%s","installationType":"CLOUDFLARE_TUNNEL"}\n' "$plan" >"$environment_file"
+    if run_launcher strix >/dev/null 2>&1; then
+        printf 'ERRO: plano %s acessou a preparação do Laboratório Strix.\n' "$plan" >&2
+        exit 1
+    fi
+done
 
 for plan in free free1 free2 pro pro-master; do
     printf '{"schemaVersion":1,"plan":"%s","installationType":"TRADICIONAL"}\n' "$plan" >"$environment_file"
@@ -53,4 +59,4 @@ if run_launcher installer >/dev/null 2>&1; then
     exit 1
 fi
 
-printf 'Matriz de autorização PRO MASTER e bloqueio absoluto do terminal TRADICIONAL aprovados.\n'
+printf 'Matriz Strix PRO/PRO MASTER, governança PRO MASTER e bloqueio absoluto do terminal TRADICIONAL aprovados.\n'

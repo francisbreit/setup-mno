@@ -288,18 +288,20 @@ func TestCapabilitiesSeparateMaintainerAndTraditionalTerminal(t *testing.T) {
 		name        string
 		environment runtimeEnvironment
 		pro         bool
+		strix       bool
 		maintainer  bool
 		remote      bool
 	}{
-		{"free-tunnel", runtimeEnvironment{Plan: "free", InstallationType: "CLOUDFLARE_TUNNEL"}, false, false, true},
-		{"pro-tunnel", runtimeEnvironment{Plan: "pro", InstallationType: "CLOUDFLARE_TUNNEL"}, true, false, true},
-		{"pro-master-tunnel", runtimeEnvironment{Plan: "pro-master", InstallationType: "CLOUDFLARE_TUNNEL"}, true, true, true},
-		{"pro-master-tradicional", runtimeEnvironment{Plan: "pro-master", InstallationType: "TRADICIONAL"}, true, true, false},
+		{"free-tunnel", runtimeEnvironment{Plan: "free", InstallationType: "CLOUDFLARE_TUNNEL"}, false, false, false, true},
+		{"pro-tunnel", runtimeEnvironment{Plan: "pro", InstallationType: "CLOUDFLARE_TUNNEL"}, true, true, false, true},
+		{"pro-master-tunnel", runtimeEnvironment{Plan: "pro-master", InstallationType: "CLOUDFLARE_TUNNEL"}, true, true, true, true},
+		{"pro-master-tradicional", runtimeEnvironment{Plan: "pro-master", InstallationType: "TRADICIONAL"}, true, true, true, false},
 	}
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			capabilities := capabilitiesForEnvironment(testCase.environment)
-			if capabilities.ProAccess != testCase.pro || capabilities.Maintainer != testCase.maintainer ||
+			if capabilities.ProAccess != testCase.pro || capabilities.StrixDiagnostics != testCase.strix ||
+				capabilities.Maintainer != testCase.maintainer ||
 				capabilities.RemoteTerminal != testCase.remote {
 				t.Fatalf("matriz de capacidades divergente: %#v", capabilities)
 			}
@@ -317,12 +319,13 @@ func TestMaintainerAndTerminalAuthorizationFailClosed(t *testing.T) {
 		name       string
 		state      setupStateResponse
 		maintainer bool
+		strix      bool
 		terminal   bool
 	}{
-		{"pro-tunnel", setupStateResponse{Plan: "pro", InstallationType: "CLOUDFLARE_TUNNEL", Capabilities: planCapabilities{ProAccess: true, RemoteTerminal: true}}, false, true},
-		{"pro-master-tunnel", setupStateResponse{Plan: "pro-master", InstallationType: "CLOUDFLARE_TUNNEL", Capabilities: planCapabilities{ProAccess: true, Maintainer: true, RemoteTerminal: true}}, true, true},
-		{"pro-master-tradicional", setupStateResponse{Plan: "pro-master", InstallationType: "TRADICIONAL", Capabilities: planCapabilities{ProAccess: true, Maintainer: true}}, true, false},
-		{"estado-incompleto", setupStateResponse{Plan: "pro-master", InstallationType: "CLOUDFLARE_TUNNEL"}, false, false},
+		{"pro-tunnel", setupStateResponse{Plan: "pro", InstallationType: "CLOUDFLARE_TUNNEL", Capabilities: planCapabilities{ProAccess: true, StrixDiagnostics: true, RemoteTerminal: true}}, false, true, true},
+		{"pro-master-tunnel", setupStateResponse{Plan: "pro-master", InstallationType: "CLOUDFLARE_TUNNEL", Capabilities: planCapabilities{ProAccess: true, StrixDiagnostics: true, Maintainer: true, RemoteTerminal: true}}, true, true, true},
+		{"pro-master-tradicional", setupStateResponse{Plan: "pro-master", InstallationType: "TRADICIONAL", Capabilities: planCapabilities{ProAccess: true, StrixDiagnostics: true, Maintainer: true}}, true, true, false},
+		{"estado-incompleto", setupStateResponse{Plan: "pro-master", InstallationType: "CLOUDFLARE_TUNNEL"}, false, false, false},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			agent := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -332,6 +335,9 @@ func TestMaintainerAndTerminalAuthorizationFailClosed(t *testing.T) {
 			app := webApp{agentURL: agent.URL, agentToken: "token-teste", httpClient: agent.Client()}
 			if got := app.maintainerAccessAllowed(context.Background()); got != testCase.maintainer {
 				t.Fatalf("autorização de mantenedor inesperada: %v", got)
+			}
+			if got := app.strixAccessAllowed(context.Background()); got != testCase.strix {
+				t.Fatalf("autorização Strix inesperada: %v", got)
 			}
 			if got := app.terminalAccessAllowed(context.Background()); got != testCase.terminal {
 				t.Fatalf("autorização de terminal inesperada: %v", got)

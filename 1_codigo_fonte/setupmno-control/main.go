@@ -314,6 +314,7 @@ type supplyChainManifest struct {
 
 type planCapabilities struct {
 	ProAccess                 bool `json:"proAccess"`
+	StrixDiagnostics          bool `json:"strixDiagnostics"`
 	Maintainer                bool `json:"maintainer"`
 	HomologationReview        bool `json:"homologationReview"`
 	HomologationExecute       bool `json:"homologationExecute"`
@@ -2154,10 +2155,16 @@ func (a *webApp) handleTerminalReauth(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "intenção do Terminal Seguro inválida")
 		return
 	}
-	if (input.Intent == "homologation" || input.Intent == "strix") && !a.maintainerAccessAllowed(r.Context()) {
+	if input.Intent == "homologation" && !a.maintainerAccessAllowed(r.Context()) {
 		input.Password = ""
 		a.addAudit("maintainer_terminal_blocked_plan", "Recurso do mantenedor recusado: requer plano PRO MASTER", address)
 		writeError(w, http.StatusForbidden, "recurso exclusivo do plano PRO MASTER")
+		return
+	}
+	if input.Intent == "strix" && !a.strixAccessAllowed(r.Context()) {
+		input.Password = ""
+		a.addAudit("strix_terminal_blocked_plan", "Diagnóstico Strix recusado: requer plano PRO ou PRO MASTER", address)
+		writeError(w, http.StatusForbidden, "recurso disponível nos planos PRO e PRO MASTER")
 		return
 	}
 	candidate := pbkdf2SHA256([]byte(input.Password), a.passwordSalt, 310000, 32)
@@ -3017,9 +3024,14 @@ func (a *webApp) terminalProxy() http.Handler {
 			return
 		}
 		intent := terminalIntent(r.URL.Query()["arg"])
-		if (intent == "homologation" || intent == "strix") && !a.maintainerAccessAllowed(r.Context()) {
+		if intent == "homologation" && !a.maintainerAccessAllowed(r.Context()) {
 			a.addAudit("maintainer_terminal_blocked_plan", "Terminal do mantenedor recusado: requer plano PRO MASTER", clientAddress(r))
 			writeError(w, http.StatusForbidden, "recurso exclusivo do plano PRO MASTER")
+			return
+		}
+		if intent == "strix" && !a.strixAccessAllowed(r.Context()) {
+			a.addAudit("strix_terminal_blocked_plan", "Terminal Strix recusado: requer plano PRO ou PRO MASTER", clientAddress(r))
+			writeError(w, http.StatusForbidden, "recurso disponível nos planos PRO e PRO MASTER")
 			return
 		}
 		if !a.terminalAuthorized(r) {
@@ -3044,6 +3056,14 @@ func (a *webApp) maintainerAccessAllowed(ctx context.Context) bool {
 		return false
 	}
 	return planHasMaintainerAccess(state.Plan) && state.Capabilities.Maintainer
+}
+
+func (a *webApp) strixAccessAllowed(ctx context.Context) bool {
+	var state setupStateResponse
+	if err := a.agentRequest(ctx, "/setup-state", &state); err != nil {
+		return false
+	}
+	return planHasProAccess(state.Plan) && state.Capabilities.StrixDiagnostics
 }
 
 func (a *webApp) terminalAuthorized(r *http.Request) bool {
@@ -3108,9 +3128,11 @@ func planHasMaintainerAccess(plan string) bool {
 }
 
 func capabilitiesForEnvironment(environment runtimeEnvironment) planCapabilities {
+	proAccess := planHasProAccess(environment.Plan)
 	maintainer := planHasMaintainerAccess(environment.Plan)
 	return planCapabilities{
-		ProAccess:                 planHasProAccess(environment.Plan),
+		ProAccess:                 proAccess,
+		StrixDiagnostics:          proAccess,
 		Maintainer:                maintainer,
 		HomologationReview:        maintainer,
 		HomologationExecute:       maintainer,

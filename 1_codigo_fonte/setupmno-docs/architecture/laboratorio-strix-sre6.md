@@ -1,21 +1,23 @@
 # Laboratório Strix SRE-6
 
 - Versão planejada: `v7.37.x`
-- Versão entregue: preparação candidata `v7.37.0`
+- Versão entregue: preparação candidata `v7.37.1`
 - Estado: `implemented`
 - Maturidade da funcionalidade: `beta`
 - Atualizado em: 27/08/2026
-- Responsável: mantenedor PRO MASTER
+- Responsável pela governança: mantenedor PRO MASTER
 - Ambientes: WSL2 e VPS Debian/Ubuntu
 - Arquiteturas: AMD64 e ARM64
-- Planos afetados: PRO MASTER
+- Planos afetados: PRO e PRO MASTER
 
 ## Para iniciantes — o que isso resolve
 
 Esta etapa prepara um laboratório de segurança sem liberar o teste ofensivo.
 Ela confere a identidade do Strix, fixa os arquivos oficiais e cria regras que
-impedem acesso ao servidor real. O botão BETA aparece somente ao mantenedor,
-mas termina informando que o executor ainda está bloqueado.
+impedem acesso ao servidor real. A preparação diagnóstica BETA aparece para
+PRO e PRO MASTER, mas termina informando que o executor ainda está bloqueado.
+Somente o PRO MASTER pode governar políticas, aprovar exceções ou homologar o
+executor.
 
 ## Modelo mental ou analogia
 
@@ -33,7 +35,7 @@ da produção foi aberta.
 
 ## Jornada do usuário
 
-1. Um usuário PRO MASTER abre o Assistente MNO.
+1. Um usuário PRO ou PRO MASTER abre o Assistente MNO.
 2. O cartão `Laboratório Strix SRE-6 · BETA` explica a preparação.
 3. O Terminal Seguro exige nova autenticação.
 4. O assistente valida o manifesto e informa `bloqueado até homologação`.
@@ -43,7 +45,8 @@ da produção foi aberta.
 
 - [x] BETA no ponto de entrada, cartão e diálogo;
 - [x] Help informa o que funciona e o que ainda está bloqueado;
-- [x] frontend e backend repetem o gate PRO MASTER;
+- [x] frontend e backend liberam diagnóstico para PRO e PRO MASTER;
+- [x] governança e homologação permanecem no gate PRO MASTER;
 - [ ] executor homologado no WSL2 e na VPS;
 - [ ] promoção estável declarada por Francis MNO.
 
@@ -63,14 +66,17 @@ produção. Esta candidata não coleta nem persiste alvos ou achados.
 
 ## Permissões e planos
 
-O acesso é restrito a `pro-master` no frontend, endpoint de reautenticação,
-proxy do terminal e launcher. Ocultar o cartão não é usado como autorização.
+O diagnóstico é permitido a `pro` e `pro-master` no frontend, endpoint de
+reautenticação, proxy do terminal e launcher. Governança, exceções e
+homologação continuam restritas a `pro-master`. Ocultar o cartão nunca é usado
+como autorização.
 
 ## Gates
 
 - [x] Bash e contratos;
 - [x] versão, licença e hashes do upstream;
-- [x] PRO MASTER e negação de permissões perigosas;
+- [x] diagnóstico PRO/PRO MASTER e negação dos planos Free;
+- [x] governança e homologação exclusivas do PRO MASTER;
 - [x] bloqueio sem executor;
 - [ ] imagem sandbox por digest;
 - [ ] homologação funcional WSL2 AMD64 e VPS ARM64.
@@ -90,17 +96,20 @@ executor ou dado foi criado, não há stack, volume ou alvo para restaurar.
 
 - O botão executa um pentest? Não; ele confirma que o executor está bloqueado.
 - Posso informar um site? Não nesta candidata.
-- Funciona para plano PRO? Não; somente PRO MASTER.
+- Funciona para plano PRO? A preparação diagnóstica, sim. Governança,
+  exceções e homologação continuam somente no PRO MASTER.
 - O upstream é estável? O projeto declara estado Alpha; por isso a integração
   permanece BETA e bloqueada.
 
 ## Como testar no WSL2 e na VPS
 
-1. Atualize a candidata e confirme Setup `7.37.0` e Control `4.37.0`.
-2. Entre como PRO MASTER e abra o cartão Strix BETA.
+1. Atualize a candidata e confirme Setup `7.37.1` e Control `4.37.1`.
+2. Entre como PRO e abra o cartão Strix BETA; repita com PRO MASTER.
 3. Resultado esperado: mensagem `bloqueado até homologação`, sem pedir alvo.
 4. Sinal de falha: download, criação de container, pedido de URL ou execução.
 5. Confirme que stacks e serviços antes/depois continuam iguais.
+6. Confirme que um plano Free recebe bloqueio e que somente PRO MASTER mantém
+   as áreas de governança e homologação.
 
 ## Glossário mínimo
 

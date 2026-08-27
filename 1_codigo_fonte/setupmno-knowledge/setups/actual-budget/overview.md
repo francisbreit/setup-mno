@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Actual Budget no Setup MNO",
   "setupId": "actual-budget",
-  "setupVersion": "7.37.0",
+  "setupVersion": "7.37.1",
   "architectures": [
     "amd64",
     "arm64"

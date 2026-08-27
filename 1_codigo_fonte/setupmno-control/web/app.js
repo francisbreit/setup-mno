@@ -24,6 +24,7 @@ const state = {
   assistantModel: "",
   setupPlan: "",
   llmAllowed: false,
+  strixDiagnosticsAccess: false,
   maintainerAccess: false,
   homologationRunnerAvailable: false,
   homologation: null,
@@ -779,6 +780,7 @@ function applyReleaseMetadata(data) {
   if (data.plan) {
     state.setupPlan = data.plan;
     state.llmAllowed = data.llmAllowed === true;
+    state.strixDiagnosticsAccess = ["pro", "pro-master"].includes(data.plan) && data.capabilities?.strixDiagnostics === true;
     state.maintainerAccess = data.plan === "pro-master" && data.capabilities?.maintainer === true;
     $("setup-plan").textContent = data.plan === "pro-master" ? "PRO MASTER" : data.plan;
     if (!state.llmAllowed) {
@@ -846,10 +848,11 @@ function applyTerminalAccessState() {
   const note = "Recurso disponível apenas quando é usado Cloudflare Tunnel.";
   document.querySelectorAll('[data-action="terminal"], [data-action="settings"], [data-action="homologation"], [data-action="sre"], [data-action="strix"], [data-action="gateway"]').forEach(button => {
     const runnerUnavailable = button.dataset.action === "homologation" && !state.homologationRunnerAvailable;
-    const maintainerRequired = ["homologation", "strix"].includes(button.dataset.action) && !state.maintainerAccess;
-    button.disabled = !allowed || runnerUnavailable || maintainerRequired;
-    button.classList.toggle("terminal-locked", !allowed || runnerUnavailable || maintainerRequired);
-    button.title = !allowed ? note : maintainerRequired ? "Recurso exclusivo do plano PRO MASTER." : runnerUnavailable ? "Homologation Runner indisponível nesta release." : "";
+    const maintainerRequired = button.dataset.action === "homologation" && !state.maintainerAccess;
+    const strixRequired = button.dataset.action === "strix" && !state.strixDiagnosticsAccess;
+    button.disabled = !allowed || runnerUnavailable || maintainerRequired || strixRequired;
+    button.classList.toggle("terminal-locked", !allowed || runnerUnavailable || maintainerRequired || strixRequired);
+    button.title = !allowed ? note : maintainerRequired ? "Recurso exclusivo do plano PRO MASTER." : strixRequired ? "Diagnóstico disponível nos planos PRO e PRO MASTER." : runnerUnavailable ? "Homologation Runner indisponível nesta release." : "";
   });
   $("terminal-access-notice").hidden = allowed;
 }
@@ -2426,8 +2429,8 @@ function openTerminal(intent = "installer") {
     showAlert("🔒 O Homologation Runner é exclusivo do plano PRO MASTER.");
     return;
   }
-  if (intent === "strix" && !state.maintainerAccess) {
-    showAlert("🔒 O Laboratório Strix SRE-6 é exclusivo do plano PRO MASTER.");
+  if (intent === "strix" && !state.strixDiagnosticsAccess) {
+    showAlert("🔒 O diagnóstico Strix SRE-6 está disponível nos planos PRO e PRO MASTER.");
     return;
   }
   pendingTerminalIntent = intent;
@@ -2500,8 +2503,8 @@ function openAuthorizedTerminal(intent) {
     },
     strix: {
       title: "Laboratório Strix SRE-6 · BETA",
-      subtitle: "Preparação segura · PRO MASTER · sem execução",
-      warning: "Esta candidata valida somente contratos e o upstream fixado. O executor isolado ainda não foi homologado; nenhum alvo será solicitado e nenhum pentest será iniciado."
+      subtitle: "Preparação segura · PRO e PRO MASTER · sem execução",
+      warning: "Esta candidata valida somente contratos e o upstream fixado. O executor isolado ainda não foi homologado; nenhum alvo será solicitado e nenhum pentest será iniciado. Governança e homologação permanecem exclusivas do PRO MASTER."
     },
     gateway: {
       title: "Terminal Seguro",

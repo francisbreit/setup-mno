@@ -17,5 +17,5 @@ whiptail --title "SRE-6 — LABORATÓRIO STRIX · BETA" --msgbox \
     22 86
 
 whiptail --title "SRE-6 — PREPARAÇÃO CONCLUÍDA · BETA" --msgbox \
-    "Estado: bloqueado até homologação do executor isolado.\nVersão upstream fixada: 1.5.3.\nPlano exigido: PRO MASTER.\nExecução automática: não.\nCorreção automática: não.\nAcesso ao Docker da produção: proibido." \
+    "Estado: bloqueado até homologação do executor isolado.\nVersão upstream fixada: 1.5.3.\nDiagnóstico: planos PRO e PRO MASTER.\nGovernança e homologação: somente PRO MASTER.\nExecução automática: não.\nCorreção automática: não.\nAcesso ao Docker da produção: proibido." \
     16 78

@@ -9,7 +9,7 @@
     "schemaVersion": {"const": 1},
     "contractVersion": {"const": "1.0.0"},
     "maturity": {"const": "beta"},
-    "plan": {"const": "pro-master"},
+    "plan": {"enum": ["pro", "pro-master"]},
     "authorizationID": {"type": "string", "pattern": "^strix-[a-z0-9]{12,48}$"},
     "targetSHA256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
     "issuedAt": {"type": "string", "format": "date-time"},
