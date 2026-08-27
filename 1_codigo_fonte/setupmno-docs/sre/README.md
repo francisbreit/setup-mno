@@ -1,8 +1,8 @@
 # Setup MNO SRE Knowledge Pack
 
 - Estado: `implemented`
-- Versão do pack: `1.4.0`
-- Atualizado em: 2026-08-26
+- Versão do pack: `1.5.0`
+- Atualizado em: 2026-08-27
 - Público: mantenedor PRO MASTER e futura adaptação didática para clientes
 - Ambientes: Debian, Ubuntu, WSL2, Docker Desktop e Docker Swarm
 - Publicação no Control Center: não publicada
@@ -54,6 +54,9 @@ começa respondendo quatro perguntas:
 15. [Plano de ação consultivo SRE-4 — BETA](architecture/plano-acao-consultivo.md):
     diagnóstico, evidência, confiança, impacto, pré-condições e rollback em um
     contrato não executável.
+16. [Runbooks homologados SRE-5 — BETA](architecture/runbooks-homologados.md):
+    registro fechado, seleção determinística e handoff autenticado para
+    operações somente leitura.
 
 ## Limites e segurança
 
@@ -64,8 +67,8 @@ começa respondendo quatro perguntas:
   shell de produção ou credenciais a um modelo de IA.
 - Diagnóstico de IA é proposta; autorização é política determinística aplicada
   fora do modelo.
-- Mudanças reais dependerão de runbooks fechados, dry-run, confirmação humana,
-  evidência, backup e rollback no SRE-5 e nas etapas posteriores do roadmap.
+- Runbooks mutáveis dependerão de dry-run, confirmação humana, evidência,
+  backup e restauração comprovados nas etapas posteriores do roadmap.
 - Dados reais de clientes, tokens, e-mails, IPs e hostnames não pertencem a esta
   base.
 
@@ -91,8 +94,8 @@ pacotes externos, sem instalá-los ou executá-los.
   leitura; não existe endpoint genérico de Docker ou shell.
 - Trivy, Lynis e Docker Bench coletam fatos no fluxo manual SRE-3 BETA; eles não
   aplicam correções e podem declarar cobertura parcial.
-- O SRE-4 produz um plano consultivo não executável; runbooks reais ainda não
-  existem e pertencem à próxima etapa.
+- O SRE-4 produz um plano consultivo não executável; o SRE-5 possui três
+  runbooks homologados somente leitura e não oferece correções automáticas.
 - Nenhuma IA recebeu acesso direto ao servidor ou ao Docker socket.
 - Nenhuma skill externa foi instalada ou publicada.
 - Nenhum relatório desta pasta entra automaticamente no Help.

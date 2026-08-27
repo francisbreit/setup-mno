@@ -99,6 +99,8 @@ próximo item técnico pendente.
      encaminhadas para coleta adicional ou revisão humana.
 
 6. `SRE-5` — **Runbooks homologados**
+   - implementado como BETA na candidata v7.36.0 com registro fechado 1.0.0 e
+     três operações homologadas somente leitura;
    - ações reais somente podem ocorrer por operações previamente escritas,
      testadas, versionadas, autenticadas e aprovadas;
    - cada runbook deve possuir escopo, plano mínimo, compatibilidade,
@@ -124,6 +126,35 @@ diagnóstico compreensível e baseado em fatos, enquanto o mantenedor conserva a
 fronteira de confiança, a aprovação final e a rastreabilidade de toda ação. A
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
+
+## v7.36.0 — Runbooks homologados SRE-5 (candidata; SRE-5 BETA)
+
+- o backend mantém um registro fechado 1.0.0 com coleta de evidências, triagem
+  de saúde do Swarm e revisão da linha de base de segurança;
+- os três runbooks usam somente o executor SRE-3 já homologado em WSL2 AMD64 e
+  VPS ARM64, sem parâmetros, mutação, comandos livres ou execução automática;
+- a seleção é determinística e ocorre fora da LLM, usando a intenção roteada e
+  o estado validado do plano SRE-4;
+- o evento SSE `runbook` só é enviado depois que plano e recomendação passam
+  pelos validadores fail closed;
+- o frontend só oferece handoff fixo `sre` para o Terminal Seguro, que mantém
+  reautenticação, confirmação humana e bloqueio no modo Tradicional;
+- não há runbook de correção nesta candidata: operações stateful continuam
+  bloqueadas até comprovarem backup, restauração e rollback;
+- Setup MNO `7.36.0` e Control Center `4.36.0` são candidatos; a última versão
+  estável homologada continua sendo `7.35.0`.
+
+Baseline da candidata:
+
+- Setup MNO: `7.36.0`, candidata
+- Última versão estável homologada: `7.35.0`
+- Control Center: `4.36.0`
+- Registro de runbooks: `1.0.0 BETA`
+- Plano consultivo: `1.0.0 BETA`
+
+O próximo item da subtrilha é `SRE-6` — Laboratório Strix PRO MASTER. A
+homologação visual da v7.36.0 no WSL2 e na VPS ainda é obrigatória antes de uma
+eventual promoção para estável.
 
 ## v7.35.0 — Plano de ação consultivo SRE-4 (release estável; SRE-4 BETA)
 

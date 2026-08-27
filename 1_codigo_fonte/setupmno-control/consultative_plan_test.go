@@ -121,7 +121,8 @@ func TestConsultativePlanSSEExposesClosedContract(t *testing.T) {
 	body := recorder.Body.String()
 	for _, required := range []string{
 		"event: plan", `"version":"1.0.0"`, `"maturity":"beta"`,
-		`"executed":false`, `"executable":false`,
+		`"executed":false`, `"executable":false`, "event: runbook",
+		`"registryVersion":"1.0.0"`, `"automaticExecution":false`, `"freeCommandAllowed":false`,
 	} {
 		if !strings.Contains(body, required) {
 			t.Fatalf("evento consultivo sem %q: %s", required, body)

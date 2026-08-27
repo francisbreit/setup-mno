@@ -83,6 +83,8 @@ Documentos atuais de arquitetura e operação:
 - `releases/v7.34.3-sbom-terminal-docker-wsl2.md`;
 - `sre/architecture/plano-acao-consultivo.md`;
 - `releases/v7.35.0-sre-4.md`;
+- `sre/architecture/runbooks-homologados.md`;
+- `releases/v7.36.0-sre-5.md`;
 - `sre/architecture/read-only-specialist.md`;
 - `sre/manual/usar-diagnostico-seguro.md`;
 - `releases/v7.33.0-especialista-sre-read-only.md`.

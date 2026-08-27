@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "knowledgePack": "setup-mno-sre",
-  "knowledgePackVersion": "1.4.0",
+  "knowledgePackVersion": "1.5.0",
   "status": "implemented",
-  "updatedAt": "2026-08-26",
+  "updatedAt": "2026-08-27",
   "language": "pt-BR",
   "runtimePublished": false,
   "controlCenterPublished": false,
@@ -17,7 +17,7 @@
       "audience": ["pro-master", "help-author"],
       "environments": ["debian", "ubuntu", "wsl2", "docker-desktop", "docker-swarm"],
       "topics": ["learning-path", "security-contract", "governance"],
-      "sha256": "197de79f4f43b7dcf199a5db213ecda9a09f893d7c0d7264571af0112b77f3de",
+      "sha256": "de2618a3a3358d5f8fb5445d4098543a14a545f03e93773a6ba14554753142f1",
       "sources": []
     },
     {
@@ -257,6 +257,41 @@
         "https://csrc.nist.gov/pubs/sp/800/61/r3/final",
         "https://docs.docker.com/engine/swarm/services/",
         "https://docs.docker.com/engine/storage/volumes/#back-up-restore-or-migrate-data-volumes"
+      ]
+    },
+    {
+      "id": "sre-homologated-runbooks-architecture",
+      "path": "sre/architecture/runbooks-homologados.md",
+      "title": "Runbooks homologados SRE-5",
+      "type": "architecture",
+      "audience": [
+        "free",
+        "free1",
+        "free2",
+        "pro",
+        "pro-master",
+        "help-author"
+      ],
+      "environments": [
+        "debian",
+        "ubuntu",
+        "wsl2",
+        "docker-desktop",
+        "docker-swarm"
+      ],
+      "topics": [
+        "runbook",
+        "closed-registry",
+        "read-only",
+        "human-confirmation",
+        "fail-closed",
+        "beta"
+      ],
+      "sha256": "e20cbc3d9d37b39db0c61c47018c28d55faab77644c1a4796406b0f0ed24d753",
+      "sources": [
+        "https://docs.docker.com/engine/security/",
+        "https://docs.docker.com/engine/swarm/services/",
+        "https://csrc.nist.gov/pubs/sp/800/61/r3/final"
       ]
     },
     {

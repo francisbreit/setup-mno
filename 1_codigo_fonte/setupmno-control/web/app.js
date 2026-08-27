@@ -1433,6 +1433,8 @@ async function streamAssistant(question, history, target, basic, fallbackReason 
         applyGroundingAudit(target, event.data);
       } else if (event.type === "plan") {
         renderConsultativePlan(target, event.data);
+      } else if (event.type === "runbook") {
+        renderRunbookRecommendation(target, event.data);
       } else if (event.type === "delta") {
         answer += event.data.delta || "";
         renderAssistantContent(content, answer);
@@ -1458,7 +1460,9 @@ function clearBlueprintSimulation(target) {
 
 function clearConsultativePlan(target) {
   target?.querySelector(".consultative-plan")?.remove();
+  target?.querySelector(".runbook-recommendation")?.remove();
   updateConsultativePlanSummary(null);
+  updateRunbookSummary(null);
 }
 
 function consultativePlanStatusLabel(value) {
@@ -1588,6 +1592,88 @@ function updateConsultativePlanSummary(plan) {
   title.textContent = plan.hypothesis === true ? "Hipótese visível" : "Contrato consultivo validado";
   summary.textContent = `${consultativeEvidenceStatusLabel(plan.evidenceStatus)} · confiança ${consultativeConfidenceLabel(plan.confidence)} · risco ${riskLabel(plan.riskLevel)}.`;
   metadata.textContent = `SRE-4 ${plan.version || "N/I"} · BETA · executed=false · executable=false.`;
+}
+
+function runbookStatusLabel(value) {
+  return {
+    recommended: "Disponível",
+    unavailable: "Sem runbook",
+    "not-applicable": "Não se aplica"
+  }[value] || "Bloqueado";
+}
+
+function renderRunbookRecommendation(target, recommendation) {
+  if (!target || recommendation?.schemaVersion !== 1 || recommendation?.maturity !== "beta" ||
+      recommendation?.automaticExecution !== false || recommendation?.freeCommandAllowed !== false) return;
+  target.querySelector(".runbook-recommendation")?.remove();
+  const card = document.createElement("article");
+  card.className = `runbook-recommendation runbook-${String(recommendation.status || "unknown")}`;
+  card.setAttribute("aria-label", "Runbook homologado SRE-5 BETA");
+
+  const header = document.createElement("div");
+  header.className = "consultative-plan-head";
+  const identity = document.createElement("div");
+  const kicker = document.createElement("small");
+  const title = document.createElement("strong");
+  kicker.textContent = `SRE-5 · BETA · registro ${recommendation.registryVersion || "N/I"}`;
+  title.textContent = recommendation.runbook?.title || "Nenhuma operação homologada selecionada";
+  identity.append(kicker, title);
+  const badge = document.createElement("span");
+  badge.textContent = runbookStatusLabel(recommendation.status);
+  header.append(identity, badge);
+  const reason = document.createElement("p");
+  reason.textContent = recommendation.reason || "Seleção indisponível.";
+  card.append(header, reason);
+
+  const runbook = recommendation.runbook;
+  const safeReadOnly = recommendation.status === "recommended" && runbook?.executionMode === "secure-terminal-handoff" &&
+    runbook?.handoffAction === "sre" && runbook?.mutatesState === false && runbook?.allowsParameters === false &&
+    runbook?.automaticExecution === false && runbook?.homologationStatus === "homologated";
+  if (safeReadOnly) {
+    const grid = document.createElement("div");
+    grid.className = "consultative-plan-grid";
+    grid.append(
+      consultativeText("Escopo", runbook.scope),
+      consultativeText("Confirmação humana", runbook.humanConfirmation),
+      consultativeList("Pré-checks", runbook.preChecks, "Nenhum pré-check informado."),
+      consultativeList("Pós-checks", runbook.postChecks, "Nenhum pós-check informado."),
+      consultativeText("Dry-run", runbook.dryRun),
+      consultativeText("Rollback", runbook.rollback)
+    );
+    const action = document.createElement("button");
+    action.type = "button";
+    action.className = "light-button";
+    action.dataset.action = "sre";
+    action.textContent = "Abrir coleta segura →";
+    card.append(grid, action);
+  }
+  const footer = document.createElement("p");
+  footer.className = "consultative-plan-footer";
+  footer.textContent = "A IA não executou o runbook. Comandos livres e parâmetros arbitrários permanecem proibidos.";
+  card.append(footer);
+  target.querySelector(".message-content")?.parentElement.append(card);
+  updateRunbookSummary(recommendation);
+}
+
+function updateRunbookSummary(recommendation) {
+  const status = $("assistant-runbook-status");
+  const title = $("assistant-runbook-title");
+  const summary = $("assistant-runbook-summary");
+  const metadata = $("assistant-runbook-metadata");
+  if (!status || !title || !summary || !metadata) return;
+  if (!recommendation) {
+    status.textContent = "Em espera";
+    status.className = "secure-pill";
+    title.textContent = "Aguardando plano consultivo";
+    summary.textContent = "O servidor poderá recomendar somente operações fechadas, versionadas e homologadas.";
+    metadata.textContent = "Sem comandos livres e sem execução automática.";
+    return;
+  }
+  status.textContent = runbookStatusLabel(recommendation.status);
+  status.className = `secure-pill runbook-status-${String(recommendation.status || "unknown")}`;
+  title.textContent = recommendation.runbook?.title || "Nenhum runbook aplicável";
+  summary.textContent = recommendation.reason || "Seleção indisponível.";
+  metadata.textContent = `SRE-5 · registro ${recommendation.registryVersion || "N/I"} · automaticExecution=false · freeCommandAllowed=false.`;
 }
 
 function renderAnswerQuality(target, quality) {

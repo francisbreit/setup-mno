@@ -271,10 +271,5 @@ func validateConsultativePlan(plan consultativePlan) error {
 }
 
 func sendConsultativePlanSSE(w http.ResponseWriter, route assistantRoute, evidence consultativePlanEvidence) bool {
-	plan := buildConsultativePlan(route, evidence)
-	if err := validateConsultativePlan(plan); err != nil {
-		return false
-	}
-	sendSSE(w, "plan", plan)
-	return true
+	return sendConsultativePlanAndRunbookSSE(w, route, evidence)
 }
