@@ -77,6 +77,16 @@ assert.match(html, /Seus primeiros 10 minutos/);
 assert.match(html, /BETA · Manual completo em breve[\s\S]*<h3>Blueprints<\/h3>/);
 assert.match(html, /O que significa a etiqueta BETA/);
 assert.match(html, /“Em breve” indica algo que ainda não está disponível/);
+assert.match(html, /id="theme-toggle"[^>]*aria-label="Ativar modo claro"[^>]*aria-pressed="false"/);
+assert.match(html, /Como alterno entre modo claro e escuro/);
+assert.match(html, /sua escolha fica salva somente neste navegador/);
+assert.match(html, /O Terminal Seguro permanece escuro/);
+assert.match(app, /THEME_STORAGE_KEY = "setupmno-control-theme"/);
+assert.match(app, /function initializeTheme/);
+assert.match(app, /function toggleTheme/);
+assert.match(styles, /:root\[data-theme="light"\]/);
+assert.match(styles, /@media \(min-width: 901px\)[\s\S]*--font-size-6:\s*11px/);
+assert.match(styles, /Terminal Seguro permanece escuro em ambos os temas/);
 assert.match(html, /Assistente MNO[\s\S]*help-status">BETA/);
 assert.match(html, /Assistente MNO[\s\S]*diagnóstico local sem LLM/);
 assert.match(html, /O <strong>Selo Essencial<\/strong> confirma que o instalador entregou a aplicação funcionando/);
@@ -368,19 +378,29 @@ const helpTopics = [
 ];
 function terminalElement(id) {
   if (!terminalElements.has(id)) {
+    const attributes = {};
+    const icon = { textContent: "" };
     terminalElements.set(id, {
       id,
       open: false,
       src: "",
+      title: "",
       textContent: "",
       innerHTML: "",
+      attributes,
+      icon,
       style: { setProperty() {}, removeProperty() {} },
+      setAttribute(name, value) { attributes[name] = String(value); },
+      getAttribute(name) { return attributes[name]; },
+      querySelector(selector) { return selector === "span" ? icon : null; },
       showModal() { this.open = true; },
       close() { this.open = false; }
     });
   }
   return terminalElements.get(id);
 }
+const themeStorage = new Map();
+const documentElement = { dataset: {} };
 const terminalContext = vm.createContext({
   console,
   Intl,
@@ -388,12 +408,17 @@ const terminalContext = vm.createContext({
   setTimeout,
   clearTimeout,
   document: {
+    documentElement,
     addEventListener() {},
     getElementById: terminalElement,
     querySelectorAll(selector) { return selector === "[data-help-topic]" ? helpTopics : []; },
     activeElement: null
   },
   window: {
+    localStorage: {
+      getItem(key) { return themeStorage.has(key) ? themeStorage.get(key) : null; },
+      setItem(key, value) { themeStorage.set(key, String(value)); }
+    },
     matchMedia() { return { matches: false }; },
     requestAnimationFrame(callback) { callback(); },
     visualViewport: { height: 800, addEventListener() {} },
@@ -404,6 +429,20 @@ const terminalContext = vm.createContext({
   }
 });
 vm.runInContext(app, terminalContext, { filename: "web/app.js" });
+assert.equal(vm.runInContext("storedTheme()", terminalContext), "dark");
+vm.runInContext('applyTheme("light", true)', terminalContext);
+assert.equal(documentElement.dataset.theme, "light");
+assert.equal(themeStorage.get("setupmno-control-theme"), "light");
+assert.equal(terminalElement("theme-toggle").getAttribute("aria-label"), "Ativar modo escuro");
+assert.equal(terminalElement("theme-toggle").getAttribute("aria-pressed"), "true");
+assert.equal(terminalElement("theme-toggle").icon.textContent, "☾");
+assert.equal(terminalElement("theme-color").getAttribute("content"), "#f4f6f9");
+vm.runInContext("toggleTheme()", terminalContext);
+assert.equal(documentElement.dataset.theme, "dark");
+assert.equal(themeStorage.get("setupmno-control-theme"), "dark");
+assert.equal(terminalElement("theme-toggle").getAttribute("aria-label"), "Ativar modo claro");
+assert.equal(terminalElement("theme-toggle").icon.textContent, "☀");
+assert.equal(terminalElement("theme-color").getAttribute("content"), "#07090d");
 vm.runInContext(`renderSupplyChainStatus({
   supplyChainAvailable: true,
   supplyChainImageReferences: 12,

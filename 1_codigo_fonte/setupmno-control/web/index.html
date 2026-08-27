@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#070a0f">
+  <meta id="theme-color" name="theme-color" content="#07090d">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=4.37.1">
+  <link rel="stylesheet" href="/styles.css?v=4.37.2">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -91,6 +91,7 @@
           <span id="last-update" class="last-update">Atualizando...</span>
           <button id="refresh-button" class="icon-button" aria-label="Atualizar dados">↻</button>
           <button id="open-terminal-top" class="primary-button"><span class="desktop-only">Novo deploy</span><b>＋</b></button>
+          <button id="theme-toggle" class="icon-button theme-toggle" type="button" aria-label="Ativar modo claro" aria-pressed="false" title="Ativar modo claro"><span aria-hidden="true">☀</span></button>
           <div class="user-chip"><span id="user-initial">A</span><div><strong id="current-user">admin</strong><small id="access-identity">Access protegido</small></div></div>
         </div>
       </header>
@@ -630,6 +631,7 @@
             <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="atualizar apaga dados volumes backup"><summary>Atualizar o Setup MNO apaga minhas aplicações?<b>＋</b></summary><p>O fluxo de atualização foi desenhado para reconciliar o Setup e preservar recursos existentes. Ainda assim, mantenha backups e leia todas as confirmações antes de qualquer operação administrativa.</p></details>
             <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="setup aplicação contagem catálogo números diferentes"><summary>Por que “setups” não significa “aplicações únicas”?<b>＋</b></summary><p>Porque o catálogo conta opções instaláveis. Variantes, versões e combos podem usar a mesma aplicação em configurações diferentes.</p></details>
             <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="beta teste experimental estável produção em breve"><summary>O que significa a etiqueta BETA?<b>＋</b></summary><p>Significa que o recurso já pode ser testado, mas ainda está sendo amadurecido e pode mudar. Leia os limites exibidos e não confunda Beta com homologação completa. “Em breve” indica algo que ainda não está disponível.</p></details>
+            <details class="help-topic" data-help-topic data-help-category="operate concept" data-help-search="tema modo claro escuro aparência legibilidade letras fonte sol lua"><summary>Como alterno entre modo claro e escuro?<b>＋</b></summary><p>Use o botão de sol ou lua ao lado de <strong>Novo deploy</strong>. O modo escuro continua sendo o padrão; sua escolha fica salva somente neste navegador. No desktop, os textos auxiliares também usam letras maiores. O Terminal Seguro permanece escuro para preservar a leitura e a aparência real do terminal.</p></details>
             <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="suporte pedir ajuda evidência print log segredo token senha"><summary>O que devo enviar ao suporte?<b>＋</b></summary><p>Informe a versão, o ambiente, a etapa, a mensagem exata e o horário aproximado. Envie apenas trechos de log sem senhas, tokens, cookies, chaves ou dados pessoais.</p></details>
           </div>
           <div id="help-no-results" class="help-no-results" hidden><span>⌕</span><h3>Nenhum tópico encontrado</h3><p>Tente termos mais simples, como “instalar”, “URL”, “WSL2”, “senha” ou “Assistente”.</p><button id="help-clear-search" class="light-button" type="button">Limpar pesquisa</button></div>
@@ -716,8 +718,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=4.37.1" defer></script>
-  <script src="/assistant-route.js?v=4.37.1" defer></script>
-  <script src="/app.js?v=4.37.1" defer></script>
+  <script src="/markdown.js?v=4.37.2" defer></script>
+  <script src="/assistant-route.js?v=4.37.2" defer></script>
+  <script src="/app.js?v=4.37.2" defer></script>
 </body>
 </html>

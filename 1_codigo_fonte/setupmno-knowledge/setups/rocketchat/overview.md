@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Rocket.Chat no Setup MNO",
   "setupId": "rocketchat",
-  "setupVersion": "7.37.1",
+  "setupVersion": "7.37.2",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

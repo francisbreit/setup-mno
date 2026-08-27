@@ -133,6 +133,26 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
+## v7.37.2 — Legibilidade e temas do Control Center (candidata)
+
+- eleva a escala dos textos auxiliares no desktop, impedindo que rótulos,
+  evidências e metadados usem menos de 11 px;
+- preserva o modo escuro como padrão e adiciona, ao lado de `Novo deploy`, um
+  controle acessível para alternar entre modo claro e escuro;
+- guarda a preferência somente no `localStorage` do navegador, sem enviar o
+  tema ao backend, à auditoria ou ao servidor;
+- mantém o Terminal Seguro propositalmente escuro para preservar a fidelidade
+  do terminal e do Whiptail;
+- não altera planos, permissões, diagnósticos, execução do SRE-6 nem a ordem do
+  roadmap;
+- Setup MNO `7.37.2` e Control Center `4.37.2` são candidatos; a última versão
+  estável homologada continua sendo `7.36.2`.
+
+A melhoria visual possui maturidade `stable`, mas sua incorporação à versão
+estável do Setup depende da validação visual explícita no WSL2 e na VPS. O
+próximo item funcional continua sendo concluir e homologar isoladamente o
+executor efêmero do `SRE-6`.
+
 ## v7.37.1 — Correção da matriz de acesso do Strix SRE-6 (candidata; BETA)
 
 - libera a preparação diagnóstica do SRE-6 para os planos PRO e PRO MASTER;

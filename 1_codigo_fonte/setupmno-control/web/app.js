@@ -48,6 +48,7 @@ const PANEL_IDLE_MS = 15 * 60 * 1000;
 const TERMINAL_IDLE_MS = 30 * 60 * 1000;
 const IDLE_WARNING_MS = 2 * 60 * 1000;
 const ACTIVITY_HEARTBEAT_MS = 15 * 1000;
+const THEME_STORAGE_KEY = "setupmno-control-theme";
 const titles = {
   dashboard: ["Infraestrutura em tempo real", "Visão geral"],
   installed: ["Inventário do Docker Swarm", "Aplicações instaladas"],
@@ -66,6 +67,7 @@ let helpFilter = "all";
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
+  initializeTheme();
   bindEvents();
   try {
     const session = await api("/api/session");
@@ -85,6 +87,7 @@ function bindEvents() {
   });
   $("logout-button").addEventListener("click", logout);
   $("refresh-button").addEventListener("click", refreshAll);
+  $("theme-toggle").addEventListener("click", toggleTheme);
   bindHelpCenter();
   $("navigation").addEventListener("click", event => {
     const button = event.target.closest("[data-view]");
@@ -189,6 +192,46 @@ function bindEvents() {
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && state.csrf) refreshReleaseData();
   });
+}
+
+function storedTheme() {
+  try {
+    const theme = window.localStorage?.getItem(THEME_STORAGE_KEY);
+    return theme === "light" || theme === "dark" ? theme : "dark";
+  } catch {
+    return "dark";
+  }
+}
+
+function applyTheme(theme, persist = false) {
+  const selected = theme === "light" ? "light" : "dark";
+  document.documentElement.dataset.theme = selected;
+  const toggle = $("theme-toggle");
+  const light = selected === "light";
+  if (toggle) {
+    toggle.setAttribute("aria-label", light ? "Ativar modo escuro" : "Ativar modo claro");
+    toggle.setAttribute("aria-pressed", String(light));
+    toggle.title = light ? "Ativar modo escuro" : "Ativar modo claro";
+    const icon = toggle.querySelector("span");
+    if (icon) icon.textContent = light ? "☾" : "☀";
+  }
+  const themeColor = $("theme-color");
+  if (themeColor) themeColor.setAttribute("content", light ? "#f4f6f9" : "#07090d");
+  if (!persist) return;
+  try {
+    window.localStorage?.setItem(THEME_STORAGE_KEY, selected);
+  } catch {
+    // A preferência é opcional; o painel continua funcional sem armazenamento local.
+  }
+}
+
+function initializeTheme() {
+  applyTheme(storedTheme());
+}
+
+function toggleTheme() {
+  const current = document.documentElement.dataset.theme === "light" ? "light" : "dark";
+  applyTheme(current === "light" ? "dark" : "light", true);
 }
 
 function normalizeHelpText(value) {
