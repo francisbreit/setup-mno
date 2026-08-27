@@ -1,8 +1,9 @@
 # Plano de ação consultivo SRE-4
 
 - Versão planejada: Setup MNO 7.35.0 / Control Center 4.35.0
-- Versão entregue: candidata v7.35.0
+- Versão entregue: estável v7.35.0; funcionalidade SRE-4 permanece BETA
 - Estado: `implemented`
+- Homologação da release: `validated`
 - Maturidade da funcionalidade: `beta`
 - Atualizado em: 2026-08-26
 - Responsável: mantenedor PRO MASTER
@@ -56,8 +57,8 @@ SRE-4 não executa o reparo.
 - [x] cartão lateral e plano identificados como BETA;
 - [x] Help informa o que funciona e os limites;
 - [x] textos não apresentam a função como estável;
-- [ ] promoção para estável depende de homologação e declaração explícita de
-  Francis MNO.
+- [x] release promovida após homologação e declaração explícita de Francis
+  MNO; a funcionalidade permanece BETA.
 
 ## Como funciona por dentro — nota técnica para DevOps
 
@@ -103,9 +104,9 @@ Docker socket ou shell de produção.
 - [x] alto risco exige revisão humana e rollback;
 - [x] interface desktop e responsiva;
 - [x] Help e documentação BETA;
-- [ ] instalação/atualização no WSL2 após empacotamento;
-- [ ] atualização em VPS AMD64 ou ARM64;
-- [ ] declaração de versão estável pelo mantenedor.
+- [x] instalação/atualização no WSL2 x86-64 após empacotamento;
+- [x] atualização em VPS ARM64;
+- [x] declaração de versão estável pelo mantenedor em 27/08/2026.
 
 ## Limites e segurança
 
@@ -119,8 +120,8 @@ humana. Alto risco nunca fica pronto para ação automática.
 
 ## Rollback
 
-Se a candidata apresentar regressão, o mantenedor deve reinstalar a última
-release estável v7.34.3 pelo fluxo oficial. O rollback remove apenas o envelope
+Se a release apresentar regressão, o mantenedor deve reinstalar a versão
+estável anterior v7.34.3 pelo fluxo oficial. O rollback remove apenas o envelope
 e a interface SRE-4; não há migração de dados nem estado persistente a reverter.
 Antes de concluir, confirme que Setup 7.34.3 e Control Center 4.34.2 voltaram a
 ser exibidos e que o Assistente continua respondendo.
@@ -140,9 +141,10 @@ ser exibidos e que o Assistente continua respondendo.
 ## Evidências
 
 - Teste: suíte Go, teste frontend, gates de gerador e empacotamento.
-- Ambiente: repositório de construção; homologação WSL2 e VPS ainda necessária.
-- Resultado esperado: contrato rejeita execução e mantém lacunas visíveis.
-- Limitação: candidata não promovida como estável.
+- Ambiente: repositório de construção, WSL2 x86-64 e VPS ARM64.
+- Resultado observado: contrato rejeitou execução, manteve lacunas visíveis e
+  funcionou também na contingência sem LLM.
+- Limitação: a release é estável, mas SRE-4 continua BETA e somente consultivo.
 
 ## Como testar no WSL2 e na VPS
 

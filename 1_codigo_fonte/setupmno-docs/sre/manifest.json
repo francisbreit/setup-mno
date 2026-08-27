@@ -252,7 +252,7 @@
         "human-review",
         "beta"
       ],
-      "sha256": "ac5f455c99d380fd2b5de82aea77591984d03ced9f34759525b3252571e21f4e",
+      "sha256": "23ad7d6e126ad16add369e2d1244ae0b932891522cdad67eb3201a162aa5f755",
       "sources": [
         "https://csrc.nist.gov/pubs/sp/800/61/r3/final",
         "https://docs.docker.com/engine/swarm/services/",

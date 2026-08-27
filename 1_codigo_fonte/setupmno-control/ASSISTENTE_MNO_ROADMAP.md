@@ -90,7 +90,7 @@ próximo item técnico pendente.
      esconda falhas, cobertura incompleta e limitações do scanner.
 
 5. `SRE-4` — **Plano de ação consultivo**
-   - implementado como BETA na candidata v7.35.0 para todos os planos, com
+   - concluído como BETA na versão estável v7.35.0 para todos os planos, com
      contrato fechado 1.0.0 produzido e validado fora da LLM;
    - toda resposta operacional passa a explicar diagnóstico, evidências,
      confiança, impacto, pré-condições e estratégia de rollback;
@@ -125,7 +125,7 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
-## v7.35.0 — Plano de ação consultivo SRE-4 (BETA, candidata)
+## v7.35.0 — Plano de ação consultivo SRE-4 (release estável; SRE-4 BETA)
 
 - toda resposta operacional recebe um contrato SRE-4 1.0.0 gerado pelo backend
   com diagnóstico, evidências observadas e pendentes, confiança, impacto,
@@ -139,21 +139,22 @@ capacidade de uma IA executar comandos nunca será tratada como equivalente a
 - o modo Básico recebe a mesma proteção e informa quando falta documentação
   canônica, sem inventar confirmação;
 - a interface e o Help mostram `SRE-4 · BETA` antes de qualquer interpretação;
-- Prompt `1.10.0`, contrato adaptativo `1.8.0`, Setup MNO `7.35.0` candidato e
-  Control Center `4.35.0` candidato.
+- Prompt `1.10.0`, contrato adaptativo `1.8.0`, Setup MNO `7.35.0` estável e
+  Control Center `4.35.0` homologado nesta release.
 
-Baseline desta candidata:
+Baseline homologada:
 
-- Setup MNO: `7.35.0` em preparação de release candidata
-- Última versão estável homologada: `7.34.3`
+- Setup MNO: `7.35.0`, versão estável homologada
+- Última versão estável homologada: `7.35.0`
 - Control Center: `4.35.0`
 - Plano consultivo: `1.0.0 BETA`
 - Prompt: `1.10.0`
 - Contrato de resposta: `1.8.0`
 
-Esta etapa não cria runbooks nem executa ações. O próximo item da subtrilha é
-`SRE-5` — runbooks homologados. A promoção da v7.35.0 depende de homologação no
-WSL2 e em VPS e de declaração explícita de Francis MNO.
+Esta etapa não cria runbooks nem executa ações. A v7.35.0 foi promovida em
+27/08/2026 após homologação visual no WSL2 x86-64 e em VPS ARM64 e declaração
+explícita de Francis MNO. O próximo item da subtrilha é `SRE-5` — runbooks
+homologados.
 
 ## v7.34.3 — Estado SBOM e acesso Docker do SRE-3 no WSL2 (release estável; SRE-3 BETA)
 

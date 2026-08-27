@@ -174,12 +174,12 @@ Ative este modo quando o usuário disser **“Modo Homologação”**, **“Modo
 ## CONTEXTO DOS AMBIENTES DO SETUP MNO
 
 ### Versão estável vigente
-- A última versão estável homologada do Setup MNO é **v7.34.3**.
-- Tag Git: `v7.34.3`.
-- Commit de implementação homologado: `915d9600` (`fix: v7.34.3 - corrige SBOM e SRE-3 no WSL2`).
-- A promoção foi declarada explicitamente por Francis MNO em 26/08/2026 após
-  validação no WSL2 x86-64 e em VPS ARM64. SRE-3, Assistente MNO e Blueprints
-  continuam **BETA**.
+- A última versão estável homologada do Setup MNO é **v7.35.0**.
+- Tag Git: `v7.35.0`.
+- Commit de implementação homologado: `c1fa99e89` (`feat: v7.35.0 - implementa plano consultivo SRE-4`).
+- A promoção foi declarada explicitamente por Francis MNO em 27/08/2026 após
+  validação no WSL2 x86-64 e em VPS ARM64. SRE-3, SRE-4, Assistente MNO e
+  Blueprints continuam **BETA**.
 - Este registro somente deve ser alterado quando o usuário declarar explicitamente uma nova versão como estável após a homologação.
 
 ### Retomada pactuada do roadmap de profissionalização
@@ -187,7 +187,7 @@ Ative este modo quando o usuário disser **“Modo Homologação”**, **“Modo
 - As releases `v7.20.0` a `v7.31.0` concluíram a fundação do selo, Runner controlado, assistente visual, Help, Central de Revisão, esteira oficial, plano PRO MASTER, certificação remota, importação canônica, homologação essencial, supply chain/SBOM runtime e fundação do SRE Knowledge Pack. Não reinicie nem repita essas etapas.
 - Quando o usuário disser **“Modo Setup MNO Upgrade. Vamos voltar ao roadmap de melhoria de qualidade e segurança e continuar pelo próximo item pendente.”**, ative o Modo Setup MNO Upgrade, leia o roadmap canônico e retome diretamente do primeiro item ainda pendente.
 - A **v7.28.0 — Importador Canônico de Pacotes PRO MASTER e Gate de Release** foi implementada: release-pack v2 com atestação de origem, compatibilidade limitada com v7.27.0, inventário estrito, dry-run, diff, token ligado ao Git, merge por delta, ledger append-only e rollback. O importador permanece exclusivo do repositório de construção e nunca publica, commita, cria tag ou release automaticamente.
-- A **v7.32.0 — Skill Supply Chain Gate** foi implementada como BETA. A **v7.32.1** adicionou heartbeat real às etapas lentas da instalação do Control Center e a **v7.32.2** tornou o APT não interativo. A **v7.33.0 — Especialista SRE somente leitura** permanece BETA. A **v7.33.1** corrigiu o APT do `dockerswarm.sh` x86/ARM. A **v7.33.2** corrigiu a reconciliação da versão do agente interno, impedindo erro 502 do snapshot SRE após atualização de instalações antigas. A **v7.33.3** ampliou para cinco minutos a convergência do Control Center em ARM64. A **v7.33.4** estabilizou a troca transacional do provedor e a separação entre qualidade do motor local e da LLM. A **v7.34.3** foi promovida a última versão estável em 26/08/2026: conclui o `SRE-3` como funcionalidade **BETA**, corrige sua execução no WSL2, restaura a exibição do SBOM e valida Trivy, Lynis e Docker Bench com cobertura parcial explicitamente visível. O próximo item da subtrilha SRE é `SRE-4` — plano de ação consultivo. O backlog macro preserva esta ordem: revalidação contínua, expiração, drift e revogação de selos; resiliência operacional com backup/restore/update/rollback; onboarding e convergência UX para produção; primeiros Blueprints reais homologados; otimizações semânticas ou fine-tuning somente se métricas demonstrarem ganho.
+- A **v7.32.0 — Skill Supply Chain Gate** foi implementada como BETA. A **v7.32.1** adicionou heartbeat real às etapas lentas da instalação do Control Center e a **v7.32.2** tornou o APT não interativo. A **v7.33.0 — Especialista SRE somente leitura** permanece BETA. A **v7.33.1** corrigiu o APT do `dockerswarm.sh` x86/ARM. A **v7.33.2** corrigiu a reconciliação da versão do agente interno, impedindo erro 502 do snapshot SRE após atualização de instalações antigas. A **v7.33.3** ampliou para cinco minutos a convergência do Control Center em ARM64. A **v7.33.4** estabilizou a troca transacional do provedor e a separação entre qualidade do motor local e da LLM. A **v7.34.3** concluiu o `SRE-3` como funcionalidade **BETA**. A **v7.35.0** foi promovida a última versão estável em 27/08/2026 após homologação no WSL2 x86-64 e em VPS ARM64; ela conclui o `SRE-4` como funcionalidade **BETA**, com plano consultivo fechado, sem comandos e sem autorização de mudança. O próximo item da subtrilha SRE é `SRE-5` — runbooks homologados. O backlog macro preserva esta ordem: revalidação contínua, expiração, drift e revogação de selos; resiliência operacional com backup/restore/update/rollback; onboarding e convergência UX para produção; primeiros Blueprints reais homologados; otimizações semânticas ou fine-tuning somente se métricas demonstrarem ganho.
 - Novas demandas avulsas não apagam, reordenam ou marcam esse backlog como concluído. Somente uma implementação validada e registrada no roadmap pode avançar o ponto de retomada.
 
 ### Documentação contínua e base de conhecimento humana
