@@ -127,7 +127,30 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
-## v7.36.1 — Gate de qualidade da saída do Assistente (candidata; BETA)
+## v7.36.2 — Correção do build do Control Center (candidata; BETA)
+
+- corrige o inventário de fontes do build Docker e inclui
+  `assistant_output_gate.go` na imagem do painel e no pacote de fontes;
+- o gerador agora compara automaticamente todos os arquivos Go de produção com
+  o `Dockerfile` e com o arquivo compactado, bloqueando futuras omissões;
+- a reconciliação permanece transacional: se um build falhar, os serviços
+  anteriores continuam ativos e a atualização é revertida;
+- Setup MNO `7.36.2` e Control Center `4.36.2` são candidatos; a última versão
+  estável homologada continua sendo `7.35.0`.
+
+Baseline da candidata:
+
+- Setup MNO: `7.36.2`, candidata
+- Última versão estável homologada: `7.35.0`
+- Control Center: `4.36.2`
+- Gate de saída: `1.0.0 BETA`
+- Runbooks SRE-5: `1.0.0 BETA`
+
+O próximo item da subtrilha permanece `SRE-6` — Laboratório Strix PRO MASTER.
+A v7.36.2 precisa de homologação visual no WSL2 e na VPS antes de qualquer
+declaração de estabilidade.
+
+## v7.36.1 — Gate de qualidade da saída do Assistente (candidata com falha de empacotamento; BETA)
 
 - a resposta do provedor fica limitada e retida em memória até a validação;
 - o gate determinístico 1.0.0 bloqueia `<unk>`, prompt interno, repetição,
@@ -150,8 +173,9 @@ Baseline da candidata:
 - Runbooks SRE-5: `1.0.0 BETA`
 
 O próximo item da subtrilha permanece `SRE-6` — Laboratório Strix PRO MASTER.
-A v7.36.1 precisa de homologação visual no WSL2 e na VPS antes de qualquer
-declaração de estabilidade.
+A homologação no WSL2 identificou que o novo arquivo Go não estava no inventário
+do build Docker. A candidata foi substituída pela v7.36.2 e não deve ser
+promovida como estável.
 
 ## v7.36.0 — Runbooks homologados SRE-5 (candidata; SRE-5 BETA)
 

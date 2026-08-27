@@ -322,7 +322,7 @@
         "fail-closed",
         "beta"
       ],
-      "sha256": "173b47baf56b575961c36ca3f39da639e158dffa7b306b1a0750ada0175d3024",
+      "sha256": "4d66d1630314ddc341374c7393d1e93eba2a29943c6e8328f979f50b4bfb7680",
       "sources": [
         "https://genai.owasp.org/llmrisk/llm012025-prompt-injection/",
         "https://csrc.nist.gov/pubs/sp/800/218/a/final"

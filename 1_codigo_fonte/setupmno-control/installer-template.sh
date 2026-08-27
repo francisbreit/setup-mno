@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 set -o pipefail
 umask 077
-CONTROL_VERSION="4.36.1"
+CONTROL_VERSION="4.36.2"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -1661,7 +1661,7 @@ error_file="/tmp/${nome_app}-error.log"
     install -m 0644 "$runtime_catalog" "$work_dir/source/catalog.json"
     for source_file in go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
         terminal-menu.sh configure-control.sh control-upgrade.sh cloudflare-mfa.sh install-heartbeat.sh \
-        main.go access.go knowledge.go retrieval.go routing.go prompts.go sre_snapshot.go consultative_plan.go runbook_registry.go blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go homologation.go catalog.json \
+        main.go access.go knowledge.go retrieval.go routing.go prompts.go sre_snapshot.go consultative_plan.go runbook_registry.go assistant_output_gate.go blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go homologation.go catalog.json \
         web/index.html web/app.js web/assistant-route.js web/styles.css web/terminal-bridge.js; do
         [ -s "$work_dir/source/$source_file" ] ||
             fail_install 21 "FONTE INCOMPLETO" "O arquivo interno '$source_file' não foi encontrado no bundle."

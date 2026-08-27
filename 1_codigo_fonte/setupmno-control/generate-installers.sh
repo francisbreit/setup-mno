@@ -410,11 +410,25 @@ grep -Fq 'COPY --from=builder /src/knowledge-package /knowledge-package' \
     printf 'ERRO: a imagem final não contém o pacote de conhecimento somente leitura.\n' >&2
     exit 1
 }
-grep -Fq 'COPY go.mod main.go access.go knowledge.go retrieval.go routing.go prompts.go sre_snapshot.go consultative_plan.go runbook_registry.go blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go homologation.go ./' \
-    "$project_dir/Dockerfile" || {
-    printf 'ERRO: o build não inclui retrieval, roteador, prompts, Blueprints e evals.\n' >&2
+production_go_files=()
+dockerfile_go_copy=$(grep -E '^COPY[[:space:]]+go\.mod[[:space:]].*[[:space:]]+\./$' \
+    "$project_dir/Dockerfile" | head -n1)
+[ -n "$dockerfile_go_copy" ] || {
+    printf 'ERRO: a lista de fontes Go do build não foi encontrada no Dockerfile.\n' >&2
     exit 1
 }
+for source_path in "$project_dir"/*.go; do
+    source_file=$(basename "$source_path")
+    case "$source_file" in
+        *_test.go) continue ;;
+    esac
+    production_go_files+=("$source_file")
+    if ! grep -Eq "(^|[[:space:]])${source_file}([[:space:]]|$)" <<<"$dockerfile_go_copy"; then
+        printf 'ERRO: o Dockerfile não copia a fonte Go de produção %s.\n' \
+            "$source_file" >&2
+        exit 1
+    fi
+done
 grep -Eq 'evalExpectedCases[[:space:]]*=[[:space:]]*878' "$project_dir/evals.go" &&
 grep -Fq 'runEvalSuite' "$project_dir/evals.go" &&
 grep -Fq 'CredentialLeakCount' "$project_dir/evals.go" || {
@@ -1062,10 +1076,16 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
         terminal-menu.sh configure-control.sh control-upgrade.sh cloudflare-mfa.sh \
         install-heartbeat.sh \
         cloudflare-route-guard.sh cloudflare-access-reconcile.sh \
-        main.go access.go knowledge.go retrieval.go routing.go prompts.go sre_snapshot.go consultative_plan.go runbook_registry.go \
-        blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go homologation.go web |
+        "${production_go_files[@]}" web |
         gzip -9n >"$bundle"
 )
+for source_file in "${production_go_files[@]}"; do
+    if ! tar -tzf "$bundle" | grep -Fx "$source_file" >/dev/null; then
+        printf 'ERRO: bundle de fontes sem o arquivo Go de produção %s.\n' \
+            "$source_file" >&2
+        exit 1
+    fi
+done
 if ! tar -tzf "$bundle" | grep -Fx 'blueprint_recommendation.go' >/dev/null; then
     printf 'ERRO: bundle de fontes sem o recomendador contextual de Blueprints.\n' >&2
     exit 1

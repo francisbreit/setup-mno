@@ -1,7 +1,7 @@
 # Gate de qualidade da saída do Assistente MNO
 
 - Versão planejada: Setup MNO 7.36.1 / Control Center 4.36.1
-- Versão entregue: candidata v7.36.1
+- Versão corrigida: candidata v7.36.2 / Control Center 4.36.2
 - Estado: `implemented`
 - Maturidade da funcionalidade: `beta`
 - Atualizado em: 2026-08-27
@@ -159,7 +159,7 @@ volumes, secrets ou stacks para fazer a reversão.
 
 ### WSL2
 
-1. Pré-requisito: Docker Desktop ativo, Setup MNO 7.36.1 candidata e provedor
+1. Pré-requisito: Docker Desktop ativo, Setup MNO 7.36.2 candidata e provedor
    configurado sem revelar a chave.
 2. No Assistente, pergunte `Faça uma revisão de segurança do servidor`.
 3. Resultado esperado: resposta coerente em português ou aviso BETA seguido do
