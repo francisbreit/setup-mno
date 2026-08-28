@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Bytebase no Setup MNO",
   "setupId": "bytebase",
-  "setupVersion": "7.37.2",
+  "setupVersion": "7.38.0",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

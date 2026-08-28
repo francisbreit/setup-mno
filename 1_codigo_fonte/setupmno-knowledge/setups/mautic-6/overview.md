@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Mautic 6 Padrão no Setup MNO",
   "setupId": "mautic-6",
-  "setupVersion": "7.37.2",
+  "setupVersion": "7.38.0",
   "architectures": [
     "amd64",
     "arm64"

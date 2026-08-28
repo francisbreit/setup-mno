@@ -2546,13 +2546,13 @@ function openAuthorizedTerminal(intent) {
     },
     strix: {
       title: "Laboratório Strix SRE-6 · BETA",
-      subtitle: "Preparação segura · PRO e PRO MASTER · sem execução",
-      warning: "Esta candidata valida somente contratos e o upstream fixado. O executor isolado ainda não foi homologado; nenhum alvo será solicitado e nenhum pentest será iniciado. Governança e homologação permanecem exclusivas do PRO MASTER."
+      subtitle: "Diagnóstico isolado · PRO e PRO MASTER · confirmação humana",
+      warning: "Analisa somente um pacote-fonte local escolhido e autorizado por você. O executor descartável não recebe root, mounts, Docker socket, serviço, domínio ou credenciais da produção. Use uma chave dedicada: a saída para a LLM ainda é ampla nesta versão BETA. Governança e homologação permanecem exclusivas do PRO MASTER."
     },
     gateway: {
       title: "Terminal Seguro",
       subtitle: "Setup MNO · sessão administrativa",
-      warning: "Escolha entre Instalador, Configurações, Auditoria SRE-3 BETA, preparação SRE-6 BETA, Central do Mantenedor ou encerrar a sessão no menu protegido."
+      warning: "Escolha entre Instalador, Configurações, Auditoria SRE-3 BETA, diagnóstico isolado SRE-6 BETA, Central do Mantenedor ou encerrar a sessão no menu protegido."
     }
   }[intent] || {
     title: "Terminal Seguro",

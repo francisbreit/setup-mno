@@ -1074,7 +1074,7 @@ done
 bundle="$temporary_dir/setupmno-control.tar.gz"
 (
     cd "$project_dir"
-    tar -cf - \
+    tar --exclude='strix-lab/__pycache__' --exclude='strix-lab/*.pyc' -cf - \
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
         terminal-menu.sh configure-control.sh control-upgrade.sh cloudflare-mfa.sh \
         install-heartbeat.sh \
@@ -1105,7 +1105,7 @@ if ! tar -tzf "$bundle" | grep -Fx 'runbook_registry.go' >/dev/null; then
     echo "ERRO: pacote Control Center sem registro fechado de runbooks SRE-5." >&2
     exit 1
 fi
-for strix_file in upstream-lock.json authorization.schema.json sanitized-report.schema.json validate.py wizard.sh test.sh; do
+for strix_file in upstream-lock.json authorization.schema.json sanitized-report.schema.json validate.py wizard.sh test.sh build-executor.sh homologate.sh executor.Dockerfile executor.py; do
     if ! tar -tzf "$bundle" | grep -Fx "strix-lab/$strix_file" >/dev/null; then
         printf 'ERRO: bundle de fontes sem o contrato SRE-6 %s.\n' "$strix_file" >&2
         exit 1

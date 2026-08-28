@@ -1,130 +1,157 @@
 # Laboratório Strix SRE-6
 
-- Versão planejada: `v7.37.x`
-- Versão entregue: preparação candidata `v7.37.1`
-- Estado: `implemented`
+- Versão planejada: `v7.38.0`
+- Versão entregue: candidata `v7.38.0`
+- Estado documental: `implemented`
 - Maturidade da funcionalidade: `beta`
-- Atualizado em: 27/08/2026
+- Atualizado em: 28/08/2026
 - Responsável pela governança: mantenedor PRO MASTER
 - Ambientes: WSL2 e VPS Debian/Ubuntu
 - Arquiteturas: AMD64 e ARM64
-- Planos afetados: PRO e PRO MASTER
+- Planos de diagnóstico: PRO e PRO MASTER
 
 ## Para iniciantes — o que isso resolve
 
-Esta etapa prepara um laboratório de segurança sem liberar o teste ofensivo.
-Ela confere a identidade do Strix, fixa os arquivos oficiais e cria regras que
-impedem acesso ao servidor real. A preparação diagnóstica BETA aparece para
-PRO e PRO MASTER, mas termina informando que o executor ainda está bloqueado.
-Somente o PRO MASTER pode governar políticas, aprovar exceções ou homologar o
-executor.
+O SRE-6 analisa uma cópia compactada do código de um projeto em uma caixa
+descartável. Ele não recebe o servidor, os containers em produção, domínios,
+IPs ou volumes. Ao terminar, a caixa é apagada e somente um resumo com
+contagens permanece disponível por 24 horas.
+
+A funcionalidade continua BETA: pode produzir falso positivo, depende da
+qualidade da LLM escolhida e ainda permite acesso amplo de saída à internet
+para conversar com o provedor da IA. Ela não corrige o projeto e não substitui
+revisão humana.
 
 ## Modelo mental ou analogia
 
-É como conferir a identidade, o manual e os lacres de uma ferramenta antes de
-construir uma sala de testes. A ferramenta ainda não foi ligada e nenhuma porta
-da produção foi aberta.
-
-## Objetivo e critérios de sucesso
-
-- Objetivo: preparar uma fronteira fail closed para o futuro laboratório.
-- Evidência: manifesto e contratos válidos; planos e permissões proibidas são
-  rejeitados; o assistente termina bloqueado.
-- Falha: solicitar alvo, iniciar pentest, baixar executor ou permitir Docker da
-  produção nesta candidata.
+É como colocar uma fotocópia do projeto numa sala de inspeção lacrada. O
+inspetor pode estudar a cópia e consultar a IA, mas não recebe a chave da sala
+de produção. Depois da inspeção, a sala e as anotações detalhadas são
+destruídas; sai apenas um placar sem nomes de arquivos ou trechos de código.
 
 ## Jornada do usuário
 
-1. Um usuário PRO ou PRO MASTER abre o Assistente MNO.
-2. O cartão `Laboratório Strix SRE-6 · BETA` explica a preparação.
-3. O Terminal Seguro exige nova autenticação.
-4. O assistente valida o manifesto e informa `bloqueado até homologação`.
-5. Nenhum alvo é pedido; o próximo passo é homologar o executor isolado.
+1. Um usuário PRO ou PRO MASTER abre `Assistente MNO`.
+2. No cartão `Laboratório Strix SRE-6 · BETA`, seleciona `Executar diagnóstico`.
+3. O Terminal Seguro exige nova autenticação e confirmação humana.
+4. O usuário escolhe um único `.zip`, `.tar.gz` ou `.tgz` local, com até 128 MB.
+5. Escolhe provedor, modelo, duração, interações e orçamento máximo declarado.
+6. Usa uma chave de LLM dedicada e revogável, enviada uma única vez pela
+   entrada padrão do container.
+7. O executor copia o pacote, valida seu SHA-256, analisa a cópia e é removido.
+8. O Control Center recebe somente contagens sanitizadas válidas por 24 horas.
 
-## Visibilidade da maturidade
+## O que mudou e o que permaneceu igual
 
-- [x] BETA no ponto de entrada, cartão e diálogo;
-- [x] Help informa o que funciona e o que ainda está bloqueado;
-- [x] frontend e backend liberam diagnóstico para PRO e PRO MASTER;
-- [x] governança e homologação permanecem no gate PRO MASTER;
-- [ ] executor homologado no WSL2 e na VPS;
+Mudou: o botão deixou de terminar em “preparação bloqueada” e agora abre o
+diagnóstico real para PRO e PRO MASTER. A imagem do executor é construída e
+testada durante a instalação ou atualização do Control Center.
+
+Permaneceu igual: governança, homologação e exceções continuam exclusivas do
+PRO MASTER. Não há correção automática, shell de produção, selo, publicação de
+catálogo, commit, tag, release, DNS ou deploy automático.
+
+## Arquitetura — nota técnica para DevOps
+
+- upstream Strix `1.5.3` e wheel por arquitetura fixados por SHA-256;
+- base `ghcr.io/usestrix/strix-sandbox:1.3.0` fixada por digest AMD64/ARM64;
+- imagem executora local versionada com o Control Center;
+- UID/GID fixo `61000:61000`, sem root, sudo ou shell de login;
+- raiz somente leitura, `cap-drop ALL`, `no-new-privileges`, PID, CPU, RAM,
+  tempo, interações e orçamento limitados;
+- nenhum bind mount e nenhum `/var/run/docker.sock`;
+- pacote entra por `docker cp`, depois de autorização fechada e hash exato;
+- chave entra por `stdin`, nunca por argumento, environment, arquivo, secret ou
+  log;
+- backend `UnixLocal` executa dentro do próprio container descartável;
+- evidência bruta existe somente em `/tmp` do container e é apagada antes da
+  saída;
+- somente relatório conforme schema fechado `1.1.0` pode ser promovido.
+
+O executor usa rede `bridge` para alcançar a LLM. Nesta BETA ainda não existe
+proxy de saída com lista de destinos permitidos. Portanto, “isolado” significa
+isolado do host e da produção, não isolado da internet.
+
+## Planos e autorização
+
+PRO e PRO MASTER podem executar o diagnóstico. O backend, o launcher, a
+reautenticação e o terminal repetem essa regra; esconder o botão não é tratado
+como autorização. Planos Free são bloqueados. Somente PRO MASTER governa
+políticas, aprova exceções e homologa mudanças canônicas.
+
+## Gates e evidências
+
+- [x] contratos de autorização e relatório fechados;
+- [x] lock, licença, versão, URL e hashes do upstream;
+- [x] imagem base por digest em AMD64 e ARM64;
+- [x] smoke test do import Strix e backend UnixLocal;
+- [x] UID 61000, rootfs somente leitura e capacidades removidas;
+- [x] zero mounts e zero Docker socket;
+- [x] limpeza de containers, imagem e diretório temporários da homologação;
+- [x] diagnóstico liberado para PRO e PRO MASTER;
+- [x] governança exclusiva do PRO MASTER;
+- [ ] validação visual da candidata no WSL2 AMD64;
+- [ ] validação visual da candidata em VPS ARM64;
 - [ ] promoção estável declarada por Francis MNO.
 
-## Como funciona por dentro — nota técnica para DevOps
+## Segurança, privacidade e limites
 
-O pacote contém um lock de upstream, dois schemas JSON fechados e um validador
-determinístico. O terminal apenas valida esses artefatos e apresenta o estado.
-Não existe imagem executora, serviço, stack, rede, volume ou secret do Strix.
-`Fail closed` significa que ausência, divergência ou permissão extra bloqueia o
-fluxo em vez de tentar continuar.
-
-## Arquitetura e dados
-
-O futuro executor deverá ser efêmero e separado do Terminal Seguro. Ele não
-receberá `/var/run/docker.sock`, `/root`, secrets globais nem mounts da
-produção. Esta candidata não coleta nem persiste alvos ou achados.
-
-## Permissões e planos
-
-O diagnóstico é permitido a `pro` e `pro-master` no frontend, endpoint de
-reautenticação, proxy do terminal e launcher. Governança, exceções e
-homologação continuam restritas a `pro-master`. Ocultar o cartão nunca é usado
-como autorização.
-
-## Gates
-
-- [x] Bash e contratos;
-- [x] versão, licença e hashes do upstream;
-- [x] diagnóstico PRO/PRO MASTER e negação dos planos Free;
-- [x] governança e homologação exclusivas do PRO MASTER;
-- [x] bloqueio sem executor;
-- [ ] imagem sandbox por digest;
-- [ ] homologação funcional WSL2 AMD64 e VPS ARM64.
-
-## Segurança e privacidade
-
-Nenhuma credencial, alvo, IP, hostname, evidência bruta ou correção é aceita.
-Relatórios futuros só poderão conter contagens sanitizadas e expirarão. Selo,
-catálogo e remediação automática permanecem proibidos.
-
-## Rollback
-
-Retornar à v7.36.2 remove o ponto de entrada e os contratos. Como nenhum
-executor ou dado foi criado, não há stack, volume ou alvo para restaurar.
-
-## FAQ e falhas conhecidas
-
-- O botão executa um pentest? Não; ele confirma que o executor está bloqueado.
-- Posso informar um site? Não nesta candidata.
-- Funciona para plano PRO? A preparação diagnóstica, sim. Governança,
-  exceções e homologação continuam somente no PRO MASTER.
-- O upstream é estável? O projeto declara estado Alpha; por isso a integração
-  permanece BETA e bloqueada.
+- use somente pacote-fonte próprio ou expressamente autorizado;
+- não compacte `.env`, backups, chaves, tokens ou dados pessoais;
+- use chave de LLM dedicada, limitada e revogável;
+- o limite de gasto declarado no Setup não substitui o limite no provedor;
+- a LLM recebe contexto produzido pelo Strix e sua qualidade afeta o resultado;
+- achados são BETA, podem estar errados e exigem revisão humana;
+- o executor não deve ser confundido com pentest de domínio ou servidor;
+- qualquer divergência de contrato, hash ou isolamento bloqueia a execução.
 
 ## Como testar no WSL2 e na VPS
 
-1. Atualize a candidata e confirme Setup `7.37.1` e Control `4.37.1`.
-2. Entre como PRO e abra o cartão Strix BETA; repita com PRO MASTER.
-3. Resultado esperado: mensagem `bloqueado até homologação`, sem pedir alvo.
-4. Sinal de falha: download, criação de container, pedido de URL ou execução.
-5. Confirme que stacks e serviços antes/depois continuam iguais.
-6. Confirme que um plano Free recebe bloqueio e que somente PRO MASTER mantém
-   as áreas de governança e homologação.
+Pré-requisitos: Docker ativo, Control Center atualizado, plano PRO ou PRO
+MASTER, pacote fictício sem segredos e chave dedicada de teste.
 
-## Glossário mínimo
+1. Confirme Setup `7.38.0` e Control Center `4.38.0`.
+2. Abra Assistente MNO > SRE-6 BETA > `Executar diagnóstico isolado`.
+3. Informe um pacote fictício em `/tmp/exemplo-seguro.zip`.
+4. Revise limites, digite `AUTORIZO` e forneça a chave dedicada.
+5. Resultado esperado: relatório com estado e contagens, validade de 24 horas e
+   aviso de que nenhuma correção foi aplicada.
+6. Sinal de falha: pedido de domínio/IP, acesso a serviço real, container que
+   permanece após o fim, chave em log, ausência da etiqueta BETA ou mensagem de
+   contrato/hash divergente.
+7. Compare stacks e serviços antes/depois: nenhum recurso de produção deve ser
+   criado, reiniciado ou atualizado.
 
-- Strix: ferramenta externa de teste de segurança assistido por IA.
-- Pentest: teste autorizado que procura falhas; nunca deve atingir terceiros.
-- Sandbox: ambiente temporário separado do servidor real.
+Homologação técnica do mantenedor:
 
-## Como ensinar esta feature
+```bash
+bash 1_codigo_fonte/setupmno-control/strix-lab/homologate.sh
+```
 
-- Objetivo: mostrar que preparar segurança não é o mesmo que executar ataque.
-- Demonstração: abrir o cartão e reconhecer o bloqueio explícito.
-- Erro comum: acreditar que BETA ou PRO MASTER autoriza qualquer alvo.
-- Limite obrigatório: somente autorização escrita e laboratório isolado futuro.
+O sucesso termina com `SRE6_HOMOLOGATION_OK` e
+`SRE6_HOMOLOGATION_CLEANUP_OK`. A falha mostra as últimas evidências de build e
+ainda remove somente os recursos com o identificador exclusivo da execução.
 
-## Publicação futura no Help
+## Erros comuns
 
-O resumo, a jornada, a FAQ e o teste visual podem ser adaptados. Detalhes de
-contratos e hashes permanecem na documentação técnica.
+- `imagem não disponível`: a atualização do Control Center não construiu a
+  imagem; consulte o log de reconciliação e repita a sincronização.
+- `pacote inválido`: use ZIP/TAR regular, sem link simbólico e dentro do limite.
+- `relatório não produzido`: confirme disponibilidade, crédito, modelo e
+  limites do provedor; nenhuma saída bruta é preservada.
+- resultado fraco ou inconsistente: repita com modelo de melhor qualidade e
+  compare somente contagens revisadas, nunca trate a LLM como prova.
+
+## Rollback
+
+Voltar para v7.37.2 remove a jornada executável e restaura a preparação
+bloqueada. A reconciliação anterior do Control Center deve ser usada; não
+remova stacks, volumes ou bancos. Imagens locais antigas sem serviço associado
+podem ser removidas somente depois de confirmar o nome exato e que não estão em
+uso.
+
+## Como explicar para a comunidade
+
+“O SRE-6 BETA analisa uma cópia local do código numa caixa descartável, sem
+entrar no Docker ou no servidor em produção. Ele entrega apenas contagens para
+revisão humana, não corrige nada sozinho, e a qualidade depende da IA escolhida.”

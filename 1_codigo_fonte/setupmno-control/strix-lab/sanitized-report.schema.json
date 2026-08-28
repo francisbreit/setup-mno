@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://setupmno.local/schemas/strix-sanitized-report-1.0.0.json",
+  "$id": "https://setupmno.local/schemas/strix-sanitized-report-1.1.0.json",
   "title": "Relatório sanitizado do Laboratório Strix SRE-6 BETA",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "contractVersion", "maturity", "authorizationID", "targetSHA256", "generatedAt", "expiresAt", "status", "counts", "limitations", "execution", "rawEvidenceStored", "sealGranted", "catalogPublished", "remediationApplied"],
+  "required": ["schemaVersion", "contractVersion", "maturity", "authorizationID", "targetSHA256", "generatedAt", "expiresAt", "status", "counts", "limitations", "executor", "execution", "rawEvidenceStored", "sealGranted", "catalogPublished", "remediationApplied"],
   "properties": {
     "schemaVersion": {"const": 1},
-    "contractVersion": {"const": "1.0.0"},
+    "contractVersion": {"const": "1.1.0"},
     "maturity": {"const": "beta"},
     "authorizationID": {"type": "string", "pattern": "^strix-[a-z0-9]{12,48}$"},
     "targetSHA256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
@@ -27,6 +27,20 @@
       }
     },
     "limitations": {"type": "array", "maxItems": 20, "items": {"type": "string", "minLength": 1, "maxLength": 240}},
+    "executor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["userID", "rootless", "readOnlyRootFilesystem", "capabilitiesDropped", "noNewPrivileges", "productionDockerSocketPresent", "hostMountsPresent"],
+      "properties": {
+        "userID": {"const": 61000},
+        "rootless": {"const": true},
+        "readOnlyRootFilesystem": {"const": true},
+        "capabilitiesDropped": {"const": true},
+        "noNewPrivileges": {"const": true},
+        "productionDockerSocketPresent": {"const": false},
+        "hostMountsPresent": {"const": false}
+      }
+    },
     "execution": {
       "type": "object",
       "additionalProperties": false,

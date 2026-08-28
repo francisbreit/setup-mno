@@ -10,22 +10,30 @@
   "sourceTag": "v1.5.3",
   "artifacts": {
     "amd64": {
-      "filename": "strix_agent-1.5.3-py3-none-manylinux_2_35_x86_64.whl",
+      "filename": "strix_agent-1.5.3-py3-none-manylinux_2_17_x86_64.whl",
+      "url": "https://files.pythonhosted.org/packages/63/11/17a38cedceee7dc63d10f0728139a73576fe6f651a6108f3b5f70f2930c1/strix_agent-1.5.3-py3-none-manylinux_2_17_x86_64.whl",
       "sha256": "ba0b6b13f13f41e45f3eb4dba515641d1bc71363ca6e758d0cd05c20ff56b6ea"
     },
     "arm64": {
-      "filename": "strix_agent-1.5.3-py3-none-manylinux_2_35_aarch64.whl",
+      "filename": "strix_agent-1.5.3-py3-none-manylinux_2_17_aarch64.whl",
+      "url": "https://files.pythonhosted.org/packages/85/64/87302f2cacf30cedd5cabc3d2a06fa478173dd307b33ba53377a84d97cce/strix_agent-1.5.3-py3-none-manylinux_2_17_aarch64.whl",
       "sha256": "da35ae6e9a6ae0bf5cc662012608cf0aa671479129ba94052a3f893bff74c43f"
     },
     "source": {
       "filename": "strix_agent-1.5.3.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/4d/23/f57acbdcf57bdbdd2ad156a2cac188a9107666d387c9031b993a6a0448ec/strix_agent-1.5.3.tar.gz",
       "sha256": "a5babe4e6d42cb24a10d4508bcd3c477bd369ff7194c95a7c58de6d6e4c3be18"
     }
   },
   "sandbox": {
-    "status": "pending-homologation",
-    "image": "",
-    "digest": ""
+    "status": "homologated-isolated",
+    "baseImage": "ghcr.io/usestrix/strix-sandbox:1.3.0",
+    "digests": {
+      "amd64": "sha256:e5e5d9927f15ca95ad49804ef7d22439771cd27378f400da6edd47556799baff",
+      "arm64": "sha256:38f9eea087079763312877eaf59047c3bd61ece67ab3479c1da63dc48fe50587"
+    },
+    "executorContractVersion": "1.1.0",
+    "executorUserID": 61000
   },
   "fork": {
     "used": false,
@@ -33,8 +41,8 @@
     "diffSHA256": ""
   },
   "execution": {
-    "available": false,
-    "reason": "Executor isolado ainda não homologado no WSL2 e na VPS.",
+    "available": true,
+    "reason": "Diagnóstico BETA de pacote-fonte local em executor efêmero isolado.",
     "productionDockerSocketAllowed": false,
     "productionRootMountAllowed": false,
     "targetMutationAllowed": false,

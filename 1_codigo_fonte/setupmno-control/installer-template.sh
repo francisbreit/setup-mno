@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 set -o pipefail
 umask 077
-CONTROL_VERSION="4.37.2"
+CONTROL_VERSION="4.38.0"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -1457,6 +1457,7 @@ terminal_service="${nome_app}-terminal"
 assistant_service="${nome_app}-assistant"
 control_image="${nome_app}-app:${CONTROL_VERSION}"
 terminal_image="${nome_app}-terminal:${CONTROL_VERSION}"
+strix_executor_image="${nome_app}-strix-executor:${CONTROL_VERSION}"
 admin_secret="${nome_app}-admin-password"
 agent_secret="${nome_app}-agent-token"
 llm_secret="${nome_app}-llm-api-key"
@@ -1598,7 +1599,7 @@ error_file="/tmp/${nome_app}-error.log"
     }
 
     echo -e "XXX\n4\nVALIDANDO AMBIENTE... \nXXX"
-    for required_command in docker curl jq tar openssl; do
+    for required_command in docker curl jq tar openssl python3; do
         command -v "$required_command" >/dev/null 2>&1 ||
             fail_install 10 "DEPENDÊNCIA NÃO ENCONTRADA" "O comando obrigatório '$required_command' não está instalado."
     done
@@ -1663,6 +1664,7 @@ error_file="/tmp/${nome_app}-error.log"
         terminal-menu.sh configure-control.sh control-upgrade.sh cloudflare-mfa.sh install-heartbeat.sh \
         main.go access.go knowledge.go retrieval.go routing.go prompts.go sre_snapshot.go consultative_plan.go runbook_registry.go assistant_output_gate.go blueprint_recommendation.go evals.go provider_evals.go feedback.go audit.go homologation.go catalog.json \
         strix-lab/upstream-lock.json strix-lab/authorization.schema.json strix-lab/sanitized-report.schema.json strix-lab/validate.py strix-lab/wizard.sh strix-lab/test.sh \
+        strix-lab/build-executor.sh strix-lab/executor.Dockerfile strix-lab/executor.py \
         web/index.html web/app.js web/assistant-route.js web/styles.css web/terminal-bridge.js; do
         [ -s "$work_dir/source/$source_file" ] ||
             fail_install 21 "FONTE INCOMPLETO" "O arquivo interno '$source_file' não foi encontrado no bundle."
@@ -1775,6 +1777,19 @@ error_file="/tmp/${nome_app}-error.log"
         "$terminal_image" >>"$install_log" 2>&1; then
         fail_install 33 "IMAGEM DO TERMINAL NÃO ENCONTRADA" "O build terminou, mas a imagem do terminal não foi confirmada."
     fi
+
+    start_install_heartbeat 44 "CONSTRUINDO O EXECUTOR ISOLADO SRE-6 BETA..."
+    if ! bash "$work_dir/source/strix-lab/build-executor.sh" \
+        "$work_dir/source" "$strix_executor_image" "$install_log" >>"$install_log" 2>&1; then
+        {
+            echo "Falha ao construir ou validar o executor isolado SRE-6 BETA."
+            echo
+            tail -n 24 "$install_log"
+        } >"$error_file"
+        echo -e "XXX\n100\nERRO NO BUILD DO EXECUTOR SRE-6\nXXX"
+        exit 33
+    fi
+    stop_install_heartbeat
 
     echo -e "XXX\n46\nVALIDANDO COMPATIBILIDADE DO INSTALADOR... \nXXX"
     if ! docker run --rm \
@@ -1897,6 +1912,7 @@ services:
       - SETUPMNO_CONTROL_ADMIN_SECRET=$admin_secret
       - SETUPMNO_CONTROL_ADMIN_USERNAME=$usuario_control
       - SETUPMNO_CONTROL_PLAN=$CONTROL_PLAN
+      - SETUPMNO_STRIX_EXECUTOR_IMAGE=$strix_executor_image
       - SETUPMNO_DOCKER_SOCKET_GID=$docker_socket_gid
     networks:
       - interna
@@ -2348,7 +2364,7 @@ EOL
         [ -n "$SWARM_ID" ] ||
             fail_install 87 "SWARM NÃO ENCONTRADO" "O Portainer não retornou um Swarm ID válido."
 
-        for image_ref in "$control_image" "$terminal_image"; do
+        for image_ref in "$control_image" "$terminal_image" "$strix_executor_image"; do
             image_encoded=$(printf '%s' "$image_ref" | jq -sRr @uri)
             image_http=$(curl -sk -o "$work_dir/image-check.json" -w "%{http_code}" \
                 "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/images/$image_encoded/json" \

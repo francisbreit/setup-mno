@@ -116,6 +116,10 @@ próximo item técnico pendente.
    - candidata v7.37.1 corrige a matriz: diagnóstico seguro para PRO e
      PRO MASTER; governança, exceções e homologação continuam exclusivas do
      PRO MASTER;
+   - candidata v7.38.0 conclui o executor efêmero: pacote-fonte local, imagem
+     fixada por digest, UID 61000, raiz somente leitura, zero capabilities,
+     zero mounts e zero Docker socket; somente contagens sanitizadas saem do
+     container descartável;
    - pentest opcional somente contra alvos expressamente autorizados;
    - execução em ambiente temporário, isolado, inventariado e limitado por
      rede, tempo, CPU, memória e orçamento de LLM;
@@ -132,6 +136,28 @@ diagnóstico compreensível e baseado em fatos, enquanto o mantenedor conserva a
 fronteira de confiança, a aprovação final e a rastreabilidade de toda ação. A
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
+
+## v7.38.0 — Executor efêmero isolado do Strix SRE-6 (candidata; BETA)
+
+- substitui a preparação bloqueada por diagnóstico real de pacote-fonte local
+  para PRO e PRO MASTER;
+- constrói e valida uma imagem por arquitetura a partir de base e wheel fixados
+  por digest e SHA-256;
+- executa como UID 61000, sem root, sudo, capabilities, mounts ou Docker socket,
+  com raiz somente leitura e limites de tempo, CPU, RAM, PIDs, interações e
+  orçamento declarado de LLM;
+- recebe a chave dedicada apenas por entrada padrão e preserva somente relatório
+  sanitizado conforme contrato fechado, válido por 24 horas;
+- mantém governança, exceções e homologação exclusivas do PRO MASTER;
+- não corrige, publica, sela, commita, cria tag, DNS ou deploy automaticamente;
+- permanece BETA e declara como limite conhecido a saída de internet ampla para
+  a LLM, além da dependência direta da qualidade do modelo escolhido;
+- Setup MNO `7.38.0` e Control Center `4.38.0` são candidatos; a última versão
+  estável homologada continua sendo `7.36.2`.
+
+O próximo item macro do roadmap passa a ser revalidação contínua, expiração,
+detecção de drift e revogação de selos. Esta etapa só será iniciada depois da
+homologação visual da candidata v7.38.0 no WSL2 AMD64 e na VPS ARM64.
 
 ## v7.37.2 — Legibilidade e temas do Control Center (candidata)
 

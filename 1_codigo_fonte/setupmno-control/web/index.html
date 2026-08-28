@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta id="theme-color" name="theme-color" content="#07090d">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=4.37.2">
+  <link rel="stylesheet" href="/styles.css?v=4.38.0">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -305,10 +305,10 @@
               </article>
               <article id="assistant-strix-card" class="panel">
                 <div class="panel-head"><p class="eyebrow">Laboratório Strix · BETA</p><span class="secure-pill">SRE-6</span></div>
-                <h3>Preparação segura · PRO e PRO MASTER</h3>
-                <p>Versão e hashes oficiais fixados. O executor isolado ainda não foi homologado; esta candidata não solicita alvo nem inicia pentest.</p>
+                <h3>Diagnóstico isolado de pacote-fonte</h3>
+                <p>PRO e PRO MASTER podem analisar um arquivo local autorizado em contêiner descartável, sem root, sem mounts e sem Docker socket. A LLM externa e o resultado BETA exigem revisão humana.</p>
                 <ul><li>Sem Docker socket ou /root da produção</li><li>Sem mutação ou correção automática</li><li>Somente contratos sanitizados e fail closed</li></ul>
-                <button class="light-button" data-action="strix">Abrir preparação segura <b>→</b></button>
+                <button class="light-button" data-action="strix">Executar diagnóstico isolado <b>→</b></button>
               </article>
               <article id="assistant-quality-card" class="panel assistant-quality-card" aria-live="polite">
                 <span class="assistant-quality-icon" aria-hidden="true">✓</span>
@@ -523,7 +523,7 @@
               <span class="help-feature-icon violet">✦</span><div><span class="help-status">BETA</span><h3>Assistente MNO</h3><p>Ajuda a interpretar saúde, capacidade, setups, segurança, integrações e falhas. Como recurso Beta, suas respostas são orientações e precisam de revisão humana. Ele não executa comandos. No modo Básico, usa diagnóstico local sem LLM.</p></div><button type="button" data-nav="assistant">Abrir Assistente Beta <b>→</b></button>
             </article>
             <article class="help-feature-card help-topic" data-help-topic data-help-category="operate concept" data-help-search="strix sre-6 laboratório pentest pro pro master autorização sandbox beta">
-              <span class="help-feature-icon orange">◎</span><div><span class="help-status">SRE-6 · BETA · Preparação</span><h3>Laboratório Strix</h3><p>Os planos PRO e PRO MASTER podem abrir a preparação de um futuro diagnóstico autorizado e isolado. Nesta candidata o executor ainda está bloqueado: nenhum alvo é solicitado, nenhum scanner é iniciado e nenhuma correção é aplicada. Governança, exceções e homologação continuam exclusivas do PRO MASTER.</p></div><button type="button" data-action="strix">Abrir preparação segura <b>→</b></button>
+              <span class="help-feature-icon orange">◎</span><div><span class="help-status">SRE-6 · BETA</span><h3>Laboratório Strix</h3><p>Os planos PRO e PRO MASTER podem analisar um pacote-fonte local autorizado em um executor efêmero. O contêiner não recebe root, mounts, Docker socket, serviço, domínio ou credenciais da produção. Governança, exceções e homologação continuam exclusivas do PRO MASTER.</p></div><button type="button" data-action="strix">Executar diagnóstico isolado <b>→</b></button>
             </article>
             <article class="help-feature-card help-topic" data-help-topic data-help-category="operate" data-help-search="auditoria eventos login terminal rastreabilidade feedback segurança histórico">
               <span class="help-feature-icon orange">≡</span><div><h3>Auditoria</h3><p>Registra eventos administrativos e de segurança sem armazenar senhas nem o texto das conversas. Use a trilha para entender quando uma sessão ou recurso protegido foi acessado.</p></div><button type="button" data-nav="audit">Ver auditoria <b>→</b></button>
@@ -573,8 +573,8 @@
               </div>
             </details>
             <details class="help-guide help-topic" data-help-topic data-help-category="operate solve concept" data-help-search="strix sre-6 laboratório pentest pro pro master autorização sandbox hashes executor isolado">
-              <summary><span class="help-guide-number">06</span><span><strong>Preparar o Laboratório Strix</strong><small>SRE-6 BETA para PRO e PRO MASTER, ainda sem execução.</small></span><b>＋</b></summary>
-              <div class="help-guide-body"><ol><li>Abra <strong>Assistente MNO</strong> e localize o cartão <strong>Laboratório Strix · BETA</strong>.</li><li>Selecione <strong>Abrir preparação segura</strong> e redigite a senha administrativa.</li><li>Leia o estado exibido pelo Terminal Seguro. A versão upstream 1.5.3 e seus hashes são validados localmente.</li><li>Confirme que a tela informa <strong>executor ainda não homologado</strong>. Esse bloqueio é o resultado correto desta candidata.</li><li>Não informe domínio, IP, token ou credencial: a preparação não coleta alvos e não executa o Strix.</li></ol><div class="help-callout warn"><strong>O que já funciona</strong><span>Autorização PRO e PRO MASTER em três camadas, lock de versão e hashes, schemas fechados, validação fail closed e interface BETA.</span></div><div class="help-callout warn"><strong>O que ainda não funciona</strong><span>O sandbox executor não foi homologado no WSL2 e na VPS. Nenhum pentest, exploração, PoC, correção ou importação de relatório está disponível nesta fase.</span></div><div class="help-callout"><strong>Separação por plano</strong><span>PRO recebe o diagnóstico seguro. PRO MASTER herda o diagnóstico e continua sendo o único plano autorizado a governar políticas, aprovar exceções ou homologar artefatos.</span></div><div class="help-callout"><strong>Segurança</strong><span>O futuro executor não poderá usar o Docker socket nem o /root da produção, reaproveitar dados reais, alterar o alvo automaticamente ou conceder selo. Feedback deve conter apenas versão, ambiente e mensagem sanitizada, nunca credenciais ou dados do alvo.</span></div></div>
+              <summary><span class="help-guide-number">06</span><span><strong>Usar o Laboratório Strix</strong><small>SRE-6 BETA para diagnóstico controlado em PRO e PRO MASTER.</small></span><b>＋</b></summary>
+              <div class="help-guide-body"><ol><li>Crie um <strong>ZIP, TAR.GZ ou TGZ</strong> do código autorizado e copie-o para <code>/tmp</code> ou <code>/root</code>. Não inclua <code>.env</code>, chaves, backups ou dados pessoais.</li><li>Abra <strong>Assistente MNO</strong>, selecione <strong>Executar diagnóstico isolado</strong> e redigite a senha administrativa.</li><li>Escolha OpenAI ou OpenRouter, informe o modelo, limites de tempo, interações e gasto e use uma chave dedicada e revogável.</li><li>Digite <strong>AUTORIZO</strong> somente depois de conferir o arquivo e os limites. O executor recebe apenas a cópia local, a autorização fechada e a chave pela entrada padrão.</li><li>Ao final, revise as contagens sanitizadas válidas por 24 horas. Achados BETA podem ser falsos positivos; nenhum caminho, CVE, código bruto ou correção é preservado.</li></ol><div class="help-callout warn"><strong>Limite conhecido</strong><span>O executor permite saída ampla à internet para consultar a LLM; ainda não existe allowlist por destino. Use chave dedicada com limite no provedor e não analise segredos.</span></div><div class="help-callout"><strong>Separação por plano</strong><span>PRO recebe o diagnóstico seguro. PRO MASTER herda o diagnóstico e continua sendo o único plano autorizado a governar políticas, aprovar exceções ou homologar artefatos.</span></div><div class="help-callout"><strong>Segurança</strong><span>O contêiner é descartável, executa como UID não-root, usa raiz somente leitura, perde todas as capabilities e não recebe mounts, Docker socket ou acesso ao host. Ele não altera o alvo, concede selo, publica catálogo nem executa correções.</span></div><div class="help-callout warn"><strong>Como enviar feedback</strong><span>Informe versão, arquitetura, estado final e contagens. Nunca envie chave de LLM, pacote-fonte, credenciais, conteúdo bruto ou dados pessoais.</span></div></div>
             </details>
           </div>
 
@@ -718,8 +718,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=4.37.2" defer></script>
-  <script src="/assistant-route.js?v=4.37.2" defer></script>
-  <script src="/app.js?v=4.37.2" defer></script>
+  <script src="/markdown.js?v=4.38.0" defer></script>
+  <script src="/assistant-route.js?v=4.38.0" defer></script>
+  <script src="/app.js?v=4.38.0" defer></script>
 </body>
 </html>

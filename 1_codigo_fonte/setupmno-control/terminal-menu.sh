@@ -144,7 +144,7 @@ while true; do
         menu_entries+=("HOMOLOGATION" "Abrir a Central do Mantenedor · PRO MASTER")
     fi
     if [ "$CONTROL_PLAN" = "pro" ] || [ "$CONTROL_PLAN" = "pro-master" ]; then
-        menu_entries+=("STRIX" "Preparar diagnóstico Strix SRE-6 · BETA")
+        menu_entries+=("STRIX" "Executar diagnóstico isolado Strix SRE-6 · BETA")
     fi
     menu_entries+=("EXIT" "Encerrar esta sessão do terminal")
     choice=$(whiptail --title "SETUP MNO — TERMINAL SEGURO" --menu \

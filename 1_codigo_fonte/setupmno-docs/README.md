@@ -91,6 +91,7 @@ Documentos atuais de arquitetura e operação:
 - `releases/v7.37.0-preparacao-laboratorio-strix-sre6.md`;
 - `releases/v7.37.1-correcao-matriz-strix-pro.md`;
 - `releases/v7.37.2-acessibilidade-temas-control-center.md`;
+- `releases/v7.38.0-executor-efemero-strix-sre6.md`;
 - `sre/architecture/read-only-specialist.md`;
 - `sre/manual/usar-diagnostico-seguro.md`;
 - `releases/v7.33.0-especialista-sre-read-only.md`.

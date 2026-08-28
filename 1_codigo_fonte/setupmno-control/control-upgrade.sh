@@ -108,12 +108,13 @@ service_has_group() {
 }
 
 schedule_terminal_update() {
-    local old_socket_gid finalizer_name has_image_env=false has_plan_env=false
+    local old_socket_gid finalizer_name has_image_env=false has_plan_env=false has_strix_env=false
     local -a args
     old_socket_gid=$(service_env_value "$terminal_service" SETUPMNO_DOCKER_SOCKET_GID)
     [ -z "$old_socket_gid" ] || [[ "$old_socket_gid" =~ ^[0-9]+$ ]] || return 1
     service_has_env_key "$terminal_service" SETUPMNO_CONTROL_IMAGE && has_image_env=true
     service_has_env_key "$terminal_service" SETUPMNO_CONTROL_PLAN && has_plan_env=true
+    service_has_env_key "$terminal_service" SETUPMNO_STRIX_EXECUTOR_IMAGE && has_strix_env=true
     args=(--image "$terminal_image")
     if [ -n "$old_socket_gid" ] && [ "$old_socket_gid" != "$socket_gid" ] &&
        service_has_group "$terminal_service" "$old_socket_gid"; then
@@ -122,9 +123,11 @@ schedule_terminal_update() {
     service_has_group "$terminal_service" "$socket_gid" || args+=(--group-add "$socket_gid")
     [ "$has_image_env" = "false" ] || args+=(--env-rm SETUPMNO_CONTROL_IMAGE)
     [ "$has_plan_env" = "false" ] || args+=(--env-rm SETUPMNO_CONTROL_PLAN)
+    [ "$has_strix_env" = "false" ] || args+=(--env-rm SETUPMNO_STRIX_EXECUTOR_IMAGE)
     [ -z "$old_socket_gid" ] || args+=(--env-rm SETUPMNO_DOCKER_SOCKET_GID)
     args+=(--env-add "SETUPMNO_CONTROL_IMAGE=$control_image")
     args+=(--env-add "SETUPMNO_CONTROL_PLAN=$plan")
+    args+=(--env-add "SETUPMNO_STRIX_EXECUTOR_IMAGE=$strix_executor_image")
     args+=(--env-add "SETUPMNO_DOCKER_SOCKET_GID=$socket_gid")
     args+=(--force --detach=true "$terminal_service")
     finalizer_name="${terminal_service%%_*}-reconcile-finalizer"
@@ -296,12 +299,15 @@ esac
 
 control_image="${prefix}-app:${target_version}"
 terminal_image="${prefix}-terminal:${target_version}"
+strix_executor_image="${prefix}-strix-executor:${target_version}"
 socket_gid=$(docker_socket_gid) ||
     fail_upgrade 15 "O grupo de acesso ao Docker não pôde ser identificado para o Terminal Seguro."
 if [ "$(service_image "$web_service")" = "$control_image" ] &&
    [ "$(service_image "$agent_service")" = "$control_image" ] &&
    agent_version_is_current "$agent_service" &&
    [ "$(service_image "$terminal_service")" = "$terminal_image" ] &&
+   docker image inspect "$strix_executor_image" >/dev/null 2>&1 &&
+   [ "$(service_env_value "$terminal_service" SETUPMNO_STRIX_EXECUTOR_IMAGE)" = "$strix_executor_image" ] &&
    { [ "$assistant_exists" = "false" ] ||
      [ "$(service_image "$assistant_service")" = "$control_image" ]; }; then
     if service_has_group "$terminal_service" "$socket_gid" &&
@@ -325,7 +331,11 @@ for required_source in go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.
     terminal-menu.sh configure-control.sh control-upgrade.sh main.go access.go knowledge.go \
     retrieval.go routing.go prompts.go sre_snapshot.go consultative_plan.go runbook_registry.go blueprint_recommendation.go evals.go \
     provider_evals.go feedback.go audit.go homologation.go web/index.html web/app.js web/assistant-route.js \
-    web/styles.css web/terminal-bridge.js; do
+    web/styles.css web/terminal-bridge.js \
+    strix-lab/upstream-lock.json strix-lab/authorization.schema.json \
+    strix-lab/sanitized-report.schema.json strix-lab/validate.py strix-lab/wizard.sh \
+    strix-lab/test.sh strix-lab/build-executor.sh strix-lab/executor.Dockerfile \
+    strix-lab/executor.py; do
     [ -s "$source_dir/$required_source" ] && [ ! -L "$source_dir/$required_source" ] ||
         fail_upgrade 20 "Bundle incompleto ou inseguro: $required_source."
 done
@@ -368,6 +378,10 @@ run_with_heartbeat 40 "EXECUTANDO A SUÍTE DE QUALIDADE DO PAINEL..." \
 run_with_heartbeat 45 "CONSTRUINDO A IMAGEM DO TERMINAL PROTEGIDO..." \
     docker build --pull -f "$source_dir/terminal.Dockerfile" -t "$terminal_image" \
     "$source_dir" || fail_upgrade 32 "Falha ao construir o terminal protegido."
+run_with_heartbeat 50 "CONSTRUINDO E VALIDANDO O EXECUTOR ISOLADO SRE-6 BETA..." \
+    bash "$source_dir/strix-lab/build-executor.sh" \
+    "$source_dir" "$strix_executor_image" "$log_file" ||
+    fail_upgrade 32 "Falha ao construir ou validar o executor isolado SRE-6 BETA."
 run_with_heartbeat 55 "VALIDANDO A COMPATIBILIDADE DO TERMINAL COM O SHC..." \
     docker run --rm --entrypoint /usr/bin/ldd -v /root:/root:ro \
     -v /usr/bin/bash:/usr/bin/bash:ro "$terminal_image" \

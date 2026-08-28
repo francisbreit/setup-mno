@@ -45,26 +45,46 @@ def validate_lock(value):
         "source": "a5babe4e6d42cb24a10d4508bcd3c477bd369ff7194c95a7c58de6d6e4c3be18",
     }
     if set(value["artifacts"]) != set(hashes): fail("arquiteturas upstream divergentes")
+    urls = {
+        "amd64": "https://files.pythonhosted.org/packages/63/11/17a38cedceee7dc63d10f0728139a73576fe6f651a6108f3b5f70f2930c1/strix_agent-1.5.3-py3-none-manylinux_2_17_x86_64.whl",
+        "arm64": "https://files.pythonhosted.org/packages/85/64/87302f2cacf30cedd5cabc3d2a06fa478173dd307b33ba53377a84d97cce/strix_agent-1.5.3-py3-none-manylinux_2_17_aarch64.whl",
+        "source": "https://files.pythonhosted.org/packages/4d/23/f57acbdcf57bdbdd2ad156a2cac188a9107666d387c9031b993a6a0448ec/strix_agent-1.5.3.tar.gz",
+    }
     for arch, digest in hashes.items():
         artifact = value["artifacts"][arch]
-        keys(artifact, ["filename", "sha256"])
-        if artifact["sha256"] != digest or not HEX64.fullmatch(artifact["sha256"]): fail("hash upstream divergente")
-    keys(value["sandbox"], ["status", "image", "digest"])
-    if value["sandbox"] != {"status": "pending-homologation", "image": "", "digest": ""}: fail("sandbox não homologado deve permanecer bloqueado")
+        keys(artifact, ["filename", "url", "sha256"])
+        if artifact["sha256"] != digest or artifact["url"] != urls[arch] or not HEX64.fullmatch(artifact["sha256"]): fail("artefato upstream divergente")
+    keys(value["sandbox"], ["status", "baseImage", "digests", "executorContractVersion", "executorUserID"])
+    keys(value["sandbox"]["digests"], ["amd64", "arm64"])
+    expected_sandbox = {
+        "status": "homologated-isolated",
+        "baseImage": "ghcr.io/usestrix/strix-sandbox:1.3.0",
+        "digests": {
+            "amd64": "sha256:e5e5d9927f15ca95ad49804ef7d22439771cd27378f400da6edd47556799baff",
+            "arm64": "sha256:38f9eea087079763312877eaf59047c3bd61ece67ab3479c1da63dc48fe50587",
+        },
+        "executorContractVersion": "1.1.0",
+        "executorUserID": 61000,
+    }
+    if value["sandbox"] != expected_sandbox: fail("sandbox homologado divergente")
     keys(value["fork"], ["used", "commit", "diffSHA256"])
     if value["fork"] != {"used": False, "commit": "", "diffSHA256": ""}: fail("fork não auditado")
     keys(value["execution"], ["available", "reason", "productionDockerSocketAllowed", "productionRootMountAllowed", "targetMutationAllowed", "automaticExecution"])
-    if value["execution"]["available"] is not False or any(value["execution"][k] is not False for k in ["productionDockerSocketAllowed", "productionRootMountAllowed", "targetMutationAllowed", "automaticExecution"]): fail("execução insegura")
+    if value["execution"]["available"] is not True or any(value["execution"][k] is not False for k in ["productionDockerSocketAllowed", "productionRootMountAllowed", "targetMutationAllowed", "automaticExecution"]): fail("execução insegura")
 
 def validate_authorization(value):
-    expected = ["schemaVersion", "contractVersion", "maturity", "plan", "authorizationID", "targetSHA256", "issuedAt", "expiresAt", "maxDurationMinutes", "limits", "writtenPermission", "automaticExecution", "targetMutationAllowed", "productionDockerSocketAllowed", "productionRootMountAllowed", "state"]
+    expected = ["schemaVersion", "contractVersion", "maturity", "plan", "authorizationID", "targetType", "targetSHA256", "provider", "model", "issuedAt", "expiresAt", "maxDurationMinutes", "maxTurns", "limits", "writtenPermission", "automaticExecution", "targetMutationAllowed", "productionDockerSocketAllowed", "productionRootMountAllowed", "state"]
     keys(value, expected)
-    if (value["schemaVersion"], value["contractVersion"], value["maturity"]) != (1, "1.0.0", "beta") or value["plan"] not in ["pro", "pro-master"]: fail("contrato ou plano inválido")
+    if (value["schemaVersion"], value["contractVersion"], value["maturity"]) != (1, "1.1.0", "beta") or value["plan"] not in ["pro", "pro-master"]: fail("contrato ou plano inválido")
     if not isinstance(value["authorizationID"], str) or not AUTH_ID.fullmatch(value["authorizationID"]): fail("identificador inválido")
+    if value["targetType"] != "source-archive": fail("tipo de alvo proibido")
     if not isinstance(value["targetSHA256"], str) or not HEX64.fullmatch(value["targetSHA256"]): fail("alvo não sanitizado")
+    if value["provider"] not in ["openai", "openrouter"]: fail("provedor inválido")
+    if not isinstance(value["model"], str) or not re.fullmatch(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{2,159}$", value["model"]): fail("modelo inválido")
     issued, expires = instant(value["issuedAt"]), instant(value["expiresAt"])
     if expires <= issued or expires - issued > dt.timedelta(hours=2): fail("janela de autorização inválida")
     if not integer(value["maxDurationMinutes"]) or not 1 <= value["maxDurationMinutes"] <= 120: fail("duração inválida")
+    if not integer(value["maxTurns"]) or not 1 <= value["maxTurns"] <= 40: fail("turnos inválidos")
     keys(value["limits"], ["cpu", "memoryMB", "llmBudgetUSD"])
     cpu, memory, budget = value["limits"]["cpu"], value["limits"]["memoryMB"], value["limits"]["llmBudgetUSD"]
     if isinstance(cpu, bool) or not isinstance(cpu, (int, float)) or not 0 < cpu <= 2: fail("CPU inválida")
@@ -76,9 +96,9 @@ def validate_authorization(value):
     if value["state"] not in ["draft", "approved", "expired", "revoked"]: fail("estado inválido")
 
 def validate_report(value):
-    expected = ["schemaVersion", "contractVersion", "maturity", "authorizationID", "targetSHA256", "generatedAt", "expiresAt", "status", "counts", "limitations", "execution", "rawEvidenceStored", "sealGranted", "catalogPublished", "remediationApplied"]
+    expected = ["schemaVersion", "contractVersion", "maturity", "authorizationID", "targetSHA256", "generatedAt", "expiresAt", "status", "counts", "limitations", "executor", "execution", "rawEvidenceStored", "sealGranted", "catalogPublished", "remediationApplied"]
     keys(value, expected)
-    if (value["schemaVersion"], value["contractVersion"], value["maturity"]) != (1, "1.0.0", "beta"): fail("contrato inválido")
+    if (value["schemaVersion"], value["contractVersion"], value["maturity"]) != (1, "1.1.0", "beta"): fail("contrato inválido")
     if not isinstance(value["authorizationID"], str) or not AUTH_ID.fullmatch(value["authorizationID"]): fail("identificador inválido")
     if not isinstance(value["targetSHA256"], str) or not HEX64.fullmatch(value["targetSHA256"]): fail("alvo não sanitizado")
     generated, expires = instant(value["generatedAt"]), instant(value["expiresAt"])
@@ -87,6 +107,8 @@ def validate_report(value):
     keys(value["counts"], ["critical", "high", "medium", "low", "info"])
     if any(not integer(item) or item < 0 for item in value["counts"].values()): fail("contagem inválida")
     if not isinstance(value["limitations"], list) or len(value["limitations"]) > 20 or any(not isinstance(item, str) or not 1 <= len(item) <= 240 for item in value["limitations"]): fail("limitações inválidas")
+    keys(value["executor"], ["userID", "rootless", "readOnlyRootFilesystem", "capabilitiesDropped", "noNewPrivileges", "productionDockerSocketPresent", "hostMountsPresent"])
+    if value["executor"] != {"userID": 61000, "rootless": True, "readOnlyRootFilesystem": True, "capabilitiesDropped": True, "noNewPrivileges": True, "productionDockerSocketPresent": False, "hostMountsPresent": False}: fail("isolamento do executor inválido")
     keys(value["execution"], ["productionDockerSocketUsed", "productionRootMounted", "targetMutated", "automaticExecution"])
     for item in value["execution"].values():
         if item is not False: fail("execução insegura")
