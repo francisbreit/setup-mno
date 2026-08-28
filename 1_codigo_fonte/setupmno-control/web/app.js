@@ -2540,19 +2540,19 @@ function openAuthorizedTerminal(intent) {
       warning: "A Central PRO MASTER exige dry-runs e confirmações humanas. Ela nunca publica commit, tag ou release automaticamente."
     },
     sre: {
-      title: "Auditoria SRE-3 · BETA",
-      subtitle: "Trivy, Lynis e Docker Bench · somente leitura",
-      warning: "A execução exige confirmação humana, pode baixar ferramentas fixadas e salva apenas contagens sanitizadas válidas por 24 horas. Nenhuma correção será aplicada."
+      title: "Diagnóstico de Segurança · BETA",
+      subtitle: "Servidor e aplicações · somente leitura",
+      warning: "A análise verifica o servidor e as imagens usadas pelas aplicações. Ela pode levar alguns minutos, salva somente um resumo por 24 horas e não aplica correções."
     },
     strix: {
-      title: "Laboratório Strix SRE-6 · BETA",
-      subtitle: "Diagnóstico isolado · PRO e PRO MASTER · confirmação humana",
-      warning: "Analisa somente um pacote-fonte local escolhido e autorizado por você. O executor descartável não recebe root, mounts, Docker socket, serviço, domínio ou credenciais da produção. Use uma chave dedicada: a saída para a LLM ainda é ampla nesta versão BETA. Governança e homologação permanecem exclusivas do PRO MASTER."
+      title: "Análise avançada de código · BETA",
+      subtitle: "Strix SRE-6 · opcional para PRO e PRO MASTER",
+      warning: "Analisa somente uma cópia compactada do código escolhida por você. O modo guiado usa limites seguros automáticos. O executor não recebe acesso ao servidor, às aplicações ou aos dados de produção."
     },
     gateway: {
       title: "Terminal Seguro",
       subtitle: "Setup MNO · sessão administrativa",
-      warning: "Escolha entre Instalador, Configurações, Auditoria SRE-3 BETA, diagnóstico isolado SRE-6 BETA, Central do Mantenedor ou encerrar a sessão no menu protegido."
+      warning: "Escolha entre Instalador, Configurações, diagnóstico de segurança, análise avançada de código, Central do Mantenedor ou encerrar a sessão no menu protegido."
     }
   }[intent] || {
     title: "Terminal Seguro",

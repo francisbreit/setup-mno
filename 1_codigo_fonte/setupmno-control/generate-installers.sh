@@ -510,7 +510,8 @@ grep -Fq 'event.type === "runbook"' "$project_dir/web/app.js" &&
 grep -Fq 'SRE-4 · BETA' "$project_dir/web/app.js" &&
 grep -Fq 'Plano consultivo · BETA' "$project_dir/web/index.html" &&
 grep -Fq 'Runbooks homologados · BETA' "$project_dir/web/index.html" &&
-grep -Fq 'SRE-5 em BETA' "$project_dir/web/index.html" || {
+grep -Fq 'SRE-5 pode recomendar apenas um runbook homologado e fechado' \
+    "$project_dir/web/index.html" || {
     printf 'ERRO: contrato fechado ou interface BETA de SRE-4/SRE-5 ausente.\n' >&2
     exit 1
 }
@@ -720,7 +721,7 @@ grep -Fq 'loadTerminalAfterDialogLayout' "$project_dir/web/app.js" &&
 grep -Fq 'title: "Central do Mantenedor"' "$project_dir/web/app.js" &&
 grep -Fq '}[intent] || {' "$project_dir/web/app.js" &&
 grep -Fq 'data-action="sre"' "$project_dir/web/index.html" &&
-grep -Fq 'Motores determinísticos · BETA' "$project_dir/web/index.html" &&
+grep -Fq 'Diagnóstico SRE Simplificado · BETA' "$project_dir/web/index.html" &&
 grep -Fq 'data-action="gateway"' "$project_dir/web/index.html" || {
     printf 'ERRO: painel sem roteamento contextual, renderização DOM ou abertura segura do Terminal.\n' >&2
     exit 1

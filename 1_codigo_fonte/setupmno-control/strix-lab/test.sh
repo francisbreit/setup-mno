@@ -40,5 +40,10 @@ fi
 grep -Fq 'USER 61000:61000' "$LAB_DIR/executor.Dockerfile"
 grep -Fq 'SETUPMNO_STRIX_REPORT:' "$LAB_DIR/executor.py"
 grep -Fq 'source-archive' "$LAB_DIR/authorization.schema.json"
+grep -Fq '"GUIADO" "Usar limites seguros automáticos — RECOMENDADO"' "$LAB_DIR/wizard.sh"
+grep -Fq 'max_duration=30' "$LAB_DIR/wizard.sh"
+grep -Fq 'max_turns=20' "$LAB_DIR/wizard.sh"
+grep -Fq 'llm_budget=1' "$LAB_DIR/wizard.sh"
+grep -Fq 'CONFIRMAÇÃO DO MODO AVANÇADO' "$LAB_DIR/wizard.sh"
 
 printf 'Contratos fechados e executor efêmero isolado do Laboratório Strix SRE-6 aprovados.\n'

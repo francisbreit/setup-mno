@@ -41,8 +41,8 @@ while IFS=$'\t' read -r relative expected_size expected_sha; do
 done < <(jq -r '.files[] | [.path, (.bytes | tostring), .sha256] | @tsv' "$MANIFEST_FILE")
 
 if [ "${SETUPMNO_SRE3_TEST_MODE:-0}" != "1" ]; then
-    whiptail --title "SRE-3 — AUDITORIA DETERMINÍSTICA (BETA)" --yesno \
-        "Executar agora Trivy, Lynis e Docker Bench em modo somente leitura?\n\nA auditoria pode baixar até três ferramentas fixadas, consumir CPU, disco e internet por alguns minutos e produzir somente um resumo sanitizado. Nenhuma correção será aplicada.\n\nContinuar?" \
+    whiptail --title "DIAGNÓSTICO DE SEGURANÇA · BETA" --yesno \
+        "Analisar agora a segurança do servidor e das aplicações?\n\nO Setup verificará vulnerabilidades conhecidas nas imagens, configuração do Linux e práticas de segurança do Docker. A análise é somente leitura, pode baixar ferramentas verificadas e levar alguns minutos.\n\nNenhuma correção será aplicada. Continuar?" \
         18 82 || exit 0
 fi
 
@@ -286,7 +286,7 @@ fi
 printf 'SRE-3 BETA: resultado sanitizado salvo. estado=%s coberturaCompleta=%s\n' \
     "$overall_status" "$complete"
 if [ "${SETUPMNO_SRE3_TEST_MODE:-0}" != "1" ]; then
-    whiptail --title "SRE-3 — AUDITORIA CONCLUÍDA (BETA)" --msgbox \
-        "Resultado sanitizado criado.\n\n${human_status}.\nMotores executados sem falha: ${successful_engines}/3.\nMotores com cobertura parcial: ${partial_engines}/3.\n\nNo Terminal Seguro, e especialmente no WSL2, alguns controles do host ou imagens não disponíveis localmente podem permanecer parciais. Isso não significa que uma falha de segurança foi confirmada.\n\nFalhas continuam visíveis no relatório. O Assistente apenas poderá ler esse resumo; nenhuma correção foi aplicada." \
+    whiptail --title "DIAGNÓSTICO CONCLUÍDO · BETA" --msgbox \
+        "Resumo seguro criado.\n\n${human_status}.\nVerificações concluídas sem falha: ${successful_engines}/3.\nVerificações com cobertura parcial: ${partial_engines}/3.\n\nCobertura parcial significa que nem tudo pôde ser examinado; não confirma sozinha uma falha. Isso é comum no WSL2 e quando uma imagem não está disponível localmente.\n\nAbra o Assistente MNO e peça uma revisão de segurança para receber a explicação didática. Nenhuma correção foi aplicada." \
         22 86
 fi

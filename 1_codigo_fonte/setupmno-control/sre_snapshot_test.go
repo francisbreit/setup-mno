@@ -245,8 +245,9 @@ func TestSREDeterministicAuditRejectsTamperAndPreservesIncompleteState(t *testin
 		t.Fatalf("cobertura incompleta foi ocultada: %#v", state)
 	}
 	disclosure := deterministicAuditDisclosure(state)
-	if !strings.Contains(disclosure, "cobertura completa: `false`") ||
-		!strings.Contains(disclosure, "trivy 0.73.0: `failed`") {
+	if !strings.Contains(disclosure, "Cobertura completa: **não**") ||
+		!strings.Contains(disclosure, "Imagens das aplicações (Trivy) 0.73.0: **não foi possível concluir**") ||
+		!strings.Contains(disclosure, "Resumo simples:") {
 		t.Fatalf("bloco fixo não preservou a falha: %s", disclosure)
 	}
 	if err := os.Chmod(filename, 0o644); err != nil {
@@ -254,6 +255,27 @@ func TestSREDeterministicAuditRejectsTamperAndPreservesIncompleteState(t *testin
 	}
 	if state = loadSREDeterministicAudit(directory, generatedAt.Add(time.Hour)); state.Status != "invalid" {
 		t.Fatalf("resultado com permissão insegura foi aceito: %#v", state)
+	}
+}
+
+func TestSREDeterministicAuditExplainsCompletedAndSkippedEngines(t *testing.T) {
+	generatedAt := time.Date(2026, 8, 28, 12, 0, 0, 0, time.UTC)
+	result := testSREDeterministicResult(generatedAt, false)
+	result.Engines[0].Status = "partial"
+	result.Engines[2].Status = "skipped"
+	result.ObservedFacts = nil
+	lines := strings.Join(deterministicAuditLines(sreDeterministicState{
+		Status: "available",
+		Result: &result,
+	}), "\n")
+	for _, expected := range []string{
+		"Configuração do Linux (Lynis) 3.1.7: **concluído**",
+		"Imagens das aplicações (Trivy) 0.73.0: **cobertura parcial**",
+		"Práticas de segurança do Docker (Docker Bench) 1.6.1: **não se aplica neste ambiente**",
+	} {
+		if !strings.Contains(lines, expected) {
+			t.Fatalf("explicação simplificada ausente %q: %s", expected, lines)
+		}
 	}
 }
 
@@ -271,7 +293,7 @@ func TestSREDeterministicAuditExpiresAndDoesNotBecomeApproval(t *testing.T) {
 		t.Fatal(err)
 	}
 	state := loadSREDeterministicAudit(directory, generatedAt.Add(25*time.Hour))
-	if state.Status != "expired" || !strings.Contains(deterministicAuditDisclosure(state), "Resultado vencido") {
+	if state.Status != "expired" || !strings.Contains(deterministicAuditDisclosure(state), "O resultado venceu") {
 		t.Fatalf("resultado vencido não foi bloqueado: %#v", state)
 	}
 }

@@ -120,6 +120,9 @@ próximo item técnico pendente.
      fixada por digest, UID 61000, raiz somente leitura, zero capabilities,
      zero mounts e zero Docker socket; somente contagens sanitizadas saem do
      container descartável;
+   - candidata v7.39.0 simplifica a jornada: o diagnóstico do servidor e das
+     aplicações vira o caminho principal, enquanto o Strix passa a ser uma
+     análise avançada opcional com modo guiado e limites seguros automáticos;
    - pentest opcional somente contra alvos expressamente autorizados;
    - execução em ambiente temporário, isolado, inventariado e limitado por
      rede, tempo, CPU, memória e orçamento de LLM;
@@ -136,6 +139,28 @@ diagnóstico compreensível e baseado em fatos, enquanto o mantenedor conserva a
 fronteira de confiança, a aprovação final e a rastreabilidade de toda ação. A
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
+
+## v7.39.0 — Diagnóstico SRE Simplificado (candidata; BETA)
+
+- cria uma entrada principal única, **Analisar segurança agora**, para a saúde
+  de segurança do servidor e das aplicações instaladas;
+- traduz os resultados de Trivy, Lynis e Docker Bench para um resumo simples,
+  preservando cobertura parcial, falhas e limitações nos detalhes técnicos;
+- separa o Strix como análise avançada e opcional de pacote de código, evitando
+  confundi-lo com diagnóstico do servidor;
+- adiciona ao Strix o modo guiado recomendado, com tempo, interações e orçamento
+  definidos automaticamente, mantendo o modo avançado e sua confirmação escrita;
+- mantém todas as funcionalidades SRE como BETA, somente leitura e disponíveis
+  conforme a matriz já existente; nenhuma correção automática é criada;
+- preserva sem alteração root, Docker socket, permissões de produção, contratos,
+  sanitização, autenticação, segregação por plano e governança PRO MASTER;
+- Setup MNO `7.39.0` e Control Center `4.39.0` são candidatos; a última versão
+  estável homologada continua sendo `7.36.2`.
+
+Esta melhoria de experiência não conclui nem reordena o backlog macro. O próximo
+item continua sendo revalidação contínua, expiração, detecção de drift e
+revogação de selos, depois da homologação da candidata no WSL2 AMD64 e na VPS
+ARM64.
 
 ## v7.38.0 — Executor efêmero isolado do Strix SRE-6 (candidata; BETA)
 

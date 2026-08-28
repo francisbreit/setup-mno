@@ -59,8 +59,8 @@ python3 -B "$engine_dir/normalize.py" \
 jq -e '.complete == false and .overallStatus == "incomplete" and any(.observedFacts[]; .code == "audit-coverage-incomplete")' \
     "$test_dir/incomplete.json" >/dev/null
 grep -Fq 'Concluída com cobertura parcial' "$project_dir/sre-engine/run.sh"
-grep -Fq 'Motores executados sem falha' "$project_dir/sre-engine/run.sh"
-grep -Fq 'Isso não significa que uma falha de segurança foi confirmada' "$project_dir/sre-engine/run.sh"
+grep -Fq 'Verificações concluídas sem falha' "$project_dir/sre-engine/run.sh"
+grep -Fq 'Cobertura parcial significa que nem tudo pôde ser examinado; não confirma sozinha uma falha' "$project_dir/sre-engine/run.sh"
 
 grep -Fq 'ghcr.io/aquasecurity/trivy@sha256:' "$engine_dir/tools.json"
 grep -Fq 'docker image save' "$engine_dir/run.sh"

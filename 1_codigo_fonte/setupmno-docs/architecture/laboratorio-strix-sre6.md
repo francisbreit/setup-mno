@@ -1,7 +1,7 @@
 # Laboratório Strix SRE-6
 
 - Versão planejada: `v7.38.0`
-- Versão entregue: candidata `v7.38.0`
+- Versão entregue: candidata `v7.39.0` com jornada guiada simplificada
 - Estado documental: `implemented`
 - Maturidade da funcionalidade: `beta`
 - Atualizado em: 28/08/2026
@@ -32,10 +32,12 @@ destruídas; sai apenas um placar sem nomes de arquivos ou trechos de código.
 ## Jornada do usuário
 
 1. Um usuário PRO ou PRO MASTER abre `Assistente MNO`.
-2. No cartão `Laboratório Strix SRE-6 · BETA`, seleciona `Executar diagnóstico`.
+2. No cartão opcional `Analisar código-fonte com Strix · BETA`, seleciona
+   `Analisar pacote de código`.
 3. O Terminal Seguro exige nova autenticação e confirmação humana.
 4. O usuário escolhe um único `.zip`, `.tar.gz` ou `.tgz` local, com até 128 MB.
-5. Escolhe provedor, modelo, duração, interações e orçamento máximo declarado.
+5. Escolhe o modo guiado recomendado, que aplica limites seguros automáticos,
+   ou o modo avançado para personalizar modelo, duração, interações e orçamento.
 6. Usa uma chave de LLM dedicada e revogável, enviada uma única vez pela
    entrada padrão do container.
 7. O executor copia o pacote, valida seu SHA-256, analisa a cópia e é removido.
@@ -110,10 +112,11 @@ políticas, aprova exceções e homologa mudanças canônicas.
 Pré-requisitos: Docker ativo, Control Center atualizado, plano PRO ou PRO
 MASTER, pacote fictício sem segredos e chave dedicada de teste.
 
-1. Confirme Setup `7.38.0` e Control Center `4.38.0`.
-2. Abra Assistente MNO > SRE-6 BETA > `Executar diagnóstico isolado`.
+1. Confirme Setup `7.39.0` e Control Center `4.39.0`.
+2. Abra Assistente MNO > análise avançada de código > `Analisar pacote de código`.
 3. Informe um pacote fictício em `/tmp/exemplo-seguro.zip`.
-4. Revise limites, digite `AUTORIZO` e forneça a chave dedicada.
+4. Escolha `GUIADO`, revise o resumo único e forneça a chave dedicada. Repita
+   no modo avançado para confirmar que ele ainda exige `AUTORIZO`.
 5. Resultado esperado: relatório com estado e contagens, validade de 24 horas e
    aviso de que nenhuma correção foi aplicada.
 6. Sinal de falha: pedido de domínio/IP, acesso a serviço real, container que
@@ -144,8 +147,8 @@ ainda remove somente os recursos com o identificador exclusivo da execução.
 
 ## Rollback
 
-Voltar para v7.37.2 remove a jornada executável e restaura a preparação
-bloqueada. A reconciliação anterior do Control Center deve ser usada; não
+Voltar para v7.38.0 restaura a jornada detalhada anterior. A reconciliação
+anterior do Control Center deve ser usada; não
 remova stacks, volumes ou bancos. Imagens locais antigas sem serviço associado
 podem ser removidas somente depois de confirmar o nome exato e que não estão em
 uso.

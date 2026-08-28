@@ -186,7 +186,7 @@
       "audience": ["free", "free1", "free2", "pro", "pro-master", "help-author"],
       "environments": ["debian", "ubuntu", "wsl2", "docker-desktop", "docker-swarm"],
       "topics": ["trivy", "lynis", "docker-bench", "sanitization", "read-only"],
-      "sha256": "78a4cc259468941c569fe5f6dbc478e2642906772b72d0a9561efec8c24414db",
+      "sha256": "13da879aea148a6052702011623ab9f914425c7a809cb9552f5eedee09eb0f23",
       "sources": [
         "https://github.com/aquasecurity/trivy/blob/main/docs/getting-started/installation.md",
         "https://cisofy.com/documentation/lynis/get-started/",

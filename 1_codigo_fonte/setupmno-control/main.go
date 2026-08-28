@@ -4245,25 +4245,46 @@ func deterministicAuditDisclosure(state sreDeterministicState) string {
 }
 
 func deterministicAuditLines(state sreDeterministicState) []string {
-	result := []string{"**Auditoria determinística SRE-3 · BETA**"}
+	result := []string{"**Diagnóstico de segurança do servidor e das aplicações · BETA**"}
 	switch state.Status {
 	case "not-run":
-		return append(result, "- Não executada. O diagnóstico acima não inclui Trivy, Lynis nem Docker Bench.")
+		return append(result,
+			"- A verificação aprofundada ainda não foi executada.",
+			"- Próximo passo seguro: selecione **Analisar segurança agora**. O processo é somente leitura e não aplica correções.",
+		)
 	case "invalid":
-		return append(result, "- Resultado local recusado por falha de integridade ou formato. Nenhuma conclusão de segurança foi aceita.")
+		return append(result, "- O resultado local foi recusado por falha de integridade ou formato. Nenhuma conclusão de segurança foi aceita.")
 	case "expired":
-		result = append(result, "- Resultado vencido. As contagens abaixo são históricas e exigem nova execução antes de qualquer decisão.")
+		result = append(result, "- O resultado venceu. As contagens abaixo são históricas; execute novamente antes de tomar uma decisão.")
 	case "available":
-		result = append(result, "- Resultado válido dentro da janela de 24 horas.")
+		result = append(result, "- Resultado atual, válido por até 24 horas após a execução.")
 	default:
 		return append(result, "- Estado desconhecido recusado. Nenhuma conclusão de segurança foi aceita.")
 	}
 	if state.Result == nil {
 		return result
 	}
-	result = append(result, fmt.Sprintf("- Estado geral: `%s`; cobertura completa: `%t`.", state.Result.OverallStatus, state.Result.Complete))
+	critical, high, incomplete := 0, 0, 0
 	for _, engine := range state.Result.Engines {
-		result = append(result, fmt.Sprintf("- %s %s: `%s`.", engine.ID, engine.Version, engine.Status))
+		critical += engine.Counts["critical"]
+		high += engine.Counts["high"]
+		if engine.Status != "complete" && engine.Status != "completed" {
+			incomplete++
+		}
+	}
+	switch state.Result.OverallStatus {
+	case "no-critical-signals":
+		result = append(result, "- **Resumo simples:** não foram encontrados sinais críticos dentro da cobertura disponível.")
+	case "attention":
+		result = append(result, fmt.Sprintf("- **Resumo simples:** foram encontrados sinais que precisam de revisão (%d crítico(s) e %d alto(s)).", critical, high))
+	case "incomplete":
+		result = append(result, fmt.Sprintf("- **Resumo simples:** o diagnóstico ficou incompleto; %d de %d verificação(ões) tiveram cobertura parcial ou falharam.", incomplete, len(state.Result.Engines)))
+	default:
+		result = append(result, "- **Resumo simples:** o estado não pôde ser classificado com segurança.")
+	}
+	result = append(result, fmt.Sprintf("- Cobertura completa: **%s**.", portugueseBoolean(state.Result.Complete)))
+	for _, engine := range state.Result.Engines {
+		result = append(result, fmt.Sprintf("- %s %s: **%s**.", sreEngineDisplayName(engine.ID), engine.Version, sreEngineStatusLabel(engine.Status)))
 	}
 	for _, fact := range state.Result.ObservedFacts {
 		result = append(result, "- "+fact.Observation+" Evidência: `"+fact.Evidence+"`.")
@@ -4272,6 +4293,43 @@ func deterministicAuditLines(state sreDeterministicState) []string {
 		result = append(result, "- Limite: "+limitation)
 	}
 	return result
+}
+
+func portugueseBoolean(value bool) string {
+	if value {
+		return "sim"
+	}
+	return "não"
+}
+
+func sreEngineDisplayName(id string) string {
+	switch id {
+	case "trivy":
+		return "Imagens das aplicações (Trivy)"
+	case "lynis":
+		return "Configuração do Linux (Lynis)"
+	case "docker-bench":
+		return "Práticas de segurança do Docker (Docker Bench)"
+	default:
+		return id
+	}
+}
+
+func sreEngineStatusLabel(status string) string {
+	switch status {
+	case "complete", "completed":
+		return "concluído"
+	case "partial":
+		return "cobertura parcial"
+	case "failed":
+		return "não foi possível concluir"
+	case "skipped":
+		return "não se aplica neste ambiente"
+	case "not-run":
+		return "não executado"
+	default:
+		return "estado não reconhecido"
+	}
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any, limit int64) error {

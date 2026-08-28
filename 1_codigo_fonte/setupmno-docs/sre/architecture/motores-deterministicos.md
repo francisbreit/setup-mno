@@ -5,7 +5,8 @@
 - Ambientes: WSL2 com Docker Desktop e VPS Debian/Ubuntu
 - Atualizado em: 2026-08-26
 - Maturidade da funcionalidade: `beta`
-- Versão estável homologada: Setup MNO 7.34.3 e Control Center 4.34.2
+- Última versão estável homologada do produto: Setup MNO 7.36.2
+- Jornada simplificada entregue na candidata: Setup MNO 7.39.0 e Control Center 4.39.0
 
 ## Resumo para leigos
 
@@ -25,12 +26,13 @@ validade de 24 horas, formada apenas por contagens sanitizadas.
 
 ## Jornada do usuário
 
-1. Abra Assistente MNO e localize **Motores determinísticos · BETA**.
-2. Clique em **Executar auditoria segura**.
+1. Abra Assistente MNO e localize **Diagnóstico SRE Simplificado · BETA**.
+2. Clique em **Analisar segurança agora**.
 3. Redigite a senha administrativa para entrar no Terminal Seguro.
 4. Leia o aviso de consumo de CPU, disco e internet e confirme uma única vez.
 5. Aguarde Trivy, Lynis e Docker Bench terminarem ou informarem cobertura parcial.
-6. Atualize o painel. O Assistente passa a exibir estado, validade, contagens e limitações.
+6. Atualize o painel. O Assistente mostra primeiro um resumo simples e mantém
+   estado, validade, contagens e limitações nos detalhes técnicos.
 
 Em instalação Tradicional, o botão remoto continua bloqueado. O administrador
 acessa a VPS por SSH e executa:
@@ -151,13 +153,14 @@ exceções, homologação e promoção canônica permanecem exclusivas do PRO MA
 Pré-requisitos: Docker Desktop em execução, integração WSL ativa, Swarm ativo e
 Control Center atualizado.
 
-1. No painel, execute **Motores determinísticos · BETA**.
+1. No painel, execute **Analisar segurança agora**.
 2. Confirme a auditoria no Whiptail e aguarde.
 3. Atualize a página e faça `Analise a saúde do servidor`.
 
-Resultado esperado: aparece a seção **Auditoria determinística SRE-3 BETA** com
-validade, contagens e a cobertura parcial de Lynis/Docker Bench. Um scanner com
-falha continua visível como auditoria incompleta.
+Resultado esperado: aparece a seção **Diagnóstico de segurança do servidor e
+das aplicações · BETA** com resumo simples, validade, estado dos três motores e
+cobertura parcial quando aplicável. Um scanner com falha continua visível como
+diagnóstico incompleto.
 
 Sinal de falha: mensagem de pacote inválido, hash divergente, ferramenta
 `failed`, resultado expirado ou ausência do cartão. Consulte somente o resumo

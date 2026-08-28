@@ -56,11 +56,14 @@ esac
 docker image inspect "$EXECUTOR_IMAGE" >/dev/null 2>&1 ||
     fail_message "A imagem homologada do executor SRE-6 não está disponível neste servidor. Sincronize novamente o Control Center." 43
 
-if ! whiptail --title "SRE-6 — DIAGNÓSTICO ISOLADO · BETA" --yesno \
-    "Executar uma análise autorizada sobre UM PACOTE-FONTE LOCAL?\n\nO arquivo será copiado para um contêiner descartável, sem root, sem mounts, sem Docker socket e com a raiz somente leitura. O executor não recebe domínio, IP, serviço ou acesso à produção.\n\nA análise usa uma LLM externa e permite saída ampla à internet nesta versão BETA. Use uma chave dedicada e revogável. Somente contagens sanitizadas válidas por 24 horas serão preservadas; nenhuma correção será aplicada.\n\nContinuar?" \
-    22 88; then
-    exit 0
-fi
+operation_mode=$(whiptail --title "ANÁLISE DE CÓDIGO COM STRIX · BETA" --default-item "GUIADO" --menu \
+    "Escolha como deseja analisar UMA CÓPIA compactada do seu código.\n\nO modo guiado aplica limites seguros automaticamente e é recomendado para a maioria dos usuários. Nenhum modo recebe acesso ao servidor ou aplica correções." \
+    18 88 3 \
+    "GUIADO" "Usar limites seguros automáticos — RECOMENDADO" \
+    "AVANCADO" "Escolher modelo, tempo, interações e orçamento" \
+    "SAIR" "Cancelar sem iniciar a análise" \
+    3>&1 1>&2 2>&3) || exit 0
+[ "$operation_mode" != "SAIR" ] || exit 0
 
 while true; do
     source_archive=$(whiptail --title "PACOTE-FONTE LOCAL · BETA" --inputbox \
@@ -115,39 +118,51 @@ case "$provider_choice" in
     *) exit 0 ;;
 esac
 
-while true; do
-    model=$(whiptail --title "MODELO DA LLM · BETA" --inputbox \
-        "Informe o identificador exato do modelo. A qualidade e a consistência da análise dependem diretamente do modelo escolhido." \
-        13 86 "$default_model" 3>&1 1>&2 2>&3) || exit 0
-    [[ "$model" =~ ^[A-Za-z0-9][A-Za-z0-9._:/-]{2,159}$ ]] && break
-    whiptail --title "MODELO INVÁLIDO" --msgbox "Use somente letras, números, ponto, dois-pontos, barra, hífen ou sublinhado." 10 76
-done
+if [ "$operation_mode" = "GUIADO" ]; then
+    model="$default_model"
+    max_duration=30
+    max_turns=20
+    llm_budget=1
+    if ! whiptail --title "CONFIRMAR ANÁLISE GUIADA · BETA" --yesno \
+        "Arquivo validado e limites seguros definidos automaticamente:\n\n- duração máxima: 30 minutos;\n- até 20 interações internas;\n- orçamento declarado: USD 1;\n- nenhuma correção ou acesso à produção.\n\nA cobrança real depende do provedor. Deseja continuar com a chave dedicada?" \
+        17 82; then
+        exit 0
+    fi
+else
+    while true; do
+        model=$(whiptail --title "MODELO DA LLM · BETA" --inputbox \
+            "Informe o identificador exato do modelo. A qualidade e a consistência da análise dependem diretamente do modelo escolhido." \
+            13 86 "$default_model" 3>&1 1>&2 2>&3) || exit 0
+        [[ "$model" =~ ^[A-Za-z0-9][A-Za-z0-9._:/-]{2,159}$ ]] && break
+        whiptail --title "MODELO INVÁLIDO" --msgbox "Use somente letras, números, ponto, dois-pontos, barra, hífen ou sublinhado." 10 76
+    done
 
-while true; do
-    max_duration=$(whiptail --title "LIMITE DE TEMPO" --inputbox \
-        "Duração máxima em minutos (10 a 120). O contêiner será removido ao final ou no timeout." \
-        12 78 "30" 3>&1 1>&2 2>&3) || exit 0
-    [[ "$max_duration" =~ ^[0-9]+$ ]] && [ "$max_duration" -ge 10 ] && [ "$max_duration" -le 120 ] && break
-done
-while true; do
-    max_turns=$(whiptail --title "LIMITE DE INTERAÇÕES" --inputbox \
-        "Máximo de interações internas da análise (5 a 40)." 11 72 "20" \
-        3>&1 1>&2 2>&3) || exit 0
-    [[ "$max_turns" =~ ^[0-9]+$ ]] && [ "$max_turns" -ge 5 ] && [ "$max_turns" -le 40 ] && break
-done
-while true; do
-    llm_budget=$(whiptail --title "LIMITE DE GASTO DA LLM" --inputbox \
-        "Orçamento máximo declarado em USD (0 a 20). Confirme também os limites no próprio provedor." \
-        12 78 "1" 3>&1 1>&2 2>&3) || exit 0
-    [[ "$llm_budget" =~ ^([0-9]+)(\.[0-9]{1,2})?$ ]] &&
-        awk -v value="$llm_budget" 'BEGIN { exit !(value >= 0 && value <= 20) }' && break
-done
+    while true; do
+        max_duration=$(whiptail --title "LIMITE DE TEMPO" --inputbox \
+            "Duração máxima em minutos (10 a 120). O contêiner será removido ao final ou no timeout." \
+            12 78 "30" 3>&1 1>&2 2>&3) || exit 0
+        [[ "$max_duration" =~ ^[0-9]+$ ]] && [ "$max_duration" -ge 10 ] && [ "$max_duration" -le 120 ] && break
+    done
+    while true; do
+        max_turns=$(whiptail --title "LIMITE DE INTERAÇÕES" --inputbox \
+            "Máximo de interações internas da análise (5 a 40)." 11 72 "20" \
+            3>&1 1>&2 2>&3) || exit 0
+        [[ "$max_turns" =~ ^[0-9]+$ ]] && [ "$max_turns" -ge 5 ] && [ "$max_turns" -le 40 ] && break
+    done
+    while true; do
+        llm_budget=$(whiptail --title "LIMITE DE GASTO DA LLM" --inputbox \
+            "Orçamento máximo declarado em USD (0 a 20). Confirme também os limites no próprio provedor." \
+            12 78 "1" 3>&1 1>&2 2>&3) || exit 0
+        [[ "$llm_budget" =~ ^([0-9]+)(\.[0-9]{1,2})?$ ]] &&
+            awk -v value="$llm_budget" 'BEGIN { exit !(value >= 0 && value <= 20) }' && break
+    done
 
-confirmation=$(whiptail --title "CONFIRMAÇÃO HUMANA OBRIGATÓRIA" --inputbox \
-    "Digite exatamente AUTORIZO para confirmar:\n\n- somente o pacote-fonte selecionado;\n- uso da LLM externa e possível cobrança;\n- nenhuma correção, exploração da produção ou concessão de selo;\n- resultado BETA sujeito a falso positivo e revisão humana." \
-    18 88 3>&1 1>&2 2>&3) || exit 0
-[ "$confirmation" = "AUTORIZO" ] ||
-    fail_message "A confirmação escrita não corresponde ao texto exigido. Nenhum executor foi criado." 44
+    confirmation=$(whiptail --title "CONFIRMAÇÃO DO MODO AVANÇADO" --inputbox \
+        "Digite exatamente AUTORIZO para confirmar os limites personalizados, o uso da LLM externa e que nenhuma correção ou acesso à produção será permitido." \
+        14 88 3>&1 1>&2 2>&3) || exit 0
+    [ "$confirmation" = "AUTORIZO" ] ||
+        fail_message "A confirmação escrita não corresponde ao texto exigido. Nenhum executor foi criado." 44
+fi
 
 provider_key=$(whiptail --title "CHAVE DEDICADA DA LLM" --passwordbox \
     "Cole uma chave dedicada e revogável. Ela será encaminhada uma única vez pela entrada padrão do contêiner e apagada da memória do shell após a inicialização. Ela não será salva no navegador, Docker Secret, ambiente, arquivo ou log." \
@@ -267,6 +282,6 @@ medium=$(jq -r '.counts.medium' "$report_file")
 low=$(jq -r '.counts.low' "$report_file")
 info=$(jq -r '.counts.info' "$report_file")
 report_expiry=$(jq -r '.expiresAt' "$report_file")
-whiptail --title "SRE-6 — DIAGNÓSTICO CONCLUÍDO · BETA" --msgbox \
-    "Relatório sanitizado criado.\n\nEstado: ${report_status}\nContagens: critical=${critical}, high=${high}, medium=${medium}, low=${low}, info=${info}\nVálido até: ${report_expiry}\n\nO contêiner descartável será removido. A chave e as evidências brutas não foram preservadas. Nenhuma correção, mudança, selo, publicação ou autorização de produção foi realizada.\n\nRevise as contagens manualmente: um achado BETA pode ser falso positivo." \
+whiptail --title "ANÁLISE DE CÓDIGO CONCLUÍDA · BETA" --msgbox \
+    "Resumo seguro criado.\n\nModo: ${operation_mode}\nEstado: ${report_status}\nPrioridade: critical=${critical}, high=${high}, medium=${medium}, low=${low}, info=${info}\nVálido até: ${report_expiry}\n\nO contêiner descartável será removido. A chave e os detalhes brutos não foram preservados. Nenhuma correção ou mudança foi realizada.\n\nComo a análise é BETA, revise os achados antes de tomar qualquer decisão." \
     20 88
