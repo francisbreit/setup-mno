@@ -1,7 +1,7 @@
 #!/usr/bin/bash
-set -o pipefail
+set -euo pipefail
 umask 077
-CONTROL_VERSION="4.39.0"
+CONTROL_VERSION="4.40.0"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
