@@ -176,3 +176,148 @@ func TestHomologationQueueAcceptsCompatiblePreviousSession(t *testing.T) {
 		t.Fatalf("sessão compatível não foi preservada: %#v %v", queue, err)
 	}
 }
+
+func TestHomologationQueueDetectsExpiredSeal(t *testing.T) {
+	root, state, directory := prepareHomologationQueueTest(t)
+	candidate := homologationTestCandidate()
+	bundle := homologationTestBundle(t, candidate, false)
+	bundlePath := filepath.Join(directory, "navidrome-amd64-260819120000-candidate.tar.gz")
+	if err := os.WriteFile(bundlePath, bundle, 0600); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(bundle)
+	decision := map[string]any{
+		"schemaVersion": 1, "kind": "setupmno-homologation-review-decision", "decisionId": "navidrome-review-260819130000",
+		"candidateId": candidate["candidateId"], "candidateBundleSHA256": hex.EncodeToString(digest[:]), "decision": "approved",
+		"reasonCode": "operational-evidence-accepted", "reason": "Evidência operacional suficiente", "reviewedBy": "Mantenedor MNO",
+		"reviewedAt": "2026-01-01T12:00:00Z", "immutable": true, "governanceUpdated": false, "officialSeal": false,
+	}
+	if err := os.WriteFile(filepath.Join(directory, "navidrome-amd64-260819120000-candidate-decision.json"), homologationTestJSON(t, decision), 0600); err != nil {
+		t.Fatal(err)
+	}
+	decisionData := homologationTestJSON(t, decision)
+	decisionDigest := sha256.Sum256(decisionData)
+	checks := candidate["checks"].(map[string]any)
+	seal := map[string]any{
+		"schemaVersion": 1, "kind": "setupmno-essential-homologation-seal",
+		"sealId": "navidrome-amd64-260819120000-essential-seal", "candidateId": candidate["candidateId"],
+		"setupId": "navidrome", "setupVersion": "7.29.0", "architecture": "amd64",
+		"issuedAt": "2026-01-01T12:01:00Z", "validUntil": "2026-04-01T12:01:00Z", "issuedBy": "Mantenedor MNO", "scope": "essential-startup",
+		"artifact": candidate["artifact"], "images": candidate["images"],
+		"checks":                map[string]any{"deploy": checks["deploy"], "convergence": checks["convergence"], "health": checks["health"]},
+		"candidateBundleSHA256": hex.EncodeToString(digest[:]), "decisionSHA256": hex.EncodeToString(decisionDigest[:]),
+		"status": "issued", "immutable": true, "maintainerAttested": true,
+		"automaticPublication": false, "officialSeal": true,
+	}
+	if err := os.WriteFile(strings.TrimSuffix(bundlePath, ".tar.gz")+"-essential-seal.json", homologationTestJSON(t, seal), 0600); err != nil {
+		t.Fatal(err)
+	}
+	queue, err := collectHomologationQueue(root, state)
+	if err != nil || queue.Items[0].Status != "expired" || !queue.Items[0].OfficialSeal || queue.Summary["expired"] != 1 {
+		t.Fatalf("selo expirado não foi classificado: %#v %v", queue, err)
+	}
+}
+
+func TestHomologationQueueDetectsDrift(t *testing.T) {
+	root, state, directory := prepareHomologationQueueTest(t)
+	candidate := homologationTestCandidate()
+	bundle := homologationTestBundle(t, candidate, false)
+	bundlePath := filepath.Join(directory, "navidrome-amd64-260819120000-candidate.tar.gz")
+	if err := os.WriteFile(bundlePath, bundle, 0600); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(bundle)
+	decision := map[string]any{
+		"schemaVersion": 1, "kind": "setupmno-homologation-review-decision", "decisionId": "navidrome-review-260819130000",
+		"candidateId": candidate["candidateId"], "candidateBundleSHA256": hex.EncodeToString(digest[:]), "decision": "approved",
+		"reasonCode": "operational-evidence-accepted", "reason": "Evidência operacional suficiente", "reviewedBy": "Mantenedor MNO",
+		"reviewedAt": "2026-08-19T13:00:00Z", "immutable": true, "governanceUpdated": false, "officialSeal": false,
+	}
+	if err := os.WriteFile(filepath.Join(directory, "navidrome-amd64-260819120000-candidate-decision.json"), homologationTestJSON(t, decision), 0600); err != nil {
+		t.Fatal(err)
+	}
+	decisionData := homologationTestJSON(t, decision)
+	decisionDigest := sha256.Sum256(decisionData)
+	checks := candidate["checks"].(map[string]any)
+	seal := map[string]any{
+		"schemaVersion": 1, "kind": "setupmno-essential-homologation-seal",
+		"sealId": "navidrome-amd64-260819120000-essential-seal", "candidateId": candidate["candidateId"],
+		"setupId": "navidrome", "setupVersion": "7.29.0", "architecture": "amd64",
+		"issuedAt": "2026-08-19T13:01:00Z", "issuedBy": "Mantenedor MNO", "scope": "essential-startup",
+		"artifact": candidate["artifact"], "images": candidate["images"],
+		"checks":                map[string]any{"deploy": checks["deploy"], "convergence": checks["convergence"], "health": checks["health"]},
+		"candidateBundleSHA256": hex.EncodeToString(digest[:]), "decisionSHA256": hex.EncodeToString(decisionDigest[:]),
+		"status": "issued", "immutable": true, "maintainerAttested": true,
+		"automaticPublication": false, "officialSeal": true,
+	}
+	if err := os.WriteFile(strings.TrimSuffix(bundlePath, ".tar.gz")+"-essential-seal.json", homologationTestJSON(t, seal), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Altera o hash do instalador no registro de referência para simular drift do código vivo
+	driftedRegistry := map[string]any{
+		"runnerVersion": "1.3.0", "setupVersion": "7.29.0",
+		"entries": []any{map[string]any{"setupId": "navidrome", "artifacts": map[string]any{"amd64": map[string]any{"path": "x86/SetupLowCodeMno/navidrome.sh", "sha256": string(bytes.Repeat([]byte("f"), 64))}}}},
+	}
+	if err := os.WriteFile(filepath.Join(state, "homologation-package", "runner-registry.json"), homologationTestJSON(t, driftedRegistry), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	queue, err := collectHomologationQueue(root, state)
+	if err != nil || queue.Items[0].Status != "drift" || queue.Items[0].Compatibility != "artifact-mismatch" || queue.Summary["drift"] != 1 || len(queue.Items[0].DriftDetails) == 0 {
+		t.Fatalf("drift não foi classificado: %#v %v", queue, err)
+	}
+}
+
+func TestHomologationQueueDetectsRevocation(t *testing.T) {
+	root, state, directory := prepareHomologationQueueTest(t)
+	candidate := homologationTestCandidate()
+	bundle := homologationTestBundle(t, candidate, false)
+	bundlePath := filepath.Join(directory, "navidrome-amd64-260819120000-candidate.tar.gz")
+	if err := os.WriteFile(bundlePath, bundle, 0600); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(bundle)
+	decision := map[string]any{
+		"schemaVersion": 1, "kind": "setupmno-homologation-review-decision", "decisionId": "navidrome-review-260819130000",
+		"candidateId": candidate["candidateId"], "candidateBundleSHA256": hex.EncodeToString(digest[:]), "decision": "approved",
+		"reasonCode": "operational-evidence-accepted", "reason": "Evidência operacional suficiente", "reviewedBy": "Mantenedor MNO",
+		"reviewedAt": "2026-08-19T13:00:00Z", "immutable": true, "governanceUpdated": false, "officialSeal": false,
+	}
+	if err := os.WriteFile(filepath.Join(directory, "navidrome-amd64-260819120000-candidate-decision.json"), homologationTestJSON(t, decision), 0600); err != nil {
+		t.Fatal(err)
+	}
+	decisionData := homologationTestJSON(t, decision)
+	decisionDigest := sha256.Sum256(decisionData)
+	checks := candidate["checks"].(map[string]any)
+	seal := map[string]any{
+		"schemaVersion": 1, "kind": "setupmno-essential-homologation-seal",
+		"sealId": "navidrome-amd64-260819120000-essential-seal", "candidateId": candidate["candidateId"],
+		"setupId": "navidrome", "setupVersion": "7.29.0", "architecture": "amd64",
+		"issuedAt": "2026-08-19T13:01:00Z", "issuedBy": "Mantenedor MNO", "scope": "essential-startup",
+		"artifact": candidate["artifact"], "images": candidate["images"],
+		"checks":                map[string]any{"deploy": checks["deploy"], "convergence": checks["convergence"], "health": checks["health"]},
+		"candidateBundleSHA256": hex.EncodeToString(digest[:]), "decisionSHA256": hex.EncodeToString(decisionDigest[:]),
+		"status": "issued", "immutable": true, "maintainerAttested": true,
+		"automaticPublication": false, "officialSeal": true,
+	}
+	if err := os.WriteFile(strings.TrimSuffix(bundlePath, ".tar.gz")+"-essential-seal.json", homologationTestJSON(t, seal), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	revocation := map[string]any{
+		"schemaVersion": 1, "kind": "setupmno-homologation-seal-revocation",
+		"sealId": "navidrome-amd64-260819120000-essential-seal", "revokedAt": "2026-08-20T10:00:00Z",
+		"revokedBy": "Mantenedor MNO", "reasonCode": "security-advisory-upstream",
+		"reason": "Vulnerabilidade crítica identificada na imagem upstream",
+		"immutable": true, "maintainerAttested": true,
+	}
+	if err := os.WriteFile(strings.TrimSuffix(bundlePath, ".tar.gz")+"-essential-seal-revocation.json", homologationTestJSON(t, revocation), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	queue, err := collectHomologationQueue(root, state)
+	if err != nil || queue.Items[0].Status != "revoked" || queue.Items[0].Revocation == nil || queue.Summary["revoked"] != 1 || !strings.Contains(queue.Items[0].Warning, "Vulnerabilidade crítica") {
+		t.Fatalf("revogação de selo não foi classificada: %#v %v", queue, err)
+	}
+}

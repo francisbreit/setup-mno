@@ -140,6 +140,18 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
+## v7.40.0 — Revalidação contínua, expiração, detecção de drift e revogação de selos (candidata; BETA)
+
+- estende o contrato do Selo Essencial de Homologação com `validUntil`, `driftDetails` e `revocation`;
+- calcula expiração dinâmica de evidências operacionais (padrão de 90 dias a partir da emissão ou TTL explícito);
+- introduz detecção contínua e determinística de drift comparando os SHA-256 dos artefatos em execução com a evidência aprovada;
+- suporta revogação formal e auditada pelo mantenedor com contrato fechado `setupmno-homologation-seal-revocation`;
+- adiciona cartões e filtros dedicados na Central de Revisão de Homologação (`sealed`, `expired`, `drift`, `revoked`);
+- preserva o isolamento somente leitura do agente e do painel, sem permissões destrutivas sobre contêineres ou bancos de dados;
+- Setup MNO `7.40.0` e Control Center `4.40.0` são candidatos; a última versão estável homologada continua sendo `7.36.2`.
+
+O próximo item macro do roadmap passa a ser resiliência operacional mensurável para backup, restauração, atualização e rollback.
+
 ## v7.39.0 — Diagnóstico SRE Simplificado (candidata; BETA)
 
 - cria uma entrada principal única, **Analisar segurança agora**, para a saúde

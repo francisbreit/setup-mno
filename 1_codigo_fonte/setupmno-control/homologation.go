@@ -93,6 +93,18 @@ type homologationDecision struct {
 	OfficialSeal          bool   `json:"officialSeal"`
 }
 
+type homologationRevocation struct {
+	SchemaVersion      int    `json:"schemaVersion"`
+	Kind               string `json:"kind"`
+	SealID             string `json:"sealId"`
+	RevokedAt          string `json:"revokedAt"`
+	RevokedBy          string `json:"revokedBy"`
+	ReasonCode         string `json:"reasonCode"`
+	Reason             string `json:"reason"`
+	Immutable          bool   `json:"immutable"`
+	MaintainerAttested bool   `json:"maintainerAttested"`
+}
+
 type essentialHomologationSeal struct {
 	SchemaVersion         int                          `json:"schemaVersion"`
 	Kind                  string                       `json:"kind"`
@@ -103,6 +115,7 @@ type essentialHomologationSeal struct {
 	Architecture          string                       `json:"architecture"`
 	IssuedAt              string                       `json:"issuedAt"`
 	IssuedBy              string                       `json:"issuedBy"`
+	ValidUntil            string                       `json:"validUntil,omitempty"`
 	Scope                 string                       `json:"scope"`
 	Artifact              homologationArtifact         `json:"artifact"`
 	Images                []string                     `json:"images"`
@@ -137,6 +150,9 @@ type homologationQueueItem struct {
 	SealID        string                       `json:"sealId,omitempty"`
 	SealScope     string                       `json:"sealScope,omitempty"`
 	OfficialSeal  bool                         `json:"officialSeal"`
+	ValidUntil    string                       `json:"validUntil,omitempty"`
+	DriftDetails  []string                     `json:"driftDetails,omitempty"`
+	Revocation    *homologationRevocation      `json:"revocation,omitempty"`
 	Warning       string                       `json:"warning,omitempty"`
 }
 
@@ -164,7 +180,7 @@ func collectHomologationQueue(candidateRoot, setupStateDir string) (homologation
 		SchemaVersion: 1,
 		Source:        "runtime-read-only",
 		GeneratedAt:   time.Now().UTC(),
-		Summary:       map[string]int{"pending": 0, "approved": 0, "sealed": 0, "rejected": 0, "draft": 0, "incompatible": 0, "quarantine": 0},
+		Summary:       map[string]int{"pending": 0, "approved": 0, "sealed": 0, "expired": 0, "drift": 0, "revoked": 0, "rejected": 0, "draft": 0, "incompatible": 0, "quarantine": 0},
 		Items:         []homologationQueueItem{},
 	}
 	registryData, err := homologationReadRegular(filepath.Join(setupStateDir, "homologation-package", "runner-registry.json"), homologationMaxJSON)
@@ -287,30 +303,97 @@ func inspectHomologationCandidate(filename string, artifacts map[string]homologa
 	item.SetupID, item.SetupVersion, item.RunnerVersion = candidate.SetupID, candidate.SetupVersion, candidate.RunnerVersion
 	item.Architecture, item.CreatedAt, item.Result = candidate.Architecture, candidate.CreatedAt, candidate.Result
 	item.Artifact, item.Images, item.Checks = candidate.Artifact, candidate.Images, candidate.Checks
+
 	current, ok := artifacts[candidate.SetupID+"/"+candidate.Architecture]
-	if !ok || current != candidate.Artifact {
-		item.Compatibility, item.Status = "artifact-mismatch", "incompatible"
+	artifactMatches := ok && current == candidate.Artifact
+	if artifactMatches {
+		item.Compatibility = "current-artifact"
+		item.Status = "pending"
+	} else {
+		item.Compatibility = "artifact-mismatch"
+		item.Status = "incompatible"
 		item.Warning = "O instalador atual diverge do artefato testado"
-		return item
 	}
-	item.Compatibility, item.Status = "current-artifact", "pending"
+
 	decisionPath := strings.TrimSuffix(filename, ".tar.gz") + "-decision.json"
-	if decision, decisionErr := homologationDecisionFromFile(decisionPath, candidate.CandidateID, item.BundleSHA256); decisionErr == nil {
-		item.Decision = decision
-		item.Status = decision.Decision
-		sealPath := strings.TrimSuffix(filename, ".tar.gz") + "-essential-seal.json"
-		if seal, sealErr := essentialSealFromFile(sealPath, candidate, decision, item.BundleSHA256, decisionPath); sealErr == nil {
-			item.SealID, item.SealScope, item.OfficialSeal = seal.SealID, seal.Scope, true
-			item.Status = "sealed"
-		} else if !errors.Is(sealErr, os.ErrNotExist) {
-			item.Status = "quarantine"
-			item.Warning = "Selo essencial associado inválido"
-		}
-	} else if !errors.Is(decisionErr, os.ErrNotExist) {
+	decision, decisionErr := homologationDecisionFromFile(decisionPath, candidate.CandidateID, item.BundleSHA256)
+	if decisionErr != nil && !errors.Is(decisionErr, os.ErrNotExist) {
 		item.Status = "quarantine"
 		item.Warning = "Decisão associada inválida"
+		return item
+	}
+
+	if decision != nil {
+		item.Decision = decision
+		if artifactMatches {
+			item.Status = decision.Decision
+		}
+
+		sealPath := strings.TrimSuffix(filename, ".tar.gz") + "-essential-seal.json"
+		seal, sealErr := essentialSealFromFile(sealPath, candidate, decision, item.BundleSHA256, decisionPath)
+		if sealErr != nil && !errors.Is(sealErr, os.ErrNotExist) {
+			item.Status = "quarantine"
+			item.Warning = "Selo essencial associado inválido"
+			return item
+		}
+
+		if seal != nil {
+			item.SealID, item.SealScope, item.OfficialSeal = seal.SealID, seal.Scope, true
+			item.ValidUntil = seal.ValidUntil
+
+			revocationPath := strings.TrimSuffix(filename, ".tar.gz") + "-essential-seal-revocation.json"
+			revocation, revErr := homologationRevocationFromFile(revocationPath, seal.SealID)
+			if revErr != nil && !errors.Is(revErr, os.ErrNotExist) {
+				item.Status = "quarantine"
+				item.Warning = "Revogação de selo associada inválida"
+				return item
+			}
+
+			if revocation != nil {
+				item.Revocation = revocation
+				item.Status = "revoked"
+				item.Warning = fmt.Sprintf("Selo essencial revogado pelo mantenedor: %s", revocation.Reason)
+			} else if !artifactMatches {
+				item.Status = "drift"
+				item.DriftDetails = []string{"artifact-sha256-mismatch"}
+				item.Warning = "Drift detectado: o instalador atual diverge do artefato que recebeu o selo"
+			} else {
+				var expiry time.Time
+				if seal.ValidUntil != "" {
+					expiry, _ = time.Parse(time.RFC3339, seal.ValidUntil)
+				} else {
+					issuedAt, _ := time.Parse(time.RFC3339, seal.IssuedAt)
+					expiry = issuedAt.Add(90 * 24 * time.Hour)
+				}
+				if time.Now().UTC().After(expiry) {
+					item.Status = "expired"
+					item.Warning = "Selo essencial expirado: revalidação de evidências operacionais necessária"
+				} else {
+					item.Status = "sealed"
+				}
+			}
+		}
 	}
 	return item
+}
+
+func homologationRevocationFromFile(filename, sealID string) (*homologationRevocation, error) {
+	data, err := homologationReadRegular(filename, homologationMaxJSON)
+	if err != nil {
+		return nil, err
+	}
+	var revocation homologationRevocation
+	if homologationDecodeStrict(data, &revocation) != nil || revocation.SchemaVersion != 1 ||
+		revocation.Kind != "setupmno-homologation-seal-revocation" || revocation.SealID != sealID ||
+		!revocation.Immutable || !revocation.MaintainerAttested ||
+		len(revocation.ReasonCode) < 3 || len(revocation.Reason) < 3 ||
+		len(revocation.RevokedBy) < 2 {
+		return nil, errors.New("revogação de selo inválida")
+	}
+	if _, err := time.Parse(time.RFC3339, revocation.RevokedAt); err != nil {
+		return nil, errors.New("identidade temporal da revogação inválida")
+	}
+	return &revocation, nil
 }
 
 func essentialSealFromFile(filename string, candidate homologationCandidate, decision *homologationDecision, bundleSHA, decisionPath string) (*essentialHomologationSeal, error) {
@@ -334,8 +417,15 @@ func essentialSealFromFile(filename string, candidate homologationCandidate, dec
 		seal.AutomaticPublication || !seal.OfficialSeal || decision.Decision != "approved" {
 		return nil, errors.New("selo essencial inválido")
 	}
-	if _, err := time.Parse(time.RFC3339, seal.IssuedAt); err != nil || len(seal.IssuedBy) < 2 || len(seal.IssuedBy) > 80 {
+	issuedAtTime, err := time.Parse(time.RFC3339, seal.IssuedAt)
+	if err != nil || len(seal.IssuedBy) < 2 || len(seal.IssuedBy) > 80 {
 		return nil, errors.New("identidade temporal do selo essencial inválida")
+	}
+	if seal.ValidUntil != "" {
+		validUntilTime, err := time.Parse(time.RFC3339, seal.ValidUntil)
+		if err != nil || !validUntilTime.After(issuedAtTime) {
+			return nil, errors.New("validade temporal do selo essencial inválida")
+		}
 	}
 	if len(seal.Images) != len(candidate.Images) || len(seal.Checks) != 3 {
 		return nil, errors.New("escopo do selo essencial divergente")

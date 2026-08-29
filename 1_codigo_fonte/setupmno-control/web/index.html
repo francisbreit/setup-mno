@@ -329,7 +329,10 @@
           <div class="homologation-summary-grid">
             <article><small>Aguardando revisão</small><strong id="homologation-pending">—</strong></article>
             <article><small>Aprovados localmente</small><strong id="homologation-approved">—</strong></article>
-            <article><small>Selos essenciais</small><strong id="homologation-sealed">—</strong></article>
+            <article><small>Selos válidos</small><strong id="homologation-sealed">—</strong></article>
+            <article><small>Selos expirados</small><strong id="homologation-expired">—</strong></article>
+            <article><small>Drift detectado</small><strong id="homologation-drift">—</strong></article>
+            <article><small>Revogados</small><strong id="homologation-revoked">—</strong></article>
             <article><small>Recusados</small><strong id="homologation-rejected">—</strong></article>
             <article><small>Rascunhos</small><strong id="homologation-draft">—</strong></article>
             <article><small>Incompatíveis</small><strong id="homologation-incompatible">—</strong></article>
@@ -337,11 +340,11 @@
           </div>
           <article class="homologation-trust-note">
             <strong>O que esta central garante</strong>
-            <span>Leitura limitada a bundles sanitizados</span><span>Decisão imutável no Terminal Seguro</span><span>Sem socket Docker no painel</span><span>Selo oficial somente em release canônica</span>
+            <span>Leitura limitada a bundles sanitizados</span><span>Detecção de drift e expiração em tempo real</span><span>Decisão imutável no Terminal Seguro</span><span>Sem socket Docker no painel</span><span>Selo oficial somente em release canônica</span>
           </article>
           <div class="section-tools sticky-tools">
             <div class="search-box grow"><span>⌕</span><input id="homologation-search" placeholder="Buscar por aplicação, execução ou candidato..."></div>
-            <select id="homologation-filter"><option value="">Todos os estados</option><option value="sealed">Selo essencial concedido</option><option value="pending">Aguardando revisão</option><option value="approved">Aprovado localmente</option><option value="rejected">Recusado</option><option value="draft">Rascunho</option><option value="incompatible">Incompatível</option><option value="quarantine">Quarentena</option></select>
+            <select id="homologation-filter"><option value="">Todos os estados</option><option value="sealed">Selo essencial válido</option><option value="expired">Selo expirado</option><option value="drift">Drift detectado</option><option value="revoked">Selo revogado</option><option value="pending">Aguardando revisão</option><option value="approved">Aprovado localmente</option><option value="rejected">Recusado</option><option value="draft">Rascunho</option><option value="incompatible">Incompatível</option><option value="quarantine">Quarentena</option></select>
             <select id="homologation-arch"><option value="">X86 e ARM</option><option value="amd64">X86</option><option value="arm64">ARM</option></select>
           </div>
           <p id="homologation-result" class="result-count"></p>

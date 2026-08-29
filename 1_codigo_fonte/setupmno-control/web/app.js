@@ -539,6 +539,9 @@ function homologationStatusLabel(status) {
     pending: "Aguardando revisão",
     approved: "Aprovado localmente",
     sealed: "Selo essencial concedido",
+    expired: "Selo expirado",
+    drift: "Drift detectado",
+    revoked: "Selo revogado",
     rejected: "Recusado",
     draft: "Checklist em andamento",
     incompatible: "Artefato incompatível",
@@ -548,11 +551,11 @@ function homologationStatusLabel(status) {
 
 function renderHomologation() {
   const summary = state.homologation?.summary || {};
-  ["pending", "approved", "sealed", "rejected", "draft", "incompatible", "quarantine"].forEach(key => {
+  ["pending", "approved", "sealed", "expired", "drift", "revoked", "rejected", "draft", "incompatible", "quarantine"].forEach(key => {
     const target = $(`homologation-${key}`);
     if (target) target.textContent = Number(summary[key]) || 0;
   });
-  const reviewCount = (Number(summary.pending) || 0) + (Number(summary.incompatible) || 0) + (Number(summary.quarantine) || 0);
+  const reviewCount = (Number(summary.pending) || 0) + (Number(summary.expired) || 0) + (Number(summary.drift) || 0) + (Number(summary.incompatible) || 0) + (Number(summary.quarantine) || 0);
   $("nav-homologation-count").textContent = reviewCount;
   const query = ($("homologation-search")?.value || "").trim().toLowerCase();
   const filter = $("homologation-filter")?.value || "";
@@ -566,11 +569,12 @@ function renderHomologation() {
     const checks = Object.entries(item.checks || {});
     const checkMarkup = checks.length ? `<div class="homologation-checks">${checks.map(([name, check]) => `<span class="check-${escapeHTML(check.status)}"><b>${escapeHTML(name)}</b>${escapeHTML(check.status)}</span>`).join("")}</div>` : "";
     const decision = item.decision ? `<div class="homologation-decision"><strong>Decisão imutável</strong><span>${escapeHTML(item.decision.reviewedBy)} · ${escapeHTML(String(item.decision.reviewedAt || "").slice(0, 10))}</span><p>${escapeHTML(item.decision.reason)}</p></div>` : "";
+    const revocation = item.revocation ? `<div class="homologation-decision homologation-revocation" style="border-color:rgba(255,92,114,.3);background:rgba(255,92,114,.08)"><strong>Revogação do Selo</strong><span>${escapeHTML(item.revocation.revokedBy)} · ${escapeHTML(String(item.revocation.revokedAt || "").slice(0, 10))}</span><p>${escapeHTML(item.revocation.reason)}</p></div>` : "";
     return `<article class="homologation-review-card status-${escapeHTML(item.status)}">
       <div class="homologation-review-head"><div><span class="type-label">${item.kind === "candidate" ? "Candidato" : "Sessão"}</span><h3>${escapeHTML(item.setupId || item.id)}</h3></div><span class="homologation-state">${escapeHTML(homologationStatusLabel(item.status))}</span></div>
       <div class="homologation-metadata"><span><b>Execução</b>${escapeHTML(item.runId || "—")}</span><span><b>Arquitetura</b>${item.architecture === "arm64" ? "ARM64" : item.architecture === "amd64" ? "X86_64" : "—"}</span><span><b>Setup / Runner</b>${escapeHTML(item.setupVersion || "—")} / ${escapeHTML(item.runnerVersion || "—")}</span><span><b>Compatibilidade</b>${escapeHTML(item.compatibility || "—")}</span></div>
-      ${item.warning ? `<p class="homologation-warning">${escapeHTML(item.warning)}</p>` : ""}${decision}
-      <details><summary>Ver evidências e checks</summary>${checkMarkup || "<p class=\"muted\">O checklist ainda está em elaboração.</p>"}<p class="homologation-seal-boundary">${item.officialSeal ? `Selo Essencial: concedido · Escopo: instalação e inicialização · ID: ${escapeHTML(item.sealId || "—")}` : "Selo Essencial: ainda não concedido"} · Publicação automática: não</p></details>
+      ${item.warning ? `<p class="homologation-warning">${escapeHTML(item.warning)}</p>` : ""}${decision}${revocation}
+      <details><summary>Ver evidências e checks</summary>${checkMarkup || "<p class=\"muted\">O checklist ainda está em elaboração.</p>"}<p class="homologation-seal-boundary">${item.officialSeal ? `Selo Essencial: concedido · Escopo: instalação e inicialização · ID: ${escapeHTML(item.sealId || "—")}${item.status === "revoked" ? " (revogado)" : item.status === "expired" ? " (expirado)" : item.status === "drift" ? " (drift detectado)" : " (válido)"}${item.validUntil ? ` · Validade: ${escapeHTML(item.validUntil.slice(0, 10))}` : ""}` : "Selo Essencial: ainda não concedido"} · Publicação automática: não</p></details>
     </article>`;
   }).join("") : `<div class="empty-state">Nenhum registro corresponde aos filtros. Use o Terminal Seguro para iniciar uma sessão.</div>`;
   applyTerminalAccessState();
