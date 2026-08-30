@@ -96,12 +96,26 @@ function bindEvents() {
   });
   document.body.addEventListener("click", event => {
     const nav = event.target.closest("[data-nav]");
-    if (nav) navigate(nav.dataset.nav);
+    if (nav) {
+      if (event.target.closest("#onboarding-dialog")) {
+        closeOnboarding();
+      }
+      navigate(nav.dataset.nav);
+    }
     const action = event.target.closest("[data-action]");
     if (!action) return;
-    if (action.dataset.action === "terminal") openTerminal();
-    if (action.dataset.action === "assistant") navigate("assistant");
-    if (action.dataset.action === "settings") openTerminal("settings");
+    if (action.dataset.action === "terminal") {
+      if (event.target.closest("#onboarding-dialog")) closeOnboarding();
+      openTerminal();
+    }
+    if (action.dataset.action === "assistant") {
+      if (event.target.closest("#onboarding-dialog")) closeOnboarding();
+      navigate("assistant");
+    }
+    if (action.dataset.action === "settings") {
+      if (event.target.closest("#onboarding-dialog")) closeOnboarding();
+      openTerminal("settings");
+    }
     if (action.dataset.action === "homologation") openTerminal("homologation");
     if (action.dataset.action === "sre") openTerminal("sre");
     if (action.dataset.action === "strix") openTerminal("strix");
@@ -120,6 +134,11 @@ function bindEvents() {
   $("onboarding-close").addEventListener("click", closeOnboarding);
   $("onboarding-finish").addEventListener("click", finishOnboarding);
   $("onboarding-dialog").addEventListener("cancel", closeOnboarding);
+  $("onboarding-dialog").addEventListener("click", event => {
+    if (event.target === $("onboarding-dialog")) {
+      closeOnboarding();
+    }
+  });
   $("terminal-reauth-form").addEventListener("submit", confirmTerminalAccess);
   $("terminal-reauth-close").addEventListener("click", closeTerminalReauth);
   $("terminal-reauth-cancel").addEventListener("click", closeTerminalReauth);
