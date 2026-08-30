@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Odoo no Setup MNO",
   "setupId": "odoo",
-  "setupVersion": "7.42.1",
+  "setupVersion": "7.42.2",
   "architectures": ["amd64"],
   "category": "overview",
   "status": "reviewed",

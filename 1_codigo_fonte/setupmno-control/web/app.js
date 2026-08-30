@@ -414,6 +414,7 @@ function showLogin() {
   clearInterval(state.activityTimer);
   closeTerminal();
   closeIdleWarning();
+  closeOnboarding();
   $("app-view").classList.add("hidden");
   $("login-view").classList.remove("hidden");
   setTimeout(() => $("login-user").focus(), 80);
@@ -2791,6 +2792,7 @@ function checkFirstRunOnboarding() {
 }
 
 function openOnboarding() {
+  if (!$("app-view") || $("app-view").classList.contains("hidden")) return;
   const dialog = $("onboarding-dialog");
   if (!dialog) return;
   const dismissed = localStorage.getItem(ONBOARDING_KEY) === "true";
@@ -2810,8 +2812,10 @@ function closeOnboarding() {
 }
 
 function finishOnboarding() {
-  localStorage.setItem(ONBOARDING_KEY, "true");
-  const dialog = $("onboarding-dialog");
-  if (dialog && dialog.open) dialog.close();
+  const dontShow = $("onboarding-dont-show");
+  if (!dontShow || dontShow.checked) {
+    localStorage.setItem(ONBOARDING_KEY, "true");
+  }
+  closeOnboarding();
 }
 
