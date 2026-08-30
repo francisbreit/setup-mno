@@ -3,7 +3,7 @@ package main
 import "testing"
 
 func TestRunbookRegistryIsClosedReadOnlyAndHomologated(t *testing.T) {
-	if len(homologatedRunbooks) != 3 {
+	if len(homologatedRunbooks) != 5 {
 		t.Fatalf("registro inesperado: %d runbooks", len(homologatedRunbooks))
 	}
 	seen := map[string]bool{}

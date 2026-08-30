@@ -94,6 +94,8 @@ Documentos atuais de arquitetura e operação:
 - `releases/v7.38.0-executor-efemero-strix-sre6.md`;
 - `releases/v7.39.0-diagnostico-sre-simplificado.md`;
 - `releases/v7.40.0-revalidacao-continua-drift-selos.md`;
+- `architecture/resiliencia-operacional.md`;
+- `releases/v7.41.0-resiliencia-operacional.md`;
 - `sre/architecture/read-only-specialist.md`;
 - `sre/manual/usar-diagnostico-seguro.md`;
 - `releases/v7.33.0-especialista-sre-read-only.md`.

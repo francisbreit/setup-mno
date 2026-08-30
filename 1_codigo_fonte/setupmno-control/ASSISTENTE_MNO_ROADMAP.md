@@ -140,6 +140,18 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
+## v7.41.0 — Resiliência operacional mensurável para backup, restauração, atualização e rollback (candidata; BETA)
+
+- mapeia formalmente todos os 158 setups em 4 categorias determinísticas de persistência (`stateless`, `database-backed`, `volume-backed`, `hybrid`);
+- audita os 4 pilares obrigatórios de resiliência: Backup Readiness, Restore Verifiability, Update Safety e Rollback Strategy;
+- diferencia com clareza a existência de um backup de uma restauração homologada e testada;
+- implementa novos runbooks homologados somente leitura (`resilience-backup-audit` e `resilience-recovery-checklist`);
+- adiciona a aba e cartões de Resiliência Operacional no Control Center com filtros por tipo de persistência e risco;
+- endpoints seguros `/api/resilience` e `/api/resilience/summary`;
+- Setup MNO `7.41.0` e Control Center `4.41.0` são candidatos; a última versão estável homologada continua sendo `7.36.2`.
+
+O próximo item macro do roadmap passa a ser onboarding e convergência UX para produção.
+
 ## v7.40.0 — Revalidação contínua, expiração, detecção de drift e revogação de selos (candidata; BETA)
 
 - estende o contrato do Selo Essencial de Homologação com `validUntil`, `driftDetails` e `revocation`;

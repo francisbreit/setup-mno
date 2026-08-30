@@ -84,6 +84,30 @@ var homologatedRunbooks = []homologatedRunbook{
 		ExecutionMode: "secure-terminal-handoff", HandoffAction: "sre",
 		HomologationStatus: "homologated", TestedEnvironments: []string{"wsl2-amd64", "vps-arm64"},
 	},
+	{
+		ID: "resilience-backup-audit", Version: "1.0.0", Title: "Auditoria de resiliência e backup",
+		Scope:       "Verificar integridade e idade de dumps do PostgreSQL e volumes Docker sem expor credenciais.",
+		MinimumPlan: "free", Compatibility: []string{"wsl2-amd64", "vps-amd64", "vps-arm64"},
+		PreChecks:         []string{"Confirmar sessão administrativa autenticada.", "Confirmar acesso somente leitura aos metadados de backup."},
+		DryRun:            "Não se aplica: a checagem é consultiva e somente leitura.",
+		HumanConfirmation: "Obrigatória antes de abrir o Terminal Seguro.", TimeoutSeconds: 900,
+		PostChecks: []string{"Validar lista de backups encontrados.", "Registrar idade e status dos volumes."},
+		AuditEvent: "sre_audit_requested", Rollback: "Não se aplica: nenhuma alteração é feita no disco.",
+		ExecutionMode: "secure-terminal-handoff", HandoffAction: "sre",
+		HomologationStatus: "homologated", TestedEnvironments: []string{"wsl2-amd64", "vps-arm64"},
+	},
+	{
+		ID: "resilience-recovery-checklist", Version: "1.0.0", Title: "Guia de restauração e rollback de dados",
+		Scope:       "Checklist consultivo e ordenado de recuperação de estado e rollback seguro por aplicação.",
+		MinimumPlan: "free", Compatibility: []string{"wsl2-amd64", "vps-amd64", "vps-arm64"},
+		PreChecks:         []string{"Confirmar sessão administrativa autenticada.", "Identificar o tipo de persistência da aplicação."},
+		DryRun:            "Não se aplica: guia consultivo estruturado.",
+		HumanConfirmation: "Obrigatória antes de abrir o Terminal Seguro.", TimeoutSeconds: 900,
+		PostChecks: []string{"Conferir integridade do banco restaurado.", "Validar comunicação dos serviços dependentes."},
+		AuditEvent: "sre_audit_requested", Rollback: "Não se aplica: execução assistida pelo operador.",
+		ExecutionMode: "secure-terminal-handoff", HandoffAction: "sre",
+		HomologationStatus: "homologated", TestedEnvironments: []string{"wsl2-amd64", "vps-arm64"},
+	},
 }
 
 func findHomologatedRunbook(id string) *homologatedRunbook {

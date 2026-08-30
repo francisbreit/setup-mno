@@ -659,6 +659,8 @@ func runWeb() error {
 	mux.Handle("GET /api/catalog", app.requireAuth(http.HandlerFunc(app.handleCatalog)))
 	mux.Handle("GET /api/quality", app.requireAuth(http.HandlerFunc(app.handleQuality)))
 	mux.Handle("GET /api/homologation", app.requireAuth(app.requireMaintainer(http.HandlerFunc(app.handleHomologation))))
+	mux.Handle("GET /api/resilience", app.requireAuth(http.HandlerFunc(app.handleResilience)))
+	mux.Handle("GET /api/resilience/summary", app.requireAuth(http.HandlerFunc(app.handleResilienceSummary)))
 	mux.Handle("GET /api/blueprints", app.requireAuth(http.HandlerFunc(app.handleBlueprints)))
 	mux.Handle("GET /api/blueprints/{blueprintId}/download", app.requireAuth(http.HandlerFunc(app.handleBlueprintDownload)))
 	mux.Handle("GET /api/evals", app.requireAuth(http.HandlerFunc(app.handleEvals)))

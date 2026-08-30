@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta id="theme-color" name="theme-color" content="#07090d">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=4.40.0">
+  <link rel="stylesheet" href="/styles.css?v=4.41.0">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -62,6 +62,7 @@
         <button class="nav-item" data-view="catalog"><span class="nav-icon">◇</span><span>Catálogo de setups</span></button>
         <button class="nav-item" data-view="blueprints"><span class="nav-icon">⌘</span><span>Blueprints</span><span class="nav-meta"><em>BETA</em><b id="nav-blueprint-count">0</b></span></button>
         <button class="nav-item" data-view="assistant"><span class="nav-icon">✦</span><span>Assistente MNO</span><em>BETA</em></button>
+        <button class="nav-item" data-view="resilience"><span class="nav-icon">⛨</span><span>Resiliência</span><em>BETA</em></button>
         <button class="nav-item maintainer-only" data-view="homologation" data-maintainer-only hidden><span class="nav-icon">✓</span><span>Revisão de Homologação</span><em>PRO MASTER</em><b id="nav-homologation-count">0</b></button>
         <button class="nav-item" data-view="audit"><span class="nav-icon">≡</span><span>Auditoria</span></button>
         <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span><span>Configurações</span></button>
@@ -349,6 +350,47 @@
           </div>
           <p id="homologation-result" class="result-count"></p>
           <div id="homologation-list" class="homologation-review-list"></div>
+        </section>
+
+        <section id="view-resilience" class="view">
+          <div class="homologation-review-intro">
+            <div><p class="eyebrow">Confiabilidade e continuidade · BETA</p><h2>Resiliência Operacional</h2><p>Auditoria determinística de persistência, prontidão de backup, verificabilidade de restauração, segurança em atualizações e estratégia de rollback para cada aplicação.</p></div>
+            <button class="primary-button" data-action="sre">Auditar no Terminal Seguro <b>→</b></button>
+          </div>
+          <div id="resilience-status" class="sync-status">Calculando prontidão de persistência e continuidade...</div>
+          <div class="resilience-summary-grid">
+            <article><small>Resilientes (Score ≥ 80)</small><strong id="resilience-resilient" class="trend up">—</strong></article>
+            <article><small>Requer Atenção (Score 50-79)</small><strong id="resilience-attention" class="trend warn">—</strong></article>
+            <article><small>Risco Crítico (Score &lt; 50)</small><strong id="resilience-critical" class="trend down">—</strong></article>
+            <article><small>Média de Resiliência</small><strong id="resilience-avg">—</strong></article>
+            <article><small>Aplicações Híbridas</small><strong id="resilience-hybrid">—</strong></article>
+            <article><small>Database-Backed</small><strong id="resilience-database">—</strong></article>
+            <article><small>Volume-Backed</small><strong id="resilience-volume">—</strong></article>
+            <article><small>Stateless (Efêmeras)</small><strong id="resilience-stateless">—</strong></article>
+          </div>
+          <article class="homologation-trust-note">
+            <strong>Os 4 Pilares da Resiliência</strong>
+            <span>1. Backup Readiness: mapeamento de volumes e bancos</span><span>2. Restore Verifiability: restauração comprovada</span><span>3. Update Safety: mitigação de quebras de banco</span><span>4. Rollback Strategy: reversão segura de estado</span>
+          </article>
+          <div class="section-tools sticky-tools">
+            <div class="search-box grow"><span>⌕</span><input id="resilience-search" placeholder="Buscar por aplicação ou tecnologia..."></div>
+            <select id="resilience-filter">
+              <option value="">Todos os tipos</option>
+              <option value="hybrid">Híbrido (Banco + Storage)</option>
+              <option value="database-backed">Database-Backed (Banco SQL/NoSQL)</option>
+              <option value="volume-backed">Volume-Backed (Disco Local)</option>
+              <option value="stateless">Stateless (Efêmero)</option>
+            </select>
+            <select id="resilience-risk">
+              <option value="">Todos os riscos</option>
+              <option value="critical">Crítico</option>
+              <option value="high">Alto</option>
+              <option value="medium">Médio</option>
+              <option value="low">Baixo</option>
+            </select>
+          </div>
+          <p id="resilience-result" class="result-count"></p>
+          <div id="resilience-list" class="resilience-list"></div>
         </section>
 
         <section id="view-audit" class="view">
@@ -722,8 +764,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=4.40.0" defer></script>
-  <script src="/assistant-route.js?v=4.40.0" defer></script>
-  <script src="/app.js?v=4.40.0" defer></script>
+  <script src="/markdown.js?v=4.41.0" defer></script>
+  <script src="/assistant-route.js?v=4.41.0" defer></script>
+  <script src="/app.js?v=4.41.0" defer></script>
 </body>
 </html>

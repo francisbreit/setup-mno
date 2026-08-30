@@ -57,6 +57,7 @@ const titles = {
   assistant: ["Diagnóstico assistido", "Assistente MNO"],
   evals: ["Relatório técnico", "Qualidade do Assistente"],
   homologation: ["Evidências operacionais", "Revisão de Homologação"],
+  resilience: ["Proteção e continuidade", "Resiliência Operacional"],
   audit: ["Rastreabilidade da sessão", "Auditoria"],
   settings: ["Administração protegida", "Configurações"],
   help: ["Aprenda no seu ritmo", "Help · Instruções de uso"]
@@ -145,6 +146,9 @@ function bindEvents() {
   $("homologation-search").addEventListener("input", renderHomologation);
   $("homologation-filter").addEventListener("change", renderHomologation);
   $("homologation-arch").addEventListener("change", renderHomologation);
+  $("resilience-search").addEventListener("input", renderResilience);
+  $("resilience-filter").addEventListener("change", renderResilience);
+  $("resilience-risk").addEventListener("change", renderResilience);
   $("blueprint-search").addEventListener("input", renderBlueprints);
   $("blueprint-status").addEventListener("change", renderBlueprints);
   $("blueprint-arch").addEventListener("change", renderBlueprints);
@@ -2456,6 +2460,7 @@ function navigate(view) {
   $("page-title").textContent = titles[view][1];
   if (view === "audit") loadAudit();
   if (view === "homologation") refreshHomologation();
+  if (view === "resilience") loadResilience();
   if (view === "evals" && !state.evals) refreshEvals();
   closeSidebar();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -2627,6 +2632,101 @@ function showAlert(message) {
 
 function clearAlert() {
   $("global-alert").classList.add("hidden");
+}
+
+async function loadResilience() {
+  const status = $("resilience-status");
+  if (status) status.textContent = "Carregando matriz determinística de resiliência...";
+  try {
+    const data = await api("/api/resilience");
+    state.resilience = data;
+    renderResilience();
+    if (status) status.textContent = `Auditoria determinística atualizada · ${data.summary.totalSetups} setups mapeados.`;
+  } catch (error) {
+    if (status) status.textContent = "Falha ao carregar matriz de resiliência: " + error.message;
+  }
+}
+
+function renderResilience() {
+  if (!state.resilience) return;
+  const { summary, items } = state.resilience;
+
+  if ($("resilience-resilient")) $("resilience-resilient").textContent = summary.resilientCount ?? "0";
+  if ($("resilience-attention")) $("resilience-attention").textContent = summary.attentionCount ?? "0";
+  if ($("resilience-critical")) $("resilience-critical").textContent = summary.criticalCount ?? "0";
+  if ($("resilience-avg")) $("resilience-avg").textContent = (summary.averageScore ? summary.averageScore.toFixed(1) : "0") + " / 100";
+  if ($("resilience-hybrid")) $("resilience-hybrid").textContent = summary.hybridCount ?? "0";
+  if ($("resilience-database")) $("resilience-database").textContent = summary.databaseCount ?? "0";
+  if ($("resilience-volume")) $("resilience-volume").textContent = summary.volumeCount ?? "0";
+  if ($("resilience-stateless")) $("resilience-stateless").textContent = summary.statelessCount ?? "0";
+
+  const search = ($("resilience-search")?.value || "").toLowerCase().trim();
+  const filterType = $("resilience-filter")?.value || "";
+  const filterRisk = $("resilience-risk")?.value || "";
+
+  const filtered = items.filter(item => {
+    if (filterType && item.persistenceType !== filterType) return false;
+    if (filterRisk && item.riskLevel !== filterRisk) return false;
+    if (search) {
+      const matchName = item.catalogName.toLowerCase().includes(search);
+      const matchID = item.setupId.toLowerCase().includes(search);
+      const matchStorage = (item.storageLocations || []).some(s => s.toLowerCase().includes(search));
+      if (!matchName && !matchID && !matchStorage) return false;
+    }
+    return true;
+  });
+
+  const resultCount = $("resilience-result");
+  if (resultCount) resultCount.textContent = `${filtered.length} de ${items.length} aplicações listadas`;
+  const container = $("resilience-list");
+  if (!container) return;
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="empty-state">Nenhuma aplicação corresponde aos filtros selecionados.</div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(item => {
+    const riskClass = item.riskLevel === "critical" ? "down" : item.riskLevel === "high" ? "down" : item.riskLevel === "medium" ? "warn" : "up";
+    const scoreClass = item.score >= 80 ? "up" : item.score >= 60 ? "warn" : "down";
+    const typeLabel = {
+      "stateless": "Stateless (Efêmero)",
+      "database-backed": "Database-Backed (Banco SQL/NoSQL)",
+      "volume-backed": "Volume-Backed (Disco Local)",
+      "hybrid": "Híbrido (Banco + Storage S3)"
+    }[item.persistenceType] || item.persistenceType;
+
+    const checklistHTML = `
+      <div class="resilience-checklist">
+        <div><strong>Backup:</strong> <span>${escapeHTML(item.checklist.backupReadiness)}</span></div>
+        <div><strong>Restore:</strong> <span>${escapeHTML(item.checklist.restoreVerifiability)}</span></div>
+        <div><strong>Update:</strong> <span>${escapeHTML(item.checklist.updateSafety)}</span></div>
+        <div><strong>Rollback:</strong> <span>${escapeHTML(item.checklist.rollbackStrategy)}</span></div>
+      </div>
+    `;
+
+    const recsHTML = (item.recommendations || []).map(r => `<li>${escapeHTML(r)}</li>`).join("");
+
+    return `
+      <article class="homologation-card resilience-card">
+        <div class="homologation-review-head">
+          <div>
+            <h3>${escapeHTML(item.catalogName)}</h3>
+            <p class="muted"><code>${escapeHTML(item.setupId)}</code> · <strong>${escapeHTML(typeLabel)}</strong></p>
+          </div>
+          <div class="resilience-badges-row">
+            <span class="trend ${riskClass}">Risco ${escapeHTML(item.riskLevel.toUpperCase())}</span>
+            <span class="trend ${scoreClass}">Score: ${item.score}/100</span>
+          </div>
+        </div>
+        ${checklistHTML}
+        <div class="resilience-storage-note">
+          <strong>Armazenamento:</strong> ${escapeHTML((item.storageLocations || []).join(", "))}
+        </div>
+        <ul class="resilience-recs">${recsHTML}</ul>
+      </article>
+    `;
+  }).join("");
 }
 
 async function api(endpoint, options = {}) {

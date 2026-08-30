@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Meilisearch no Setup MNO",
   "setupId": "meilisearch",
-  "setupVersion": "7.40.0",
+  "setupVersion": "7.41.0",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
