@@ -109,6 +109,7 @@ function bindEvents() {
     if (action.dataset.action === "blueprint") openBlueprint(action.dataset.blueprintId);
     if (action.dataset.action === "quality-report") navigate("evals");
     if (action.dataset.action === "quality-return") navigate("assistant");
+    if (action.dataset.action === "onboarding") openOnboarding();
   });
   $("open-terminal-top").addEventListener("click", openTerminal);
   $("terminal-close").addEventListener("click", closeTerminal);
@@ -116,6 +117,9 @@ function bindEvents() {
     event.preventDefault();
     closeTerminal();
   });
+  $("onboarding-close").addEventListener("click", closeOnboarding);
+  $("onboarding-finish").addEventListener("click", finishOnboarding);
+  $("onboarding-dialog").addEventListener("cancel", closeOnboarding);
   $("terminal-reauth-form").addEventListener("submit", confirmTerminalAccess);
   $("terminal-reauth-close").addEventListener("click", closeTerminalReauth);
   $("terminal-reauth-cancel").addEventListener("click", closeTerminalReauth);
@@ -374,6 +378,7 @@ function setAuthenticated(session) {
   $("login-view").classList.add("hidden");
   $("app-view").classList.remove("hidden");
   refreshAll();
+  checkFirstRunOnboarding();
   clearInterval(state.timer);
   clearInterval(state.catalogTimer);
   state.timer = setInterval(refreshOverview, 30000);
@@ -2756,3 +2761,38 @@ function escapeHTML(value) {
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
   })[character]);
 }
+
+const ONBOARDING_KEY = "setupmno-onboarding-dismissed";
+
+function checkFirstRunOnboarding() {
+  const dismissed = localStorage.getItem(ONBOARDING_KEY) === "true";
+  if (!dismissed) {
+    setTimeout(openOnboarding, 600);
+  }
+}
+
+function openOnboarding() {
+  const dialog = $("onboarding-dialog");
+  if (!dialog) return;
+  const dismissed = localStorage.getItem(ONBOARDING_KEY) === "true";
+  const dontShow = $("onboarding-dont-show");
+  if (dontShow) dontShow.checked = dismissed;
+  if (!dialog.open) dialog.showModal();
+}
+
+function closeOnboarding() {
+  const dialog = $("onboarding-dialog");
+  if (!dialog) return;
+  const dontShow = $("onboarding-dont-show");
+  if (dontShow && dontShow.checked) {
+    localStorage.setItem(ONBOARDING_KEY, "true");
+  }
+  if (dialog.open) dialog.close();
+}
+
+function finishOnboarding() {
+  localStorage.setItem(ONBOARDING_KEY, "true");
+  const dialog = $("onboarding-dialog");
+  if (dialog && dialog.open) dialog.close();
+}
+

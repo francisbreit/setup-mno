@@ -814,3 +814,20 @@ nav { width: 100%; min-width: 0; display: grid; gap: 5px; }
 .resilience-recs li { margin-bottom:4px; }
 @media (max-width:1100px) { .resilience-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .resilience-checklist { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width:700px) { .resilience-summary-grid { grid-template-columns:1fr; } .resilience-checklist { grid-template-columns:1fr; } }
+
+/* Onboarding Dialog */
+.onboarding-dialog { width:min(720px,94vw); max-width:720px; border-radius:24px; border:1px solid var(--line); background:var(--panel); padding:0; box-shadow:0 24px 64px rgba(0,0,0,.65); overflow:hidden; }
+.onboarding-modal-content { padding:28px; }
+.onboarding-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; }
+.onboarding-head h2 { margin:6px 0 10px; font-size:1.6rem; }
+.onboarding-steps-list { display:grid; gap:14px; margin:20px 0; }
+.onboarding-step { display:flex; gap:16px; align-items:flex-start; background:rgba(255,255,255,.02); border:1px solid var(--line); border-radius:16px; padding:16px; transition:border-color .2s; }
+.onboarding-step:hover { border-color:var(--primary, #578cff); }
+.step-indicator { display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,#578cff,#2ed399); color:#fff; font-weight:700; font-size:.9rem; flex-shrink:0; }
+.step-body { flex:1; }
+.step-body h3 { margin:0 0 6px; font-size:1.05rem; }
+.step-body p { margin:0 0 10px; color:var(--muted); font-size:.86rem; line-height:1.5; }
+.onboarding-footer { display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--line); margin-top:20px; padding-top:18px; flex-wrap:wrap; gap:12px; }
+.onboarding-dismiss-label { display:flex; align-items:center; gap:8px; font-size:.85rem; color:var(--muted); cursor:pointer; }
+.onboarding-dismiss-label input { cursor:pointer; }
+@media (max-width:600px) { .onboarding-step { flex-direction:column; } .onboarding-footer { flex-direction:column; align-items:stretch; } }

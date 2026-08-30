@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta id="theme-color" name="theme-color" content="#07090d">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=4.41.0">
+  <link rel="stylesheet" href="/styles.css?v=4.42.0">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -114,6 +114,7 @@
               <div class="hero-actions">
                 <button class="light-button" data-action="terminal">Abrir instalador seguro <b>→</b></button>
                 <button class="ghost-button" data-action="assistant">Analisar com MNO Insights</button>
+                <button class="ghost-button" data-action="onboarding">Guia de Início Rápido ✨</button>
               </div>
               <p id="terminal-access-notice" class="terminal-access-notice" hidden>🔒 Recurso disponível apenas quando é usado Cloudflare Tunnel.</p>
             </div>
@@ -763,9 +764,68 @@
     </form>
   </dialog>
 
+  <dialog id="onboarding-dialog" class="modal-dialog onboarding-dialog">
+    <div class="onboarding-modal-content">
+      <div class="onboarding-head">
+        <div>
+          <span class="eyebrow">Primeiros Passos · Setup MNO</span>
+          <h2>Bem-vindo ao Control Center!</h2>
+          <p class="muted">Siga este checklist simples para preparar e começar a usar o seu ambiente com total segurança.</p>
+        </div>
+        <button id="onboarding-close" class="icon-button" aria-label="Fechar guia">×</button>
+      </div>
+
+      <div class="onboarding-steps-list">
+        <article class="onboarding-step" data-step="1">
+          <div class="step-indicator">1</div>
+          <div class="step-body">
+            <h3>Saúde do Servidor</h3>
+            <p>Confira o uso de CPU, Memória RAM e Disco no Dashboard para garantir que seu servidor opera com folga.</p>
+            <button class="light-button small" data-nav="dashboard">Ver métricas <b>→</b></button>
+          </div>
+        </article>
+
+        <article class="onboarding-step" data-step="2">
+          <div class="step-indicator">2</div>
+          <div class="step-body">
+            <h3>Serviços Base</h3>
+            <p>Verifique se o PostgreSQL, Redis e Traefik estão ativos na aba de Aplicações Instaladas.</p>
+            <button class="light-button small" data-nav="installed">Conferir aplicações <b>→</b></button>
+          </div>
+        </article>
+
+        <article class="onboarding-step" data-step="3">
+          <div class="step-indicator">3</div>
+          <div class="step-body">
+            <h3>Primeiro Deploy</h3>
+            <p>Escolha sua primeira aplicação no catálogo (ex: Chatwoot, Evolution API, N8N, Typebot) e abra o instalador.</p>
+            <button class="light-button small" data-nav="catalog">Explorar catálogo <b>→</b></button>
+          </div>
+        </article>
+
+        <article class="onboarding-step" data-step="4">
+          <div class="step-indicator">4</div>
+          <div class="step-body">
+            <h3>Proteção e Resiliência</h3>
+            <p>Ative o Cloudflare MFA nas Configurações e confira o checklist de backup e restauração na aba Resiliência.</p>
+            <button class="light-button small" data-nav="resilience">Ver resiliência <b>→</b></button>
+          </div>
+        </article>
+      </div>
+
+      <div class="onboarding-footer">
+        <label class="onboarding-dismiss-label">
+          <input type="checkbox" id="onboarding-dont-show">
+          <span>Não exibir automaticamente ao entrar</span>
+        </label>
+        <button id="onboarding-finish" class="primary-button">Entendi, vamos começar! <b>✓</b></button>
+      </div>
+    </div>
+  </dialog>
+
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=4.41.0" defer></script>
-  <script src="/assistant-route.js?v=4.41.0" defer></script>
-  <script src="/app.js?v=4.41.0" defer></script>
+  <script src="/markdown.js?v=4.42.0" defer></script>
+  <script src="/assistant-route.js?v=4.42.0" defer></script>
+  <script src="/app.js?v=4.42.0" defer></script>
 </body>
 </html>
