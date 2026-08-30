@@ -140,16 +140,28 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
-## v7.42.0 — Onboarding e convergência UX para produção (candidata; BETA)
+## v7.42.2 — Onboarding e convergência UX para produção (release estável; BETA)
 
 - modal guiado de boas-vindas com checklist interativo de 4 passos para iniciantes (Saúde do Servidor, Serviços Base, Primeiro Deploy e Segurança/Resiliência);
+- isolamento estrito: só é exibido como popup flutuante após autenticação no Control Center;
+- estrutura CSS flexbox com rolagem suave (`overflow-y: auto`), adaptada para desktop e dispositivos móveis (Android/iOS);
+- fechamento imediato ao clicar no botão "X", ao navegar para qualquer aba ou ao clicar no backdrop escuro;
 - persistência em `localStorage` permitindo dispensar, concluir ou revisitar a qualquer momento via Dashboard ou Help;
-- aperfeiçoamento da responsividade móvel (Android/iOS) com navegação suave por toque e sidebar retrátil;
 - melhoria de acessibilidade por teclado (`Tab`, `Escape` em modais e foco visual destacado);
-- mensagens resilientes de sincronização no painel durante inicializações lentas do agente;
-- Setup MNO `7.42.0` e Control Center `4.42.0` são candidatos; a última versão estável homologada continua sendo `7.36.2`.
+- mensagens resilientes de sincronização no painel durante inicializações do agente;
+- invalidação automática de cache do navegador cliente via cache buster `4.42.2`;
+- Setup MNO `7.42.2` e Control Center `4.42.2` foram homologados nesta release.
 
-O próximo item macro do roadmap passa a ser primeiros Blueprints reais homologados.
+Baseline homologada:
+
+- Setup MNO: `7.42.2`, versão estável homologada
+- Última versão estável homologada: `7.42.2`
+- Control Center: `4.42.2`
+- SRE-3 a SRE-6, Resiliência, Onboarding, Assistente MNO e Blueprints: `BETA`
+
+A v7.42.2 foi promovida em 30/08/2026 após homologação visual e de usabilidade no WSL2 x86-64 e em VPS ARM64 e declaração explícita de Francis MNO. SRE, Resiliência, Onboarding, Assistente MNO e Blueprints permanecem BETA.
+
+O próximo item macro do roadmap passa a ser primeiros Blueprints reais submetidos, homologados e versionados.
 
 ## v7.41.0 — Resiliência operacional mensurável para backup, restauração, atualização e rollback (candidata; BETA)
 

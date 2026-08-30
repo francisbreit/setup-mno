@@ -98,6 +98,7 @@ Documentos atuais de arquitetura e operação:
 - `releases/v7.41.0-resiliencia-operacional.md`;
 - `manual/onboarding-primeiro-acesso.md`;
 - `releases/v7.42.0-onboarding-convergencia-ux.md`;
+- `releases/v7.42.2-onboarding-estavel.md`;
 - `sre/architecture/read-only-specialist.md`;
 - `sre/manual/usar-diagnostico-seguro.md`;
 - `releases/v7.33.0-especialista-sre-read-only.md`.
