@@ -1070,16 +1070,7 @@ rm -rf "$control_package"
 cd SetupLowCodeMno || exit 1
 
 echo -e "XXX\n50\nINSTALANDO SETUPMNO 2/8 - CONCLUÍDO \nXXX"
-# ------------------------------------------------------------
-# FIM DAS MODIFICAÇÕES
-# ------------------------------------------------------------
-
-# ... (o restante do script permanece inalterado)
-
-# Diretório onde as informações do trial serão armazenadas
 TRIAL_DIR="/root/SetupLowCodeMno/.meu_app_trial"
-
-# Arquivo que conterá as informações do trial
 TRIAL_FILE="$TRIAL_DIR/trial_info"
 
 
@@ -1128,14 +1119,10 @@ fi
 
 
 if [ "$PLANO" = "pro-master" ] || [ "$PLANO" = "pro" ] || [ "$PLANO" == "free" ] || [ "$PLANO" == "free1" ] || [ "$PLANO" == "free2" ] ; then
-
 data_expiracao=$(date +'%d/%m/%Y' -d "+7 days")
-    else
+else
 data_expiracao=$(date -d "$(echo $DATAAQ | awk -F/ '{print $2 "/" $1 "/" $3}') +8 days" +'%d/%m/%Y')
-    fi
-
-#data_expiracao=$(date +'%d/%m/%Y' -d "+7 days")
-#data_expiracao=$(date -d "$(echo $DATAAQ | awk -F/ '{print $2 "/" $1 "/" $3}') +8 days" +'%d/%m/%Y')
+fi
 
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o affine -f affine.sh
 rm affine.sh
@@ -1929,6 +1916,16 @@ rm chatwootn_evo2_rabbitmq_minio
 fi
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm chatwootn_evo2_rabbitmq_minio
+fi
+
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o combo_whatsapp_marketing -f combo_whatsapp_marketing.sh
+rm combo_whatsapp_marketing.sh
+rm combo_whatsapp_marketing.sh.x.c
+if [ "$PLANO" == "free" ]; then
+rm combo_whatsapp_marketing
+fi
+if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm combo_whatsapp_marketing
 fi
 
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o typebot_minio -f typebot_minio.sh

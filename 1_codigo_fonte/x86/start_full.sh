@@ -1057,16 +1057,7 @@ rm -rf "$control_package"
 cd SetupLowCodeMno || exit 1
 
 echo -e "XXX\n50\nINSTALANDO SETUPMNO 2/8 - CONCLUÍDO \nXXX"
-# ------------------------------------------------------------
-# FIM DAS MODIFICAÇÕES
-# ------------------------------------------------------------
-
-# ... (o restante do script permanece inalterado)
-
-# Diretório onde as informações do trial serão armazenadas
 TRIAL_DIR="/root/SetupLowCodeMno/.meu_app_trial"
-
-# Arquivo que conterá as informações do trial
 TRIAL_FILE="$TRIAL_DIR/trial_info"
 
 
@@ -1911,6 +1902,16 @@ rm chatwootn_evo2_rabbitmq_minio
 fi
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm chatwootn_evo2_rabbitmq_minio
+fi
+
+shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o combo_whatsapp_marketing -f combo_whatsapp_marketing.sh
+rm combo_whatsapp_marketing.sh
+rm combo_whatsapp_marketing.sh.x.c
+if [ "$PLANO" == "free" ]; then
+rm combo_whatsapp_marketing
+fi
+if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm combo_whatsapp_marketing
 fi
 shc -e $data_expiracao -m "Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)" -o typebot_minio -f typebot_minio.sh
 rm typebot_minio.sh
