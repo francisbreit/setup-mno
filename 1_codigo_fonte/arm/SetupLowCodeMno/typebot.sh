@@ -679,6 +679,7 @@ services:
     - externa
     - interna
     environment:
+    - HOSTNAME=0.0.0.0
     - POSTGRESDB_DATABASE=$nome_app
     - POSTGRESDB_HOST=postgres
     - POSTGRESDB_PORT=5432
@@ -732,6 +733,7 @@ cat >> $nome_app.yaml << EOL
     - externa
     - interna
     environment:
+    - HOSTNAME=0.0.0.0
     - POSTGRESDB_DATABASE=$nome_app
     - POSTGRESDB_HOST=postgres
     - POSTGRESDB_PORT=5432
