@@ -1879,8 +1879,6 @@ services:
   $terminal_service:
     image: $terminal_image
     hostname: $terminal_service
-    group_add:
-      - "$docker_socket_gid"
     command:
       - -p
       - "7681"
