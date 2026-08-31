@@ -1,0 +1,31 @@
+# ==============================================================================
+# MAPEAMENTO DE VARIÁVEIS, TOKENS E INTEGRAÇÕES ENTRE SISTEMAS
+# ==============================================================================
+
+1. CHATWOOT:
+- Access Token do Perfil: <SEU_CHATWOOT_ACCESS_TOKEN>
+  (Obtido em: Configurações de Perfil > Token de Acesso)
+- Platform App Token (N8N): <SEU_PLATFORM_APP_TOKEN>
+  (Obtido em: Painel Superadmin > Platform Apps > Criar App 'N8N')
+
+2. EVOLUTION API V2:
+- Global API Key: <SUA_EVOLUTION_GLOBAL_KEY>
+- Instância: Atendimento (Tipo: Baileys)
+- Integração Chatwoot: Ativada para a instância 'Atendimento'
+- Typebot Default Settings: Apontando para o Typebot Viewer / Builder
+
+3. RABBITMQ:
+- Virtual Host: /
+- Fila (Quorum): Atendimento
+- Usuário/Senha: Definidos no provisionamento do RabbitMQ
+
+4. N8N V2:
+- Webhook Receptor URL: https://hook.seudominio.com/webhook/mautic-whatsapp
+- Credencial RabbitMQ: Host=rabbitmq, Port=5672, vhost=/
+- Token de Validação de Segurança: 207811 (ou token customizado)
+
+5. MAUTIC 7:
+- Plugin Twilio (SMS/WhatsApp):
+  - Account SID: Identificador fictício ou de serviço
+  - Auth Token: 207811 (Token validado pelo n8n)
+  - Custom Twilio URL: URL do Webhook do n8n Receptor

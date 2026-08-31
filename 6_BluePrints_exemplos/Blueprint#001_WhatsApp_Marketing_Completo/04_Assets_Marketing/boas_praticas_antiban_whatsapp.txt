@@ -1,0 +1,22 @@
+# ==============================================================================
+# GUIA DE BOAS PRÁTICAS E REGRAS ANTI-BLOQUEIO (ANTI-BAN) PARA WHATSAPP
+# ==============================================================================
+
+1. AQUECIMENTO DE NÚMERO (WARM-UP):
+- Números novos NUNCA devem iniciar disparando centenas de mensagens no primeiro dia;
+- Semana 1: 20 a 50 mensagens diárias para contatos que possuem seu número salvo;
+- Semana 2: 50 a 150 mensagens diárias;
+- Semana 3 em diante: Expansão gradual respeitando o limite da fila.
+
+2. CONTROLE DE FLUXO E CADÊNCIA (RABBITMQ + N8N):
+- O workflow do n8n deste Blueprint já inclui delays randômicos (ex: 5 a 15 segundos entre mensagens);
+- Nunca reduza o delay para menos de 5 segundos em conexões não-oficiais (Baileys);
+- A Fila Quorum no RabbitMQ garante que disparos do Mautic sejam absorvidos sem sobrecarregar o chip.
+
+3. PERSONALIZAÇÃO E VARIABILIDADE:
+- Utilize sempre o primeiro nome do contato ({contactfield=firstname});
+- Alterne o texto das copies para não disparar 1.000 mensagens exatamente idênticas consecutivas.
+
+4. TRANSIÇÃO PARA ATENDIMENTO HUMANO:
+- Certifique-se de que a caixa de entrada do Chatwoot está monitorada;
+- Respostas rápidas aumentam o engajamento do número no WhatsApp, reduzindo a taxa de denúncias (spam reports).

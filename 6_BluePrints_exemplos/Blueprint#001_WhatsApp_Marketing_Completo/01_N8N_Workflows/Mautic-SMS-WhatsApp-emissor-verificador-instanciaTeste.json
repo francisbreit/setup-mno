@@ -1,0 +1,1092 @@
+{
+  "name": "Mautic-SMS-WhatsApp-emissor-verificador-instanciaTeste",
+  "nodes": [
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "mensagem",
+              "value": "={{ $('LimpaDados0').item.json[\"conteudo\"].match(/mensagem_sms:([^\\n]+)/)[1].trim();}}"
+            },
+            {
+              "name": "number",
+              "value": "={{ $('LimpaDados0').item.json[\"conteudo\"].match(/number:([^\\n]+)/)[1].trim().replace(/^55/, '')}}"
+            },
+            {
+              "name": "nome",
+              "value": "={{ $('LimpaDados0').item.json[\"conteudo\"].match(/nome:([^\\n]+)/)[1].trim();}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7030d7c8-cd9c-4d3d-acae-54de42604bc9",
+      "name": "LimpaDados",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        1536,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "conteudo",
+              "value": "={{ $json.body.message.replace(/: /g, \":\")}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "49780dda-3dab-46a9-99df-1961b994400f",
+      "name": "LimpaDados0",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        768,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "amount": "={{ $json.myNewField }}",
+        "unit": "seconds"
+      },
+      "id": "ea42baee-e284-4203-aea4-422f72752115",
+      "name": "Wait1",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        1856,
+        -80
+      ],
+      "webhookId": "c5526cb8-3927-4677-8fb1-2f831b11e1ed"
+    },
+    {
+      "parameters": {
+        "functionCode": "function randomIntFromInterval(min, max) { // min and max included \n  return Math.floor(Math.random() * (max - min + 1) + min)\n}\n\nfor (item of items) {\n  item.json.myNewField = randomIntFromInterval(2, 4);\n}\n\nreturn items;"
+      },
+      "id": "3a10309e-09e9-4663-8f3f-c60c34b5b35e",
+      "name": "Delay_2_a_4_seg1",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        1696,
+        -80
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sms.mkmservice.com/sms/api/transmission/v1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"mailing\":\n\t {\n            \"identifier\": \"Integração API V1 2.0\",\n            \"cost_centre_id\": 18802\n    },\n\t\n\t\n\t \"messages\":\n[\n\t {\n            \"msisdn\": \"55{{ $json[\"number\"] }}\",\n            \"message\": \"{{ $json[\"mensagem\"] }}\",\n            \"schedule\": null,\n\t\t        \"reference\": \"1234567890\"\n   }\n    \n]\n\n\n\n}",
+        "options": {}
+      },
+      "id": "a4da371e-5ba1-40b3-9eb8-fd672e5bccc2",
+      "name": "Envia SMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2016,
+        -80
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "typebot",
+              "value": "={{ $('LimpaDados0').item.json[\"conteudo\"].match(/template:([^\\n]+)/)[1].trim();}}"
+            },
+            {
+              "name": "number",
+              "value": "={{ $('LimpaDados0').item.json[\"conteudo\"].match(/number:([^\\n]+)/)[1].trim()}}"
+            },
+            {
+              "name": "nome",
+              "value": "={{ $('LimpaDados0').item.json[\"conteudo\"].match(/nome:([^\\n]+)/)[1].trim();}}"
+            },
+            {
+              "name": "chatbot",
+              "value": "={{ $('LimpaDados0').item.json[\"conteudo\"].match(/chatbot:([^\\n]+)/)[1].trim();}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b2e446b7-fe52-47c2-9503-eb2f869cb287",
+      "name": "LimpaDados1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        1536,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Supondo que a string está armazenada em 'items[0].json.content'\nconst content = items[0].json.content;\n\n// Converter a string para JSON\nconst data = JSON.parse(content);\n\nreturn [\n  {\n    json: data\n  }\n];\n"
+      },
+      "id": "01bf4c00-f2dd-4f91-861d-bff85ac40608",
+      "name": "FormataDados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Disparo SMS vindo do Mautic (Segmentos / Campanhas \n",
+        "height": 265.2924791086352,
+        "width": 848.356545961003
+      },
+      "id": "f29fb51b-97c2-4b14-9cae-7e7a8ab76ce8",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1424,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## RabbitMQ Consumer (Recebe do RabbitMQ mensagens uma a uma)\n",
+        "height": 398,
+        "width": 944,
+        "color": 4
+      },
+      "id": "a0d3d5a2-1904-4577-b43c-4c1e6348b0b3",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        256,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Disparo Typebot WhatsApp e Delay ajustável para envio (Padrão: 11 a 19 segundos)",
+        "height": 355,
+        "width": 1571
+      },
+      "id": "be7651b3-ecd8-4ac3-b86f-40316570d85b",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1424,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('info_base').item.json.url_evolution_api }}/typebot/start/{{ $('Instancia').item.json.fields.routingKey }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('info_base').item.json.global_api_key_evolution }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"url\": \"{{ $('info_base').item.json.url_typebot_chat }}\",\n    \"typebot\": \"{{ $('LimpaDados1').item.json[\"typebot\"] }}\",\n     \"startSession\": {{  $('LimpaDados1').item.json[\"chatbot\"]}},\n     \"remoteJid\": \"{{ $('checa1').item.json[\"jid\"]}}\",\n    \"variables\": [\n        {\n            \"name\": \"nome\",\n            \"value\": \"{{ $('LimpaDados1').item.json[\"nome\"] }}\"\n        },\n        {\n            \"name\": \"numero\",\n            \"value\": \"{{ $('LimpaDados1').item.json[\"number\"]}}\"\n        }\n    ]\n}",
+        "options": {}
+      },
+      "id": "6bcff940-9e18-4085-bff1-49ac0a0993d7",
+      "name": "EnviaWhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2752,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "mensagem",
+              "value": "={{ $('LimpaDados0').item.json[\"conteudo\"].match(/mensagem_whatsapp:([^\\n]+)/)[1].trim();}}"
+            },
+            {
+              "name": "number",
+              "value": "={{ $('LimpaDados0').item.json[\"conteudo\"].match(/number:([^\\n]+)/)[1].trim()}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fa8adac6-5609-4cea-96a5-317c27749013",
+      "name": "LimpaDados2",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Disparo Evolution WhatsApp e Delay ajustável para envio (Padrão: 11 a 19 segundos)",
+        "height": 355,
+        "width": 1539
+      },
+      "id": "a21fc725-d55d-4915-9380-5eb6574a83fc",
+      "name": "Sticky Note4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1392,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('info_base').item.json.url_evolution_api }}/message/sendText/{{ $('Instancia').item.json.fields.routingKey }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('info_base').item.json.global_api_key_evolution }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"number\": \"{{ $('checa').item.json[\"jid\"]}}\",\n        \"text\": \"{{ $('LimpaDados2').item.json[\"mensagem\"] }}\"\n   \n}",
+        "options": {}
+      },
+      "id": "4c8bb3b8-1e35-40dc-adf9-98f8e1b1a83b",
+      "name": "EnviaWhatsApp1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2800,
+        1120
+      ],
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.conteudo }}",
+                    "rightValue": "mensagem_sms:",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "SMS"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "dc685798-4bb3-41ff-8294-867a36549df9",
+                    "leftValue": "={{ $json.conteudo }}",
+                    "rightValue": "template:",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "TYPEBOT"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "f9de4c56-d142-4c2b-9926-bf310067b107",
+                    "leftValue": "={{ $json.conteudo }}",
+                    "rightValue": "template_oficial:",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "API OFICIAL"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "330280ea-240f-4c7e-94c4-1194dfb97bcd",
+                    "leftValue": "={{ $json.conteudo }}",
+                    "rightValue": "mensagem_whatsapp:",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "EVOLUTION"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9d6d0b59-ec9a-4c2f-9f47-a699bde69595",
+      "name": "Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        1008,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const min = 8; // tempo mínimo em segundos\nconst max = 10; // tempo máximo em segundos\n\n// Função para criar uma espera aleatória\nfunction randomWait(min, max) {\n  return new Promise((resolve) => {\n    const randomTime = Math.floor(Math.random() * (max - min + 1) + min) * 1000; // tempo aleatório em milissegundos\n    setTimeout(resolve, randomTime);\n  });\n}\n\n// Executa a função de espera\nawait randomWait(min, max);\n\nreturn [\n  {\n    json: {\n      success: true,\n    },\n  },\n];\n"
+      },
+      "id": "37049f3a-c3a5-41d5-b15d-adb3500b345d",
+      "name": "Delay_Ajustavel1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2592,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const min = 8; // tempo mínimo em segundos\nconst max = 10; // tempo máximo em segundos\n\n// Função para criar uma espera aleatória\nfunction randomWait(min, max) {\n  return new Promise((resolve) => {\n    const randomTime = Math.floor(Math.random() * (max - min + 1) + min) * 1000; // tempo aleatório em milissegundos\n    setTimeout(resolve, randomTime);\n  });\n}\n\n// Executa a função de espera\nawait randomWait(min, max);\n\nreturn [\n  {\n    json: {\n      success: true,\n    },\n  },\n];\n"
+      },
+      "id": "e7323ec7-bac0-41d5-bf2b-857faf47973c",
+      "name": "Delay_Ajustavel",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2512,
+        256
+      ]
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        320,
+        640
+      ],
+      "id": "00f65d20-cb29-46cb-967d-f0625872efdf",
+      "name": "Instancia"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dfd217a5-706b-45a2-bd89-546effd03e94",
+              "leftValue": "={{ $('LimpaDados1').item.json[\"number\"].length }}",
+              "rightValue": 14,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1728,
+        256
+      ],
+      "id": "d3f0a507-0e35-4b67-a400-edfb3e5657e1",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('info_base').item.json.url_evolution_api }}/chat/whatsappNumbers/{{ $('Instancia').item.json.fields.routingKey }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('info_base').item.json.global_api_key_evolution }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"numbers\": [\n    \"{{ $('LimpaDados1').item.json[\"number\"]}}\"\n  ]\n}",
+        "options": {}
+      },
+      "id": "62e185f8-d5d4-495f-9269-da6fc4832c83",
+      "name": "checa1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2000,
+        256
+      ],
+      "alwaysOutputData": false,
+      "retryOnFail": false,
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "82bc7b84-a54d-4452-8e3c-69a7c09e1386",
+              "leftValue": "={{ $json.exists }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2208,
+        256
+      ],
+      "id": "0cc9c0d2-41c0-496f-815f-af0fb31b490c",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dfd217a5-706b-45a2-bd89-546effd03e94",
+              "leftValue": "={{ $('LimpaDados2').item.json[\"number\"].length }}",
+              "rightValue": 14,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1824,
+        1136
+      ],
+      "id": "ed988881-bb23-49da-be9e-a87d8163f4ae",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('info_base').item.json.url_evolution_api }}/chat/whatsappNumbers/{{ $('Instancia').item.json.fields.routingKey }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('info_base').item.json.global_api_key_evolution }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"numbers\": [\n    \"{{ $('LimpaDados2').item.json[\"number\"]}}\"\n  ]\n}",
+        "options": {}
+      },
+      "id": "b624572d-891e-4f87-9214-7876f52cf84c",
+      "name": "checa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2096,
+        1136
+      ],
+      "alwaysOutputData": false,
+      "retryOnFail": true,
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "82bc7b84-a54d-4452-8e3c-69a7c09e1386",
+              "leftValue": "={{ $json.exists }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2304,
+        1136
+      ],
+      "id": "6d613ac4-4458-4f2d-8ba4-2f29004605dd",
+      "name": "If3"
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "typebot",
+              "value": "={{ $('LimpaDados0').item.json[\"conteudo\"].match(/template_oficial:([^\\n]+)/)[1].trim();}}"
+            },
+            {
+              "name": "number",
+              "value": "={{ $('LimpaDados0').item.json[\"conteudo\"].match(/number:([^\\n]+)/)[1].trim()}}"
+            },
+            {
+              "name": "nome",
+              "value": "={{ $('LimpaDados0').item.json[\"conteudo\"].match(/nome:([^\\n]+)/)[1].trim();}}"
+            },
+            {
+              "name": "chatbot",
+              "value": "={{ $('LimpaDados0').item.json[\"conteudo\"].match(/chatbot:([^\\n]+)/)[1].trim();}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "641cc420-b397-4c77-9e57-31d9cb870281",
+      "name": "LimpaDados3",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        1552,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Disparo WhatsApp Oficial",
+        "height": 355,
+        "width": 1571
+      },
+      "id": "0a53c52f-de1a-47b1-9b1e-b4c26cc3eab8",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dfd217a5-706b-45a2-bd89-546effd03e94",
+              "leftValue": "={{ $('LimpaDados3').item.json[\"number\"].length }}",
+              "rightValue": 14,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1744,
+        688
+      ],
+      "id": "6e16fa23-1243-4e2c-be39-6ae301e36516",
+      "name": "If4"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "694cbab0-e077-4ba6-847a-641a3849ddce",
+              "name": "url_evolution_api",
+              "value": "https://url_da_evolution.com.br (preencher)",
+              "type": "string"
+            },
+            {
+              "id": "4934ccee-76dc-4d4f-8c83-498816d00a7f",
+              "name": "global_api_key_evolution",
+              "value": "global_api_key_evolution (preencher)",
+              "type": "string"
+            },
+            {
+              "id": "23f914cd-c5bf-49a3-ad9f-4b11e656fba8",
+              "name": "url_typebot_chat",
+              "value": "https://url_do_chat_typebot.com.br (preencher)",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -160,
+        608
+      ],
+      "id": "9021bb4b-0205-4483-9aed-3ad45b02c1bd",
+      "name": "info_base"
+    },
+    {
+      "parameters": {
+        "queue": "nome_da_instancia_evolution (preencher)",
+        "options": {
+          "acknowledge": "executionFinishes",
+          "jsonParseBody": false,
+          "onlyContent": false,
+          "parallelMessages": 1
+        }
+      },
+      "id": "30378aa7-8d52-494f-a8b4-630d3243d0d6",
+      "name": "Trigger",
+      "type": "n8n-nodes-base.rabbitmqTrigger",
+      "typeVersion": 1,
+      "position": [
+        -464,
+        608
+      ],
+      "credentials": {
+        "rabbitmq": {
+          "id": "vtp6qFWCVO1s3Lh7",
+          "name": "RabbitMQ account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## INSTRUÇÕES\n** - No node Trigger preencher em  o nome da instancia da Evolution cujo RabbitMq deverá ter uma Queue de mesmo nome criada** \n** - No node info_base preencher dados da Evolution API e Typebot** \n** - ATENÇÃO: PARA CADA INSTANCIA DE DISPARO DA EVOLUTION DEVERÁ SER CRIADO UM WORKFLOW ESPECÍFICO IGUAL A ESSE** \n\n\n**Double click** to edit me. [Guide](https://docs.n8n.io/workflows/components/sticky-notes/)",
+        "height": 272,
+        "width": 1792,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -560,
+        48
+      ],
+      "typeVersion": 1,
+      "id": "69f618a4-f37d-45b6-a75f-c6973efbf573",
+      "name": "Sticky Note5"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "LimpaDados": {
+      "main": [
+        [
+          {
+            "node": "Delay_2_a_4_seg1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LimpaDados0": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Envia SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delay_2_a_4_seg1": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LimpaDados1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormataDados": {
+      "main": [
+        [
+          {
+            "node": "LimpaDados0",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LimpaDados2": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "LimpaDados",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "LimpaDados1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "LimpaDados3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "LimpaDados2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delay_Ajustavel1": {
+      "main": [
+        [
+          {
+            "node": "EnviaWhatsApp1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delay_Ajustavel": {
+      "main": [
+        [
+          {
+            "node": "EnviaWhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instancia": {
+      "main": [
+        [
+          {
+            "node": "FormataDados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "checa1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "checa1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Delay_Ajustavel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "checa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "checa": {
+      "main": [
+        [
+          {
+            "node": "If3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If3": {
+      "main": [
+        [
+          {
+            "node": "Delay_Ajustavel1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LimpaDados3": {
+      "main": [
+        [
+          {
+            "node": "If4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If4": {
+      "main": [
+        []
+      ]
+    },
+    "info_base": {
+      "main": [
+        [
+          {
+            "node": "Instancia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger": {
+      "main": [
+        [
+          {
+            "node": "info_base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "callerPolicy": "workflowsFromSameOwner",
+    "saveExecutionProgress": true
+  },
+  "versionId": "49bdabe5-8136-47f5-a9ab-d2ec6a1f8d17",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8ed3edb9203bfe03a4b94f63390235285fbb1c230430fdae73a456b9fae762d5"
+  },
+  "id": "Jq2MdASOJ1BOn3ip",
+  "tags": [
+    {
+      "updatedAt": "2026-06-18T19:00:10.455Z",
+      "createdAt": "2026-06-18T19:00:10.455Z",
+      "id": "sadTpIqdbJ3Io40j",
+      "name": "mautic-mkt"
+    }
+  ]
+}

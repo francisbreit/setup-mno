@@ -1,0 +1,25 @@
+# ==============================================================================
+# SCRIPTS DE COPY E ENGAJAMENTO PARA WHATSAPP MARKETING
+# ==============================================================================
+
+[SCRIPT 1 - RECUPERAÇÃO DE CARRINHO / CONTATO RECENTE]
+mensagem_whatsapp: Olá {contactfield=firstname}! Notei que você se interessou pelo nosso projeto e ficou com alguma dúvida.\nPosso te ajudar a concluir sua inscrição com um benefício especial?
+number: {contactfield=phone}
+remetente: Atendimento
+
+[SCRIPT 2 - CONVITE PARA EVENTO / WEBINAR AO VIVO]
+mensagem_whatsapp: Olá {contactfield=firstname}! Passando rapidinho para te lembrar que nossa aula ao vivo começa hoje às 20h.\nVocê já garantiu seu acesso? Responda SIM para eu te enviar o link direto!
+number: {contactfield=phone}
+remetente: Atendimento
+
+[SCRIPT 3 - ANIVERSÁRIO E OFERTA RELÂMPAGO (TYPEBOT)]
+template: aniversario
+number: {contactfield=phone}
+nome: {contactfield=firstname}
+chatbot: true
+remetente: Atendimento
+
+[SCRIPT 4 - PESQUISA DE SATISFAÇÃO / NPS]
+mensagem_whatsapp: Oi {contactfield=firstname}! Tudo bem? De 0 a 10, qual nota você daria para o nosso atendimento recente? Sua opinião é fundamental para melhorarmos sempre.
+number: {contactfield=phone}
+remetente: Atendimento

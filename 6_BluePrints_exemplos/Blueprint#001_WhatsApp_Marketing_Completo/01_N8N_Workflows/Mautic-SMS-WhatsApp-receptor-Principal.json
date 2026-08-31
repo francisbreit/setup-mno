@@ -1,0 +1,198 @@
+{
+  "name": "Mautic-SMS-WhatsApp-receptor-Principal",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Webhook').item.json.headers.dados_extras }}",
+              "value2": "207811"
+            }
+          ]
+        }
+      },
+      "id": "e43feb79-911f-4c38-9a45-c73768d60b62",
+      "name": "x-api-token?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        224,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## RabbitMQ Producer (Recebe do Mautic e Envia para fila)\n",
+        "height": 398.3040532465503,
+        "width": 953.3255470936115,
+        "color": 3
+      },
+      "id": "eaa0ae67-f37a-4333-8ada-ffbead1dbbd4",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -16,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "queue": "={{ $json.body.message.match(/remetente: (.+)/)[1].trim(); }}",
+        "options": {}
+      },
+      "id": "85b6cdaa-df7d-41d4-b469-f81002810323",
+      "name": "RabbitMQ",
+      "type": "n8n-nodes-base.rabbitmq",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        -208
+      ],
+      "credentials": {
+        "rabbitmq": {
+          "id": "vtp6qFWCVO1s3Lh7",
+          "name": "RabbitMQ account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n    \"success\": false,\n    \"message\": \"Ocorreu um erro no envio de sua mensagem\",\n    \"errorCode\": 1234\n}",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Erro",
+                "value": "token errado"
+              }
+            ]
+          }
+        }
+      },
+      "id": "262018f3-1c7d-4a07-b6cc-ada0268fd164",
+      "name": "Respond to Webhook1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        512,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n    \"success\": true,\n    \"message\": \"Mensagem enviada para a fila.\"\n}\n",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "a9a75d4b-cb4e-478d-a3a8-9f6b684ecef1",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "217547ad-14cf-4710-8a93-245dad196f9e",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ca33c6bb-f06c-4f48-98f0-aa50f9fcd6eb",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        32,
+        -128
+      ],
+      "webhookId": "217547ad-14cf-4710-8a93-245dad196f9e"
+    },
+    {
+      "parameters": {
+        "content": "## INSTRUÇÕES\n**No node Webhook você deverá copiar e colar a url do webhook no plugin do Mautic** \n**No node x-pai-token você deverá colar o token criado no plugin do Mautic** \n**No node RabbitMq Você deverá conectar a conta do RabbitMQ que possua uma Queue do tipo Quorum rm nome da Instancia Evolution API responsável pelo envio de mensagens** \n**Double click** to edit me. [Guide](https://docs.n8n.io/workflows/components/sticky-notes/)",
+        "height": 192,
+        "width": 960
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -16,
+        -512
+      ],
+      "typeVersion": 1,
+      "id": "a627a44f-c563-497c-9404-e96275c6029e",
+      "name": "Sticky Note1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "x-api-token?": {
+      "main": [
+        [
+          {
+            "node": "RabbitMQ",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RabbitMQ": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "x-api-token?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "d47b9e53-1516-4fa3-b9bf-ad7d20b7afc0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8ed3edb9203bfe03a4b94f63390235285fbb1c230430fdae73a456b9fae762d5"
+  },
+  "id": "1ilWSt7Uh4FpOyOJ",
+  "tags": [
+    {
+      "name": "mautic-mkt",
+      "id": "sadTpIqdbJ3Io40j",
+      "updatedAt": "2026-06-18T19:00:10.455Z",
+      "createdAt": "2026-06-18T19:00:10.455Z"
+    }
+  ]
+}

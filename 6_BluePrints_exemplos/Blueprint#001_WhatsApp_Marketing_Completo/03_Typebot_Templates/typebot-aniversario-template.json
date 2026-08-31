@@ -1,0 +1,117 @@
+{
+  "version": "6.1",
+  "name": "aniversario",
+  "events": [
+    {
+      "id": "aq9w861c5kswhrmlwnigt6bp",
+      "type": "start",
+      "outgoingEdgeId": "eyybi8wec6m36j9t6tegfnan",
+      "graphCoordinates": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  ],
+  "groups": [
+    {
+      "id": "wxca3oixe47xml54i5fk7pdq",
+      "title": "Boas Vindas e Felicitações",
+      "blocks": [
+        {
+          "id": "siwvhm0e8aer1k5stv538u07",
+          "type": "text",
+          "content": {
+            "richText": [
+              {
+                "id": "D28V59ohIl",
+                "type": "p",
+                "children": [
+                  {
+                    "text": "Oi {{nome}}! Tudo bem?"
+                  }
+                ]
+              },
+              {
+                "id": "cA5gv8B1NN",
+                "type": "p",
+                "children": [
+                  {
+                    "text": "Passando para te desejar um Feliz Aniversário! 🎂🍰🧁🎉"
+                  }
+                ]
+              }
+            ]
+          },
+          "outgoingEdgeId": "ropamv1j1wo2aqv1x6nhmfv9"
+        }
+      ],
+      "graphCoordinates": {
+        "x": 317.6,
+        "y": 93.2
+      }
+    },
+    {
+      "id": "ytsuyac0hux3gm76jdftk57r",
+      "title": "Áudio e Presente Especial",
+      "blocks": [
+        {
+          "id": "gn6zi1lo3foc9p6dl0nop7qp",
+          "type": "Wait",
+          "options": {
+            "secondsToWaitFor": "5"
+          }
+        },
+        {
+          "id": "ccxywn40lhv7ufwgb1pfvjld",
+          "type": "text",
+          "content": {
+            "richText": [
+              {
+                "id": "audioPlaceholder",
+                "type": "p",
+                "children": [
+                  {
+                    "text": "Preparamos um presente e cupom especial para você hoje. Responda esta mensagem para conversar com a gente!"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "graphCoordinates": {
+        "x": 339.2,
+        "y": 310.8
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "eyybi8wec6m36j9t6tegfnan",
+      "to": {
+        "groupId": "wxca3oixe47xml54i5fk7pdq"
+      },
+      "from": {
+        "eventId": "aq9w861c5kswhrmlwnigt6bp"
+      }
+    },
+    {
+      "id": "ropamv1j1wo2aqv1x6nhmfv9",
+      "to": {
+        "groupId": "ytsuyac0hux3gm76jdftk57r"
+      },
+      "from": {
+        "blockId": "siwvhm0e8aer1k5stv538u07"
+      }
+    }
+  ],
+  "variables": [
+    {
+      "id": "vhtckaesw7otjvb81641dj2rx",
+      "name": "nome",
+      "isSessionVariable": true
+    }
+  ],
+  "theme": {},
+  "settings": {}
+}

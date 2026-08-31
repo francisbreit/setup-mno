@@ -808,6 +808,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CAL.COM" ""  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" ""   \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
+    "COMBO WHATSAPP MARKETING COMPLETO*" ""   \
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
     "CHATWOOT AI CUSTOMER SERVICE*" ""   \
@@ -995,6 +996,7 @@ case "$CHOICE" in
             "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
+            "COMBO WHATSAPP MARKETING COMPLETO*")                   warn_heavy "Combo WhatsApp Marketing Completo" "8GB" && run_app combo_whatsapp_marketing ;;
             "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    warn_heavy "Chatwoot Original + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwooto_evo2_rabbitmq_minio ;;
             "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") warn_heavy "Chatwoot Desbloqueado + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
             "CHATWOOT AI CUSTOMER SERVICE*") warn_heavy "Chatwoot AI Customer Service" "10GB" && run_app chatwoot_ai_customer_service ;;
@@ -1209,6 +1211,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "BYTEBASE" "PRO" \
     "CAL.COM" "PRO"  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
+    "COMBO WHATSAPP MARKETING COMPLETO*" "PRO"   \
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOT AI CUSTOMER SERVICE*" "PRO"   \
@@ -1351,6 +1354,7 @@ case "$CHOICE" in
             "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
+            "COMBO WHATSAPP MARKETING COMPLETO*")                   warn_heavy "Combo WhatsApp Marketing Completo" "8GB" && run_app combo_whatsapp_marketing ;;
             "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    warn_heavy "Chatwoot Original + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwooto_evo2_rabbitmq_minio ;;
             "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") warn_heavy "Chatwoot Desbloqueado + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
             "CHATWOOT AI CUSTOMER SERVICE*") warn_heavy "Chatwoot AI Customer Service" "10GB" && run_app chatwoot_ai_customer_service ;;
@@ -1531,6 +1535,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CAL.COM" "PRO"  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" "PRO"   \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
+    "COMBO WHATSAPP MARKETING COMPLETO*" "PRO"   \
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOT AI CUSTOMER SERVICE*" "PRO"   \
@@ -1699,6 +1704,7 @@ case "$CHOICE" in
             "CAL.COM")                                               run_app calcom ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
+            "COMBO WHATSAPP MARKETING COMPLETO*")                   warn_heavy "Combo WhatsApp Marketing Completo" "8GB" && run_app combo_whatsapp_marketing ;;
             "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    warn_heavy "Chatwoot Original + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwooto_evo2_rabbitmq_minio ;;
              "CHANGEDETECTION.IO")                                     run_app changedetection ;;
              "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") warn_heavy "Chatwoot Desbloqueado + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
@@ -1879,6 +1885,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CAL.COM" "PRO"  \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" "PRO"   \
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
+    "COMBO WHATSAPP MARKETING COMPLETO*" "PRO"   \
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOT AI CUSTOMER SERVICE*" "PRO"   \
@@ -2048,6 +2055,7 @@ case "$CHOICE" in
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
              "CHANGEDETECTION.IO")                                     run_app changedetection ;;
              "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
+             "COMBO WHATSAPP MARKETING COMPLETO*")                   warn_heavy "Combo WhatsApp Marketing Completo" "8GB" && run_app combo_whatsapp_marketing ;;
              "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    warn_heavy "Chatwoot Original + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwooto_evo2_rabbitmq_minio ;;
              "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") warn_heavy "Chatwoot Desbloqueado + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
              "CHATWOOT AI CUSTOMER SERVICE*") warn_heavy "Chatwoot AI Customer Service" "10GB" && run_app chatwoot_ai_customer_service ;;

@@ -1,0 +1,22 @@
+# ==============================================================================
+# MODELO 2: DISPARO DE CHATBOT INTERATIVO (MAUTIC -> TYPEBOT VIA EVOLUTION)
+# ==============================================================================
+# Canal no Mautic: Canais > Mensagens de Texto / WhatsApp
+# Tipo: Broadcast ou Campanha
+# Plugin: Twilio (com Webhook do n8n Receptor)
+# ==============================================================================
+
+template: aniversario
+number: {contactfield=phone}
+nome: {contactfield=firstname}
+chatbot: true
+remetente: Atendimento
+
+# ------------------------------------------------------------------------------
+# INSTRUÇÕES DE USO NO MAUTIC:
+# 1. Copie o bloco acima e cole no campo "Texto da Mensagem" do Mautic;
+# 2. "template: aniversario" corresponde ao nome do bot publicado no Typebot;
+# 3. "chatbot: true" avisa ao n8n para iniciar a sessão conversacional no Typebot;
+# 4. "nome: {contactfield=firstname}" passa a variável de primeiro nome para o fluxo;
+# 5. O campo "remetente" DEVE ser o nome exato da instância da Evolution API (Ex: Atendimento).
+# ==============================================================================

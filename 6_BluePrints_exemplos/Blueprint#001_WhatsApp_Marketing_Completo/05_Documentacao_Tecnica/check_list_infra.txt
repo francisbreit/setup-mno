@@ -1,0 +1,28 @@
+# ==============================================================================
+# CHECKLIST DE INFRAESTRUTURA — BLUEPRINT #001 WHATSAPP MARKETING COMPLETO
+# ==============================================================================
+
+1. REQUISITOS MÍNIMOS DE HARDWARE:
+- Processador (CPU): Mínimo 4 vCPUs (Recomendado 8 vCPUs);
+- Memória RAM: Mínimo 8 GB (Recomendado 12 GB a 16 GB para produção);
+- Disco SSD/NVMe: Mínimo 40 GB livres (para bancos Postgres, Redis, mídias MinIO e logs).
+
+2. AMBIENTES SUPORTADOS:
+- Debian 11 / 12 / 13 (VPS AMD64 e ARM64);
+- Ubuntu 22.04 / 24.04 LTS (VPS AMD64 e ARM64);
+- Windows 10/11 com WSL2 + Docker Desktop (Ambiente de Testes/Homologação).
+
+3. SUBDOMÍNIOS RECOMENDADOS (DNS OU CLOUDFLARE TUNNEL):
+- Chatwoot (Atendimento): atend.seudominio.com
+- Evolution API (WhatsApp): evo.seudominio.com
+- RabbitMQ (Painel Filas): fila.seudominio.com
+- MinIO (S3 Console/API): admins3.seudominio.com / s3.seudominio.com
+- Mautic 7 (Marketing): mkt.seudominio.com
+- n8n v2 (Automações): work.seudominio.com (Editor) / hook.seudominio.com (Webhooks)
+- Typebot (Chatbots): adminchat.seudominio.com (Builder) / chat.seudominio.com (Viewer)
+
+4. ORDEM DE PROVISIONAMENTO DOS COMBOS NO SETUP MNO:
+1º: CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*
+2º: MAUTIC 7 WHATSAPP MKT
+3º: N8N V2 - FILA (QUEUE)
+4º: TYPEBOT + MINIO*

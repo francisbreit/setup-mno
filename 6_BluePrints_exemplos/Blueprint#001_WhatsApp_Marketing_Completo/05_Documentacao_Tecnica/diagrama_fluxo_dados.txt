@@ -1,0 +1,51 @@
+# ==============================================================================
+# DIAGRAMA DE FLUXO DE DADOS — ARQUITETURA BLUEPRINT #001
+# ==============================================================================
+
++-------------------+
+|     MAUTIC 7      |  (Disparo da Campanha / Broadcast)
++---------+---------+
+          |
+          | HTTP POST (Webhook Plugin Twilio c/ Auth Token 207811)
+          v
++-------------------+
+|   N8N RECEPTOR    |  (Valida Token, lê destinatário e 'remetente')
++---------+---------+
+          |
+          | Publica mensagem na Fila Quorum
+          v
++-------------------+
+| RABBITMQ (QUEUE)  |  (Fila 'Atendimento' - Amortecedor Anti-Bloqueio)
++---------+---------+
+          |
+          | Consumo individual com rate limiting e delays seguros
+          v
++-------------------+
+|    N8N EMISSOR    |  (Consulta status da instância e aplica delay)
++---------+---------+
+          |
+          +-----------------------------+
+          |                             |
+          | Se texto simples            | Se chatbot (template: aniversario)
+          v                             v
++-------------------+         +-------------------+
+| EVOLUTION API v2  |         |   TYPEBOT VIEWER  |
++---------+---------+         +---------+---------+
+          |                             |
+          | Conexão WhatsApp            | Inicia fluxo conversacional
+          v                             v
++-------------------------------------------------+
+|               WHATSAPP DO CLIENTE               |
++-------------------------------------------------+
+          |
+          | Quando o cliente responde
+          v
++-------------------+
+|  EVOLUTION API v2 |
++---------+---------+
+          |
+          | Encaminha mensagem recebida para atendimento
+          v
++-------------------+
+|     CHATWOOT      |  (Caixa 'Atendimento' para Atendentes Humanos)
++-------------------+

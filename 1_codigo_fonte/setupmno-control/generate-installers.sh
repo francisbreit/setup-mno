@@ -1236,6 +1236,7 @@ count_pro_menu() {
                 name != "GERADOR DE REGISTROS DNS" &&
                 name != "ESSENCIAIS EDITÁVEIS NO PORTAINER" &&
                 name != "DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR" &&
+                name != "COMBO WHATSAPP MARKETING COMPLETO*" &&
                 name != "SAIR" &&
                 name !~ /^─+$/) count++
         }
