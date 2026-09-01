@@ -145,6 +145,7 @@ capacidade de uma IA executar comandos nunca será tratada como equivalente a
 - inclusão e homologação do primeiro Blueprint real em produção: `Blueprint #001 — WhatsApp Marketing Completo`;
 - manifesto `blueprint.json` promovido para `homologated` com 15 etapas unificadas, relatório de testes, revisão de segurança anti-ban e teste de rollback;
 - novo combo nativo no instalador Setup MNO: `COMBO WHATSAPP MARKETING COMPLETO*` (Chatwoot + Evolution 2.0 + RabbitMQ + MinIO + Mautic 7 + n8n Fila + Typebot);
+- integração completa do combo ao catálogo oficial (`catalog.json`, `ferramentas.html` e base de conhecimento `setups.json` / `overview.md`), totalizando 159 setups no ecossistema (142 ARM);
 - disponibilização do pacote `Blueprint#001_WhatsApp_Marketing_Completo.zip` com workflows n8n, template Typebot, scripts de copy e novo guia PDF (`00_Guia_de_Inicio.pdf`);
 - correção de compatibilidade no Docker Swarm para o terminal do Control Center (remoção de `group_add` não suportado no swarm mode);
 - cache buster atualizado para `4.43.0` no Control Center;

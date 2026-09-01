@@ -938,6 +938,21 @@
       ]
     },
     {
+      "setupId": "combo-whatsapp-marketing",
+      "catalogName": "COMBO WHATSAPP MARKETING COMPLETO*",
+      "script": "combo_whatsapp_marketing.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "combo whatsapp marketing",
+        "whatsapp marketing completo",
+        "blueprint 001 combo",
+        "marketing whatsapp"
+      ]
+    },
+    {
       "setupId": "cognee",
       "catalogName": "COGNEE",
       "script": "cognee.sh",

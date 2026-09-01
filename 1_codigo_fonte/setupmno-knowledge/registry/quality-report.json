@@ -503,6 +503,27 @@
       ]
     },
     {
+      "catalogName": "COMBO WHATSAPP MARKETING COMPLETO*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "combo-whatsapp-marketing",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
       "catalogName": "DATABASUS",
       "editorialStatus": "reviewed",
       "homologationEvidence": false,
@@ -3362,7 +3383,7 @@
     }
   ],
   "evidenceSchemaVersion": 1,
-  "generatedAt": "2026-08-17T00:00:00Z",
+  "generatedAt": "2026-09-01T00:00:00Z",
   "knowledgeVersion": "3.34.2",
   "schemaVersion": 2,
   "setupVersion": "7.43.0",
@@ -3372,15 +3393,15 @@
       "draft": 0,
       "homologated": 0,
       "outdated": 0,
-      "reviewed": 158
+      "reviewed": 159
     },
     "homologatedEntries": 0,
     "installationStatuses": {
-      "maintainer-homologated": 158
+      "maintainer-homologated": 159
     },
     "integrationMaturityLevels": {
       "documented": 0,
-      "not-mapped": 158,
+      "not-mapped": 159,
       "suggested": 0,
       "validated": 0
     },
@@ -3391,12 +3412,12 @@
       "operational-reviewed": 1,
       "script-reviewed": 0,
       "source-reviewed": 0,
-      "structural": 157
+      "structural": 158
     },
-    "officialSourceEntries": 138,
+    "officialSourceEntries": 139,
     "officialSourceExceptions": 1,
     "operationalEvidenceEntries": 1,
-    "setupEntries": 158,
+    "setupEntries": 159,
     "unresolvedIssueCount": 29
   }
 }

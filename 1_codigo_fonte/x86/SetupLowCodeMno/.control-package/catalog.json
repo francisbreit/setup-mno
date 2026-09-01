@@ -165,6 +165,17 @@
     "search": "chatwootn + evolutionn 2.0 + rabbitmq + minio* atendimento, whatsapp, omnichannel, storage versão completa do combo anterior com minio para armazenamento de mídias e arquivos."
   },
   {
+    "name": "COMBO WHATSAPP MARKETING COMPLETO*",
+    "cats": "Atendimento, WhatsApp, Marketing, Automação",
+    "desc": "Stack completa do Blueprint #001: Chatwoot + Evolution 2.0 + RabbitMQ + MinIO + Mautic 7 + n8n Fila + Typebot para campanhas e atendimento automatizado.",
+    "ram": 8,
+    "ramLabel": "~8GB",
+    "arch": "x86-arm",
+    "stars": 0,
+    "type": "Combo",
+    "search": "combo whatsapp marketing completo* atendimento, whatsapp, marketing, automação stack completa do blueprint #001: chatwoot + evolution 2.0 + rabbitmq + minio + mautic 7 + n8n fila + typebot para campanhas e atendimento automatizado."
+  },
+  {
     "name": "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
     "cats": "Atendimento, WhatsApp, Omnichannel",
     "desc": "Versão original do combo com configurações padrão do Chatwoot.",

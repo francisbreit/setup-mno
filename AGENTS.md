@@ -261,20 +261,27 @@ O projeto utiliza Git para rastrear todas as alterações. Regras obrigatórias:
 - **Reversão:** `git checkout <hash> -- <arquivo>` para voltar um arquivo, ou `git checkout <hash>` para estado completo.
 - **Diferença:** `git diff <hash1> <hash2>` para comparar versões.
 
-### Versionamento
+### Versionamento Obrigatório (⚠️ REGRA PERMANENTE DE RELEASE)
+- **O versionamento é OBRIGATÓRIO** sempre que houver qualquer alteração funcional: nova aplicação, novo combo, novo blueprint, homologação de produção ou mudança estrutural. NUNCA faça alterações de produção sem incrementar a versão (SemVer).
 - Versão definida na variável `VERSIONSETUP` no topo do `install.sh` (x86 e ARM), no topo do `setup-mno.sh`, no topo do `setup-mno-oracle.sh`, no topo do `start_full.sh` e no topo do `start_arm_full.sh`.
-- Formato: `MAJOR.MINOR.PATCH` (ex: `4.20.2`)
-- **MAJOR:** Mudança arquitetural (ex: novo menu, novo fluxo de licenciamento)
-- **MINOR:** Nova ferramenta ou combo adicionado
-- **PATCH:** Correção de bug, melhoria de performance, ajuste de layout
+- Formato: `MAJOR.MINOR.PATCH` (ex: `7.43.0`)
+- **MAJOR:** Mudança arquitetural (ex: novo menu, novo fluxo de licenciamento, refatoração de infraestrutura)
+- **MINOR:** Nova ferramenta, novo combo ou novo blueprint adicionado/homologado
+- **PATCH:** Correção de bug, melhoria de performance, ajuste de layout, hotfix
+- Sempre que houver bump de versão, atualize também `CONTROL_VERSION` no Control Center (`installer-template.sh` e cache-busters do `index.html`), `governance.json`, `setups.json`, manifestos e a documentação do roadmap (`ASSISTENTE_MNO_ROADMAP.md`).
 
-### Catálogo HTML atual
+### Catálogo de Setups Unificado e Obrigatório (⚠️ GATE BLOQUEANTE)
+- **Nenhum aplicativo, combo ou blueprint pode existir sem estar registrado no Catálogo:**
+  1. **`1_codigo_fonte/setupmno-control/catalog.json`**: Adicionar entrada canônica com nome, categorias, descrição, RAM estimada, arquitetura e tipo (`Combo`, `Individual`, etc.);
+  2. **`1_codigo_fonte/ferramentas.html`**: Atualizar o `STATIC_CATALOG` com o JSON exato do `catalog.json` e atualizar os contadores de totais (Total de Setups, Total X86, Total ARM) no cabeçalho;
+  3. **`1_codigo_fonte/setupmno-knowledge/registry/setups.json`**: Mapear `setupId`, `catalogName`, `script` e `architectures`;
+  4. **`1_codigo_fonte/setupmno-knowledge/setups/<setup-id>/overview.md`**: Criar documentação completa com fontes oficiais (`official-documentation`), licenças e todas as seções obrigatórias (`## Quando usar`, `## Arquitetura no Setup MNO`, `## Pré-requisitos`, `## Fluxo seguro`, `## Primeiro acesso e integrações`, `## Backup e atualização`, `## Validação`, `## Riscos e limites`, `## Diagnóstico`);
+  5. **Testes e Gates**: Executar `lint_knowledge.py` (hashes e lint), `eval_factory.py`, `test_blueprints.py`, `test_certification.py`, `generate-installers.sh` e `gerar_distribuicao.sh`.
 - O catálogo ativo é `1_codigo_fonte/ferramentas.html` e faz parte de **toda** release, inclusive correções sem novo setup.
-- O antigo catálogo simples foi preservado na raiz como `ferramentas_ant.html`, apenas para referência histórica; ele não é código vivo e não deve ser empacotado.
 - Ao alterar `VERSIONSETUP`, atualize obrigatoriamente no catálogo ativo o subtítulo `Versão X.Y.Z` e o rodapé `Setup MNO vX.Y.Z`.
 - Ao inserir, remover ou alterar setups, categorias, contadores ou links, faça a alteração diretamente em `1_codigo_fonte/ferramentas.html`.
 - O empacotador deve copiar somente `1_codigo_fonte/ferramentas.html` para a raiz de `3_distribuicao/` com o nome `ferramentas.html`.
-- Antes de empacotar, o gate obrigatório é: `grep -n "4\\." 1_codigo_fonte/ferramentas.html` e `grep -rn "VERSIONSETUP" 1_codigo_fonte/`; a versão e os quantitativos devem estar sincronizados.
+- Antes de empacotar, o gate obrigatório é: `grep -n "7\\." 1_codigo_fonte/ferramentas.html` e `grep -rn "VERSIONSETUP" 1_codigo_fonte/`; a versão e os quantitativos devem estar sincronizados.
 - Não execute o empacotamento enquanto qualquer referência estiver divergente.
 
 ### Setup MNO Control Center (sincronização obrigatória)

@@ -973,7 +973,7 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$eval_dataset_version" = "1.17.0" ] &&
 [ "$eval_grader_version" = "1.9.0" ] &&
 [ "${#eval_dataset_sha}" -eq 64 ] &&
-[ "$eval_case_entries" = "878" ] &&
+[ "$eval_case_entries" = "883" ] &&
 [ "$blueprint_schema" = "2" ] &&
 [ "$blueprint_factory_version" = "2.1.0" ] &&
 [ "$blueprint_entries" -gt 0 ] &&
@@ -1236,7 +1236,6 @@ count_pro_menu() {
                 name != "GERADOR DE REGISTROS DNS" &&
                 name != "ESSENCIAIS EDITÁVEIS NO PORTAINER" &&
                 name != "DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR" &&
-                name != "COMBO WHATSAPP MARKETING COMPLETO*" &&
                 name != "SAIR" &&
                 name !~ /^─+$/) count++
         }
