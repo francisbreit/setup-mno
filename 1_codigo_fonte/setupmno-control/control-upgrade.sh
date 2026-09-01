@@ -13,7 +13,7 @@ runtime_dir="/root/SetupLowCodeMno/.control"
 changed_services=()
 heartbeat_pid=""
 runtime_architecture="unknown"
-service_wait_attempts=40
+service_wait_attempts=100
 service_wait_interval=3
 
 progress() {
@@ -145,7 +145,7 @@ configure_service_wait_policy() {
             service_wait_attempts=100
             ;;
         *)
-            service_wait_attempts=40
+            service_wait_attempts=100
             ;;
     esac
     service_wait_interval=3

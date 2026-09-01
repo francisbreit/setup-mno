@@ -230,7 +230,7 @@ configure_assistant_wait_policy() {
             assistant_wait_attempts=100
             ;;
         *)
-            assistant_wait_attempts=40
+            assistant_wait_attempts=100
             ;;
     esac
     assistant_wait_interval=3

@@ -158,7 +158,7 @@ docker() {
 
 MOCK_DOCKER_ARCH=amd64
 configure_service_wait_policy
-[ "$service_wait_attempts" -eq 40 ]
+[ "$service_wait_attempts" -eq 100 ]
 [ "$service_wait_interval" -eq 3 ]
 
 MOCK_DOCKER_ARCH=arm64
