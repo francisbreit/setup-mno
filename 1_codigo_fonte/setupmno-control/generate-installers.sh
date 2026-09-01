@@ -430,7 +430,7 @@ for source_path in "$project_dir"/*.go; do
         exit 1
     fi
 done
-grep -Eq 'evalExpectedCases[[:space:]]*=[[:space:]]*878' "$project_dir/evals.go" &&
+grep -Eq 'evalExpectedCases[[:space:]]*=[[:space:]]*883' "$project_dir/evals.go" &&
 grep -Fq 'runEvalSuite' "$project_dir/evals.go" &&
 grep -Fq 'CredentialLeakCount' "$project_dir/evals.go" || {
     printf 'ERRO: suíte determinística de evals ausente ou incompleta.\n' >&2
