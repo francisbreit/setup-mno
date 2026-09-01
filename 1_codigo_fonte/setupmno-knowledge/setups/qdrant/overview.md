@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Qdrant no Setup MNO",
   "setupId": "qdrant",
-  "setupVersion": "7.42.2",
+  "setupVersion": "7.43.0",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

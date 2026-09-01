@@ -140,6 +140,22 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
+## v7.43.0 — Primeiros Blueprints reais homologados e Combo WhatsApp Marketing (release candidata; BETA)
+
+- inclusão e homologação do primeiro Blueprint real em produção: `Blueprint #001 — WhatsApp Marketing Completo`;
+- manifesto `blueprint.json` promovido para `homologated` com 15 etapas unificadas, relatório de testes, revisão de segurança anti-ban e teste de rollback;
+- novo combo nativo no instalador Setup MNO: `COMBO WHATSAPP MARKETING COMPLETO*` (Chatwoot + Evolution 2.0 + RabbitMQ + MinIO + Mautic 7 + n8n Fila + Typebot);
+- disponibilização do pacote `Blueprint#001_WhatsApp_Marketing_Completo.zip` com workflows n8n, template Typebot, scripts de copy e novo guia PDF (`00_Guia_de_Inicio.pdf`);
+- correção de compatibilidade no Docker Swarm para o terminal do Control Center (remoção de `group_add` não suportado no swarm mode);
+- cache buster atualizado para `4.43.0` no Control Center;
+- Setup MNO `7.43.0` e Control Center `4.43.0` são os artefatos desta release.
+
+Baseline vigente:
+
+- Setup MNO: `7.43.0`, release candidata
+- Control Center: `4.43.0`
+- SRE-3 a SRE-6, Resiliência, Onboarding, Assistente MNO e Blueprints: `BETA`
+
 ## v7.42.2 — Onboarding e convergência UX para produção (release estável; BETA)
 
 - modal guiado de boas-vindas com checklist interativo de 4 passos para iniciantes (Saúde do Servidor, Serviços Base, Primeiro Deploy e Segurança/Resiliência);
@@ -160,8 +176,6 @@ Baseline homologada:
 - SRE-3 a SRE-6, Resiliência, Onboarding, Assistente MNO e Blueprints: `BETA`
 
 A v7.42.2 foi promovida em 30/08/2026 após homologação visual e de usabilidade no WSL2 x86-64 e em VPS ARM64 e declaração explícita de Francis MNO. SRE, Resiliência, Onboarding, Assistente MNO e Blueprints permanecem BETA.
-
-O próximo item macro do roadmap passa a ser primeiros Blueprints reais submetidos, homologados e versionados.
 
 ## v7.41.0 — Resiliência operacional mensurável para backup, restauração, atualização e rollback (candidata; BETA)
 

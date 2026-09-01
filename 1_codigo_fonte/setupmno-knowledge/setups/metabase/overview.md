@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Metabase no Setup MNO",
   "setupId": "metabase",
-  "setupVersion": "7.42.2",
+  "setupVersion": "7.43.0",
   "architectures": [
     "amd64",
     "arm64"
