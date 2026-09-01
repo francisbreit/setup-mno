@@ -284,6 +284,22 @@ O projeto utiliza Git para rastrear todas as alterações. Regras obrigatórias:
 - Antes de empacotar, o gate obrigatório é: `grep -n "7\\." 1_codigo_fonte/ferramentas.html` e `grep -rn "VERSIONSETUP" 1_codigo_fonte/`; a versão e os quantitativos devem estar sincronizados.
 - Não execute o empacotamento enquanto qualquer referência estiver divergente.
 
+### Sincronização Obrigatória de Evals e Casos de Teste (⚠️ PREVENÇÃO DE FALHA NO UPGRADE)
+- **Quando novos setups, infraestruturas ou blueprints são adicionados**, o número de casos de teste de avaliação (Evals) do catálogo aumenta (fórmula: `setups * 5 + infra * 4 + blueprints * 5 + ecosystem (3) + routing (4)`).
+- **É estritamente obrigatório sincronizar a contagem total `N` em TODOS os 6 pontos do repositório antes de gerar release:**
+  1. **Python Factory**: `1_codigo_fonte/setupmno-knowledge/tools/eval_factory.py` (`EXPECTED_CASES = N`);
+  2. **Dataset de Evals**: Executar `python3 eval_factory.py` para gerar `1_codigo_fonte/setupmno-knowledge/evals/dataset.json` com `N` casos;
+  3. **Constante Go no Control Center**: `1_codigo_fonte/setupmno-control/evals.go` (`evalExpectedCases = N`);
+  4. **Suíte de Testes Unitários Go**:
+     - `1_codigo_fonte/setupmno-control/evals_test.go` (`report.RetrievalCases != N - 4`);
+     - `1_codigo_fonte/setupmno-control/main_test.go` (atualizar `EvalCaseEntries != N` nos testes de snapshot e integridade);
+  5. **Gatilhos de Runtime Bash**: `1_codigo_fonte/x86/start_full.sh` e `1_codigo_fonte/arm/start_arm_full.sh` (`EXPECTED_EVAL_CASE_ENTRIES="N"` e `EXPECTED_CATALOG_ENTRIES="M"`);
+  6. **Scripts de Instalação e Reconciliação**:
+     - `1_codigo_fonte/setupmno-control/installer-template.sh` (`[ "$eval_case_entries" = "N" ]`);
+     - `1_codigo_fonte/x86/SetupLowCodeMno/setupmno_control.sh` e `arm/SetupLowCodeMno/setupmno_control.sh` (`[ "$eval_case_entries" = "N" ]`);
+     - `1_codigo_fonte/setupmno-control/generate-installers.sh` (gates de compilação estática `[ "$eval_case_entries" = "N" ]` e regex `evalExpectedCases = N`).
+- **Impacto se esquecer:** O `docker run --rm --entrypoint /setupmno-control "$control_image" knowledgecheck` executado durante a atualização no WSL2/VPS rejeitará a nova imagem com o erro `pacote de conhecimento inválido: contagens do manifesto inválidas` e reverterá o Control Center.
+
 ### Setup MNO Control Center (sincronização obrigatória)
 - O código-fonte canônico do painel web está em `1_codigo_fonte/setupmno-control/`. Os scripts distribuídos `x86/SetupLowCodeMno/setupmno_control.sh` e `arm/SetupLowCodeMno/setupmno_control.sh` são gerados mecanicamente e devem permanecer idênticos.
 - Sempre que um setup for inserido, removido, renomeado ou tiver categoria, arquitetura, RAM ou descrição alterada, atualize **também** `1_codigo_fonte/setupmno-control/catalog.json`. O catálogo HTML e o catálogo interno do Control Center devem representar os mesmos setups.
