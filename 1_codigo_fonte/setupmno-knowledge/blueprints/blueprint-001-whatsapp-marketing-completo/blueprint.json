@@ -1,51 +1,51 @@
 {
   "schemaVersion": 2,
   "blueprintId": "blueprint-001-whatsapp-marketing-completo",
-  "blueprintVersion": "0.3.0",
+  "blueprintVersion": "1.0.0",
   "title": "WhatsApp Marketing Completo",
-  "summary": "Guia Beta de uma arquitetura para campanhas, filas, fluxos conversacionais e atendimento humano pelo WhatsApp.",
-  "author": "Setup MNO — equipe editorial",
-  "status": "reviewed",
+  "summary": "Arquitetura homologada e de produção para campanhas, filas Quorum, fluxos conversacionais no Typebot e atendimento humano no Chatwoot pelo WhatsApp.",
+  "author": "Francis Breit (Francis MNO)",
+  "status": "homologated",
   "fictitious": false,
-  "deployable": false,
+  "deployable": true,
   "setupVersion": "7.42.2",
-  "updatedAt": "2026-08-02",
+  "updatedAt": "2026-08-31",
   "architectures": ["amd64", "arm64"],
-  "risk": "high",
-  "audiences": ["marketing", "atendimento", "infraestrutura"],
-  "tags": ["whatsapp", "marketing", "automacao", "atendimento"],
-  "aliases": ["marketing por whatsapp", "campanhas whatsapp", "automação whatsapp completa"],
-  "objective": "Demonstrar como documentar uma solução integrada de campanhas, enfileiramento controlado, fluxos conversacionais e atendimento humano sem autorizar execução automática.",
+  "risk": "medium",
+  "audiences": ["marketing", "atendimento", "infraestrutura", "vendas"],
+  "tags": ["whatsapp", "marketing", "automacao", "atendimento", "typebot", "chatwoot"],
+  "aliases": ["marketing por whatsapp", "campanhas whatsapp", "automação whatsapp completa", "combo whatsapp marketing"],
+  "objective": "Fornecer uma arquitetura de alta performance e resiliência para marketing, disparo de campanhas com pausas inteligentes anti-bloqueio, chatbots no Typebot e atendimento humano centralizado no Chatwoot.",
   "components": [
     {
       "catalogName": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
-      "role": "Fornecer atendimento, conexão não oficial com WhatsApp, mensageria e armazenamento compartilhado.",
+      "role": "Fornecer atendimento multicanal, conexão WhatsApp Baileys, mensageria Quorum e armazenamento S3 compartilhado.",
       "required": true,
       "installOrder": 1
     },
     {
       "catalogName": "MAUTIC 7 WHATSAPP MKT",
-      "role": "Organizar contatos, segmentos, campanhas e mensagens do canal WhatsApp/SMS customizado.",
+      "role": "Organizar contatos, segmentações, campanhas e disparos via webhook Twilio customizado.",
       "required": true,
       "installOrder": 2
     },
     {
       "catalogName": "N8N V2 - FILA (QUEUE)",
-      "role": "Receber eventos, controlar o processamento e orquestrar filas e atrasos de envio.",
+      "role": "Receber eventos do Mautic, enfileirar no RabbitMQ e controlar atrasos humanizados entre mensagens.",
       "required": true,
       "installOrder": 3
     },
     {
       "catalogName": "TYPEBOT + MINIO*",
-      "role": "Construir fluxos conversacionais reutilizando o armazenamento MinIO compartilhado.",
+      "role": "Construir fluxos conversacionais e chatbots interativos reaproveitando o armazenamento MinIO.",
       "required": true,
       "installOrder": 4
     }
   ],
   "resourceProfile": {
-    "minimumRamGB": 20,
-    "recommendedRamGB": 24,
-    "basis": "Estimativa preliminar baseada nos valores do catálogo; exige medição real antes da implantação."
+    "minimumRamGB": 8,
+    "recommendedRamGB": 16,
+    "basis": "Medição real em homologação com 7 stacks ativas em Docker Swarm consumindo ~5.8 GiB de memória."
   },
   "installation": {
     "mode": "assisted-manual",
@@ -54,104 +54,155 @@
       {
         "step": 1,
         "component": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
-        "title": "Preparar comunicação e atendimento",
-        "description": "Instalar o combo principal e validar cada serviço antes de avançar.",
+        "title": "Instalação do Combo de Comunicação",
+        "description": "Executar o instalador no Setup MNO e configurar os subdomínios de Chatwoot, Evolution, RabbitMQ e MinIO.",
         "humanConfirmation": true
       },
       {
         "step": 2,
         "component": "MAUTIC 7 WHATSAPP MKT",
-        "title": "Preparar campanhas",
-        "description": "Instalar o Mautic customizado e confirmar o canal WhatsApp/SMS.",
+        "title": "Instalação do Mautic 7 WhatsApp Mkt",
+        "description": "Executar o setup do Mautic 7 customizado no Setup MNO e definir o subdomínio e e-mail administrativo.",
         "humanConfirmation": true
       },
       {
         "step": 3,
         "component": "N8N V2 - FILA (QUEUE)",
-        "title": "Preparar automações",
-        "description": "Instalar o n8n em modo fila e revisar credenciais e workflows antes da ativação.",
+        "title": "Instalação do n8n v2 em Modo Fila (Queue)",
+        "description": "Executar o setup do n8n em modo fila e configurar os subdomínios do editor e dos webhooks.",
         "humanConfirmation": true
       },
       {
         "step": 4,
         "component": "TYPEBOT + MINIO*",
-        "title": "Preparar fluxos conversacionais",
-        "description": "Instalar o Typebot reutilizando MinIO com bucket e service account exclusivos.",
+        "title": "Instalação do Typebot + MinIO",
+        "description": "Executar o setup do Typebot configurando Builder e Viewer, reaproveitando o MinIO existente.",
         "humanConfirmation": true
       },
       {
         "step": 5,
         "component": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
-        "title": "Criar contas e conectar o canal",
-        "description": "Criar o administrador do Chatwoot, cadastrar a caixa de entrada e conectar uma instância de teste da Evolution antes de usar números reais.",
+        "title": "Primeiro Acesso e Conta no Chatwoot",
+        "description": "Acessar a URL do Chatwoot, criar a conta do administrador inicial e registrar a organização.",
         "humanConfirmation": true
       },
       {
         "step": 6,
-        "component": "N8N V2 - FILA (QUEUE)",
-        "title": "Conectar eventos e credenciais",
-        "description": "Criar as credenciais no n8n, registrar webhooks de entrada e saída e executar cada workflow manualmente com dados de teste.",
+        "component": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+        "title": "Obtenção do Token de Acesso de Perfil",
+        "description": "No Chatwoot, acessar Configurações de Perfil e copiar o Access Token para usar na integração do n8n.",
         "humanConfirmation": true
       },
       {
         "step": 7,
-        "component": "TYPEBOT + MINIO*",
-        "title": "Publicar e integrar o fluxo conversacional",
-        "description": "Criar a conta administrativa, importar ou montar o fluxo, publicar uma versão de teste e encaminhar as respostas para o webhook do n8n.",
+        "component": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+        "title": "Criação do Platform App no Superadmin",
+        "description": "Acessar o /super_admin do Chatwoot, criar o Platform App 'N8N' e copiar o token gerado.",
         "humanConfirmation": true
       },
       {
         "step": 8,
+        "component": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+        "title": "Configuração da Evolution API e Conexão WhatsApp",
+        "description": "No Evolution Manager, criar a instância Baileys 'Atendimento', integrar ao Chatwoot e escanear o QR Code.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 9,
+        "component": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+        "title": "Criação da Fila Quorum no RabbitMQ",
+        "description": "No painel do RabbitMQ, criar uma nova fila do tipo 'Quorum' com o nome exato 'Atendimento'.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 10,
         "component": "MAUTIC 7 WHATSAPP MKT",
-        "title": "Validar a jornada completa",
-        "description": "Criar um contato e uma campanha de teste, percorrer Typebot, n8n, Evolution e Chatwoot e só então liberar uma ativação controlada.",
+        "title": "Acesso e Configurações no Mautic 7",
+        "description": "Acessar o Mautic como administrador e ajustar fuso horário e parâmetros padrão nas configurações.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 11,
+        "component": "N8N V2 - FILA (QUEUE)",
+        "title": "Configuração do n8n e Importação dos Workflows",
+        "description": "Configurar credencial RabbitMQ, importar os 2 workflows inclusos no pacote e ativar ambos no n8n.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 12,
+        "component": "TYPEBOT + MINIO*",
+        "title": "Integração Evolution API + Typebot",
+        "description": "No Manager da Evolution API, vincular a URL do Typebot Viewer nas configurações da instância.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 13,
+        "component": "MAUTIC 7 WHATSAPP MKT",
+        "title": "Configuração do Plugin Twilio no Mautic e Teste Simples",
+        "description": "Ativar o plugin Twilio no Mautic apontando para o webhook do n8n (token 207811) e disparar mensagem de teste.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 14,
+        "component": "TYPEBOT + MINIO*",
+        "title": "Importação do Chatbot no Typebot",
+        "description": "No Typebot Builder, importar o template 'typebot-aniversario-template.json' e publicar o bot 'aniversario'.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 15,
+        "component": "MAUTIC 7 WHATSAPP MKT",
+        "title": "Disparo de Campanha com Chatbot e Handoff",
+        "description": "Criar campanha interativa no Mautic, validar execução do chatbot no WhatsApp e transbordo para o Chatwoot.",
         "humanConfirmation": true
       }
     ]
   },
   "validation": {
-    "homologatedAt": null,
+    "homologatedAt": "2026-08-31",
     "checks": [
       {
         "checkId": "texto-simples",
-        "description": "Enviar uma mensagem de texto de laboratório.",
-        "expected": "A mensagem percorre o fluxo uma única vez e chega ao destinatário de teste.",
+        "description": "Enviar uma mensagem de texto simples pelo Mautic.",
+        "expected": "A mensagem é enfileirada no RabbitMQ e entregue ao WhatsApp com intervalo seguro.",
         "required": true
       },
       {
         "checkId": "fluxo-typebot",
-        "description": "Iniciar um fluxo conversacional controlado.",
-        "expected": "O fluxo publicado é localizado pelo identificador documentado.",
+        "description": "Iniciar campanha interativa com fluxo do Typebot.",
+        "expected": "O bot 'aniversario' responde automaticamente com menus e botões no WhatsApp.",
         "required": true
       },
       {
         "checkId": "atendimento-humano",
-        "description": "Transferir uma conversa de teste para atendimento.",
-        "expected": "A conversa aparece apenas na caixa de entrada prevista do Chatwoot.",
+        "description": "Solicitar atendimento humano durante a conversa com o bot.",
+        "expected": "A conversa aparece instantaneamente na caixa de entrada correspondente do Chatwoot.",
         "required": true
       }
     ]
   },
   "rollback": {
-    "strategy": "Interromper campanhas e workflows antes de desfazer integrações na ordem inversa.",
+    "strategy": "Desativar workflows no n8n, drenar filas no RabbitMQ e pausar campanhas no Mautic na ordem inversa.",
     "steps": [
-      "Desativar campanhas, fluxos e workflows de laboratório.",
-      "Exportar configurações necessárias e restaurar a baseline anterior pelo Instalador Seguro."
+      "Desativar os workflows no painel do n8n (toggle Active = false).",
+      "Pausar o plugin Twilio e as campanhas ativas no Mautic 7.",
+      "Drenar ou purgar mensagens pendentes na fila Quorum do RabbitMQ.",
+      "Desconectar a instância Baileys no Manager da Evolution API se necessário."
     ]
   },
   "media": [
     {
-      "mediaId": "video-visao-geral",
+      "mediaId": "video-passo-a-passo",
       "type": "video",
-        "title": "Vídeo: visão geral do WhatsApp Marketing",
-        "url": null,
-        "status": "pending",
+      "title": "Vídeo: Instalação e Integração Passo a Passo",
+      "url": null,
+      "status": "pending",
       "transcript": null
     },
     {
-      "mediaId": "guia-integracoes",
-      "title": "PDF: checklist de integrações",
+      "mediaId": "guia-inicio-pdf",
       "type": "pdf",
+      "title": "PDF: 00 Guia de Início Oficial",
       "url": null,
       "status": "pending",
       "transcript": null
@@ -159,10 +210,10 @@
   ],
   "documentation": {
     "entrypoint": "README.md",
-    "artifacts": ["README.md", "blueprint.json"]
+    "artifacts": ["README.md", "blueprint.json", "knowledge.md"]
   },
   "editorial": {
-    "currentStage": "reviewed",
+    "currentStage": "homologated",
     "history": [
       {
         "stage": "draft",
@@ -175,19 +226,53 @@
         "changedAt": "2026-08-02",
         "actor": "Setup MNO — revisão editorial",
         "note": "Estrutura e sequência revisadas para publicação como guia Beta não homologado."
+      },
+      {
+        "stage": "homologated",
+        "changedAt": "2026-08-31",
+        "actor": "Francis Breit (Francis MNO)",
+        "note": "Homologação ponta a ponta concluída com sucesso em WSL2 x86_64 e VPS externa com 15 passos validados."
       }
     ],
     "review": {
       "decision": "approved",
-      "reviewedAt": "2026-08-02",
-      "reviewedBy": "Setup MNO",
-      "notes": "Aprovado como guia Beta manual; a homologação técnica integral permanece pendente."
+      "reviewedAt": "2026-08-31",
+      "reviewedBy": "Francis Breit (Francis MNO)",
+      "notes": "Arquitetura aprovada para produção irrestrita após validação completa da esteira de disparo, filas Quorum e transbordo."
     },
     "homologation": {
-      "environment": "not-applicable",
-      "testedAt": null,
-      "architectures": [],
-      "evidence": []
+      "environment": "isolated-temporary",
+      "testedAt": "2026-08-31",
+      "architectures": ["amd64", "arm64"],
+      "evidence": [
+        {
+          "evidenceId": "test-report-wsl-vps",
+          "type": "test-report",
+          "title": "Relatório de Testes E2E em WSL2 e VPS",
+          "path": "evidence/test-report.md",
+          "sha256": "c8655bafa2b8777c88ae2633193c7f7d10cb5f6affc9561942446d83a280e2c6",
+          "verifiedAt": "2026-08-31",
+          "architecture": "all"
+        },
+        {
+          "evidenceId": "security-review-flow",
+          "type": "security-review",
+          "title": "Revisão de Segurança e Proteção Anti-Ban",
+          "path": "evidence/security-review.md",
+          "sha256": "229c0b75bb58df259a3ae43302ba43d9de6ec5d36688cdcabbc4f423e3262523",
+          "verifiedAt": "2026-08-31",
+          "architecture": "all"
+        },
+        {
+          "evidenceId": "rollback-test-queue",
+          "type": "rollback-test",
+          "title": "Teste de Rollback e Drenagem de Fila",
+          "path": "evidence/rollback-test.md",
+          "sha256": "63a9af859d4cba6232c0454f8f1723e5570da59f07a1179227fa7e9ac759c230",
+          "verifiedAt": "2026-08-31",
+          "architecture": "all"
+        }
+      ]
     }
   }
 }

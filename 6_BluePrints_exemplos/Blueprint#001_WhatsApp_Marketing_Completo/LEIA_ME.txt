@@ -3,127 +3,233 @@ BLUEPRINT #001: WHATSAPP MARKETING COMPLETO
 Setup MNO — Guia Passo a Passo Oficial de Instalação e Configuração
 ================================================================================
 
+================================================================================
+🎥 VÍDEO TUTORIAL PASSO A PASSO:
+Acesse o vídeo completo na área de membros: [EM BREVE - Link disponível na Área de Membros]
+================================================================================
+
 Bem-vindo ao Blueprint Oficial de WhatsApp Marketing do Setup MNO!
-Este manual ensina como montar e integrar do zero um ecossistema profissional com:
-- Campanhas e Automação no Mautic 7;
-- Enfileiramento e Proteção Anti-Bloqueio no RabbitMQ + n8n;
-- Conexão e Disparo via Evolution API v2;
-- Atendimento Humano Multicanal no Chatwoot;
-- Chatbots Interativos e Pesquisas no Typebot.
+Este ecossistema foi projetado para transformar o WhatsApp da sua empresa em uma
+máquina automatizada de vendas, relacionamento e atendimento ao cliente com alta
+resiliência e máxima proteção anti-bloqueio (Anti-Ban).
+
+--------------------------------------------------------------------------------
+COMO FUNCIONA O ECOSSISTEMA (MODELO MENTAL):
+--------------------------------------------------------------------------------
+1. MAUTIC 7: O cérebro de marketing. Segmenta contatos por tags, agenda disparos
+   e envia os eventos de mensagens via webhook para o n8n.
+2. N8N V2 (MODO FILA): O orquestrador. Recebe as mensagens do Mautic, enfileira
+   no RabbitMQ e controla pausas inteligentes (5 a 15 segundos) entre envios.
+3. RABBITMQ (FILA QUORUM): O cofre de mensagens. Garante que nenhuma mensagem se
+   perca se o servidor reiniciar ou houver pico de disparos.
+4. EVOLUTION API V2: A ponte com o WhatsApp. Conecta o chip via Baileys, envia
+   áudios simulando gravação, textos e gerencia a conexão do QR Code.
+5. TYPEBOT: O atendente interativo. Executa fluxos de chatbot, pesquisas,
+   qualificação de leads e coleta de dados diretamente no WhatsApp.
+6. CHATWOOT: O atendimento humano centralizado. Se o cliente tiver dúvidas ou
+   solicitar um atendente, a conversa transborda automaticamente para a equipe.
 
 --------------------------------------------------------------------------------
 SUMÁRIO DOS 15 PASSOS DE IMPLEMENTAÇÃO:
 --------------------------------------------------------------------------------
-Passo 1: Instalação do Combo Chatwoot + Evolution API 2.0 + RabbitMQ + MinIO
-Passo 2: Instalação do Mautic 7 WhatsApp Mkt
-Passo 3: Instalação do n8n v2 (Modo Fila / Queue)
-Passo 4: Instalação do Typebot + MinIO
-Passo 5: Primeiro acesso e criação de conta no Chatwoot
-Passo 6: Obtenção do Token de Acesso do Perfil no Chatwoot
-Passo 7: Criação do Platform App 'N8N' no Superadmin do Chatwoot
-Passo 8: Configuração da Evolution API e Conexão do WhatsApp
-Passo 9: Criação da Fila Quorum no RabbitMQ
-Passo 10: Configuração de Usuário e Segurança no Mautic 7
+Passo 1:  Instalação do Combo Chatwoot + Evolution API 2.0 + RabbitMQ + MinIO
+Passo 2:  Instalação do Mautic 7 WhatsApp Mkt
+Passo 3:  Instalação do n8n v2 (Modo Fila / Queue)
+Passo 4:  Instalação do Typebot + MinIO
+Passo 5:  Primeiro acesso e criação de conta no Chatwoot
+Passo 6:  Obtenção do Token de Acesso do Perfil no Chatwoot
+Passo 7:  Criação do Platform App 'N8N' no Superadmin do Chatwoot
+Passo 8:  Configuração da Evolution API e Conexão do WhatsApp
+Passo 9:  Criação da Fila Quorum no RabbitMQ
+Passo 10: Configuração de Usuário e Parâmetros no Mautic 7
 Passo 11: Configuração do n8n, Importação dos Workflows e RabbitMQ
 Passo 12: Integração da Evolution API com o Typebot
-Passo 13: Configuração do Plugin Twilio no Mautic e Teste de Texto Simples
+Passo 13: Configuração do Plugin Twilio no Mautic e Teste de Mensagem de Texto
 Passo 14: Importação do Fluxo de Feliz Aniversário no Typebot
-Passo 15: Disparo de Teste de Campanha com Chatbot pelo Mautic
+Passo 15: Disparo de Campanha com Chatbot e Handoff para Atendimento Humano
 
 ================================================================================
-PASSO A PASSO DETALHADO:
+PASSO A PASSO DETALHADO DE INSTALAÇÃO E CONFIGURAÇÃO:
 ================================================================================
 
 [PASSO 1] Instalação do Combo de Comunicação
-- No menu do Setup MNO ou Control Center, execute:
-  "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*"
-- Defina os subdomínios (Chatwoot, Evolution, RabbitMQ, MinIO Console e MinIO S3 API).
+--------------------------------------------------------------------------------
+1. No menu do Setup MNO (ou Control Center), execute o setup:
+   "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*"
+2. Defina os subdomínios necessários no assistente:
+   - Chatwoot: atend.seu-dominio.com
+   - Evolution API: evo.seu-dominio.com
+   - RabbitMQ Manager: fila.seu-dominio.com
+   - MinIO Console: s3console.seu-dominio.com
+   - MinIO API: s3.seu-dominio.com
+3. Aguarde a convergência dos serviços (100% concluído).
 
 [PASSO 2] Instalação do Mautic 7 WhatsApp Mkt
-- Execute: "MAUTIC 7 WHATSAPP MKT"
-- Defina o subdomínio do Mautic e o e-mail do administrador.
+--------------------------------------------------------------------------------
+1. No menu do Setup MNO, execute o setup:
+   "MAUTIC 7 WHATSAPP MKT"
+2. Defina o subdomínio: mkt.seu-dominio.com
+3. Informe o e-mail do administrador e finalize a instalação.
 
-[PASSO 3] Instalação do n8n v2 em Modo Fila
-- Execute: "N8N V2 - FILA (QUEUE)"
-- Defina o subdomínio do editor e dos webhooks.
+[PASSO 3] Instalação do n8n v2 em Modo Fila (Queue)
+--------------------------------------------------------------------------------
+1. No menu do Setup MNO, execute o setup:
+   "N8N V2 - FILA (QUEUE)"
+2. Defina os subdomínios:
+   - Painel Editor: n8n.seu-dominio.com
+   - Webhook de Entrada: webhook.seu-dominio.com
+3. Conclua a instalação.
 
-[PASSO 4] Instalação do Typebot
-- Execute: "TYPEBOT + MINIO*"
-- Defina o subdomínio do Builder (ex: adminchat.seu-dominio.com) e do Viewer (ex: chat.seu-dominio.com).
+[PASSO 4] Instalação do Typebot + MinIO
+--------------------------------------------------------------------------------
+1. No menu do Setup MNO, execute o setup:
+   "TYPEBOT + MINIO*"
+2. Defina os subdomínios:
+   - Builder (Criador): adminchat.seu-dominio.com
+   - Viewer (Visualizador): chat.seu-dominio.com
+3. O Typebot reaproveitará o MinIO instalado no Passo 1 para armazenamento de mídia.
 
-[PASSO 5] Primeiro Acesso ao Chatwoot
-- Acesse o subdomínio do Chatwoot;
-- Crie sua conta de administrador (nome, e-mail e senha).
+[PASSO 5] Primeiro Acesso e Criação de Conta no Chatwoot
+--------------------------------------------------------------------------------
+1. Abra no navegador: https://atend.seu-dominio.com
+2. Na tela de boas-vindas, crie a sua conta de administrador (Nome, E-mail e Senha);
+3. Dê o nome para a sua empresa/organização.
 
 [PASSO 6] Obtenção do Token de Acesso do Perfil (Chatwoot)
-- No Chatwoot, clique na sua foto de perfil no canto inferior esquerdo > "Configurações de Perfil";
-- Copie o "Token de Acesso" gerado e guarde para usar no n8n.
+--------------------------------------------------------------------------------
+1. No painel do Chatwoot, clique no seu nome/foto no canto inferior esquerdo;
+2. Acesse "Configurações de Perfil" (Profile Settings);
+3. Role até a seção "Token de Acesso" (Access Token);
+4. Clique em "Copiar" e guarde este token para usar na integração do n8n.
 
 [PASSO 7] Criação do Platform App no Superadmin (Chatwoot)
-- Acesse a área de Superadmin do Chatwoot (/super_admin);
-- Vá em "Platform Apps" > "New Platform App";
-- Crie um app com o nome "N8N" e copie o token gerado.
+--------------------------------------------------------------------------------
+1. Acesse a rota administrativa do Chatwoot: https://atend.seu-dominio.com/super_admin
+2. Faça login com as mesmas credenciais de administrador;
+3. No menu lateral, clique em "Platform Apps" e depois em "New Platform App";
+4. Preencha o nome exatamente como: N8N
+5. Clique em salvar e copie o "Platform App Token" gerado.
 
 [PASSO 8] Configuração da Evolution API e Conexão do WhatsApp
-- Acesse o painel Manager da Evolution API (ex: https://evo.seu-dominio.com/manager);
-- Informe a Global API Key definida na instalação;
-- Clique em "Criar Instância", selecione "Baileys" e dê o nome "Atendimento";
-- Na aba "Integrações" > "Chatwoot", ative a integração preenchendo a URL do Chatwoot e o Token;
-- Escaneie o QR Code com o WhatsApp para conectar o número.
+--------------------------------------------------------------------------------
+1. Acesse o painel Manager da Evolution API: https://evo.seu-dominio.com/manager
+2. Insira a Global API Key definida durante a instalação;
+3. Clique em "Criar Instância" (+ Create Instance);
+4. Nome da Instância: Atendimento (em minúsculas ou maiúsculas, anote exatamente);
+5. Selecione a engine "Baileys";
+6. Na aba "Chatwoot", ative a integração:
+   - Chatwoot URL: https://atend.seu-dominio.com
+   - Chatwoot Access Token: Cole o token obtido no Passo 6
+   - Ative a opção de sincronização de mensagens e contatos;
+7. Clique em "Salvar / Conectar" e escaneie o QR Code com o seu WhatsApp.
 
 [PASSO 9] Criação da Fila Quorum no RabbitMQ
-- Acesse o painel do RabbitMQ (ex: https://fila.seu-dominio.com);
-- Faça login e vá na aba "Queues" (Filas);
-- Clique em "Add a new queue";
-- Em "Type", selecione "Quorum";
-- Em "Name", digite exatamente "Atendimento" (o mesmo nome da instância da Evolution);
-- Clique em "Add queue".
+--------------------------------------------------------------------------------
+1. Acesse o painel do RabbitMQ: https://fila.seu-dominio.com
+2. Faça login com o usuário e senha definidos na instalação;
+3. No menu superior, clique na aba "Queues" (Filas);
+4. Na seção "Add a new queue", preencha:
+   - Type: Quorum (essencial para persistência e tolerância a falhas)
+   - Name: Atendimento (o mesmo nome da instância da Evolution API)
+5. Clique no botão "Add queue". A fila aparecerá na listagem com estado "Idle / 0".
 
-[PASSO 10] Acesso e Configuração do Mautic 7
-- Acesse o Mautic pelo seu subdomínio;
-- Faça login e personalize seu perfil e fuso horário em Configurações.
+[PASSO 10] Acesso e Configurações no Mautic 7
+--------------------------------------------------------------------------------
+1. Acesse o Mautic: https://mkt.seu-dominio.com
+2. Faça login como administrador;
+3. No ícone de engrenagem (canto superior direito), vá em "Configurações":
+   - Ajuste o Fuso Horário padrão para seu fuso local (ex: America/Sao_Paulo);
+   - Salve as preferências.
 
-[PASSO 11] Configuração do n8n e Importação dos Workflows
-- Acesse o n8n e crie sua conta de administrador;
-- Em "Credentials" (Credenciais), crie a credencial do RabbitMQ (Host=rabbitmq, Port=5672);
-- Na aba "Workflows", importe os 2 arquivos JSON inclusos na pasta `01_N8N_Workflows`:
-  1. `Mautic-SMS-WhatsApp-receptor-Principal.json`: Webhook que recebe do Mautic e joga no RabbitMQ;
-  2. `Mautic-SMS-WhatsApp-emissor-verificador-instanciaTeste.json`: Consome a fila, aplica delay seguro e dispara via Evolution API.
-- Ative ambos os workflows.
+[PASSO 11] Configuração do n8n, Importação dos Workflows e RabbitMQ
+--------------------------------------------------------------------------------
+1. Acesse o n8n: https://n8n.seu-dominio.com e crie a conta de proprietário;
+2. Vá em "Credentials" > "Add Credential" e selecione "RabbitMQ":
+   - Host: rabbitmq (ou o subdomínio interno/externo da stack)
+   - Port: 5672
+   - User/Password: credenciais do RabbitMQ definidas na instalação;
+3. Vá em "Workflows" > "Add Workflow" > menu três pontinhos (...) > "Import from File";
+4. Importe os 2 arquivos JSON inclusos na pasta `01_N8N_Workflows`:
+   a) `Mautic-SMS-WhatsApp-receptor-Principal.json`
+      - Este fluxo cria o Webhook receptor do Mautic e publica na fila Quorum.
+      - Ative o workflow (toggle "Active").
+   b) `Mautic-SMS-WhatsApp-emissor-verificador-instanciaTeste.json`
+      - Este fluxo consome a fila do RabbitMQ, aplica delay inteligente e dispara
+        via Evolution API v2.
+      - Ative o workflow (toggle "Active").
+5. Copie a URL do Webhook "Production" gerada no n8n Receptor para usar no Mautic.
 
 [PASSO 12] Integração da Evolution API com o Typebot
-- Volte no Manager da Evolution API;
-- Vá nas configurações da instância "Atendimento" > aba "Typebot";
-- Preencha o "Default Settings" apontando para a URL do seu Typebot Viewer.
+--------------------------------------------------------------------------------
+1. Volte ao painel Manager da Evolution API: https://evo.seu-dominio.com/manager
+2. Abra as configurações da instância "Atendimento";
+3. Vá até a aba "Typebot":
+   - Ative o Typebot para a instância;
+   - Typebot URL: https://chat.seu-dominio.com (URL do seu Typebot Viewer);
+   - Salve as alterações.
 
-[PASSO 13] Configuração do Plugin no Mautic e Teste de Mensagem de Texto
-- No Mautic, vá em Configurações (ícone de engrenagem) > "Plugins" > "Twilio";
-- Ative o plugin;
-- No campo "Auth Token", insira o token de segurança (ex: 207811);
-- No campo de URL personalizada, insira a URL do Webhook do n8n Receptor;
-- Crie um contato de teste com seu número de celular;
-- Crie um segmento e vá em "Canais" > "Mensagens de Texto / WhatsApp";
-- Crie uma mensagem de broadcast usando o modelo da pasta `02_Mautic_Campanhas/01_Modelo_Texto_Simples.txt`;
-- Dispare o teste e confirme o recebimento no seu WhatsApp!
+[PASSO 13] Configuração do Plugin Twilio no Mautic e Teste de Texto Simples
+--------------------------------------------------------------------------------
+1. No Mautic, clique na engrenagem (Configurações) > "Plugins";
+2. Clique no plugin "Twilio":
+   - Mude "Publicado" para "Sim";
+   - No campo "Auth Token", digite o token de validação: 207811
+   - No campo de URL personalizada / Webhook, cole a URL do Webhook do n8n Receptor;
+   - Salve e feche.
+3. Crie um contato de teste:
+   - Vá em "Contatos" > "Novo Contato";
+   - Preencha Nome, Sobrenome e Celular com código do país (ex: 5511999999999);
+   - Salve o contato.
+4. Crie um Segmento de teste e adicione este contato.
+5. Crie a mensagem de teste:
+   - Vá em "Canais" > "Mensagens de Texto / WhatsApp";
+   - Clique em "Nova Mensagem";
+   - Cole o conteúdo do arquivo `02_Mautic_Campanhas/01_Modelo_Texto_Simples.txt`:
+     ```text
+     Olá {contactfield=firstname}! Esta é uma mensagem de teste do Setup MNO.
+     ```
+6. Envie o disparo de teste e confira o recebimento instantâneo no seu WhatsApp!
 
 [PASSO 14] Importação do Chatbot no Typebot
-- Acesse o painel do Typebot Builder;
-- Crie um novo Typebot e escolha "Importar arquivo";
-- Selecione o arquivo `03_Typebot_Templates/typebot-aniversario-template.json`;
-- Publique o bot com o nome "aniversario".
+--------------------------------------------------------------------------------
+1. Acesse o Typebot Builder: https://adminchat.seu-dominio.com
+2. Crie sua conta e entre no painel principal;
+3. Clique em "Criar um Typebot" > "Importar de um arquivo";
+4. Selecione o arquivo: `03_Typebot_Templates/typebot-aniversario-template.json`
+5. Personalize as mensagens de aniversário, opções de presente ou botões;
+6. Clique no botão azul "Publicar" (Publish) no canto superior direito;
+7. Certifique-se de que o nome do bot publicado seja: aniversario
 
-[PASSO 15] Disparo de Campanha com Chatbot Interativo
-- No Mautic, crie uma nova mensagem de WhatsApp usando o modelo `02_Mautic_Campanhas/02_Modelo_Typebot_Interativo.txt`:
-  ```text
-  template: aniversario
-  number: {contactfield=phone}
-  nome: {contactfield=firstname}
-  chatbot: true
-  remetente: Atendimento
-  ```
-- Ao disparar para o segmento, o n8n acionará a Evolution API, que iniciará o fluxo interativo do Typebot diretamente na conversa do WhatsApp do cliente!
-- Se o cliente responder com dúvidas, a conversa aparecerá imediatamente na caixa do Chatwoot para atendimento humano!
+[PASSO 15] Disparo de Campanha com Chatbot e Handoff para Atendimento Humano
+--------------------------------------------------------------------------------
+1. No Mautic, crie uma nova Mensagem de Texto / WhatsApp para a campanha interativa;
+2. Use o modelo do arquivo `02_Mautic_Campanhas/02_Modelo_Typebot_Interativo.txt`:
+   ```text
+   template: aniversario
+   number: {contactfield=phone}
+   nome: {contactfield=firstname}
+   chatbot: true
+   remetente: Atendimento
+   ```
+3. Dispare a mensagem para o segmento de teste;
+4. No seu WhatsApp, você receberá a mensagem inicial e o Typebot começará a interagir;
+5. Responda às perguntas do bot. Se você digitar uma dúvida ou pedir ajuda humana, a
+   conversa aparecerá instantaneamente na caixa de entrada do Chatwoot!
+6. O operador poderá responder pelo Chatwoot e o bot pausará automaticamente.
+
+================================================================================
+BOAS PRÁTICAS E RECOMENDAÇÕES ANTI-BLOQUEIO (ANTI-BAN):
+================================================================================
+- Aquecimento de Chip: Nunca dispare para centenas de contatos em chips novos.
+  Comece com 20 a 50 contatos/dia e aumente gradualmente ao longo de 3 semanas.
+- Intervalos Inteligentes: O workflow do n8n já possui delay configurado (5 a 15s).
+  Nunca reduza o delay para menos de 3 segundos.
+- Segmentação Qualificada: Dispare apenas para pessoas que conhecem sua empresa ou
+  solicitaram contato (Opt-in). Denúncias de spam são a causa #1 de bloqueio.
+- Consulte o arquivo `04_Assets_Marketing/boas_praticas_antiban_whatsapp.txt` para
+  o guia completo de contingência e proteção de chips.
 
 ================================================================================
 PARABÉNS! SEU ECOSSISTEMA DE WHATSAPP MARKETING ESTÁ 100% OPERACIONAL!
+Setup MNO — Transformando infraestrutura em resultados reais para seu negócio.
 ================================================================================

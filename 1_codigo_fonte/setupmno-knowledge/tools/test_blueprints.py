@@ -26,7 +26,7 @@ from blueprint_factory import (
 
 ROOT = Path(__file__).resolve().parent.parent
 CATALOG = ROOT.parent / "setupmno-control" / "catalog.json"
-SETUP_VERSION = "7.33.0"
+SETUP_VERSION = "7.42.2"
 
 
 class BlueprintFactoryTests(unittest.TestCase):
@@ -38,12 +38,11 @@ class BlueprintFactoryTests(unittest.TestCase):
     def test_reviewed_beta_guides_pass_factory(self) -> None:
         records = load_blueprints(ROOT, CATALOG, SETUP_VERSION)
         self.assertEqual(len(records), 5)
-        self.assertTrue(all(record.manifest["status"] == "reviewed" for record in records))
+        self.assertTrue(all(record.manifest["status"] in {"reviewed", "homologated"} for record in records))
         self.assertTrue(all(not record.manifest["fictitious"] for record in records))
-        self.assertTrue(all(not record.manifest["deployable"] for record in records))
         self.assertTrue(all(record.manifest["schemaVersion"] == 2 for record in records))
         self.assertTrue(
-            all(record.manifest["editorial"]["currentStage"] == "reviewed" for record in records)
+            all(record.manifest["editorial"]["currentStage"] in {"reviewed", "homologated"} for record in records)
         )
 
     def test_bundles_are_reproducible_and_regular(self) -> None:
@@ -64,9 +63,13 @@ class BlueprintFactoryTests(unittest.TestCase):
         )
         for entry in index["entries"]:
             editorial = entry["editorial"]
-            self.assertEqual(editorial["passedGates"], 9)
+            if entry["blueprintId"] == "blueprint-001-whatsapp-marketing-completo":
+                self.assertEqual(editorial["passedGates"], 11)
+                self.assertTrue(editorial["promotionReady"])
+            else:
+                self.assertEqual(editorial["passedGates"], 9)
+                self.assertFalse(editorial["promotionReady"])
             self.assertEqual(editorial["totalGates"], 11)
-            self.assertFalse(editorial["promotionReady"])
             self.assertEqual(editorial["versionSeal"]["algorithm"], "sha256")
             self.assertEqual(len(editorial["versionSeal"]["manifestSHA256"]), 64)
             self.assertEqual(len(editorial["versionSeal"]["payloadSHA256"]), 64)
@@ -177,12 +180,13 @@ class BlueprintFactoryTests(unittest.TestCase):
 
     def test_homologated_status_cannot_skip_reviewed_transition(self) -> None:
         manifest = copy.deepcopy(
-            load_blueprints(ROOT, CATALOG, SETUP_VERSION)[0].manifest
+            load_blueprints(ROOT, CATALOG, SETUP_VERSION)[1].manifest
         )
         manifest["status"] = "homologated"
         manifest["fictitious"] = False
         manifest["deployable"] = True
         manifest["validation"]["homologatedAt"] = "2026-07-31"
+        manifest["updatedAt"] = "2026-07-31"
         manifest["editorial"]["currentStage"] = "homologated"
         manifest["editorial"]["history"] = [
             {
@@ -214,12 +218,13 @@ class BlueprintFactoryTests(unittest.TestCase):
 
     def test_homologated_status_requires_isolated_evidence(self) -> None:
         manifest = copy.deepcopy(
-            load_blueprints(ROOT, CATALOG, SETUP_VERSION)[0].manifest
+            load_blueprints(ROOT, CATALOG, SETUP_VERSION)[1].manifest
         )
         manifest["status"] = "homologated"
         manifest["fictitious"] = False
         manifest["deployable"] = True
         manifest["validation"]["homologatedAt"] = "2026-07-31"
+        manifest["updatedAt"] = "2026-07-31"
         manifest["editorial"]["currentStage"] = "homologated"
         manifest["editorial"]["history"] = [
             {
