@@ -57,7 +57,7 @@ CHOICE=$(
 whiptail --title "BLUEPRINT #001: COMBO WHATSAPP MARKETING COMPLETO" --menu \
 "Bem-vindo ao Combo do Blueprint #001: WhatsApp Marketing Completo!\n\nEste ecossistema integra 7 ferramentas profissionais para automação, campanhas, filas anti-bloqueio, chatbots e atendimento humano.\n\nTIPO DE INSTALAÇÃO: $INSTALL_TYPE\nREQUISITO RECOMENDADO: 8 GB a 12 GB de RAM\n\nEscolha uma opção (Utilize as setas e Enter):" 22 76 6 \
   "1)" "INSTALAÇÃO GUIADA COMPLETA (4 ETAPAS)" \
-  "2)" "Etapa 1: Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" \
+  "2)" "Etapa 1: Chatwoot (Desbloqueado) + Evolution 2.0 + RabbitMQ + MinIO" \
   "3)" "Etapa 2: Mautic 7 WhatsApp Mkt" \
   "4)" "Etapa 3: n8n v2 - Modo Fila (Queue)" \
   "5)" "Etapa 4: Typebot + MinIO" \
@@ -67,9 +67,9 @@ whiptail --title "BLUEPRINT #001: COMBO WHATSAPP MARKETING COMPLETO" --menu \
 case $CHOICE in
   "1)")
     whiptail --title "PASSO 1 DE 4 — COMUNICAÇÃO E ATENDIMENTO" --msgbox \
-      "Iniciaremos agora a Etapa 1: Provisionamento do Combo CHATWOOT + EVOLUTION API v2 + RABBITMQ + MINIO.\n\nApós concluir esta etapa, você retornará automaticamente para a próxima." 12 70
-    if [ -f /root/SetupLowCodeMno/chatwootn_evo2_rabbitmq_minio ]; then
-      /root/SetupLowCodeMno/chatwootn_evo2_rabbitmq_minio
+      "Iniciaremos agora a Etapa 1: Provisionamento do Combo CHATWOOT (DESBLOQUEADO) + EVOLUTION API v2 + RABBITMQ + MINIO.\n\nApós concluir esta etapa, você retornará automaticamente para a próxima." 12 70
+    if [ -f /root/SetupLowCodeMno/chatwootorig_desbloq__evo2_rabbitmq_minio ]; then
+      /root/SetupLowCodeMno/chatwootorig_desbloq__evo2_rabbitmq_minio
     fi
 
     whiptail --title "PASSO 2 DE 4 — GESTÃO DE MARKETING" --msgbox \
@@ -96,8 +96,8 @@ case $CHOICE in
   ;;
 
   "2)")
-    if [ -f /root/SetupLowCodeMno/chatwootn_evo2_rabbitmq_minio ]; then
-      /root/SetupLowCodeMno/chatwootn_evo2_rabbitmq_minio
+    if [ -f /root/SetupLowCodeMno/chatwootorig_desbloq__evo2_rabbitmq_minio ]; then
+      /root/SetupLowCodeMno/chatwootorig_desbloq__evo2_rabbitmq_minio
     fi
   ;;
 

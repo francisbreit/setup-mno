@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Combo WhatsApp Marketing Completo no Setup MNO",
   "setupId": "combo-whatsapp-marketing",
-  "setupVersion": "7.43.0",
+  "setupVersion": "7.43.1",
   "architectures": [
     "amd64",
     "arm64"

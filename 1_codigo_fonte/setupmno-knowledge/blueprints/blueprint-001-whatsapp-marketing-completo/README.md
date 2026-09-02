@@ -14,7 +14,7 @@ O Mautic organiza contatos, segmentações e campanhas. O n8n recebe os eventos 
 
 | Ordem | Setup | Papel |
 |---|---|---|
-| 1 | CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO* | Comunicação, atendimento, mensageria Quorum e storage S3 |
+| 1 | CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO* | Comunicação, atendimento, mensageria Quorum e storage S3 |
 | 2 | MAUTIC 7 WHATSAPP MKT | Contatos, segmentos, campanhas e canal WhatsApp/SMS |
 | 3 | N8N V2 - FILA (QUEUE) | Orquestração de eventos, filas e controle de cadência |
 | 4 | TYPEBOT + MINIO* | Fluxos conversacionais e qualificação interativa |

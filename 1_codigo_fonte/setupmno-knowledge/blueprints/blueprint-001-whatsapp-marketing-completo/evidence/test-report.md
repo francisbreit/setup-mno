@@ -10,7 +10,7 @@
   - VPS Oracle Cloud Ubuntu 24.04 (Docker Swarm 29.x, ARM64)
 
 ## Escopo dos Testes
-1. Instalação e convergência do Combo Chatwoot + Evolution API 2.0 + RabbitMQ + MinIO;
+1. Instalação e convergência do Combo Chatwoot (Desbloqueado) + Evolution API 2.0 + RabbitMQ + MinIO;
 2. Instalação e provisionamento do Mautic 7 WhatsApp Mkt;
 3. Instalação e fila de orquestração do n8n v2 (Queue Mode);
 4. Instalação do Typebot e reaproveitamento do storage S3 MinIO;

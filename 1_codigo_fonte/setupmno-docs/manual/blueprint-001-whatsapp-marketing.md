@@ -48,7 +48,7 @@ Ele cria uma máquina profissional de marketing, automação e vendas pelo Whats
 ## 4. Roteiro Oficial em 15 Passos
 
 1. **Instalação do Combo de Comunicação:**
-   - Execute o instalador `CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*` (ou o combo direto);
+   - Execute o instalador `CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*` (ou o combo direto);
    - Configure subdomínios: `atend.`, `evo.`, `fila.` e `s3.`.
 2. **Instalação do Mautic 7:**
    - Execute `MAUTIC 7 WHATSAPP MKT` com subdomínio `mkt.seu-dominio.com`.

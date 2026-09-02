@@ -1,5 +1,5 @@
 ---
-{"schemaVersion":1,"documentId":"blueprint-001-whatsapp-marketing-knowledge","documentVersion":"1.0.0","contentSHA256":"87f2aef5c48be6d3365f7be419f92d5b39f5755b9fa77468ff7a73a26db51ccb","documentType":"blueprint","blueprintId":"blueprint-001-whatsapp-marketing-completo","fictitious":false,"deployable":true,"title":"Blueprint 001 — WhatsApp Marketing Completo","setupVersion": "7.43.0","architectures":["amd64","arm64"],"category":"architecture","status":"homologated","updatedAt":"2026-08-31","sourceType":"maintainer-authored","risk":"medium","language":"pt-BR","tags":["blueprint","whatsapp","marketing","mautic","n8n","typebot"],"sources":[{"sourceId":"blueprint-001-manifest","title":"Manifesto canônico do Blueprint 001","sourceType":"setup-mno","location":"setupmno-knowledge/blueprints/blueprint-001-whatsapp-marketing-completo/blueprint.json","license":"maintainer-owned","verifiedAt":"2026-08-31"}],"homologation":{"verifiedAt":"2026-08-31","verifiedPorts":[],"verifiedImages":[]}}
+{"schemaVersion":1,"documentId":"blueprint-001-whatsapp-marketing-knowledge","documentVersion":"1.0.0","contentSHA256":"17a4c3899f63591f34d2dfa5fb6d4f41a5d853dfb7d8c8540de76873932cd422","documentType":"blueprint","blueprintId":"blueprint-001-whatsapp-marketing-completo","fictitious":false,"deployable":true,"title":"Blueprint 001 — WhatsApp Marketing Completo","setupVersion": "7.43.1","architectures":["amd64","arm64"],"category":"architecture","status":"homologated","updatedAt":"2026-09-02","sourceType":"maintainer-authored","risk":"medium","language":"pt-BR","tags":["blueprint","whatsapp","marketing","mautic","n8n","typebot"],"sources":[{"sourceId":"blueprint-001-manifest","title":"Manifesto canônico do Blueprint 001","sourceType":"setup-mno","location":"setupmno-knowledge/blueprints/blueprint-001-whatsapp-marketing-completo/blueprint.json","license":"maintainer-owned","verifiedAt":"2026-08-31"}],"homologation":{"verifiedAt":"2026-08-31","verifiedPorts":[],"verifiedImages":[]}}
 ---
 # Blueprint 001 — WhatsApp Marketing Completo
 
@@ -17,7 +17,7 @@ O Mautic representa a origem das campanhas. O n8n recebe os eventos, aplica o pr
 
 ## Componentes
 
-- CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*: atendimento, canal, fila e armazenamento compartilhado.
+- CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*: atendimento, canal, fila e armazenamento compartilhado.
 - MAUTIC 7 WHATSAPP MKT: contatos, segmentos, campanhas e mensagens.
 - N8N V2 - FILA (QUEUE): webhooks, processamento, atrasos e controle da fila.
 - TYPEBOT + MINIO*: construção dos fluxos conversacionais reutilizando o MinIO existente.

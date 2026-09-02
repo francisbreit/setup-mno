@@ -8,8 +8,8 @@
   "status": "homologated",
   "fictitious": false,
   "deployable": true,
-  "setupVersion": "7.43.0",
-  "updatedAt": "2026-08-31",
+  "setupVersion": "7.43.1",
+  "updatedAt": "2026-09-02",
   "architectures": ["amd64", "arm64"],
   "risk": "medium",
   "audiences": ["marketing", "atendimento", "infraestrutura", "vendas"],
@@ -18,7 +18,7 @@
   "objective": "Fornecer uma arquitetura de alta performance e resiliência para marketing, disparo de campanhas com pausas inteligentes anti-bloqueio, chatbots no Typebot e atendimento humano centralizado no Chatwoot.",
   "components": [
     {
-      "catalogName": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+      "catalogName": "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
       "role": "Fornecer atendimento multicanal, conexão WhatsApp Baileys, mensageria Quorum e armazenamento S3 compartilhado.",
       "required": true,
       "installOrder": 1
@@ -53,7 +53,7 @@
     "steps": [
       {
         "step": 1,
-        "component": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+        "component": "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
         "title": "Instalação do Combo de Comunicação",
         "description": "Executar o instalador no Setup MNO e configurar os subdomínios de Chatwoot, Evolution, RabbitMQ e MinIO.",
         "humanConfirmation": true
@@ -81,35 +81,35 @@
       },
       {
         "step": 5,
-        "component": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+        "component": "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
         "title": "Primeiro Acesso e Conta no Chatwoot",
         "description": "Acessar a URL do Chatwoot, criar a conta do administrador inicial e registrar a organização.",
         "humanConfirmation": true
       },
       {
         "step": 6,
-        "component": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+        "component": "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
         "title": "Obtenção do Token de Acesso de Perfil",
         "description": "No Chatwoot, acessar Configurações de Perfil e copiar o Access Token para usar na integração do n8n.",
         "humanConfirmation": true
       },
       {
         "step": 7,
-        "component": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+        "component": "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
         "title": "Criação do Platform App no Superadmin",
         "description": "Acessar o /super_admin do Chatwoot, criar o Platform App 'N8N' e copiar o token gerado.",
         "humanConfirmation": true
       },
       {
         "step": 8,
-        "component": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+        "component": "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
         "title": "Configuração da Evolution API e Conexão WhatsApp",
         "description": "No Evolution Manager, criar a instância Baileys 'Atendimento', integrar ao Chatwoot e escanear o QR Code.",
         "humanConfirmation": true
       },
       {
         "step": 9,
-        "component": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+        "component": "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
         "title": "Criação da Fila Quorum no RabbitMQ",
         "description": "No painel do RabbitMQ, criar uma nova fila do tipo 'Quorum' com o nome exato 'Atendimento'.",
         "humanConfirmation": true
@@ -250,7 +250,7 @@
           "type": "test-report",
           "title": "Relatório de Testes E2E em WSL2 e VPS",
           "path": "evidence/test-report.md",
-          "sha256": "c8655bafa2b8777c88ae2633193c7f7d10cb5f6affc9561942446d83a280e2c6",
+          "sha256": "b18cbfbf15bd2b390edabddc6797e3758d4cddc641a8a37ab1acecb0e229b9b6",
           "verifiedAt": "2026-08-31",
           "architecture": "all"
         },
