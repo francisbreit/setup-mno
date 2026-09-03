@@ -1,0 +1,115 @@
+{
+  "name": "03 - Sincronizador Krayin CRM (Pipeline e Leads Automáticos)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "krayin-sync-lead",
+        "options": {}
+      },
+      "name": "Webhook Sincronizador CRM",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "id": "node-crm-webhook"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.KRAYIN_CRM_URL }}/api/persons",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $vars.KRAYIN_CRM_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"{{ $json.body.name || 'Contato WhatsApp' }}\",\n  \"contact_numbers\": [\n    {\n      \"value\": \"{{ $json.body.phone }}\",\n      \"label\": \"work\"\n    }\n  ],\n  \"emails\": [\n    {\n      \"value\": \"{{ $json.body.email || '' }}\",\n      \"label\": \"work\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "name": "Cria Contato no Krayin CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300],
+      "id": "node-create-person"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.KRAYIN_CRM_URL }}/api/leads",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $vars.KRAYIN_CRM_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"Oportunidade WhatsApp - {{ $('Webhook Sincronizador CRM').item.json.body.name }}\",\n  \"description\": \"Dor/Objetivo: {{ $('Webhook Sincronizador CRM').item.json.body.pain_point }}\\nOrçamento: {{ $('Webhook Sincronizador CRM').item.json.body.budget }}\",\n  \"lead_value\": {{ $('Webhook Sincronizador CRM').item.json.body.deal_value || 0 }},\n  \"status\": 1,\n  \"lead_pipeline_id\": 1,\n  \"lead_pipeline_stage_id\": {{ $('Webhook Sincronizador CRM').item.json.body.stage_id || 2 }},\n  \"person_id\": {{ $json.data.id || 1 }}\n}",
+        "options": {}
+      },
+      "name": "Cria Oportunidade no Pipeline",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300],
+      "id": "node-create-deal"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"success\",\n  \"person_id\": {{ $('Cria Contato no Krayin CRM').item.json.data.id }},\n  \"lead_id\": {{ $json.data.id }},\n  \"message\": \"Lead e oportunidade sincronizados com sucesso no Krayin CRM\"\n}",
+        "options": {}
+      },
+      "name": "Resposta Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [920, 300],
+      "id": "node-respond-success"
+    }
+  ],
+  "connections": {
+    "Webhook Sincronizador CRM": {
+      "main": [
+        [
+          {
+            "node": "Cria Contato no Krayin CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cria Contato no Krayin CRM": {
+      "main": [
+        [
+          {
+            "node": "Cria Oportunidade no Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cria Oportunidade no Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Resposta Sucesso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,32 @@
+# ==============================================================================
+# BLUEPRINT #002 — TEMPLATES DE NOTAS PRIVADAS DO AGENTE IA NO CHATWOOT
+# ==============================================================================
+
+Notas privadas (Private Notes) no Chatwoot são visíveis APENAS para a equipe interna de atendentes humanos, nunca para o cliente no WhatsApp.
+Quando o Agente SDR de IA encerra a qualificação ou detecta pedido de atendimento humano, ele injeta automaticamente esta nota no Chatwoot antes de transferir a conversa.
+
+------------------------------------------------------------------------------
+TEMPLATE 1: RESUMO DE QUALIFICAÇÃO SDR (LEAD QUENTE)
+------------------------------------------------------------------------------
+🤖 **RESUMO EXECUTIVO DO AGENTE IA (SDR):**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👤 **Nome do Lead:** {{ $json.lead_name }}
+🏢 **Empresa:** {{ $json.company_name || 'Não informada' }}
+🎯 **Objetivo / Dor Principal:** {{ $json.pain_point }}
+📊 **Volume Estimado / Escala:** {{ $json.estimated_volume }}
+💰 **Orçamento Declarado:** {{ $json.budget }}
+⏳ **Momento de Compra:** Imediato (Pronto para fechar)
+🏷️ **Status CRM:** Oportunidade criada no Krayin CRM (ID: #{{ $json.crm_lead_id }})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👉 *Ação Recomendada para o Vendedor:* Apresentar a proposta comercial e definir a data de início da implantação.
+
+------------------------------------------------------------------------------
+TEMPLATE 2: TRANSBORDO POR DÚVIDA COMPLEXA / FORA DE ESCOPO
+------------------------------------------------------------------------------
+⚠️ **ALERTA DE TRANSBORDO HUMANO (DÚVIDA TÉCNICA/FORA DO FAQ):**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👤 **Lead:** {{ $json.lead_name }}
+❓ **Pergunta do Lead:** "{{ $json.last_question }}"
+💡 **Motivo da Transferência:** O cliente solicitou detalhes específicos que não constam na base de conhecimento automatizada.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👉 *Ação Recomendada:* Responder diretamente a dúvida técnica do cliente e retomar o fluxo de vendas.

@@ -1,0 +1,25 @@
+# ==============================================================================
+# BLUEPRINT #002 — INTEGRAÇÃO E HANDOFF NO CHATWOOT V4 (DESBLOQUEADO)
+# ==============================================================================
+
+1. CONFIGURAÇÃO DA INBOX (CAIXA DE ENTRADA):
+- No Chatwoot, vá em 'Configurações' > 'Caixas de Entrada' > 'Nova Caixa de Entrada';
+- Escolha 'Canal de API' (API Channel);
+- Nome da Caixa: "WhatsApp Oficial (IA + Atendimento Humano)";
+- Webhook URL: Deixe em branco inicialmente ou aponte para o endpoint do n8n;
+- Copie o 'Inbox ID' gerado.
+
+2. LABELS (ETIQUETAS) RECOMENDADAS:
+- `ia-em-atendimento` (Cor Azul): Quando o robô está conversando ativamente;
+- `ia-qualificado` (Cor Verde): Quando o lead atingiu os critérios de venda;
+- `transbordo-humano` (Cor Laranja): Quando o cliente pediu atendimento com pessoa real;
+- `followup-ativo` (Cor Amarela): Lead está na cadência anti-vácuo;
+- `perdido-vacuo` (Cor Cinza): Lead arquivado após 72h sem resposta.
+
+3. WEBHOOKS DE RETORNO (HUMANO ASSUMIU):
+- Vá em 'Configurações' > 'Integrações' > 'Webhooks';
+- Adicione a URL do Webhook do n8n do fluxo `02_Motor_FollowUp_AntiVacuo_Agendado.json`;
+- Eventos assinados:
+  * `conversation_status_changed`
+  * `message_created` (tipo: outgoing)
+- FINALIDADE: Quando um atendente humano mandar uma mensagem no Chatwoot para o cliente, o n8n recebe esse evento e INTERROMPE IMEDIATAMENTE qualquer follow-up automatizado do robô.

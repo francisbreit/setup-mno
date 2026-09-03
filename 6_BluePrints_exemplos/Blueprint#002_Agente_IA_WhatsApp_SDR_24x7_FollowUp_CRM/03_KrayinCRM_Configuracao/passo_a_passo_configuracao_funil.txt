@@ -1,0 +1,23 @@
+# ==============================================================================
+# BLUEPRINT #002 — PASSO A PASSO DE CONFIGURAÇÃO DO KRAYIN CRM
+# ==============================================================================
+
+1. ACESSO INICIAL AO KRAYIN CRM:
+- Acesse a URL definida durante a instalação (ex: `https://crm.seu-dominio.com`);
+- E-mail padrão configurado no setup: `admin@example.com` (ou suas credenciais informadas);
+- No primeiro login, acesse 'Settings' > 'Users' e altere a senha padrão.
+
+2. CONFIGURAÇÃO DO PIPELINE DE VENDAS:
+- Vá em 'Settings' > 'Lead' > 'Pipelines';
+- Clique em 'Default Pipeline' (ou crie um novo chamado 'Vendas WhatsApp IA');
+- Configure as seguintes etapas (Stages):
+  1. Novo Contato (Probabilidade: 10%)
+  2. Em Atendimento IA (Probabilidade: 30%)
+  3. Qualificado / Transbordo Humano (Probabilidade: 60%)
+  4. Proposta Enviada (Probabilidade: 80%)
+  5. Fechado / Ganho (Probabilidade: 100%)
+  6. Perdido / Vácuo (Probabilidade: 0%)
+
+3. CHAVE DE API / WEBHOOK:
+- No painel administrativo do Krayin CRM, acesse 'Configuration' > 'REST API' (ou use a autenticação Bearer Token nativa do Laravel);
+- Copie o token de API gerado e insira na credencial 'Krayin CRM API' do nó n8n `03_Sincronizador_KrayinCRM_Pipeline.json`.

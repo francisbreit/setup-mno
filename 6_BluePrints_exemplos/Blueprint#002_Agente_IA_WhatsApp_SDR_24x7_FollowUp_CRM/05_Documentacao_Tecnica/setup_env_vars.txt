@@ -1,0 +1,34 @@
+================================================================================
+BLUEPRINT #002 — VARIÁVEIS DE AMBIENTE E CONFIGURAÇÃO DO N8N
+================================================================================
+
+Configure estas variáveis dentro do nó 'Set Variables' ou nas credenciais do seu n8n:
+
+# 1. Conexão com a Evolution API v2:
+EVOLUTION_API_URL=https://evo.seu-dominio.com
+EVOLUTION_API_KEY=sua_global_api_key_da_evolution
+EVOLUTION_INSTANCE_NAME=instancia_principal
+
+# 2. Conexão com o Chatwoot v4:
+CHATWOOT_API_URL=https://atend.seu-dominio.com
+CHATWOOT_API_TOKEN=seu_user_api_access_token_chatwoot
+CHATWOOT_ACCOUNT_ID=1
+CHATWOOT_INBOX_ID=1
+
+# 3. Conexão com o Krayin CRM:
+KRAYIN_CRM_URL=https://crm.seu-dominio.com
+KRAYIN_CRM_API_TOKEN=seu_bearer_token_ou_api_key
+
+# 4. Provedor de Inteligência Artificial:
+OPENAI_API_KEY=sk-proj-sua-chave-openai-aqui
+AI_MODEL_NAME=gpt-4o-mini
+AI_TEMPERATURE=0.3
+AI_MAX_TOKENS=350
+
+# 5. Parâmetros do Follow-up Anti-Vácuo:
+FOLLOWUP_DELAY_LVL1_HOURS=2
+FOLLOWUP_DELAY_LVL2_HOURS=24
+FOLLOWUP_DELAY_LVL3_HOURS=72
+FOLLOWUP_START_HOUR=8
+FOLLOWUP_END_HOUR=20
+================================================================================

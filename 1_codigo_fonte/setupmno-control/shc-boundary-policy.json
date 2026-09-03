@@ -9,6 +9,7 @@
     "start_arm_full.sh"
   ],
   "protectedRuntimeCore": [
+    "combo_ia_whatsapp_sdr_crm.sh",
     "combo_whatsapp_marketing.sh",
     "dockerswarm.sh",
     "essenciais.sh",
@@ -48,5 +49,5 @@
     "sre-*.sh",
     "trivy*.sh"
   ],
-  "expectedCurrentShcInputs": 178
+  "expectedCurrentShcInputs": 179
 }

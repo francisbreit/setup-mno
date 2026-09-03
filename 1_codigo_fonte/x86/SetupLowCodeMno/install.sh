@@ -997,6 +997,7 @@ case "$CHOICE" in
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
             "COMBO WHATSAPP MARKETING COMPLETO*")                   warn_heavy "Combo WhatsApp Marketing Completo" "8GB" && run_app combo_whatsapp_marketing ;;
+            "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*")           warn_heavy "Combo Agente IA WhatsApp + CRM (SDR 24/7)" "8GB" && run_app combo_ia_whatsapp_sdr_crm ;;
             "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    warn_heavy "Chatwoot Original + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwooto_evo2_rabbitmq_minio ;;
             "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") warn_heavy "Chatwoot Desbloqueado + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
             "CHATWOOT AI CUSTOMER SERVICE*") warn_heavy "Chatwoot AI Customer Service" "10GB" && run_app chatwoot_ai_customer_service ;;
@@ -1355,6 +1356,7 @@ case "$CHOICE" in
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
             "COMBO WHATSAPP MARKETING COMPLETO*")                   warn_heavy "Combo WhatsApp Marketing Completo" "8GB" && run_app combo_whatsapp_marketing ;;
+            "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*")           warn_heavy "Combo Agente IA WhatsApp + CRM (SDR 24/7)" "8GB" && run_app combo_ia_whatsapp_sdr_crm ;;
             "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    warn_heavy "Chatwoot Original + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwooto_evo2_rabbitmq_minio ;;
             "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") warn_heavy "Chatwoot Desbloqueado + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
             "CHATWOOT AI CUSTOMER SERVICE*") warn_heavy "Chatwoot AI Customer Service" "10GB" && run_app chatwoot_ai_customer_service ;;
@@ -1705,6 +1707,7 @@ case "$CHOICE" in
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
             "COMBO WHATSAPP MARKETING COMPLETO*")                   warn_heavy "Combo WhatsApp Marketing Completo" "8GB" && run_app combo_whatsapp_marketing ;;
+            "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*")           warn_heavy "Combo Agente IA WhatsApp + CRM (SDR 24/7)" "8GB" && run_app combo_ia_whatsapp_sdr_crm ;;
             "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    warn_heavy "Chatwoot Original + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwooto_evo2_rabbitmq_minio ;;
              "CHANGEDETECTION.IO")                                     run_app changedetection ;;
              "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") warn_heavy "Chatwoot Desbloqueado + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
@@ -2056,6 +2059,7 @@ case "$CHOICE" in
              "CHANGEDETECTION.IO")                                     run_app changedetection ;;
              "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
              "COMBO WHATSAPP MARKETING COMPLETO*")                   warn_heavy "Combo WhatsApp Marketing Completo" "8GB" && run_app combo_whatsapp_marketing ;;
+             "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*")          warn_heavy "Combo Agente IA WhatsApp + CRM (SDR 24/7)" "8GB" && run_app combo_ia_whatsapp_sdr_crm ;;
              "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    warn_heavy "Chatwoot Original + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwooto_evo2_rabbitmq_minio ;;
              "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") warn_heavy "Chatwoot Desbloqueado + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
              "CHATWOOT AI CUSTOMER SERVICE*") warn_heavy "Chatwoot AI Customer Service" "10GB" && run_app chatwoot_ai_customer_service ;;

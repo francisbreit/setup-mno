@@ -1,0 +1,207 @@
+{
+  "name": "02 - Motor de Follow-Up Anti-Vácuo Agendado (Recuperação de Leads)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "name": "Cron A Cada 30 Minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300],
+      "id": "node-cron-followup"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.CHATWOOT_API_URL }}/api/v1/accounts/{{ $vars.CHATWOOT_ACCOUNT_ID }}/conversations?status=pending",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "={{ $vars.CHATWOOT_API_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Busca Conversas Pendentes (Chatwoot)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300],
+      "id": "node-get-conversations"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filtra apenas conversas onde a última mensagem foi enviada pelo Agente/IA\n// e calcula o tempo de inatividade em horas\nconst items = $input.all();\nconst results = [];\nconst now = new Date().getTime();\n\nfor (const item of items) {\n  const payload = item.json.data || item.json;\n  const conversations = Array.isArray(payload) ? payload : (payload.payload || []);\n  \n  for (const conv of conversations) {\n    // Se status for 'open', humano está atendendo. Ignora.\n    if (conv.status === 'open') continue;\n    \n    const lastActivity = (conv.last_activity_at || conv.updated_at) * 1000;\n    const diffHours = (now - lastActivity) / (1000 * 60 * 60);\n    const followCount = conv.custom_attributes?.followup_count || 0;\n    \n    let stage = 0;\n    if (diffHours >= 72 && followCount === 2) {\n      stage = 3; // Break-up final\n    } else if (diffHours >= 24 && followCount === 1) {\n      stage = 2; // Prova de valor\n    } else if (diffHours >= 2 && followCount === 0) {\n      stage = 1; // Lembrete gentil\n    }\n    \n    if (stage > 0) {\n      results.push({\n        json: {\n          conversation_id: conv.id,\n          contact_name: conv.meta?.sender?.name || 'Cliente',\n          phone_number: conv.meta?.sender?.phone_number || '',\n          followup_stage: stage,\n          diff_hours: diffHours.toFixed(1)\n        }\n      });\n    }\n  }\n}\n\nreturn results;"
+      },
+      "name": "Calcula Horas de Inatividade",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300],
+      "id": "node-calc-inactivity"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "number": [
+                  {
+                    "value1": "={{ $json.followup_stage }}",
+                    "operation": "equal",
+                    "value2": 1
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "number": [
+                  {
+                    "value1": "={{ $json.followup_stage }}",
+                    "operation": "equal",
+                    "value2": 2
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "number": [
+                  {
+                    "value1": "={{ $json.followup_stage }}",
+                    "operation": "equal",
+                    "value2": 3
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "name": "Roteia Estagio Follow-Up",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [860, 300],
+      "id": "node-switch-stages"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.EVOLUTION_API_URL }}/message/sendText/{{ $vars.EVOLUTION_INSTANCE_NAME }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.phone_number.replace('+', '') }}\",\n  \"text\": \"Oi {{ $json.contact_name }}! Tudo bem? Sei como a rotina do dia a dia é corrida por aí 🙂\\nSó passei para checar se você conseguiu ver a mensagem anterior e se restou alguma dúvida sobre o que conversamos!\"\n}",
+        "options": {}
+      },
+      "name": "Disparo Nivel 1 (2 Horas)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 160],
+      "id": "node-send-lvl1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.EVOLUTION_API_URL }}/message/sendText/{{ $vars.EVOLUTION_INSTANCE_NAME }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.phone_number.replace('+', '') }}\",\n  \"text\": \"Fala {{ $json.contact_name }}! Tudo joia?\\nEstava lembrando do ponto que você me falou e separei um exemplo prático de como ajudamos outros clientes com esse mesmo desafio.\\nQuer que eu te mande para dar uma olhada rápida?\"\n}",
+        "options": {}
+      },
+      "name": "Disparo Nivel 2 (24 Horas)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300],
+      "id": "node-send-lvl2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.EVOLUTION_API_URL }}/message/sendText/{{ $vars.EVOLUTION_INSTANCE_NAME }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.phone_number.replace('+', '') }}\",\n  \"text\": \"Olá {{ $json.contact_name }}, tudo bem?\\nComo não tive mais seu retorno, imagino que este não seja o momento ideal e não quero ser inconveniente no seu WhatsApp.\\nEstou encerrando seu atendimento por aqui, mas caso queira retomar no futuro basta me chamar neste número. Muito sucesso para você!\"\n}",
+        "options": {}
+      },
+      "name": "Disparo Nivel 3 (72h Break-up)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 440],
+      "id": "node-send-lvl3"
+    }
+  ],
+  "connections": {
+    "Cron A Cada 30 Minutos": {
+      "main": [
+        [
+          {
+            "node": "Busca Conversas Pendentes (Chatwoot)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Busca Conversas Pendentes (Chatwoot)": {
+      "main": [
+        [
+          {
+            "node": "Calcula Horas de Inatividade",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcula Horas de Inatividade": {
+      "main": [
+        [
+          {
+            "node": "Roteia Estagio Follow-Up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Roteia Estagio Follow-Up": {
+      "main": [
+        [
+          {
+            "node": "Disparo Nivel 1 (2 Horas)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Disparo Nivel 2 (24 Horas)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Disparo Nivel 3 (72h Break-up)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

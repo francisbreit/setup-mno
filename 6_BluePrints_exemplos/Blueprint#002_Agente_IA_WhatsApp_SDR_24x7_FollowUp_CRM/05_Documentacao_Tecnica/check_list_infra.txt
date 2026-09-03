@@ -1,0 +1,25 @@
+================================================================================
+BLUEPRINT #002 — CHECKLIST DE INFRAESTRUTURA E PRÉ-REQUISITOS
+================================================================================
+
+1. REQUISITOS DE HARDWARE:
+[ ] Servidor VPS ou WSL2 com no mínimo 4 vCPUs e 8 GB de RAM (recomendado 12 GB se rodar Mautic junto);
+[ ] Armazenamento SSD/NVMe com no mínimo 40 GB livres;
+[ ] Docker Swarm inicializado no Setup MNO (`docker info | grep Swarm: active`);
+[ ] Rede overlay 'interna' criada (`docker network ls | grep interna`).
+
+2. SERVIÇOS DO SETUP MNO EM EXECUÇÃO:
+[ ] Chatwoot v4 Desbloqueado ativo (`docker service ls | grep chatwoot`);
+[ ] Evolution API v2 ativa (`docker service ls | grep evolution`);
+[ ] RabbitMQ com fila Quorum (`docker service ls | grep rabbitmq`);
+[ ] MinIO ativo para armazenamento de áudios/mídias (`docker service ls | grep minio`);
+[ ] Krayin CRM ativo (`docker service ls | grep krayincrm`);
+[ ] n8n v2 em Modo Fila (Queue) ativo (`docker service ls | grep n8n`).
+
+3. CHAVES DE APIS E CREDENCIAIS:
+[ ] Chave de API da OpenAI (GPT-4o-mini / Whisper) OU chave Groq (Llama-3 / Whisper) OU endpoint local do Ollama/vLLM;
+[ ] Instância do WhatsApp conectada na Evolution API v2 (status: open);
+[ ] Token de API da Evolution API v2;
+[ ] Token de Acesso do Superadmin / Agente no Chatwoot;
+[ ] Usuário e Senha de Acesso ao Krayin CRM.
+================================================================================

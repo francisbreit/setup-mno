@@ -1,0 +1,231 @@
+{
+  "name": "01 - Receptor WhatsApp, Transcritor de Áudio e Agente SDR IA",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "evolution-sdr-inbound",
+        "options": {}
+      },
+      "name": "Webhook Evolution Inbound",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "id": "node-webhook-evo"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.body.data.messageType || $json.body.messageType }}",
+              "operation": "equal",
+              "value2": "audioMessage"
+            }
+          ]
+        }
+      },
+      "name": "Se For Audio?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [420, 300],
+      "id": "node-if-audio"
+    },
+    {
+      "parameters": {
+        "url": "https://api.openai.com/v1/audio/transcriptions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBinaryData": true,
+        "binaryPropertyName": "data",
+        "options": {}
+      },
+      "name": "Whisper Transcricao de Audio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 200],
+      "id": "node-whisper"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.transcription || $json.body.data.message.conversation || $json.body.data.message.extendedTextMessage.text }}",
+        "hasOutputParser": false,
+        "options": {
+          "systemMessage": "Você é Alex, consultor SDR e especialista de pré-vendas da nossa empresa no WhatsApp.\nSeu papel é tirar dúvidas, qualificar o lead em dor, orçamento e momento de compra, e propor agendamento ou transbordo humano.\nRegras essenciais:\n1. Mantenha respostas curtas e naturais (máximo 3 linhas);\n2. Use emojis com moderação;\n3. Se o cliente pedir atendimento humano ou estiver pronto para fechar, acione a ferramenta 'transfer_to_human';\n4. Salve os dados coletados acionando 'register_crm_lead'."
+        }
+      },
+      "name": "Agente SDR Conversacional",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [880, 300],
+      "id": "node-ai-agent"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [840, 520],
+      "id": "node-lm-chat"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.body.data.key.remoteJid || $json.sender_phone }}",
+        "contextWindowLength": 10
+      },
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [980, 520],
+      "id": "node-memory"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.EVOLUTION_API_URL }}/chat/sendPresence/{{ $vars.EVOLUTION_INSTANCE_NAME }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $('Webhook Evolution Inbound').item.json.body.data.key.remoteJid.replace('@s.whatsapp.net', '') }}\",\n  \"presence\": \"composing\",\n  \"delay\": 4000\n}",
+        "options": {}
+      },
+      "name": "Simula Digitacao (Typing)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300],
+      "id": "node-typing"
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "seconds"
+      },
+      "name": "Delay Humanizado",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1320, 300],
+      "id": "node-delay"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.EVOLUTION_API_URL }}/message/sendText/{{ $vars.EVOLUTION_INSTANCE_NAME }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $('Webhook Evolution Inbound').item.json.body.data.key.remoteJid.replace('@s.whatsapp.net', '') }}\",\n  \"text\": \"{{ $json.output }}\"\n}",
+        "options": {}
+      },
+      "name": "Envia Resposta WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1520, 300],
+      "id": "node-send-reply"
+    }
+  ],
+  "connections": {
+    "Webhook Evolution Inbound": {
+      "main": [
+        [
+          {
+            "node": "Se For Audio?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Se For Audio?": {
+      "main": [
+        [
+          {
+            "node": "Whisper Transcricao de Audio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Agente SDR Conversacional",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Whisper Transcricao de Audio": {
+      "main": [
+        [
+          {
+            "node": "Agente SDR Conversacional",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente SDR Conversacional",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agente SDR Conversacional",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente SDR Conversacional": {
+      "main": [
+        [
+          {
+            "node": "Simula Digitacao (Typing)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simula Digitacao (Typing)": {
+      "main": [
+        [
+          {
+            "node": "Delay Humanizado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delay Humanizado": {
+      "main": [
+        [
+          {
+            "node": "Envia Resposta WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

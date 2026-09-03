@@ -1,0 +1,37 @@
+# ==============================================================================
+# MOTOR ANTI-VÁCUO: PROMPTS E MODELOS DE FOLLOW-UP HUMANIZADO
+# ==============================================================================
+
+Este documento contém os modelos contextuais de mensagens disparadas pelo n8n quando o lead interrompe a conversa no WhatsApp sem responder.
+
+------------------------------------------------------------------------------
+CADÊNCIA E TIMING RECOMENDADO:
+------------------------------------------------------------------------------
+Nível 1: Disparado após 2 HORAS de inatividade (respeitando horário útil comercial: 08h às 20h);
+Nível 2: Disparado após 24 HORAS de inatividade;
+Nível 3: Disparado após 72 HORAS de inatividade (Mensagem de Despedida / Break-up Message).
+
+------------------------------------------------------------------------------
+MODELO 1 — NÍVEL 1 (2 HORAS - LEMBRETE GENTIL):
+------------------------------------------------------------------------------
+"Oi [Nome]! Tudo bem? Sei como a rotina do dia a dia é corrida por aí 🙂
+Só passei para checar se você conseguiu ver a mensagem anterior e se restou alguma dúvida sobre o que conversamos!"
+
+------------------------------------------------------------------------------
+MODELO 2 — NÍVEL 2 (24 HORAS - GERAÇÃO DE VALOR):
+------------------------------------------------------------------------------
+"Fala [Nome]! Tudo joia?
+Estava lembrando do ponto que você me falou sobre [DOR_PRINCIPAL] e separei um exemplo prático de um cliente nosso que resolveu exatamente isso em poucos dias.
+Quer que eu te mande um print/link para você dar uma olhada rápida?"
+
+------------------------------------------------------------------------------
+MODELO 3 — NÍVEL 3 (72 HORAS - DESPEDIDA ELEGANTE / ANTI-SPAM):
+------------------------------------------------------------------------------
+"Olá [Nome], tudo bem?
+Como não tive mais seu retorno, imagino que este não seja o momento ideal para avançarmos com esse projeto e não quero ser inconveniente enchendo seu WhatsApp.
+Estou arquivando sua solicitação por enquanto, mas este número continuará à disposição se você quiser retomar no futuro. Um grande abraço e sucesso nos negócios!"
+
+------------------------------------------------------------------------------
+REGRA CRÍTICA DE INTERRUPÇÃO (FAIL CLOSED):
+------------------------------------------------------------------------------
+Se o contato enviar QUALQUER mensagem durante a cadência, ou se o status no Chatwoot for alterado para 'open' (humano assumiu), o motor do n8n cancela e remove imediatamente as tentativas restantes para este número.

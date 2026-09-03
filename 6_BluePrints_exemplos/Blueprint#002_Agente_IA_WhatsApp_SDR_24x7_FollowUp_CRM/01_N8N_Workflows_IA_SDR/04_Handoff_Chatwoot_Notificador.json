@@ -1,0 +1,127 @@
+{
+  "name": "04 - Handoff Chatwoot e Notificador da Equipe Humana",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chatwoot-handoff-alert",
+        "options": {}
+      },
+      "name": "Webhook Handoff Humano",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "id": "node-handoff-webhook"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CHATWOOT_API_URL }}/api/v1/accounts/{{ $vars.CHATWOOT_ACCOUNT_ID }}/conversations/{{ $json.body.conversation_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "={{ $vars.CHATWOOT_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content\": \"🤖 **RESUMO EXECUTIVO DO AGENTE IA (SDR):**\\n━━━━━━━━━━━━━━━━━━━━━\\n👤 **Lead:** {{ $json.body.lead_name }}\\n📞 **WhatsApp:** {{ $json.body.lead_phone }}\\n🎯 **Dor/Interesse:** {{ $json.body.pain_point }}\\n💰 **Orçamento Declarado:** {{ $json.body.budget }}\\n🏷️ **CRM Deal ID:** #{{ $json.body.crm_deal_id || 'Pendente' }}\\n━━━━━━━━━━━━━━━━━━━━━\\n👉 *Ação:* Lead qualificado aguardando atendimento humano.\",\n  \"private\": true\n}",
+        "options": {}
+      },
+      "name": "Injeta Nota Privada (Chatwoot)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300],
+      "id": "node-private-note"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CHATWOOT_API_URL }}/api/v1/accounts/{{ $vars.CHATWOOT_ACCOUNT_ID }}/conversations/{{ $('Webhook Handoff Humano').item.json.body.conversation_id }}/toggle_status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "={{ $vars.CHATWOOT_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"open\"\n}",
+        "options": {}
+      },
+      "name": "Abre Conversa para Humano",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300],
+      "id": "node-toggle-open"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CHATWOOT_API_URL }}/api/v1/accounts/{{ $vars.CHATWOOT_ACCOUNT_ID }}/conversations/{{ $('Webhook Handoff Humano').item.json.body.conversation_id }}/labels",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "={{ $vars.CHATWOOT_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"labels\": [\"transbordo-humano\", \"ia-qualificado\"]\n}",
+        "options": {}
+      },
+      "name": "Aplica Labels de Handoff",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [920, 300],
+      "id": "node-apply-labels"
+    }
+  ],
+  "connections": {
+    "Webhook Handoff Humano": {
+      "main": [
+        [
+          {
+            "node": "Injeta Nota Privada (Chatwoot)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Injeta Nota Privada (Chatwoot)": {
+      "main": [
+        [
+          {
+            "node": "Abre Conversa para Humano",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Abre Conversa para Humano": {
+      "main": [
+        [
+          {
+            "node": "Aplica Labels de Handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

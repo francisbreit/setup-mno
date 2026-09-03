@@ -1,0 +1,39 @@
+# ==============================================================================
+# BLUEPRINT #002 — MAPEAMENTO DE CAMPOS: AGENTE IA (n8n) -> KRAYIN CRM
+# ==============================================================================
+
+O Krayin CRM armazena informações de vendas estruturadas em:
+1. Persons (Contatos / Indivíduos)
+2. Leads (Oportunidades de Negócio no Funil de Vendas)
+
+------------------------------------------------------------------------------
+1. ESTRUTURA DE DADOS ENVIADA PELO NÓ N8N:
+------------------------------------------------------------------------------
+{
+  "title": "Lead WhatsApp: {{ $json.sender_name || 'Contato WhatsApp' }}",
+  "description": "Necessidade: {{ $json.ai_summary.necessidade }}\nOrçamento: {{ $json.ai_summary.orcamento }}\nÚltima Mensagem: {{ $json.last_message }}",
+  "lead_value": {{ $json.ai_summary.valor_estimado || 0 }},
+  "status": 1,
+  "lead_pipeline_id": 1,
+  "lead_pipeline_stage_id": {{ $json.stage_id || 1 }},
+  "person": {
+    "name": "{{ $json.sender_name }}",
+    "emails": [
+      { "value": "{{ $json.ai_summary.email || '' }}", "label": "work" }
+    ],
+    "contact_numbers": [
+      { "value": "{{ $json.sender_phone }}", "label": "whatsapp" }
+    ]
+  },
+  "tags": ["ia-sdr-whatsapp", "blueprint-002", "{{ $json.ai_summary.tag_interesse }}"]
+}
+
+------------------------------------------------------------------------------
+2. ESTÁGIOS DO FUNIL (PIPELINE STAGES):
+------------------------------------------------------------------------------
+Stage 1: [NOVO CONTATO] - Criado no primeiro "Oi" do lead no WhatsApp;
+Stage 2: [EM QUALIFICAÇÃO IA] - Lead está interagindo com o agente SDR;
+Stage 3: [QUALIFICADO / AGENDADO] - Lead cumpriu requisitos e foi enviado para o Chatwoot;
+Stage 4: [PROPOSTA ENVIADA] - Atendente humano enviou orçamento;
+Stage 5: [GANHO (WON)] - Venda concluída;
+Stage 6: [PERDIDO / SEM RESPOSTA (LOST)] - Lead parou de responder após 3 tentativas de follow-up.

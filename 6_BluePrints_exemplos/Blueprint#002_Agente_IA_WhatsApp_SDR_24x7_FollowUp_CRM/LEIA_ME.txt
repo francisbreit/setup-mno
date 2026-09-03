@@ -1,0 +1,138 @@
+================================================================================
+BLUEPRINT #002: AGENTES DE IA NO WHATSAPP (SDR 24/7, CRM & FOLLOW-UP ANTI-VÁCUO)
+Setup MNO — Guia Oficial Passo a Passo de Implantação e Homologação
+================================================================================
+
+================================================================================
+🎥 VÍDEO TUTORIAL PASSO A PASSO:
+Acesse o tutorial em vídeo completo na área de membros da Academia MNO:
+[EM BREVE — Link exclusivo para alunos PRO e PRO MASTER]
+================================================================================
+
+--------------------------------------------------------------------------------
+1. CAMADA DIDÁTICA: PARA INICIANTES
+--------------------------------------------------------------------------------
+
+Imagine ter um vendedor e atendente de suporte de elite trabalhando na sua empresa
+24 horas por dia, 7 dias por semana, sem nunca reclamar, sem pedir férias e sem
+deixar nenhum lead esperando mais de 10 segundos no WhatsApp.
+
+Esse é o objetivo do BLUEPRINT #002 do Setup MNO:
+- Seu cliente manda uma mensagem no sábado à noite ou domingo de madrugada? A IA
+  acolhe, tira dúvidas sobre seus produtos, transcreve e escuta áudios;
+- O cliente para de responder no meio do atendimento (o famoso "vácuo")? O robô
+  manda lembretes educados após 2 horas, 24 horas e uma despedida elegante com 72h;
+- O cliente demonstrou real interesse? A IA cadastra o lead no Krayin CRM no funil
+  de vendas e transfere a conversa para seu vendedor humano no Chatwoot com um
+  resumo completo da conversa!
+
+E o melhor: este Blueprint se ACOPLA PERFEITAMENTE ao Blueprint #001 (WhatsApp Marketing).
+Se você já instalou o Blueprint #001, nosso instalador inteligente reconhece o
+Chatwoot, o n8n e o Mautic já ativos e instala apenas o Krayin CRM, sem apagar
+nenhum dado existente!
+
+--------------------------------------------------------------------------------
+2. CAMADA DIDÁTICA: NOTA TÉCNICA PARA DEVOPS E ARQUITETOS
+--------------------------------------------------------------------------------
+
+- Orquestrador: n8n v2 em Docker Swarm com nós LangChain (`@n8n/n8n-nodes-langchain.agent`);
+- Modelos Suportados: OpenAI GPT-4o-mini, Groq Llama-3-70B, Ollama local e vLLM;
+- Transcrição de Áudio: OpenAI Whisper API / Groq Whisper Large v3;
+- Canal de Mensageria: Evolution API v2 com webhook `messages.upsert` e `sendPresence` (`composing`);
+- CRM: Krayin CRM (Laravel REST API com tabelas relacionais de Persons e Leads);
+- Helpdesk / Transbordo Humano: Chatwoot v4 Desbloqueado com injeção de Private Notes e `toggle_status`;
+- Motor Anti-Vácuo: Cron scheduler do n8n com verificação de inatividade e cancelamento automático (fail closed) caso ocorra mensagem receptiva do contato ou assunção por atendente humano;
+- Isolamento: Rede overlay `interna` do Swarm e Cloudflare Tunnel nativo com zero portas abertas no firewall.
+
+--------------------------------------------------------------------------------
+3. SUMÁRIO DOS PASSOS DE IMPLANTAÇÃO:
+--------------------------------------------------------------------------------
+Passo 1:  Execução do Instalador Inteligente (`instalar_combo_blueprint.sh`)
+Passo 2:  Conexão da Instância do WhatsApp na Evolution API v2
+Passo 3:  Criação da Caixa de Entrada no Chatwoot v4
+Passo 4:  Configuração do Funil de Vendas no Krayin CRM
+Passo 5:  Importação das Variáveis de Ambiente no n8n
+Passo 6:  Importação do Workflow 01: Receptor, Áudio e Agente SDR IA
+Passo 7:  Importação do Workflow 02: Motor Follow-up Anti-Vácuo
+Passo 8:  Importação do Workflow 03: Sincronizador Krayin CRM
+Passo 9:  Importação do Workflow 04: Handoff Chatwoot e Notificador
+Passo 10: Configuração do Webhook da Evolution API apontando para o n8n
+Passo 11: Configuração do Webhook de Retorno no Chatwoot
+Passo 12: Homologação e Teste Prático (Texto, Áudio e Transbordo)
+
+================================================================================
+4. PASSO A PASSO DETALHADO DE CONFIGURAÇÃO:
+================================================================================
+
+[PASSO 1] Executar o Instalador do Blueprint
+--------------------------------------------------------------------------------
+Na raiz desta pasta do Blueprint no seu servidor, execute:
+  bash instalar_combo_blueprint.sh
+
+O instalador inteligente verificará os serviços no Swarm:
+- Se você já tiver Chatwoot, Evolution API ou n8n instalados (ex: pelo Blueprint #001),
+  ele perguntará: "Deseja UTILIZAR A INSTALAÇÃO EXISTENTE?". Clique em "Usar Existente"!
+- Ele executará apenas o provisionamento do Krayin CRM (e demais pendências).
+
+[PASSO 2] Conectar o WhatsApp na Evolution API v2
+--------------------------------------------------------------------------------
+1. Acesse o painel da Evolution API (ex: `https://evo.seu-dominio.com`);
+2. Crie uma nova instância (ex: `atendimento_principal`);
+3. Escaneie o QR Code com o WhatsApp da sua empresa;
+4. Verifique se o status ficou "open".
+
+[PASSO 3] Criar a Inbox no Chatwoot v4
+--------------------------------------------------------------------------------
+1. Acesse seu Chatwoot (ex: `https://atend.seu-dominio.com`);
+2. Vá em 'Configurações' > 'Caixas de Entrada' > 'Nova Caixa de Entrada' > 'Canal de API';
+3. Nome: "WhatsApp Oficial (IA + Humano)";
+4. Copie o Inbox ID e gere seu Token de Usuário em 'Configurações de Perfil'.
+
+[PASSO 4] Configurar o Funil no Krayin CRM
+--------------------------------------------------------------------------------
+1. Acesse o Krayin CRM (ex: `https://crm.seu-dominio.com`);
+2. Vá em 'Settings' > 'Lead' > 'Pipelines';
+3. Crie ou ajuste os estágios do funil:
+   - Novo Contato (Stage 1)
+   - Em Qualificação IA (Stage 2)
+   - Qualificado / Handoff (Stage 3)
+   - Proposta Enviada (Stage 4)
+   - Ganho / Fechado (Stage 5)
+   - Perdido / Vácuo (Stage 6)
+
+[PASSO 5] Configurar Variáveis no n8n
+--------------------------------------------------------------------------------
+1. Acesse seu n8n v2 (ex: `https://n8n.seu-dominio.com`);
+2. Vá em 'Variables' (ou configure nós de ambiente) com os dados descritos no arquivo:
+   `05_Documentacao_Tecnica/setup_env_vars.txt`.
+
+[PASSO 6 a 9] Importar os Workflows no n8n
+--------------------------------------------------------------------------------
+No n8n, crie um novo fluxo e importe cada um dos 4 arquivos JSON da pasta:
+`01_N8N_Workflows_IA_SDR/`
+1. `01_Receptor_WhatsApp_Transcritor_SDR_Agent.json`
+2. `02_Motor_FollowUp_AntiVacuo_Agendado.json`
+3. `03_Sincronizador_KrayinCRM_Pipeline.json`
+4. `04_Handoff_Chatwoot_Notificador.json`
+
+Em cada workflow, insira suas credenciais da OpenAI (ou Groq/Ollama) e ative os fluxos!
+
+[PASSO 10] Apontar o Webhook da Evolution API para o n8n
+--------------------------------------------------------------------------------
+Na Evolution API, configure o webhook da instância:
+- URL: `https://n8n.seu-dominio.com/webhook/evolution-sdr-inbound`
+- Eventos: `MESSAGES_UPSERT`
+
+[PASSO 11] Configurar Webhook no Chatwoot (Interrupção de Follow-up)
+--------------------------------------------------------------------------------
+No Chatwoot, vá em 'Configurações' > 'Integrações' > 'Webhooks':
+- URL: `https://n8n.seu-dominio.com/webhook/chatwoot-handoff-alert`
+- Eventos: `conversation_status_changed` e `message_created`.
+
+[PASSO 12] Homologação e Teste Real
+--------------------------------------------------------------------------------
+1. Envie um "Olá" de outro WhatsApp para o chip da empresa;
+2. Observe o status "digitando..." aparecer na tela e a IA responder em segundos;
+3. Envie um áudio de voz de 15 segundos: veja a transcrição e a resposta coerente;
+4. Peça para falar com uma pessoa: veja a conversa abrir no Chatwoot com a Nota Privada contendo o resumo executivo!
+================================================================================

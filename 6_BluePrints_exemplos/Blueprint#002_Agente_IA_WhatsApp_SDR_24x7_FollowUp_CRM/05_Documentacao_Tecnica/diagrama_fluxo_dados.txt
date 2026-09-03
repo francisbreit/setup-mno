@@ -1,0 +1,56 @@
+================================================================================
+BLUEPRINT #002 — DIAGRAMA DE FLUXO DE DADOS E ARQUITETURA
+================================================================================
+
+[WHATSAPP DO CLIENTE]
+        │
+        │ 1. Envia Texto ou Áudio
+        ▼
+[EVOLUTION API V2] ─── Webhook Receptivo (messages.upsert) ───► [N8N V2 WORKFLOW 01]
+                                                                        │
+    ┌───────────────────────────────────────────────────────────────────┘
+    │
+    ├─► Se for ÁUDIO: [WHISPER / GROQ TRANSCRIPTION] ──► Converte em Texto
+    │
+    └─► Se for TEXTO ou ÁUDIO TRANSCRIÇÃO:
+            │
+            ▼
+    [AGENTE SDR IA (LangChain / OpenAI / Ollama)]
+            │
+            ├──► Consulta [MEMÓRIA DE SESSÃO] (Histórico das últimas 10 mensagens)
+            ├──► Consulta [BASE DE CONHECIMENTO FAQ] (Produtos, Preços, Regras)
+            │
+            ├──► Ação 1: Registra/Atualiza [KRAYIN CRM] (Workflow 03)
+            │               * Cria Person / Contato
+            │               * Cria Lead no Pipeline (Estágio: Em Qualificação IA)
+            │
+            ├──► Ação 2: Verifica Necessidade de Handoff (Workflow 04)
+            │               * Se Lead Qualificado ou Pediu Humano:
+            │                   - Cria Notificação Privada no Chatwoot
+            │                   - Altera status para 'open'
+            │                   - Dispara alerta no WhatsApp/Telegram do vendedor
+            │
+            └──► Ação 3: Resposta no WhatsApp via [EVOLUTION API V2]
+                            * Envia status "digitando..." (typing)
+                            * Aguarda delay humanizado (3 a 7 segundos)
+                            * Envia a resposta final para o cliente
+
+--------------------------------------------------------------------------------
+MOTOR DE FOLLOW-UP ANTI-VÁCUO (WORKFLOW 02):
+--------------------------------------------------------------------------------
+[CRON AGENDADO (A CADA 30 MIN)]
+        │
+        ▼
+Consulta conversas ativas no Chatwoot / Tabela n8n
+        │
+        ├── Se última interação do lead > 2h (e status != 'open')
+        │       └─► Dispara Lemebrete Nível 1: "Conseguiu ver a mensagem anterior?"
+        │
+        ├── Se última interação do lead > 24h (e status != 'open')
+        │       └─► Dispara Prova de Valor Nível 2: "Separei um caso de uso similar ao seu"
+        │
+        └── Se última interação do lead > 72h (e status != 'open')
+                └─► Dispara Break-up Nível 3: "Estou arquivando temporariamente seu contato"
+                    Atualiza Krayin CRM para Estágio: "Perdido / Vácuo"
+                    Encerra ciclo de follow-up.
+================================================================================
