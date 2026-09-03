@@ -234,6 +234,33 @@ Para cada post principal desenhado para a comunidade, entregue opcionalmente:
 - **Segurança de Credenciais:** NUNCA grave, versione ou exponha em arquivos do repositório, commits ou logs as senhas de SSH, WordPress ou banco de dados fornecidas para a sessão.
 - Não altere diretamente tabelas do banco de dados MySQL ou posts do WordPress em produção sem ordem expressa e pontual do mantenedor.
 
+### 7. MODO ADMINISTRADOR DA COMUNIDADE EXPRESSO (FAST-TRACK & PUBLICAÇÃO AUTORIZADA)
+Ative este modo quando o usuário disser **“Modo Administrador da Comunidade Expresso”**, **“Modo Comunidade Expresso”**, **“Modo Expresso”**, **“Comunidade Express”**, **“Administrador Expresso”** ou **“Publicar na Comunidade”**. Seu objetivo é acelerar a população e o engajamento de conteúdo de alto valor na plataforma da **Academia MNO** (`academia.manualnegocioonline.com.br`) e seus feeds, permitindo planejar, aprovar e publicar posts diretamente no Fluent Community via container Docker em produção.
+
+#### Fluxo Operacional Obrigatório em 3 Passos:
+1. **Passo 1 (Planejamento & Copy de Alto Impacto):**
+   - Produza o conteúdo unindo a técnica do **Modo Mestre do Marketing** (títulos no estilo David Ogilvy, ganchos magnéticos, clareza, listas didáticas) com fatos técnicos reais do Setup MNO, IA e automações.
+   - Apresente a prévia completa indicando o espaço (`space_id`), autor (`user_id = 1` — Francis MNO), título e texto formatado.
+2. **Passo 2 (Aprovação Explícita de Francis MNO):**
+   - Aguarde a confirmação de Francis (*"Aprovado"*, *"Pode publicar"* ou similar). NUNCA execute publicações sem aprovação explícita.
+3. **Passo 3 (Publicação Direta & Segura):**
+   - Execute a publicação no container Docker do WordPress utilizando a API interna oficial do Fluent Community: `\FluentCommunity\App\Services\FeedsHelper::createFeed()`.
+   - Confirme o ID do feed gerado, data/hora e informe o link de conferência para Francis.
+
+#### Mapa Canônico de Espaços para Publicação:
+- **Espaço 43 (`Dicas e Avisos`):** Avisos gerais, melhorias de release, dicas rápidas e boas-vindas (Público).
+- **Espaço 31 (`Novos Apps e Ferramentas`):** Tutoriais e análises de novas ferramentas open-source de IA (PRO).
+- **Espaço 41 (`Estudos de Caso & ROI`):** Relatos de economia de custos, transição de SaaS para VPS e cases (PRO).
+- **Espaço 13 (`Bastidores MNO`):** Novidades técnicas de laboratório, testes de Docker Swarm e roadmap (PRO).
+- **Espaço 32 (`Conteúdos Exclusivos`):** Guias avançados de configuração, prompts e automações (PRO).
+- **Espaço 12 (`Últimas Vitórias`):** Celebração de resultados e estímulo a depoimentos de alunos (Público).
+- **Espaço 8 (`Vídeos Youtube`):** Lançamentos e roteiros de vídeos oficiais do canal (Privado).
+- **Espaço 28 (`Blog`):** Artigos profundos e tutoriais completos (Privado).
+
+#### Diretrizes de Segurança Permanente:
+- NUNCA versione, armazene em disco, repita em relatórios ou grave em arquivos persistentes as senhas SSH, WordPress ou MySQL.
+- Utilize chamadas limpas via SSH/Docker subshell volátil para garantir que nenhuma credencial fique exposta no histórico.
+
 ## CONTEXTO DOS AMBIENTES DO SETUP MNO
 
 ### Versão estável vigente
