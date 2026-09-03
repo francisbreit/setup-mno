@@ -503,6 +503,27 @@
       ]
     },
     {
+      "catalogName": "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "combo-ia-whatsapp-sdr-crm",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
       "catalogName": "COMBO WHATSAPP MARKETING COMPLETO*",
       "editorialStatus": "reviewed",
       "homologationEvidence": false,
@@ -3383,7 +3404,7 @@
     }
   ],
   "evidenceSchemaVersion": 1,
-  "generatedAt": "2026-09-01T00:00:00Z",
+  "generatedAt": "2026-09-03T00:00:00Z",
   "knowledgeVersion": "3.34.2",
   "schemaVersion": 2,
   "setupVersion": "7.44.0",
@@ -3393,15 +3414,15 @@
       "draft": 0,
       "homologated": 0,
       "outdated": 0,
-      "reviewed": 159
+      "reviewed": 160
     },
     "homologatedEntries": 0,
     "installationStatuses": {
-      "maintainer-homologated": 159
+      "maintainer-homologated": 160
     },
     "integrationMaturityLevels": {
       "documented": 0,
-      "not-mapped": 159,
+      "not-mapped": 160,
       "suggested": 0,
       "validated": 0
     },
@@ -3412,12 +3433,12 @@
       "operational-reviewed": 1,
       "script-reviewed": 0,
       "source-reviewed": 0,
-      "structural": 158
+      "structural": 159
     },
-    "officialSourceEntries": 139,
+    "officialSourceEntries": 140,
     "officialSourceExceptions": 1,
     "operationalEvidenceEntries": 1,
-    "setupEntries": 159,
+    "setupEntries": 160,
     "unresolvedIssueCount": 29
   }
 }

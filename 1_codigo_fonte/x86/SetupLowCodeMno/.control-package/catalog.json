@@ -176,6 +176,17 @@
     "search": "combo whatsapp marketing completo* atendimento, whatsapp, marketing, automação stack completa do blueprint #001: chatwoot + evolution 2.0 + rabbitmq + minio + mautic 7 + n8n fila + typebot para campanhas e atendimento automatizado."
   },
   {
+    "name": "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*",
+    "cats": "Atendimento, WhatsApp, CRM, Inteligência Artificial, Automação",
+    "desc": "Stack completa do Blueprint #002: Chatwoot Desbloqueado v4 + Evolution API v2 + RabbitMQ + MinIO + Krayin CRM + n8n v2 (Fila) com personas de IA, qualificação SDR e follow-up anti-vácuo.",
+    "ram": 8,
+    "ramLabel": "~8GB a 12GB",
+    "arch": "x86-arm",
+    "stars": 0,
+    "type": "Combo",
+    "search": "combo agente ia whatsapp + crm (sdr 24/7)* atendimento, whatsapp, crm, inteligência artificial, automação stack completa do blueprint #002: chatwoot desbloqueado v4 + evolution api v2 + rabbitmq + minio + krayin crm + n8n v2 (fila) com personas de ia, qualificação sdr e follow-up anti-vácuo."
+  },
+  {
     "name": "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
     "cats": "Atendimento, WhatsApp, Omnichannel",
     "desc": "Versão original do combo com configurações padrão do Chatwoot.",

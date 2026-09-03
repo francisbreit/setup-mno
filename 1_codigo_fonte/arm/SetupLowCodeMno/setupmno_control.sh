@@ -1710,7 +1710,7 @@ error_file="/tmp/${nome_app}-error.log"
     [ "$eval_grader_version" = "1.9.0" ] &&
     [ "${#eval_dataset_sha}" -eq 64 ] &&
     [ "$eval_dataset_sha" = "$release_eval_dataset_sha" ] &&
-    [ "$eval_case_entries" = "883" ] &&
+    [ "$eval_case_entries" = "888" ] &&
     [ "$knowledge_entries" = "$release_knowledge_entries" ] &&
     [ "$knowledge_archive_bytes" = "$actual_knowledge_bytes" ] &&
     [ "$knowledge_archive_bytes" -le $((8 * 1024 * 1024)) ] &&

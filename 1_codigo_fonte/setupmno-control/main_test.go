@@ -364,7 +364,7 @@ func TestReadRuntimeSnapshotAcceptsGeneratedKnowledgeManifest(t *testing.T) {
 		snapshot.Release.EvalSchemaVersion != 1 ||
 		snapshot.Release.EvalDatasetVersion != "1.17.0" ||
 		snapshot.Release.EvalGraderVersion != "1.9.0" ||
-		snapshot.Release.EvalCaseEntries != 883 ||
+		snapshot.Release.EvalCaseEntries != 888 ||
 		len(snapshot.Release.EvalDatasetSHA256) != 64 ||
 		snapshot.Release.SupplyChainSchemaVersion != 1 ||
 		snapshot.Release.SupplyChainSignatureStatus != "unsigned-sha256-bound" ||
@@ -816,7 +816,7 @@ func TestKnowledgeStatusMarkdownUsesManifestInsteadOfRetrievalSlice(t *testing.T
 	}
 	state := knowledgePackageState{Manifest: knowledgeManifest{
 		SetupVersion: "7.2.8", KnowledgeVersion: "3.10.0",
-		EvalDatasetVersion: "1.17.0", EvalCaseEntries: 883,
+		EvalDatasetVersion: "1.17.0", EvalCaseEntries: 888,
 		DocumentEntries: 165, SetupEntries: 151, InfrastructureEntries: 9,
 		BlueprintKnowledgeEntries: 5,
 		DocumentTypeEntries:       map[string]int{"setup": 151, "infrastructure": 9, "blueprint": 5},
@@ -1324,7 +1324,7 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 		state.Manifest.EvalSchemaVersion != 1 ||
 		state.Manifest.EvalDatasetVersion != "1.17.0" ||
 		state.Manifest.EvalGraderVersion != "1.9.0" ||
-		state.Manifest.EvalCaseEntries != 883 ||
+		state.Manifest.EvalCaseEntries != 888 ||
 		len(state.Manifest.EvalDatasetSHA256) != 64 ||
 		state.Manifest.ChunkEntries <= state.Manifest.DocumentEntries {
 		t.Fatalf("estado inesperado do conhecimento: %#v", state)

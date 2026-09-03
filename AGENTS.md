@@ -264,9 +264,9 @@ Ative este modo quando o usuário disser **“Modo Administrador da Comunidade E
 ## CONTEXTO DOS AMBIENTES DO SETUP MNO
 
 ### Versão estável vigente
-- A última versão estável homologada do Setup MNO é **v7.44.0**.
+- A última versão estável homologada do Setup MNO é **v7.44.0** (160 Setups, 143 ARM, 888 Evals).
 - Tag Git: `v7.44.0`.
-- Commit de implementação homologado: `d790cb0be` (`feat(release): promove Setup MNO para v7.44.0 com Blueprint #002 e instalador inteligente de combos`).
+- Commit de implementação homologado: `e34fd3f87` (`feat(catalog): adiciona Combo Agente IA WhatsApp + CRM aos menus, catalogo e evals (160 setups, 888 evals)`).
 - A promoção foi declarada explicitamente por Francis MNO em 03/09/2026 após
   validação no WSL2 x86-64 e em VPS ARM64. SRE-3, SRE-4, SRE-5, SRE-6,
   Resiliência Operacional, Onboarding, Assistente MNO e Blueprints continuam **BETA**.
@@ -277,7 +277,7 @@ Ative este modo quando o usuário disser **“Modo Administrador da Comunidade E
 - As releases `v7.20.0` a `v7.31.0` concluíram a fundação do selo, Runner controlado, assistente visual, Help, Central de Revisão, esteira oficial, plano PRO MASTER, certificação remota, importação canônica, homologação essencial, supply chain/SBOM runtime e fundação do SRE Knowledge Pack. Não reinicie nem repita essas etapas.
 - Quando o usuário disser **“Modo Setup MNO Upgrade. Vamos voltar ao roadmap de melhoria de qualidade e segurança e continuar pelo próximo item pendente.”**, ative o Modo Setup MNO Upgrade, leia o roadmap canônico e retome diretamente do primeiro item ainda pendente.
 - A **v7.28.0 — Importador Canônico de Pacotes PRO MASTER e Gate de Release** foi implementada: release-pack v2 com atestação de origem, compatibilidade limitada com v7.27.0, inventário estrito, dry-run, diff, token ligado ao Git, merge por delta, ledger append-only e rollback. O importador permanece exclusivo do repositório de construção e nunca publica, commita, cria tag ou release automaticamente.
-- A **v7.32.0 — Skill Supply Chain Gate** foi implementada como BETA. A **v7.32.1** adicionou heartbeat real às etapas lentas da instalação do Control Center e a **v7.32.2** tornou o APT não interativo. A **v7.33.0 — Especialista SRE somente leitura** permanece BETA. A **v7.33.1** corrigiu o APT do `dockerswarm.sh` x86/ARM. A **v7.33.2** corrigiu a reconciliação da versão do agente interno, impedindo erro 502 do snapshot SRE após atualização de instalações antigas. A **v7.33.3** ampliou para cinco minutos a convergência do Control Center em ARM64. A **v7.33.4** estabilizou a troca transacional do provedor e a separação entre qualidade do motor local e da LLM. A **v7.34.3** concluiu o `SRE-3` como funcionalidade **BETA**. A **v7.35.0** concluiu o `SRE-4` como funcionalidade **BETA**. A **v7.36.2** entregou o `SRE-5` **BETA** e runbooks homologados. A **v7.38.0** concluiu o executor efêmero isolado do `SRE-6` **BETA**. A **v7.39.0** simplificou a jornada do diagnóstico SRE. A **v7.40.0** implementou a revalidação contínua, expiração, drift e revogação de selos. A **v7.41.0** implementou a resiliência operacional mensurável para backup, restauração, atualização e rollback. A **v7.42.2** foi promovida a versão estável em 30/08/2026. A **v7.43.0** implementou e homologou o primeiro Blueprint real (`Blueprint #001 — WhatsApp Marketing Completo`) com zip oficial, guia PDF atualizado, revisão anti-ban, relatório de testes, teste de rollback e o Combo de instalação no instalador Setup MNO. A **v7.43.1** atualizou o combo do Chatwoot do Blueprint #001 para a versão v4 desbloqueada (v4.14.2) e foi promovida a versão estável em 03/09/2026. A **v7.44.0** implementou o Blueprint #002 (Agente IA WhatsApp SDR 24/7 + CRM + Follow-up Anti-Vácuo), o Instalador Inteligente de Combos com detecção em runtime de serviços no Docker Swarm e atualizou o versionamento canônico. SRE-3 a SRE-6, Resiliência, Onboarding, Assistente MNO e Blueprints continuam **BETA**."
+- A **v7.32.0 — Skill Supply Chain Gate** foi implementada como BETA. A **v7.32.1** adicionou heartbeat real às etapas lentas da instalação do Control Center e a **v7.32.2** tornou o APT não interativo. A **v7.33.0 — Especialista SRE somente leitura** permanece BETA. A **v7.33.1** corrigiu o APT do `dockerswarm.sh` x86/ARM. A **v7.33.2** corrigiu a reconciliação da versão do agente interno, impedindo erro 502 do snapshot SRE após atualização de instalações antigas. A **v7.33.3** ampliou para cinco minutos a convergência do Control Center em ARM64. A **v7.33.4** estabilizou a troca transacional do provedor e a separação entre qualidade do motor local e da LLM. A **v7.34.3** concluiu o `SRE-3` como funcionalidade **BETA**. A **v7.35.0** concluiu o `SRE-4` como funcionalidade **BETA**. A **v7.36.2** entregou o `SRE-5` **BETA** e runbooks homologados. A **v7.38.0** concluiu o executor efêmero isolado do `SRE-6` **BETA**. A **v7.39.0** simplificou a jornada do diagnóstico SRE. A **v7.40.0** implementou a revalidação contínua, expiração, drift e revogação de selos. A **v7.41.0** implementou a resiliência operacional mensurável para backup, restauração, atualização e rollback. A **v7.42.2** foi promovida a versão estável em 30/08/2026. A **v7.43.0** implementou e homologou o primeiro Blueprint real (`Blueprint #001 — WhatsApp Marketing Completo`) com zip oficial, guia PDF atualizado, revisão anti-ban, relatório de testes, teste de rollback e o Combo de instalação no instalador Setup MNO. A **v7.43.1** atualizou o combo do Chatwoot do Blueprint #001 para a versão v4 desbloqueada (v4.14.2) e foi promovida a versão estável em 03/09/2026. A **v7.44.0** implementou o Blueprint #002 (Agente IA WhatsApp SDR 24/7 + CRM + Follow-up Anti-Vácuo), o Instalador Inteligente de Combos com detecção em runtime de serviços no Docker Swarm, atualizou o catálogo para 160 setups (143 ARM), expandiu os evals para 888 casos e blindou a regra de anti-omissão no AGENTS.md. SRE-3 a SRE-6, Resiliência, Onboarding, Assistente MNO e Blueprints continuam **BETA**."
 - Novas demandas avulsas não apagam, reordenam ou marcam esse backlog como concluído. Somente uma implementação validada e registrada no roadmap pode avançar o ponto de retomada.
 
 ### Documentação contínua e base de conhecimento humana
@@ -361,12 +361,27 @@ O projeto utiliza Git para rastrear todas as alterações. Regras obrigatórias:
 - Sempre que houver bump de versão, atualize também `CONTROL_VERSION` no Control Center (`installer-template.sh` e cache-busters do `index.html`), `governance.json`, `setups.json`, manifestos e a documentação do roadmap (`ASSISTENTE_MNO_ROADMAP.md`).
 
 ### Catálogo de Setups Unificado e Obrigatório (⚠️ GATE BLOQUEANTE)
-- **Nenhum aplicativo, combo ou blueprint pode existir sem estar registrado no Catálogo:**
-  1. **`1_codigo_fonte/setupmno-control/catalog.json`**: Adicionar entrada canônica com nome, categorias, descrição, RAM estimada, arquitetura e tipo (`Combo`, `Individual`, etc.);
-  2. **`1_codigo_fonte/ferramentas.html`**: Atualizar o `STATIC_CATALOG` com o JSON exato do `catalog.json` e atualizar os contadores de totais (Total de Setups, Total X86, Total ARM) no cabeçalho;
-  3. **`1_codigo_fonte/setupmno-knowledge/registry/setups.json`**: Mapear `setupId`, `catalogName`, `script` e `architectures`;
-  4. **`1_codigo_fonte/setupmno-knowledge/setups/<setup-id>/overview.md`**: Criar documentação completa com fontes oficiais (`official-documentation`), licenças e todas as seções obrigatórias (`## Quando usar`, `## Arquitetura no Setup MNO`, `## Pré-requisitos`, `## Fluxo seguro`, `## Primeiro acesso e integrações`, `## Backup e atualização`, `## Validação`, `## Riscos e limites`, `## Diagnóstico`);
-  5. **Testes e Gates**: Executar `lint_knowledge.py` (hashes e lint), `eval_factory.py`, `test_blueprints.py`, `test_certification.py`, `generate-installers.sh` e `gerar_distribuicao.sh`.
+- **REGRA DE OURO ANTI-OMISSÃO PARA NOVOS APPS, COMBOS E BLUEPRINTS (⚠️ MANDATÓRIO):**
+  É **TERMINANTEMENTE PROIBIDO** criar qualquer aplicativo novo, script de instalação (`.sh`), combo ou blueprint e finalizar a tarefa sem cumprir integralmente este pipeline de 8 etapas:
+  1. **Menus do Whiptail nos Instaladores (`install.sh` x86 e ARM):**
+     - Registrar o novo item nos 4 menus de instalação (`Traditional`, `Standard`, `PRO` e `PRO MASTER`) em `1_codigo_fonte/x86/SetupLowCodeMno/install.sh` e `1_codigo_fonte/arm/SetupLowCodeMno/install.sh`;
+     - Adicionar o respectivo branch no bloco `case "$CHOICE" in` chamando `run_app <script_name>`;
+  2. **`1_codigo_fonte/setupmno-control/catalog.json`**: Adicionar entrada canônica com nome, categorias, descrição, RAM estimada, arquitetura e tipo (`Combo`, `Individual`, etc.);
+  3. **`1_codigo_fonte/ferramentas.html`**:
+     - Atualizar o `STATIC_CATALOG` com o JSON exato do `catalog.json`;
+     - Atualizar rigorosamente os 3 contadores do cabeçalho (`Total de Setups`, `Total X86`, `Total ARM`);
+     - Validar com `bash 1_codigo_fonte/setupmno-control/catalog-html-count_test.sh`;
+  4. **`1_codigo_fonte/setupmno-knowledge/registry/setups.json`**: Mapear `setupId`, `catalogName`, `script`, `architectures` e `aliases`;
+  5. **`1_codigo_fonte/setupmno-knowledge/setups/<setup-id>/overview.md`**: Criar documentação completa com fontes oficiais (`official-documentation`), licenças e todas as seções obrigatórias (`## Quando usar`, `## Arquitetura no Setup MNO`, `## Pré-requisitos`, `## Fluxo seguro`, `## Primeiro acesso e integrações`, `## Backup e atualização`, `## Validação`, `## Riscos e limites`, `## Diagnóstico`) e calcular o `contentSHA256` exato;
+  6. **Sincronização Obrigatória de Evals nos 6 Pontos:** Atualizar a contagem total de casos de avaliação (fórmula: `setups * 5 + infra * 4 + blueprints * 5 + 7`) em todos os 6 pontos do repositório antes de empacotar;
+  7. **Execução Obrigatória da Suíte Completa de Testes:**
+     - `bash 1_codigo_fonte/setupmno-control/catalog-html-count_test.sh`
+     - `python3 -B 1_codigo_fonte/setupmno-knowledge/tools/lint_knowledge.py --root 1_codigo_fonte/setupmno-knowledge`
+     - `python3 -B 1_codigo_fonte/setupmno-knowledge/tools/test_blueprints.py`
+     - `python3 -B 1_codigo_fonte/setupmno-knowledge/tools/test_certification.py`
+     - `./1_codigo_fonte/setupmno-control/generate-installers.sh`
+     - `./2_empacotador/gerar_distribuicao.sh`
+  8. **Versionamento e Tag Git:** Realizar commit com mensagem semântica, atualizar a tag Git oficial (`git tag -f -a vX.Y.Z`) e registrar a release em `AGENTS.md` e nos artefatos.
 - O catálogo ativo é `1_codigo_fonte/ferramentas.html` e faz parte de **toda** release, inclusive correções sem novo setup.
 - Ao alterar `VERSIONSETUP`, atualize obrigatoriamente no catálogo ativo o subtítulo `Versão X.Y.Z` e o rodapé `Setup MNO vX.Y.Z`.
 - Ao inserir, remover ou alterar setups, categorias, contadores ou links, faça a alteração diretamente em `1_codigo_fonte/ferramentas.html`.

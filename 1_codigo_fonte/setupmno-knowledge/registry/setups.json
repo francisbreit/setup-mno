@@ -953,6 +953,22 @@
       ]
     },
     {
+      "setupId": "combo-ia-whatsapp-sdr-crm",
+      "catalogName": "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*",
+      "script": "combo_ia_whatsapp_sdr_crm.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "combo agente ia whatsapp",
+        "agente ia whatsapp crm",
+        "sdr ia whatsapp",
+        "blueprint 002 combo",
+        "combo sdr crm"
+      ]
+    },
+    {
       "setupId": "cognee",
       "catalogName": "COGNEE",
       "script": "cognee.sh",
