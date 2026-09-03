@@ -217,6 +217,30 @@ agent_version_is_current() {
     [ "$(service_env_value "$service" APP_VERSION)" = "$target_version" ]
 }
 
+control_image_matches_runtime() {
+    local image="$1"
+    local runtime_archive_sha runtime_eval_cases runtime_setup_version image_check
+    [ -z "${MOCK_DOCKER_ARCH:-}" ] || return 0
+    [ -f "$runtime_dir/release.json" ] || return 0
+    runtime_archive_sha=$(jq -r '.knowledgeArchiveSHA256 // empty' "$runtime_dir/release.json" 2>/dev/null)
+    runtime_eval_cases=$(jq -r '.evalCaseEntries // 0' "$runtime_dir/release.json" 2>/dev/null)
+    runtime_setup_version=$(jq -r '.setupVersion // empty' "$runtime_dir/release.json" 2>/dev/null)
+    [ -n "$runtime_archive_sha" ] || return 0
+    image_check=$(docker run --rm --entrypoint /setupmno-control "$image" knowledgecheck 2>/dev/null) || return 1
+    [ "$(jq -r '.archiveSHA256 // empty' <<<"$image_check")" = "$runtime_archive_sha" ] &&
+    [ "$(jq -r '.evalCaseEntries // 0' <<<"$image_check")" = "$runtime_eval_cases" ] &&
+    [ "$(jq -r '.setupVersion // empty' <<<"$image_check")" = "$runtime_setup_version" ]
+}
+
+ensure_runtime_permissions() {
+    if [ -d "$runtime_dir" ]; then
+        chmod 0755 "$runtime_dir" 2>/dev/null || true
+        find "$runtime_dir" -type d -exec chmod 0755 {} + 2>/dev/null || true
+        find "$runtime_dir" -type f ! -name "mfa-state.json" ! -name "*.key" -exec chmod 0644 {} + 2>/dev/null || true
+        [ -f "$runtime_dir/mfa-state.json" ] && chmod 0600 "$runtime_dir/mfa-state.json" 2>/dev/null || true
+    fi
+}
+
 update_web() {
     local service="$1" image="$2" plan="$3" args key
     local access_required access_team access_aud access_email access_mfa
@@ -305,6 +329,7 @@ socket_gid=$(docker_socket_gid) ||
 if [ "$(service_image "$web_service")" = "$control_image" ] &&
    [ "$(service_image "$agent_service")" = "$control_image" ] &&
    agent_version_is_current "$agent_service" &&
+   control_image_matches_runtime "$control_image" &&
    [ "$(service_image "$terminal_service")" = "$terminal_image" ] &&
    docker image inspect "$strix_executor_image" >/dev/null 2>&1 &&
    [ "$(service_env_value "$terminal_service" SETUPMNO_STRIX_EXECUTOR_IMAGE)" = "$strix_executor_image" ] &&
@@ -312,11 +337,13 @@ if [ "$(service_image "$web_service")" = "$control_image" ] &&
      [ "$(service_image "$assistant_service")" = "$control_image" ]; }; then
     if service_has_group "$terminal_service" "$socket_gid" &&
        [ "$(service_env_value "$terminal_service" SETUPMNO_DOCKER_SOCKET_GID)" = "$socket_gid" ]; then
+        ensure_runtime_permissions
         jq -n --arg plan "$plan" '{noop:true,plan:$plan}' >"$state_file"
         progress 100 "CONTROL CENTER JÁ ESTÁ SINCRONIZADO."
     else
         schedule_terminal_update ||
             fail_upgrade 46 "Falha ao agendar o reparo do acesso Docker no Terminal Seguro."
+        ensure_runtime_permissions
         jq -n --arg plan "$plan" '{noop:true,plan:$plan,terminalReconciled:true}' >"$state_file"
         progress 100 "PAINEL SINCRONIZADO; ACESSO DO TERMINAL AO DOCKER PRONTO PARA REPARO."
     fi
@@ -417,5 +444,6 @@ jq -n --arg plan "$plan" '{noop:true,plan:$plan,terminalReconciled:true}' >"$sta
     fail_upgrade 46 "Falha ao registrar a troca protegida do terminal."
 
 changed_services=()
+ensure_runtime_permissions
 progress 100 "PAINEL SINCRONIZADO; TERMINAL PRONTO PARA TROCA CONTROLADA."
 exit 0

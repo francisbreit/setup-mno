@@ -140,6 +140,24 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
+## v7.44.0 — Blueprint #002 IA no WhatsApp SDR + Follow-up CRM e Control Center v4.44.0 (release candidata; BETA)
+
+- inclusão e homologação do segundo Blueprint oficial em produção: `Blueprint #002 — Agentes de IA para Atendimento WhatsApp SDR, Follow-up e CRM`;
+- instalador inteligente do Blueprint com detecção dinâmica de ferramentas preexistentes (Chatwoot, Mautic, n8n, Evolution, RabbitMQ, MinIO e Krayin CRM), permitindo reutilizar stacks existentes ou provisionar complementares com zero retrabalho;
+- novo combo nativo no instalador Setup MNO: `COMBO IA WHATSAPP SDR + FOLLOW-UP CRM*` (Chatwoot Desbloqueado + Evolution 2.0 + RabbitMQ + MinIO + Mautic 7 WhatsApp + n8n Fila + Typebot + Krayin CRM);
+- integração completa do combo ao catálogo oficial (`catalog.json`, `ferramentas.html` e base de conhecimento `setups.json` / `overview.md`), totalizando 160 setups no ecossistema (143 ARM);
+- suíte de qualidade expandida para 888 evals determinísticos homologados;
+- correção e blindagem do Control Center: permissões automáticas `0755`/`0644` no diretório de runtime `/root/SetupLowCodeMno/.control/` para compatibilidade com usuário não-root (UID 65532), evitando fallbacks indevidos;
+- detector de incompatibilidade de imagem e suíte de qualidade no reconciliador `control-upgrade.sh`;
+- cache buster atualizado para `4.44.0` no Control Center;
+- Setup MNO `7.44.0` e Control Center `4.44.0` são os artefatos desta release.
+
+Baseline vigente:
+
+- Setup MNO: `7.44.0`, release candidata
+- Control Center: `4.44.0`
+- SRE-3 a SRE-6, Resiliência, Onboarding, Assistente MNO e Blueprints: `BETA`
+
 ## v7.43.0 — Primeiros Blueprints reais homologados e Combo WhatsApp Marketing (release candidata; BETA)
 
 - inclusão e homologação do primeiro Blueprint real em produção: `Blueprint #001 — WhatsApp Marketing Completo`;

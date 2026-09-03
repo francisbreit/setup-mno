@@ -9,7 +9,7 @@ EXPECTED_BLUEPRINT_FACTORY_VERSION="2.1.0"
 EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="0"
 EXPECTED_QUALITY_SCHEMA_VERSION="2"
 EXPECTED_HOMOLOGATION_RUNNER_VERSION="1.3.0"
-EXPECTED_CONTROL_RELEASE_SHA256="0904fc7d6aafc014d62bd88bd0348229a2d05cbe962c36edf38f2ae0c62f83a5"
+EXPECTED_CONTROL_RELEASE_SHA256="b596c09f6b51fd576a8309534a40e3bca0e86c3e3111480af93f495bfa9696ee"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -189,6 +189,7 @@ write_control_environment() {
     esac
 
     mkdir -p "$control_dir" || return 1
+    chmod 0755 "$control_dir" 2>/dev/null || true
     temporary_file=$(mktemp "$control_dir/environment.json.tmp.XXXXXX") || return 1
     chmod 0644 "$temporary_file" || { rm -f "$temporary_file"; return 1; }
     jq -n \
@@ -218,6 +219,7 @@ prepare_setup_directory_preserving_control() {
     find "$setup_dir" -mindepth 1 -maxdepth 1 ! -name '.control' \
         -exec rm -rf -- {} + || return 1
     mkdir -p "$control_dir"
+    chmod 0755 "$control_dir" 2>/dev/null || true
 }
 
 reconcile_control_center_plan_services() {
@@ -233,6 +235,12 @@ reconcile_control_center_plan_services() {
     [ "$swarm_state" = "inactive" ] && return 0
     [ "$swarm_state" = "active" ] || return 1
     services=$(docker service ls --format '{{.Name}}' 2>/dev/null) || return 1
+    if [ -d "/root/SetupLowCodeMno/.control" ]; then
+        chmod 0755 "/root/SetupLowCodeMno/.control" 2>/dev/null || true
+        find "/root/SetupLowCodeMno/.control" -type d -exec chmod 0755 {} + 2>/dev/null || true
+        find "/root/SetupLowCodeMno/.control" -type f ! -name "mfa-state.json" ! -name "*.key" -exec chmod 0644 {} + 2>/dev/null || true
+        [ -f "/root/SetupLowCodeMno/.control/mfa-state.json" ] && chmod 0600 "/root/SetupLowCodeMno/.control/mfa-state.json" 2>/dev/null || true
+    fi
     while IFS= read -r service; do
         case "$service" in
             mnoctrl*-agent_mnoctrl*-agent)
@@ -1066,6 +1074,10 @@ if [ "$PLANO" != "pro-master" ]; then
 fi
 mv -f "$control_target/release.json.tmp" "$control_target/release.json"
 rm -rf "$control_package"
+chmod 0755 "$control_target" 2>/dev/null || true
+find "$control_target" -type d -exec chmod 0755 {} + 2>/dev/null || true
+find "$control_target" -type f ! -name "mfa-state.json" ! -name "*.key" -exec chmod 0644 {} + 2>/dev/null || true
+[ -f "$control_target/mfa-state.json" ] && chmod 0600 "$control_target/mfa-state.json" 2>/dev/null || true
 
 cd SetupLowCodeMno || exit 1
 
