@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Databasus no Setup MNO",
   "setupId": "databasus",
-  "setupVersion": "7.43.1",
+  "setupVersion": "7.44.0",
   "architectures": [
     "amd64",
     "arm64"
