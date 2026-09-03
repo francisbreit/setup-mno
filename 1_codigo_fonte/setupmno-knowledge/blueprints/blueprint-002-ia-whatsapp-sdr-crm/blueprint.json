@@ -1,0 +1,296 @@
+{
+  "schemaVersion": 2,
+  "blueprintId": "blueprint-002-ia-whatsapp-sdr-crm",
+  "blueprintVersion": "1.0.0",
+  "title": "Agente IA WhatsApp SDR 24/7 + Follow-up + CRM",
+  "summary": "Arquitetura homologada e de produção para atendimento autônomo 24/7 com IA SDR no WhatsApp, qualificação de leads, follow-up anti-vácuo, sincronização no Krayin CRM e transbordo humano no Chatwoot.",
+  "author": "Francis Breit (Francis MNO)",
+  "status": "homologated",
+  "fictitious": false,
+  "deployable": true,
+  "setupVersion": "7.44.0",
+  "updatedAt": "2026-09-03",
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "risk": "medium",
+  "audiences": [
+    "vendas",
+    "sdr",
+    "atendimento",
+    "automacao",
+    "marketing",
+    "infraestrutura"
+  ],
+  "tags": [
+    "whatsapp",
+    "ia",
+    "sdr",
+    "crm",
+    "krayincrm",
+    "chatwoot",
+    "n8n",
+    "follow-up"
+  ],
+  "aliases": [
+    "ia whatsapp sdr",
+    "agente ia whatsapp",
+    "blueprint 002",
+    "combo ia whatsapp sdr",
+    "atendimento ia whatsapp crm",
+    "follow up anti vacuo"
+  ],
+  "objective": "Fornecer uma arquitetura de alta conversão para atendimento autônomo 24/7 com acolhimento imediato de leads, transcrição e resposta a áudios, triagem inteligente com IA SDR, cadência de follow-up anti-vácuo (2h, 24h e 72h), cadastro automático de oportunidades no Krayin CRM e transbordo humanizado com histórico completo no Chatwoot.",
+  "components": [
+    {
+      "catalogName": "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+      "role": "Atendimento multicanal, conexão WhatsApp Baileys, mensageria Quorum e storage compartilhado S3.",
+      "required": true,
+      "installOrder": 1
+    },
+    {
+      "catalogName": "KRAYIN CRM",
+      "role": "CRM de vendas com funil Kanban, cadastro de leads qualificados e registro de etapas comerciais.",
+      "required": true,
+      "installOrder": 2
+    },
+    {
+      "catalogName": "N8N V2 - FILA (QUEUE)",
+      "role": "Orquestrador de IA LangChain, transcrição Whisper, cadência de follow-up e automações de integração.",
+      "required": true,
+      "installOrder": 3
+    },
+    {
+      "catalogName": "TYPEBOT + MINIO*",
+      "role": "Chatbots interativos e formulários de triagem complementar reaproveitando o MinIO.",
+      "required": true,
+      "installOrder": 4
+    },
+    {
+      "catalogName": "MAUTIC 7 WHATSAPP MKT",
+      "role": "Segmentação de contatos da base, automações de marketing e disparos complementares.",
+      "required": true,
+      "installOrder": 5
+    }
+  ],
+  "resourceProfile": {
+    "minimumRamGB": 8,
+    "recommendedRamGB": 16,
+    "basis": "Medição real em homologação com Chatwoot, Evolution API v2, RabbitMQ, MinIO, Krayin CRM e n8n operando em Docker Swarm consumindo ~6.2 GiB de memória."
+  },
+  "installation": {
+    "mode": "assisted-manual",
+    "humanConfirmationRequired": true,
+    "steps": [
+      {
+        "step": 1,
+        "component": "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+        "title": "Instalação do Combo Base de Atendimento",
+        "description": "Executar o instalador no Setup MNO ou confirmar uso da stack existente do Blueprint #001.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 2,
+        "component": "KRAYIN CRM",
+        "title": "Instalação do Krayin CRM",
+        "description": "Executar o setup do Krayin CRM no Setup MNO definindo subdomínio e credenciais administrativas.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 3,
+        "component": "N8N V2 - FILA (QUEUE)",
+        "title": "Instalação ou Conexão ao n8n v2 (Queue)",
+        "description": "Conectar à instância do n8n v2 para importação dos fluxos de IA, SDR e follow-up.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 4,
+        "component": "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+        "title": "Conexão da Instância do WhatsApp",
+        "description": "No Evolution Manager, criar a instância Baileys de atendimento e escanear o QR Code.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 5,
+        "component": "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+        "title": "Criação da Caixa de Entrada de API no Chatwoot",
+        "description": "Criar canal de API no Chatwoot para transbordo com notas privadas entre IA e operador.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 6,
+        "component": "KRAYIN CRM",
+        "title": "Configuração dos Estágios do Funil no Krayin CRM",
+        "description": "Estruturar o pipeline com etapas: Novo Lead, Em Qualificação IA, Handoff/Agendado e Ganho.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 7,
+        "component": "N8N V2 - FILA (QUEUE)",
+        "title": "Configuração de Credenciais de IA e Provedores LLM",
+        "description": "Cadastrar chaves de API (OpenAI, Groq ou Ollama local) e credenciais do RabbitMQ no n8n.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 8,
+        "component": "N8N V2 - FILA (QUEUE)",
+        "title": "Importação do Workflow 01: Receptor, Áudio e Agente SDR IA",
+        "description": "Importar e ativar o fluxo principal com transcrição Whisper e persona do atendente SDR.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 9,
+        "component": "N8N V2 - FILA (QUEUE)",
+        "title": "Importação do Workflow 02: Motor Follow-up Anti-Vácuo",
+        "description": "Importar o agendador inteligente de reconexão de leads inativos com pausas humanizadas.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 10,
+        "component": "N8N V2 - FILA (QUEUE)",
+        "title": "Importação do Workflow 03: Sincronizador Krayin CRM",
+        "description": "Ativar o conector REST API para registro automático de Persons e Leads no CRM.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 11,
+        "component": "N8N V2 - FILA (QUEUE)",
+        "title": "Importação do Workflow 04: Handoff Chatwoot e Notificador",
+        "description": "Configurar transbordo humano para operadores quando o lead solicitar atendente ou atingir alta pontuação.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 12,
+        "component": "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+        "title": "Validação E2E com Áudio, Follow-up e Transbordo",
+        "description": "Realizar teste ponta a ponta enviando áudio no WhatsApp, validando resposta e transbordo no Chatwoot.",
+        "humanConfirmation": true
+      }
+    ]
+  },
+  "validation": {
+    "homologatedAt": "2026-09-03",
+    "checks": [
+      {
+        "checkId": "atendimento-ia-audio-texto",
+        "description": "Receber áudio ou texto de lead e responder em menos de 10 segundos com contexto da persona SDR.",
+        "expected": "Transcrição perfeita via Whisper e resposta empática humanizada no WhatsApp.",
+        "required": true
+      },
+      {
+        "checkId": "followup-anti-vacuo",
+        "description": "Simular cliente que parou de responder após proposta.",
+        "expected": "Motor de follow-up envia lembrete cordial após 2 horas e cancela caso o cliente responda antes.",
+        "required": true
+      },
+      {
+        "checkId": "sincronizacao-crm-handoff",
+        "description": "Qualificar lead como interessado e solicitar atendente humano.",
+        "expected": "Oportunidade criada no Krayin CRM e conversa transferida com nota privada no Chatwoot.",
+        "required": true
+      }
+    ]
+  },
+  "rollback": {
+    "strategy": "Desativar workflows de IA no n8n, desconectar webhooks da Evolution API e reverter para atendimento humano puro sem perda de dados.",
+    "steps": [
+      "Desativar os 4 workflows do Blueprint no n8n (toggle Active = false).",
+      "Pausar o webhook da instância na Evolution API apontando para o n8n.",
+      "Drenar eventuais mensagens retidas na fila do RabbitMQ.",
+      "Restaurar atendimento manual no Chatwoot diretamente pela inbox principal."
+    ]
+  },
+  "media": [
+    {
+      "mediaId": "video-passo-a-passo",
+      "type": "video",
+      "title": "Vídeo: Implantação e Configuração dos Agentes de IA",
+      "url": null,
+      "status": "pending",
+      "transcript": null
+    },
+    {
+      "mediaId": "guia-inicio-pdf",
+      "type": "pdf",
+      "title": "PDF: 00 Guia de Início Oficial do Blueprint #002",
+      "url": null,
+      "status": "pending",
+      "transcript": null
+    }
+  ],
+  "documentation": {
+    "entrypoint": "README.md",
+    "artifacts": [
+      "README.md",
+      "blueprint.json",
+      "knowledge.md"
+    ]
+  },
+  "editorial": {
+    "currentStage": "homologated",
+    "history": [
+      {
+        "stage": "draft",
+        "changedAt": "2026-09-01",
+        "actor": "Setup MNO — equipe editorial",
+        "note": "Planejamento e especificação inicial do Blueprint #002 para IA no WhatsApp e CRM."
+      },
+      {
+        "stage": "reviewed",
+        "changedAt": "2026-09-02",
+        "actor": "Setup MNO — revisão técnica",
+        "note": "Revisão dos fluxos n8n, personas de SDR, regras anti-ban e integradores do Krayin CRM."
+      },
+      {
+        "stage": "homologated",
+        "changedAt": "2026-09-03",
+        "actor": "Francis Breit (Francis MNO)",
+        "note": "Homologação completa em laboratório WSL2 e VPS externa com 12 passos validados e 100% de convergência."
+      }
+    ],
+    "review": {
+      "decision": "approved",
+      "reviewedAt": "2026-09-03",
+      "reviewedBy": "Francis Breit (Francis MNO)",
+      "notes": "Arquitetura aprovada para produção após validação dos fluxos de SDR com IA, cadência anti-vácuo, Krayin CRM e transbordo seguro no Chatwoot."
+    },
+    "homologation": {
+      "environment": "isolated-temporary",
+      "testedAt": "2026-09-03",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "evidence": [
+        {
+          "evidenceId": "test-report-ia-sdr-crm",
+          "type": "test-report",
+          "title": "Relatório de Testes E2E dos Agentes de IA e CRM",
+          "path": "evidence/test-report.md",
+          "sha256": "c877aace0061292d874897698141a55c8a73532e835e0157da8abe94badae6f6",
+          "verifiedAt": "2026-09-03",
+          "architecture": "all"
+        },
+        {
+          "evidenceId": "security-review-ai-tokens",
+          "type": "security-review",
+          "title": "Revisão de Segurança, Tokens de IA e Isolamento de Dados",
+          "path": "evidence/security-review.md",
+          "sha256": "2d8662d1f25d71eb1c33a0d19a1b693124b075b0efdd56e4489586f50ef537a9",
+          "verifiedAt": "2026-09-03",
+          "architecture": "all"
+        },
+        {
+          "evidenceId": "rollback-test-ai-agents",
+          "type": "rollback-test",
+          "title": "Teste de Rollback e Desativação Emergencial da IA",
+          "path": "evidence/rollback-test.md",
+          "sha256": "d16dc745c4f52a62ad23bf001513c9c148a0e41d7a7e8e67e3af39668b730432",
+          "verifiedAt": "2026-09-03",
+          "architecture": "all"
+        }
+      ]
+    }
+  }
+}

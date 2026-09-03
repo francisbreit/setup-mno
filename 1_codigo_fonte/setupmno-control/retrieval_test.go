@@ -73,7 +73,7 @@ func TestBlueprintBetaGuidesResolveWithoutCrossContamination(t *testing.T) {
 		blueprintID string
 	}{
 		{"Explique o blueprint-001-whatsapp-marketing-completo", "blueprint-001-whatsapp-marketing-completo"},
-		{"Quais são os componentes do Blueprint de automação de negócios?", "blueprint-002-automacao-negocios"},
+		{"Quais são os componentes do Blueprint de IA no WhatsApp SDR e CRM?", "blueprint-002-ia-whatsapp-sdr-crm"},
 		{"Mostre a topologia do Blueprint de base de conhecimento com IA e RAG", "blueprint-003-base-conhecimento-rag"},
 		{"Como validar o Blueprint de observabilidade completa?", "blueprint-004-observabilidade-monitoramento"},
 		{"Quais são os riscos do Blueprint para servidor com pouca memória?", "blueprint-005-servidor-pequeno"},

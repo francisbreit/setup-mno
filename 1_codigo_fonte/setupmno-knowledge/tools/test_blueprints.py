@@ -63,7 +63,10 @@ class BlueprintFactoryTests(unittest.TestCase):
         )
         for entry in index["entries"]:
             editorial = entry["editorial"]
-            if entry["blueprintId"] == "blueprint-001-whatsapp-marketing-completo":
+            if entry["blueprintId"] in {
+                "blueprint-001-whatsapp-marketing-completo",
+                "blueprint-002-ia-whatsapp-sdr-crm",
+            }:
                 self.assertEqual(editorial["passedGates"], 11)
                 self.assertTrue(editorial["promotionReady"])
             else:
@@ -180,7 +183,7 @@ class BlueprintFactoryTests(unittest.TestCase):
 
     def test_homologated_status_cannot_skip_reviewed_transition(self) -> None:
         manifest = copy.deepcopy(
-            load_blueprints(ROOT, CATALOG, SETUP_VERSION)[1].manifest
+            load_blueprints(ROOT, CATALOG, SETUP_VERSION)[2].manifest
         )
         manifest["status"] = "homologated"
         manifest["fictitious"] = False
@@ -218,7 +221,7 @@ class BlueprintFactoryTests(unittest.TestCase):
 
     def test_homologated_status_requires_isolated_evidence(self) -> None:
         manifest = copy.deepcopy(
-            load_blueprints(ROOT, CATALOG, SETUP_VERSION)[1].manifest
+            load_blueprints(ROOT, CATALOG, SETUP_VERSION)[2].manifest
         )
         manifest["status"] = "homologated"
         manifest["fictitious"] = False
