@@ -144,12 +144,9 @@ PASSO A PASSO DETALHADO DE INSTALAÇÃO E CONFIGURAÇÃO:
 [PASSO 11] Configuração do n8n, Importação dos Workflows e RabbitMQ
 --------------------------------------------------------------------------------
 1. Acesse o n8n: https://n8n.seu-dominio.com e crie a conta de proprietário;
-2. Vá em "Credentials" > "Add Credential" e selecione "RabbitMQ":
-   - Host: rabbitmq (ou o subdomínio interno/externo da stack)
-   - Port: 5672
    - User/Password: credenciais do RabbitMQ definidas na instalação;
-3. Vá em "Workflows" > "Add Workflow" > menu três pontinhos (...) > "Import from File";
-4. Importe os 2 arquivos JSON inclusos na pasta `01_N8N_Workflows`:
+2. Vá em "Workflows" > "Add Workflow" > menu três pontinhos (...) > "Import from File";
+3. Importe os 2 arquivos JSON inclusos na pasta `01_N8N_Workflows`:
    a) `Mautic-SMS-WhatsApp-receptor-Principal.json`
       - Este fluxo cria o Webhook receptor do Mautic e publica na fila Quorum.
       - Ative o workflow (toggle "Active").
@@ -157,7 +154,10 @@ PASSO A PASSO DETALHADO DE INSTALAÇÃO E CONFIGURAÇÃO:
       - Este fluxo consome a fila do RabbitMQ, aplica delay inteligente e dispara
         via Evolution API v2.
       - Ative o workflow (toggle "Active").
-5. Copie a URL do Webhook "Production" gerada no n8n Receptor para usar no Mautic.
+4. Copie a URL do Webhook "Production" gerada no n8n Receptor para usar no Mautic.
+5. Vá em "Credentials" > "Add Credential" e selecione "RabbitMQ":
+   - Host: rabbitmq (ou o subdomínio interno/externo da stack)
+   - Port: 5672
 
 [PASSO 12] Integração da Evolution API com o Typebot
 --------------------------------------------------------------------------------
@@ -203,14 +203,7 @@ PASSO A PASSO DETALHADO DE INSTALAÇÃO E CONFIGURAÇÃO:
 [PASSO 15] Disparo de Campanha com Chatbot e Handoff para Atendimento Humano
 --------------------------------------------------------------------------------
 1. No Mautic, crie uma nova Mensagem de Texto / WhatsApp para a campanha interativa;
-2. Use o modelo do arquivo `02_Mautic_Campanhas/02_Modelo_Typebot_Interativo.txt`:
-   ```text
-   template: aniversario
-   number: {contactfield=phone}
-   nome: {contactfield=firstname}
-   chatbot: true
-   remetente: Atendimento
-   ```
+2. Use o modelo do arquivo `02_Mautic_Campanhas_Broadcasts/01_Modelo_Texto_Simples_Broadcast.txt`:
 3. Dispare a mensagem para o segmento de teste;
 4. No seu WhatsApp, você receberá a mensagem inicial e o Typebot começará a interagir;
 5. Responda às perguntas do bot. Se você digitar uma dúvida ou pedir ajuda humana, a

@@ -1,0 +1,23 @@
+# ==============================================================================
+# MODELO 1: MENSAGEM DE TEXTO SIMPLES (MAUTIC -> WHATSAPP)
+# ==============================================================================
+# Canal no Mautic: Canais > WhatsApp/SMS
+# Tipo: Broadcast
+# Plugin: Twilio (com Webhook do n8n Receptor)
+# ==============================================================================
+Campos:
+Nome Interno: Modelo1 -Segmentos-WhatsApp-texto simples - teste
+Estratégia de Disparo: WhatsApp (API Não Oficial) - Texto Livre
+Dono / Nome da Instância: Nome da Instancia da Evolution (Exemplo: Atendimento)
+Conteúdo da Mensagem: Olá {contactfield=firstname} 😀. Isso é apenas um teste.\nMuito obrigado.
+
+
+# ------------------------------------------------------------------------------
+# INSTRUÇÕES DE USO NO MAUTIC PARA TESTE DE ENVIO PARA SEGMENTO TESTE:
+# 1. Entre em Canais, escolha WhatsApp/SMS, clique em Novo +, escolha a opção: WhatsApp/SMS de Segmento (broadcast)
+# 2. Configure cada ítem de acordo com os campos acima.
+# 3. Ao lado direito, em Segmento do contato, escolha o segmento de nome teste, criado anteriormente.
+# 4. Ao lado direito escolha a data e hora do disparo do teste (no campo Comece a enviar em)
+# 5. Ao lado direito ative o botão Disponível para uso.
+# 6. A mensagem devrá ser dipsrada para o(s) contato(s) que estão dentro do Segmento Teste, na data e hora agendados
+# ==============================================================================
