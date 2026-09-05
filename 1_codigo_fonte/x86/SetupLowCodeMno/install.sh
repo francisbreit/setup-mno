@@ -748,6 +748,17 @@ if control_center_installed; then
     fi
 fi
 
+menu_mno_fleet_hub() {
+    local fleet_script="/root/SetupLowCodeMno/fleet-mode.sh"
+    [ -f "$fleet_script" ] || fleet_script="/root/SetupLowCodeMno/.control/fleet-mode.sh"
+    if [ -f "$fleet_script" ]; then
+        bash "$fleet_script" menu || true
+    else
+        whiptail --title "MNO FLEET HUB" --msgbox \
+            "O componente MNO Fleet Hub não foi encontrado. Atualize ou reinstale o Setup MNO e tente novamente." 12 78
+    fi
+}
+
 # --- SAIR ---
 do_exit() {
     clear
@@ -784,6 +795,7 @@ while true; do
 CONTROL_CENTER_MENU=()
 CONTROL_CENTER_FREE_MENU=()
 CONTROL_CENTER_MFA_MENU=("CONFIGURAR MFA CONTROL CENTER" "")
+FLEET_HUB_MENU=("⎇ MNO FLEET HUB" "")
 if ! control_center_installed; then
     CONTROL_CENTER_MENU=("SETUP MNO CONTROL CENTER" "")
     CONTROL_CENTER_FREE_MENU=("SETUP MNO CONTROL CENTER" "")
@@ -929,6 +941,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "ROCKET.CHAT" "" \
     "SEARXNG" "" \
     "${CONTROL_CENTER_MENU[@]}" \
+    "${FLEET_HUB_MENU[@]}" \
     "SYNCTHING" "" \
     "SHLINK" "" \
     "SIYUAN" "" \
@@ -968,6 +981,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
 case "$CHOICE" in
     "STRAPI") run_app strap ;;
     "CONFIGURAR MFA CONTROL CENTER") configure_control_center_mfa ;;
+    "⎇ MNO FLEET HUB") menu_mno_fleet_hub ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
     "GERENCIAR DOMÍNIOS CLOUDFLARE") manage_cloudflare_domains ;;
@@ -1185,6 +1199,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "REDIS COMMANDER" "" \
     "REDISINSIGHT" "" \
     "${CONTROL_CENTER_FREE_MENU[@]}" \
+    "${FLEET_HUB_MENU[@]}" \
     "SHLINK" "" \
     "STRAPI" "" \
     "STIRLING PDF" "" \
@@ -1327,6 +1342,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
 case "$CHOICE" in
     "STRAPI") run_app strap ;;
     "CONFIGURAR MFA CONTROL CENTER") configure_control_center_mfa ;;
+    "⎇ MNO FLEET HUB") menu_mno_fleet_hub ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
     "GERENCIAR DOMÍNIOS CLOUDFLARE") manage_cloudflare_domains ;;
@@ -1522,6 +1538,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "PGADMIN4" "" \
     "REDIS" "" \
     "${CONTROL_CENTER_FREE_MENU[@]}" \
+    "${FLEET_HUB_MENU[@]}" \
     "WAHA API" "" \
     "─────────────────────────" "" \
     "ACTIVEPIECES" "PRO" \
@@ -1679,6 +1696,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
 case "$CHOICE" in
     "STRAPI") run_app strap ;;
     "CONFIGURAR MFA CONTROL CENTER") configure_control_center_mfa ;;
+    "⎇ MNO FLEET HUB") menu_mno_fleet_hub ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
     "GERENCIAR DOMÍNIOS CLOUDFLARE") manage_cloudflare_domains ;;
@@ -1874,6 +1892,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "PGADMIN4" "" \
     "REDIS" "" \
     "${CONTROL_CENTER_FREE_MENU[@]}" \
+    "${FLEET_HUB_MENU[@]}" \
     "WAHA API" "" \
     "─────────────────────────" "" \
     "ACTIVEPIECES" "PRO" \
@@ -2031,6 +2050,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
 case "$CHOICE" in
     "STRAPI") run_app strap ;;
     "CONFIGURAR MFA CONTROL CENTER") configure_control_center_mfa ;;
+    "⎇ MNO FLEET HUB") menu_mno_fleet_hub ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
     "GERENCIAR DOMÍNIOS CLOUDFLARE") manage_cloudflare_domains ;;

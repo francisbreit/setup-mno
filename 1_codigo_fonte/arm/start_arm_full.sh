@@ -9,7 +9,7 @@ EXPECTED_BLUEPRINT_FACTORY_VERSION="2.1.0"
 EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="0"
 EXPECTED_QUALITY_SCHEMA_VERSION="2"
 EXPECTED_HOMOLOGATION_RUNNER_VERSION="1.3.0"
-EXPECTED_CONTROL_RELEASE_SHA256="371af25e088d01b6ce871f7b9f9927eb54293ca49af67f7f9852efd5b67e7677"
+EXPECTED_CONTROL_RELEASE_SHA256="f2d42660d12e3a14c553145bc5e57ba2ec498e49fcd8862940bc241b74c24f52"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -188,6 +188,21 @@ write_control_environment() {
         *) return 1 ;;
     esac
 
+    local fleet_mode="disabled" existing_node_id="" existing_master_url="" existing_token=""
+    if [ -f "$control_dir/environment.json" ] && [ ! -L "$control_dir/environment.json" ]; then
+        fleet_mode=$(jq -r '.fleetMode // "disabled"' "$control_dir/environment.json" 2>/dev/null || printf 'disabled')
+        existing_node_id=$(jq -r '.fleetNodeId // empty' "$control_dir/environment.json" 2>/dev/null || true)
+        existing_master_url=$(jq -r '.fleetMasterUrl // empty' "$control_dir/environment.json" 2>/dev/null || true)
+        existing_token=$(jq -r '.fleetToken // empty' "$control_dir/environment.json" 2>/dev/null || true)
+    fi
+    case "$fleet_mode" in
+        disabled|master|worker) ;;
+        *) fleet_mode="disabled" ;;
+    esac
+    if [ "$installation_type" != "CLOUDFLARE_TUNNEL" ]; then
+        fleet_mode="disabled"
+    fi
+
     mkdir -p "$control_dir" || return 1
     chmod 0755 "$control_dir" 2>/dev/null || true
     temporary_file=$(mktemp "$control_dir/environment.json.tmp.XXXXXX") || return 1
@@ -195,7 +210,14 @@ write_control_environment() {
     jq -n \
         --arg plan "$public_plan" \
         --arg installationType "$installation_type" \
-        '{schemaVersion:1,plan:$plan,installationType:$installationType}' \
+        --arg fleetMode "$fleet_mode" \
+        --arg fleetNodeId "$existing_node_id" \
+        --arg fleetMasterUrl "$existing_master_url" \
+        --arg fleetToken "$existing_token" \
+        '{schemaVersion:1,plan:$plan,installationType:$installationType,fleetMode:$fleetMode} +
+         (if $fleetNodeId != "" then {fleetNodeId:$fleetNodeId} else {} end) +
+         (if $fleetMasterUrl != "" then {fleetMasterUrl:$fleetMasterUrl} else {} end) +
+         (if $fleetToken != "" then {fleetToken:$fleetToken} else {} end)' \
         >"$temporary_file" || { rm -f "$temporary_file"; return 1; }
     mv -f "$temporary_file" "$control_dir/environment.json"
 }

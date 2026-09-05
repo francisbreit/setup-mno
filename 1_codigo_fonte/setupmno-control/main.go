@@ -100,6 +100,9 @@ type webApp struct {
 	feedbackMu     sync.Mutex
 	feedback       feedbackState
 	feedbackTokens map[string]feedbackTokenRecord
+
+	fleetStore *fleetInventoryStore
+	fleetMu    sync.Mutex
 }
 
 type blueprintMediaSummary struct {
@@ -277,6 +280,9 @@ type setupStateResponse struct {
 	SupplyChainHighRiskTags     int              `json:"supplyChainHighRiskMutableTagImages,omitempty"`
 	SupplyChainImplicitLatest   int              `json:"supplyChainImplicitLatestImages,omitempty"`
 	SupplyChainUnresolved       int              `json:"supplyChainUnresolvedReferences,omitempty"`
+	FleetMode                   string           `json:"fleetMode,omitempty"`
+	FleetAllowed                bool             `json:"fleetAllowed"`
+	FleetNodeID                 string           `json:"fleetNodeId,omitempty"`
 }
 
 type supplyChainFile struct {
@@ -320,12 +326,17 @@ type planCapabilities struct {
 	HomologationExecute       bool `json:"homologationExecute"`
 	HomologationFinalApproval bool `json:"homologationFinalApproval"`
 	RemoteTerminal            bool `json:"remoteTerminal"`
+	FleetHub                  bool `json:"fleetHub"`
 }
 
 type runtimeEnvironment struct {
-	SchemaVersion    int    `json:"schemaVersion"`
-	Plan             string `json:"plan"`
-	InstallationType string `json:"installationType"`
+	SchemaVersion    int       `json:"schemaVersion"`
+	Plan             string    `json:"plan"`
+	InstallationType string    `json:"installationType"`
+	FleetMode        FleetMode `json:"fleetMode,omitempty"`
+	FleetNodeID      string    `json:"fleetNodeId,omitempty"`
+	FleetMasterURL   string    `json:"fleetMasterUrl,omitempty"`
+	FleetToken       string    `json:"fleetToken,omitempty"`
 }
 
 type catalogResponse struct {
@@ -568,6 +579,10 @@ func runWeb() error {
 	if err != nil {
 		return fmt.Errorf("trilha de auditoria indisponível ou íntegra não confirmada: %w", err)
 	}
+	fleetStore, err := loadFleetInventory(envDefault("FLEET_STORE_PATH", "/audit/fleet-inventory.json"))
+	if err != nil {
+		return fmt.Errorf("inventário do Fleet Hub indisponível: %w", err)
+	}
 	blueprintKnowledge, err := loadEmbeddedKnowledgePackage()
 	if err != nil {
 		return fmt.Errorf("catálogo de Blueprints indisponível: %w", err)
@@ -641,6 +656,7 @@ func runWeb() error {
 		feedback:         feedback,
 		quality:          blueprintKnowledge.Quality,
 		feedbackTokens:   make(map[string]feedbackTokenRecord),
+		fleetStore:       fleetStore,
 	}
 	app.passwordHash = pbkdf2SHA256(passwordSecret, app.passwordSalt, 310000, 32)
 	zero(passwordSecret)
@@ -674,6 +690,15 @@ func runWeb() error {
 	mux.Handle("POST /api/feedback/delete", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFeedbackDelete))))
 	mux.Handle("POST /api/assistant", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleAssistant))))
 	mux.Handle("/terminal/", app.requireAuth(app.terminalProxy()))
+	mux.Handle("GET /api/fleet/status", app.requireAuth(http.HandlerFunc(app.handleFleetStatus)))
+	mux.Handle("GET /api/fleet/nodes", app.requireAuth(http.HandlerFunc(app.handleFleetNodes)))
+	mux.Handle("POST /api/fleet/nodes", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetAddNode))))
+	mux.Handle("DELETE /api/fleet/nodes/{id}", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetRemoveNode))))
+	mux.Handle("GET /api/fleet/telemetry", app.requireAuth(http.HandlerFunc(app.handleFleetTelemetry)))
+	mux.Handle("POST /api/fleet/nodes/{id}/ping", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetPing))))
+	mux.Handle("POST /api/fleet/ping", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetPing))))
+	mux.HandleFunc("GET /api/fleet/worker/telemetry", app.handleFleetWorkerTelemetry)
+	mux.HandleFunc("POST /api/fleet/worker/action", app.handleFleetWorkerAction)
 
 	webRoot, err := fs.Sub(embeddedFiles, "web")
 	if err != nil {
@@ -798,7 +823,52 @@ func runAgent() error {
 		state.Capabilities = capabilitiesForEnvironment(environment)
 		state.LLMAllowed = state.Capabilities.ProAccess
 		state.HomologationRunnerAvailable = state.HomologationRunnerAvailable && state.Capabilities.HomologationExecute
+		state.FleetMode = string(environment.FleetMode)
+		state.FleetAllowed = state.Capabilities.FleetHub
+		state.FleetNodeID = environment.FleetNodeID
 		writeJSON(w, http.StatusOK, state)
+	}))
+	mux.HandleFunc("GET /fleet/telemetry", authorize(func(w http.ResponseWriter, _ *http.Request) {
+		overviewData, err := collectOverview(dockerClient)
+		if err != nil {
+			writeError(w, http.StatusBadGateway, "erro ao coletar visão geral do nó")
+			return
+		}
+		environment, _ := readRuntimeEnvironment(setupStateDir)
+		nodeID := environment.FleetNodeID
+		if nodeID == "" {
+			nodeID = overviewData.Hostname
+		}
+		telemetry := FleetTelemetry{
+			NodeID:        nodeID,
+			Mode:          environment.FleetMode,
+			UptimeSeconds: int64(overviewData.Metrics.UptimeSeconds),
+			LoadAverage1m: overviewData.Metrics.Load1,
+			MemoryUsedMB:  overviewData.Metrics.MemoryUsed / (1024 * 1024),
+			MemoryTotalMB: overviewData.Metrics.MemoryTotal / (1024 * 1024),
+			DiskUsedGB:    overviewData.Metrics.DiskUsed / (1024 * 1024 * 1024),
+			DiskTotalGB:   overviewData.Metrics.DiskTotal / (1024 * 1024 * 1024),
+			ActiveSwarm:   overviewData.SwarmNodes > 0,
+			HealthyApps:   overviewData.HealthyServices,
+			UnhealthyApps: overviewData.DegradedServices,
+			Timestamp:     time.Now().UTC(),
+		}
+		writeJSON(w, http.StatusOK, telemetry)
+	}))
+	mux.HandleFunc("GET /fleet/config", authorize(func(w http.ResponseWriter, _ *http.Request) {
+		environment, err := readRuntimeEnvironment(setupStateDir)
+		if err != nil {
+			writeJSON(w, http.StatusOK, fleetConfigResponse{
+				FleetMode: FleetModeDisabled,
+			})
+			return
+		}
+		writeJSON(w, http.StatusOK, fleetConfigResponse{
+			FleetMode:      environment.FleetMode,
+			FleetNodeID:    environment.FleetNodeID,
+			FleetMasterURL: environment.FleetMasterURL,
+			FleetToken:     environment.FleetToken,
+		})
 	}))
 	mux.HandleFunc("GET /catalog", authorize(func(w http.ResponseWriter, _ *http.Request) {
 		snapshot, err := readRuntimeSnapshot(setupStateDir)
@@ -3132,6 +3202,7 @@ func planHasMaintainerAccess(plan string) bool {
 func capabilitiesForEnvironment(environment runtimeEnvironment) planCapabilities {
 	proAccess := planHasProAccess(environment.Plan)
 	maintainer := planHasMaintainerAccess(environment.Plan)
+	fleetAllowed := environment.InstallationType == "CLOUDFLARE_TUNNEL"
 	return planCapabilities{
 		ProAccess:                 proAccess,
 		StrixDiagnostics:          proAccess,
@@ -3140,6 +3211,7 @@ func capabilitiesForEnvironment(environment runtimeEnvironment) planCapabilities
 		HomologationExecute:       maintainer,
 		HomologationFinalApproval: maintainer,
 		RemoteTerminal:            environment.InstallationType == "CLOUDFLARE_TUNNEL",
+		FleetHub:                  fleetAllowed,
 	}
 }
 
@@ -3376,7 +3448,6 @@ func readRuntimeEnvironment(directory string) (runtimeEnvironment, error) {
 	}
 	var environment runtimeEnvironment
 	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&environment); err != nil {
 		return runtimeEnvironment{}, fmt.Errorf("ambiente runtime JSON: %w", err)
 	}
@@ -3395,6 +3466,17 @@ func readRuntimeEnvironment(directory string) (runtimeEnvironment, error) {
 	case "CLOUDFLARE_TUNNEL", "TRADICIONAL":
 	default:
 		return runtimeEnvironment{}, errors.New("tipo de instalação runtime inválido")
+	}
+	switch environment.FleetMode {
+	case "", FleetModeDisabled, FleetModeMaster, FleetModeWorker:
+		if environment.FleetMode == "" {
+			environment.FleetMode = FleetModeDisabled
+		}
+	default:
+		return runtimeEnvironment{}, errors.New("modo fleet runtime inválido")
+	}
+	if environment.FleetMode != FleetModeDisabled && environment.InstallationType != "CLOUDFLARE_TUNNEL" {
+		return runtimeEnvironment{}, errors.New("modo fleet exige instalação via CLOUDFLARE_TUNNEL")
 	}
 	return environment, nil
 }

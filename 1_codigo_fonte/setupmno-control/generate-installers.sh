@@ -1078,7 +1078,7 @@ bundle="$temporary_dir/setupmno-control.tar.gz"
     tar --exclude='strix-lab/__pycache__' --exclude='strix-lab/*.pyc' -cf - \
         go.mod Dockerfile terminal.Dockerfile prepare-ttyd-index.sh \
         terminal-menu.sh configure-control.sh control-upgrade.sh cloudflare-mfa.sh \
-        install-heartbeat.sh \
+        install-heartbeat.sh fleet-mode.sh \
         cloudflare-route-guard.sh cloudflare-access-reconcile.sh \
         "${production_go_files[@]}" strix-lab web |
         gzip -9n >"$bundle"
@@ -1146,6 +1146,12 @@ if ! tar -tzf "$bundle" | grep -Fx 'cloudflare-mfa.sh' >/dev/null; then
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'install-heartbeat.sh' >/dev/null; then
     printf 'ERRO: bundle de fontes sem o heartbeat da instalação.\n' >&2
+    exit 1
+fi
+if ! tar -tzf "$bundle" | grep -Fx 'fleet_inventory.go' >/dev/null ||
+   ! tar -tzf "$bundle" | grep -Fx 'fleet_controller.go' >/dev/null ||
+   ! tar -tzf "$bundle" | grep -Fx 'fleet-mode.sh' >/dev/null; then
+    printf 'ERRO: bundle de fontes sem os componentes do MNO Fleet Hub.\n' >&2
     exit 1
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'cloudflare-route-guard.sh' >/dev/null; then
@@ -1231,6 +1237,7 @@ count_pro_menu() {
             name=item[1]
             if (name != "REINICIAR APPS/SERVIÇOS" &&
                 name != "${CONTROL_CENTER_MFA_MENU[@]}" &&
+                name != "${FLEET_HUB_MENU[@]}" &&
                 name != "DELETAR APPS/STACKS" &&
                 name != "GERENCIAR DOMÍNIOS CLOUDFLARE" &&
                 name != "GERADOR DE REGISTROS DNS" &&

@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 set -euo pipefail
 umask 077
-CONTROL_VERSION="4.44.0"
+CONTROL_VERSION="4.44.1"
 CLOUDFLARE_CONNECT_TIMEOUT=10
 CLOUDFLARE_MAX_TIME=30
 
@@ -2114,6 +2114,7 @@ services:
       - SETUPMNO_INSTALL_TYPE=$INSTALL_TYPE
       - FEEDBACK_STORE_PATH=/feedback/feedback.json
       - AUDIT_STORE_PATH=/audit/audit.json
+      - FLEET_STORE_PATH=/audit/fleet-inventory.json
       - COOKIE_SECURE=true
       - ACCESS_JWT_REQUIRED=$access_jwt_required
       - ACCESS_TEAM_DOMAIN=$access_team_domain

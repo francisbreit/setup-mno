@@ -130,9 +130,9 @@ func (v *accessVerifier) middleware(next http.Handler) http.Handler {
 		return next
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// O healthcheck é alcançável somente pela rede overlay interna e não
-		// representa uma sessão de usuário. Todo o restante exige Access.
-		if r.URL.Path == "/health" {
+		// O healthcheck e endpoints inter-nós da frota não representam sessões de usuário.
+		// O healthcheck é interno e /api/fleet/worker/ exige autenticação por Fleet Token criptográfico.
+		if r.URL.Path == "/health" || strings.HasPrefix(r.URL.Path, "/api/fleet/worker/") {
 			next.ServeHTTP(w, r)
 			return
 		}

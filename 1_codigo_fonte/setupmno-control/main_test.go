@@ -80,11 +80,45 @@ func TestReadRuntimeEnvironmentAcceptsProMaster(t *testing.T) {
 	}
 }
 
+func TestReadRuntimeEnvironmentFleetMode(t *testing.T) {
+	directory := t.TempDir()
+	data := []byte(`{"schemaVersion":1,"plan":"pro","installationType":"CLOUDFLARE_TUNNEL"}`)
+	if err := os.WriteFile(filepath.Join(directory, "environment.json"), data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	env, err := readRuntimeEnvironment(directory)
+	if err != nil {
+		t.Fatalf("ambiente sem fleetMode foi recusado: %v", err)
+	}
+	if env.FleetMode != FleetModeDisabled {
+		t.Fatalf("esperado fallback para disabled, obtido: %v", env.FleetMode)
+	}
+
+	dataMaster := []byte(`{"schemaVersion":1,"plan":"pro","installationType":"CLOUDFLARE_TUNNEL","fleetMode":"master"}`)
+	if err := os.WriteFile(filepath.Join(directory, "environment.json"), dataMaster, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	envMaster, err := readRuntimeEnvironment(directory)
+	if err != nil {
+		t.Fatalf("modo master válido foi recusado: %v", err)
+	}
+	if envMaster.FleetMode != FleetModeMaster {
+		t.Fatalf("esperado modo master, obtido: %v", envMaster.FleetMode)
+	}
+
+	dataTrad := []byte(`{"schemaVersion":1,"plan":"pro","installationType":"TRADICIONAL","fleetMode":"master"}`)
+	if err := os.WriteFile(filepath.Join(directory, "environment.json"), dataTrad, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readRuntimeEnvironment(directory); err == nil {
+		t.Fatal("modo master em TRADICIONAL deveria ser recusado")
+	}
+}
+
 func TestReadRuntimeEnvironmentRejectsInvalidEntitlement(t *testing.T) {
 	for name, data := range map[string]string{
 		"plano":   `{"schemaVersion":1,"plan":"premium","installationType":"TRADICIONAL"}`,
 		"tipo":    `{"schemaVersion":1,"plan":"pro","installationType":"PUBLICO"}`,
-		"campo":   `{"schemaVersion":1,"plan":"pro","installationType":"TRADICIONAL","token":"segredo"}`,
 		"symlink": `{"schemaVersion":1,"plan":"pro","installationType":"TRADICIONAL"}`,
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -105,6 +139,21 @@ func TestReadRuntimeEnvironmentRejectsInvalidEntitlement(t *testing.T) {
 				t.Fatal("ambiente runtime inválido foi aceito")
 			}
 		})
+	}
+}
+
+func TestReadRuntimeEnvironmentAllowsUnknownFields(t *testing.T) {
+	directory := t.TempDir()
+	data := []byte(`{"schemaVersion":1,"plan":"pro","installationType":"CLOUDFLARE_TUNNEL","token":"segredo","futureFeature":true}`)
+	if err := os.WriteFile(filepath.Join(directory, "environment.json"), data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	env, err := readRuntimeEnvironment(directory)
+	if err != nil {
+		t.Fatalf("ambiente com campos desconhecidos/futuros deve ser aceito para retrocompatibilidade: %v", err)
+	}
+	if env.Plan != "pro" || env.InstallationType != "CLOUDFLARE_TUNNEL" {
+		t.Fatalf("valores lidos incorretamente: %#v", env)
 	}
 }
 
