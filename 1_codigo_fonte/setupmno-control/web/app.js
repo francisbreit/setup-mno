@@ -131,7 +131,21 @@ function bindEvents() {
     if (action.dataset.action === "quality-return") navigate("assistant");
     if (action.dataset.action === "onboarding") openOnboarding();
     if (action.dataset.action === "fleet-mode") openFleetModeDialog();
-    if (action.dataset.action === "fleet-help") navigate("help");
+    if (action.dataset.action === "fleet-help") {
+      navigate("help");
+      setHelpFilter("vibeops");
+      const hero = $("help-vibeops-hero");
+      if (hero) hero.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    if (action.dataset.action === "help-vibeops-guide") {
+      navigate("help");
+      setHelpFilter("vibeops");
+      const guide = $("help-guide-vibeops");
+      if (guide) {
+        guide.open = true;
+        guide.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
   });
   $("open-terminal-top").addEventListener("click", openTerminal);
   $("terminal-close").addEventListener("click", closeTerminal);
@@ -316,6 +330,16 @@ function bindHelpCenter() {
       search.value = "";
       filterHelpTopics();
     }
+  });
+  filterHelpTopics();
+}
+
+function setHelpFilter(targetFilter) {
+  const search = $("help-search");
+  if (search) search.value = "";
+  helpFilter = targetFilter || "all";
+  document.querySelectorAll("[data-help-filter]").forEach(item => {
+    item.classList.toggle("active", item.dataset.helpFilter === helpFilter);
   });
   filterHelpTopics();
 }
@@ -2827,13 +2851,25 @@ async function loadFleet() {
 
 function updateFleetNavigationBadge() {
   const countBadge = $("nav-fleet-count");
-  if (!countBadge) return;
-  if (state.fleetMode === "master") {
-    countBadge.textContent = String(state.fleetStatus?.totalNodes || state.fleetNodes.length || 0);
-  } else if (state.fleetMode === "worker") {
-    countBadge.textContent = "1";
-  } else {
-    countBadge.textContent = "0";
+  if (countBadge) {
+    if (state.fleetMode === "master") {
+      countBadge.textContent = String(state.fleetStatus?.totalNodes || state.fleetNodes.length || 0);
+    } else if (state.fleetMode === "worker") {
+      countBadge.textContent = "1";
+    } else {
+      countBadge.textContent = "0";
+    }
+  }
+  const overviewBadge = $("fleet-overview-badge");
+  if (overviewBadge) {
+    if (state.fleetMode === "master") {
+      const count = state.fleetStatus?.totalNodes || state.fleetNodes.length || 1;
+      overviewBadge.textContent = `Torre Master (${count} ${count === 1 ? "nó" : "nós"})`;
+    } else if (state.fleetMode === "worker") {
+      overviewBadge.textContent = "Nó Worker";
+    } else {
+      overviewBadge.textContent = "Standalone (0 MB)";
+    }
   }
 }
 

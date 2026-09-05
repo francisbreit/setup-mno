@@ -63,7 +63,7 @@
         <button class="nav-item" data-view="blueprints"><span class="nav-icon">⌘</span><span>Blueprints</span><span class="nav-meta"><em>BETA</em><b id="nav-blueprint-count">0</b></span></button>
         <button class="nav-item" data-view="assistant"><span class="nav-icon">✦</span><span>Assistente MNO</span><em>BETA</em></button>
         <button class="nav-item" data-view="resilience"><span class="nav-icon">⛨</span><span>Resiliência</span><em>BETA</em></button>
-        <button class="nav-item" data-view="fleet"><span class="nav-icon">⎇</span><span>Fleet Hub</span><span class="nav-meta"><em>BETA</em><b id="nav-fleet-count">0</b></span></button>
+        <button class="nav-item" data-view="fleet"><span class="nav-icon">⎇</span><span>Fleet Hub (Vibe Ops)</span><span class="nav-meta"><em>BETA</em><b id="nav-fleet-count">0</b></span></button>
         <button class="nav-item maintainer-only" data-view="homologation" data-maintainer-only hidden><span class="nav-icon">✓</span><span>Revisão de Homologação</span><em>PRO MASTER</em><b id="nav-homologation-count">0</b></button>
         <button class="nav-item" data-view="audit"><span class="nav-icon">≡</span><span>Auditoria</span></button>
         <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span><span>Configurações</span></button>
@@ -109,6 +109,7 @@
                 <span>Control Center <b id="control-version">—</b></span>
                 <span>Tipo de instalação <b id="installation-type">verificando</b></span>
                 <span>Plano <b id="setup-plan">verificando</b></span>
+                <span class="vibeops-badge-wrap">Vibe Ops <b id="fleet-overview-badge" class="badge-accent">Standalone (0 MB)</b></span>
               </div>
               <h2>Bom trabalho, <span id="hero-user">admin</span>.</h2>
               <p id="hero-status">Estamos verificando a saúde do seu ambiente.</p>
@@ -437,12 +438,32 @@
                     <small>Escolha se esta VPS será a Torre de Controle que gerencia outros servidores ou um Nó Operário que recebe deploys.</small>
                   </div>
                 </div>
+                <div class="fleet-requirements-banner">
+                  <div class="fleet-req-header">
+                    <span>⚠️</span>
+                    <strong>Requisitos Mandatórios para Ativar a Frota (Vibe Ops):</strong>
+                  </div>
+                  <div class="fleet-req-grid">
+                    <div class="fleet-req-pill">
+                      <span>☁️</span>
+                      <div><strong>Apenas em VPS</strong><small>Exige servidor em nuvem pública (Debian/Ubuntu x86 ou ARM) com IP e conexão contínua 24/7. Não opera em WSL2 local.</small></div>
+                    </div>
+                    <div class="fleet-req-pill">
+                      <span>🛡️</span>
+                      <div><strong>Modo Cloudflare Tunnel</strong><small>Arquitetura Zero-Trust com Zero Portas Abertas no firewall. Instalação Tradicional não é elegível.</small></div>
+                    </div>
+                    <div class="fleet-req-pill">
+                      <span>👑</span>
+                      <div><strong>Planos PRO &amp; PRO MASTER</strong><small>Gestão multi-servidor é um recurso corporativo avançado exclusivo para assinantes PRO e PRO MASTER.</small></div>
+                    </div>
+                  </div>
+                </div>
                 <div class="fleet-cta-box">
                   <p><strong>Deseja ativar o MNO Fleet Hub neste servidor?</strong></p>
                   <p class="muted">Acesse o terminal do servidor ou utilize o instalador seguro e execute a opção <strong>⎇ MNO FLEET HUB</strong> para escolher o papel desta máquina.</p>
                   <div class="hero-actions">
                     <button class="primary-button" data-action="fleet-mode" type="button">Configurar Modo da Frota <b>→</b></button>
-                    <button class="ghost-button" data-action="fleet-help" type="button">Como funciona a Frota ↗</button>
+                    <button class="ghost-button" data-action="fleet-help" type="button">Guia Completo de Vibe Ops no Help ↗</button>
                   </div>
                 </div>
               </div>
@@ -641,6 +662,7 @@
             <p id="help-search-hint">Digite uma dúvida ou escolha um assunto. Pressione <kbd>/</kbd> para pesquisar nesta página.</p>
             <div id="help-filters" class="help-filters" aria-label="Filtrar assuntos">
               <button type="button" class="active" data-help-filter="all">Todos</button>
+              <button type="button" data-help-filter="vibeops">Vibe Ops &amp; Frota</button>
               <button type="button" data-help-filter="start">Primeiros passos</button>
               <button type="button" data-help-filter="operate">Usar o painel</button>
               <button type="button" data-help-filter="solve">Resolver problemas</button>
@@ -648,6 +670,48 @@
             </div>
             <p id="help-result-count" class="help-result-count" aria-live="polite"></p>
           </div>
+
+          <!-- SEÇÃO ESPECIAL DEDICADA: VIBE OPS & MNO FLEET HUB -->
+          <article id="help-vibeops-hero" class="help-start-card help-vibeops-card help-topic" data-help-topic data-help-category="vibeops start operate concept" data-help-search="vibe ops vibeops fleet hub frota multi-vps servidores nós master worker standalone simples zero portas cloudflare tunnel pro pro-master requisitos">
+            <div class="help-start-copy">
+              <div class="help-vibeops-badges">
+                <span class="help-step-badge help-badge-vibeops">Vibe Ops</span>
+                <span class="help-status">BETA</span>
+                <span class="help-status help-status-pro">Exclusivo PRO &amp; PRO MASTER</span>
+              </div>
+              <h3>Vibe Ops &amp; MNO Fleet Hub</h3>
+              <p>A arquitetura moderna do Setup MNO para orquestrar múltiplos servidores em nuvem com <strong>Zero Portas Abertas</strong>, criptografia ponta a ponta e <strong>0 MB de consumo ocioso</strong>.</p>
+              <div class="help-vibeops-reqs">
+                <strong>Requisitos Obrigatórios para Ativação:</strong>
+                <ul>
+                  <li><span>☁️</span> <strong>Apenas em VPS:</strong> Servidores em nuvem pública (Debian/Ubuntu x86 ou ARM) com conexão 24/7. (WSL2 funciona apenas como laboratório local standalone).</li>
+                  <li><span>🛡️</span> <strong>Modo Cloudflare Tunnel:</strong> Toda a federação se comunica por túneis seguros ou WireGuard mesh, com Zero Portas Abertas no firewall para invasores.</li>
+                  <li><span>👑</span> <strong>Planos PRO ou PRO MASTER:</strong> Gestão de frota multi-servidor é um recurso avançado e corporativo disponível para assinantes PRO e PRO MASTER.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="help-vibeops-modes">
+              <h4>Os 3 Modos de Operação Explicados:</h4>
+              <div class="help-modes-grid">
+                <div class="help-mode-item">
+                  <span class="mode-pill mode-disabled">Modo Simples Standalone (Desativado / Padrão)</span>
+                  <p><strong>Padrão e Seguro (0 MB de RAM):</strong> O servidor opera individualmente com 100% dos recursos do Setup MNO. Ideal para quem tem uma VPS e não precisa de multi-servidor. Não consome nada de memória ociosa.</p>
+                </div>
+                <div class="help-mode-item">
+                  <span class="mode-pill mode-master">Modo Torre Master (Controlador Central)</span>
+                  <p><strong>Cérebro da Frota:</strong> Centraliza a visão dos servidores, agrega memória RAM total combinada, latência em tempo real e orquestra os nós operários subordinados.</p>
+                </div>
+                <div class="help-mode-item">
+                  <span class="mode-pill mode-worker">Modo Nó Worker (Operário de Cargas)</span>
+                  <p><strong>Operário Subordinado:</strong> VPS secundária que executa containers e bancos pesados sem precisar de painel web local, pareada via token criptográfico SHA-256 de 64 caracteres.</p>
+                </div>
+              </div>
+              <div class="help-vibeops-actions">
+                <button type="button" class="primary-button" data-nav="fleet">Abrir Fleet Hub [BETA] <b>→</b></button>
+                <button type="button" class="ghost-button" data-action="help-vibeops-guide">Ver Guia Passo a Passo ↓</button>
+              </div>
+            </div>
+          </article>
 
           <article class="help-start-card help-topic" data-help-topic data-help-category="start" data-help-search="começar primeiros passos início login visão geral instalar aplicação terminal catálogo">
             <div class="help-start-copy">
@@ -681,8 +745,8 @@
             <article class="help-feature-card help-topic coming-soon" data-help-topic data-help-category="operate" data-help-search="blueprints beta arquitetura receita integração passo a passo em breve">
               <span class="help-feature-icon cyan">⌘</span><div><span class="help-status">BETA · Manual completo em breve</span><h3>Blueprints</h3><p>A área e seus guias Beta já podem ser consultados, mas ainda estão em amadurecimento. Eles não executam deploy automático. O manual completo explicará como combinar setups, integrações, validações e rollback.</p></div><button type="button" data-nav="blueprints">Conhecer a área Beta <b>→</b></button>
             </article>
-            <article class="help-feature-card help-topic" data-help-topic data-help-category="operate" data-help-search="fleet hub frota multi-vps master worker servidores nós conexao ping zero portas beta">
-              <span class="help-feature-icon violet">⎇</span><div><span class="help-status">BETA</span><h3>MNO Fleet Hub</h3><p>Gerencie múltiplos servidores remotos a partir de uma Torre Master com zero portas abertas, rede mesh criptografada e telemetria em tempo real. No modo padrão (desativado), consome exatamente 0 MB de RAM.</p></div><button type="button" data-nav="fleet">Abrir Fleet Hub Beta <b>→</b></button>
+            <article class="help-feature-card help-topic" data-help-topic data-help-category="vibeops operate" data-help-search="fleet hub frota vibe ops vibeops multi-vps master worker servidores nós conexao ping zero portas beta cloudflare tunnel pro pro-master standalone">
+              <span class="help-feature-icon violet">⎇</span><div><span class="help-status">BETA · Exclusivo PRO / PRO MASTER</span><h3>MNO Fleet Hub (Vibe Ops)</h3><p>Gerencie múltiplos servidores remotos a partir de uma Torre Master com zero portas abertas, rede mesh criptografada e telemetria em tempo real. Exige instalação em VPS no modo Cloudflare Tunnel para usuários PRO e PRO MASTER. No modo padrão (desativado), consome exatamente 0 MB de RAM.</p></div><button type="button" data-nav="fleet">Abrir Fleet Hub Beta <b>→</b></button>
             </article>
             <article class="help-feature-card help-topic" data-help-topic data-help-category="operate" data-help-search="assistente mno ia llm diagnóstico básico openai openrouter deepseek ollama perguntas recomendação">
               <span class="help-feature-icon violet">✦</span><div><span class="help-status">BETA</span><h3>Assistente MNO</h3><p>Ajuda a interpretar saúde, capacidade, setups, segurança, integrações e falhas. Como recurso Beta, suas respostas são orientações e precisam de revisão humana. Ele não executa comandos. No modo Básico, usa diagnóstico local sem LLM.</p></div><button type="button" data-nav="assistant">Abrir Assistente Beta <b>→</b></button>
@@ -719,8 +783,39 @@
               <summary><span class="help-guide-number">04</span><span><strong>Atualizar ou reinstalar o Setup MNO</strong><small>Preparação e cuidados essenciais.</small></span><b>＋</b></summary>
               <div class="help-guide-body"><ol><li>Confirme que possui backup dos dados importantes e acesso administrativo ao servidor.</li><li>No Windows com WSL2, abra o Docker Desktop, aguarde o motor iniciar e confirme a integração com a distribuição Ubuntu antes de executar o bootstrap.</li><li>Use somente o bootstrap oficial correspondente ao ambiente e acompanhe as validações iniciais.</li><li>Durante a reconciliação, não interrompa builds, atualização do painel ou validação de manifestos.</li><li>Ao terminar, atualize o Control Center e confira separadamente as versões do Setup MNO e do painel.</li></ol><div class="help-callout warn"><strong>Não confunda reinstalação com exclusão</strong><span>Atualizar o Setup MNO não é autorização para remover stacks, volumes ou bancos existentes.</span></div></div>
             </details>
+            <details id="help-guide-vibeops" class="help-guide help-topic" data-help-topic data-help-category="vibeops operate start concept" data-help-search="vibe ops vibeops fleet hub frota multi-vps master worker token pareamento conectar servidores vps cloudflare tunnel pro pro-master standalone">
+              <summary><span class="help-guide-number vibeops-num">⎇</span><span><strong>Dominar o Vibe Ops e o MNO Fleet Hub [BETA]</strong><small>Requisitos, modos de operação e passo a passo para conectar e gerenciar múltiplos servidores.</small></span><b>＋</b></summary>
+              <div class="help-guide-body">
+                <div class="help-callout">
+                  <strong>O que é o Vibe Ops no Setup MNO?</strong>
+                  <span>Vibe Ops é a engenharia de infraestrutura ágil e moderna criada pelo Setup MNO: sem painéis web gigantescos gastando 2 GB de memória ociosa (como Coolify ou Portainer). Uma arquitetura enxuta, orquestrada por Docker Swarm, com Zero Portas Abertas via Cloudflare Tunnel e 0 MB de consumo de memória enquanto desativada.</span>
+                </div>
+
+                <p><strong>Requisitos Mandatórios:</strong></p>
+                <ol>
+                  <li><strong>Apenas em Servidores VPS:</strong> Exige servidores virtuais na nuvem (Hetzner, Contabo, DigitalOcean, Oracle ARM, etc.) com conectividade contínua 24/7. O WSL2 no Windows é apenas laboratório local de estudos e não pode operar como nó remoto.</li>
+                  <li><strong>Apenas no Modo Cloudflare Tunnel:</strong> Exige a instalação com Cloudflare Tunnel para manter Zero Portas Abertas no firewall. Instalações Tradicionais (com porta 80/443 expostas) não suportam a federação Zero-Trust.</li>
+                  <li><strong>Planos PRO e PRO MASTER:</strong> O MNO Fleet Hub é um recurso corporativo avançado exclusivo para assinantes dos planos PRO e PRO MASTER.</li>
+                </ol>
+
+                <p><strong>Passo a Passo: Como Ativar e Parear Servidores na Frota:</strong></p>
+                <ol>
+                  <li><strong>Configurar a Torre Master (Controlador Central):</strong> Na VPS principal, abra o terminal e digite <code>setup-mno</code> (ou abra o Terminal Seguro no painel). Escolha a opção <strong>⎇ MNO FLEET HUB</strong> e selecione <strong>2. TORRE MASTER (Controlador Central)</strong>.</li>
+                  <li><strong>Acessar o MNO Fleet Hub no Control Center:</strong> No menu lateral do painel web, clique em <strong>Fleet Hub (Vibe Ops) [BETA]</strong>. O painel exibirá as métricas da frota com o nó local registrado como Master.</li>
+                  <li><strong>Configurar o Nó Worker na VPS Secundária:</strong> Conecte-se via SSH na sua segunda VPS, execute <code>setup-mno</code> e escolha <strong>⎇ MNO FLEET HUB</strong>. Selecione <strong>3. NÓ WORKER (Operário Subordinado)</strong>. O assistente gerará automaticamente um token de segurança de 64 caracteres SHA-256.</li>
+                  <li><strong>Parear o Nó Worker na Torre Master:</strong> No Control Center da Torre Master, clique no botão <strong>＋ Adicionar Nó à Frota</strong>. Digite o nome amigável da VPS, o endereço HTTPS do worker (ex: <code>https://vps2.seudominio.com.br</code>), cole o Token de 64 caracteres gerado e informe a região. Clique em <strong>Parear e Salvar Servidor</strong>.</li>
+                  <li><strong>Monitorar e Administrar em Tempo Real:</strong> A Torre Master efetuará o ping de saúde, exibirá a latência da conexão, a contagem de serviços rodando no nó e somará a memória RAM de todos os servidores no topo da tela.</li>
+                  <li><strong>Como Voltar com Segurança ao Modo Simples Standalone:</strong> A qualquer momento, se desejar desativar o Fleet Hub e voltar a 0 MB de consumo de memória, execute no terminal <code>/root/SetupLowCodeMno/fleet-mode.sh disable</code> ou selecione <strong>1. MODO SIMPLES (Desativado / Padrão)</strong> no menu. Todas as suas aplicações, bancos de dados e volumes são rigorosamente preservados!</li>
+                </ol>
+
+                <div class="help-callout warn">
+                  <strong>Importante: Estar Desativado (Standalone) Não é um Erro!</strong>
+                  <span>Se a sua VPS estiver no "Modo Simples (Desativado)", isso significa que seu servidor está operando com a máxima eficiência energética e 0 MB de sobrecarga de RAM. Você só precisa ativar o Fleet Hub se de fato possuir duas ou mais VPSs para conectar.</span>
+                </div>
+              </div>
+            </details>
             <details class="help-guide help-topic maintainer-only" data-maintainer-only hidden data-help-topic data-help-category="operate" data-help-search="homologação automática selo essencial arquitetura serviço container logs url pro master mantenedor avançada">
-              <summary><span class="help-guide-number">05</span><span><strong>Homologar uma aplicação</strong><small>Fluxo automático e exclusivo para o mantenedor PRO MASTER.</small></span><b>＋</b></summary>
+              <summary><span class="help-guide-number">06</span><span><strong>Homologar uma aplicação</strong><small>Fluxo automático e exclusivo para o mantenedor PRO MASTER.</small></span><b>＋</b></summary>
               <div class="help-guide-body">
                 <p>O <strong>Selo Essencial</strong> confirma que o instalador entregou a aplicação funcionando na arquitetura selecionada. Você não precisa criar páginas, executar comandos, copiar digests nem preencher nove relatórios.</p>
                 <ol>
@@ -738,7 +833,7 @@
               </div>
             </details>
             <details class="help-guide help-topic" data-help-topic data-help-category="operate solve concept" data-help-search="strix sre-6 laboratório pentest pro pro master autorização sandbox hashes executor isolado">
-              <summary><span class="help-guide-number">06</span><span><strong>Analisar código com Strix</strong><small>Análise avançada opcional para PRO e PRO MASTER.</small></span><b>＋</b></summary>
+              <summary><span class="help-guide-number">07</span><span><strong>Analisar código com Strix</strong><small>Análise avançada opcional para PRO e PRO MASTER.</small></span><b>＋</b></summary>
               <div class="help-guide-body"><ol><li>Use este recurso somente para analisar <strong>código-fonte</strong>. Para a segurança do servidor e das aplicações instaladas, prefira <strong>Analisar segurança agora</strong>.</li><li>Crie um <strong>ZIP, TAR.GZ ou TGZ</strong> do código autorizado. Não inclua <code>.env</code>, chaves, backups ou dados pessoais.</li><li>Selecione <strong>Analisar pacote de código</strong>, redigite a senha e escolha <strong>GUIADO</strong>. O Setup define automaticamente tempo, interações e orçamento recomendado.</li><li>Escolha o provedor, confirme o resumo e informe uma chave dedicada e revogável. O modo avançado mantém os limites personalizados e exige a confirmação escrita.</li><li>Ao final, revise somente as contagens sanitizadas válidas por 24 horas. Achados BETA podem ser falsos positivos.</li></ol><div class="help-callout"><strong>Mais simples, mesma proteção</strong><span>O modo guiado esconde decisões técnicas repetitivas, mas o contêiner continua sem root, mounts, Docker socket ou acesso à produção.</span></div><div class="help-callout warn"><strong>Limite conhecido</strong><span>O executor consulta uma LLM externa. Use chave dedicada com limite no provedor e nunca analise segredos.</span></div><div class="help-callout"><strong>Separação por plano</strong><span>PRO e PRO MASTER podem executar o diagnóstico. Somente PRO MASTER governa políticas, exceções e homologação.</span></div><div class="help-callout warn"><strong>Como enviar feedback</strong><span>Informe versão, arquitetura, modo escolhido, estado final e contagens. Nunca envie chave, pacote-fonte ou dados pessoais.</span></div></div>
             </details>
           </div>
@@ -796,7 +891,10 @@
             <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="atualizar apaga dados volumes backup"><summary>Atualizar o Setup MNO apaga minhas aplicações?<b>＋</b></summary><p>O fluxo de atualização foi desenhado para reconciliar o Setup e preservar recursos existentes. Ainda assim, mantenha backups e leia todas as confirmações antes de qualquer operação administrativa.</p></details>
             <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="setup aplicação contagem catálogo números diferentes"><summary>Por que “setups” não significa “aplicações únicas”?<b>＋</b></summary><p>Porque o catálogo conta opções instaláveis. Variantes, versões e combos podem usar a mesma aplicação em configurações diferentes.</p></details>
             <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="beta teste experimental estável produção em breve"><summary>O que significa a etiqueta BETA?<b>＋</b></summary><p>Significa que o recurso já pode ser testado, mas ainda está sendo amadurecido e pode mudar. Leia os limites exibidos e não confunda Beta com homologação completa. “Em breve” indica algo que ainda não está disponível.</p></details>
-            <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="fleet hub frota master worker nós consumo ram portas"><summary>O que é o MNO Fleet Hub e quanto ele consome?<b>＋</b></summary><p>O MNO Fleet Hub permite conectar várias VPSs a uma Torre de Controle central com Zero Portas Abertas. No modo Simples Padrão (desativado), ele consome exatamente 0 MB de RAM. Quando ativado como Master ou Worker, seu daemon Go ultraenxuto consome menos de 15 MB de RAM.</p></details>
+            <details class="help-topic" data-help-topic data-help-category="vibeops solve concept" data-help-search="fleet hub frota master worker nós consumo ram portas vibe ops vibeops"><summary>O que é o MNO Fleet Hub e quanto ele consome?<b>＋</b></summary><p>O MNO Fleet Hub é o motor do Vibe Ops no Setup MNO, permitindo conectar várias VPSs a uma Torre de Controle central com Zero Portas Abertas. No modo Simples Padrão (desativado), ele consome exatamente <strong>0 MB de RAM</strong>. Quando ativado como Master ou Worker, seu daemon Go ultraenxuto consome menos de 15 MB de RAM.</p></details>
+            <details class="help-topic" data-help-topic data-help-category="vibeops solve concept" data-help-search="vibe ops requisitos vps cloudflare tunnel pro pro master obrigatorio"><summary>Quais os requisitos mandatórios para usar o MNO Fleet Hub (Vibe Ops)?<b>＋</b></summary><p>Para ativar a federação multi-servidor, são obrigatórios três critérios inegociáveis: 1) Estar instalado em uma <strong>VPS</strong> na nuvem pública (Debian ou Ubuntu, x86 ou ARM64) com conexão 24/7; 2) Ter sido instalado no modo <strong>Cloudflare Tunnel</strong> (Zero Portas Abertas no firewall); 3) Estar com licença <strong>PRO</strong> ou <strong>PRO MASTER</strong> ativa. No plano Free ou modo Tradicional com portas abertas, a funcionalidade permanece indisponível.</p></details>
+            <details class="help-topic" data-help-topic data-help-category="vibeops solve concept" data-help-search="vibe ops simples standalone desativado 0 mb normal erro problema"><summary>Meu servidor mostra "Modo Simples (Desativado)". Isso é um erro?<b>＋</b></summary><p>Não! De maneira alguma. O Modo Simples Standalone é a configuração padrão mais rápida, estável e segura do Setup MNO. Ele garante que seu servidor dedique 100% da CPU e da memória RAM para as suas aplicações e automações, sem gastar absolutamente nada (0 MB de sobrecarga) com comunicação multi-servidor se você tiver apenas uma VPS.</p></details>
+            <details class="help-topic" data-help-topic data-help-category="vibeops solve concept" data-help-search="vibe ops wsl2 windows laboratorio suporte remoto worker master"><summary>Posso usar a Federação Multi-VPS no WSL2 (Windows)?<b>＋</b></summary><p>O WSL2 opera atrás de NAT residencial no computador pessoal e é desligado sempre que o Windows suspende ou reinicia. Por essa razão, o modo Nó Worker remoto não é suportado no WSL2. O WSL2 é destinado a estudos e laboratório local em modo Standalone ou para testar visualmente a Torre Master.</p></details>
             <details class="help-topic" data-help-topic data-help-category="operate concept" data-help-search="tema modo claro escuro aparência legibilidade letras fonte sol lua"><summary>Como alterno entre modo claro e escuro?<b>＋</b></summary><p>Use o botão de sol ou lua ao lado de <strong>Novo deploy</strong>. O modo escuro continua sendo o padrão; sua escolha fica salva somente neste navegador. No desktop, os textos auxiliares também usam letras maiores. O Terminal Seguro permanece escuro para preservar a leitura e a aparência real do terminal.</p></details>
             <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="suporte pedir ajuda evidência print log segredo token senha"><summary>O que devo enviar ao suporte?<b>＋</b></summary><p>Informe a versão, o ambiente, a etapa, a mensagem exata e o horário aproximado. Envie apenas trechos de log sem senhas, tokens, cookies, chaves ou dados pessoais.</p></details>
           </div>

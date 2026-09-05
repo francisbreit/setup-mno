@@ -3202,7 +3202,7 @@ func planHasMaintainerAccess(plan string) bool {
 func capabilitiesForEnvironment(environment runtimeEnvironment) planCapabilities {
 	proAccess := planHasProAccess(environment.Plan)
 	maintainer := planHasMaintainerAccess(environment.Plan)
-	fleetAllowed := environment.InstallationType == "CLOUDFLARE_TUNNEL"
+	fleetAllowed := environment.InstallationType == "CLOUDFLARE_TUNNEL" && proAccess
 	return planCapabilities{
 		ProAccess:                 proAccess,
 		StrixDiagnostics:          proAccess,

@@ -932,6 +932,42 @@ nav { width: 100%; min-width: 0; display: grid; gap: 5px; }
   .fleet-header-actions { flex-direction: column; align-items: stretch; }
   .token-input-group { flex-direction: column; align-items: stretch; }
   .fleet-grid { grid-template-columns: 1fr; }
+/* Vibe Ops & Fleet Requirements Banner */
+.fleet-requirements-banner { background: rgba(255,122,26,.05); border: 1px solid rgba(255,122,26,.22); border-radius: 16px; padding: 18px 20px; margin: 16px 0; }
+.fleet-req-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: var(--font-size-9); color: var(--orange); }
+.fleet-req-header strong { font-size: var(--font-size-10); color: #fff; }
+.fleet-req-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.fleet-req-pill { display: flex; align-items: flex-start; gap: 10px; background: rgba(0,0,0,.2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.fleet-req-pill > span { font-size: 1.2rem; flex-shrink: 0; }
+.fleet-req-pill strong { display: block; font-size: var(--font-size-9); color: var(--text); margin-bottom: 2px; }
+.fleet-req-pill small { color: var(--muted); font-size: var(--font-size-8); line-height: 1.4; }
+
+/* Vibe Ops Help Card & Guides */
+.help-vibeops-card { border-color: rgba(147,117,255,.32); background: radial-gradient(circle at 5% 10%, rgba(147,117,255,.12), transparent 45%), radial-gradient(circle at 95% 90%, rgba(255,122,26,.08), transparent 45%), var(--panel); margin-bottom: 20px; }
+.help-vibeops-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.help-badge-vibeops { color: var(--violet); background: rgba(147,117,255,.15); border-color: rgba(147,117,255,.35); }
+.help-status-pro { color: var(--orange); background: var(--orange-soft); border-color: rgba(255,122,26,.35); }
+.help-vibeops-reqs { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,.03); border: 1px solid var(--line); }
+.help-vibeops-reqs strong { display: block; margin-bottom: 6px; color: var(--text); font-size: var(--font-size-9); }
+.help-vibeops-reqs ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.help-vibeops-reqs li { display: flex; align-items: flex-start; gap: 8px; font-size: var(--font-size-9); color: var(--muted); line-height: 1.5; }
+.help-vibeops-modes h4 { margin: 0 0 10px; font-size: var(--font-size-11); color: var(--text); }
+.help-modes-grid { display: grid; gap: 8px; }
+.help-mode-item { padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,.025); border: 1px solid var(--line); }
+.help-mode-item .mode-pill { margin-bottom: 6px; }
+.help-mode-item p { margin: 0; color: var(--muted); font-size: var(--font-size-9); line-height: 1.5; }
+.help-mode-item strong { color: var(--text); }
+.help-vibeops-actions { display: flex; gap: 10px; margin-top: 14px; }
+.help-guide-number.vibeops-num { color: var(--violet); background: rgba(147,117,255,.15); }
+.vibeops-badge-wrap b { color: var(--violet); }
+
+:root[data-theme="light"] .fleet-req-header strong { color: var(--text); }
+:root[data-theme="light"] .fleet-req-pill { background: rgba(0,0,0,.03); }
+:root[data-theme="light"] .help-mode-item { background: rgba(0,0,0,.02); }
+:root[data-theme="light"] .help-vibeops-card { background: radial-gradient(circle at 5% 10%, rgba(147,117,255,.08), transparent 45%), radial-gradient(circle at 95% 90%, rgba(255,122,26,.05), transparent 45%), var(--panel); }
+
+@media (max-width: 900px) {
+  .fleet-req-grid { grid-template-columns: 1fr; }
 }
 
 
