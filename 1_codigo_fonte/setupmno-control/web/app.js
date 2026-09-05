@@ -31,6 +31,11 @@ const state = {
   homologationItems: [],
   assistantHistory: [],
   assistantRoute: null,
+  fleetStatus: null,
+  fleetNodes: [],
+  fleetMode: "disabled",
+  fleetAllowed: false,
+  fleetNodeId: "",
   view: "dashboard",
   timer: null,
   catalogTimer: null,
@@ -58,6 +63,7 @@ const titles = {
   evals: ["Relatório técnico", "Qualidade do Assistente"],
   homologation: ["Evidências operacionais", "Revisão de Homologação"],
   resilience: ["Proteção e continuidade", "Resiliência Operacional"],
+  fleet: ["Federação Multi-VPS Segura", "MNO Fleet Hub [BETA]"],
   audit: ["Rastreabilidade da sessão", "Auditoria"],
   settings: ["Administração protegida", "Configurações"],
   help: ["Aprenda no seu ritmo", "Help · Instruções de uso"]
@@ -124,6 +130,8 @@ function bindEvents() {
     if (action.dataset.action === "quality-report") navigate("evals");
     if (action.dataset.action === "quality-return") navigate("assistant");
     if (action.dataset.action === "onboarding") openOnboarding();
+    if (action.dataset.action === "fleet-mode") openFleetModeDialog();
+    if (action.dataset.action === "fleet-help") navigate("help");
   });
   $("open-terminal-top").addEventListener("click", openTerminal);
   $("terminal-close").addEventListener("click", closeTerminal);
@@ -172,6 +180,21 @@ function bindEvents() {
   $("resilience-search").addEventListener("input", renderResilience);
   $("resilience-filter").addEventListener("change", renderResilience);
   $("resilience-risk").addEventListener("change", renderResilience);
+  $("fleet-search")?.addEventListener("input", renderFleetNodes);
+  $("fleet-filter-status")?.addEventListener("change", renderFleetNodes);
+  $("fleet-filter-role")?.addEventListener("change", renderFleetNodes);
+  $("fleet-add-node-button")?.addEventListener("click", openFleetAddDialog);
+  $("fleet-add-dialog-close")?.addEventListener("click", closeFleetAddDialog);
+  $("fleet-add-cancel")?.addEventListener("click", closeFleetAddDialog);
+  $("fleet-add-form")?.addEventListener("submit", submitFleetAddNode);
+  $("fleet-add-dialog")?.addEventListener("cancel", closeFleetAddDialog);
+  $("fleet-change-mode-btn")?.addEventListener("click", openFleetModeDialog);
+  $("fleet-mode-dialog-close")?.addEventListener("click", closeFleetModeDialog);
+  $("fleet-mode-dialog-ok")?.addEventListener("click", closeFleetModeDialog);
+  $("fleet-mode-dialog")?.addEventListener("cancel", closeFleetModeDialog);
+  $("fleet-worker-token-toggle")?.addEventListener("click", toggleWorkerTokenVisibility);
+  $("fleet-worker-token-copy")?.addEventListener("click", copyWorkerToken);
+  $("fleet-nodes-grid")?.addEventListener("click", handleFleetGridAction);
   $("blueprint-search").addEventListener("input", renderBlueprints);
   $("blueprint-status").addEventListener("change", renderBlueprints);
   $("blueprint-arch").addEventListener("change", renderBlueprints);
@@ -474,7 +497,7 @@ function closeIdleWarning() {
 
 async function refreshAll() {
   $("refresh-button").classList.add("spinning");
-  await Promise.allSettled([refreshOverview(), refreshApps(), refreshReleaseData(), refreshEvals(), refreshHomologation()]);
+  await Promise.allSettled([refreshOverview(), refreshApps(), refreshReleaseData(), refreshEvals(), refreshHomologation(), loadFleet()]);
   $("refresh-button").classList.remove("spinning");
 }
 
@@ -865,6 +888,16 @@ function applyReleaseMetadata(data) {
       renderAssistantMode();
     }
   }
+  if (data.fleetMode) {
+    state.fleetMode = data.fleetMode;
+  }
+  if (typeof data.fleetAllowed === "boolean") {
+    state.fleetAllowed = data.fleetAllowed;
+  }
+  if (data.fleetNodeId) {
+    state.fleetNodeId = data.fleetNodeId;
+  }
+  updateFleetNavigationBadge();
   applyMaintainerAccessState();
   if (Object.prototype.hasOwnProperty.call(data, "homologationRunnerAvailable")) {
     renderHomologationRunner(data);
@@ -2487,6 +2520,7 @@ function navigate(view) {
   if (view === "homologation") refreshHomologation();
   if (view === "resilience") loadResilience();
   if (view === "evals" && !state.evals) refreshEvals();
+  if (view === "fleet") loadFleet();
   closeSidebar();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -2752,6 +2786,432 @@ function renderResilience() {
       </article>
     `;
   }).join("");
+}
+
+async function loadFleet() {
+  const statusEl = $("fleet-status");
+  try {
+    const statusData = await api("/api/fleet/status");
+    state.fleetStatus = statusData;
+    state.fleetMode = statusData.mode || "disabled";
+    state.fleetAllowed = statusData.fleetAllowed === true;
+    state.fleetNodeId = statusData.nodeId || "";
+
+    if (state.fleetMode === "master") {
+      try {
+        const nodesData = await api("/api/fleet/nodes");
+        state.fleetNodes = nodesData.nodes || [];
+      } catch {
+        state.fleetNodes = [];
+      }
+    } else if (state.fleetMode === "worker") {
+      state.fleetNodes = [{
+        id: statusData.nodeId || "worker-local",
+        name: "Nó de Frota (Worker Local)",
+        mode: "worker",
+        status: "online",
+        role: "worker",
+        tunnelHealthy: true,
+        telemetry: statusData.localTelemetry
+      }];
+    } else {
+      state.fleetNodes = [];
+    }
+
+    renderFleet();
+    updateFleetNavigationBadge();
+  } catch (error) {
+    if (statusEl) statusEl.textContent = "Falha ao consultar MNO Fleet Hub: " + error.message;
+  }
+}
+
+function updateFleetNavigationBadge() {
+  const countBadge = $("nav-fleet-count");
+  if (!countBadge) return;
+  if (state.fleetMode === "master") {
+    countBadge.textContent = String(state.fleetStatus?.totalNodes || state.fleetNodes.length || 0);
+  } else if (state.fleetMode === "worker") {
+    countBadge.textContent = "1";
+  } else {
+    countBadge.textContent = "0";
+  }
+}
+
+function renderFleet() {
+  const statusData = state.fleetStatus || {};
+  const mode = state.fleetMode || "disabled";
+  const badge = $("fleet-mode-badge");
+  const statusEl = $("fleet-status");
+
+  if (badge) {
+    badge.className = `mode-pill mode-${mode}`;
+    if (mode === "master") {
+      badge.textContent = "Torre Master (Controlador)";
+    } else if (mode === "worker") {
+      badge.textContent = "Nó Operário (Worker)";
+    } else {
+      badge.textContent = "Modo Simples (Desativado)";
+    }
+  }
+
+  if (statusEl) {
+    if (mode === "master") {
+      const total = statusData.totalNodes || state.fleetNodes.length || 0;
+      const online = statusData.onlineNodes || 0;
+      statusEl.className = "sync-status current";
+      statusEl.textContent = `Torre Master conectada · ${online} de ${total} nós online · Malha Zero-Trust ativa · Co-piloto de prontidão`;
+    } else if (mode === "worker") {
+      statusEl.className = "sync-status current";
+      statusEl.textContent = "Nó Operário ativo · Respondendo exclusivamente à Torre Master autorizada pelo token";
+    } else {
+      statusEl.className = "sync-status";
+      statusEl.textContent = "MNO Fleet Hub desativado neste nó · Consumo ocioso: 0 MB de RAM";
+    }
+  }
+
+  const disabledPanel = $("fleet-disabled-panel");
+  const masterPanel = $("fleet-master-panel");
+  const workerPanel = $("fleet-worker-panel");
+
+  if (disabledPanel) disabledPanel.classList.toggle("hidden", mode !== "disabled");
+  if (masterPanel) masterPanel.classList.toggle("hidden", mode !== "master");
+  if (workerPanel) workerPanel.classList.toggle("hidden", mode !== "worker");
+
+  if (mode === "master") {
+    renderFleetMasterSummary();
+    renderFleetNodes();
+  } else if (mode === "worker") {
+    renderFleetWorker();
+  }
+}
+
+function renderFleetMasterSummary() {
+  const nodes = state.fleetNodes || [];
+  const statusData = state.fleetStatus || {};
+
+  const total = statusData.totalNodes || nodes.length;
+  let online = 0;
+  let offline = 0;
+  let totalMemMB = 0;
+  let totalServices = 0;
+
+  nodes.forEach(node => {
+    if (node.status === "online") online++;
+    else offline++;
+
+    const mem = node.memoryTotalMB || node.telemetry?.memoryTotalMB || 0;
+    totalMemMB += mem;
+
+    const srv = node.serviceCount || ((node.telemetry?.healthyApps || 0) + (node.telemetry?.unhealthyApps || 0));
+    totalServices += srv;
+  });
+
+  if ($("fleet-stat-total")) $("fleet-stat-total").textContent = String(total);
+  if ($("fleet-stat-online")) $("fleet-stat-online").textContent = String(online);
+  if ($("fleet-stat-offline")) $("fleet-stat-offline").textContent = String(offline);
+  if ($("fleet-stat-memory")) $("fleet-stat-memory").textContent = totalMemMB > 0 ? bytes(totalMemMB * 1024 * 1024) : "—";
+  if ($("fleet-stat-services")) $("fleet-stat-services").textContent = String(totalServices);
+}
+
+function renderFleetNodes() {
+  const container = $("fleet-nodes-grid");
+  if (!container) return;
+
+  const search = ($("fleet-search")?.value || "").toLowerCase().trim();
+  const filterStatus = $("fleet-filter-status")?.value || "";
+  const filterRole = $("fleet-filter-role")?.value || "";
+
+  const filtered = (state.fleetNodes || []).filter(node => {
+    if (filterStatus && node.status !== filterStatus) return false;
+    if (filterRole && node.role !== filterRole && node.mode !== filterRole) return false;
+    if (search) {
+      const matchName = (node.name || "").toLowerCase().includes(search);
+      const matchEndpoint = (node.endpoint || "").toLowerCase().includes(search);
+      const matchRole = (node.role || node.mode || "").toLowerCase().includes(search);
+      const matchArch = (node.architecture || "").toLowerCase().includes(search);
+      const matchId = (node.id || "").toLowerCase().includes(search);
+      if (!matchName && !matchEndpoint && !matchRole && !matchArch && !matchId) return false;
+    }
+    return true;
+  });
+
+  const resultCount = $("fleet-result-count");
+  if (resultCount) {
+    resultCount.textContent = `${filtered.length} de ${(state.fleetNodes || []).length} servidores listados`;
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="empty-state">Nenhum servidor corresponde aos filtros da frota.</div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(node => {
+    const isMaster = node.mode === "master" || (node.id && node.id.startsWith("node-master"));
+    const statusClass = node.status === "online" ? "online" : node.status === "degraded" ? "warning" : "offline";
+    const statusLabel = node.status === "online" ? "Online" : node.status === "degraded" ? "Degradado" : "Offline";
+    const roleLabel = isMaster ? "Master" : (node.role || "Worker");
+    const roleClass = isMaster ? "master" : "worker";
+
+    const memTotalMB = node.memoryTotalMB || node.telemetry?.memoryTotalMB || 0;
+    const memUsedMB = node.memoryUsedMB || node.telemetry?.memoryUsedMB || 0;
+    const memPct = memTotalMB > 0 ? Math.round((memUsedMB / memTotalMB) * 100) : 0;
+    const memBarClass = memPct > 85 ? "danger" : memPct > 70 ? "warn" : "";
+
+    const cpuPct = node.cpuUsagePercent || (node.telemetry?.loadAverage1m ? Math.min(100, Math.round(node.telemetry.loadAverage1m * 25)) : 0);
+    const cpuBarClass = cpuPct > 85 ? "danger" : cpuPct > 70 ? "warn" : "";
+
+    const serviceCount = node.serviceCount || ((node.telemetry?.healthyApps || 0) + (node.telemetry?.unhealthyApps || 0));
+    const endpointLabel = node.endpoint || (isMaster ? "Localhost (Loopback)" : "—");
+    const archLabel = node.architecture ? (node.architecture === "amd64" ? "x86-64" : node.architecture) : "x86-64";
+    const setupVer = node.setupVersion ? `v${node.setupVersion}` : "Setup MNO";
+
+    const removeBtnHTML = isMaster
+      ? ""
+      : `<button type="button" class="ghost-button small" data-fleet-action="remove" data-node-id="${escapeHTML(node.id)}" data-node-name="${escapeHTML(node.name)}" title="Remover nó da frota">Excluir 🗑️</button>`;
+
+    return `
+      <article class="fleet-card ${isMaster ? "is-master" : ""}" data-node-id="${escapeHTML(node.id)}">
+        <div class="fleet-card-top">
+          <div>
+            <h4 class="fleet-card-title">${escapeHTML(node.name || node.id)}</h4>
+            <div class="fleet-card-sub"><code>${escapeHTML(node.id)}</code> · ${escapeHTML(setupVer)}</div>
+          </div>
+          <div class="fleet-card-badges">
+            <span class="fleet-role-badge ${roleClass}">${escapeHTML(roleLabel)}</span>
+            <span class="secure-pill status-${statusClass}"><i></i> ${escapeHTML(statusLabel)}</span>
+          </div>
+        </div>
+
+        <div class="fleet-card-metrics">
+          <div>
+            <div class="fleet-metric-row">
+              <span>Memória RAM (${memPct}%)</span>
+              <strong>${memTotalMB > 0 ? `${fmt.format(memUsedMB)} / ${fmt.format(memTotalMB)} MB` : "—"}</strong>
+            </div>
+            <div class="fleet-bar-wrap">
+              <div class="fleet-bar-fill ${memBarClass}" style="width:${Math.min(100, memPct)}%"></div>
+            </div>
+          </div>
+          <div>
+            <div class="fleet-metric-row">
+              <span>Carga de CPU</span>
+              <strong>${cpuPct}%</strong>
+            </div>
+            <div class="fleet-bar-wrap">
+              <div class="fleet-bar-fill ${cpuBarClass}" style="width:${Math.min(100, cpuPct)}%"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fleet-card-facts">
+          <div>
+            <small>Endpoint / Conexão</small>
+            <span>${escapeHTML(endpointLabel)}</span>
+          </div>
+          <div>
+            <small>Arquitetura</small>
+            <span>${escapeHTML(archLabel)}</span>
+          </div>
+          <div>
+            <small>Aplicações Ativas</small>
+            <span>${serviceCount} serviços</span>
+          </div>
+          <div>
+            <small>Rede Mesh</small>
+            <span>${node.tunnelHealthy !== false ? "✓ Zero-Trust" : "⚠ Atenção"}</span>
+          </div>
+        </div>
+
+        <div class="fleet-card-actions">
+          <button type="button" class="light-button small" data-fleet-action="ping" data-node-id="${escapeHTML(node.id)}">Testar Conexão ⚡</button>
+          ${removeBtnHTML}
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function renderFleetWorker() {
+  const statusData = state.fleetStatus || {};
+  const telem = statusData.localTelemetry || {};
+
+  if ($("fleet-worker-id")) $("fleet-worker-id").textContent = statusData.nodeId || "worker-local";
+  if ($("fleet-worker-endpoint")) $("fleet-worker-endpoint").textContent = "http://0.0.0.0:9090";
+  if ($("fleet-worker-swarm")) $("fleet-worker-swarm").textContent = telem.activeSwarm ? "Ativo (Docker Swarm OK)" : "Inativo";
+
+  const healthy = telem.healthyApps || 0;
+  const unhealthy = telem.unhealthyApps || 0;
+  if ($("fleet-worker-apps")) $("fleet-worker-apps").textContent = `${healthy} saudáveis (${healthy + unhealthy} total)`;
+
+  const tokenInput = $("fleet-worker-token");
+  if (tokenInput) {
+    tokenInput.value = state.setupState?.fleetToken || "••••••••••••••••••••••••••••••••";
+  }
+}
+
+async function handleFleetGridAction(event) {
+  const button = event.target.closest("[data-fleet-action]");
+  if (!button) return;
+
+  const action = button.dataset.fleetAction;
+  const nodeId = button.dataset.nodeId;
+  const nodeName = button.dataset.nodeName || nodeId;
+
+  if (action === "ping") {
+    await pingFleetNode(nodeId, button);
+  } else if (action === "remove") {
+    await removeFleetNode(nodeId, nodeName);
+  }
+}
+
+async function pingFleetNode(nodeId, buttonEl) {
+  const originalText = buttonEl ? buttonEl.textContent : "";
+  if (buttonEl) {
+    buttonEl.disabled = true;
+    buttonEl.textContent = "Testando...";
+  }
+
+  try {
+    const res = await api(`/api/fleet/nodes/${encodeURIComponent(nodeId)}/ping`, {
+      method: "POST"
+    });
+
+    if (res.pong) {
+      showToast(`⚡ Nó respondeu em ${res.latencyMs}ms (Status: ${res.status})`);
+      if (buttonEl) buttonEl.textContent = `✓ ${res.latencyMs}ms`;
+    } else {
+      showToast(`⚠ Falha no ping: ${res.error || "sem resposta"}`);
+      if (buttonEl) buttonEl.textContent = "Falha ⚠";
+    }
+
+    try {
+      const nodesData = await api("/api/fleet/nodes");
+      state.fleetNodes = nodesData.nodes || [];
+      renderFleetMasterSummary();
+      renderFleetNodes();
+    } catch {}
+  } catch (error) {
+    showToast(`Erro ao enviar ping: ${error.message}`);
+    if (buttonEl) buttonEl.textContent = "Erro";
+  } finally {
+    if (buttonEl) {
+      setTimeout(() => {
+        buttonEl.disabled = false;
+        buttonEl.textContent = originalText;
+      }, 3000);
+    }
+  }
+}
+
+async function removeFleetNode(nodeId, nodeName) {
+  if (!confirm(`Deseja realmente remover o servidor "${nodeName}" da frota?`)) {
+    return;
+  }
+
+  try {
+    await api(`/api/fleet/nodes/${encodeURIComponent(nodeId)}`, {
+      method: "DELETE"
+    });
+    showToast(`Servidor "${nodeName}" removido da frota com sucesso.`);
+    await loadFleet();
+  } catch (error) {
+    showAlert(`Erro ao remover servidor: ${error.message}`);
+  }
+}
+
+function openFleetAddDialog() {
+  const dialog = $("fleet-add-dialog");
+  if (!dialog) return;
+  $("fleet-add-error").textContent = "";
+  $("fleet-new-name").value = "";
+  $("fleet-new-endpoint").value = "";
+  $("fleet-new-token").value = "";
+  $("fleet-new-role").value = "worker";
+  if (!dialog.open) dialog.showModal();
+}
+
+function closeFleetAddDialog() {
+  const dialog = $("fleet-add-dialog");
+  if (dialog?.open) dialog.close();
+}
+
+async function submitFleetAddNode(event) {
+  event.preventDefault();
+  const errorEl = $("fleet-add-error");
+  const submitBtn = $("fleet-add-submit");
+  errorEl.textContent = "";
+
+  const name = $("fleet-new-name").value.trim();
+  const endpoint = $("fleet-new-endpoint").value.trim();
+  const token = $("fleet-new-token").value.trim();
+  const role = $("fleet-new-role").value;
+
+  if (!name || !endpoint || !token) {
+    errorEl.textContent = "Preencha todos os campos obrigatórios (*).";
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Pareando nó...";
+
+  try {
+    await api("/api/fleet/nodes", {
+      method: "POST",
+      body: JSON.stringify({ name, endpoint, token, role })
+    });
+
+    closeFleetAddDialog();
+    showToast(`✓ Nó "${name}" pareado e adicionado à frota com sucesso!`);
+    await loadFleet();
+  } catch (error) {
+    errorEl.textContent = error.message;
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Parear e Adicionar Nó ＋";
+  }
+}
+
+function openFleetModeDialog() {
+  const dialog = $("fleet-mode-dialog");
+  if (dialog && !dialog.open) dialog.showModal();
+}
+
+function closeFleetModeDialog() {
+  const dialog = $("fleet-mode-dialog");
+  if (dialog?.open) dialog.close();
+}
+
+function toggleWorkerTokenVisibility() {
+  const input = $("fleet-worker-token");
+  const btn = $("fleet-worker-token-toggle");
+  if (!input || !btn) return;
+  const isPass = input.type === "password";
+  input.type = isPass ? "text" : "password";
+  btn.textContent = isPass ? "Ocultar" : "Mostrar";
+}
+
+async function copyWorkerToken() {
+  const input = $("fleet-worker-token");
+  if (!input || !input.value) return;
+  try {
+    await navigator.clipboard.writeText(input.value);
+    showToast("Token de pareamento copiado!");
+  } catch {
+    input.select();
+    document.execCommand("copy");
+    showToast("Token copiado!");
+  }
+}
+
+function showToast(message) {
+  const toast = $("toast");
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add("show");
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => {
+    toast.classList.remove("show");
+  }, 3500);
 }
 
 async function api(endpoint, options = {}) {

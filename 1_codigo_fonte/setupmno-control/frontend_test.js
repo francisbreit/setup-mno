@@ -274,6 +274,28 @@ for (const field of [
   assert.match(app, new RegExp(`escapeHTML\\(${field.replace(".", "\\.")}[^)]*\\)`));
 }
 assert.doesNotMatch(html + app, /promoteBlueprint|approveBlueprint|uploadEvidence|\/api\/blueprints\/promote/);
+assert.match(html, /data-view="fleet"[^>]*>[\s\S]*?<em>BETA<\/em>[\s\S]*?id="nav-fleet-count"/);
+assert.match(html, /id="view-fleet"/);
+assert.match(html, /MNO Fleet Hub/);
+assert.match(html, /id="fleet-disabled-panel"/);
+assert.match(html, /id="fleet-master-panel"/);
+assert.match(html, /id="fleet-worker-panel"/);
+assert.match(html, /id="fleet-add-dialog"/);
+assert.match(html, /id="fleet-mode-dialog"/);
+assert.match(html, /data-nav="fleet"/);
+assert.match(html, /O que é o MNO Fleet Hub e quanto ele consome\?/);
+assert.match(app, /fleet:\s*\["Federação Multi-VPS Segura",\s*"MNO Fleet Hub \[BETA\]"\]/);
+assert.match(app, /function loadFleet/);
+assert.match(app, /function renderFleet/);
+assert.match(app, /function updateFleetNavigationBadge/);
+assert.match(app, /function renderFleetNodes/);
+assert.match(app, /function renderFleetWorker/);
+assert.match(app, /function pingFleetNode/);
+assert.match(app, /function removeFleetNode/);
+assert.match(app, /function submitFleetAddNode/);
+assert.match(styles, /\.mode-pill\.mode-master/);
+assert.match(styles, /\.fleet-card\.is-master/);
+assert.match(styles, /\.fleet-features-grid/);
 assert.doesNotMatch(html, /class="nav-item" data-view="evals"/);
 assert.match(html, /id="view-evals"/);
 assert.match(html, /id="assistant-quality-card"/);

@@ -63,6 +63,7 @@
         <button class="nav-item" data-view="blueprints"><span class="nav-icon">⌘</span><span>Blueprints</span><span class="nav-meta"><em>BETA</em><b id="nav-blueprint-count">0</b></span></button>
         <button class="nav-item" data-view="assistant"><span class="nav-icon">✦</span><span>Assistente MNO</span><em>BETA</em></button>
         <button class="nav-item" data-view="resilience"><span class="nav-icon">⛨</span><span>Resiliência</span><em>BETA</em></button>
+        <button class="nav-item" data-view="fleet"><span class="nav-icon">⎇</span><span>Fleet Hub</span><span class="nav-meta"><em>BETA</em><b id="nav-fleet-count">0</b></span></button>
         <button class="nav-item maintainer-only" data-view="homologation" data-maintainer-only hidden><span class="nav-icon">✓</span><span>Revisão de Homologação</span><em>PRO MASTER</em><b id="nav-homologation-count">0</b></button>
         <button class="nav-item" data-view="audit"><span class="nav-icon">≡</span><span>Auditoria</span></button>
         <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span><span>Configurações</span></button>
@@ -394,6 +395,120 @@
           <div id="resilience-list" class="resilience-list"></div>
         </section>
 
+        <section id="view-fleet" class="view">
+          <div class="homologation-review-intro">
+            <div>
+              <p class="eyebrow">Federação Multi-VPS Segura · BETA</p>
+              <h2>MNO Fleet Hub</h2>
+              <p>Gestão descentralizada de múltiplos servidores com arquitetura Zero-Trust, comunicação criptografada P2P e zero portas abertas para a internet.</p>
+            </div>
+            <div class="fleet-header-actions">
+              <span id="fleet-mode-badge" class="mode-pill mode-disabled">Modo Simples (Desativado)</span>
+              <button class="light-button" data-action="fleet-mode" id="fleet-change-mode-btn" type="button">Alterar Modo <b>⚙</b></button>
+            </div>
+          </div>
+          <div id="fleet-status" class="sync-status">Carregando status da frota...</div>
+
+          <!-- PAINEL 1: MODO SIMPLES PADRÃO (DESATIVADO / STANDALONE) -->
+          <div id="fleet-disabled-panel" class="fleet-panel">
+            <article class="hero-card fleet-disabled-hero">
+              <div class="hero-content">
+                <div class="release-badges">
+                  <span>Status <b class="badge-accent">Standalone (0 MB de RAM)</b></span>
+                  <span>Segurança <b>Zero Portas Abertas</b></span>
+                  <span>RPC <b>Declarativo SHA-256</b></span>
+                </div>
+                <h3>Seu servidor está operando no Modo Simples Padrão</h3>
+                <p>Neste modo, o MNO Fleet Hub permanece 100% inativo e não consome nenhum recurso de memória ou CPU da sua VPS. Ideal para servidores únicos, testes ou iniciantes.</p>
+                <div class="fleet-features-grid">
+                  <div class="fleet-feature-card">
+                    <span class="fleet-feature-icon">🛡️</span>
+                    <strong>Zero Portas Abertas</strong>
+                    <small>A comunicação multi-servidor usa exclusivamente redes privadas mesh ou Cloudflare Tunnel. Sem expor SSH root na internet.</small>
+                  </div>
+                  <div class="fleet-feature-card">
+                    <span class="fleet-feature-icon">⚡</span>
+                    <strong>0 MB de Overhead</strong>
+                    <small>Diferente de Coolify ou Portainer (que gastam 1.5 a 2.5 GB de RAM fixa), o Setup MNO não consome memória ociosa.</small>
+                  </div>
+                  <div class="fleet-feature-card">
+                    <span class="fleet-feature-icon">👑</span>
+                    <strong>Torre Master ou Worker</strong>
+                    <small>Escolha se esta VPS será a Torre de Controle que gerencia outros servidores ou um Nó Operário que recebe deploys.</small>
+                  </div>
+                </div>
+                <div class="fleet-cta-box">
+                  <p><strong>Deseja ativar o MNO Fleet Hub neste servidor?</strong></p>
+                  <p class="muted">Acesse o terminal do servidor ou utilize o instalador seguro e execute a opção <strong>⎇ MNO FLEET HUB</strong> para escolher o papel desta máquina.</p>
+                  <div class="hero-actions">
+                    <button class="primary-button" data-action="fleet-mode" type="button">Configurar Modo da Frota <b>→</b></button>
+                    <button class="ghost-button" data-action="fleet-help" type="button">Como funciona a Frota ↗</button>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <!-- PAINEL 2: TORRE MASTER (CONTROLADOR CENTRAL) -->
+          <div id="fleet-master-panel" class="fleet-panel hidden">
+            <div class="resilience-summary-grid fleet-summary-grid">
+              <article><small>Total de Servidores</small><strong id="fleet-stat-total">—</strong></article>
+              <article><small>Servidores Online</small><strong id="fleet-stat-online" class="trend up">—</strong></article>
+              <article><small>Servidores com Alerta / Off</small><strong id="fleet-stat-offline" class="trend warn">—</strong></article>
+              <article><small>Memória Total Combinada</small><strong id="fleet-stat-memory">—</strong></article>
+              <article><small>Aplicações na Frota</small><strong id="fleet-stat-services">—</strong></article>
+            </div>
+
+            <div class="section-tools sticky-tools">
+              <div class="search-box grow"><span>⌕</span><input id="fleet-search" placeholder="Buscar por nome, endpoint, papel ou arquitetura..."></div>
+              <select id="fleet-filter-status">
+                <option value="">Todos os status</option>
+                <option value="online">Online</option>
+                <option value="degraded">Degradado</option>
+                <option value="offline">Offline</option>
+              </select>
+              <select id="fleet-filter-role">
+                <option value="">Todos os papéis</option>
+                <option value="master">Master</option>
+                <option value="worker">Worker</option>
+              </select>
+              <button id="fleet-add-node-button" class="primary-button" type="button"><span>＋</span> Adicionar Nó à Frota</button>
+            </div>
+
+            <p id="fleet-result-count" class="result-count"></p>
+            <div id="fleet-nodes-grid" class="fleet-grid"></div>
+          </div>
+
+          <!-- PAINEL 3: NÓ WORKER (OPERÁRIO SUBORDINADO) -->
+          <div id="fleet-worker-panel" class="fleet-panel hidden">
+            <article class="panel fleet-worker-info-card">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Nó Operário da Frota</p>
+                  <h3>Identidade e Conectividade do Worker</h3>
+                </div>
+                <span class="secure-pill status-online"><i></i> Agente Ativo (:9090)</span>
+              </div>
+              <p>Esta VPS está configurada como <strong>Nó Worker</strong> subordinado. Ela responde exclusivamente a requisições autenticadas da sua Torre Master.</p>
+              <div class="fleet-worker-details-grid">
+                <div><small>ID do Nó</small><code id="fleet-worker-id">—</code></div>
+                <div><small>Endpoint de Escuta</small><code id="fleet-worker-endpoint">http://0.0.0.0:9090</code></div>
+                <div><small>Status do Swarm Local</small><strong id="fleet-worker-swarm">—</strong></div>
+                <div><small>Aplicações Ativas</small><strong id="fleet-worker-apps">—</strong></div>
+              </div>
+              <div class="fleet-token-box">
+                <label><strong>Token de Pareamento da Frota:</strong></label>
+                <div class="token-input-group">
+                  <input type="password" id="fleet-worker-token" readonly value="" placeholder="Token configurado no nó">
+                  <button type="button" class="light-button" id="fleet-worker-token-toggle">Mostrar</button>
+                  <button type="button" class="light-button" id="fleet-worker-token-copy">Copiar Token</button>
+                </div>
+                <small class="muted">Cole este token na Torre Master ao clicar em "Adicionar Nó à Frota" para autorizar o pareamento seguro.</small>
+              </div>
+            </article>
+          </div>
+        </section>
+
         <section id="view-audit" class="view">
           <article class="panel">
             <div class="panel-head"><div><p class="eyebrow">Segurança e rastreabilidade</p><h3>Auditoria durável</h3></div><span id="audit-integrity" class="secure-pill"><i></i> Verificando</span></div>
@@ -566,6 +681,9 @@
             <article class="help-feature-card help-topic coming-soon" data-help-topic data-help-category="operate" data-help-search="blueprints beta arquitetura receita integração passo a passo em breve">
               <span class="help-feature-icon cyan">⌘</span><div><span class="help-status">BETA · Manual completo em breve</span><h3>Blueprints</h3><p>A área e seus guias Beta já podem ser consultados, mas ainda estão em amadurecimento. Eles não executam deploy automático. O manual completo explicará como combinar setups, integrações, validações e rollback.</p></div><button type="button" data-nav="blueprints">Conhecer a área Beta <b>→</b></button>
             </article>
+            <article class="help-feature-card help-topic" data-help-topic data-help-category="operate" data-help-search="fleet hub frota multi-vps master worker servidores nós conexao ping zero portas beta">
+              <span class="help-feature-icon violet">⎇</span><div><span class="help-status">BETA</span><h3>MNO Fleet Hub</h3><p>Gerencie múltiplos servidores remotos a partir de uma Torre Master com zero portas abertas, rede mesh criptografada e telemetria em tempo real. No modo padrão (desativado), consome exatamente 0 MB de RAM.</p></div><button type="button" data-nav="fleet">Abrir Fleet Hub Beta <b>→</b></button>
+            </article>
             <article class="help-feature-card help-topic" data-help-topic data-help-category="operate" data-help-search="assistente mno ia llm diagnóstico básico openai openrouter deepseek ollama perguntas recomendação">
               <span class="help-feature-icon violet">✦</span><div><span class="help-status">BETA</span><h3>Assistente MNO</h3><p>Ajuda a interpretar saúde, capacidade, setups, segurança, integrações e falhas. Como recurso Beta, suas respostas são orientações e precisam de revisão humana. Ele não executa comandos. No modo Básico, usa diagnóstico local sem LLM.</p></div><button type="button" data-nav="assistant">Abrir Assistente Beta <b>→</b></button>
             </article>
@@ -678,6 +796,7 @@
             <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="atualizar apaga dados volumes backup"><summary>Atualizar o Setup MNO apaga minhas aplicações?<b>＋</b></summary><p>O fluxo de atualização foi desenhado para reconciliar o Setup e preservar recursos existentes. Ainda assim, mantenha backups e leia todas as confirmações antes de qualquer operação administrativa.</p></details>
             <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="setup aplicação contagem catálogo números diferentes"><summary>Por que “setups” não significa “aplicações únicas”?<b>＋</b></summary><p>Porque o catálogo conta opções instaláveis. Variantes, versões e combos podem usar a mesma aplicação em configurações diferentes.</p></details>
             <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="beta teste experimental estável produção em breve"><summary>O que significa a etiqueta BETA?<b>＋</b></summary><p>Significa que o recurso já pode ser testado, mas ainda está sendo amadurecido e pode mudar. Leia os limites exibidos e não confunda Beta com homologação completa. “Em breve” indica algo que ainda não está disponível.</p></details>
+            <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="fleet hub frota master worker nós consumo ram portas"><summary>O que é o MNO Fleet Hub e quanto ele consome?<b>＋</b></summary><p>O MNO Fleet Hub permite conectar várias VPSs a uma Torre de Controle central com Zero Portas Abertas. No modo Simples Padrão (desativado), ele consome exatamente 0 MB de RAM. Quando ativado como Master ou Worker, seu daemon Go ultraenxuto consome menos de 15 MB de RAM.</p></details>
             <details class="help-topic" data-help-topic data-help-category="operate concept" data-help-search="tema modo claro escuro aparência legibilidade letras fonte sol lua"><summary>Como alterno entre modo claro e escuro?<b>＋</b></summary><p>Use o botão de sol ou lua ao lado de <strong>Novo deploy</strong>. O modo escuro continua sendo o padrão; sua escolha fica salva somente neste navegador. No desktop, os textos auxiliares também usam letras maiores. O Terminal Seguro permanece escuro para preservar a leitura e a aparência real do terminal.</p></details>
             <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="suporte pedir ajuda evidência print log segredo token senha"><summary>O que devo enviar ao suporte?<b>＋</b></summary><p>Informe a versão, o ambiente, a etapa, a mensagem exata e o horário aproximado. Envie apenas trechos de log sem senhas, tokens, cookies, chaves ou dados pessoais.</p></details>
           </div>
@@ -820,6 +939,86 @@
         </label>
         <button id="onboarding-finish" class="primary-button">Entendi, vamos começar! <b>✓</b></button>
       </div>
+    </div>
+  </dialog>
+
+  <dialog id="fleet-add-dialog" class="mno-dialog fleet-dialog" aria-labelledby="fleet-add-title">
+    <div class="dialog-content">
+      <header class="dialog-header">
+        <div>
+          <p class="eyebrow">Expansão de Frota</p>
+          <h3 id="fleet-add-title">Adicionar Novo Nó à Frota</h3>
+        </div>
+        <button id="fleet-add-dialog-close" class="icon-button" type="button" aria-label="Fechar modal">×</button>
+      </header>
+      <form id="fleet-add-form">
+        <p class="dialog-description">Pareie um novo servidor configurado como <strong>Nó Worker</strong> (Opção 3 do menu MNO FLEET HUB no servidor remoto).</p>
+        <div class="form-group">
+          <label for="fleet-new-name">Nome Amigável do Servidor *</label>
+          <input id="fleet-new-name" type="text" placeholder="Ex: VPS-Producao-Chatwoot" required maxlength="64">
+          <small class="muted">Nome identificador no painel.</small>
+        </div>
+        <div class="form-group">
+          <label for="fleet-new-endpoint">Endpoint do Nó (URL) *</label>
+          <input id="fleet-new-endpoint" type="text" placeholder="Ex: https://vps2.seudominio.com ou http://127.0.0.1:9090" required>
+          <small class="muted">Endereço acessível pela Torre Master (via túnel privado, IP local ou domínio com TLS).</small>
+        </div>
+        <div class="form-group">
+          <label for="fleet-new-token">Token de Pareamento Secreto *</label>
+          <input id="fleet-new-token" type="password" placeholder="Cole o token gerado no Worker" required minlength="16">
+          <small class="muted">Gerado automaticamente pelo comando fleet-mode.sh no nó worker.</small>
+        </div>
+        <div class="form-group">
+          <label for="fleet-new-role">Papel do Servidor</label>
+          <select id="fleet-new-role">
+            <option value="worker">Worker Geral (Aplicações)</option>
+            <option value="database">Database &amp; Storage (Postgres/Redis/MinIO)</option>
+            <option value="ai-engine">AI &amp; LLM Worker (Ollama/vLLM/Qdrant)</option>
+            <option value="gateway">Borda &amp; Mensageria (Evolution/RabbitMQ)</option>
+          </select>
+        </div>
+        <div id="fleet-add-error" class="form-error"></div>
+        <footer class="dialog-actions">
+          <button type="button" class="ghost-button" id="fleet-add-cancel">Cancelar</button>
+          <button type="submit" class="primary-button" id="fleet-add-submit">Parear e Adicionar Nó <b>＋</b></button>
+        </footer>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog id="fleet-mode-dialog" class="mno-dialog fleet-dialog" aria-labelledby="fleet-mode-title">
+    <div class="dialog-content">
+      <header class="dialog-header">
+        <div>
+          <p class="eyebrow">Configuração de Frota</p>
+          <h3 id="fleet-mode-title">Alterar Modo do MNO Fleet Hub</h3>
+        </div>
+        <button id="fleet-mode-dialog-close" class="icon-button" type="button" aria-label="Fechar modal">×</button>
+      </header>
+      <div class="dialog-body">
+        <p>O modo de operação é definido de forma segura no próprio servidor via terminal para garantir a integridade dos certificados e chaves de pareamento.</p>
+        <div class="fleet-mode-options-guide">
+          <div class="fleet-mode-option-card">
+            <h4>[1] Modo Simples Padrão (Standalone)</h4>
+            <p>Fleet Hub desativado. 0 MB de overhead. Ideal para servidor único.</p>
+            <code>sudo /root/SetupLowCodeMno/setupmno-control/fleet-mode.sh --mode=disabled</code>
+          </div>
+          <div class="fleet-mode-option-card">
+            <h4>[2] Torre Master (Controlador Central)</h4>
+            <p>Ativa o painel central da frota, inventário de nós e suporte a Co-piloto de IA.</p>
+            <code>sudo /root/SetupLowCodeMno/setupmno-control/fleet-mode.sh --mode=master</code>
+          </div>
+          <div class="fleet-mode-option-card">
+            <h4>[3] Nó Operário (Worker)</h4>
+            <p>Gera o token de pareamento e conecta este servidor à Torre Master.</p>
+            <code>sudo /root/SetupLowCodeMno/setupmno-control/fleet-mode.sh --mode=worker</code>
+          </div>
+        </div>
+        <p class="muted">Você também pode alterar o modo a qualquer momento no menu interativo do instalador (opção <strong>⎇ MNO FLEET HUB</strong>).</p>
+      </div>
+      <footer class="dialog-actions">
+        <button type="button" class="primary-button" id="fleet-mode-dialog-ok">Entendido <b>✓</b></button>
+      </footer>
     </div>
   </dialog>
 
