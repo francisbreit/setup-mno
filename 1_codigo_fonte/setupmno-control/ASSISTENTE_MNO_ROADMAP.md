@@ -140,7 +140,7 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
-## v7.44.0 — Blueprint #002 IA no WhatsApp SDR + Follow-up CRM e Control Center v4.44.2 (release candidata; BETA)
+## v7.44.0 — Blueprint #002 IA no WhatsApp SDR + Follow-up CRM e Control Center v4.44.3 (release candidata; BETA)
 
 - inclusão e homologação do segundo Blueprint oficial em produção: `Blueprint #002 — Agentes de IA para Atendimento WhatsApp SDR, Follow-up e CRM`;
 - instalador inteligente do Blueprint com detecção dinâmica de ferramentas preexistentes (Chatwoot, Mautic, n8n, Evolution, RabbitMQ, MinIO e Krayin CRM), permitindo reutilizar stacks existentes ou provisionar complementares com zero retrabalho;
@@ -150,14 +150,15 @@ capacidade de uma IA executar comandos nunca será tratada como equivalente a
 - correção e blindagem do Control Center: permissões automáticas `0755`/`0644` no diretório de runtime `/root/SetupLowCodeMno/.control/` para compatibilidade com usuário não-root (UID 65532), evitando fallbacks indevidos;
 - blindagem e resiliência na leitura de ambiente de runtime (`readRuntimeEnvironment`): remoção de `DisallowUnknownFields` para tolerância estrita a novas chaves de configuração no `environment.json`, garantindo retrocompatibilidade total em upgrades;
 - arquitetura oficial do MNO Fleet Hub (Vibe Ops): gestão de múltiplos servidores descentralizada, nó master e nós workers com zero portas abertas via Cloudflare Tunnel, aba dedicada com painel standalone explicativo e seção completa de Vibe Ops no Help do Control Center;
+- blindagem e segregação estrita de acesso ao Fleet Hub: bloqueio total de configuração nos planos Free (`free`, `free1`, `free2`) e no modo Tradicional (exclusivo para PRO e PRO MASTER no modo Cloudflare Tunnel), tanto no menu interativo do terminal `install.sh` (com tag `PRO` e modal informativo) quanto no Control Center web (botões travados com estilo `.btn-pro-locked`, tag `🔒 PRO` e alertas em toast e backend 403);
 - detector de incompatibilidade de imagem e suíte de qualidade no reconciliador `control-upgrade.sh`;
-- cache buster e imagens atualizados para `4.44.2` no Control Center;
-- Setup MNO `7.44.0` e Control Center `4.44.2` são os artefatos desta release.
+- cache buster e imagens atualizados para `4.44.3` no Control Center;
+- Setup MNO `7.44.0` e Control Center `4.44.3` são os artefatos desta release.
 
 Baseline vigente:
 
 - Setup MNO: `7.44.0`, release candidata
-- Control Center: `4.44.2`
+- Control Center: `4.44.3`
 - SRE-3 a SRE-6, Resiliência, Onboarding, Assistente MNO e Blueprints: `BETA`
 
 ## v7.43.0 — Primeiros Blueprints reais homologados e Combo WhatsApp Marketing (release candidata; BETA)

@@ -51,9 +51,14 @@ set_mode() {
     installation_type=$(jq -r '.installationType // ""' "$ENV_FILE" 2>/dev/null)
     plan=$(jq -r '.plan // ""' "$ENV_FILE" 2>/dev/null)
 
-    # Validação de Segurança: Fleet Hub é exclusivo para Cloudflare Tunnel
-    if [ "$requested_mode" != "disabled" ] && [ "$installation_type" != "CLOUDFLARE_TUNNEL" ]; then
-        fail "O MNO Fleet Hub é exclusivo para instalações configuradas com Cloudflare Tunnel (Zero Portas Abertas)."
+    # Validação de Segurança: Fleet Hub é exclusivo para planos PRO / PRO MASTER e Cloudflare Tunnel
+    if [ "$requested_mode" != "disabled" ]; then
+        if [ "$plan" != "pro" ] && [ "$plan" != "pro-master" ]; then
+            fail "O MNO Fleet Hub é exclusivo para assinantes dos planos PRO e PRO MASTER."
+        fi
+        if [ "$installation_type" != "CLOUDFLARE_TUNNEL" ]; then
+            fail "O MNO Fleet Hub é exclusivo para instalações configuradas com Cloudflare Tunnel (Zero Portas Abertas)."
+        fi
     fi
 
     # Obter ou gerar node ID único para o nó
@@ -96,8 +101,15 @@ set_mode() {
 
 show_menu() {
     local installation_type="TRADICIONAL"
+    local plan="free"
     if [ -f "$ENV_FILE" ] && [ ! -L "$ENV_FILE" ]; then
         installation_type=$(jq -r '.installationType // "TRADICIONAL"' "$ENV_FILE" 2>/dev/null || printf 'TRADICIONAL')
+        plan=$(jq -r '.plan // "free"' "$ENV_FILE" 2>/dev/null || printf 'free')
+    fi
+    if [ "$plan" != "pro" ] && [ "$plan" != "pro-master" ]; then
+        whiptail --title "RECURSO EXCLUSIVO PRO" --msgbox \
+            "O recurso MNO Fleet Hub (Vibe Ops) é exclusivo para assinantes dos planos PRO e PRO MASTER.\n\nPara gerenciar múltiplos servidores e orquestrar sua frota com Zero Portas Abertas, faça o upgrade para o plano PRO." 15 76
+        return 0
     fi
     if [ "$installation_type" != "CLOUDFLARE_TUNNEL" ]; then
         whiptail --title "MNO FLEET HUB — SEGURANÇA MÁXIMA" --msgbox \

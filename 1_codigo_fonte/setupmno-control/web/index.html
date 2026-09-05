@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta id="theme-color" name="theme-color" content="#07090d">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=4.44.2">
+  <link rel="stylesheet" href="/styles.css?v=4.44.3">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -458,11 +458,11 @@
                     </div>
                   </div>
                 </div>
-                <div class="fleet-cta-box">
-                  <p><strong>Deseja ativar o MNO Fleet Hub neste servidor?</strong></p>
-                  <p class="muted">Acesse o terminal do servidor ou utilize o instalador seguro e execute a opção <strong>⎇ MNO FLEET HUB</strong> para escolher o papel desta máquina.</p>
+                <div class="fleet-cta-box" id="fleet-cta-box">
+                  <p><strong id="fleet-cta-title">Deseja ativar o MNO Fleet Hub neste servidor?</strong></p>
+                  <p class="muted" id="fleet-cta-desc">Acesse o terminal do servidor ou utilize o instalador seguro e execute a opção <strong>⎇ MNO FLEET HUB</strong> para escolher o papel desta máquina.</p>
                   <div class="hero-actions">
-                    <button class="primary-button" data-action="fleet-mode" type="button">Configurar Modo da Frota <b>→</b></button>
+                    <button class="primary-button" data-action="fleet-mode" id="fleet-cta-mode-btn" type="button">Configurar Modo da Frota <b>→</b></button>
                     <button class="ghost-button" data-action="fleet-help" type="button">Guia Completo de Vibe Ops no Help ↗</button>
                   </div>
                 </div>
@@ -1121,8 +1121,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=4.44.2" defer></script>
-  <script src="/assistant-route.js?v=4.44.2" defer></script>
-  <script src="/app.js?v=4.44.2" defer></script>
+  <script src="/markdown.js?v=4.44.3" defer></script>
+  <script src="/assistant-route.js?v=4.44.3" defer></script>
+  <script src="/app.js?v=4.44.3" defer></script>
 </body>
 </html>

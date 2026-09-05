@@ -732,6 +732,16 @@ if control_center_installed; then
 fi
 
 menu_mno_fleet_hub() {
+    if [[ "$PLANO" = *free* ]]; then
+        whiptail --title "RECURSO EXCLUSIVO PRO" --msgbox \
+            "O recurso ⎇ MNO FLEET HUB (Vibe Ops) não está disponível no plano ${PLANO}.\n\nPara gerenciar múltiplos servidores e orquestrar sua frota com Zero Portas Abertas, faça o upgrade para o plano PRO.\n\nEntre em contato conosco:\n- WhatsApp: $CONTATO_WP\n\nPressione ENTER para voltar ao Menu Principal." 14 74
+        return 0
+    fi
+    if [ "$INSTALL_TYPE" != "CLOUDFLARE_TUNNEL" ]; then
+        whiptail --title "MNO FLEET HUB — SEGURANÇA MÁXIMA" --msgbox \
+            "O MNO Fleet Hub exige a arquitetura Zero-Trust do Cloudflare Tunnel para proteger a comunicação da frota com Zero Portas Abertas no firewall.\n\nNo modo Tradicional, o Fleet Hub não está disponível para prevenir riscos de segurança.\n\nPara habilitar este recurso, reconfigure o Setup MNO escolhendo a Opção 2 (Cloudflare Tunnel)." 16 80
+        return 0
+    fi
     local fleet_script="/root/SetupLowCodeMno/fleet-mode.sh"
     [ -f "$fleet_script" ] || fleet_script="/root/SetupLowCodeMno/.control/fleet-mode.sh"
     if [ -f "$fleet_script" ]; then
@@ -779,6 +789,9 @@ CONTROL_CENTER_MENU=()
 CONTROL_CENTER_FREE_MENU=()
 CONTROL_CENTER_MFA_MENU=("CONFIGURAR MFA CONTROL CENTER" "")
 FLEET_HUB_MENU=("⎇ MNO FLEET HUB" "")
+if [[ "$PLANO" = *free* ]]; then
+    FLEET_HUB_MENU=("⎇ MNO FLEET HUB" "PRO")
+fi
 if ! control_center_installed; then
     CONTROL_CENTER_MENU=("SETUP MNO CONTROL CENTER" "")
     CONTROL_CENTER_FREE_MENU=("SETUP MNO CONTROL CENTER" "")

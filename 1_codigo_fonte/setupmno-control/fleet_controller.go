@@ -195,6 +195,13 @@ func (a *webApp) handleFleetNodes(w http.ResponseWriter, r *http.Request) {
 // handleFleetAddNode adiciona e pareia um novo Worker na Torre Master.
 func (a *webApp) handleFleetAddNode(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	var setupState setupStateResponse
+	_ = a.agentRequest(ctx, "/setup-state", &setupState)
+	if !setupState.FleetAllowed {
+		writeError(w, http.StatusForbidden, "gerenciamento da frota exclusivo para planos PRO e PRO MASTER com Cloudflare Tunnel")
+		return
+	}
+
 	cfg, _ := a.fetchFleetConfig(ctx)
 	if cfg.FleetMode != FleetModeMaster {
 		writeError(w, http.StatusForbidden, "A adição de nós à frota é permitida apenas quando a VPS opera como Torre Master")
@@ -285,6 +292,13 @@ func (a *webApp) handleFleetAddNode(w http.ResponseWriter, r *http.Request) {
 // handleFleetRemoveNode remove um nó da frota.
 func (a *webApp) handleFleetRemoveNode(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	var setupState setupStateResponse
+	_ = a.agentRequest(ctx, "/setup-state", &setupState)
+	if !setupState.FleetAllowed {
+		writeError(w, http.StatusForbidden, "gerenciamento da frota exclusivo para planos PRO e PRO MASTER com Cloudflare Tunnel")
+		return
+	}
+
 	cfg, _ := a.fetchFleetConfig(ctx)
 	if cfg.FleetMode != FleetModeMaster {
 		writeError(w, http.StatusForbidden, "A remoção de nós é permitida apenas na Torre Master")
@@ -353,6 +367,13 @@ func (a *webApp) handleFleetPing(w http.ResponseWriter, r *http.Request) {
 
 	if cfg.FleetMode != FleetModeMaster {
 		writeError(w, http.StatusForbidden, "Ping a nós remotos permitido apenas na Torre Master")
+		return
+	}
+
+	var setupState setupStateResponse
+	_ = a.agentRequest(ctx, "/setup-state", &setupState)
+	if !setupState.FleetAllowed {
+		writeError(w, http.StatusForbidden, "gerenciamento da frota exclusivo para planos PRO e PRO MASTER com Cloudflare Tunnel")
 		return
 	}
 

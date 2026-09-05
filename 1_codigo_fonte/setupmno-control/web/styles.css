@@ -970,4 +970,22 @@ nav { width: 100%; min-width: 0; display: grid; gap: 5px; }
   .fleet-req-grid { grid-template-columns: 1fr; }
 }
 
-
+.btn-pro-locked {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  border-color: rgba(255, 122, 26, 0.35) !important;
+}
+.badge-lock-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255, 122, 26, 0.22);
+  color: var(--orange-2);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}

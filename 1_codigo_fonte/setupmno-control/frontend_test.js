@@ -414,23 +414,39 @@ const helpTopics = [
 function terminalElement(id) {
   if (!terminalElements.has(id)) {
     const attributes = {};
+    const classes = new Set();
     const icon = { textContent: "" };
-    terminalElements.set(id, {
+    const el = {
       id,
       open: false,
+      disabled: false,
       src: "",
       title: "",
       textContent: "",
       innerHTML: "",
+      value: "",
+      className: "",
       attributes,
       icon,
+      classList: {
+        add(...c) { c.forEach(x => classes.add(x)); el.className = Array.from(classes).join(" "); },
+        remove(...c) { c.forEach(x => classes.delete(x)); el.className = Array.from(classes).join(" "); },
+        toggle(c, force) {
+          const willHave = force !== undefined ? Boolean(force) : !classes.has(c);
+          willHave ? classes.add(c) : classes.delete(c);
+          el.className = Array.from(classes).join(" ");
+          return willHave;
+        },
+        contains(c) { return classes.has(c); }
+      },
       style: { setProperty() {}, removeProperty() {} },
       setAttribute(name, value) { attributes[name] = String(value); },
       getAttribute(name) { return attributes[name]; },
       querySelector(selector) { return selector === "span" ? icon : null; },
       showModal() { this.open = true; },
       close() { this.open = false; }
-    });
+    };
+    terminalElements.set(id, el);
   }
   return terminalElements.get(id);
 }
@@ -505,4 +521,41 @@ assert.equal(terminalElement("terminal-title").textContent, "Central do Mantened
 assert.match(terminalElement("terminal-frame").src, /^\/terminal\/\?arg=homologation&/);
 assert.match(terminalElement("terminal-warning").innerHTML, /nunca publica commit, tag ou release/);
 
-console.log("Markdown, RAG, Blueprints, evals e feedback privado conferidos.");
+// Verificação de elementos estáticos do Fleet Hub
+assert.match(html, /id="fleet-cta-box"/);
+assert.match(html, /id="fleet-cta-mode-btn"/);
+assert.match(styles, /\.btn-pro-locked/);
+assert.match(styles, /\.badge-lock-tag/);
+assert.match(app, /state\.fleetAllowed === true/);
+assert.match(app, /btn-pro-locked/);
+
+// Teste de bloqueio de configuração do Fleet Hub para planos Free e modo Tradicional
+vm.runInContext('state.fleetAllowed = false; state.fleetMode = "disabled"; renderFleet();', terminalContext);
+assert.equal(terminalElement("fleet-change-mode-btn").disabled, true);
+assert.ok(terminalElement("fleet-change-mode-btn").classList.contains("btn-pro-locked"));
+assert.match(terminalElement("fleet-change-mode-btn").innerHTML, /🔒 PRO/);
+assert.equal(terminalElement("fleet-cta-mode-btn").disabled, true);
+assert.ok(terminalElement("fleet-cta-mode-btn").classList.contains("btn-pro-locked"));
+assert.match(terminalElement("fleet-cta-title").textContent, /Bloqueada/);
+assert.equal(terminalElement("fleet-add-node-button").disabled, true);
+assert.ok(terminalElement("fleet-add-node-button").classList.contains("btn-pro-locked"));
+
+vm.runInContext('openFleetModeDialog()', terminalContext);
+assert.equal(terminalElement("fleet-mode-dialog").open, false);
+vm.runInContext('openFleetAddDialog()', terminalContext);
+assert.equal(terminalElement("fleet-add-dialog").open, false);
+
+// Teste de liberação de configuração do Fleet Hub para plano PRO / Cloudflare Tunnel
+vm.runInContext('state.fleetAllowed = true; renderFleet();', terminalContext);
+assert.equal(terminalElement("fleet-change-mode-btn").disabled, false);
+assert.equal(terminalElement("fleet-change-mode-btn").classList.contains("btn-pro-locked"), false);
+assert.match(terminalElement("fleet-change-mode-btn").innerHTML, /Alterar Modo/);
+assert.equal(terminalElement("fleet-cta-mode-btn").disabled, false);
+assert.equal(terminalElement("fleet-add-node-button").disabled, false);
+
+vm.runInContext('openFleetModeDialog()', terminalContext);
+assert.equal(terminalElement("fleet-mode-dialog").open, true);
+vm.runInContext('closeFleetModeDialog()', terminalContext);
+assert.equal(terminalElement("fleet-mode-dialog").open, false);
+
+console.log("Markdown, RAG, Blueprints, evals, feedback privado e Fleet Hub (bloqueio PRO) conferidos.");

@@ -2905,6 +2905,64 @@ function renderFleet() {
     }
   }
 
+  const isAllowed = state.fleetAllowed === true;
+
+  // Atualizar botões de alteração de modo
+  const changeModeBtn = $("fleet-change-mode-btn");
+  if (changeModeBtn) {
+    if (!isAllowed) {
+      changeModeBtn.disabled = true;
+      changeModeBtn.classList.add("disabled", "btn-pro-locked");
+      changeModeBtn.title = "Recurso exclusivo para planos PRO e PRO MASTER no modo Cloudflare Tunnel";
+      changeModeBtn.innerHTML = 'Alterar Modo <b class="badge-lock-tag">🔒 PRO</b>';
+    } else {
+      changeModeBtn.disabled = false;
+      changeModeBtn.classList.remove("disabled", "btn-pro-locked");
+      changeModeBtn.title = "Alterar modo de operação do servidor";
+      changeModeBtn.innerHTML = 'Alterar Modo <b>⚙</b>';
+    }
+  }
+
+  const ctaModeBtn = $("fleet-cta-mode-btn");
+  if (ctaModeBtn) {
+    if (!isAllowed) {
+      ctaModeBtn.disabled = true;
+      ctaModeBtn.classList.add("disabled", "btn-pro-locked");
+      ctaModeBtn.title = "Recurso exclusivo para planos PRO e PRO MASTER no modo Cloudflare Tunnel";
+      ctaModeBtn.innerHTML = 'Configuração Bloqueada <b class="badge-lock-tag">🔒 PRO</b>';
+    } else {
+      ctaModeBtn.disabled = false;
+      ctaModeBtn.classList.remove("disabled", "btn-pro-locked");
+      ctaModeBtn.title = "Configurar papel e modo da frota";
+      ctaModeBtn.innerHTML = 'Configurar Modo da Frota <b>→</b>';
+    }
+  }
+
+  const ctaTitle = $("fleet-cta-title");
+  const ctaDesc = $("fleet-cta-desc");
+  if (ctaTitle && ctaDesc) {
+    if (!isAllowed) {
+      ctaTitle.textContent = "Configuração do Fleet Hub Bloqueada";
+      ctaDesc.textContent = "O gerenciamento de frota multi-servidor (Vibe Ops) é exclusivo para instalações em VPS no modo Cloudflare Tunnel (Zero Portas Abertas) assinantes dos planos PRO e PRO MASTER. Nos planos Free ou modo Tradicional, a configuração permanece bloqueada.";
+    } else {
+      ctaTitle.textContent = "Deseja ativar o MNO Fleet Hub neste servidor?";
+      ctaDesc.textContent = "Acesse o terminal do servidor ou utilize o instalador seguro e execute a opção ⎇ MNO FLEET HUB para escolher o papel desta máquina.";
+    }
+  }
+
+  const addNodeBtn = $("fleet-add-node-button");
+  if (addNodeBtn) {
+    if (!isAllowed) {
+      addNodeBtn.disabled = true;
+      addNodeBtn.classList.add("disabled", "btn-pro-locked");
+      addNodeBtn.title = "Recurso exclusivo para planos PRO e PRO MASTER no modo Cloudflare Tunnel";
+    } else {
+      addNodeBtn.disabled = false;
+      addNodeBtn.classList.remove("disabled", "btn-pro-locked");
+      addNodeBtn.title = "";
+    }
+  }
+
   const disabledPanel = $("fleet-disabled-panel");
   const masterPanel = $("fleet-master-panel");
   const workerPanel = $("fleet-worker-panel");
@@ -3001,9 +3059,12 @@ function renderFleetNodes() {
     const archLabel = node.architecture ? (node.architecture === "amd64" ? "x86-64" : node.architecture) : "x86-64";
     const setupVer = node.setupVersion ? `v${node.setupVersion}` : "Setup MNO";
 
+    const lockClass = !state.fleetAllowed ? " disabled btn-pro-locked" : "";
+    const disabledAttr = !state.fleetAllowed ? " disabled" : "";
+
     const removeBtnHTML = isMaster
       ? ""
-      : `<button type="button" class="ghost-button small" data-fleet-action="remove" data-node-id="${escapeHTML(node.id)}" data-node-name="${escapeHTML(node.name)}" title="Remover nó da frota">Excluir 🗑️</button>`;
+      : `<button type="button" class="ghost-button small${lockClass}" data-fleet-action="remove" data-node-id="${escapeHTML(node.id)}" data-node-name="${escapeHTML(node.name)}" title="Remover nó da frota"${disabledAttr}>Excluir 🗑️</button>`;
 
     return `
       <article class="fleet-card ${isMaster ? "is-master" : ""}" data-node-id="${escapeHTML(node.id)}">
@@ -3059,7 +3120,7 @@ function renderFleetNodes() {
         </div>
 
         <div class="fleet-card-actions">
-          <button type="button" class="light-button small" data-fleet-action="ping" data-node-id="${escapeHTML(node.id)}">Testar Conexão ⚡</button>
+          <button type="button" class="light-button small${lockClass}" data-fleet-action="ping" data-node-id="${escapeHTML(node.id)}"${disabledAttr}>Testar Conexão ⚡</button>
           ${removeBtnHTML}
         </div>
       </article>
@@ -3088,6 +3149,11 @@ function renderFleetWorker() {
 async function handleFleetGridAction(event) {
   const button = event.target.closest("[data-fleet-action]");
   if (!button) return;
+
+  if (!state.fleetAllowed) {
+    showToast("Ação bloqueada: exclusivo para planos PRO e PRO MASTER com Cloudflare Tunnel.");
+    return;
+  }
 
   const action = button.dataset.fleetAction;
   const nodeId = button.dataset.nodeId;
@@ -3156,6 +3222,10 @@ async function removeFleetNode(nodeId, nodeName) {
 }
 
 function openFleetAddDialog() {
+  if (!state.fleetAllowed) {
+    showToast("Configuração bloqueada: exclusivo para planos PRO e PRO MASTER com Cloudflare Tunnel.");
+    return;
+  }
   const dialog = $("fleet-add-dialog");
   if (!dialog) return;
   $("fleet-add-error").textContent = "";
@@ -3208,6 +3278,10 @@ async function submitFleetAddNode(event) {
 }
 
 function openFleetModeDialog() {
+  if (!state.fleetAllowed) {
+    showToast("Configuração bloqueada: exclusivo para planos PRO e PRO MASTER com Cloudflare Tunnel.");
+    return;
+  }
   const dialog = $("fleet-mode-dialog");
   if (dialog && !dialog.open) dialog.showModal();
 }
