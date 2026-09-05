@@ -941,7 +941,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "ROCKET.CHAT" "" \
     "SEARXNG" "" \
     "${CONTROL_CENTER_MENU[@]}" \
-    "${FLEET_HUB_MENU[@]}" \
     "SYNCTHING" "" \
     "SHLINK" "" \
     "SIYUAN" "" \
@@ -973,6 +972,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "GERADOR DE REGISTROS DNS" "" \
     "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
     "DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR" "" \
+    "${FLEET_HUB_MENU[@]}" \
     "SAIR" ""  3>&2 2>&1 1>&3
 )
 
@@ -981,13 +981,13 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
 case "$CHOICE" in
     "STRAPI") run_app strap ;;
     "CONFIGURAR MFA CONTROL CENTER") configure_control_center_mfa ;;
-    "⎇ MNO FLEET HUB") menu_mno_fleet_hub ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
     "GERENCIAR DOMÍNIOS CLOUDFLARE") manage_cloudflare_domains ;;
     "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;
     "ESSENCIAIS EDITÁVEIS NO PORTAINER") run_app essenciais ;;
     "DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR") run_app securitydiagnostic ;;
+    "⎇ MNO FLEET HUB") menu_mno_fleet_hub ;;
     "SAIR") do_exit ;;
     *)
         if check_already_installed "$CHOICE"; then
@@ -1199,7 +1199,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "REDIS COMMANDER" "" \
     "REDISINSIGHT" "" \
     "${CONTROL_CENTER_FREE_MENU[@]}" \
-    "${FLEET_HUB_MENU[@]}" \
     "SHLINK" "" \
     "STRAPI" "" \
     "STIRLING PDF" "" \
@@ -1334,6 +1333,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "GERADOR DE REGISTROS DNS" "" \
     "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
     "DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR" "" \
+    "${FLEET_HUB_MENU[@]}" \
     "SAIR" ""  3>&2 2>&1 1>&3
 )
 
@@ -1342,13 +1342,13 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
 case "$CHOICE" in
     "STRAPI") run_app strap ;;
     "CONFIGURAR MFA CONTROL CENTER") configure_control_center_mfa ;;
-    "⎇ MNO FLEET HUB") menu_mno_fleet_hub ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
     "GERENCIAR DOMÍNIOS CLOUDFLARE") manage_cloudflare_domains ;;
     "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;
     "ESSENCIAIS EDITÁVEIS NO PORTAINER") run_app essenciais ;;
     "DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR") run_app securitydiagnostic ;;
+    "⎇ MNO FLEET HUB") menu_mno_fleet_hub ;;
     "SAIR") do_exit ;;
     *)
         if check_already_installed "$CHOICE"; then
@@ -1538,7 +1538,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "PGADMIN4" "" \
     "REDIS" "" \
     "${CONTROL_CENTER_FREE_MENU[@]}" \
-    "${FLEET_HUB_MENU[@]}" \
     "WAHA API" "" \
     "─────────────────────────" "" \
     "ACTIVEPIECES" "PRO" \
@@ -1688,6 +1687,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "GERADOR DE REGISTROS DNS" "" \
     "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
     "DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR" "" \
+    "${FLEET_HUB_MENU[@]}" \
     "SAIR" ""  3>&2 2>&1 1>&3
 )
 
@@ -1696,13 +1696,13 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
 case "$CHOICE" in
     "STRAPI") run_app strap ;;
     "CONFIGURAR MFA CONTROL CENTER") configure_control_center_mfa ;;
-    "⎇ MNO FLEET HUB") menu_mno_fleet_hub ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
     "GERENCIAR DOMÍNIOS CLOUDFLARE") manage_cloudflare_domains ;;
     "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;
     "ESSENCIAIS EDITÁVEIS NO PORTAINER") run_app essenciais ;;
     "DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR") run_app securitydiagnostic ;;
+    "⎇ MNO FLEET HUB") menu_mno_fleet_hub ;;
     "SAIR") do_exit ;;
     *)
         if check_already_installed "$CHOICE"; then
@@ -1892,7 +1892,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "PGADMIN4" "" \
     "REDIS" "" \
     "${CONTROL_CENTER_FREE_MENU[@]}" \
-    "${FLEET_HUB_MENU[@]}" \
     "WAHA API" "" \
     "─────────────────────────" "" \
     "ACTIVEPIECES" "PRO" \
@@ -2042,6 +2041,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "GERADOR DE REGISTROS DNS" "" \
     "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
     "DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR" "" \
+    "${FLEET_HUB_MENU[@]}" \
     "SAIR" ""  3>&2 2>&1 1>&3
 )
 
@@ -2050,13 +2050,13 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
 case "$CHOICE" in
     "STRAPI") run_app strap ;;
     "CONFIGURAR MFA CONTROL CENTER") configure_control_center_mfa ;;
-    "⎇ MNO FLEET HUB") menu_mno_fleet_hub ;;
     "REINICIAR APPS/SERVIÇOS")  run_app restartservice ;;
     "DELETAR APPS/STACKS")      run_app uninstall ;;
     "GERENCIAR DOMÍNIOS CLOUDFLARE") manage_cloudflare_domains ;;
     "GERADOR DE REGISTROS DNS") run_app geracloudflare ;;
     "ESSENCIAIS EDITÁVEIS NO PORTAINER") run_app essenciais ;;
     "DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR") run_app securitydiagnostic ;;
+    "⎇ MNO FLEET HUB") menu_mno_fleet_hub ;;
     "SAIR") do_exit ;;
     *)
         if check_already_installed "$CHOICE"; then
