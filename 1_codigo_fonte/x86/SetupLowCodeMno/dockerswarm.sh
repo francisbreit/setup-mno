@@ -112,6 +112,23 @@ essential_services_ready() {
     done
 }
 
+setupmno_ensure_swarm_infrastructure() {
+    command -v docker >/dev/null 2>&1 || return 0
+    local net vol
+    for net in agent_network externa interna; do
+        if ! docker network inspect "$net" >/dev/null 2>&1; then
+            docker network create --driver=overlay --attachable "$net" >/dev/null 2>&1 || \
+            docker network create --driver=overlay "$net" >/dev/null 2>&1 || true
+        fi
+    done
+
+    for vol in volume_swarm_shared volume_swarm_certificates; do
+        if ! docker volume inspect "$vol" >/dev/null 2>&1; then
+            docker volume create "$vol" >/dev/null 2>&1 || true
+        fi
+    done
+}
+
 wait_for_portainer_ready() {
     local attempt replicas
     for attempt in $(seq 1 30); do
@@ -1048,6 +1065,10 @@ primary_tunnel_deploy_connector() {
         rm -f "$token_file" "$stack_file"
         return 1
     }
+    if ! docker network inspect externa >/dev/null 2>&1; then
+        docker network create --driver=overlay --attachable externa >>"$PRIMARY_TUNNEL_LOG" 2>&1 || \
+        docker network create --driver=overlay externa >>"$PRIMARY_TUNNEL_LOG" 2>&1 || true
+    fi
     cat >"$stack_file" <<EOF
 version: '3.7'
 services:
@@ -1888,21 +1909,19 @@ if [ $attempt -gt $max_attempts ]; then
    sleep 4
 fi
 
-docker network create --driver=overlay agent_network >/dev/null 2>&1
-docker network create --driver=overlay externa >/dev/null 2>&1
-docker network create --driver=overlay interna >/dev/null 2>&1
-
-
-cd
-cd
-
-
-echo -e "XXX\n50\nINSTALANDO DOCKER 2/4 - CONCLUIDO \nXXX"
-sleep 3
-echo -e "XXX\n51\nINSTALANDO TRAEFIK E PORTAINER 3/4 \nXXX"
-sleep 3
-
 fi
+
+# Garantir infraestrutura obrigatória do Docker Swarm (redes overlay e volumes base)
+# tanto em novas instalações quanto quando o Swarm já estava ativo (WSL2 / VPS).
+setupmno_ensure_swarm_infrastructure
+
+cd
+cd
+
+echo -e "XXX\n50\nINFRAESTRUTURA DOCKER SWARM CONFIGURADA 2/4 \nXXX"
+sleep 2
+echo -e "XXX\n51\nPREPARANDO TRAEFIK E PORTAINER 3/4 \nXXX"
+sleep 2
 #
 # FIM DE INSTALANDO AS DEPENDENCIAS E DOCKER SWARM
 
