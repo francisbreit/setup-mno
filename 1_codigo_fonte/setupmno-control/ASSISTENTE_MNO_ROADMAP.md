@@ -140,26 +140,23 @@ fronteira de confiança, a aprovação final e a rastreabilidade de toda ação.
 capacidade de uma IA executar comandos nunca será tratada como equivalente a
     governança operacional.
 
-## v7.44.0 — Blueprint #002 IA no WhatsApp SDR + Follow-up CRM e Control Center v4.44.3 (release candidata; BETA)
+## v7.44.1 — MNO Fleet Hub (Vibe Ops) Fase 1 e Control Center v4.44.3 (release estável; BETA)
 
-- inclusão e homologação do segundo Blueprint oficial em produção: `Blueprint #002 — Agentes de IA para Atendimento WhatsApp SDR, Follow-up e CRM`;
-- instalador inteligente do Blueprint com detecção dinâmica de ferramentas preexistentes (Chatwoot, Mautic, n8n, Evolution, RabbitMQ, MinIO e Krayin CRM), permitindo reutilizar stacks existentes ou provisionar complementares com zero retrabalho;
-- novo combo nativo no instalador Setup MNO: `COMBO IA WHATSAPP SDR + FOLLOW-UP CRM*` (Chatwoot Desbloqueado + Evolution 2.0 + RabbitMQ + MinIO + Mautic 7 WhatsApp + n8n Fila + Typebot + Krayin CRM);
-- integração completa do combo ao catálogo oficial (`catalog.json`, `ferramentas.html` e base de conhecimento `setups.json` / `overview.md`), totalizando 160 setups no ecossistema (143 ARM);
-- suíte de qualidade expandida para 888 evals determinísticos homologados;
-- correção e blindagem do Control Center: permissões automáticas `0755`/`0644` no diretório de runtime `/root/SetupLowCodeMno/.control/` para compatibilidade com usuário não-root (UID 65532), evitando fallbacks indevidos;
-- blindagem e resiliência na leitura de ambiente de runtime (`readRuntimeEnvironment`): remoção de `DisallowUnknownFields` para tolerância estrita a novas chaves de configuração no `environment.json`, garantindo retrocompatibilidade total em upgrades;
-- arquitetura oficial do MNO Fleet Hub (Vibe Ops): gestão de múltiplos servidores descentralizada, nó master e nós workers com zero portas abertas via Cloudflare Tunnel, aba dedicada com painel standalone explicativo e seção completa de Vibe Ops no Help do Control Center;
-- blindagem e segregação estrita de acesso ao Fleet Hub: bloqueio total de configuração nos planos Free (`free`, `free1`, `free2`) e no modo Tradicional (exclusivo para PRO e PRO MASTER no modo Cloudflare Tunnel), tanto no menu interativo do terminal `install.sh` (com tag `PRO` e modal informativo) quanto no Control Center web (botões travados com estilo `.btn-pro-locked`, tag `🔒 PRO` e alertas em toast e backend 403);
-- detector de incompatibilidade de imagem e suíte de qualidade no reconciliador `control-upgrade.sh`;
+- inclusão e homologação da arquitetura oficial do MNO Fleet Hub (Vibe Ops) com gestão multi-VPS descentralizada e Zero Portas Abertas via Cloudflare Tunnel;
+- reorganização do menu do `install.sh` (x86 e ARM) posicionando `⎇ MNO FLEET HUB` no final do menu interativo, antes da opção de sair;
+- seção dedicada de Vibe Ops e MNO Fleet Hub na Central de Ajuda (Help) do Control Center com guia passo a passo, modelo mental e comparativo técnico de consumo (0 MB de RAM ociosa vs concorrentes);
+- blindagem e segregação estrita de acesso ao Fleet Hub: bloqueio total de configuração nos planos Free (`free`, `free1`, `free2`) e no modo Tradicional (exclusivo para PRO e PRO MASTER no modo Cloudflare Tunnel), tanto no menu interativo do terminal `install.sh` (com tag `PRO` e modal informativo) quanto no Control Center web (botões travados com estilo `.btn-pro-locked`, tag `🔒 PRO`, diálogos bloqueados com toast e backend Go respondendo HTTP 403 Forbidden);
+- suíte de qualidade com 888 evals determinísticos homologados e novos testes unitários do Fleet Hub;
 - cache buster e imagens atualizados para `4.44.3` no Control Center;
-- Setup MNO `7.44.0` e Control Center `4.44.3` são os artefatos desta release.
+- Setup MNO `7.44.1` e Control Center `4.44.3` são os artefatos desta release estável.
 
-Baseline vigente:
+Baseline homologada:
 
-- Setup MNO: `7.44.0`, release candidata
+- Setup MNO: `7.44.1`, versão estável homologada
 - Control Center: `4.44.3`
-- SRE-3 a SRE-6, Resiliência, Onboarding, Assistente MNO e Blueprints: `BETA`
+- SRE-3 a SRE-6, Resiliência, Onboarding, Assistente MNO, Blueprints e MNO Fleet Hub: `BETA`
+
+A v7.44.1 foi promovida a versão estável em 05/09/2026 após homologação completa no WSL2 x86-64 e em VPS ARM64 e declaração explícita de Francis MNO. SRE, Resiliência, Onboarding, Assistente MNO, Blueprints e MNO Fleet Hub permanecem BETA.
 
 ## v7.43.0 — Primeiros Blueprints reais homologados e Combo WhatsApp Marketing (release candidata; BETA)
 
