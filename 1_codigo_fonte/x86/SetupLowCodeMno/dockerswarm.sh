@@ -1355,6 +1355,7 @@ fi
 # Registrar tipo de instalação
 mkdir -p "/root/.cloudflared_config"
 echo "$INSTALL_CHOICE" > "$INSTALL_TYPE_FILE"
+chmod 600 "$INSTALL_TYPE_FILE" 2>/dev/null || true
 if ! sync_control_center_installation_type; then
     whiptail --title "TIPO DE INSTALAÇÃO NÃO SINCRONIZADO" --msgbox \
         "Não foi possível registrar o tipo escolhido no estado do Control Center. A instalação foi interrompida para evitar uma configuração divergente." 12 78

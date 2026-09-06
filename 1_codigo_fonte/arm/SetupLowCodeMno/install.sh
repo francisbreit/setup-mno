@@ -337,12 +337,24 @@ actcheckbox=white,green
 } || true
 
 # --- VERIFICAR TIPO DE INSTALAÇÃO ---
-INSTALL_TYPE_FILE="/root/.cloudflared_config/installation_type"
-if [ -f "$INSTALL_TYPE_FILE" ]; then
-    INSTALL_TYPE=$(cat "$INSTALL_TYPE_FILE")
-else
-    INSTALL_TYPE="TRADICIONAL"
-fi
+setupmno_load_installation_type() {
+    INSTALL_TYPE_FILE="/root/.cloudflared_config/installation_type"
+    local env_file="/root/SetupLowCodeMno/.control/environment.json"
+
+    if [ -f "$INSTALL_TYPE_FILE" ] && [ ! -L "$INSTALL_TYPE_FILE" ]; then
+        INSTALL_TYPE=$(head -n 1 "$INSTALL_TYPE_FILE" | tr -d '\r\n')
+    elif [ -f "$env_file" ] && [ ! -L "$env_file" ]; then
+        INSTALL_TYPE=$(jq -r '.installationType // empty' "$env_file" 2>/dev/null || true)
+    else
+        INSTALL_TYPE="TRADICIONAL"
+    fi
+
+    case "$INSTALL_TYPE" in
+        CLOUDFLARE_TUNNEL|TRADICIONAL) ;;
+        *) INSTALL_TYPE="TRADICIONAL" ;;
+    esac
+}
+setupmno_load_installation_type
 
 # --- LOADING BAR ---
 for i in $(seq 1 100); do
@@ -424,51 +436,72 @@ if [ "$PLANO" = "free1" ]; then
 fi
 
 # --- DOCKER CHECKS ---
-if command -v docker > /dev/null 2>&1; then
-    network_id_agent_network=$(docker network ls --filter name=agent_network --format "{{.ID}}")
-    network_id_externa=$(docker network ls --filter name=externa --format "{{.ID}}")
-    network_id_interna=$(docker network ls --filter name=interna --format "{{.ID}}")
-    traefik_container=$(docker ps -qf name=traefik)
-    portainer_container=$(docker ps -qf name=portainer)
-    postgres_container=$(docker ps -qf name=postgres)
-    redis_container=$(docker ps -qf name=redis)
-    pgbouncer_container=$(docker ps -qf name=pgbouncer)
-    langfuse_container=$(docker ps -qf name=langfuse)
-    dify_container=$(docker ps -qf name=dify)
-    mysql_container=$(docker ps -qf name=mysql)
-    flowise_container=$(docker ps -qf name=flowise)
-    minio_container=$(docker ps -qf name=minio)
-    pgadmin4_container=$(docker ps -qf name=pgadmin4)
-    pma_container=$(docker ps -qf name=pmadmin)
-    zepdb_container=$(docker ps -qf name=zepdb)
-    zep_container=$(docker ps -qf name=zep)
-    redicommander_container=$(docker ps -qf name=redicommander)
-    calcom_container=$(docker ps -qf name=calcom)
-else
-    network_id_agent_network=""
-    network_id_externa=""
-    network_id_interna=""
-    traefik_container=""
-    portainer_container=""
-    postgres_container=""
-    redis_container=""
-    pgbouncer_container=""
-    langfuse_container=""
-    dify_container=""
-    mysql_container=""
-    flowise_container=""
-    minio_container=""
-    pgadmin4_container=""
-    pma_container=""
-    zepdb_container=""
-    zep_container=""
-    redicommander_container=""
-    calcom_container=""
-fi
+setupmno_refresh_docker_state() {
+    if command -v docker > /dev/null 2>&1; then
+        network_id_agent_network=$(docker network ls --filter name=agent_network --format "{{.ID}}")
+        network_id_externa=$(docker network ls --filter name=externa --format "{{.ID}}")
+        network_id_interna=$(docker network ls --filter name=interna --format "{{.ID}}")
+        traefik_container=$(docker ps -qf name=traefik)
+        portainer_container=$(docker ps -qf name=portainer)
+        postgres_container=$(docker ps -qf name=postgres)
+        redis_container=$(docker ps -qf name=redis)
+        pgbouncer_container=$(docker ps -qf name=pgbouncer)
+        langfuse_container=$(docker ps -qf name=langfuse)
+        dify_container=$(docker ps -qf name=dify)
+        mysql_container=$(docker ps -qf name=mysql)
+        flowise_container=$(docker ps -qf name=flowise)
+        minio_container=$(docker ps -qf name=minio)
+        pgadmin4_container=$(docker ps -qf name=pgadmin4)
+        pma_container=$(docker ps -qf name=pmadmin)
+        zepdb_container=$(docker ps -qf name=zepdb)
+        zep_container=$(docker ps -qf name=zep)
+        redicommander_container=$(docker ps -qf name=redicommander)
+        calcom_container=$(docker ps -qf name=calcom)
+    else
+        network_id_agent_network=""
+        network_id_externa=""
+        network_id_interna=""
+        traefik_container=""
+        portainer_container=""
+        postgres_container=""
+        redis_container=""
+        pgbouncer_container=""
+        langfuse_container=""
+        dify_container=""
+        mysql_container=""
+        flowise_container=""
+        minio_container=""
+        pgadmin4_container=""
+        pma_container=""
+        zepdb_container=""
+        zep_container=""
+        redicommander_container=""
+        calcom_container=""
+    fi
+}
+setupmno_refresh_docker_state
+
+setupmno_update_title() {
+    if [ "$PLANO" == "trial pro" ]; then
+        TITULO="SETUP MNO v${VERSIONSETUP} - Plano: $PLANO 7 Dias - Restam: $DIAS_RESTANTES dias"
+    else
+        TITULO="SETUP MNO v${VERSIONSETUP} - Plano: $PLANO - Instalação: $INSTALL_TYPE"
+    fi
+}
 
 if [[ ("$traefik_container" == "") || ("$portainer_container" == "") || ("$postgres_container" == "") || ("$redis_container" == "") || ("$pgbouncer_container" == "") || ("$network_id_agent_network" == "") || ("$network_id_externa" == "") || ("$network_id_interna" == "") ]]; then
     clear
-    cd && cd SetupLowCodeMno && ./dockerswarm
+    cd /root/SetupLowCodeMno && ./dockerswarm
+    dockerswarm_status=$?
+    if [ "$dockerswarm_status" -ne 0 ]; then
+        exit "$dockerswarm_status"
+    fi
+    setupmno_load_installation_type
+    setupmno_refresh_docker_state
+    setupmno_update_title
+    if [ -x /root/SetupLowCodeMno/install ]; then
+        setup_mno_return_to_installer
+    fi
 fi
 
 # --- DISPATCH DINÂMICO (substitui 240+ case blocks) ---
@@ -547,11 +580,7 @@ checkbox=green,black
 actcheckbox=white,green
 '
 
-if [ "$PLANO" == "trial pro" ]; then
-    TITULO="SETUP MNO v${VERSIONSETUP} - Plano: $PLANO 7 Dias - Restam: $DIAS_RESTANTES dias"
-else
-    TITULO="SETUP MNO v${VERSIONSETUP} - Plano: $PLANO - Instalação: $INSTALL_TYPE"
-fi
+setupmno_update_title
 
 # --- FUNÇÕES DE VALIDAÇÃO ---
 check_already_installed() {
