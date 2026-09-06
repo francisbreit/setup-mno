@@ -318,6 +318,12 @@ func (s *fleetInventoryStore) UpdateNode(node FleetNode) error {
 			if node.Token == "" || node.Token == "••••••••" {
 				node.Token = existing.Token
 			}
+			if node.Architecture == "" && existing.Architecture != "" {
+				node.Architecture = existing.Architecture
+			}
+			if node.SetupVersion == "" && existing.SetupVersion != "" {
+				node.SetupVersion = existing.SetupVersion
+			}
 			s.nodes[i] = node
 			return nil
 		}

@@ -264,6 +264,12 @@ func (a *webApp) handleFleetAddNode(w http.ResponseWriter, r *http.Request) {
 		newNode.MemoryTotalMB = telem.MemoryTotalMB
 		newNode.MemoryUsedMB = telem.MemoryUsedMB
 		newNode.ServiceCount = telem.HealthyApps + telem.UnhealthyApps
+		if telem.Architecture != "" {
+			newNode.Architecture = telem.Architecture
+		}
+		if telem.SetupVersion != "" {
+			newNode.SetupVersion = telem.SetupVersion
+		}
 	} else {
 		newNode.Status = "offline"
 	}
@@ -410,6 +416,12 @@ func (a *webApp) handleFleetPing(w http.ResponseWriter, r *http.Request) {
 	node.MemoryTotalMB = telem.MemoryTotalMB
 	node.MemoryUsedMB = telem.MemoryUsedMB
 	node.ServiceCount = telem.HealthyApps + telem.UnhealthyApps
+	if telem.Architecture != "" {
+		node.Architecture = telem.Architecture
+	}
+	if telem.SetupVersion != "" {
+		node.SetupVersion = telem.SetupVersion
+	}
 	_ = a.fleetStore.UpdateNode(node)
 	_ = a.fleetStore.Save()
 

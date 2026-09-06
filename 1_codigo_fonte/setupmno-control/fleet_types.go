@@ -63,6 +63,8 @@ type FleetActionResponse struct {
 type FleetTelemetry struct {
 	NodeID        string    `json:"nodeId"`
 	Mode          FleetMode `json:"mode"`
+	Architecture  string    `json:"architecture,omitempty"`
+	SetupVersion  string    `json:"setupVersion,omitempty"`
 	UptimeSeconds int64     `json:"uptimeSeconds"`
 	LoadAverage1m float64   `json:"loadAverage1m"`
 	MemoryUsedMB  uint64    `json:"memoryUsedMB"`

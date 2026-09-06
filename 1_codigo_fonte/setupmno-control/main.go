@@ -839,9 +839,25 @@ func runAgent() error {
 		if nodeID == "" {
 			nodeID = overviewData.Hostname
 		}
+		var arch, setupVersion string
+		if snapshot, err := readRuntimeSnapshot(setupStateDir); err == nil {
+			arch = snapshot.Release.Architecture
+			setupVersion = snapshot.Release.SetupVersion
+		}
+		if arch == "" {
+			arch = normalizeBlueprintArchitecture(overviewData.Architecture)
+		}
+		if arch == "" {
+			arch = "amd64"
+		}
+		if setupVersion == "" {
+			setupVersion = "7.44.0"
+		}
 		telemetry := FleetTelemetry{
 			NodeID:        nodeID,
 			Mode:          environment.FleetMode,
+			Architecture:  arch,
+			SetupVersion:  setupVersion,
 			UptimeSeconds: int64(overviewData.Metrics.UptimeSeconds),
 			LoadAverage1m: overviewData.Metrics.Load1,
 			MemoryUsedMB:  overviewData.Metrics.MemoryUsed / (1024 * 1024),
@@ -3104,7 +3120,7 @@ func (a *webApp) streamFleetAssistant(
 		riskLevel = "medium"
 	}
 
-	arch := "unknown"
+	arch := "amd64"
 	if matchedNode != nil && matchedNode.Architecture != "" {
 		arch = matchedNode.Architecture
 	}
@@ -3198,6 +3214,36 @@ func (a *webApp) streamFleetAssistant(
 				"[Acessar MNO Fleet Hub](#fleet)",
 			)
 		} else {
+			if telemetry.Architecture != "" {
+				realNode.Architecture = telemetry.Architecture
+				matchedNode.Architecture = telemetry.Architecture
+			}
+			if telemetry.SetupVersion != "" {
+				realNode.SetupVersion = telemetry.SetupVersion
+				matchedNode.SetupVersion = telemetry.SetupVersion
+			}
+			realNode.Telemetry = &telemetry
+			realNode.LastHeartbeat = time.Now().UTC()
+			realNode.Status = "online"
+			_ = a.fleetStore.UpdateNode(realNode)
+			_ = a.fleetStore.Save()
+
+			nodeArch := matchedNode.Architecture
+			if nodeArch == "" && telemetry.Architecture != "" {
+				nodeArch = telemetry.Architecture
+			}
+			if nodeArch == "" {
+				nodeArch = "amd64"
+			}
+
+			nodeVersion := matchedNode.SetupVersion
+			if nodeVersion == "" && telemetry.SetupVersion != "" {
+				nodeVersion = telemetry.SetupVersion
+			}
+			if nodeVersion == "" {
+				nodeVersion = "7.44.0"
+			}
+
 			memUsed := telemetry.MemoryUsedMB
 			memTotal := telemetry.MemoryTotalMB
 			memFree := uint64(0)
@@ -3240,7 +3286,7 @@ func (a *webApp) streamFleetAssistant(
 					fmt.Sprintf("- **ID do nó:** `%s`", matchedNode.ID),
 					fmt.Sprintf("- **Papel na frota:** Worker (Operário de Cargas)"),
 					fmt.Sprintf("- **Endpoint público:** `%s`", endpointURL),
-					fmt.Sprintf("- **Arquitetura:** `%s`", matchedNode.Architecture),
+					fmt.Sprintf("- **Arquitetura:** `%s`", nodeArch),
 					fmt.Sprintf("- **Latência:** `%d ms`", latency),
 					"",
 					"### Telemetria Remota em Tempo Real (Worker Hetzner)",
@@ -3277,8 +3323,8 @@ func (a *webApp) streamFleetAssistant(
 					fmt.Sprintf("- **ID Único na Frota:** `%s`", matchedNode.ID),
 					fmt.Sprintf("- **Função:** Nó Worker (Operário de Cargas subordinado à Torre Master)"),
 					fmt.Sprintf("- **Endpoint HTTPS:** `%s`", endpointURL),
-					fmt.Sprintf("- **Arquitetura do Processador:** `%s`", matchedNode.Architecture),
-					fmt.Sprintf("- **Versão do Setup MNO:** `%s`", matchedNode.SetupVersion),
+					fmt.Sprintf("- **Arquitetura do Processador:** `%s`", nodeArch),
+					fmt.Sprintf("- **Versão do Setup MNO:** `%s`", nodeVersion),
 					"",
 					"### Telemetria Remota em Tempo Real (Hetzner VPS)",
 					fmt.Sprintf("- **Memória RAM:** %d MB em uso de %d MB totais (%.1f%% ocupado — **%d MB livres**)", memUsed, memTotal, memPct, memFree),
