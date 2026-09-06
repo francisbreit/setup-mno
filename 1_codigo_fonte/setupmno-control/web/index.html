@@ -1058,32 +1058,34 @@
         <button id="fleet-add-dialog-close" class="icon-button" type="button" aria-label="Fechar modal">×</button>
       </header>
       <form id="fleet-add-form">
-        <p class="dialog-description">Pareie um novo servidor configurado como <strong>Nó Worker</strong> (Opção 3 do menu MNO FLEET HUB no servidor remoto).</p>
-        <div class="form-group">
-          <label for="fleet-new-name">Nome Amigável do Servidor *</label>
-          <input id="fleet-new-name" type="text" placeholder="Ex: VPS-Producao-Chatwoot" required maxlength="64">
-          <small class="muted">Nome identificador no painel.</small>
+        <div class="dialog-body">
+          <p class="dialog-description">Pareie um novo servidor configurado como <strong>Nó Worker</strong> (Opção 3 do menu MNO FLEET HUB no servidor remoto).</p>
+          <div class="form-group">
+            <label for="fleet-new-name">Nome Amigável do Servidor *</label>
+            <input id="fleet-new-name" type="text" placeholder="Ex: VPS-Producao-Chatwoot" required maxlength="64">
+            <small class="muted">Nome identificador no painel.</small>
+          </div>
+          <div class="form-group">
+            <label for="fleet-new-endpoint">Endpoint do Nó (URL) *</label>
+            <input id="fleet-new-endpoint" type="text" placeholder="Ex: https://setupXXXXX.manualnegocioonline.com.br" required>
+            <small class="muted">URL pública HTTPS do Control Center do Nó Worker (copie pelo botão "Copiar URL" no painel daquele servidor).</small>
+          </div>
+          <div class="form-group">
+            <label for="fleet-new-token">Token de Pareamento Secreto *</label>
+            <input id="fleet-new-token" type="password" placeholder="Cole o token gerado no Worker" required minlength="16">
+            <small class="muted">Gerado automaticamente pelo comando fleet-mode.sh no nó worker.</small>
+          </div>
+          <div class="form-group">
+            <label for="fleet-new-role">Papel do Servidor</label>
+            <select id="fleet-new-role">
+              <option value="worker">Worker Geral (Aplicações)</option>
+              <option value="database">Database &amp; Storage (Postgres/Redis/MinIO)</option>
+              <option value="ai-engine">AI &amp; LLM Worker (Ollama/vLLM/Qdrant)</option>
+              <option value="gateway">Borda &amp; Mensageria (Evolution/RabbitMQ)</option>
+            </select>
+          </div>
+          <div id="fleet-add-error" class="form-error"></div>
         </div>
-        <div class="form-group">
-          <label for="fleet-new-endpoint">Endpoint do Nó (URL) *</label>
-          <input id="fleet-new-endpoint" type="text" placeholder="Ex: https://setupXXXXX.manualnegocioonline.com.br" required>
-          <small class="muted">URL pública HTTPS do Control Center do Nó Worker (copie pelo botão "Copiar URL" no painel daquele servidor).</small>
-        </div>
-        <div class="form-group">
-          <label for="fleet-new-token">Token de Pareamento Secreto *</label>
-          <input id="fleet-new-token" type="password" placeholder="Cole o token gerado no Worker" required minlength="16">
-          <small class="muted">Gerado automaticamente pelo comando fleet-mode.sh no nó worker.</small>
-        </div>
-        <div class="form-group">
-          <label for="fleet-new-role">Papel do Servidor</label>
-          <select id="fleet-new-role">
-            <option value="worker">Worker Geral (Aplicações)</option>
-            <option value="database">Database &amp; Storage (Postgres/Redis/MinIO)</option>
-            <option value="ai-engine">AI &amp; LLM Worker (Ollama/vLLM/Qdrant)</option>
-            <option value="gateway">Borda &amp; Mensageria (Evolution/RabbitMQ)</option>
-          </select>
-        </div>
-        <div id="fleet-add-error" class="form-error"></div>
         <footer class="dialog-actions">
           <button type="button" class="ghost-button" id="fleet-add-cancel">Cancelar</button>
           <button type="submit" class="primary-button" id="fleet-add-submit">Parear e Adicionar Nó <b>＋</b></button>
