@@ -208,6 +208,7 @@ function bindEvents() {
   $("fleet-mode-dialog")?.addEventListener("cancel", closeFleetModeDialog);
   $("fleet-worker-token-toggle")?.addEventListener("click", toggleWorkerTokenVisibility);
   $("fleet-worker-token-copy")?.addEventListener("click", copyWorkerToken);
+  $("fleet-worker-url-copy")?.addEventListener("click", copyWorkerURL);
   $("fleet-nodes-grid")?.addEventListener("click", handleFleetGridAction);
   $("blueprint-search").addEventListener("input", renderBlueprints);
   $("blueprint-status").addEventListener("change", renderBlueprints);
@@ -535,6 +536,7 @@ async function refreshOverview() {
     const data = await api("/api/overview");
     state.overview = data.overview;
     renderOverview();
+    if (state.view === "fleet") loadFleet();
     clearAlert();
   } catch (error) {
     showAlert(error.message);
@@ -3062,6 +3064,10 @@ function renderFleetNodes() {
     const lockClass = !state.fleetAllowed ? " disabled btn-pro-locked" : "";
     const disabledAttr = !state.fleetAllowed ? " disabled" : "";
 
+    const openBtnHTML = (!isMaster && node.endpoint && (node.endpoint.startsWith("http://") || node.endpoint.startsWith("https://")))
+      ? `<a href="${escapeHTML(node.endpoint)}" target="_blank" rel="noopener noreferrer" class="light-button small" title="Abrir Control Center deste servidor em nova aba">Abrir Painel ↗</a>`
+      : "";
+
     const removeBtnHTML = isMaster
       ? ""
       : `<button type="button" class="ghost-button small${lockClass}" data-fleet-action="remove" data-node-id="${escapeHTML(node.id)}" data-node-name="${escapeHTML(node.name)}" title="Remover nó da frota"${disabledAttr}>Excluir 🗑️</button>`;
@@ -3121,6 +3127,7 @@ function renderFleetNodes() {
 
         <div class="fleet-card-actions">
           <button type="button" class="light-button small${lockClass}" data-fleet-action="ping" data-node-id="${escapeHTML(node.id)}"${disabledAttr}>Testar Conexão ⚡</button>
+          ${openBtnHTML}
           ${removeBtnHTML}
         </div>
       </article>
@@ -3131,9 +3138,11 @@ function renderFleetNodes() {
 function renderFleetWorker() {
   const statusData = state.fleetStatus || {};
   const telem = statusData.localTelemetry || {};
+  const currentOrigin = (typeof window !== "undefined" && window.location && window.location.origin) ? window.location.origin : "http://127.0.0.1:8080";
 
   if ($("fleet-worker-id")) $("fleet-worker-id").textContent = statusData.nodeId || "worker-local";
-  if ($("fleet-worker-endpoint")) $("fleet-worker-endpoint").textContent = "http://0.0.0.0:9090";
+  if ($("fleet-worker-endpoint")) $("fleet-worker-endpoint").textContent = currentOrigin;
+  if ($("fleet-worker-url")) $("fleet-worker-url").value = currentOrigin;
   if ($("fleet-worker-swarm")) $("fleet-worker-swarm").textContent = telem.activeSwarm ? "Ativo (Docker Swarm OK)" : "Inativo";
 
   const healthy = telem.healthyApps || 0;
@@ -3310,6 +3319,19 @@ async function copyWorkerToken() {
     input.select();
     document.execCommand("copy");
     showToast("Token copiado!");
+  }
+}
+
+async function copyWorkerURL() {
+  const input = $("fleet-worker-url");
+  if (!input || !input.value) return;
+  try {
+    await navigator.clipboard.writeText(input.value);
+    showToast("URL do Endpoint copiada!");
+  } catch {
+    input.select();
+    document.execCommand("copy");
+    showToast("URL copiada!");
   }
 }
 

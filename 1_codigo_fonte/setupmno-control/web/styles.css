@@ -888,8 +888,8 @@ nav { width: 100%; min-width: 0; display: grid; gap: 5px; }
 .fleet-card-facts small { font-size: 10px; text-transform: uppercase; color: var(--muted); }
 .fleet-card-facts span { color: var(--text); font-weight: 500; word-break: break-all; }
 
-.fleet-card-actions { display: flex; gap: 8px; margin-top: auto; }
-.fleet-card-actions button { flex: 1; min-height: 36px; }
+.fleet-card-actions { display: flex; gap: 8px; margin-top: auto; flex-wrap: wrap; }
+.fleet-card-actions button, .fleet-card-actions a { flex: 1; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; text-align: center; }
 
 .fleet-worker-info-card { padding: 24px; }
 .fleet-worker-details-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 18px 0; background: rgba(255,255,255,.02); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }

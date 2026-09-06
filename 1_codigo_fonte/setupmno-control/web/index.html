@@ -513,9 +513,17 @@
               <p>Esta VPS está configurada como <strong>Nó Worker</strong> subordinado. Ela responde exclusivamente a requisições autenticadas da sua Torre Master.</p>
               <div class="fleet-worker-details-grid">
                 <div><small>ID do Nó</small><code id="fleet-worker-id">—</code></div>
-                <div><small>Endpoint de Escuta</small><code id="fleet-worker-endpoint">http://0.0.0.0:9090</code></div>
+                <div><small>Endpoint de Escuta</small><code id="fleet-worker-endpoint">Detectando...</code></div>
                 <div><small>Status do Swarm Local</small><strong id="fleet-worker-swarm">—</strong></div>
                 <div><small>Aplicações Ativas</small><strong id="fleet-worker-apps">—</strong></div>
+              </div>
+              <div class="fleet-token-box">
+                <label><strong>Endpoint do Nó (URL Pública para a Torre Master):</strong></label>
+                <div class="token-input-group">
+                  <input type="text" id="fleet-worker-url" readonly value="" placeholder="Detectando URL do Control Center...">
+                  <button type="button" class="light-button" id="fleet-worker-url-copy">Copiar URL</button>
+                </div>
+                <small class="muted">Cole esta URL na Torre Master no campo "Endpoint do Nó (URL)".</small>
               </div>
               <div class="fleet-token-box">
                 <label><strong>Token de Pareamento da Frota:</strong></label>
@@ -1058,8 +1066,8 @@
         </div>
         <div class="form-group">
           <label for="fleet-new-endpoint">Endpoint do Nó (URL) *</label>
-          <input id="fleet-new-endpoint" type="text" placeholder="Ex: https://vps2.seudominio.com ou http://127.0.0.1:9090" required>
-          <small class="muted">Endereço acessível pela Torre Master (via túnel privado, IP local ou domínio com TLS).</small>
+          <input id="fleet-new-endpoint" type="text" placeholder="Ex: https://setupXXXXX.manualnegocioonline.com.br" required>
+          <small class="muted">URL pública HTTPS do Control Center do Nó Worker (copie pelo botão "Copiar URL" no painel daquele servidor).</small>
         </div>
         <div class="form-group">
           <label for="fleet-new-token">Token de Pareamento Secreto *</label>
