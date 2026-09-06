@@ -933,6 +933,7 @@ function applyReleaseMetadata(data) {
     renderSupplyChainStatus(data);
   }
   setCatalogSyncStatus(Boolean(data.stale), data.warning, data);
+  checkDeepLinkAction();
 }
 
 function renderSupplyChainStatus(data) {
@@ -3413,6 +3414,7 @@ function finishOnboarding() {
 }
 
 function checkDeepLinkAction() {
+  if (state.deepLinkHandled) return;
   try {
     const urlParams = new URLSearchParams(window.location.search);
     const action = urlParams.get("action");
@@ -3421,11 +3423,12 @@ function checkDeepLinkAction() {
       navigate(nav);
     }
     if (action === "terminal" || window.location.hash === "#terminal" || urlParams.get("install") === "1") {
-      setTimeout(() => {
-        if (terminalAccessAllowed()) {
+      if (terminalAccessAllowed()) {
+        state.deepLinkHandled = true;
+        setTimeout(() => {
           openTerminal("installer");
-        }
-      }, 350);
+        }, 150);
+      }
     }
   } catch {}
 }
