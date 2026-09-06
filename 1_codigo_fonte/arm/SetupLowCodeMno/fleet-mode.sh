@@ -135,8 +135,8 @@ show_menu() {
     fleet_choice=$(whiptail --title "MNO FLEET HUB — GESTÃO DE SERVIDORES" --menu \
         "Estado Atual: $status_desc\n\nSelecione uma opção:" 19 78 5 \
         "1" "Manter Modo Simples Standalone (Desativado - 0 MB overhead)" \
-        "2" "Ativar como Torre Master (Gerenciar 1 servidor ou múltiplos)" \
-        "3" "Conectar à Frota como Nó Worker (Subordinado a outro Master)" \
+        "2" "Ativar como Torre Master (Cockpit Local no WSL2 ou VPS)" \
+        "3" "Conectar à Frota como Nó Worker (Subordinado - Exige VPS 24/7)" \
         "4" "Ver Informações de Pareamento (ID e Token do Nó)" \
         "5" "Voltar ao Menu Principal" \
         3>&1 1>&2 2>&3) || return 0
@@ -151,12 +151,17 @@ show_menu() {
             local cur_id cur_token
             cur_id=$(jq -r '.fleetNodeId // "indisponível"' "$ENV_FILE" 2>/dev/null)
             cur_token=$(jq -r '.fleetToken // "indisponível"' "$ENV_FILE" 2>/dev/null)
-            whiptail --title "MNO FLEET HUB" --msgbox "Torre de Controle (Master Hub) ativada com sucesso!\n\nEste servidor agora gerencia suas aplicações locais e está pronto para gerenciar múltiplos servidores e o Co-piloto de IA.\n\nID da Torre: $cur_id\nToken da Frota: $cur_token" 15 76
+            if [ "$is_wsl" = "true" ]; then
+                whiptail --title "MNO FLEET HUB — COCKPIT LOCAL (WSL2)" --msgbox \
+                    "Torre Master (Cockpit Local) ativada com sucesso no WSL2!\n\nSeu computador pessoal agora é a Torre de Controle da sua frota.\n\nVocê pode cadastrar e gerenciar seus servidores VPS remotos (Nós Workers) diretamente desta tela, com zero portas abertas no seu roteador residencial.\n\nID da Torre: $cur_id\nToken da Frota: $cur_token" 16 78
+            else
+                whiptail --title "MNO FLEET HUB" --msgbox "Torre de Controle (Master Hub) ativada com sucesso!\n\nEste servidor agora gerencia suas aplicações locais e está pronto para gerenciar múltiplos servidores e o Co-piloto de IA.\n\nID da Torre: $cur_id\nToken da Frota: $cur_token" 15 76
+            fi
             ;;
         3)
             if [ "$is_wsl" = "true" ]; then
-                whiptail --title "WSL2 DETECTADO — MODO LABORATÓRIO" --msgbox \
-                    "O WSL2 roda no seu computador pessoal (atrás de NAT residencial) e desliga quando o computador é desligado.\n\nPor segurança e confiabilidade, o modo Nó Worker deve ser instalado em uma VPS na nuvem com conexão 24/7.\n\nNo WSL2, você pode usar o modo Torre Master para estudar e testar o painel localmente." 16 78
+                whiptail --title "WSL2 DETECTADO — MODO COCKPIT" --msgbox \
+                    "O WSL2 opera no seu computador pessoal e é suspenso quando você fecha o notebook ou desliga o Windows.\n\nPor segurança e confiabilidade, o modo Nó Worker (onde rodam as aplicações 24/7) deve ser instalado em uma VPS na nuvem.\n\nNo WSL2, utilize a Opção 2 (Torre Master) para comandar seus servidores remotos com total segurança!" 16 78
                 return 0
             fi
             set_mode worker >/dev/null

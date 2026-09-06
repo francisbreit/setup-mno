@@ -202,7 +202,7 @@ authenticate_admin() {
 
 wait_service() {
     local service_name="$1" state replicas
-    for _ in $(seq 1 45); do
+    for _ in $(seq 1 90); do
         state=$(docker service inspect --format \
             '{{if .UpdateStatus}}{{.UpdateStatus.State}}{{else}}completed{{end}}' \
             "$service_name" 2>/dev/null || true)

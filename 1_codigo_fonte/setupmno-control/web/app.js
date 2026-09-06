@@ -2943,7 +2943,7 @@ function renderFleet() {
   if (ctaTitle && ctaDesc) {
     if (!isAllowed) {
       ctaTitle.textContent = "Configuração do Fleet Hub Bloqueada";
-      ctaDesc.textContent = "O gerenciamento de frota multi-servidor (Vibe Ops) é exclusivo para instalações em VPS no modo Cloudflare Tunnel (Zero Portas Abertas) assinantes dos planos PRO e PRO MASTER. Nos planos Free ou modo Tradicional, a configuração permanece bloqueada.";
+      ctaDesc.textContent = "O gerenciamento de frota multi-servidor (Vibe Ops) é exclusivo para instalações no modo Cloudflare Tunnel (Zero Portas Abertas) no WSL2 ou VPS para assinantes dos planos PRO e PRO MASTER. Nos planos Free ou modo Tradicional, a configuração permanece bloqueada.";
     } else {
       ctaTitle.textContent = "Deseja ativar o MNO Fleet Hub neste servidor?";
       ctaDesc.textContent = "Acesse o terminal do servidor ou utilize o instalador seguro e execute a opção ⎇ MNO FLEET HUB para escolher o papel desta máquina.";
