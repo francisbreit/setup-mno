@@ -45,6 +45,28 @@ type routeDomainDefinition struct {
 
 var routeDefinitions = []routeDefinition{
 	{
+		Intent: "fleet_dispatch", Specialist: "fleet_commander", RiskLevel: "medium",
+		RequiredEvidence: []string{"fleet_inventory", "remote_telemetry"},
+		Signal:           "keyword_fleet_dispatch",
+		Terms: []string{
+			"instalar no worker", "instalar no hetzner", "despachar para worker", "despacho para worker",
+			"instalar no debian1", "instalar no debian", "deploy no worker", "deploy no hetzner",
+			"instalar no servidor remoto", "despachar aplicacao", "despachar setup", "despacho",
+			"no worker", "nos workers", "no hetzner", "no debian1", "no servidor remoto", "despachar", "para o worker",
+		},
+	},
+	{
+		Intent: "fleet_node_diagnosis", Specialist: "fleet_commander", RiskLevel: "low",
+		RequiredEvidence: []string{"fleet_inventory", "remote_telemetry"},
+		Signal:           "keyword_fleet",
+		Terms: []string{
+			"frota", "fleet", "fleet hub", "servidor debian", "servidor worker",
+			"hetzner", "estado do servidor debian", "saude do worker", "servidor debian1",
+			"servidor remoto", "servidores remotos", "telemetria remota", "debian1-hetzner",
+			"debian1", "estado do worker", "nos da frota", "status da frota",
+		},
+	},
+	{
 		Intent: "knowledge_status", Specialist: "setup_specialist", RiskLevel: "low",
 		RequiredEvidence: []string{"knowledge_manifest", "catalog_entry"},
 		Signal:           "keyword_knowledge_status",
@@ -160,6 +182,7 @@ var routeDomains = []routeDomainDefinition{
 	{Name: "integration", Terms: []string{"integracao", "integrar", "via api", "pela api", "por api", "evolution api", "webhook", "fila", "rabbitmq", "oauth"}},
 	{Name: "blueprints", Terms: []string{"blueprint", "solucao completa", "arquitetura completa"}},
 	{Name: "solutions", Terms: []string{"microssistema", "resolver minha dor", "sugira ferramentas", "combinar ferramentas", "montar um sistema"}},
+	{Name: "fleet", Terms: []string{"frota", "fleet", "fleet hub", "worker", "hetzner", "debian1", "servidor remoto", "servidores remotos"}},
 }
 
 var routeDestructiveTerms = []string{
@@ -184,7 +207,7 @@ var allowedRouteDomains = map[string]bool{
 	"resources": true, "network": true, "data": true, "automation": true,
 	"observability": true, "security": true, "integration": true,
 	"blueprints": true, "out_of_scope": true,
-	"knowledge": true, "solutions": true,
+	"knowledge": true, "solutions": true, "fleet": true,
 }
 
 var allowedRouteEvidence = map[string]bool{
@@ -195,6 +218,7 @@ var allowedRouteEvidence = map[string]bool{
 	"catalog_entry": true, "infrastructure_documentation": true,
 	"knowledge_manifest": true, "ecosystem_taxonomy": true,
 	"solution_patterns": true,
+	"fleet_inventory": true, "remote_telemetry": true,
 }
 
 var allowedRouteSignals = map[string]bool{
@@ -203,6 +227,7 @@ var allowedRouteSignals = map[string]bool{
 	"keyword_integration": true, "keyword_setup": true,
 	"keyword_infrastructure": true, "domain_infrastructure": true,
 	"keyword_knowledge_status": true, "keyword_solution_design": true,
+	"keyword_fleet":            true, "keyword_fleet_dispatch": true,
 	"no_domain_signal":         true,
 	"canonical_setup_detected": true, "destructive_action_language": true,
 	"conversation_context_resolved": true, "route_validation_fallback": true,
@@ -301,7 +326,9 @@ func responseProfileForRoute(question string, intent string) string {
 		return "guided_decision"
 	case "knowledge_status":
 		return "catalog_inventory"
-	case "capacity_planning", "troubleshooting", "infrastructure_diagnosis":
+	case "fleet_dispatch":
+		return "guided_decision"
+	case "capacity_planning", "troubleshooting", "infrastructure_diagnosis", "fleet_node_diagnosis":
 		return "technical_diagnosis"
 	case "integration_design", "blueprint_recommendation", "solution_design":
 		return "guided_architecture"
@@ -325,6 +352,7 @@ func selectRouteDefinition(question string, setups []string) (routeDefinition, b
 		return routeDefinitionByIntent("knowledge_status"), true
 	}
 	priority := []string{
+		"fleet_dispatch", "fleet_node_diagnosis",
 		"troubleshooting", "capacity_planning", "blueprint_recommendation",
 		"security_review", "integration_design", "solution_design", "infrastructure_diagnosis",
 		"setup_guidance",
@@ -437,6 +465,8 @@ func validateAssistantRoute(route assistantRoute) error {
 		return errors.New("perfil de resposta inválido")
 	}
 	allowedIntents := map[string]string{
+		"fleet_dispatch":          "fleet_commander",
+		"fleet_node_diagnosis":    "fleet_commander",
 		"security_review":          "security_reviewer",
 		"troubleshooting":          "troubleshooting_specialist",
 		"capacity_planning":        "capacity_planner",

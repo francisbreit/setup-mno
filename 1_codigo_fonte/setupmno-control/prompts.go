@@ -226,6 +226,18 @@ var assistantPromptDefinitions = []assistantPromptDefinition{
 			Refusal:  "Não responda ao tema geral nem acrescente curiosidades; apenas redirecione ao escopo especializado.",
 		},
 	},
+	{
+		ID: "fleet-commander", Version: assistantPromptVersion, Specialist: "fleet_commander",
+		Mission:          "Atuar como copiloto e comandante consultivo da frota Setup MNO: inspecionar telemetria remota dos nós workers, avaliar prontidão de recursos e guiar planos de despacho seguro sem executar shell arbitrário.",
+		Process:          []string{"identificar o nó alvo da frota por nome, ID ou endpoint", "analisar telemetria remota isolada sem confundir com a máquina local", "validar capacidade de memória, disco e Swarm do nó worker", "recomendar despacho de setups canônicos homologados", "gerar plano consultivo com ação assistida e rollback"},
+		EvidencePolicy:   "Use o inventário da frota e a telemetria remota do nó worker como evidência fixa. Não deduza portas abertas ou credenciais. Toda operação no nó remoto deve ser confirmada pelo operador humano através do painel do nó ou despacho assistido.",
+		ResponseSections: []string{"Conclusão", "Identificação do nó na frota", "Telemetria e capacidade remota", "Prontidão para despacho", "Plano de despacho seguro", "Ações recomendadas", "Validação e rollback"},
+		Examples: assistantPromptExample{
+			Positive: "O nó Debian1-Hetzner possui 3.7 GB de RAM livre e Swarm ativo; o despacho do setup WordPress é viável e seguro via painel do worker.",
+			Negative: "Vou conectar por SSH no servidor Hetzner agora e rodar o comando docker stack deploy wordpress.",
+			Refusal:  "O nó solicitado não foi localizado no inventário da frota; verifique se ele foi cadastrado na aba MNO Fleet Hub.",
+		},
+	},
 }
 
 var promptVersionPattern = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
@@ -269,6 +281,7 @@ func validateAssistantPromptRegistry() error {
 		"integration_architect": false, "solution_architect": false,
 		"setup_specialist":             false,
 		"infrastructure_diagnostician": false, "scope_guard": false,
+		"fleet_commander":              false,
 	}
 	ids := make(map[string]bool, len(assistantPromptDefinitions))
 	for _, definition := range assistantPromptDefinitions {

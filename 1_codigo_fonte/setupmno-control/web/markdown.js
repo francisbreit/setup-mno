@@ -40,6 +40,24 @@
           continue;
         }
       }
+      if (line[index] === "[") {
+        const closeBracket = line.indexOf("](", index + 1);
+        if (closeBracket > index + 1) {
+          const closeParen = line.indexOf(")", closeBracket + 2);
+          if (closeParen > closeBracket + 2) {
+            const label = line.slice(index + 1, closeBracket);
+            const target = line.slice(closeBracket + 2, closeParen).trim();
+            if (/^(?:https?:\/\/|#|\/)/i.test(target)) {
+              flushPlain();
+              const isExternal = /^https?:\/\//i.test(target);
+              const extraAttrs = isExternal ? ' target="_blank" rel="noopener noreferrer"' : '';
+              output += `<a href="${escapeHTML(target)}" class="assistant-action-link"${extraAttrs}>${escapeHTML(label)}</a>`;
+              index = closeParen + 1;
+              continue;
+            }
+          }
+        }
+      }
       plain += line[index];
       index++;
     }

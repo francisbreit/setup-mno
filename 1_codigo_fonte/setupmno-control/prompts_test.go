@@ -9,7 +9,7 @@ func TestAssistantPromptRegistryIsCompleteAndVersioned(t *testing.T) {
 	if err := validateAssistantPromptRegistry(); err != nil {
 		t.Fatalf("registro de prompts inválido: %v", err)
 	}
-	if len(assistantPromptDefinitions) != 9 {
+	if len(assistantPromptDefinitions) != 10 {
 		t.Fatalf("quantidade inesperada de especialistas: %d", len(assistantPromptDefinitions))
 	}
 	for _, definition := range assistantPromptDefinitions {

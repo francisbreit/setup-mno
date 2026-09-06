@@ -34,6 +34,27 @@ assert.equal(routeMetadata.snapshot({ specialist: "execute_shell", riskLevel: "h
 assert.equal(routeMetadata.snapshot({ specialist: "scope_guard", riskLevel: "low", responseProfile: "safe_redirect", promptVersion: "<script>", responseContractVersion: "1.1.0" }), null);
 assert.equal(routeMetadata.snapshot({ specialist: "setup_specialist", riskLevel: "low", responseProfile: "invented", promptVersion: "1.3.0", responseContractVersion: "1.1.0" }), null);
 
+const fleetSnapshot = routeMetadata.snapshot({
+  specialist: "fleet_commander",
+  riskLevel: "medium",
+  responseProfile: "guided_decision",
+  promptVersion: "1.10.0",
+  responseContractVersion: "1.8.0",
+  promptSHA256: "b".repeat(64),
+  question: "como instalar wordpress no worker"
+});
+assert.ok(Object.isFrozen(fleetSnapshot));
+assert.deepEqual(fleetSnapshot, {
+  specialist: "fleet_commander",
+  specialistName: "Comandante de Frota MNO",
+  risk: "medium",
+  riskName: "médio",
+  responseProfile: "guided_decision",
+  responseProfileName: "Decisão guiada",
+  promptVersion: "1.10.0",
+  responseContractVersion: "1.8.0"
+});
+
 assert.equal(
   render("A versão é **4.93.3**."),
   "A versão é <strong>4.93.3</strong>."
@@ -42,6 +63,16 @@ assert.equal(
   render("Use `docker service ls`."),
   "Use <code>docker service ls</code>."
 );
+assert.equal(
+  render("Acesse o [Painel](https://exemplo.com) aqui."),
+  'Acesse o <a href="https://exemplo.com" class="assistant-action-link" target="_blank" rel="noopener noreferrer">Painel</a> aqui.'
+);
+assert.equal(
+  render("Acesse a [Frota](#fleet)."),
+  'Acesse a <a href="#fleet" class="assistant-action-link">Frota</a>.'
+);
+const maliciousLink = render("[XSS](javascript:alert(1))");
+assert.doesNotMatch(maliciousLink, /<a/);
 assert.equal(
   render("1. N8N\n2. STRAPI"),
   "1. N8N\n2. STRAPI"

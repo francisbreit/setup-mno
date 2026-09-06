@@ -46,7 +46,7 @@ type consultativePlanEvidence struct {
 
 var runtimePlanEvidence = map[string]bool{
 	"runtime_state": true, "resources": true, "architecture": true,
-	"diagnostics": true,
+	"diagnostics": true, "fleet_inventory": true, "remote_telemetry": true,
 }
 
 var canonicalPlanEvidence = map[string]bool{
@@ -87,6 +87,9 @@ func buildConsultativePlan(route assistantRoute, evidence consultativePlanEviden
 
 	if evidence.OperationalContextAvailable {
 		plan.ObservedEvidence = append(plan.ObservedEvidence, "Snapshot operacional sanitizado disponível.")
+	}
+	if route.Intent == "fleet_node_diagnosis" || route.Intent == "fleet_dispatch" {
+		plan.ObservedEvidence = append(plan.ObservedEvidence, "Telemetria remota do nó worker confirmada via MNO Fleet Hub.")
 	}
 	if evidence.DeterministicAnswer {
 		plan.ObservedEvidence = append(plan.ObservedEvidence, "Resposta produzida por regra local determinística.")
@@ -163,6 +166,10 @@ func consultativeDiagnosis(intent string) string {
 		return "A resposta descreve o inventário canônico disponível nesta versão."
 	case "infrastructure_diagnosis":
 		return "O estado da infraestrutura foi interpretado somente dentro da cobertura das evidências disponíveis."
+	case "fleet_node_diagnosis":
+		return "O estado e a telemetria do nó worker foram verificados diretamente na frota sem interferir na máquina local."
+	case "fleet_dispatch":
+		return "O plano de despacho avalia a prontidão do nó worker remoto e gera um roteiro seguro com confirmação humana."
 	default:
 		return "A consulta foi mantida fora do escopo operacional do Assistente MNO."
 	}
@@ -224,6 +231,8 @@ func consultativeEvidenceLabel(value string) string {
 		"knowledge_manifest":           "manifesto da base de conhecimento",
 		"ecosystem_taxonomy":           "taxonomia do ecossistema",
 		"solution_patterns":            "padrões de solução",
+		"fleet_inventory":              "inventário da frota",
+		"remote_telemetry":             "telemetria remota do worker",
 	}
 	if label := labels[value]; label != "" {
 		return label

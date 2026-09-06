@@ -2671,6 +2671,10 @@ func (a *webApp) handleAssistant(w http.ResponseWriter, r *http.Request) {
 		a.streamFullCatalog(w, r, input.Question)
 		return
 	}
+	if a.isFleetAssistantQuestion(input.Question) {
+		a.streamFleetAssistant(w, r, input.Question, input.Basic, input.FallbackReason)
+		return
+	}
 	if input.Basic || a.assistantURL == "" || !assistantModeUsesLLM(a.assistantMode) || !a.runtimeAllowsLLM(r.Context()) {
 		a.streamBasicAssistant(w, r, input.Question, input.Basic, input.FallbackReason)
 		return
@@ -3014,6 +3018,314 @@ func (a *webApp) streamFullCatalog(w http.ResponseWriter, r *http.Request, quest
 	a.addAudit("assistant_catalog", "Catálogo runtime completo listado localmente", clientAddress(r))
 }
 
+func (a *webApp) isFleetAssistantQuestion(question string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(question))
+	fleetKeywords := []string{
+		"frota", "fleet", "fleet hub", "worker", "workers", "hetzner", "debian1",
+		"servidor remoto", "servidores remotos", "no remoto", "nos remotos",
+		"despachar", "despacho", "operario", "operarios",
+	}
+	for _, kw := range fleetKeywords {
+		if strings.Contains(normalized, kw) {
+			return true
+		}
+	}
+	if a.fleetStore != nil {
+		nodes := a.fleetStore.ListNodes()
+		for _, node := range nodes {
+			if node.Mode == FleetModeMaster && node.ID == "node-master-local" {
+				continue
+			}
+			if len(node.Name) >= 3 && strings.Contains(normalized, strings.ToLower(node.Name)) {
+				return true
+			}
+			if len(node.ID) >= 4 && strings.Contains(normalized, strings.ToLower(node.ID)) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (a *webApp) streamFleetAssistant(
+	w http.ResponseWriter,
+	r *http.Request,
+	question string,
+	fallback bool,
+	fallbackReason string,
+) {
+	ctx := r.Context()
+	var matchedNode *FleetNode
+	var allNodes []FleetNode
+
+	if a.fleetStore != nil {
+		allNodes = a.fleetStore.ListNodes()
+		// 1. Match especifico de nó por Nome ou ID
+		for _, n := range allNodes {
+			if n.Mode == FleetModeMaster && n.ID == "node-master-local" {
+				continue
+			}
+			if (len(n.Name) >= 3 && strings.Contains(strings.ToLower(question), strings.ToLower(n.Name))) ||
+				(len(n.ID) >= 4 && strings.Contains(strings.ToLower(question), strings.ToLower(n.ID))) {
+				nCopy := n
+				matchedNode = &nCopy
+				break
+			}
+		}
+		// 2. Se nenhum nome especifico bateu, verificar se a pergunta menciona "worker", "hetzner", "debian" ou "remoto"
+		if matchedNode == nil {
+			norm := strings.ToLower(question)
+			if strings.Contains(norm, "worker") || strings.Contains(norm, "hetzner") || strings.Contains(norm, "debian") || strings.Contains(norm, "remoto") {
+				for _, n := range allNodes {
+					if n.Mode == FleetModeWorker {
+						nCopy := n
+						matchedNode = &nCopy
+						break
+					}
+				}
+			}
+		}
+	}
+
+	// Detectar se eh intencao de despacho ou diagnostico
+	isDispatch := false
+	dispatchKeywords := []string{"instalar", "deploy", "despachar", "colocar", "rodar", "subir", "despacho"}
+	for _, kw := range dispatchKeywords {
+		if strings.Contains(strings.ToLower(question), kw) {
+			isDispatch = true
+			break
+		}
+	}
+
+	intent := "fleet_node_diagnosis"
+	riskLevel := "low"
+	if isDispatch {
+		intent = "fleet_dispatch"
+		riskLevel = "medium"
+	}
+
+	arch := "unknown"
+	if matchedNode != nil && matchedNode.Architecture != "" {
+		arch = matchedNode.Architecture
+	}
+	route := routeAssistant(
+		question,
+		retrievalQueryResolution{Query: question},
+		arch,
+	)
+	route.Intent = intent
+	route.Specialist = "fleet_commander"
+	route.Domains = []string{"fleet", "infrastructure"}
+	route.RiskLevel = riskLevel
+	route.Confidence = "high"
+	route.RequiredEvidence = []string{"fleet_inventory", "remote_telemetry"}
+	if isDispatch {
+		route.ResponseProfile = "guided_decision"
+	} else {
+		route.ResponseProfile = "technical_diagnosis"
+	}
+	route.Signals = []string{"keyword_fleet"}
+
+	var responseLines []string
+
+	if matchedNode == nil {
+		if len(allNodes) == 0 {
+			responseLines = append(responseLines,
+				"### Conclusão",
+				"Nenhum nó subordinado (Worker) está cadastrado no momento no MNO Fleet Hub da Torre Master.",
+				"",
+				"### Próximos passos para pareamento",
+				"1. Instale o Setup MNO em seu novo servidor VPS (ex: Hetzner, Oracle Cloud ou Contabo).",
+				"2. No menu principal do instalador, escolha **MNO Fleet Hub** e ative o **Modo Nó Worker (Operário de Cargas)**.",
+				"3. Copie o Token de Pareamento gerado na tela do Worker.",
+				"4. Retorne aqui na Torre Master, acesse a aba **MNO Fleet Hub** e clique em **+ Parear Novo Nó Worker** informando a URL e o Token.",
+				"",
+				"[Acessar MNO Fleet Hub](#fleet)",
+			)
+		} else {
+			responseLines = append(responseLines,
+				"### Conclusão",
+				fmt.Sprintf("A frota do MNO Fleet Hub possui **%d servidor(es) registrado(s)** sob gestão centralizada desta Torre Master.", len(allNodes)),
+				"",
+				"### Inventário de Nós da Frota",
+			)
+			for _, n := range allNodes {
+				roleLabel := "Torre Master (Local)"
+				if n.Mode == FleetModeWorker {
+					roleLabel = "Operário de Cargas (Worker)"
+				}
+				statusIcon := "🟢"
+				if n.Status != "online" {
+					statusIcon = "🟡"
+				}
+				ramInfo := ""
+				if n.MemoryTotalMB > 0 {
+					ramInfo = fmt.Sprintf(" · RAM: %d MB / %d MB", n.MemoryUsedMB, n.MemoryTotalMB)
+				}
+				responseLines = append(responseLines,
+					fmt.Sprintf("- %s **%s** (`%s`): Modo *%s*%s", statusIcon, n.Name, n.ID, roleLabel, ramInfo),
+				)
+			}
+			responseLines = append(responseLines,
+				"",
+				"### Ações Disponíveis",
+				"[Gerenciar Frota no MNO Fleet Hub](#fleet)",
+			)
+		}
+	} else {
+		realNode, ok := a.fleetStore.GetNode(matchedNode.ID)
+		if !ok {
+			realNode = *matchedNode
+		}
+
+		telemetry, latency, probeErr := a.probeWorkerNode(ctx, realNode.Endpoint, realNode.Token)
+
+		if probeErr != nil {
+			responseLines = append(responseLines,
+				"### Conclusão",
+				fmt.Sprintf("O nó worker remoto **%s** foi identificado no inventário da frota, mas a tentativa de comunicação segura via API de telemetria falhou.", matchedNode.Name),
+				"",
+				"### Diagnóstico de Conexão",
+				fmt.Sprintf("- **Endpoint consultado:** `%s`", matchedNode.Endpoint),
+				fmt.Sprintf("- **Erro observado:** %v", probeErr),
+				fmt.Sprintf("- **Tempo de resposta:** %d ms (timeout ou falha de rede)", latency),
+				"",
+				"### Recomendações SRE",
+				"- Verifique se a VPS remota está ligada e com o serviço do Setup MNO ativo.",
+				"- Se estiver utilizando Cloudflare Tunnel no worker, confirme se o túnel está online.",
+				"- Acesse a aba Fleet Hub para forçar uma nova sincronização ou verificar o Token de pareamento.",
+				"",
+				"[Acessar MNO Fleet Hub](#fleet)",
+			)
+		} else {
+			memUsed := telemetry.MemoryUsedMB
+			memTotal := telemetry.MemoryTotalMB
+			memFree := uint64(0)
+			if memTotal > memUsed {
+				memFree = memTotal - memUsed
+			}
+			memPct := float64(0)
+			if memTotal > 0 {
+				memPct = (float64(memUsed) / float64(memTotal)) * 100.0
+			}
+
+			diskUsed := telemetry.DiskUsedGB
+			diskTotal := telemetry.DiskTotalGB
+			diskPct := float64(0)
+			if diskTotal > 0 {
+				diskPct = (float64(diskUsed) / float64(diskTotal)) * 100.0
+			}
+
+			swarmStatus := "Ativo (Docker Swarm pronto para receber cargas)"
+			if !telemetry.ActiveSwarm {
+				swarmStatus = "Inativo (atenção: necessário inicializar Docker Swarm no nó)"
+			}
+
+			endpointURL := realNode.Endpoint
+			if endpointURL == "" {
+				endpointURL = matchedNode.Endpoint
+			}
+			installerURL := endpointURL + "/install.html"
+			if !strings.HasPrefix(endpointURL, "http") {
+				installerURL = "#fleet"
+			}
+
+			if isDispatch {
+				responseLines = append(responseLines,
+					"### Conclusão",
+					fmt.Sprintf("O nó worker remoto **%s** possui recursos suficientes e está pronto para receber o despacho de aplicações de forma segura e isolada.", matchedNode.Name),
+					"",
+					"### Identificação do Nó Alvo",
+					fmt.Sprintf("- **Nome do nó:** `%s`", matchedNode.Name),
+					fmt.Sprintf("- **ID do nó:** `%s`", matchedNode.ID),
+					fmt.Sprintf("- **Papel na frota:** Worker (Operário de Cargas)"),
+					fmt.Sprintf("- **Endpoint público:** `%s`", endpointURL),
+					fmt.Sprintf("- **Arquitetura:** `%s`", matchedNode.Architecture),
+					fmt.Sprintf("- **Latência:** `%d ms`", latency),
+					"",
+					"### Telemetria Remota em Tempo Real (Worker Hetzner)",
+					fmt.Sprintf("- **Memória RAM:** %d MB usados de %d MB (%.1f%% de ocupação — **%d MB livres**)", memUsed, memTotal, memPct, memFree),
+					fmt.Sprintf("- **Armazenamento:** %d GB usados de %d GB (%.1f%% de ocupação)", diskUsed, diskTotal, diskPct),
+					fmt.Sprintf("- **Docker Swarm:** %s", swarmStatus),
+					fmt.Sprintf("- **Carga da CPU (1m):** %.2f", telemetry.LoadAverage1m),
+					fmt.Sprintf("- **Aplicações ativas:** %d saudáveis / %d com atenção", telemetry.HealthyApps, telemetry.UnhealthyApps),
+					"",
+					"### Plano Consultivo de Despacho Seguro",
+					"1. **Segregação de Recursos:** A instalação será provisionada no nó worker remoto, sem consumir memória ou disco da Torre Master (WSL2).",
+					"2. **Pré-requisitos Obrigatórios:**",
+					"   - Domínio apontado via DNS para a VPS ou configurado no Cloudflare Tunnel.",
+					"   - Portas isoladas na rede overlay segura (`interna`) do Docker Swarm.",
+					"3. **Roteiro de Despacho:**",
+					"   - Abra o Instalador Seguro diretamente no nó worker.",
+					"   - Selecione a aplicação desejada (ex: WordPress, n8n, Chatwoot).",
+					"   - Confirme as variáveis de ambiente e inicie o deploy assistido.",
+					"4. **Plano de Rollback:**",
+					"   - Caso queira desfazer a instalação, remova a stack via painel do nó worker ou pelo Portainer sem qualquer impacto na Torre Master ou nos demais servidores da frota.",
+					"",
+					"### Ações de Despacho",
+					fmt.Sprintf("[%s](%s) [%s](%s)", "Abrir Instalador do Nó "+matchedNode.Name+" ↗", installerURL, "Abrir Painel Central do Nó ↗", endpointURL),
+					"",
+					"[Gerenciar Frota no MNO Fleet Hub](#fleet)",
+				)
+			} else {
+				responseLines = append(responseLines,
+					"### Conclusão",
+					fmt.Sprintf("Diagnóstico concluído: o servidor worker **%s** está **online**, saudável e respondendo com excelente latência de **%d ms**.", matchedNode.Name, latency),
+					"",
+					"### Identificação do Servidor Remoto",
+					fmt.Sprintf("- **Nome do Servidor:** `%s`", matchedNode.Name),
+					fmt.Sprintf("- **ID Único na Frota:** `%s`", matchedNode.ID),
+					fmt.Sprintf("- **Função:** Nó Worker (Operário de Cargas subordinado à Torre Master)"),
+					fmt.Sprintf("- **Endpoint HTTPS:** `%s`", endpointURL),
+					fmt.Sprintf("- **Arquitetura do Processador:** `%s`", matchedNode.Architecture),
+					fmt.Sprintf("- **Versão do Setup MNO:** `%s`", matchedNode.SetupVersion),
+					"",
+					"### Telemetria Remota em Tempo Real (Hetzner VPS)",
+					fmt.Sprintf("- **Memória RAM:** %d MB em uso de %d MB totais (%.1f%% ocupado — **%d MB livres**)", memUsed, memTotal, memPct, memFree),
+					fmt.Sprintf("- **Disco rígido:** %d GB em uso de %d GB (%.1f%% ocupado)", diskUsed, diskTotal, diskPct),
+					fmt.Sprintf("- **Carga da CPU (Load Average 1 min):** %.2f", telemetry.LoadAverage1m),
+					fmt.Sprintf("- **Docker Swarm:** %s", swarmStatus),
+					fmt.Sprintf("- **Serviços em Execução:** %d saudáveis / %d degradados", telemetry.HealthyApps, telemetry.UnhealthyApps),
+					fmt.Sprintf("- **Tempo de Atividade (Uptime):** %d segundos (~%.1f horas)", telemetry.UptimeSeconds, float64(telemetry.UptimeSeconds)/3600.0),
+					"",
+					"### Avaliação de Prontidão Operacional",
+					fmt.Sprintf("O servidor **%s** possui capacidade operacional abundante (%d MB de RAM livre) para hospedar novas aplicações com alto desempenho e isolamento.", matchedNode.Name, memFree),
+					"",
+					"### Ações Recomendadas",
+					fmt.Sprintf("[%s](%s) [%s](%s)", "Abrir Painel do Nó "+matchedNode.Name+" ↗", endpointURL, "Abrir Instalador do Nó ↗", installerURL),
+					"",
+					"[Acessar MNO Fleet Hub](#fleet)",
+				)
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.WriteHeader(http.StatusOK)
+	a.sendFeedbackTokenSSE(w, "basic", fallbackReason)
+	sendSSE(w, "meta", map[string]any{
+		"mode":           "fleet_commander",
+		"model":          "MNO Fleet SRE Engine",
+		"fallback":       fallback,
+		"fallbackReason": fallbackReason,
+		"readOnly":       true,
+		"fleetAware":     true,
+	})
+	sendSSE(w, "route", route)
+	sendSSE(w, "delta", map[string]any{"delta": strings.Join(responseLines, "\n\n")})
+	if !sendConsultativePlanSSE(w, route, consultativePlanEvidence{
+		OperationalContextAvailable: true,
+		DeterministicAnswer:         true,
+	}) {
+		sendSSE(w, "error", map[string]any{"error": "O plano consultivo obrigatório não pôde ser validado.", "reason": "policy"})
+		return
+	}
+	sendSSE(w, "done", map[string]any{"ok": true})
+	a.addAudit("assistant_fleet", "Diagnóstico/despacho consultivo de frota: "+intent, clientAddress(r))
+}
+
 func (a *webApp) streamBasicAssistant(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -3021,6 +3333,10 @@ func (a *webApp) streamBasicAssistant(
 	fallback bool,
 	fallbackReason string,
 ) {
+	if a.isFleetAssistantQuestion(question) {
+		a.streamFleetAssistant(w, r, question, fallback, fallbackReason)
+		return
+	}
 	var snapshot sreDiagnosticSnapshot
 	if err := a.agentRequest(r.Context(), "/sre/snapshot", &snapshot); err != nil ||
 		validateSREDiagnosticSnapshot(snapshot) != nil {

@@ -137,6 +137,47 @@ func TestFleetInventoryStoreCRUD(t *testing.T) {
 	}
 }
 
+func TestFindNodeByNameOrID(t *testing.T) {
+	store, _ := loadFleetInventory("")
+	node := FleetNode{
+		ID:       "node-hetzner-01",
+		Name:     "Debian1-Hetzner",
+		Endpoint: "https://setup4747985365.manualnegocioonline.com.br",
+		Mode:     FleetModeWorker,
+		Status:   "online",
+		Role:     "worker",
+		Token:    "token-hetzner-123456",
+	}
+	if err := store.AddNode(node); err != nil {
+		t.Fatalf("AddNode falhou: %v", err)
+	}
+
+	found, ok := store.FindNodeByNameOrID("Debian1-Hetzner")
+	if !ok || found.ID != "node-hetzner-01" {
+		t.Errorf("FindNodeByNameOrID por nome exato falhou")
+	}
+
+	found, ok = store.FindNodeByNameOrID("hetzner")
+	if !ok || found.ID != "node-hetzner-01" {
+		t.Errorf("FindNodeByNameOrID por substring 'hetzner' falhou")
+	}
+
+	found, ok = store.FindNodeByNameOrID("node-hetzner")
+	if !ok || found.Name != "Debian1-Hetzner" {
+		t.Errorf("FindNodeByNameOrID por prefixo de ID falhou")
+	}
+
+	found, ok = store.FindNodeByNameOrID("setup4747985365")
+	if !ok || found.ID != "node-hetzner-01" {
+		t.Errorf("FindNodeByNameOrID por endpoint falhou")
+	}
+
+	_, ok = store.FindNodeByNameOrID("nao-existe")
+	if ok {
+		t.Errorf("FindNodeByNameOrID deveria retornar false para nó inexistente")
+	}
+}
+
 func TestEnsureLocalNode(t *testing.T) {
 	store, _ := loadFleetInventory("")
 

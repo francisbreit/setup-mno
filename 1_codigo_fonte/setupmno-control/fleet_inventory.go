@@ -245,6 +245,40 @@ func (s *fleetInventoryStore) GetNode(id string) (FleetNode, bool) {
 	return FleetNode{}, false
 }
 
+func (s *fleetInventoryStore) FindNodeByNameOrID(query string) (FleetNode, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	cleaned := strings.TrimSpace(query)
+	if cleaned == "" {
+		return FleetNode{}, false
+	}
+	lowerQuery := strings.ToLower(cleaned)
+
+	// 1. Match exato de ID ou Nome
+	for _, n := range s.nodes {
+		if strings.EqualFold(n.ID, cleaned) || strings.EqualFold(n.Name, cleaned) {
+			return n, true
+		}
+	}
+
+	// 2. Contains match no Nome ou prefixo do ID
+	for _, n := range s.nodes {
+		if strings.Contains(strings.ToLower(n.Name), lowerQuery) || strings.HasPrefix(strings.ToLower(n.ID), lowerQuery) {
+			return n, true
+		}
+	}
+
+	// 3. Match de substring no Endpoint
+	for _, n := range s.nodes {
+		if n.Endpoint != "" && strings.Contains(strings.ToLower(n.Endpoint), lowerQuery) {
+			return n, true
+		}
+	}
+
+	return FleetNode{}, false
+}
+
 func (s *fleetInventoryStore) AddNode(node FleetNode) error {
 	if err := validateFleetNode(node); err != nil {
 		return err

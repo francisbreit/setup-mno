@@ -28,6 +28,8 @@ func TestAssistantRouterSelectsSpecialistsDeterministically(t *testing.T) {
 		{"infrastructure", "Analise a saúde do meu servidor Docker", retrievalQueryResolution{}, "infrastructure_diagnosis", "infrastructure_diagnostician"},
 		{"knowledge", "Quantas aplicações você possui documentadas em sua base de conhecimento?", retrievalQueryResolution{}, "knowledge_status", "setup_specialist"},
 		{"knowledge natural wording", "Quantos setups estão documentados e quantos estão homologados?", retrievalQueryResolution{}, "knowledge_status", "setup_specialist"},
+		{"fleet node diagnosis", "Como está o estado do servidor Debian1-Hetzner?", retrievalQueryResolution{}, "fleet_node_diagnosis", "fleet_commander"},
+		{"fleet dispatch", "Como instalar wordpress no worker Debian1-Hetzner?", retrievalQueryResolution{SetupIDs: []string{"wordpress"}}, "fleet_dispatch", "fleet_commander"},
 		{"scope", "Qual é a capital do Brasil?", retrievalQueryResolution{}, "scope_redirect", "scope_guard"},
 	}
 	for _, test := range tests {

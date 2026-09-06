@@ -2,6 +2,7 @@
   "use strict";
 
   const specialists = Object.freeze({
+    fleet_commander: "Comandante de Frota MNO",
     security_reviewer: "Revisor de segurança",
     troubleshooting_specialist: "Especialista em troubleshooting",
     capacity_planner: "Planejador de capacidade",
