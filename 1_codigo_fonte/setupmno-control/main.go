@@ -699,6 +699,9 @@ func runWeb() error {
 	mux.Handle("POST /api/fleet/ping", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetPing))))
 	mux.HandleFunc("GET /api/fleet/worker/telemetry", app.handleFleetWorkerTelemetry)
 	mux.HandleFunc("POST /api/fleet/worker/action", app.handleFleetWorkerAction)
+	mux.HandleFunc("GET /install.html", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/?action=terminal", http.StatusTemporaryRedirect)
+	})
 
 	webRoot, err := fs.Sub(embeddedFiles, "web")
 	if err != nil {
@@ -3271,7 +3274,7 @@ func (a *webApp) streamFleetAssistant(
 			if endpointURL == "" {
 				endpointURL = matchedNode.Endpoint
 			}
-			installerURL := endpointURL + "/install.html"
+			installerURL := endpointURL + "/?action=terminal"
 			if !strings.HasPrefix(endpointURL, "http") {
 				installerURL = "#fleet"
 			}

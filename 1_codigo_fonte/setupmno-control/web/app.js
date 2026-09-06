@@ -446,6 +446,7 @@ function setAuthenticated(session) {
   $("app-view").classList.remove("hidden");
   refreshAll();
   checkFirstRunOnboarding();
+  checkDeepLinkAction();
   clearInterval(state.timer);
   clearInterval(state.catalogTimer);
   state.timer = setInterval(refreshOverview, 30000);
@@ -3409,5 +3410,23 @@ function finishOnboarding() {
     localStorage.setItem(ONBOARDING_KEY, "true");
   }
   closeOnboarding();
+}
+
+function checkDeepLinkAction() {
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get("action");
+    const nav = urlParams.get("nav") || (window.location.hash ? window.location.hash.replace("#", "") : "");
+    if (nav && ["dashboard", "installed", "catalog", "blueprints", "assistant", "resilience", "fleet", "homologation", "audit", "settings", "help"].includes(nav)) {
+      navigate(nav);
+    }
+    if (action === "terminal" || window.location.hash === "#terminal" || urlParams.get("install") === "1") {
+      setTimeout(() => {
+        if (terminalAccessAllowed()) {
+          openTerminal("installer");
+        }
+      }, 350);
+    }
+  } catch {}
 }
 
