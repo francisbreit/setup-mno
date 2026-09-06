@@ -699,6 +699,9 @@ func runWeb() error {
 	mux.Handle("POST /api/fleet/ping", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetPing))))
 	mux.HandleFunc("GET /api/fleet/worker/telemetry", app.handleFleetWorkerTelemetry)
 	mux.HandleFunc("POST /api/fleet/worker/action", app.handleFleetWorkerAction)
+	mux.HandleFunc("GET /api/fleet/tools/schema.json", app.handleFleetToolsSchema)
+	mux.HandleFunc("GET /api/fleet/tools", app.handleFleetToolsSchema)
+	mux.HandleFunc("POST /api/fleet/tools/execute", app.handleFleetToolsExecute)
 	mux.HandleFunc("GET /install.html", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/?action=terminal", http.StatusTemporaryRedirect)
 	})
@@ -3677,6 +3680,9 @@ func (a *webApp) sameOrigin(r *http.Request) bool {
 }
 
 func (a *webApp) agentRequest(ctx context.Context, endpoint string, target any) error {
+	if a.httpClient == nil {
+		return errors.New("cliente HTTP do agente não configurado")
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.agentURL+endpoint, nil)
 	if err != nil {
 		return err

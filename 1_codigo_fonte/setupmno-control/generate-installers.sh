@@ -1150,6 +1150,7 @@ if ! tar -tzf "$bundle" | grep -Fx 'install-heartbeat.sh' >/dev/null; then
 fi
 if ! tar -tzf "$bundle" | grep -Fx 'fleet_inventory.go' >/dev/null ||
    ! tar -tzf "$bundle" | grep -Fx 'fleet_controller.go' >/dev/null ||
+   ! tar -tzf "$bundle" | grep -Fx 'fleet_tools.go' >/dev/null ||
    ! tar -tzf "$bundle" | grep -Fx 'fleet-mode.sh' >/dev/null; then
     printf 'ERRO: bundle de fontes sem os componentes do MNO Fleet Hub.\n' >&2
     exit 1

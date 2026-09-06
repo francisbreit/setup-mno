@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -253,3 +255,111 @@ func TestAuthenticateFleetWorkerRequest(t *testing.T) {
 		t.Errorf("deveria rejeitar token incorreto")
 	}
 }
+
+func TestFleetToolsSchema(t *testing.T) {
+	app := &webApp{}
+	req := httptest.NewRequest(http.MethodGet, "/api/fleet/tools/schema.json", nil)
+	w := httptest.NewRecorder()
+
+	app.handleFleetToolsSchema(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("esperava HTTP 200, obteve %d", w.Code)
+	}
+
+	var schema FleetToolsSchemaResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &schema); err != nil {
+		t.Fatalf("falha ao decodificar schema JSON: %v", err)
+	}
+
+	if schema.SchemaVersion != "1.0.0" || schema.Provider != "setup-mno-fleet" {
+		t.Errorf("metadados do schema incorretos: %+v", schema)
+	}
+
+	if len(schema.Tools) != 5 {
+		t.Fatalf("esperava 5 ferramentas homologadas, obteve %d", len(schema.Tools))
+	}
+
+	names := make(map[string]bool)
+	for _, tool := range schema.Tools {
+		if tool.Type != "function" || tool.Function.Name == "" {
+			t.Errorf("ferramenta com formato inválido: %+v", tool)
+		}
+		names[tool.Function.Name] = true
+	}
+
+	expectedTools := []string{
+		"fleet_get_status",
+		"fleet_list_nodes",
+		"fleet_diagnose_node",
+		"fleet_consult_dispatch",
+		"fleet_ping_node",
+	}
+
+	for _, name := range expectedTools {
+		if !names[name] {
+			t.Errorf("ferramenta esperada '%s' ausente no schema", name)
+		}
+	}
+}
+
+func TestFleetToolsExecuteRejectsUnauthorized(t *testing.T) {
+	app := &webApp{}
+	payload := `{"tool":"fleet_get_status"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/fleet/tools/execute", strings.NewReader(payload))
+	w := httptest.NewRecorder()
+
+	app.handleFleetToolsExecute(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("esperava HTTP 401 sem autenticação, obteve %d", w.Code)
+	}
+}
+
+func TestFleetToolsExecuteAuthorizedListNodes(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "fleet-tools-test-*")
+	if err != nil {
+		t.Fatalf("erro ao criar tempDir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	storePath := filepath.Join(tempDir, "fleet-inventory.json")
+	store, err := loadFleetInventory(storePath)
+	if err != nil {
+		t.Fatalf("loadFleetInventory falhou: %v", err)
+	}
+
+	app := &webApp{
+		fleetStore: store,
+		sessions:   make(map[string]*session),
+	}
+
+	cookieVal := strings.Repeat("c", 32)
+	app.sessions[cookieVal] = &session{
+		Expires:   time.Now().Add(1 * time.Hour),
+		IdleUntil: time.Now().Add(1 * time.Hour),
+		User:      "admin",
+	}
+
+	payload := `{"tool":"fleet_list_nodes"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/fleet/tools/execute", strings.NewReader(payload))
+	req.AddCookie(&http.Cookie{
+		Name:  sessionCookie,
+		Value: cookieVal,
+	})
+	w := httptest.NewRecorder()
+
+	app.handleFleetToolsExecute(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("esperava HTTP 200 para sessão autorizada, obteve %d (%s)", w.Code, w.Body.String())
+	}
+
+	var resp FleetToolExecuteResponse
+	if err := decodeStrictJSON(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("resposta JSON inválida: %v", err)
+	}
+
+	if !resp.Success || resp.Tool != "fleet_list_nodes" {
+		t.Errorf("resposta inesperada: %+v", resp)
+	}
+}
+
+
