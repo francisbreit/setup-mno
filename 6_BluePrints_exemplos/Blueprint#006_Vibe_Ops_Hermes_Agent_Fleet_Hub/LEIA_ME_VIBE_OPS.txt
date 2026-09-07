@@ -9,6 +9,15 @@ Acesse o vídeo completo na área de membros da Academia MNO:
 [EM BREVE - Link disponível para Membros PRO]
 ================================================================================
 
+================================================================================
+IDENTIFICAÇÃO E HOMOLOGAÇÃO:
+- Blueprint ID: blueprint-006-vibe-ops-hermes-fleet
+- Versão: 1.0.0
+- Status de Maturidade: HOMOLOGADO (Produção)
+- Ambientes Homologados: WSL2 + Docker Desktop e VPS Ubuntu/Debian (x86_64 / ARM64)
+- Homologado por: Francis Breit (Francis MNO)
+================================================================================
+
 Bem-vindo ao Blueprint #006 do Setup MNO: Vibe Ops com Hermes Agent e Fleet Hub!
 Este pacote transforma a gestão de servidores em uma conversa natural e amigável.
 Em vez de decorar comandos complexos do Linux ou abrir terminais pretos para ver se
