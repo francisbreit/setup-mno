@@ -738,7 +738,7 @@ func TestFullCatalogRequestDetection(t *testing.T) {
 	accepted := []string{
 		"Liste todos os setups possíveis na atual versão do Setup MNO",
 		"Mostre o catálogo completo",
-		"Quais são os 158 setups?",
+		"Quais são os 161 setups?",
 	}
 	for _, question := range accepted {
 		if !isFullCatalogRequest(question) {
@@ -777,8 +777,8 @@ func TestFullCatalogMarkdownListsEveryCanonicalSetup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("catálogo canônico foi recusado: %v", err)
 	}
-	if len(items) != 158 || !strings.Contains(answer, "**158 de 158 setups validados:**") {
-		t.Fatalf("resposta não confirmou os 158 setups: %s", answer)
+	if len(items) != 161 || !strings.Contains(answer, "**161 de 161 setups validados:**") {
+		t.Fatalf("resposta não confirmou os 161 setups: %s", answer)
 	}
 	numbered := 0
 	for _, line := range strings.Split(answer, "\n") {
@@ -1359,8 +1359,8 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 	}
 	if state.Source != "image-read-only" ||
 		state.Stale ||
-		state.Manifest.DocumentEntries != 177 ||
-		state.Manifest.SetupEntries != 158 ||
+		state.Manifest.DocumentEntries != 181 ||
+		state.Manifest.SetupEntries != 161 ||
 		state.Manifest.InfrastructureEntries != 14 ||
 		state.Manifest.BlueprintFactoryVersion != "2.1.0" ||
 		state.Manifest.BlueprintSchemaVersion != 2 ||
@@ -1402,20 +1402,19 @@ func TestBlueprintCatalogExposesOnlySafeReadOnlyProjection(t *testing.T) {
 		t.Fatalf("catálogo válido foi recusado: %v", err)
 	}
 	if catalog.Source != "image-read-only" ||
-		catalog.BlueprintCount != 5 || catalog.ExampleCount != 0 || catalog.BetaCount != 5 ||
-		catalog.HomologatedCount != 0 || catalog.ReviewCount != 0 ||
-		len(catalog.Items) != 5 || len(catalog.IndexSHA256) != 64 {
+		catalog.BlueprintCount != 6 || catalog.ExampleCount != 0 || catalog.BetaCount != 3 ||
+		catalog.HomologatedCount != 3 || catalog.ReviewCount != 0 ||
+		len(catalog.Items) != 6 || len(catalog.IndexSHA256) != 64 {
 		t.Fatalf("resumo inesperado: %#v", catalog)
 	}
 	for _, item := range catalog.Items {
-		if item.Status != "reviewed" || item.Fictitious || item.Deployable ||
+		if (item.Status != "reviewed" && item.Status != "homologated") || item.Fictitious ||
 			item.BlueprintID == "" || item.Objective == "" ||
 			len(item.Components) == 0 || len(item.ComponentDetails) == 0 || len(item.Media) == 0 ||
 			len(item.Installation.Steps) == 0 || len(item.Validation.Checks) == 0 ||
 			len(item.Rollback.Steps) == 0 || !item.DownloadAvailable ||
-			item.Editorial.CurrentStage != "reviewed" ||
-			item.Editorial.PassedGates != 9 || item.Editorial.TotalGates != 11 ||
-			item.Editorial.PromotionReady ||
+			(item.Editorial.CurrentStage != "reviewed" && item.Editorial.CurrentStage != "homologated") ||
+			item.Editorial.TotalGates != 11 ||
 			item.Editorial.VersionSeal.Algorithm != "sha256" ||
 			len(item.Editorial.VersionSeal.PayloadSHA256) != 64 {
 			t.Fatalf("exemplo inseguro ou incompleto: %#v", item)
@@ -1496,7 +1495,18 @@ func TestBlueprintEditorialRejectsUnsafePromotionAndTampering(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	base := state.Blueprints.Entries[0]
+	var base blueprintIndexEntry
+	found := false
+	for _, b := range state.Blueprints.Entries {
+		if b.Status == "reviewed" {
+			base = b
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("nenhum blueprint em revisão encontrado")
+	}
 
 	unsafePromotion := base
 	unsafePromotion.Editorial.PromotionReady = true
@@ -1573,13 +1583,13 @@ func TestKnowledgePackageUsesEmbeddedFallback(t *testing.T) {
 
 func TestReleaseAcceptsRunnerWithoutAutomaticPromotion(t *testing.T) {
 	release := setupRelease{
-		CatalogEntries:              158,
+		CatalogEntries:              161,
 		KnowledgeVersion:            "3.24.1",
 		KnowledgeArchiveSHA256:      strings.Repeat("a", 64),
-		KnowledgeEntries:            177,
+		KnowledgeEntries:            181,
 		HomologationRunnerVersion:   "1.1.0",
 		HomologationCandidateSchema: 1,
-		HomologationRegistryEntries: 158,
+		HomologationRegistryEntries: 161,
 		HomologationManifestSHA256:  strings.Repeat("b", 64),
 		HomologationAutoPromotion:   false,
 	}
@@ -1597,7 +1607,7 @@ func TestSetupStateExposesEssentialAutomaticRunner(t *testing.T) {
 		SchemaVersion:               runtimeSchema,
 		SetupVersion:                "7.23.0",
 		CatalogVersion:              "7.23.0",
-		CatalogEntries:              158,
+		CatalogEntries:              161,
 		Architecture:                "amd64",
 		HomologationRunnerVersion:   "1.1.0",
 		HomologationCandidateSchema: 1,

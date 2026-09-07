@@ -326,14 +326,22 @@ func auditChainHead(state auditState) string {
 }
 
 func inferAuditActor(action string) string {
-	if action == "login_failed" {
+	switch {
+	case action == "login_failed":
 		return "anonymous"
+	case strings.HasPrefix(action, "sentinel_"):
+		return "mno_sentinel"
+	case strings.HasPrefix(action, "fleet_tool"):
+		return "vibe_ops_agent"
+	case strings.HasPrefix(action, "fleet_"):
+		return "fleet_controller"
+	default:
+		return "admin"
 	}
-	return "admin"
 }
 
 func inferAuditResource(action string) string {
-	for _, prefix := range []string{"terminal", "assistant", "blueprint", "catalog", "setup", "provider", "login", "logout"} {
+	for _, prefix := range []string{"terminal", "assistant", "blueprint", "catalog", "setup", "provider", "login", "logout", "fleet", "sentinel"} {
 		if strings.HasPrefix(action, prefix) {
 			return prefix
 		}
@@ -345,9 +353,43 @@ func inferAuditOutcome(action string) string {
 	switch {
 	case strings.Contains(action, "fallback"):
 		return "fallback"
-	case strings.Contains(action, "failed") || strings.Contains(action, "blocked"):
+	case strings.Contains(action, "failed") || strings.Contains(action, "blocked") || strings.Contains(action, "rejected"):
 		return "denied"
 	default:
 		return "success"
+	}
+}
+
+func filterAuditEvents(events []auditEvent, scope string) []auditEvent {
+	if scope == "" || scope == "all" {
+		return events
+	}
+	filtered := make([]auditEvent, 0, len(events))
+	for _, ev := range events {
+		if matchAuditScope(ev, scope) {
+			filtered = append(filtered, ev)
+		}
+	}
+	return filtered
+}
+
+func matchAuditScope(ev auditEvent, scope string) bool {
+	switch scope {
+	case "vibe_ops":
+		return ev.Resource == "fleet" || ev.Resource == "sentinel" ||
+			strings.HasPrefix(ev.Action, "fleet_") || strings.HasPrefix(ev.Action, "sentinel_") ||
+			ev.Actor == "vibe_ops_agent" || ev.Actor == "mno_sentinel" || ev.Actor == "fleet_controller"
+	case "fleet":
+		return ev.Resource == "fleet" || strings.HasPrefix(ev.Action, "fleet_")
+	case "sentinel":
+		return ev.Resource == "sentinel" || strings.HasPrefix(ev.Action, "sentinel_") || ev.Actor == "mno_sentinel"
+	case "terminal":
+		return ev.Resource == "terminal" || strings.HasPrefix(ev.Action, "terminal_")
+	case "assistant":
+		return ev.Resource == "assistant" || strings.HasPrefix(ev.Action, "assistant_")
+	case "security", "session":
+		return ev.Resource == "login" || ev.Resource == "logout" || strings.Contains(ev.Action, "login") || strings.Contains(ev.Action, "logout")
+	default:
+		return ev.Resource == scope || strings.HasPrefix(ev.Action, scope)
 	}
 }

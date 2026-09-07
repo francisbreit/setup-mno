@@ -501,6 +501,49 @@
               <div id="sentinel-incidents-container" class="sentinel-incidents-list hidden"></div>
             </article>
 
+            <!-- MNO VIBE OPS: AUDITORIA DE IA & SENTINEL -->
+            <article class="panel vibeops-audit-panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Operação Autônoma · Rastreabilidade em Tempo Real</p>
+                  <h3>Vibe Ops: Auditoria de Chamadas de IA &amp; Sentinel</h3>
+                </div>
+                <div class="vibeops-badge-box">
+                  <span class="mode-pill mode-beta">BETA</span>
+                  <a href="/api/fleet/tools/schema.json" target="_blank" rel="noopener noreferrer" class="secure-pill status-online" title="Ver especificação JSON Schema de Function Calling">
+                    <i></i> 6 Ferramentas Homologadas (Hermes/OpenAI)
+                  </a>
+                </div>
+              </div>
+              <p>Trilha auditada e criptografada (SHA-256) de todas as ações invocadas por <strong>Hermes Agent</strong>, orquestrações via <strong>n8n</strong> e alertas emitidos pelo <strong>MNO Sentinel</strong> na sua frota de servidores.</p>
+              
+              <div class="vibeops-metrics-grid">
+                <div><small>Chamadas de Ferramentas (IA)</small><strong id="vibeops-stat-calls">0</strong></div>
+                <div><small>Incidentes Auditados</small><strong id="vibeops-stat-incidents">0</strong></div>
+                <div><small>Alertas Despachados</small><strong id="vibeops-stat-alerts">0</strong></div>
+                <div><small>Integridade Criptográfica</small><strong id="vibeops-stat-integrity" class="trend up">SHA-256 Íntegra</strong></div>
+              </div>
+
+              <div class="vibeops-tab-bar">
+                <div class="vibeops-tab-group" id="vibeops-tab-group">
+                  <button type="button" class="vibeops-tab active" data-vibeops-tab="tools">🤖 Chamadas do Hermes Agent / IA (<span id="vibeops-tools-count">0</span>)</button>
+                  <button type="button" class="vibeops-tab" data-vibeops-tab="sentinel">🛡️ Histórico de Alertas Sentinel (<span id="vibeops-sentinel-count">0</span>)</button>
+                </div>
+                <div class="vibeops-tab-actions">
+                  <button type="button" class="light-button" id="vibeops-refresh-btn" title="Atualizar trilha">↻ Atualizar</button>
+                  <button type="button" class="light-button" id="vibeops-view-all-btn" data-nav="audit" title="Ver trilha completa">Ver na Auditoria Geral <b>→</b></button>
+                </div>
+              </div>
+
+              <div id="vibeops-tools-list" class="vibeops-feed">
+                <div class="empty-state">Nenhuma chamada de ferramenta registrada ainda. Conecte o Hermes Agent ou n8n via API de ferramentas.</div>
+              </div>
+
+              <div id="vibeops-sentinel-list" class="vibeops-feed hidden">
+                <div class="empty-state">Nenhum alerta emitido pelo Sentinel nas últimas horas. Servidores operando dentro dos parâmetros normais.</div>
+              </div>
+            </article>
+
             <div class="section-tools sticky-tools">
               <div class="search-box grow"><span>⌕</span><input id="fleet-search" placeholder="Buscar por nome, endpoint, papel ou arquitetura..."></div>
               <select id="fleet-filter-status">
@@ -563,6 +606,16 @@
           <article class="panel">
             <div class="panel-head"><div><p class="eyebrow">Segurança e rastreabilidade</p><h3>Auditoria durável</h3></div><span id="audit-integrity" class="secure-pill"><i></i> Verificando</span></div>
             <p id="audit-policy" class="audit-policy">Carregando a trilha local de auditoria.</p>
+            <div class="audit-scope-bar">
+              <span class="audit-scope-label">Filtrar por escopo:</span>
+              <div class="audit-scope-pills" id="audit-scope-pills">
+                <button type="button" class="audit-pill active" data-audit-scope="all">Todos os Eventos</button>
+                <button type="button" class="audit-pill" data-audit-scope="vibe_ops">🤖 Vibe Ops &amp; Frota</button>
+                <button type="button" class="audit-pill" data-audit-scope="sentinel">🛡️ MNO Sentinel</button>
+                <button type="button" class="audit-pill" data-audit-scope="terminal">💻 Terminal &amp; Acesso</button>
+                <button type="button" class="audit-pill" data-audit-scope="assistant">🧠 Assistente IA</button>
+              </div>
+            </div>
             <div id="audit-list" class="audit-list"></div>
             <button id="audit-load-more" class="light-button audit-load-more" type="button" hidden>Carregar eventos anteriores <b>↓</b></button>
           </article>

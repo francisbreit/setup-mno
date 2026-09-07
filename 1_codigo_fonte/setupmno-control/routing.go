@@ -351,6 +351,9 @@ func selectRouteDefinition(question string, setups []string) (routeDefinition, b
 	if isKnowledgeStatusQuestion(question) {
 		return routeDefinitionByIntent("knowledge_status"), true
 	}
+	if anyPhraseContained(question, []string{"blueprint", "blueprints"}) {
+		return routeDefinitionByIntent("blueprint_recommendation"), true
+	}
 	priority := []string{
 		"fleet_dispatch", "fleet_node_diagnosis",
 		"troubleshooting", "capacity_planning", "blueprint_recommendation",

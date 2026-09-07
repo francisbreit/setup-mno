@@ -2673,8 +2673,16 @@ func (a *webApp) handleAudit(w http.ResponseWriter, r *http.Request) {
 		}
 		before = parsed
 	}
+	scope := strings.TrimSpace(r.URL.Query().Get("scope"))
+	if scope == "" {
+		scope = strings.TrimSpace(r.URL.Query().Get("filter"))
+	}
 	a.auditMu.Lock()
-	events, pagination := auditPage(a.audit.Events, before, limit)
+	eventsSource := a.audit.Events
+	if scope != "" && scope != "all" {
+		eventsSource = filterAuditEvents(eventsSource, scope)
+	}
+	events, pagination := auditPage(eventsSource, before, limit)
 	integrity := auditIntegrity{
 		Status: "verified", PolicyVersion: auditPolicyVersion,
 		AnchorSequence: a.audit.AnchorSequence, RetainedEvents: len(a.audit.Events),
@@ -2687,7 +2695,7 @@ func (a *webApp) handleAudit(w http.ResponseWriter, r *http.Request) {
 	}
 	a.auditMu.Unlock()
 	writeJSON(w, http.StatusOK, map[string]any{
-		"events": events, "pagination": pagination, "integrity": integrity,
+		"events": events, "pagination": pagination, "integrity": integrity, "scope": scope,
 	})
 }
 
@@ -2964,6 +2972,9 @@ func isFullCatalogRequest(question string) bool {
 		strings.Contains(normalized, "todas") ||
 		strings.Contains(normalized, "completo") ||
 		strings.Contains(normalized, "completa") ||
+		strings.Contains(normalized, "161") ||
+		strings.Contains(normalized, "160") ||
+		strings.Contains(normalized, "159") ||
 		strings.Contains(normalized, "158") ||
 		strings.Contains(normalized, "157") ||
 		strings.Contains(normalized, "155") ||
@@ -4271,6 +4282,9 @@ func (a *webApp) clearLoginFailures(address string) {
 }
 
 func (a *webApp) addAudit(action, detail, address string) {
+	if runes := []rune(detail); len(runes) > 300 {
+		detail = string(runes[:297]) + "..."
+	}
 	a.auditMu.Lock()
 	defer a.auditMu.Unlock()
 	previous := a.audit

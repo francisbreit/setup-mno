@@ -45,8 +45,8 @@ func TestBlueprintBetaUsesSameControlledRetrievalPath(t *testing.T) {
 			t.Fatalf("fonte externa contaminou Blueprint exato: %#v", evidence)
 		}
 		if evidence.BlueprintID != "blueprint-001-whatsapp-marketing-completo" ||
-			evidence.Fictitious || evidence.Deployable || evidence.Status != "reviewed" {
-			t.Fatalf("metadados inseguros no guia Beta recuperado: %#v", evidence)
+			evidence.Fictitious || !evidence.Deployable || evidence.Status != "homologated" {
+			t.Fatalf("metadados inseguros no guia homologado recuperado: %#v", evidence)
 		}
 		found = true
 	}
@@ -73,7 +73,7 @@ func TestBlueprintBetaGuidesResolveWithoutCrossContamination(t *testing.T) {
 		blueprintID string
 	}{
 		{"Explique o blueprint-001-whatsapp-marketing-completo", "blueprint-001-whatsapp-marketing-completo"},
-		{"Quais são os componentes do Blueprint de IA no WhatsApp SDR e CRM?", "blueprint-002-ia-whatsapp-sdr-crm"},
+		{"Quais são os componentes do Blueprint IA WhatsApp SDR e CRM?", "blueprint-002-ia-whatsapp-sdr-crm"},
 		{"Mostre a topologia do Blueprint de base de conhecimento com IA e RAG", "blueprint-003-base-conhecimento-rag"},
 		{"Como validar o Blueprint de observabilidade completa?", "blueprint-004-observabilidade-monitoramento"},
 		{"Quais são os riscos do Blueprint para servidor com pouca memória?", "blueprint-005-servidor-pequeno"},

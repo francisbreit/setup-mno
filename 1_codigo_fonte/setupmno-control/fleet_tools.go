@@ -353,6 +353,7 @@ func (a *webApp) handleFleetToolsExecute(w http.ResponseWriter, r *http.Request)
 
 		telem, latency, err := a.probeWorkerNode(ctx, matchedNode.Endpoint, matchedNode.Token)
 		if err != nil {
+			a.addAudit("fleet_tool_call_failed", fmt.Sprintf("Tool fleet_diagnose_node falhou para '%s': %v", matchedNode.Name, err), clientAddress(r))
 			writeJSON(w, http.StatusOK, FleetToolExecuteResponse{
 				Success:   false,
 				Tool:      toolName,
@@ -390,7 +391,7 @@ func (a *webApp) handleFleetToolsExecute(w http.ResponseWriter, r *http.Request)
 			version = "7.44.0"
 		}
 
-		a.addAudit("fleet_tool_call", fmt.Sprintf("Tool fleet_diagnose_node executada para %s", matchedNode.Name), clientAddress(r))
+		a.addAudit("fleet_tool_call", fmt.Sprintf("Tool fleet_diagnose_node executada para %s (online, %dms, %dMB RAM livre)", matchedNode.Name, latency, memFree), clientAddress(r))
 		writeJSON(w, http.StatusOK, FleetToolExecuteResponse{
 			Success:   true,
 			Tool:      toolName,
@@ -550,6 +551,7 @@ func (a *webApp) handleFleetToolsExecute(w http.ResponseWriter, r *http.Request)
 
 		telem, latency, err := a.probeWorkerNode(ctx, node.Endpoint, node.Token)
 		if err != nil {
+			a.addAudit("fleet_tool_call_failed", fmt.Sprintf("Tool fleet_ping_node falhou para nó '%s': %v", node.Name, err), clientAddress(r))
 			writeJSON(w, http.StatusOK, FleetToolExecuteResponse{
 				Success:   false,
 				Tool:      toolName,
@@ -565,6 +567,7 @@ func (a *webApp) handleFleetToolsExecute(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
+		a.addAudit("fleet_tool_call", fmt.Sprintf("Tool fleet_ping_node executada para nó '%s' (online, %dms)", node.Name, latency), clientAddress(r))
 		writeJSON(w, http.StatusOK, FleetToolExecuteResponse{
 			Success:   true,
 			Tool:      toolName,
@@ -604,7 +607,7 @@ func (a *webApp) handleFleetToolsExecute(w http.ResponseWriter, r *http.Request)
 			state.mu.Unlock()
 		}
 
-		a.addAudit("fleet_tool_call", "Tool fleet_sentinel_status executada", clientAddress(r))
+		a.addAudit("fleet_tool_call", fmt.Sprintf("Tool fleet_sentinel_status executada (%d incidentes ativos, %d alertas)", len(activeIncidents), len(recentAlerts)), clientAddress(r))
 		writeJSON(w, http.StatusOK, FleetToolExecuteResponse{
 			Success:   true,
 			Tool:      toolName,
@@ -620,6 +623,7 @@ func (a *webApp) handleFleetToolsExecute(w http.ResponseWriter, r *http.Request)
 		})
 
 	default:
+		a.addAudit("fleet_tool_call_rejected", fmt.Sprintf("Tool '%s' rejeitada: ferramenta não homologada", toolName), clientAddress(r))
 		writeJSON(w, http.StatusBadRequest, FleetToolExecuteResponse{
 			Success:   false,
 			Tool:      toolName,

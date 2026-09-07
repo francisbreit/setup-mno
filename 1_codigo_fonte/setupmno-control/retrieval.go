@@ -333,7 +333,7 @@ func (r *knowledgeRetriever) resolveQuery(
 		resolution.BlueprintID = resolution.BlueprintIDs[0]
 	}
 	resolution.SetupIDs = r.matchedSetupIDs(question)
-	if len(resolution.SetupIDs) == 1 {
+	if len(resolution.SetupIDs) == 1 && resolution.BlueprintID == "" {
 		setupID := resolution.SetupIDs[0]
 		if prefersInfrastructureTopic(question) {
 			resolution.SetupIDs = nil
@@ -450,8 +450,11 @@ func (r *knowledgeRetriever) retrieveResolved(
 	terms := retrievalQueryTerms(resolution.Query)
 	architectures := r.targetArchitectures(resolution.Query, runtimeArchitecture)
 	setupID := resolution.SetupID
+	if resolution.BlueprintRoute && resolution.BlueprintID != "" {
+		setupID = ""
+	}
 	exactSetup := setupID != ""
-	if !exactSetup {
+	if !exactSetup && (!resolution.BlueprintRoute || resolution.BlueprintID == "") {
 		setupID, exactSetup = r.exactSetup(resolution.Query)
 	}
 	if exactSetup {
@@ -681,8 +684,7 @@ func (r *knowledgeRetriever) rankLane(
 			continue
 		} else if blueprintRoute && blueprintID != "" {
 			continue
-		}
-		if filterSetup && (chunk.SetupID == nil || *chunk.SetupID != setupID) {
+		} else if filterSetup && (chunk.SetupID == nil || *chunk.SetupID != setupID) {
 			continue
 		}
 		score := 0.0

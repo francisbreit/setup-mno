@@ -592,4 +592,19 @@ assert.equal(terminalElement("fleet-mode-dialog").open, true);
 vm.runInContext('closeFleetModeDialog()', terminalContext);
 assert.equal(terminalElement("fleet-mode-dialog").open, false);
 
-console.log("Markdown, RAG, Blueprints, evals, feedback privado e Fleet Hub (bloqueio PRO) conferidos.");
+// Testes da Etapa 4: Vibe Ops Audit e Filtros de Escopo da Auditoria
+assert.match(html, /vibeops-audit-panel/);
+assert.match(html, /id="vibeops-stat-calls"/);
+assert.match(html, /id="vibeops-tools-list"/);
+assert.match(html, /id="vibeops-sentinel-list"/);
+assert.match(html, /id="audit-scope-pills"/);
+assert.match(html, /data-audit-scope="vibe_ops"/);
+assert.match(styles, /\.vibeops-audit-panel/);
+assert.match(styles, /\.vibeops-tool-tag/);
+assert.match(styles, /\.audit-scope-bar/);
+assert.match(styles, /\.audit-actor-badge/);
+assert.match(app, /loadVibeOpsAudit/);
+assert.match(app, /renderVibeOpsAudit/);
+assert.match(app, /state\.auditScope/);
+
+console.log("Markdown, RAG, Blueprints, evals, feedback privado, Fleet Hub e Vibe Ops Audit conferidos.");

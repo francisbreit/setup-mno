@@ -20,6 +20,8 @@ const state = {
   feedbackRating: "",
   auditEvents: [],
   auditNextBefore: 0,
+  auditScope: "all",
+  vibeOpsActiveTab: "tools",
   assistantMode: "basic",
   assistantModel: "",
   setupPlan: "",
@@ -215,6 +217,32 @@ function bindEvents() {
   $("sentinel-config-dialog")?.addEventListener("cancel", closeSentinelConfigDialog);
   $("sentinel-config-form")?.addEventListener("submit", submitSentinelConfig);
   $("sentinel-test-btn")?.addEventListener("click", testSentinelAlert);
+  $("vibeops-tab-group")?.addEventListener("click", event => {
+    const tabBtn = event.target.closest("[data-vibeops-tab]");
+    if (!tabBtn) return;
+    const tab = tabBtn.dataset.vibeopsTab;
+    state.vibeOpsActiveTab = tab;
+    document.querySelectorAll("#vibeops-tab-group .vibeops-tab").forEach(b => {
+      b.classList.toggle("active", b.dataset.vibeopsTab === tab);
+    });
+    if ($("vibeops-tools-list")) $("vibeops-tools-list").classList.toggle("hidden", tab !== "tools");
+    if ($("vibeops-sentinel-list")) $("vibeops-sentinel-list").classList.toggle("hidden", tab !== "sentinel");
+  });
+  $("vibeops-refresh-btn")?.addEventListener("click", loadVibeOpsAudit);
+  $("vibeops-view-all-btn")?.addEventListener("click", () => {
+    state.auditScope = "vibe_ops";
+    setView("audit");
+  });
+  $("audit-scope-pills")?.addEventListener("click", event => {
+    const pill = event.target.closest("[data-audit-scope]");
+    if (!pill) return;
+    const scope = pill.dataset.auditScope || "all";
+    if (state.auditScope === scope) return;
+    state.auditScope = scope;
+    state.auditEvents = [];
+    state.auditNextBefore = 0;
+    loadAudit();
+  });
   $("fleet-nodes-grid")?.addEventListener("click", handleFleetGridAction);
   $("blueprint-search").addEventListener("input", renderBlueprints);
   $("blueprint-status").addEventListener("change", renderBlueprints);
@@ -430,6 +458,8 @@ function setAuthenticated(session) {
   state.feedbackRating = "";
   state.auditEvents = [];
   state.auditNextBefore = 0;
+  state.auditScope = "all";
+  state.vibeOpsActiveTab = "tools";
   $("assistant-quality-card").classList.remove("passed", "failed");
   $("assistant-quality-title").textContent = "Verificando o motor local";
   $("assistant-quality-summary").textContent = "Os testes da release não substituem a validação da LLM escolhida.";
@@ -2421,7 +2451,8 @@ async function submitAssistantFeedback(event) {
 
 async function loadAudit(before = 0, append = false) {
   try {
-    const auditPath = before ? `/api/audit?limit=50&before=${encodeURIComponent(before)}` : "/api/audit?limit=50";
+    const scopeParam = state.auditScope && state.auditScope !== "all" ? `&scope=${encodeURIComponent(state.auditScope)}` : "";
+    const auditPath = before ? `/api/audit?limit=50&before=${encodeURIComponent(before)}${scopeParam}` : `/api/audit?limit=50${scopeParam}`;
     const [data, feedback] = await Promise.all([api(auditPath), api("/api/feedback")]);
     const events = Array.isArray(data.events) ? data.events : [];
     state.auditEvents = append ? [...state.auditEvents, ...events] : events;
@@ -2433,14 +2464,40 @@ async function loadAudit(before = 0, append = false) {
     $("audit-policy").textContent = verified
       ? `Cadeia local verificada · retenção máxima: ${Number(integrity.retentionDays) || 0} dias · ${Number(integrity.retainedEvents) || 0} eventos retidos.`
       : "A persistência ou a integridade da auditoria exige verificação administrativa antes de novas operações.";
-    $("audit-list").innerHTML = state.auditEvents.length ? state.auditEvents.map(event => `
+
+    document.querySelectorAll("#audit-scope-pills .audit-pill").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.auditScope === (state.auditScope || "all"));
+    });
+
+    $("audit-list").innerHTML = state.auditEvents.length ? state.auditEvents.map(event => {
+      const actor = event.actor || "admin";
+      let actorBadgeClass = "admin";
+      let actorLabel = "ADMIN";
+      if (actor === "vibe_ops_agent") {
+        actorBadgeClass = "vibe-ops";
+        actorLabel = "🤖 VIBE OPS";
+      } else if (actor === "mno_sentinel") {
+        actorBadgeClass = "sentinel";
+        actorLabel = "🛡️ SENTINEL";
+      } else if (actor === "fleet_controller") {
+        actorBadgeClass = "vibe-ops";
+        actorLabel = "⎇ FROTA";
+      } else if (actor === "anonymous") {
+        actorBadgeClass = "anonymous";
+        actorLabel = "🔒 ANÔNIMO";
+      }
+      return `
       <div class="audit-row">
         <span>${new Date(event.time).toLocaleString("pt-BR")}</span>
-        <strong>${escapeHTML(event.action)}</strong>
-        <small>${escapeHTML(event.actor || "admin")} · ${escapeHTML(event.outcome || "success")}</small>
+        <div>
+          <strong>${escapeHTML(event.action)}</strong>
+          <small class="audit-actor-badge ${actorBadgeClass}">${actorLabel}</small>
+        </div>
+        <small>${escapeHTML(event.resource || "system")} · ${escapeHTML(event.outcome || "success")}</small>
         <span>${escapeHTML(event.detail)}</span>
         <span>${escapeHTML(event.address)}</span>
-      </div>`).join("") : `<div class="empty-state">Nenhum evento retido na trilha local.</div>`;
+      </div>`;
+    }).join("") : `<div class="empty-state">Nenhum evento retido na trilha local para o escopo selecionado.</div>`;
     $("audit-load-more").hidden = !data.pagination?.hasMore;
     renderFeedbackReview(feedback);
   } catch (error) {
@@ -2855,6 +2912,7 @@ async function loadFleet() {
     renderFleet();
     updateFleetNavigationBadge();
     await loadSentinel();
+    await loadVibeOpsAudit();
   } catch (error) {
     if (statusEl) statusEl.textContent = "Falha ao consultar MNO Fleet Hub: " + error.message;
   }
@@ -3390,10 +3448,10 @@ function renderSentinel(status) {
     if (status.activeIncidents && status.activeIncidents.length > 0) {
       listContainer.classList.remove("hidden");
       listContainer.innerHTML = status.activeIncidents.map(inc => `
-        <div class="sentinel-incident-item ${escapeHtml(inc.severity || 'warning')}">
+        <div class="sentinel-incident-item ${escapeHTML(inc.severity || 'warning')}">
           <div>
-            <strong>${inc.severity === "critical" ? "🚨" : "⚠️"} ${escapeHtml(inc.nodeName)}:</strong>
-            <span>${escapeHtml(inc.message)}</span>
+            <strong>${inc.severity === "critical" ? "🚨" : "⚠️"} ${escapeHTML(inc.nodeName)}:</strong>
+            <span>${escapeHTML(inc.message)}</span>
           </div>
           <small class="muted">${new Date(inc.startedAt).toLocaleTimeString()}</small>
         </div>
@@ -3401,6 +3459,112 @@ function renderSentinel(status) {
     } else {
       listContainer.classList.add("hidden");
       listContainer.innerHTML = "";
+    }
+  }
+}
+
+async function loadVibeOpsAudit() {
+  if (!state.fleetAllowed || state.fleetMode !== "master") return;
+  try {
+    const [auditData, sentinelStatus] = await Promise.all([
+      api("/api/audit?scope=vibe_ops&limit=50"),
+      api("/api/sentinel/status").catch(() => ({}))
+    ]);
+    renderVibeOpsAudit(auditData, sentinelStatus);
+  } catch (err) {
+    console.warn("Vibe Ops audit indisponível:", err);
+  }
+}
+
+function renderVibeOpsAudit(auditData = {}, sentinelStatus = {}) {
+  const allEvents = Array.isArray(auditData.events) ? auditData.events : [];
+  const toolEvents = allEvents.filter(e => e.action === "fleet_tool_call" || e.action.startsWith("fleet_tool_") || e.actor === "vibe_ops_agent");
+  const sentinelEvents = allEvents.filter(e => e.action.startsWith("sentinel_") || e.actor === "mno_sentinel" || e.resource === "sentinel");
+  const recentAlerts = Array.isArray(sentinelStatus.recentAlerts) ? sentinelStatus.recentAlerts : [];
+  const integrity = auditData.integrity || {};
+
+  if ($("vibeops-stat-calls")) $("vibeops-stat-calls").textContent = String(toolEvents.length);
+  if ($("vibeops-stat-incidents")) $("vibeops-stat-incidents").textContent = String(sentinelStatus.activeCount || 0);
+  if ($("vibeops-stat-alerts")) $("vibeops-stat-alerts").textContent = String(sentinelEvents.length + recentAlerts.length);
+  if ($("vibeops-stat-integrity")) {
+    const ok = integrity.status === "verified" && integrity.persistenceStatus === "healthy";
+    $("vibeops-stat-integrity").textContent = ok ? "✓ SHA-256 Íntegra" : "! Degradação";
+    $("vibeops-stat-integrity").className = ok ? "trend up" : "trend warn";
+  }
+  if ($("vibeops-tools-count")) $("vibeops-tools-count").textContent = String(toolEvents.length);
+  if ($("vibeops-sentinel-count")) $("vibeops-sentinel-count").textContent = String(sentinelEvents.length + recentAlerts.length);
+
+  const toolsContainer = $("vibeops-tools-list");
+  if (toolsContainer) {
+    if (!toolEvents.length) {
+      toolsContainer.innerHTML = `<div class="empty-state">Nenhuma chamada de ferramenta registrada ainda. Conecte o Hermes Agent ou n8n via API de ferramentas.</div>`;
+    } else {
+      toolsContainer.innerHTML = toolEvents.map(ev => {
+        let toolName = "fleet_tool_call";
+        const match = (ev.detail || "").match(/Tool\s+([a-zA-Z0-9_-]+)/i);
+        if (match) toolName = match[1];
+        const isSuccess = ev.outcome === "success";
+        return `
+          <div class="vibeops-feed-item">
+            <div class="vibeops-feed-header">
+              <div class="vibeops-feed-tags">
+                <span class="vibeops-tool-tag">${escapeHTML(toolName)}</span>
+                <span class="vibeops-actor-tag">${escapeHTML(ev.actor || "vibe_ops_agent")}</span>
+                <span class="vibeops-outcome-tag ${isSuccess ? 'success' : 'denied'}">${isSuccess ? 'Sucesso' : 'Falha/Rejeição'}</span>
+              </div>
+              <span class="vibeops-feed-time">${new Date(ev.time).toLocaleString("pt-BR")}</span>
+            </div>
+            <div class="vibeops-feed-detail">${escapeHTML(ev.detail)}</div>
+            <div class="vibeops-feed-meta">
+              <span>Origem: <code>${escapeHTML(ev.address || "local")}</code></span>
+              <span>Hash: <code>${escapeHTML((ev.eventHash || "").slice(0, 12))}...</code></span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+  }
+
+  const sentinelContainer = $("vibeops-sentinel-list");
+  if (sentinelContainer) {
+    const combinedSentinel = [...sentinelEvents];
+    for (const alt of recentAlerts) {
+      if (!combinedSentinel.some(e => (e.detail && e.detail.includes(alt.incidentId)) || e.time === alt.sentAt)) {
+        combinedSentinel.push({
+          time: alt.sentAt,
+          action: "sentinel_alert_dispatched",
+          actor: "mno_sentinel",
+          resource: "sentinel",
+          outcome: alt.success ? "success" : "failure",
+          detail: `Alerta para incidente ${alt.incidentId} enviado via ${alt.channel} (HTTP ${alt.httpStatus})`,
+          address: "sentinel-daemon"
+        });
+      }
+    }
+    combinedSentinel.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+    if (!combinedSentinel.length) {
+      sentinelContainer.innerHTML = `<div class="empty-state">Nenhum alerta emitido pelo Sentinel nas últimas horas. Servidores operando dentro dos parâmetros normais.</div>`;
+    } else {
+      sentinelContainer.innerHTML = combinedSentinel.map(ev => {
+        const isSuccess = ev.outcome === "success";
+        return `
+          <div class="vibeops-feed-item">
+            <div class="vibeops-feed-header">
+              <div class="vibeops-feed-tags">
+                <span class="vibeops-tool-tag" style="background:rgba(168,85,247,.18);color:#c084fc;border-color:rgba(168,85,247,.3);">${escapeHTML(ev.action)}</span>
+                <span class="vibeops-actor-tag">${escapeHTML(ev.actor || "mno_sentinel")}</span>
+                <span class="vibeops-outcome-tag ${isSuccess ? 'success' : 'denied'}">${isSuccess ? 'Disparado' : 'Falha'}</span>
+              </div>
+              <span class="vibeops-feed-time">${new Date(ev.time).toLocaleString("pt-BR")}</span>
+            </div>
+            <div class="vibeops-feed-detail">${escapeHTML(ev.detail)}</div>
+            <div class="vibeops-feed-meta">
+              <span>Canal/Origem: <code>${escapeHTML(ev.address || "sentinel")}</code></span>
+            </div>
+          </div>
+        `;
+      }).join("");
     }
   }
 }
@@ -3565,6 +3729,7 @@ function escapeHTML(value) {
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
   })[character]);
 }
+const escapeHtml = escapeHTML;
 
 const ONBOARDING_KEY = "setupmno-onboarding-dismissed";
 
