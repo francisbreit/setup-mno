@@ -330,6 +330,8 @@ assert.match(app, /function submitFleetAddNode/);
 assert.match(styles, /\.mode-pill\.mode-master/);
 assert.match(styles, /\.fleet-card\.is-master/);
 assert.match(styles, /\.fleet-features-grid/);
+assert.match(styles, /\.secure-pill\.status-offline\s*\{[^}]*color:\s*var\(--red/);
+assert.match(styles, /\.secure-pill\.status-online\s*\{[^}]*color:\s*var\(--green/);
 assert.match(html, /data-help-filter="vibeops"/);
 assert.match(html, /id="help-vibeops-hero"/);
 assert.match(html, /id="help-guide-vibeops"/);

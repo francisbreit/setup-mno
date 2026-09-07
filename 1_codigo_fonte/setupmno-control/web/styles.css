@@ -16,7 +16,9 @@
   --green: #35d399;
   --green-soft: rgba(53, 211, 153, .12);
   --yellow: #f5c451;
+  --yellow-soft: rgba(245, 196, 81, .12);
   --red: #ff5e70;
+  --red-soft: rgba(255, 94, 112, .12);
   --violet: #9375ff;
   --cyan: #3bd5f5;
   --shadow: 0 24px 80px rgba(0, 0, 0, .35);
@@ -79,6 +81,12 @@ button, select { cursor: pointer; }
 .login-card h2 { margin: 0; font-size: 26px; letter-spacing: -.03em; }
 .secure-pill { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid rgba(53,211,153,.22); border-radius: 999px; color: var(--green); background: var(--green-soft); font-size: var(--font-size-10); font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .secure-pill i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px rgba(53,211,153,.08); }
+.secure-pill.status-online { color: var(--green); background: var(--green-soft); border-color: rgba(53,211,153,.22); }
+.secure-pill.status-online i { box-shadow: 0 0 0 4px rgba(53,211,153,.08); }
+.secure-pill.status-warning { color: var(--yellow); background: var(--yellow-soft); border-color: rgba(245,196,81,.28); }
+.secure-pill.status-warning i { box-shadow: 0 0 0 4px rgba(245,196,81,.12); }
+.secure-pill.status-offline { color: var(--red); background: var(--red-soft); border-color: rgba(255,94,112,.3); }
+.secure-pill.status-offline i { box-shadow: 0 0 0 4px rgba(255,94,112,.12); }
 label { display: block; margin-bottom: 19px; }
 label > span { display: block; margin-bottom: 8px; color: #b8bec8; font-size: 12px; font-weight: 700; }
 input, select, textarea { width: 100%; border: 1px solid var(--line); outline: 0; color: var(--text); background: rgba(4,6,10,.7); transition: border-color .2s, box-shadow .2s, background .2s; }
