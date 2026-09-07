@@ -209,6 +209,12 @@ function bindEvents() {
   $("fleet-worker-token-toggle")?.addEventListener("click", toggleWorkerTokenVisibility);
   $("fleet-worker-token-copy")?.addEventListener("click", copyWorkerToken);
   $("fleet-worker-url-copy")?.addEventListener("click", copyWorkerURL);
+  $("sentinel-config-btn")?.addEventListener("click", openSentinelConfigDialog);
+  $("sentinel-dialog-close")?.addEventListener("click", closeSentinelConfigDialog);
+  $("sentinel-dialog-cancel")?.addEventListener("click", closeSentinelConfigDialog);
+  $("sentinel-config-dialog")?.addEventListener("cancel", closeSentinelConfigDialog);
+  $("sentinel-config-form")?.addEventListener("submit", submitSentinelConfig);
+  $("sentinel-test-btn")?.addEventListener("click", testSentinelAlert);
   $("fleet-nodes-grid")?.addEventListener("click", handleFleetGridAction);
   $("blueprint-search").addEventListener("input", renderBlueprints);
   $("blueprint-status").addEventListener("change", renderBlueprints);
@@ -2848,6 +2854,7 @@ async function loadFleet() {
 
     renderFleet();
     updateFleetNavigationBadge();
+    await loadSentinel();
   } catch (error) {
     if (statusEl) statusEl.textContent = "Falha ao consultar MNO Fleet Hub: " + error.message;
   }
@@ -3334,6 +3341,189 @@ async function copyWorkerURL() {
     input.select();
     document.execCommand("copy");
     showToast("URL copiada!");
+  }
+}
+
+async function loadSentinel() {
+  if (!state.fleetAllowed) return;
+  try {
+    const status = await api("/api/sentinel/status");
+    renderSentinel(status);
+  } catch (err) {
+    console.warn("Sentinel status indisponível:", err);
+  }
+}
+
+function renderSentinel(status) {
+  const badge = $("sentinel-status-badge");
+  const runningEl = $("sentinel-stat-running");
+  const lastEl = $("sentinel-stat-last");
+  const incidentsEl = $("sentinel-stat-incidents");
+  const listContainer = $("sentinel-incidents-container");
+
+  if (!status) return;
+
+  if (badge) {
+    if (status.enabled) {
+      badge.className = "mode-pill mode-master";
+      badge.textContent = status.running ? "Vigilância Ativa" : "Ativado";
+    } else {
+      badge.className = "mode-pill mode-disabled";
+      badge.textContent = "Sentinel Inativo";
+    }
+  }
+
+  if (runningEl) {
+    runningEl.textContent = status.enabled ? "Ativo (24/7)" : "Desativado";
+  }
+
+  if (lastEl) {
+    lastEl.textContent = status.lastCheck ? new Date(status.lastCheck).toLocaleTimeString() : "Aguardando";
+  }
+
+  if (incidentsEl) {
+    incidentsEl.textContent = String(status.activeCount || 0);
+    incidentsEl.className = status.activeCount > 0 ? "trend warn" : "trend up";
+  }
+
+  if (listContainer) {
+    if (status.activeIncidents && status.activeIncidents.length > 0) {
+      listContainer.classList.remove("hidden");
+      listContainer.innerHTML = status.activeIncidents.map(inc => `
+        <div class="sentinel-incident-item ${escapeHtml(inc.severity || 'warning')}">
+          <div>
+            <strong>${inc.severity === "critical" ? "🚨" : "⚠️"} ${escapeHtml(inc.nodeName)}:</strong>
+            <span>${escapeHtml(inc.message)}</span>
+          </div>
+          <small class="muted">${new Date(inc.startedAt).toLocaleTimeString()}</small>
+        </div>
+      `).join("");
+    } else {
+      listContainer.classList.add("hidden");
+      listContainer.innerHTML = "";
+    }
+  }
+}
+
+async function openSentinelConfigDialog() {
+  if (!state.fleetAllowed) {
+    showToast("Configuração bloqueada: exclusivo para planos PRO e PRO MASTER.");
+    return;
+  }
+  const dialog = $("sentinel-config-dialog");
+  const feedbackEl = $("sentinel-test-feedback");
+  if (feedbackEl) feedbackEl.classList.add("hidden");
+
+  try {
+    const cfg = await api("/api/sentinel/config");
+    if ($("sentinel-enabled-input")) $("sentinel-enabled-input").checked = cfg.enabled === true;
+    if ($("sentinel-ram-threshold")) $("sentinel-ram-threshold").value = cfg.ramThresholdPct || 85;
+    if ($("sentinel-disk-threshold")) $("sentinel-disk-threshold").value = cfg.diskThresholdPct || 90;
+    if ($("sentinel-notify-degraded")) $("sentinel-notify-degraded").checked = cfg.notifyDegradedApp !== false;
+    if ($("sentinel-notify-node-down")) $("sentinel-notify-node-down").checked = cfg.notifyNodeDown !== false;
+    if ($("sentinel-webhook-url")) $("sentinel-webhook-url").value = cfg.webhookURL || "";
+    if ($("sentinel-telegram-token")) $("sentinel-telegram-token").value = cfg.telegramBotToken || "";
+    if ($("sentinel-telegram-chat")) $("sentinel-telegram-chat").value = cfg.telegramChatID || "";
+    if ($("sentinel-cooldown")) $("sentinel-cooldown").value = cfg.cooldownMinutes || 15;
+  } catch (err) {
+    showToast("Erro ao carregar configurações do Sentinel: " + err.message);
+  }
+
+  if (dialog && !dialog.open) dialog.showModal();
+}
+
+function closeSentinelConfigDialog() {
+  const dialog = $("sentinel-config-dialog");
+  if (dialog?.open) dialog.close();
+}
+
+async function submitSentinelConfig(event) {
+  event.preventDefault();
+  const submitBtn = $("sentinel-save-btn");
+  const feedbackEl = $("sentinel-test-feedback");
+  if (feedbackEl) feedbackEl.classList.add("hidden");
+
+  const payload = {
+    enabled: $("sentinel-enabled-input")?.checked || false,
+    ramThresholdPct: parseInt($("sentinel-ram-threshold")?.value, 10) || 85,
+    diskThresholdPct: parseInt($("sentinel-disk-threshold")?.value, 10) || 90,
+    notifyDegradedApp: $("sentinel-notify-degraded")?.checked || false,
+    notifyNodeDown: $("sentinel-notify-node-down")?.checked || false,
+    webhookURL: $("sentinel-webhook-url")?.value?.trim() || "",
+    telegramBotToken: $("sentinel-telegram-token")?.value?.trim() || "",
+    telegramChatID: $("sentinel-telegram-chat")?.value?.trim() || "",
+    cooldownMinutes: parseInt($("sentinel-cooldown")?.value, 10) || 15
+  };
+
+  try {
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Salvando...";
+    }
+    await api("/api/sentinel/config", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    showToast("✓ Configurações do MNO Sentinel salvas com sucesso!");
+    closeSentinelConfigDialog();
+    await loadSentinel();
+  } catch (err) {
+    if (feedbackEl) {
+      feedbackEl.textContent = "Erro ao salvar: " + err.message;
+      feedbackEl.className = "form-feedback error";
+      feedbackEl.classList.remove("hidden");
+    } else {
+      showToast("Erro: " + err.message);
+    }
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Salvar Configurações";
+    }
+  }
+}
+
+async function testSentinelAlert() {
+  const testBtn = $("sentinel-test-btn");
+  const feedbackEl = $("sentinel-test-feedback");
+  if (!feedbackEl) return;
+
+  const testPayload = {
+    webhookURL: $("sentinel-webhook-url")?.value?.trim() || "",
+    telegramBotToken: $("sentinel-telegram-token")?.value?.trim() || "",
+    telegramChatID: $("sentinel-telegram-chat")?.value?.trim() || ""
+  };
+
+  try {
+    if (testBtn) {
+      testBtn.disabled = true;
+      testBtn.textContent = "Enviando teste...";
+    }
+    feedbackEl.textContent = "Disparando teste de notificação...";
+    feedbackEl.className = "form-feedback info";
+    feedbackEl.classList.remove("hidden");
+
+    const res = await api("/api/sentinel/test", {
+      method: "POST",
+      body: JSON.stringify(testPayload)
+    });
+
+    const failed = (res.records || []).filter(r => !r.success);
+    if (failed.length > 0) {
+      feedbackEl.textContent = `Aviso: Falha em ${failed.map(f => f.target + " (" + f.error + ")").join(", ")}`;
+      feedbackEl.className = "form-feedback warn";
+    } else {
+      feedbackEl.textContent = "✓ Teste de alerta enviado e entregue com sucesso nos canais configurados!";
+      feedbackEl.className = "form-feedback success";
+    }
+  } catch (err) {
+    feedbackEl.textContent = "Erro ao enviar teste: " + err.message;
+    feedbackEl.className = "form-feedback error";
+  } finally {
+    if (testBtn) {
+      testBtn.disabled = false;
+      testBtn.textContent = "Testar Envio Agora 🧪";
+    }
   }
 }
 

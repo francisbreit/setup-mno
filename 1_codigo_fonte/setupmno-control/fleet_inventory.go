@@ -61,6 +61,10 @@ func validateFleetEndpoint(rawURL string) (string, error) {
 		return "", errors.New("queries ou fragmentos não são permitidos na URL do endpoint")
 	}
 
+	if parsed.Path != "" && parsed.Path != "/" {
+		return "", errors.New("paths adicionais não são permitidos na URL do endpoint")
+	}
+
 	host := parsed.Hostname()
 	if host == "" {
 		return "", errors.New("hostname do endpoint não pode ser vazio")

@@ -103,6 +103,10 @@ type webApp struct {
 
 	fleetStore *fleetInventoryStore
 	fleetMu    sync.Mutex
+
+	sentinelMu     sync.Mutex
+	sentinelConfig *SentinelConfig
+	sentinelState  *sentinelRuntimeState
 }
 
 type blueprintMediaSummary struct {
@@ -583,6 +587,10 @@ func runWeb() error {
 	if err != nil {
 		return fmt.Errorf("inventário do Fleet Hub indisponível: %w", err)
 	}
+	sentinelCfg, err := loadSentinelConfig(envDefault("SENTINEL_CONFIG_PATH", "/audit/sentinel_config.json"))
+	if err != nil {
+		sentinelCfg = defaultSentinelConfig()
+	}
 	blueprintKnowledge, err := loadEmbeddedKnowledgePackage()
 	if err != nil {
 		return fmt.Errorf("catálogo de Blueprints indisponível: %w", err)
@@ -657,6 +665,8 @@ func runWeb() error {
 		quality:          blueprintKnowledge.Quality,
 		feedbackTokens:   make(map[string]feedbackTokenRecord),
 		fleetStore:       fleetStore,
+		sentinelConfig:   sentinelCfg,
+		sentinelState:    newSentinelRuntimeState(),
 	}
 	app.passwordHash = pbkdf2SHA256(passwordSecret, app.passwordSalt, 310000, 32)
 	zero(passwordSecret)
@@ -702,6 +712,10 @@ func runWeb() error {
 	mux.HandleFunc("GET /api/fleet/tools/schema.json", app.handleFleetToolsSchema)
 	mux.HandleFunc("GET /api/fleet/tools", app.handleFleetToolsSchema)
 	mux.HandleFunc("POST /api/fleet/tools/execute", app.handleFleetToolsExecute)
+	mux.Handle("GET /api/sentinel/config", app.requireAuth(http.HandlerFunc(app.handleSentinelGetConfig)))
+	mux.Handle("POST /api/sentinel/config", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleSentinelSaveConfig))))
+	mux.Handle("POST /api/sentinel/test", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleSentinelTestAlert))))
+	mux.Handle("GET /api/sentinel/status", app.requireAuth(http.HandlerFunc(app.handleSentinelGetStatus)))
 	mux.HandleFunc("GET /install.html", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/?action=terminal", http.StatusTemporaryRedirect)
 	})
@@ -723,6 +737,7 @@ func runWeb() error {
 	}
 
 	go app.sessionJanitor()
+	go app.sentinelDaemon()
 	log.Printf("Setup MNO Control Center %s iniciado na porta 8080", app.version)
 	return server.ListenAndServe()
 }

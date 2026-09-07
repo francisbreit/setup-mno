@@ -142,6 +142,18 @@ func getFleetToolsDefinitions() []FleetToolDefinition {
 				},
 			},
 		},
+		{
+			Type: "function",
+			Function: FleetToolFunctionSpec{
+				Name:        "fleet_sentinel_status",
+				Description: "Consulta o status do sentinela autônomo (MNO Sentinel), incidentes ativos na frota (sobrecarga de RAM, disco, nós offline ou containers instáveis) e histórico recente de alertas enviados via Telegram/Webhook.",
+				Parameters: FleetToolParamSpec{
+					Type:       "object",
+					Properties: map[string]FleetToolPropField{},
+					Required:   []string{},
+				},
+			},
+		},
 	}
 }
 
@@ -564,6 +576,46 @@ func (a *webApp) handleFleetToolsExecute(w http.ResponseWriter, r *http.Request)
 				"latencyMs": latency,
 				"status":    "online",
 				"activeSwarm": telem.ActiveSwarm,
+			},
+		})
+
+	case "fleet_sentinel_status":
+		a.sentinelMu.Lock()
+		cfg := a.sentinelConfig
+		state := a.sentinelState
+		a.sentinelMu.Unlock()
+
+		enabled := cfg != nil && cfg.Enabled
+		activeIncidents := make([]SentinelIncident, 0)
+		recentAlerts := make([]SentinelAlertRecord, 0)
+		var lastCheck string
+		running := false
+
+		if state != nil {
+			state.mu.Lock()
+			running = state.running
+			if !state.lastCheck.IsZero() {
+				lastCheck = state.lastCheck.Format(time.RFC3339)
+			}
+			for _, inc := range state.incidents {
+				activeIncidents = append(activeIncidents, inc.Incident)
+			}
+			recentAlerts = append(recentAlerts, state.recentAlerts...)
+			state.mu.Unlock()
+		}
+
+		a.addAudit("fleet_tool_call", "Tool fleet_sentinel_status executada", clientAddress(r))
+		writeJSON(w, http.StatusOK, FleetToolExecuteResponse{
+			Success:   true,
+			Tool:      toolName,
+			Timestamp: timestamp,
+			Result: map[string]any{
+				"enabled":         enabled,
+				"running":         running,
+				"lastCheck":       lastCheck,
+				"activeCount":     len(activeIncidents),
+				"activeIncidents": activeIncidents,
+				"recentAlerts":    recentAlerts,
 			},
 		})
 

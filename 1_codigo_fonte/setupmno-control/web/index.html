@@ -480,6 +480,27 @@
               <article><small>Aplicações na Frota</small><strong id="fleet-stat-services">—</strong></article>
             </div>
 
+            <!-- MNO SENTINEL: ALERTAS E MONITORAMENTO AUTÔNOMO -->
+            <article class="panel sentinel-panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Sentinela Autônomo · Watchdog 24/7</p>
+                  <h3>MNO Sentinel (Alertas Telegram &amp; Webhooks)</h3>
+                </div>
+                <div class="sentinel-badge-box">
+                  <span id="sentinel-status-badge" class="mode-pill mode-disabled">Sentinel Inativo</span>
+                  <button type="button" class="light-button" id="sentinel-config-btn">Configurar Alertas <b>⚙</b></button>
+                </div>
+              </div>
+              <p>O MNO Sentinel monitora os servidores em segundo plano (consumo crítico de RAM, disco, nós offline e containers degradados no Swarm) e emite alertas automáticos e instantâneos para o seu <strong>Telegram</strong> ou <strong>n8n / Discord / Slack</strong> com zero sobrecarga de memória.</p>
+              <div class="sentinel-summary-grid">
+                <div><small>Status da Vigilância</small><strong id="sentinel-stat-running">Desativado</strong></div>
+                <div><small>Última Varredura</small><strong id="sentinel-stat-last">—</strong></div>
+                <div><small>Incidentes Ativos</small><strong id="sentinel-stat-incidents" class="trend warn">0</strong></div>
+              </div>
+              <div id="sentinel-incidents-container" class="sentinel-incidents-list hidden"></div>
+            </article>
+
             <div class="section-tools sticky-tools">
               <div class="search-box grow"><span>⌕</span><input id="fleet-search" placeholder="Buscar por nome, endpoint, papel ou arquitetura..."></div>
               <select id="fleet-filter-status">
@@ -1127,6 +1148,91 @@
       <footer class="dialog-actions">
         <button type="button" class="primary-button" id="fleet-mode-dialog-ok">Entendido <b>✓</b></button>
       </footer>
+    </div>
+  </dialog>
+
+  <!-- DIALOG: CONFIGURAR MNO SENTINEL ALERTAS -->
+  <dialog id="sentinel-config-dialog" class="mno-dialog fleet-dialog" aria-labelledby="sentinel-config-title">
+    <div class="dialog-content">
+      <header class="dialog-header">
+        <div>
+          <p class="eyebrow">Configuração de Alertas 24/7</p>
+          <h3 id="sentinel-config-title">MNO Sentinel (Watchdog de Incidentes)</h3>
+        </div>
+        <button id="sentinel-dialog-close" class="icon-button" type="button" aria-label="Fechar modal">×</button>
+      </header>
+      <div class="dialog-body">
+        <form id="sentinel-config-form" class="mno-form">
+          <div class="form-group">
+            <label class="toggle-label">
+              <input type="checkbox" id="sentinel-enabled-input">
+              <strong>Ativar Vigilância Autônoma (MNO Sentinel)</strong>
+            </label>
+            <small class="muted">Monitoramento em segundo plano no Docker Swarm com zero sobrecarga de RAM.</small>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group half">
+              <label for="sentinel-ram-threshold"><strong>Limite Crítico de RAM (%)</strong></label>
+              <input type="number" id="sentinel-ram-threshold" min="50" max="98" value="85" placeholder="85">
+              <small class="muted">Alerta se o uso de RAM ultrapassar este percentual.</small>
+            </div>
+            <div class="form-group half">
+              <label for="sentinel-disk-threshold"><strong>Limite de Disco (%)</strong></label>
+              <input type="number" id="sentinel-disk-threshold" min="50" max="98" value="90" placeholder="90">
+              <small class="muted">Alerta se o uso de disco ultrapassar este percentual.</small>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group half">
+              <label class="toggle-label">
+                <input type="checkbox" id="sentinel-notify-degraded" checked>
+                <span>Alertar se containers/apps caírem</span>
+              </label>
+            </div>
+            <div class="form-group half">
+              <label class="toggle-label">
+                <input type="checkbox" id="sentinel-notify-node-down" checked>
+                <span>Alertar se nó worker ficar offline</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="sentinel-webhook-url"><strong>Webhook URL (n8n / Discord / Slack)</strong></label>
+            <input type="url" id="sentinel-webhook-url" placeholder="https://n8n.meudominio.com/webhook/alertas">
+            <small class="muted">Receba notificações JSON no n8n para automações no WhatsApp ou canais de suporte.</small>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group half">
+              <label for="sentinel-telegram-token"><strong>Telegram Bot Token</strong></label>
+              <input type="password" id="sentinel-telegram-token" placeholder="123456789:ABCdefGHI...">
+              <small class="muted">Token fornecido pelo @BotFather.</small>
+            </div>
+            <div class="form-group half">
+              <label for="sentinel-telegram-chat"><strong>Telegram Chat ID</strong></label>
+              <input type="text" id="sentinel-telegram-chat" placeholder="-1001234567890">
+              <small class="muted">Seu ID pessoal ou ID do grupo/canal.</small>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="sentinel-cooldown"><strong>Cooldown Anti-Flood (Minutos)</strong></label>
+            <input type="number" id="sentinel-cooldown" min="1" max="1440" value="15" placeholder="15">
+            <small class="muted">Intervalo mínimo entre re-notificações do mesmo incidente.</small>
+          </div>
+
+          <div id="sentinel-test-feedback" class="form-feedback hidden"></div>
+
+          <div class="dialog-actions">
+            <button type="button" class="light-button" id="sentinel-test-btn">Testar Envio Agora 🧪</button>
+            <button type="button" class="ghost-button" id="sentinel-dialog-cancel">Cancelar</button>
+            <button type="submit" class="primary-button" id="sentinel-save-btn">Salvar Configurações</button>
+          </div>
+        </form>
+      </div>
     </div>
   </dialog>
 

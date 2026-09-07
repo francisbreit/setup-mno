@@ -275,8 +275,8 @@ func TestFleetToolsSchema(t *testing.T) {
 		t.Errorf("metadados do schema incorretos: %+v", schema)
 	}
 
-	if len(schema.Tools) != 5 {
-		t.Fatalf("esperava 5 ferramentas homologadas, obteve %d", len(schema.Tools))
+	if len(schema.Tools) != 6 {
+		t.Fatalf("esperava 6 ferramentas homologadas, obteve %d", len(schema.Tools))
 	}
 
 	names := make(map[string]bool)
@@ -293,6 +293,7 @@ func TestFleetToolsSchema(t *testing.T) {
 		"fleet_diagnose_node",
 		"fleet_consult_dispatch",
 		"fleet_ping_node",
+		"fleet_sentinel_status",
 	}
 
 	for _, name := range expectedTools {
