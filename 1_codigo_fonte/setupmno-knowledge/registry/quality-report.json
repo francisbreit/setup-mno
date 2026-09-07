@@ -524,6 +524,27 @@
       ]
     },
     {
+      "catalogName": "COMBO VIBE OPS (HERMES AGENT + N8N)*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "combo-vibe-ops",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
       "catalogName": "COMBO WHATSAPP MARKETING COMPLETO*",
       "editorialStatus": "reviewed",
       "homologationEvidence": false,
@@ -3404,25 +3425,25 @@
     }
   ],
   "evidenceSchemaVersion": 1,
-  "generatedAt": "2026-09-03T00:00:00Z",
+  "generatedAt": "2026-09-06T00:00:00Z",
   "knowledgeVersion": "3.34.2",
   "schemaVersion": 2,
-  "setupVersion": "7.44.0",
+  "setupVersion": "7.45.0",
   "summary": {
     "editorialStatuses": {
       "deprecated": 0,
       "draft": 0,
       "homologated": 0,
       "outdated": 0,
-      "reviewed": 160
+      "reviewed": 161
     },
     "homologatedEntries": 0,
     "installationStatuses": {
-      "maintainer-homologated": 160
+      "maintainer-homologated": 161
     },
     "integrationMaturityLevels": {
       "documented": 0,
-      "not-mapped": 160,
+      "not-mapped": 161,
       "suggested": 0,
       "validated": 0
     },
@@ -3433,12 +3454,12 @@
       "operational-reviewed": 1,
       "script-reviewed": 0,
       "source-reviewed": 0,
-      "structural": 159
+      "structural": 160
     },
-    "officialSourceEntries": 140,
+    "officialSourceEntries": 141,
     "officialSourceExceptions": 1,
     "operationalEvidenceEntries": 1,
-    "setupEntries": 160,
+    "setupEntries": 161,
     "unresolvedIssueCount": 29
   }
 }

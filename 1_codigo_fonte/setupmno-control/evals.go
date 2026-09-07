@@ -12,7 +12,7 @@ const (
 	evalSchemaVersion  = 1
 	evalDatasetVersion = "1.17.0"
 	evalGraderVersion  = "1.9.0"
-	evalExpectedCases  = 888
+	evalExpectedCases  = 893
 )
 
 type evalReview struct {

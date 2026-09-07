@@ -217,7 +217,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.44.0"
+VERSIONSETUP="7.45.0"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -845,6 +845,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
     "COMBO WHATSAPP MARKETING COMPLETO*" ""   \
     "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*" ""   \
+    "COMBO VIBE OPS (HERMES AGENT + N8N)*" ""   \
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
     "CHATWOOT AI CUSTOMER SERVICE*" ""   \
@@ -1021,6 +1022,7 @@ case "$CHOICE" in
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
             "COMBO WHATSAPP MARKETING COMPLETO*")                   warn_heavy "Combo WhatsApp Marketing Completo" "8GB" && run_app combo_whatsapp_marketing ;;
             "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*")           warn_heavy "Combo Agente IA WhatsApp + CRM (SDR 24/7)" "8GB" && run_app combo_ia_whatsapp_sdr_crm ;;
+            "COMBO VIBE OPS (HERMES AGENT + N8N)*")                 warn_heavy "Combo Vibe Ops (Hermes Agent + n8n)" "3GB" && run_app combo_vibe_ops ;;
             "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    warn_heavy "Chatwoot Original + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwooto_evo2_rabbitmq_minio ;;
             "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") warn_heavy "Chatwoot Desbloqueado + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
             "CHATWOOT AI CUSTOMER SERVICE*") warn_heavy "Chatwoot AI Customer Service" "10GB" && run_app chatwoot_ai_customer_service ;;
@@ -1239,6 +1241,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "COMBO WHATSAPP MARKETING COMPLETO*" "PRO"   \
     "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*" "PRO"   \
+    "COMBO VIBE OPS (HERMES AGENT + N8N)*" "PRO"   \
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOT AI CUSTOMER SERVICE*" "PRO"   \
@@ -1366,6 +1369,7 @@ case "$CHOICE" in
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
             "COMBO WHATSAPP MARKETING COMPLETO*")                   warn_heavy "Combo WhatsApp Marketing Completo" "8GB" && run_app combo_whatsapp_marketing ;;
             "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*")           warn_heavy "Combo Agente IA WhatsApp + CRM (SDR 24/7)" "8GB" && run_app combo_ia_whatsapp_sdr_crm ;;
+            "COMBO VIBE OPS (HERMES AGENT + N8N)*")                 warn_heavy "Combo Vibe Ops (Hermes Agent + n8n)" "3GB" && run_app combo_vibe_ops ;;
             "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    warn_heavy "Chatwoot Original + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwooto_evo2_rabbitmq_minio ;;
             "CHANGEDETECTION.IO")                                     run_app changedetection ;;
             "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") warn_heavy "Chatwoot Desbloqueado + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
@@ -1545,6 +1549,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "COMBO WHATSAPP MARKETING COMPLETO*" "PRO"   \
     "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*" "PRO"   \
+    "COMBO VIBE OPS (HERMES AGENT + N8N)*" "PRO"   \
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOT AI CUSTOMER SERVICE*" "PRO"   \
@@ -1704,6 +1709,7 @@ case "$CHOICE" in
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
             "COMBO WHATSAPP MARKETING COMPLETO*")                   warn_heavy "Combo WhatsApp Marketing Completo" "8GB" && run_app combo_whatsapp_marketing ;;
             "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*")           warn_heavy "Combo Agente IA WhatsApp + CRM (SDR 24/7)" "8GB" && run_app combo_ia_whatsapp_sdr_crm ;;
+            "COMBO VIBE OPS (HERMES AGENT + N8N)*")                 warn_heavy "Combo Vibe Ops (Hermes Agent + n8n)" "3GB" && run_app combo_vibe_ops ;;
             "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    warn_heavy "Chatwoot Original + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwooto_evo2_rabbitmq_minio ;;
             "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") warn_heavy "Chatwoot Desbloqueado + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
             "CHATWOOT AI CUSTOMER SERVICE*") warn_heavy "Chatwoot AI Customer Service" "10GB" && run_app chatwoot_ai_customer_service ;;
@@ -1882,6 +1888,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "COMBO WHATSAPP MARKETING COMPLETO*" "PRO"   \
     "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*" "PRO"   \
+    "COMBO VIBE OPS (HERMES AGENT + N8N)*" "PRO"   \
     "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "CHATWOOT AI CUSTOMER SERVICE*" "PRO"   \
@@ -2041,6 +2048,7 @@ case "$CHOICE" in
             "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
             "COMBO WHATSAPP MARKETING COMPLETO*")                   warn_heavy "Combo WhatsApp Marketing Completo" "8GB" && run_app combo_whatsapp_marketing ;;
             "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*")           warn_heavy "Combo Agente IA WhatsApp + CRM (SDR 24/7)" "8GB" && run_app combo_ia_whatsapp_sdr_crm ;;
+            "COMBO VIBE OPS (HERMES AGENT + N8N)*")                 warn_heavy "Combo Vibe Ops (Hermes Agent + n8n)" "3GB" && run_app combo_vibe_ops ;;
             "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")    warn_heavy "Chatwoot Original + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwooto_evo2_rabbitmq_minio ;;
             "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*") warn_heavy "Chatwoot Desbloqueado + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootorig_desbloq__evo2_rabbitmq_minio ;;
             "CHATWOOT AI CUSTOMER SERVICE*") warn_heavy "Chatwoot AI Customer Service" "10GB" && run_app chatwoot_ai_customer_service ;;

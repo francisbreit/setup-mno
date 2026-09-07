@@ -413,7 +413,7 @@ func TestReadRuntimeSnapshotAcceptsGeneratedKnowledgeManifest(t *testing.T) {
 		snapshot.Release.EvalSchemaVersion != 1 ||
 		snapshot.Release.EvalDatasetVersion != "1.17.0" ||
 		snapshot.Release.EvalGraderVersion != "1.9.0" ||
-		snapshot.Release.EvalCaseEntries != 888 ||
+		snapshot.Release.EvalCaseEntries != 893 ||
 		len(snapshot.Release.EvalDatasetSHA256) != 64 ||
 		snapshot.Release.SupplyChainSchemaVersion != 1 ||
 		snapshot.Release.SupplyChainSignatureStatus != "unsigned-sha256-bound" ||
@@ -1373,7 +1373,7 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 		state.Manifest.EvalSchemaVersion != 1 ||
 		state.Manifest.EvalDatasetVersion != "1.17.0" ||
 		state.Manifest.EvalGraderVersion != "1.9.0" ||
-		state.Manifest.EvalCaseEntries != 888 ||
+		state.Manifest.EvalCaseEntries != 893 ||
 		len(state.Manifest.EvalDatasetSHA256) != 64 ||
 		state.Manifest.ChunkEntries <= state.Manifest.DocumentEntries {
 		t.Fatalf("estado inesperado do conhecimento: %#v", state)

@@ -1,15 +1,15 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.44.0"
-EXPECTED_CATALOG_ENTRIES="160"
+VERSIONSETUP="7.45.0"
+EXPECTED_CATALOG_ENTRIES="161"
 EXPECTED_EVAL_DATASET_VERSION="1.17.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
-EXPECTED_EVAL_CASE_ENTRIES="888"
+EXPECTED_EVAL_CASE_ENTRIES="893"
 EXPECTED_BLUEPRINT_FACTORY_VERSION="2.1.0"
 EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="0"
 EXPECTED_QUALITY_SCHEMA_VERSION="2"
 EXPECTED_HOMOLOGATION_RUNNER_VERSION="1.3.0"
-EXPECTED_CONTROL_RELEASE_SHA256="73905bd86ac1816232ef6a9fc4774e0d529a3a704b7e773d33661fba03938ea6"
+EXPECTED_CONTROL_RELEASE_SHA256="de5712e82217a3a41e000491d92a615ea3359e1693b60c930110b60e87b9ea24"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -1956,6 +1956,15 @@ rm combo_ia_whatsapp_sdr_crm
 fi
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm combo_ia_whatsapp_sdr_crm
+fi
+shc -e $data_expiracao -m "$msg_expiracao" -o combo_vibe_ops -f combo_vibe_ops.sh
+rm combo_vibe_ops.sh
+rm combo_vibe_ops.sh.x.c
+if [ "$PLANO" == "free" ]; then
+rm combo_vibe_ops
+fi
+if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
+rm combo_vibe_ops
 fi
 shc -e $data_expiracao -m "$msg_expiracao" -o typebot_minio -f typebot_minio.sh
 rm typebot_minio.sh

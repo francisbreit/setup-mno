@@ -146,7 +146,7 @@ capacidade de uma IA executar comandos nunca será tratada como equivalente a
 - reorganização do menu do `install.sh` (x86 e ARM) posicionando `⎇ MNO FLEET HUB` no final do menu interativo, antes da opção de sair;
 - seção dedicada de Vibe Ops e MNO Fleet Hub na Central de Ajuda (Help) do Control Center com guia passo a passo, modelo mental e comparativo técnico de consumo (0 MB de RAM ociosa vs concorrentes);
 - blindagem e segregação estrita de acesso ao Fleet Hub: bloqueio total de configuração nos planos Free (`free`, `free1`, `free2`) e no modo Tradicional (exclusivo para PRO e PRO MASTER no modo Cloudflare Tunnel), tanto no menu interativo do terminal `install.sh` (com tag `PRO` e modal informativo) quanto no Control Center web (botões travados com estilo `.btn-pro-locked`, tag `🔒 PRO`, diálogos bloqueados com toast e backend Go respondendo HTTP 403 Forbidden);
-- suíte de qualidade com 888 evals determinísticos homologados e novos testes unitários do Fleet Hub;
+- suíte de qualidade com 893 evals determinísticos homologados e novos testes unitários do Fleet Hub;
 - cache buster e imagens atualizados para `4.44.3` no Control Center;
 - Setup MNO `7.44.1` e Control Center `4.44.3` são os artefatos desta release estável.
 

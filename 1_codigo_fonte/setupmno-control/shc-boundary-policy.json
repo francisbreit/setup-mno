@@ -10,6 +10,7 @@
   ],
   "protectedRuntimeCore": [
     "combo_ia_whatsapp_sdr_crm.sh",
+    "combo_vibe_ops.sh",
     "combo_whatsapp_marketing.sh",
     "dockerswarm.sh",
     "essenciais.sh",
@@ -49,5 +50,5 @@
     "sre-*.sh",
     "trivy*.sh"
   ],
-  "expectedCurrentShcInputs": 179
+  "expectedCurrentShcInputs": 180
 }

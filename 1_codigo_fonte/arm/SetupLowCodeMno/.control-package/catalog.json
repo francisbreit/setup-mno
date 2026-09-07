@@ -187,6 +187,17 @@
     "search": "combo agente ia whatsapp + crm (sdr 24/7)* atendimento, whatsapp, crm, inteligência artificial, automação stack completa do blueprint #002: chatwoot desbloqueado v4 + evolution api v2 + rabbitmq + minio + krayin crm + n8n v2 (fila) com personas de ia, qualificação sdr e follow-up anti-vácuo."
   },
   {
+    "name": "COMBO VIBE OPS (HERMES AGENT + N8N)*",
+    "cats": "IA, Agentes, Automação, DevOps, SRE",
+    "desc": "Stack oficial do Blueprint #006: Hermes Agent + n8n v2 (Modo Fila) integrado ao MNO Fleet Hub e Sentinel para operação autônoma de servidores via linguagem natural.",
+    "ram": 3,
+    "ramLabel": "~3GB",
+    "arch": "x86-arm",
+    "stars": 0,
+    "type": "Combo",
+    "search": "combo vibe ops (hermes agent + n8n)* ia, agentes, automação, devops, sre stack oficial do blueprint #006: hermes agent + n8n v2 (modo fila) integrado ao mno fleet hub e sentinel para operação autônoma de servidores via linguagem natural."
+  },
+  {
     "name": "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
     "cats": "Atendimento, WhatsApp, Omnichannel",
     "desc": "Versão original do combo com configurações padrão do Chatwoot.",

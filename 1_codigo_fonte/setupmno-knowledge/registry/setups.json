@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "selectionVersion": "1.16.0",
-  "setupVersion": "7.44.0",
+  "setupVersion": "7.45.0",
   "selectionPolicy": "Lotes 1 a 6 orientados a deploy, IA, integrações, dados, identidade, colaboração, produtividade, atendimento e segurança operacional",
   "setups": [
     {
@@ -966,6 +966,22 @@
         "sdr ia whatsapp",
         "blueprint 002 combo",
         "combo sdr crm"
+      ]
+    },
+    {
+      "setupId": "combo-vibe-ops",
+      "catalogName": "COMBO VIBE OPS (HERMES AGENT + N8N)*",
+      "script": "combo_vibe_ops.sh",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "combo vibe ops",
+        "combo hermes n8n",
+        "vibe ops hermes agent",
+        "blueprint 006 combo",
+        "combo sso sre"
       ]
     },
     {
