@@ -1,0 +1,229 @@
+{
+  "schemaVersion": 2,
+  "blueprintId": "blueprint-006-vibe-ops-hermes-fleet",
+  "blueprintVersion": "1.0.0",
+  "title": "Vibe Ops & SRE Autônomo com Hermes Agent + n8n",
+  "summary": "Arquitetura homologada e de produção para operação de servidores Docker Swarm em linguagem natural com Hermes Agent, n8n v2 em Modo Fila, Sentinel e MNO Fleet Hub.",
+  "author": "Francis Breit (Francis MNO)",
+  "status": "homologated",
+  "fictitious": false,
+  "deployable": true,
+  "setupVersion": "7.45.0",
+  "updatedAt": "2026-09-06",
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "risk": "medium",
+  "audiences": [
+    "devops",
+    "sre",
+    "infraestrutura",
+    "ia",
+    "automacao"
+  ],
+  "tags": [
+    "vibe-ops",
+    "hermes-agent",
+    "n8n",
+    "sre",
+    "devops",
+    "ia",
+    "swarm",
+    "automacao"
+  ],
+  "aliases": [
+    "vibe ops",
+    "combo vibe ops",
+    "hermes agent n8n",
+    "blueprint 006",
+    "sre autonomo",
+    "hermes agente ia",
+    "mno fleet hub"
+  ],
+  "objective": "Fornecer uma arquitetura homologada e resiliente para operação de servidores Docker Swarm e orquestração de infraestrutura através de linguagem natural via WhatsApp, Telegram ou painel n8n, integrando o Hermes Agent ao MNO Fleet Hub e Sentinel com estrita política de segurança fail-closed e zero portas abertas.",
+  "components": [
+    {
+      "catalogName": "HERMES AGENT",
+      "role": "Comandante SRE autônomo com capacidades de raciocínio, tool calling e orquestração de infraestrutura.",
+      "required": true,
+      "installOrder": 1
+    },
+    {
+      "catalogName": "N8N V2 - FILA (QUEUE)",
+      "role": "Orquestrador transacional de fluxos para webhooks de telemetria, filas RabbitMQ e integração com Fleet Hub.",
+      "required": true,
+      "installOrder": 2
+    }
+  ],
+  "resourceProfile": {
+    "minimumRamGB": 4,
+    "recommendedRamGB": 8,
+    "basis": "Medição em homologação isolada com Hermes Agent, n8n v2 em modo fila com Redis/RabbitMQ e Fleet Hub consumindo ~2.8 GiB de memória."
+  },
+  "installation": {
+    "mode": "assisted-manual",
+    "humanConfirmationRequired": true,
+    "steps": [
+      {
+        "step": 1,
+        "component": "HERMES AGENT",
+        "title": "Provisionamento do Hermes Agent",
+        "description": "Executar o instalador do Hermes Agent e configurar as credenciais do provedor LLM (OpenAI, Groq ou endpoint local).",
+        "humanConfirmation": true
+      },
+      {
+        "step": 2,
+        "component": "N8N V2 - FILA (QUEUE)",
+        "title": "Provisionamento do n8n v2 em Modo Fila",
+        "description": "Provisionar o n8n v2 com suporte a filas RabbitMQ e PostgreSQL para execução distribuída e resiliente.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 3,
+        "component": "HERMES AGENT",
+        "title": "Configuração do Schema de Tool Calling",
+        "description": "Importar a especificação de ferramentas da Fleet API (/api/fleet/tools/schema.json) no Hermes Agent.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 4,
+        "component": "N8N V2 - FILA (QUEUE)",
+        "title": "Importação dos Workflows de Vibe Ops",
+        "description": "Importar e ativar os fluxos de auto-remediação e webhook do Sentinel no painel do n8n.",
+        "humanConfirmation": true
+      },
+      {
+        "step": 5,
+        "component": "HERMES AGENT",
+        "title": "Validação Operacional em Linguagem Natural",
+        "description": "Executar consulta de diagnóstico do cluster em linguagem natural e verificar execução controlada fail-closed.",
+        "humanConfirmation": true
+      }
+    ]
+  },
+  "validation": {
+    "homologatedAt": "2026-09-06",
+    "checks": [
+      {
+        "checkId": "convergencia-servicos",
+        "description": "Verificar inicialização e convergência de réplicas do Hermes Agent e n8n v2.",
+        "expected": "Serviços em estado running 1/1 na rede overlay interna sem portas abertas no host.",
+        "required": true
+      },
+      {
+        "checkId": "tool-calling-fleet-api",
+        "description": "Validar execução de tool calling compatível com OpenAI/Hermes através do endpoint do Fleet Hub.",
+        "expected": "Retorno de métricas e status dos nós com assinatura de auditoria e validação de schema.",
+        "required": true
+      },
+      {
+        "checkId": "auto-remediacao-resiliente",
+        "description": "Simular alerta de serviço degradado e verificar acionamento de fluxo no n8n com trava de idempotência.",
+        "expected": "O evento é enfileirado no RabbitMQ, processado e registrado em log sem loop de reinício.",
+        "required": true
+      }
+    ]
+  },
+  "rollback": {
+    "strategy": "Desativar fluxos de remediação no n8n, pausar o serviço do Hermes Agent e drenar filas pendentes no RabbitMQ.",
+    "steps": [
+      "Desativar os workflows de SRE e auto-remediação no painel do n8n (toggle Active = false).",
+      "Pausar ou remover o serviço do Hermes Agent com docker service scale combo_vibe_ops_hermes=0.",
+      "Drenar ou purgar mensagens acumuladas nas filas do RabbitMQ dedicadas ao Vibe Ops.",
+      "Preservar o estado do cluster Swarm e todos os volumes persistentes intactos."
+    ]
+  },
+  "media": [
+    {
+      "mediaId": "video-passo-a-passo",
+      "type": "video",
+      "title": "Vídeo: Instalação e Operação de Vibe Ops Passo a Passo",
+      "url": null,
+      "status": "pending",
+      "transcript": null
+    },
+    {
+      "mediaId": "guia-inicio-pdf",
+      "type": "pdf",
+      "title": "PDF: 00 Guia de Operação Vibe Ops",
+      "url": null,
+      "status": "pending",
+      "transcript": null
+    }
+  ],
+  "documentation": {
+    "entrypoint": "README.md",
+    "artifacts": [
+      "README.md",
+      "blueprint.json",
+      "knowledge.md"
+    ]
+  },
+  "editorial": {
+    "currentStage": "homologated",
+    "history": [
+      {
+        "stage": "draft",
+        "changedAt": "2026-09-04",
+        "actor": "Setup MNO — equipe editorial",
+        "note": "Estruturação inicial do Blueprint #006 para operação autônoma de servidores com IA."
+      },
+      {
+        "stage": "reviewed",
+        "changedAt": "2026-09-05",
+        "actor": "Setup MNO — revisão editorial",
+        "note": "Revisão arquitetural dos contratos de API e workflows de triagem de incidentes."
+      },
+      {
+        "stage": "homologated",
+        "changedAt": "2026-09-06",
+        "actor": "Francis Breit (Francis MNO)",
+        "note": "Homologação ponta a ponta concluída com sucesso em WSL2 x86_64 e VPS externa com 5 passos validados."
+      }
+    ],
+    "review": {
+      "decision": "approved",
+      "reviewedAt": "2026-09-06",
+      "reviewedBy": "Francis Breit (Francis MNO)",
+      "notes": "Arquitetura aprovada para produção irrestrita após validação dos endpoints de tool calling, Sentinel e resiliência de filas."
+    },
+    "homologation": {
+      "environment": "isolated-temporary",
+      "testedAt": "2026-09-06",
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "evidence": [
+        {
+          "evidenceId": "test-report-wsl-vps",
+          "type": "test-report",
+          "title": "Relatório de Testes E2E em WSL2 e VPS",
+          "path": "evidence/test-report.md",
+          "sha256": "253bcaea0b2e252ecd0d7a17ab4ca14f22213a564bf6681378142bf3734e4d6c",
+          "verifiedAt": "2026-09-06",
+          "architecture": "all"
+        },
+        {
+          "evidenceId": "security-review-flow",
+          "type": "security-review",
+          "title": "Revisão de Segurança e Política Fail-Closed",
+          "path": "evidence/security-review.md",
+          "sha256": "26658dda0d613db52b62b9ec487fdab729095e92ed9e50835758c68eeb744a7d",
+          "verifiedAt": "2026-09-06",
+          "architecture": "all"
+        },
+        {
+          "evidenceId": "rollback-test-queue",
+          "type": "rollback-test",
+          "title": "Teste de Rollback e Desativação Emergencial",
+          "path": "evidence/rollback-test.md",
+          "sha256": "2051369c312a045266cc2a55c6b1a0cce16eae3e15413cbe9241a4f872eb9e3c",
+          "verifiedAt": "2026-09-06",
+          "architecture": "all"
+        }
+      ]
+    }
+  }
+}

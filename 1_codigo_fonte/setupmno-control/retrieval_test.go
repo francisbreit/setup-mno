@@ -77,6 +77,7 @@ func TestBlueprintBetaGuidesResolveWithoutCrossContamination(t *testing.T) {
 		{"Mostre a topologia do Blueprint de base de conhecimento com IA e RAG", "blueprint-003-base-conhecimento-rag"},
 		{"Como validar o Blueprint de observabilidade completa?", "blueprint-004-observabilidade-monitoramento"},
 		{"Quais são os riscos do Blueprint para servidor com pouca memória?", "blueprint-005-servidor-pequeno"},
+		{"Como funciona o Blueprint de Vibe Ops com Hermes Agent e Fleet Hub?", "blueprint-006-vibe-ops-hermes-fleet"},
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.blueprintID, func(t *testing.T) {

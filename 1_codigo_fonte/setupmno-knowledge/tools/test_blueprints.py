@@ -37,7 +37,7 @@ class BlueprintFactoryTests(unittest.TestCase):
 
     def test_reviewed_beta_guides_pass_factory(self) -> None:
         records = load_blueprints(ROOT, CATALOG, SETUP_VERSION)
-        self.assertEqual(len(records), 5)
+        self.assertEqual(len(records), 6)
         self.assertTrue(all(record.manifest["status"] in {"reviewed", "homologated"} for record in records))
         self.assertTrue(all(not record.manifest["fictitious"] for record in records))
         self.assertTrue(all(record.manifest["schemaVersion"] == 2 for record in records))
@@ -50,8 +50,8 @@ class BlueprintFactoryTests(unittest.TestCase):
         second_files, second_summary = build_blueprint_package(ROOT, CATALOG, SETUP_VERSION)
         self.assertEqual(first_files, second_files)
         self.assertEqual(first_summary, second_summary)
-        self.assertEqual(first_summary["blueprintEntries"], 5)
-        self.assertEqual(first_summary["blueprintBundleEntries"], 5)
+        self.assertEqual(first_summary["blueprintEntries"], 6)
+        self.assertEqual(first_summary["blueprintBundleEntries"], 6)
         self.assertEqual(first_summary["blueprintFactoryVersion"], BLUEPRINT_FACTORY_VERSION)
         index = json.loads(first_files["blueprints/index.json"])
         self.assertTrue(
@@ -66,6 +66,7 @@ class BlueprintFactoryTests(unittest.TestCase):
             if entry["blueprintId"] in {
                 "blueprint-001-whatsapp-marketing-completo",
                 "blueprint-002-ia-whatsapp-sdr-crm",
+                "blueprint-006-vibe-ops-hermes-fleet",
             }:
                 self.assertEqual(editorial["passedGates"], 11)
                 self.assertTrue(editorial["promotionReady"])
@@ -82,7 +83,7 @@ class BlueprintFactoryTests(unittest.TestCase):
             for path, data in first_files.items()
             if path.startswith("blueprints/bundles/")
         }
-        self.assertEqual(len(bundles), 5)
+        self.assertEqual(len(bundles), 6)
         for path, data in bundles.items():
             with self.subTest(path=path), zipfile.ZipFile(io.BytesIO(data)) as archive:
                 self.assertGreaterEqual(len(archive.infolist()), 3)
