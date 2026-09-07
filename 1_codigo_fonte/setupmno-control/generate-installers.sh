@@ -974,6 +974,8 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$eval_grader_version" = "1.9.0" ] &&
 [ "${#eval_dataset_sha}" -eq 64 ] &&
 [ "$eval_case_entries" = "897" ] &&
+grep -Fq "[ \"\$eval_case_entries\" = \"$eval_case_entries\" ]" "$template" &&
+grep -Fq '[ "$eval_case_entries" = "$release_eval_case_entries" ]' "$template" &&
 [ "$blueprint_schema" = "2" ] &&
 [ "$blueprint_factory_version" = "2.1.0" ] &&
 [ "$blueprint_entries" -gt 0 ] &&
