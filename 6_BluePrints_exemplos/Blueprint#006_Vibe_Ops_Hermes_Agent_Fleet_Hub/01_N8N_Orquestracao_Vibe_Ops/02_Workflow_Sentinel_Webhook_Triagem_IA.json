@@ -1,0 +1,193 @@
+{
+  "name": "MNO Sentinel - Triagem Autônoma de Incidentes com IA",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mno-sentinel-webhook",
+        "options": {}
+      },
+      "id": "node-sentinel-trigger",
+      "name": "Webhook MNO Sentinel",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrai campos do alerta enviado pelo MNO Sentinel\nconst body = $input.first().json.body || $input.first().json;\n\nreturn [{\n  json: {\n    incidentId: body.incident_id || 'inc-desconhecido',\n    nodeId: body.node_id || 'node-local',\n    nodeName: body.node_name || 'Servidor Local',\n    alertType: body.type || 'alerta_geral',\n    severity: body.severity || 'warning',\n    details: body.details || 'Sem detalhes fornecidos',\n    timestamp: body.timestamp || new Date().toISOString(),\n    isResolution: (body.details && body.details.includes('RESOLVIDO')) || false\n  }\n}];"
+      },
+      "id": "node-parse-sentinel",
+      "name": "Processar Payload Sentinel",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.isResolution }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-if-resolution",
+      "name": "É Resolução de Incidente?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mnoctrle181325-web:8080/api/fleet/tools/execute",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SETUPMNO_FLEET_TOKEN || '' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tool\": \"fleet_diagnose_node\",\n  \"arguments\": {\n    \"node_query\": \"{{ $json.nodeId }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "node-fleet-diagnose-probe",
+      "name": "Executar Probe no Nó Afetado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 420]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=O MNO Sentinel disparou o seguinte alerta crítico na frota:\n\nServidor: {{ $('Processar Payload Sentinel').item.json.nodeName }} ({{ $('Processar Payload Sentinel').item.json.nodeId }})\nTipo de Incidente: {{ $('Processar Payload Sentinel').item.json.alertType }}\nSeveridade: {{ $('Processar Payload Sentinel').item.json.severity }}\nDetalhes: {{ $('Processar Payload Sentinel').item.json.details }}\n\nTelemetria recente coletada no nó via probe:\n{{ JSON.stringify($json) }}\n\nFaça uma triagem concisa: explique a causa raiz para um iniciante e recomende 2 ações seguras para o operador humano no Control Center.",
+        "options": {
+          "systemMessage": "Você é o Hermes Vibe Ops SRE do Setup MNO. Responda com foco didático e seguro, sem sugerir comandos destrutivos."
+        }
+      },
+      "id": "node-ai-triage",
+      "name": "Triagem IA do Incidente",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [1120, 420]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_ADMIN_CHAT_ID || '123456789' }}",
+        "text": "=🚨 *[MNO SENTINEL: INCIDENTE DETECTADO]*\n\n🖥️ *Servidor:* {{ $('Processar Payload Sentinel').item.json.nodeName }}\n⚠️ *Severidade:* {{ $('Processar Payload Sentinel').item.json.severity.toUpperCase() }}\n📝 *Detalhe:* {{ $('Processar Payload Sentinel').item.json.details }}\n\n🤖 *Diagnóstico e Parecer do Hermes SRE:*\n{{ $json.text }}\n\n👉 Acesse o Control Center para gerenciar a frota.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "node-telegram-alert",
+      "name": "Notificar Telegram Incidente",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1360, 420],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-mno-sentinel",
+          "name": "Telegram Bot Sentinel"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_ADMIN_CHAT_ID || '123456789' }}",
+        "text": "=✅ *[MNO SENTINEL: INCIDENTE RESOLVIDO]*\n\n🖥️ *Servidor:* {{ $json.nodeName }}\n🎉 O servidor normalizou o consumo de recursos e voltou ao estado saudável.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "node-telegram-resolved",
+      "name": "Notificar Telegram Resolução",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [880, 180],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-mno-sentinel",
+          "name": "Telegram Bot Sentinel"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook MNO Sentinel": {
+      "main": [
+        [
+          {
+            "node": "Processar Payload Sentinel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Payload Sentinel": {
+      "main": [
+        [
+          {
+            "node": "É Resolução de Incidente?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É Resolução de Incidente?": {
+      "main": [
+        [
+          {
+            "node": "Notificar Telegram Resolução",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Executar Probe no Nó Afetado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executar Probe no Nó Afetado": {
+      "main": [
+        [
+          {
+            "node": "Triagem IA do Incidente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Triagem IA do Incidente": {
+      "main": [
+        [
+          {
+            "node": "Notificar Telegram Incidente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

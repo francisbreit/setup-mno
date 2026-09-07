@@ -1,0 +1,136 @@
+================================================================================
+BLUEPRINT #006: VIBE OPS — HERMES AGENT & MNO FLEET HUB
+Setup MNO — Guia Oficial de Operação Autônoma de Infraestrutura com IA
+================================================================================
+
+================================================================================
+🎥 VÍDEO TUTORIAL PASSO A PASSO:
+Acesse o vídeo completo na área de membros da Academia MNO:
+[EM BREVE - Link disponível para Membros PRO]
+================================================================================
+
+Bem-vindo ao Blueprint #006 do Setup MNO: Vibe Ops com Hermes Agent e Fleet Hub!
+Este pacote transforma a gestão de servidores em uma conversa natural e amigável.
+Em vez de decorar comandos complexos do Linux ou abrir terminais pretos para ver se
+uma VPS está cheia de arquivos, você agora tem um Engenheiro SRE de Inteligência
+Artificial disponível 24 horas por dia no seu Telegram, WhatsApp ou n8n.
+
+--------------------------------------------------------------------------------
+1. COMO FUNCIONA O ECOSSISTEMA (MODELO MENTAL):
+--------------------------------------------------------------------------------
+1. TORRE MASTER (WSL2 ou VPS Master):
+   O cérebro central da sua infraestrutura. É onde roda o Setup MNO Control Center
+   e o Fleet Hub, gerenciando o inventário de todos os servidores.
+
+2. NÓS WORKERS (VPSs Operárias Hetzner, Oracle Cloud, Contabo, etc.):
+   Servidores que rodam suas aplicações pesadas (WordPress, Chatwoot, Evolution,
+   Mautic, n8n, etc.). Cada worker reporta sua telemetria silenciosamente através
+   de túneis seguros do Cloudflare (zero portas abertas no firewall).
+
+3. MNO SENTINEL (O Vigia 24h Nativo em Go):
+   Roda dentro do binário estático do Control Center (consome 0 MB adicionais de RAM).
+   Ele monitora a cada 60s se o disco está enchendo, se a memória estourou ou se
+   alguma VPS caiu. Se houver falha, ele envia um Webhook imediato para o n8n.
+
+4. HERMES AGENT (O Comandante SRE de Inteligência Artificial):
+   O agente autônomo conectado ao n8n ou rodando via container Docker.
+   Ele recebe perguntas em linguagem natural e tem acesso a 6 ferramentas oficiais
+   de Tool Calling do Fleet Hub:
+   - fleet_get_status: visão geral de toda a frota
+   - fleet_list_nodes: relação completa de servidores e endpoints
+   - fleet_diagnose_node: diagnóstico profundo de RAM, disco, Swarm e latência
+   - fleet_consult_dispatch: roteiro de instalação segura de aplicações
+   - fleet_ping_node: probe rápido de conectividade
+   - fleet_sentinel_status: consulta de incidentes ativos e alertas
+
+5. N8N (O Hub de Conexão):
+   Conecta os alertas do Sentinel com o Hermes Agent e entrega os relatórios
+   formatados no Telegram ou WhatsApp do administrador.
+
+--------------------------------------------------------------------------------
+2. MATRIZ DE DIFERENCIAÇÃO: DERRUBANDO A CONCORRÊNCIA
+--------------------------------------------------------------------------------
+Por que o Setup MNO + Hermes Agent é infinitamente superior a Coolify, Easypanel,
+Dokku ou Portainer puro?
+
+1. ZERO SOBRECARGA DE MEMÓRIA (0 MB de RAM ociosa):
+   - Concorrentes: Coolify e Easypanel forçam você a rodar painéis pesados em Node
+     e Go que devoram 1.5 GB a 2.5 GB da sua VPS apenas para manter o painel ligado.
+   - Setup MNO: O instalador roda via binário SHC nativo e o Sentinel opera em
+     Go enxuto dentro do Control Center. Toda a RAM da sua VPS fica 100% livre
+     para atender seus clientes e faturar.
+
+2. SEGURANÇA MÁXIMA E PORTAS INVISÍVEIS:
+   - Concorrentes: Abrem portas 80, 443, 3000 ou 9443 na internet aberta, virando
+     alvos fáceis de scanners de hackers e ataques de negação de serviço.
+   - Setup MNO: Opera 100% em Docker Swarm com redes overlay isoladas e túneis
+     nativos do Cloudflare Tunnel. ZERO portas abertas no firewall da sua VPS.
+
+3. RESPOSTAS EM DUAS CAMADAS (PARA LEIGOS E PARA DEVOPS):
+   - O Hermes Agent explica os problemas usando analogias simples para iniciantes
+     e, logo abaixo, entrega a telemetria técnica exata que um DevOps sênior precisa.
+
+4. ALOCAÇÃO CONSULTIVA SEGURA (SEM ACIDENTES):
+   - A IA nunca executa comandos destrutivos sozinha. Ela avalia a folga de memória
+     de cada servidor e fornece o link seguro do terminal para você aprovar em 1 clique.
+
+--------------------------------------------------------------------------------
+3. ARQUIVOS INCLUSOS NESTE PACOTE:
+--------------------------------------------------------------------------------
+📁 01_N8N_Orquestracao_Vibe_Ops/
+   ├── 01_Workflow_Hermes_Vibe_Ops_Fleet_Orchestrator.json (Chat e Tool Calling)
+   └── 02_Workflow_Sentinel_Webhook_Triagem_IA.json (Triagem de Alertas do Sentinel)
+
+📁 02_Prompts_Configuracao_Agente/
+   ├── prompt_sistema_hermes_vibe_ops_sre.txt (System Prompt oficial com travas)
+   └── hermes_agent_config.yaml (Configuração padrão para Hermes CLI / Docker)
+
+📁 03_Skills_Hermes_Agent/
+   └── mno_fleet_tools_client.py (Cliente Python com validação de schemas)
+
+📄 LEIA_ME_VIBE_OPS.txt (Este manual)
+
+--------------------------------------------------------------------------------
+4. ROTEIRO RÁPIDO DE IMPLEMENTAÇÃO EM 4 PASSOS:
+--------------------------------------------------------------------------------
+
+[PASSO 1] Configurar o MNO Sentinel no Control Center
+1. Acesse o Setup MNO Control Center no seu navegador (Torre Master).
+2. Vá até a aba "Frota MNO" e localize o card "MNO Sentinel (Vigia 24h)".
+3. Clique em "⚙️ Configurar Alertas":
+   - Defina os limites (ex: Alerta de RAM em 85%, Disco em 90%).
+   - No campo "URL de Webhook (n8n)", insira a URL do webhook do seu n8n:
+     https://n8n.seu-dominio.com.br/webhook/mno-sentinel-webhook
+   - Se desejar envio direto no Telegram sem n8n, preencha o Token do Bot e Chat ID.
+4. Clique em "Salvar Configuração" e depois em "🧪 Testar Disparo de Alerta Agora"
+   para validar a entrega imediata.
+
+[PASSO 2] Importar os Workflows no n8n
+1. Abra o seu painel do n8n (instalado via Setup MNO).
+2. Clique em "Workflows" -> "Import from File".
+3. Importe o arquivo:
+   `01_Workflow_Hermes_Vibe_Ops_Fleet_Orchestrator.json`
+4. Configure as credenciais do seu modelo de LLM (OpenAI, OpenRouter ou Groq).
+5. Importe o segundo arquivo:
+   `02_Workflow_Sentinel_Webhook_Triagem_IA.json`
+6. Ative ambos os fluxos no botão superior direito ("Active").
+
+[PASSO 3] Conectar o Agente ao seu Canal Preferido (Telegram ou Chatwoot)
+1. No n8n, você pode usar o nó do Telegram Trigger para conversar com o Hermes
+   diretamente por mensagem privada.
+2. Sempre que quiser auditar a frota, envie comandos como:
+   - "Como está a saúde da nossa frota de servidores?"
+   - "Qual o consumo de memória do nó Hetzner?"
+   - "A VPS Oracle ARM aguenta receber uma instalação do WordPress?"
+   - "O Sentinel detectou algum problema recente?"
+
+[PASSO 4] Simular um Incidente e Validar a Triagem Autônoma
+1. No Control Center, clique no botão de teste do Sentinel.
+2. O webhook será recebido no n8n, o Hermes Agent avaliará o estado do servidor
+   e você receberá uma notificação detalhada com a análise da causa raiz e a
+   solução recomendada!
+
+================================================================================
+Setup MNO — Democratizando a Infraestrutura de Alta Performance com IA.
+Criado com paixão por Francis MNO para a Comunidade de Makers Digitais.
+================================================================================

@@ -1,0 +1,275 @@
+{
+  "name": "MNO Fleet Hub - Hermes Vibe Ops Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vibe-ops-chat",
+        "options": {}
+      },
+      "id": "node-trigger-webhook",
+      "name": "Webhook Entrada Vibe Ops",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.message || $json.body.prompt || 'Como está a saúde da frota?' }}",
+        "options": {
+          "systemMessage": "=Você é o Comandante de Frota MNO e Engenheiro SRE do Setup MNO. Você opera via Vibe Ops auxiliando Francis MNO e seus usuários.\n\nSempre divida suas respostas em duas partes:\n1. CAMADA PARA INICIANTES: explicação simples, sem jargões, usando analogias práticas.\n2. CAMADA NOTA TÉCNICA PARA DEVOPS: métricas exatas (MB/GB de RAM, % de disco, latência em ms, status de containers Swarm).\n\nUse as ferramentas conectadas para consultar o estado real dos servidores antes de responder. NUNCA invente métricas.\n\nTravas de Segurança:\n- Não sugira comandos destrutivos.\n- Se o usuário quiser instalar uma aplicação, use 'fleet_consult_dispatch' para verificar capacidade e fornecer o link seguro do terminal."
+        }
+      },
+      "id": "node-ai-agent",
+      "name": "Hermes Vibe Ops Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "model": "nousresearch/hermes-3-llama-3.1-405b:free",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "node-openai-chat-model",
+      "name": "Modelo LLM (Hermes / OpenAI)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [480, 520],
+      "credentials": {
+        "openAiApi": {
+          "id": "mno-llm-credentials",
+          "name": "OpenAI / OpenRouter MNO"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "fleet_get_status",
+        "description": "Obtém o status operacional consolidado da frota MNO, modo Master/Worker e contagem de nós online.",
+        "url": "http://mnoctrle181325-web:8080/api/fleet/tools/execute",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"tool\": \"fleet_get_status\",\n  \"arguments\": {}\n}",
+        "method": "POST",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SETUPMNO_FLEET_TOKEN || '' }}"
+            }
+          ]
+        }
+      },
+      "id": "tool-fleet-status",
+      "name": "Tool: fleet_get_status",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [700, 160]
+    },
+    {
+      "parameters": {
+        "name": "fleet_list_nodes",
+        "description": "Lista todos os servidores registrados na frota com seus IDs, nomes amigáveis, endpoints HTTPS e arquitetura.",
+        "url": "http://mnoctrle181325-web:8080/api/fleet/tools/execute",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"tool\": \"fleet_list_nodes\",\n  \"arguments\": {}\n}",
+        "method": "POST",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SETUPMNO_FLEET_TOKEN || '' }}"
+            }
+          ]
+        }
+      },
+      "id": "tool-fleet-list-nodes",
+      "name": "Tool: fleet_list_nodes",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [700, 280]
+    },
+    {
+      "parameters": {
+        "name": "fleet_diagnose_node",
+        "description": "Executa probe detalhado em tempo real em um nó da frota via HTTPS seguro, medindo RAM livre, disco, Docker Swarm e latência.",
+        "url": "http://mnoctrle181325-web:8080/api/fleet/tools/execute",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tool\": \"fleet_diagnose_node\",\n  \"arguments\": {\n    \"node_query\": \"{{ $fromAI('node_query', 'Nome amigável, ID ou endpoint do nó') }}\"\n  }\n}",
+        "method": "POST",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SETUPMNO_FLEET_TOKEN || '' }}"
+            }
+          ]
+        }
+      },
+      "id": "tool-fleet-diagnose-node",
+      "name": "Tool: fleet_diagnose_node",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "name": "fleet_consult_dispatch",
+        "description": "Avalia capacidade de um nó da frota para receber uma aplicação homologada e gera roteiro consultivo com link de instalação.",
+        "url": "http://mnoctrle181325-web:8080/api/fleet/tools/execute",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tool\": \"fleet_consult_dispatch\",\n  \"arguments\": {\n    \"node_query\": \"{{ $fromAI('node_query', 'Nome ou ID do nó alvo') }}\",\n    \"application\": \"{{ $fromAI('application', 'Nome da aplicação: wordpress, chatwoot, n8n, etc.') }}\"\n  }\n}",
+        "method": "POST",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SETUPMNO_FLEET_TOKEN || '' }}"
+            }
+          ]
+        }
+      },
+      "id": "tool-fleet-consult-dispatch",
+      "name": "Tool: fleet_consult_dispatch",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [700, 520]
+    },
+    {
+      "parameters": {
+        "name": "fleet_sentinel_status",
+        "description": "Consulta incidentes ativos na frota monitorados pelo daemon 24h MNO Sentinel e histórico de alertas.",
+        "url": "http://mnoctrle181325-web:8080/api/fleet/tools/execute",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"tool\": \"fleet_sentinel_status\",\n  \"arguments\": {}\n}",
+        "method": "POST",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SETUPMNO_FLEET_TOKEN || '' }}"
+            }
+          ]
+        }
+      },
+      "id": "tool-fleet-sentinel-status",
+      "name": "Tool: fleet_sentinel_status",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [700, 640]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"success\",\n  \"response\": {{ JSON.stringify($json.output) }},\n  \"timestamp\": \"{{ $now.toISO() }}\"\n}",
+        "options": {}
+      },
+      "id": "node-respond-webhook",
+      "name": "Responder Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [940, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Entrada Vibe Ops": {
+      "main": [
+        [
+          {
+            "node": "Hermes Vibe Ops Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hermes Vibe Ops Agent": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modelo LLM (Hermes / OpenAI)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Hermes Vibe Ops Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: fleet_get_status": {
+      "ai_tool": [
+        [
+          {
+            "node": "Hermes Vibe Ops Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: fleet_list_nodes": {
+      "ai_tool": [
+        [
+          {
+            "node": "Hermes Vibe Ops Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: fleet_diagnose_node": {
+      "ai_tool": [
+        [
+          {
+            "node": "Hermes Vibe Ops Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: fleet_consult_dispatch": {
+      "ai_tool": [
+        [
+          {
+            "node": "Hermes Vibe Ops Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: fleet_sentinel_status": {
+      "ai_tool": [
+        [
+          {
+            "node": "Hermes Vibe Ops Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

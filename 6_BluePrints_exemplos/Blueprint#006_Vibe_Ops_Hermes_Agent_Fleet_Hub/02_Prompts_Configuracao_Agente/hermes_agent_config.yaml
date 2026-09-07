@@ -1,0 +1,36 @@
+# ==============================================================================
+# HERMES AGENT CONFIGURATION — VIBE OPS SETUP MNO FLEET HUB
+# ==============================================================================
+version: "1.0"
+
+agent:
+  name: "Hermes Vibe Ops SRE"
+  system_prompt_file: "./prompt_sistema_hermes_vibe_ops_sre.txt"
+  temperature: 0.1 # Temperatura baixa para garantir determinismo e fidelidade técnica
+  max_tokens: 2048
+
+# Configuração de Provedor de Modelo (LLM)
+# Suporta OpenRouter, OpenAI, Groq, Anthropic ou Ollama local
+llm:
+  provider: "openrouter" # ou "openai", "groq", "ollama"
+  model: "nousresearch/hermes-3-llama-3.1-405b:free" # ou "gpt-4o", "meta-llama/llama-3.3-70b-instruct"
+  api_key_env: "OPENROUTER_API_KEY"
+
+# Integração com as Ferramentas Oficiais do Setup MNO Fleet Hub
+fleet_hub:
+  schema_url: "http://mnoctrle181325-web:8080/api/fleet/tools/schema.json"
+  execute_url: "http://mnoctrle181325-web:8080/api/fleet/tools/execute"
+  auth_token_env: "SETUPMNO_FLEET_TOKEN"
+  timeout_seconds: 15
+
+# Canais de Entrada e Saída
+channels:
+  telegram:
+    enabled: true
+    bot_token_env: "TELEGRAM_BOT_TOKEN"
+    allowed_chat_ids:
+      - 123456789 # Substitua pelo seu ID de usuário do Telegram
+  webhook:
+    enabled: true
+    port: 9119
+    path: "/webhook/agent"
