@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -362,5 +363,157 @@ func TestFleetToolsExecuteAuthorizedListNodes(t *testing.T) {
 		t.Errorf("resposta inesperada: %+v", resp)
 	}
 }
+
+func TestFleetInventoryHeartbeatStaleness(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "fleet-staleness-*")
+	if err != nil {
+		t.Fatalf("erro ao criar tempDir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	storePath := filepath.Join(tempDir, "fleet-inventory.json")
+	store, err := loadFleetInventory(storePath)
+	if err != nil {
+		t.Fatalf("loadFleetInventory falhou: %v", err)
+	}
+
+	// Adiciona nó com heartbeat antigo (ex: 2 horas atrás, como uma VPS formatada)
+	staleNode := FleetNode{
+		ID:            "node-stale-worker",
+		Name:          "Debian-Formatada",
+		Endpoint:      "https://vps-morta.com",
+		Mode:          FleetModeWorker,
+		Status:        "online", // Inicialmente salvo como online
+		Role:          "worker",
+		Token:         "token-1234567890abcdef",
+		LastHeartbeat: time.Now().UTC().Add(-2 * time.Hour),
+		TunnelHealthy: true,
+	}
+
+	if err := store.AddNode(staleNode); err != nil {
+		t.Fatalf("AddNode falhou: %v", err)
+	}
+
+	// 1. Ao listar nós, o nó stale deve ser reconciliado e retornado como OFFLINE
+	nodes := store.ListNodes()
+	if len(nodes) != 1 {
+		t.Fatalf("esperava 1 nó, obteve %d", len(nodes))
+	}
+	if nodes[0].Status != "offline" {
+		t.Errorf("ListNodes deveria retornar status 'offline' para nó stale, obteve: %s", nodes[0].Status)
+	}
+	if nodes[0].TunnelHealthy {
+		t.Errorf("ListNodes deveria marcar TunnelHealthy como false para nó stale")
+	}
+
+	// 2. GetNode também deve proteger contra falso positivo
+	gotNode, found := store.GetNode("node-stale-worker")
+	if !found {
+		t.Fatalf("GetNode não encontrou o nó")
+	}
+	if gotNode.Status != "offline" {
+		t.Errorf("GetNode deveria retornar status 'offline' para nó stale, obteve: %s", gotNode.Status)
+	}
+
+	// 3. FindNodeByNameOrID também deve retornar offline
+	foundNode, ok := store.FindNodeByNameOrID("Debian-Formatada")
+	if !ok {
+		t.Fatalf("FindNodeByNameOrID não encontrou o nó")
+	}
+	if foundNode.Status != "offline" {
+		t.Errorf("FindNodeByNameOrID deveria retornar status 'offline', obteve: %s", foundNode.Status)
+	}
+}
+
+func TestFleetProbeAllWorkersAndSync(t *testing.T) {
+	// Worker 1: Simula um nó online que responde com HTTP 200 e telemetria
+	workerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/fleet/worker/telemetry" {
+			telem := FleetTelemetry{
+				NodeID:        "worker-live",
+				Mode:          FleetModeWorker,
+				ActiveSwarm:   true,
+				HealthyApps:   5,
+				UnhealthyApps: 0,
+				MemoryTotalMB: 4096,
+				MemoryUsedMB:  1024,
+				Timestamp:     time.Now().UTC(),
+			}
+			_ = json.NewEncoder(w).Encode(telem)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer workerServer.Close()
+
+	tempDir, err := os.MkdirTemp("", "fleet-probe-*")
+	if err != nil {
+		t.Fatalf("erro ao criar tempDir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	storePath := filepath.Join(tempDir, "fleet-inventory.json")
+	store, err := loadFleetInventory(storePath)
+	if err != nil {
+		t.Fatalf("loadFleetInventory falhou: %v", err)
+	}
+
+	// Nó 1: Worker vivo apontando para o httptest.Server
+	liveNode := FleetNode{
+		ID:            "node-live-worker",
+		Name:          "Debian-Viva",
+		Endpoint:      workerServer.URL,
+		Mode:          FleetModeWorker,
+		Status:        "unknown",
+		Role:          "worker",
+		Token:         "token-valido-123456",
+		LastHeartbeat: time.Now().UTC().Add(-10 * time.Minute),
+	}
+	_ = store.AddNode(liveNode)
+
+	// Nó 2: Worker morto/formatado apontando para porta fechada/inválida
+	deadNode := FleetNode{
+		ID:            "node-dead-worker",
+		Name:          "Debian1-Hetzner-Formatada",
+		Endpoint:      "http://127.0.0.1:1", // porta fechada para simular VPS inacessível
+		Mode:          FleetModeWorker,
+		Status:        "online", // salvo erroneamente como online
+		Role:          "worker",
+		Token:         "token-qualquer",
+		LastHeartbeat: time.Now().UTC().Add(-5 * time.Minute),
+	}
+	_ = store.AddNode(deadNode)
+
+	app := &webApp{
+		fleetStore: store,
+		httpClient: &http.Client{Timeout: 2 * time.Second},
+		sessions:   make(map[string]*session),
+	}
+
+	// Executa varredura (probeAllWorkers)
+	app.probeAllWorkers(context.Background())
+
+	// Verifica Nó 1 (deve estar online e atualizado)
+	liveGot, _ := store.GetNode("node-live-worker")
+	if liveGot.Status != "online" {
+		t.Errorf("esperava que nó vivo estivesse 'online', obteve: %s", liveGot.Status)
+	}
+	if !liveGot.TunnelHealthy {
+		t.Errorf("esperava TunnelHealthy true para nó vivo")
+	}
+	if liveGot.ServiceCount != 5 {
+		t.Errorf("esperava ServiceCount=5 para nó vivo, obteve: %d", liveGot.ServiceCount)
+	}
+
+	// Verifica Nó 2 (deve estar offline sem falso positivo)
+	deadGot, _ := store.GetNode("node-dead-worker")
+	if deadGot.Status != "offline" {
+		t.Errorf("esperava que nó morto/formatado estivesse 'offline', obteve: %s", deadGot.Status)
+	}
+	if deadGot.TunnelHealthy {
+		t.Errorf("esperava TunnelHealthy false para nó morto")
+	}
+}
+
 
 

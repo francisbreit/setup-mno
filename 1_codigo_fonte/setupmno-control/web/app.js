@@ -199,6 +199,7 @@ function bindEvents() {
   $("fleet-search")?.addEventListener("input", renderFleetNodes);
   $("fleet-filter-status")?.addEventListener("change", renderFleetNodes);
   $("fleet-filter-role")?.addEventListener("change", renderFleetNodes);
+  $("fleet-sync-button")?.addEventListener("click", syncFleet);
   $("fleet-add-node-button")?.addEventListener("click", openFleetAddDialog);
   $("fleet-add-dialog-close")?.addEventListener("click", closeFleetAddDialog);
   $("fleet-add-cancel")?.addEventListener("click", closeFleetAddDialog);
@@ -3184,11 +3185,11 @@ function renderFleetNodes() {
           </div>
           <div>
             <small>Aplicações Ativas</small>
-            <span>${serviceCount} serviços</span>
+            <span>${node.status === "offline" ? "Inacessível (Offline)" : `${serviceCount} serviços`}</span>
           </div>
           <div>
             <small>Rede Mesh</small>
-            <span>${node.tunnelHealthy !== false ? "✓ Zero-Trust" : "⚠ Atenção"}</span>
+            <span>${node.status === "online" && node.tunnelHealthy !== false ? "✓ Zero-Trust" : "⚠ Offline / Inacessível"}</span>
           </div>
         </div>
 
@@ -3200,6 +3201,28 @@ function renderFleetNodes() {
       </article>
     `;
   }).join("");
+}
+
+async function syncFleet() {
+  const btn = $("fleet-sync-button");
+  const originalText = btn ? btn.textContent : "";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Sincronizando...";
+  }
+
+  try {
+    const res = await api("/api/fleet/sync", { method: "POST" });
+    showToast(`⚡ Frota sincronizada: ${res.onlineNodes || 0} online, ${res.offlineNodes || 0} offline.`);
+    await loadFleet();
+  } catch (error) {
+    showToast(`⚠ Falha na sincronização: ${error.message}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  }
 }
 
 function renderFleetWorker() {

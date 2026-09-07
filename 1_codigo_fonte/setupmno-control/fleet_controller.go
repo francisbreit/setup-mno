@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -516,4 +517,173 @@ func (a *webApp) handleFleetWorkerAction(w http.ResponseWriter, r *http.Request)
 	default:
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("ação '%s' não suportada ou não permitida", req.Action))
 	}
+}
+
+// probeAllWorkers realiza varreduras em paralelo em todos os nós Workers registrados na frota.
+// Atualiza imediatamente o status para online ou offline, telemetria e integridade do túnel.
+func (a *webApp) probeAllWorkers(ctx context.Context) {
+	if a.fleetStore == nil {
+		return
+	}
+
+	// 1. Reconcilia nós cujo heartbeat expirou primeiro
+	_ = a.fleetStore.ReconcileStaleNodes(fleetHeartbeatTimeout)
+
+	nodes := a.fleetStore.ListNodes()
+	var workers []FleetNode
+	for _, n := range nodes {
+		if n.Mode == FleetModeWorker && n.Endpoint != "" {
+			// Buscar com o token real preservado
+			if realNode, found := a.fleetStore.GetNode(n.ID); found {
+				workers = append(workers, realNode)
+			}
+		}
+	}
+
+	if len(workers) == 0 {
+		return
+	}
+
+	type probeOutcome struct {
+		node    FleetNode
+		telem   FleetTelemetry
+		latency int64
+		err     error
+	}
+
+	results := make(chan probeOutcome, len(workers))
+	var wg sync.WaitGroup
+
+	for _, w := range workers {
+		wg.Add(1)
+		go func(target FleetNode) {
+			defer wg.Done()
+			probeCtx, cancel := context.WithTimeout(ctx, fleetProbeTimeout)
+			defer cancel()
+
+			telem, latency, err := a.probeWorkerNode(probeCtx, target.Endpoint, target.Token)
+			results <- probeOutcome{
+				node:    target,
+				telem:   telem,
+				latency: latency,
+				err:     err,
+			}
+		}(w)
+	}
+
+	wg.Wait()
+	close(results)
+
+	changed := false
+	for out := range results {
+		node := out.node
+		if out.err != nil {
+			// Falha ao conectar: nó desligado, formatado, rede indisponível ou Cloudflare 1033
+			if node.Status != "offline" || node.TunnelHealthy {
+				node.Status = "offline"
+				node.TunnelHealthy = false
+				_ = a.fleetStore.UpdateNode(node)
+				changed = true
+			}
+		} else {
+			// Sucesso: nó respondendo com telemetria válida
+			node.Status = "online"
+			node.TunnelHealthy = true
+			node.LastHeartbeat = time.Now().UTC()
+			node.Telemetry = &out.telem
+			node.MemoryTotalMB = out.telem.MemoryTotalMB
+			node.MemoryUsedMB = out.telem.MemoryUsedMB
+			node.ServiceCount = out.telem.HealthyApps + out.telem.UnhealthyApps
+			if out.telem.Architecture != "" {
+				node.Architecture = out.telem.Architecture
+			}
+			if out.telem.SetupVersion != "" {
+				node.SetupVersion = out.telem.SetupVersion
+			}
+			_ = a.fleetStore.UpdateNode(node)
+			changed = true
+		}
+	}
+
+	if changed {
+		_ = a.fleetStore.Save()
+	}
+}
+
+// fleetMonitorDaemon é a rotina em background que audita periodicamente a frota na Torre Master.
+func (a *webApp) fleetMonitorDaemon(ctx context.Context) {
+	time.Sleep(2 * time.Second)
+	// Reconciliação imediata na inicialização para eliminar falsos positivos de imediato
+	if a.fleetStore != nil {
+		if a.fleetStore.ReconcileStaleNodes(fleetHeartbeatTimeout) {
+			_ = a.fleetStore.Save()
+		}
+	}
+
+	ticker := time.NewTicker(fleetMonitorInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			cfg, err := a.fetchFleetConfig(ctx)
+			if err != nil || cfg.FleetMode != FleetModeMaster || a.fleetStore == nil {
+				continue
+			}
+
+			a.probeAllWorkers(ctx)
+		}
+	}
+}
+
+// handleFleetSync força uma sincronização/probe imediata de todos os nós da frota a partir da interface.
+func (a *webApp) handleFleetSync(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	var setupState setupStateResponse
+	_ = a.agentRequest(ctx, "/setup-state", &setupState)
+	if !setupState.FleetAllowed {
+		writeError(w, http.StatusForbidden, "gerenciamento da frota exclusivo para planos PRO e PRO MASTER com Cloudflare Tunnel")
+		return
+	}
+
+	cfg, _ := a.fetchFleetConfig(ctx)
+	if cfg.FleetMode != FleetModeMaster {
+		writeError(w, http.StatusForbidden, "Sincronização forçada da frota permitida apenas na Torre Master")
+		return
+	}
+
+	if a.fleetStore == nil {
+		writeError(w, http.StatusInternalServerError, "inventário da frota indisponível")
+		return
+	}
+
+	// Executa probe imediata de todos os workers
+	a.probeAllWorkers(ctx)
+
+	nodes := a.fleetStore.ListNodes()
+	onlineCount := 0
+	offlineCount := 0
+	degradedCount := 0
+	for _, n := range nodes {
+		switch n.Status {
+		case "online":
+			onlineCount++
+		case "degraded":
+			degradedCount++
+		default:
+			offlineCount++
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":        "ok",
+		"totalNodes":    len(nodes),
+		"onlineNodes":   onlineCount,
+		"offlineNodes":  offlineCount,
+		"degradedNodes": degradedCount,
+		"nodes":         nodes,
+		"syncedAt":      time.Now().UTC().Format(time.RFC3339),
+	})
 }

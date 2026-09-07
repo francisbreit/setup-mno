@@ -221,7 +221,34 @@ func (s *fleetInventoryStore) Save() error {
 	return nil
 }
 
+// ReconcileStaleNodes marca como offline nós workers cujo último sinal (heartbeat) excedeu o limite seguro.
+// Isso elimina imediatamente falsos positivos quando um servidor é desligado ou formatado.
+func (s *fleetInventoryStore) ReconcileStaleNodes(timeout time.Duration) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	modified := false
+	now := time.Now().UTC()
+	for i := range s.nodes {
+		if s.nodes[i].Mode == FleetModeWorker {
+			if s.nodes[i].Status == "online" {
+				if s.nodes[i].LastHeartbeat.IsZero() || now.Sub(s.nodes[i].LastHeartbeat) > timeout {
+					s.nodes[i].Status = "offline"
+					s.nodes[i].TunnelHealthy = false
+					modified = true
+				}
+			}
+		}
+	}
+	return modified
+}
+
 func (s *fleetInventoryStore) ListNodes() []FleetNode {
+	// Reconciliar nós com heartbeat expirado antes de listar
+	if s.ReconcileStaleNodes(fleetHeartbeatTimeout) {
+		_ = s.Save()
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -241,9 +268,17 @@ func (s *fleetInventoryStore) GetNode(id string) (FleetNode, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	now := time.Now().UTC()
 	for _, n := range s.nodes {
 		if n.ID == id {
-			return n, true
+			copied := n
+			if copied.Mode == FleetModeWorker && copied.Status == "online" {
+				if copied.LastHeartbeat.IsZero() || now.Sub(copied.LastHeartbeat) > fleetHeartbeatTimeout {
+					copied.Status = "offline"
+					copied.TunnelHealthy = false
+				}
+			}
+			return copied, true
 		}
 	}
 	return FleetNode{}, false
@@ -258,25 +293,36 @@ func (s *fleetInventoryStore) FindNodeByNameOrID(query string) (FleetNode, bool)
 		return FleetNode{}, false
 	}
 	lowerQuery := strings.ToLower(cleaned)
+	now := time.Now().UTC()
+
+	sanitizedNode := func(n FleetNode) FleetNode {
+		if n.Mode == FleetModeWorker && n.Status == "online" {
+			if n.LastHeartbeat.IsZero() || now.Sub(n.LastHeartbeat) > fleetHeartbeatTimeout {
+				n.Status = "offline"
+				n.TunnelHealthy = false
+			}
+		}
+		return n
+	}
 
 	// 1. Match exato de ID ou Nome
 	for _, n := range s.nodes {
 		if strings.EqualFold(n.ID, cleaned) || strings.EqualFold(n.Name, cleaned) {
-			return n, true
+			return sanitizedNode(n), true
 		}
 	}
 
 	// 2. Contains match no Nome ou prefixo do ID
 	for _, n := range s.nodes {
 		if strings.Contains(strings.ToLower(n.Name), lowerQuery) || strings.HasPrefix(strings.ToLower(n.ID), lowerQuery) {
-			return n, true
+			return sanitizedNode(n), true
 		}
 	}
 
 	// 3. Match de substring no Endpoint
 	for _, n := range s.nodes {
 		if n.Endpoint != "" && strings.Contains(strings.ToLower(n.Endpoint), lowerQuery) {
-			return n, true
+			return sanitizedNode(n), true
 		}
 	}
 

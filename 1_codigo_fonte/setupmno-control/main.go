@@ -705,6 +705,7 @@ func runWeb() error {
 	mux.Handle("POST /api/fleet/nodes", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetAddNode))))
 	mux.Handle("DELETE /api/fleet/nodes/{id}", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetRemoveNode))))
 	mux.Handle("GET /api/fleet/telemetry", app.requireAuth(http.HandlerFunc(app.handleFleetTelemetry)))
+	mux.Handle("POST /api/fleet/sync", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetSync))))
 	mux.Handle("POST /api/fleet/nodes/{id}/ping", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetPing))))
 	mux.Handle("POST /api/fleet/ping", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetPing))))
 	mux.HandleFunc("GET /api/fleet/worker/telemetry", app.handleFleetWorkerTelemetry)
@@ -738,6 +739,7 @@ func runWeb() error {
 
 	go app.sessionJanitor()
 	go app.sentinelDaemon()
+	go app.fleetMonitorDaemon(context.Background())
 	log.Printf("Setup MNO Control Center %s iniciado na porta 8080", app.version)
 	return server.ListenAndServe()
 }
