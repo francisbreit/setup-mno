@@ -3241,7 +3241,11 @@ function renderFleetWorker() {
 
   const tokenInput = $("fleet-worker-token");
   if (tokenInput) {
-    tokenInput.value = state.setupState?.fleetToken || "••••••••••••••••••••••••••••••••";
+    const rawToken = statusData.fleetToken || state.setupState?.fleetToken || "";
+    tokenInput.value = rawToken;
+    if (!rawToken) {
+      tokenInput.placeholder = "Token configurado no nó indisponível";
+    }
   }
 }
 
@@ -3401,14 +3405,17 @@ function toggleWorkerTokenVisibility() {
 
 async function copyWorkerToken() {
   const input = $("fleet-worker-token");
-  if (!input || !input.value) return;
+  if (!input || !input.value) {
+    showToast("Nenhum token disponível para copiar.");
+    return;
+  }
   try {
     await navigator.clipboard.writeText(input.value);
-    showToast("Token de pareamento copiado!");
+    showToast("Token de pareamento copiado com sucesso!");
   } catch {
     input.select();
     document.execCommand("copy");
-    showToast("Token copiado!");
+    showToast("Token de pareamento copiado!");
   }
 }
 

@@ -91,6 +91,7 @@ func (a *webApp) handleFleetStatus(w http.ResponseWriter, r *http.Request) {
 		Mode:           cfg.FleetMode,
 		NodeID:         cfg.FleetNodeID,
 		FleetAllowed:   setupState.FleetAllowed,
+		FleetToken:     cfg.FleetToken,
 		LocalTelemetry: localTelem,
 	}
 

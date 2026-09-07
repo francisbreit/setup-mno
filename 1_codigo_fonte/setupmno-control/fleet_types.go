@@ -90,6 +90,7 @@ type FleetStatusResponse struct {
 	FleetAllowed   bool           `json:"fleetAllowed"`
 	IsMaster       bool           `json:"isMaster"`
 	IsWorker       bool           `json:"isWorker"`
+	FleetToken     string         `json:"fleetToken,omitempty"`
 	TotalNodes     int            `json:"totalNodes"`
 	OnlineNodes    int            `json:"onlineNodes"`
 	DegradedNodes  int            `json:"degradedNodes"`

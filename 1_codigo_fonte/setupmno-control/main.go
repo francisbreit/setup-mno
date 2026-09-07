@@ -287,6 +287,7 @@ type setupStateResponse struct {
 	FleetMode                   string           `json:"fleetMode,omitempty"`
 	FleetAllowed                bool             `json:"fleetAllowed"`
 	FleetNodeID                 string           `json:"fleetNodeId,omitempty"`
+	FleetToken                  string           `json:"fleetToken,omitempty"`
 }
 
 type supplyChainFile struct {
@@ -849,6 +850,7 @@ func runAgent() error {
 		state.FleetMode = string(environment.FleetMode)
 		state.FleetAllowed = state.Capabilities.FleetHub
 		state.FleetNodeID = environment.FleetNodeID
+		state.FleetToken = environment.FleetToken
 		writeJSON(w, http.StatusOK, state)
 	}))
 	mux.HandleFunc("GET /fleet/telemetry", authorize(func(w http.ResponseWriter, _ *http.Request) {
