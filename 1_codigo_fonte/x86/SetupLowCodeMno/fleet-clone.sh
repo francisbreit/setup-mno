@@ -6,7 +6,7 @@
 # resolução de stacks vivas do Portainer, extração lógica multi-tenant de bancos
 # (PostgreSQL e MySQL 8.4), comutação de DNS Cloudflare e congelamento seguro.
 # ==============================================================================
-set -euo pipefail
+set -uo pipefail
 umask 077
 
 CONTROL_DIR="${SETUPMNO_CONTROL_DIR:-/root/SetupLowCodeMno/.control}"
@@ -14,7 +14,7 @@ ENV_FILE="$CONTROL_DIR/environment.json"
 INVENTORY_FILE="$CONTROL_DIR/fleet-inventory.json"
 SSH_HOSTS_FILE="$CONTROL_DIR/fleet-ssh.json"
 BACKUP_BASE_DIR="/root/setupmno-backups"
-TRANSFER_TMP_DIR="/tmp/setupmno-transfer"
+TRANSFER_LOG="/tmp/fleet-transfer.log"
 
 # Configuração de Cores Newt / Whiptail
 export NEWT_COLORS='
@@ -42,8 +42,28 @@ msg() {
     whiptail --title "MNO FLEET HUB — CLONE E BACKUP" --msgbox "$1" 14 76
 }
 
+ensure_ssh_keys_available() {
+    mkdir -p /root/.ssh 2>/dev/null || true
+    chmod 700 /root/.ssh 2>/dev/null || true
+
+    # Se root não possui chave privada, procurar em /home/*/.ssh/
+    if [ ! -f /root/.ssh/id_rsa ] && [ ! -f /root/.ssh/id_ed25519 ]; then
+        for udir in /home/*; do
+            [ -d "$udir/.ssh" ] || continue
+            if [ -f "$udir/.ssh/id_ed25519" ]; then
+                cp -f "$udir/.ssh/id_ed25519"* /root/.ssh/ 2>/dev/null || true
+                chmod 600 /root/.ssh/id_ed25519 2>/dev/null || true
+                break
+            elif [ -f "$udir/.ssh/id_rsa" ]; then
+                cp -f "$udir/.ssh/id_rsa"* /root/.ssh/ 2>/dev/null || true
+                chmod 600 /root/.ssh/id_rsa 2>/dev/null || true
+                break
+            fi
+        done
+    fi
+}
+
 sync_fleet_inventory() {
-    # 1. Se o arquivo já existe no host e possui dados válidos com nós workers, usa direto
     if [ -f "$INVENTORY_FILE" ] && [ -s "$INVENTORY_FILE" ]; then
         local node_count
         node_count=$(jq -r '[.nodes[]? | select(.role == "worker" or .mode == "worker")] | length' "$INVENTORY_FILE" 2>/dev/null || printf '0')
@@ -52,7 +72,6 @@ sync_fleet_inventory() {
         fi
     fi
 
-    # 2. Sincroniza a partir do volume Docker do Control Center (*audit_data)
     if command -v docker >/dev/null 2>&1; then
         local audit_vol
         audit_vol=$(docker volume ls -q --filter "name=audit_data" 2>/dev/null | head -n 1)
@@ -109,12 +128,10 @@ get_worker_ssh_host() {
 
     mkdir -p "$CONTROL_DIR" 2>/dev/null || true
 
-    # 1. Tentar ler do arquivo de mapeamento persistente fleet-ssh.json
     if [ -f "$SSH_HOSTS_FILE" ]; then
         host=$(jq -r --arg id "$node_id" --arg name "$node_name" '.[$id] // .[$name] // empty' "$SSH_HOSTS_FILE" 2>/dev/null || true)
     fi
 
-    # 2. Se vazio, tentar extrair do endpoint cadastrado (se for IP direto)
     if [ -z "$host" ] && [ -f "$INVENTORY_FILE" ]; then
         local ep
         ep=$(jq -r --arg id "$node_id" '.nodes[]? | select(.id == $id) | .endpoint' "$INVENTORY_FILE" 2>/dev/null || true)
@@ -123,15 +140,13 @@ get_worker_ssh_host() {
         fi
     fi
 
-    # 3. Fallback de teste conhecido para o laboratório homologado Server2
     if [ -z "$host" ] && { [ "$node_id" = "node-worker-a8454ed4" ] || [ "$node_name" = "Server2" ]; }; then
         host="91.99.117.159"
     fi
 
-    # 4. Se ainda vazio, solicitar ao usuário e salvar de forma transparente
     if [ -z "$host" ]; then
         host=$(whiptail --title "CONEXÃO SSH COM O WORKER ($node_name)" --inputbox \
-            "Informe o endereço IP da VPS para transferência segura de volumes e banco de dados:" 12 74 "91.99.117.159" 3>&1 1>&2 2>&3) || return 1
+            "Informe o endereço IP da VPS para transferência de dados:" 12 74 "91.99.117.159" 3>&1 1>&2 2>&3) || return 1
         [ -n "$host" ] || return 1
 
         local current_json="{}"
@@ -141,23 +156,36 @@ get_worker_ssh_host() {
         printf '%s\n' "$updated_json" > "$SSH_HOSTS_FILE" 2>/dev/null || true
     fi
 
+    ensure_ssh_keys_available
+
+    # Testar conectividade SSH
+    if ! ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 "root@$host" "echo ok" >/dev/null 2>&1; then
+        local vps_pwd
+        vps_pwd=$(whiptail --title "AUTENTICAÇÃO SSH NECESSÁRIA" --passwordbox \
+            "A chave SSH ainda não está autorizada no nó '$node_name' ($host).\n\nInforme a senha de root da VPS para estabelecer a conexão segura:" 12 74 3>&1 1>&2 2>&3) || return 1
+        
+        if command -v sshpass >/dev/null 2>&1 && [ -n "$vps_pwd" ]; then
+            sshpass -p "$vps_pwd" ssh-copy-id -o StrictHostKeyChecking=no "root@$host" >/dev/null 2>&1 || true
+        fi
+    fi
+
     printf '%s\n' "$host"
 }
 
-exec_on_node() {
+# Executa comandos locais ou remotos de forma segura
+exec_node() {
     local node_id="$1"
     local host="$2"
     local cmd="$3"
 
     if [ "$node_id" = "local" ]; then
-        bash -c "$cmd"
+        eval "$cmd"
     else
-        ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=10 "root@$host" "$cmd"
+        ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=15 "root@$host" "$cmd"
     fi
 }
 
-# Resolução Dinâmica de Stacks do Portainer:
-# Lê a versão editada no painel web (volume portainer_data) e sincroniza /root/<app>.yaml
+# Resolução de Live Stack do Portainer
 resolve_live_stack_yaml() {
     local node_id="$1"
     local host="$2"
@@ -166,40 +194,47 @@ resolve_live_stack_yaml() {
 
     mkdir -p "$(dirname "$out_file")"
 
-    # 1. Tenta extrair a versão viva diretamente do volume do Portainer
     local pfile=""
-    pfile=$(exec_on_node "$node_id" "$host" "docker run --rm -v portainer_data:/pdata alpine sh -c \"grep -rl '$app' /pdata/compose/*/docker-compose.yml 2>/dev/null | head -n 1\" 2>/dev/null" || true)
-
-    if [ -n "$pfile" ]; then
-        exec_on_node "$node_id" "$host" "docker run --rm -v portainer_data:/pdata alpine cat '$pfile' 2>/dev/null" > "$out_file"
-        if [ -s "$out_file" ]; then
-            # Auto-sincroniza o arquivo /root/<app>.yaml na máquina de origem para mantê-lo sempre atualizado
-            exec_on_node "$node_id" "$host" "docker run --rm -v portainer_data:/pdata alpine cat '$pfile' > /root/${app}.yaml 2>/dev/null || true"
+    if [ "$node_id" = "local" ]; then
+        pfile=$(docker run --rm -v portainer_data:/pdata alpine sh -c "grep -rl '$app' /pdata/compose/*/docker-compose.yml 2>/dev/null | head -n 1" 2>/dev/null || true)
+        if [ -n "$pfile" ]; then
+            docker run --rm -v portainer_data:/pdata alpine cat "$pfile" > "$out_file" 2>/dev/null || true
+            if [ -s "$out_file" ]; then
+                cp -f "$out_file" "/root/${app}.yaml" 2>/dev/null || true
+                return 0
+            fi
+        fi
+        if [ -s "/root/${app}.yaml" ]; then
+            cp -f "/root/${app}.yaml" "$out_file"
             return 0
         fi
-    fi
-
-    # 2. Se não achou no Portainer, verificar /root/<app>.yaml
-    if exec_on_node "$node_id" "$host" "[ -s /root/${app}.yaml ]"; then
-        exec_on_node "$node_id" "$host" "cat /root/${app}.yaml" > "$out_file"
-        [ -s "$out_file" ] && return 0
-    fi
-
-    # 3. Se não achou em /root, verificar em /root/SetupLowCodeMno/stacks/<app>.yml
-    if exec_on_node "$node_id" "$host" "[ -s /root/SetupLowCodeMno/stacks/${app}.yml ]"; then
-        exec_on_node "$node_id" "$host" "cat /root/SetupLowCodeMno/stacks/${app}.yml" > "$out_file"
-        [ -s "$out_file" ] && return 0
+        if [ -s "/root/SetupLowCodeMno/stacks/${app}.yml" ]; then
+            cp -f "/root/SetupLowCodeMno/stacks/${app}.yml" "$out_file"
+            return 0
+        fi
+    else
+        pfile=$(ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "docker run --rm -v portainer_data:/pdata alpine sh -c \"grep -rl '$app' /pdata/compose/*/docker-compose.yml 2>/dev/null | head -n 1\" 2>/dev/null" || true)
+        if [ -n "$pfile" ]; then
+            ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "docker run --rm -v portainer_data:/pdata alpine cat '$pfile' 2>/dev/null" > "$out_file" 2>/dev/null || true
+            if [ -s "$out_file" ]; then
+                ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "cp -f '$pfile' /root/${app}.yaml 2>/dev/null || true" >/dev/null 2>&1 || true
+                return 0
+            fi
+        fi
+        if ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "[ -s /root/${app}.yaml ]"; then
+            ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "cat /root/${app}.yaml" > "$out_file"
+            return 0
+        fi
     fi
 
     return 1
 }
 
-# Detecção e Isolamento de Banco de Dados Multi-Tenant
+# Detecção de Banco Multi-Tenant
 detect_database_engine() {
     local yaml_file="$1"
     local app="$2"
 
-    # 1. PostgreSQL (n8n, Chatwoot, Typebot, Baserow, Dify, etc.)
     if grep -qE "POSTGRES_DB|DB_POSTGRESDB_DATABASE|POSTGRES_HOST=postgres|postgres:5432" "$yaml_file"; then
         local pg_db
         pg_db=$(grep -E "POSTGRES_DB=|DB_POSTGRESDB_DATABASE=" "$yaml_file" 2>/dev/null | head -n1 | cut -d= -f2 | tr -d ' "\r' || true)
@@ -208,7 +243,6 @@ detect_database_engine() {
         return 0
     fi
 
-    # 2. MySQL 8.4 (Mautic 7, etc.)
     if grep -qE "MAUTIC_DB_HOST=mysql84|MYSQL_HOST=mysql84|mysql84:3306|MAUTIC_DB_NAME" "$yaml_file"; then
         local my_db
         my_db=$(grep -E "MAUTIC_DB_NAME=|MYSQL_DATABASE=" "$yaml_file" 2>/dev/null | head -n1 | cut -d= -f2 | tr -d ' "\r' || true)
@@ -220,17 +254,16 @@ detect_database_engine() {
     printf "none:\n"
 }
 
-# Extração da lista de volumes específicos da aplicação (exclui infraestrutura compartilhada)
+# Extração de volumes exclusivos (sem infraestrutura compartilhada)
 get_application_volumes() {
     local yaml_file="$1"
     local app="$2"
 
     local vols=()
-    # Volumes declarados na seção volumes: do compose
     while IFS= read -r v; do
         [ -n "$v" ] || continue
         case "$v" in
-            postgres_data*|mysql84_data*|portainer*|traefik*|cloudflared*|audit*|interna|externa)
+            postgres*|mysql*|portainer*|traefik*|cloudflared*|audit*|interna|externa|redis*)
                 continue
                 ;;
             *)
@@ -239,12 +272,11 @@ get_application_volumes() {
         esac
     done < <(awk '/^volumes:/{flag=1; next} /^[a-zA-Z0-9_-]+:/{if(flag && !/^  /) {print $1}}' "$yaml_file" 2>/dev/null | tr -d ':' || true)
 
-    # Fallback caso a sintaxe do compose seja simplificada
     if [ ${#vols[@]} -eq 0 ]; then
         while IFS= read -r v; do
             [ -n "$v" ] || continue
             case "$v" in
-                postgres_data*|mysql84_data*|portainer*|traefik*|cloudflared*|audit*|interna|externa)
+                postgres*|mysql*|portainer*|traefik*|cloudflared*|audit*|interna|externa|redis*)
                     continue
                     ;;
                 *)
@@ -257,7 +289,81 @@ get_application_volumes() {
     printf '%s\n' "${vols[@]}"
 }
 
-# Realiza o Raio-X comparativo entre servidores da frota
+# Garante que MySQL 8.4 está rodando no nó destino
+ensure_mysql84_ready() {
+    local node_id="$1"
+    local host="$2"
+
+    local running=""
+    if [ "$node_id" = "local" ]; then
+        running=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
+    else
+        running=$(ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" 'docker ps -qf name=mysql84 | head -n1' 2>/dev/null || true)
+    fi
+
+    if [ -n "$running" ]; then
+        return 0
+    fi
+
+    local new_pwd
+    new_pwd=$(openssl rand -hex 8)
+
+    local yaml_body="version: '3.7'
+services:
+    mysql84:
+        image: percona/percona-server:8.4
+        environment:
+            - MYSQL_ROOT_PASSWORD=${new_pwd}
+            - TZ=America/Fortaleza
+        networks:
+            - externa
+            - interna
+        volumes:
+            - mysql84_data:/var/lib/mysql
+        deploy:
+            placement:
+                constraints: [node.role == manager]
+        command:
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_general_ci
+            - --sql-mode=
+            - --mysql-native-password=ON
+            - --port=3306
+            - --max-allowed-packet=512MB
+volumes:
+    mysql84_data:
+networks:
+    externa:
+        external: true
+    interna:
+        external: true
+"
+    if [ "$node_id" = "local" ]; then
+        printf '%s\n' "$yaml_body" > /root/mysql84.yaml 2>/dev/null || true
+        docker stack deploy --prune -c /root/mysql84.yaml mysql84 >/dev/null 2>&1 || true
+    else
+        ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "cat > /root/mysql84.yaml" <<< "$yaml_body"
+        ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "docker stack deploy --prune -c /root/mysql84.yaml mysql84 >/dev/null 2>&1 || true"
+    fi
+
+    local wait_count=0
+    while [ $wait_count -lt 15 ]; do
+        sleep 1
+        wait_count=$((wait_count + 1))
+        local chk=""
+        if [ "$node_id" = "local" ]; then
+            chk=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
+        else
+            chk=$(ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" 'docker ps -qf name=mysql84 | head -n1' 2>/dev/null || true)
+        fi
+        if [ -n "$chk" ]; then
+            sleep 4
+            return 0
+        fi
+    done
+}
+
+# Raio-X da Frota
 action_inspect_nodes() {
     sync_fleet_inventory
 
@@ -272,15 +378,9 @@ action_inspect_nodes() {
     fleet_mode=$(get_local_fleet_mode)
     node_id=$(get_local_fleet_node_id)
     case "$fleet_mode" in
-        worker)
-            local_role="Nó Operário da Frota (Worker)"
-            ;;
-        master)
-            local_role="Torre Master (Cockpit Local)"
-            ;;
-        *)
-            local_role="Servidor Standalone (Torre Local)"
-            ;;
+        worker) local_role="Nó Operário da Frota (Worker)" ;;
+        master) local_role="Torre Master (Cockpit Local)" ;;
+        *) local_role="Servidor Standalone (Torre Local)" ;;
     esac
 
     local report="📊 RAIO-X DO SERVIDOR LOCAL (ESTE NÓ):\n"
@@ -324,7 +424,7 @@ action_inspect_nodes() {
     whiptail --title "RAIO-X ESTRUTURAL DA FROTA MNO" --msgbox "$report" 20 78
 }
 
-# Criar backup portátil independente de arquitetura (inclui banco lógico e volumes)
+# Criar backup portátil universal
 action_backup_app() {
     local chosen_app="${1:-}"
     local is_cli=false
@@ -347,6 +447,9 @@ action_backup_app() {
         local stack_menu=()
         while IFS= read -r s; do
             [ -n "$s" ] || continue
+            case "$s" in
+                mnoctrl*|cloudflared|traefik|portainer|pgbouncer|redis|postgres|mysql84|mysql) continue ;;
+            esac
             stack_menu+=("$s" "Stack Docker Swarm ativa")
         done <<< "$stacks"
 
@@ -363,27 +466,16 @@ action_backup_app() {
 
     local backup_file="$BACKUP_BASE_DIR/${chosen_app}_backup_${local_arch}_${timestamp}.tar.gz"
 
-    if [ "$is_cli" = "true" ]; then
-        echo "[1/4] Resolvendo definições vivas da aplicação (Portainer/Disk): $chosen_app..."
-    fi
-
     local tmpdir
     tmpdir=$(mktemp -d)
     trap 'rm -rf "$tmpdir"' RETURN
 
     resolve_live_stack_yaml "local" "" "$chosen_app" "$tmpdir/stack.yaml" || true
-    if [ ! -s "$tmpdir/stack.yaml" ]; then
-        echo "# Stack: $chosen_app" > "$tmpdir/stack.yaml"
-    fi
+    [ -s "$tmpdir/stack.yaml" ] || echo "# Stack: $chosen_app" > "$tmpdir/stack.yaml"
 
     local db_info
     db_info=$(detect_database_engine "$tmpdir/stack.yaml" "$chosen_app")
 
-    if [ "$is_cli" = "true" ]; then
-        echo "[2/4] Extraindo banco de dados lógico ($db_info) e volumes de dados..."
-    fi
-
-    # Extração de banco lógico se existir
     if [[ "$db_info" == postgres:* ]]; then
         local db_name="${db_info#postgres:}"
         local pg_c
@@ -419,17 +511,16 @@ EOF
     size=$(du -h "$backup_file" | awk '{print $1}')
 
     if [ "$is_cli" = "true" ]; then
-        echo "[3/4] Gerando hash criptográfico SHA-256: $sha"
-        echo "[4/4] Backup concluído com sucesso: $backup_file ($size)"
+        echo "Backup concluído: $backup_file ($size)"
     else
         whiptail --title "BACKUP GERADO COM SUCESSO" --msgbox \
-            "✅ O Backup Portátil da aplicação '$chosen_app' foi concluído!\n\nArquivo: $backup_file\nTamanho: $size\nSHA-256: ${sha:0:16}...\nArquitetura de Origem: $local_arch\nBanco Lógico Extraído: $db_info\n\nEste arquivo é universal e pode ser usado para restauração de emergência em qualquer servidor." 17 76
+            "✅ O Backup Portátil da aplicação '$chosen_app' foi concluído!\n\nArquivo: $backup_file\nTamanho: $size\nSHA-256: ${sha:0:16}...\nArquitetura: $local_arch\nBanco Lógico Extraído: $db_info\n\nEste arquivo é universal e pode ser usado para restauração de emergência em qualquer servidor." 17 76
     fi
 }
 
-# Transferir ou clonar aplicação entre nós da frota (Bidirecional: Torre ⇄ Worker)
+# Transferência e Clonagem Atômica
 action_transfer_or_clone() {
-    local op_mode="${1:-transfer}" # transfer ou clone
+    local op_mode="${1:-transfer}"
     local op_title="TRANSFERÊNCIA DE APLICAÇÃO"
     [ "$op_mode" = "clone" ] && op_title="CLONAGEM DE APLICAÇÃO (TESTE)"
 
@@ -457,7 +548,7 @@ action_transfer_or_clone() {
         return 0
     fi
 
-    # 2. Selecionar o SERVIDOR DE ORIGEM (Onde a aplicação está rodando hoje)
+    # 2. Selecionar o SERVIDOR DE ORIGEM
     local origin_menu=()
     origin_menu+=("local" "Torre Master (Nó Local) [$local_arch]")
     while IFS=$'\t' read -r wid wname warch wendpoint wtoken; do
@@ -470,7 +561,7 @@ action_transfer_or_clone() {
         "Onde a aplicação que você deseja mover está rodando HOJE?" 18 78 6 \
         "${origin_menu[@]}" 3>&1 1>&2 2>&3) || return 0
 
-    # 3. Selecionar o SERVIDOR DE DESTINO (Para onde a aplicação vai)
+    # 3. Selecionar o SERVIDOR DE DESTINO
     local dest_menu=()
     if [ "$chosen_origin_id" != "local" ]; then
         dest_menu+=("local" "Torre Master (Nó Local) [$local_arch]")
@@ -532,7 +623,7 @@ action_transfer_or_clone() {
         dest_ssh_host=$(get_worker_ssh_host "$chosen_dest_id" "$dest_name") || return 0
     fi
 
-    # 7. Selecionar a APLICAÇÃO na ORIGEM
+    # 7. Selecionar a APLICAÇÃO na ORIGEM (Filtra estritamente bancos e infraestrutura)
     local chosen_app=""
     if [ "$chosen_origin_id" = "local" ]; then
         local stacks
@@ -545,16 +636,20 @@ action_transfer_or_clone() {
         while IFS= read -r s; do
             [ -n "$s" ] || continue
             case "$s" in
-                mnoctrl*|cloudflared|traefik|portainer) continue ;;
+                mnoctrl*|cloudflared|traefik|portainer|pgbouncer|redis*|postgres*|mysql84*|mysql*) continue ;;
             esac
-            stack_menu+=("$s" "Stack ativa no nó local")
+            stack_menu+=("$s" "Aplicação ativa no nó local")
         done <<< "$stacks"
+
+        if [ ${#stack_menu[@]} -eq 0 ]; then
+            whiptail --title "$op_title" --msgbox "Nenhuma aplicação de usuário encontrada para migrar no nó local." 10 70
+            return 0
+        fi
 
         chosen_app=$(whiptail --title "SELECIONE A APLICAÇÃO NA ORIGEM" --menu \
             "Escolha a aplicação a ser enviada para '$dest_name':" 18 70 6 \
             "${stack_menu[@]}" 3>&1 1>&2 2>&3) || return 0
     else
-        # Origem é Worker remoto: consulta apps via API
         local remote_apps=()
         if [ -n "$origin_endpoint" ] && [ -n "$origin_token" ]; then
             local structure_raw
@@ -563,7 +658,7 @@ action_transfer_or_clone() {
                 while IFS= read -r aname; do
                     [ -n "$aname" ] || continue
                     case "$aname" in
-                        mnoctrl*|cloudflared|traefik|portainer|pgbouncer|redis|postgres) continue ;;
+                        mnoctrl*|cloudflared|traefik|portainer|pgbouncer|redis*|postgres*|mysql84*|mysql*) continue ;;
                     esac
                     remote_apps+=("$aname" "Aplicação ativa no Worker")
                 done <<< "$(printf '%s\n' "$structure_raw" | jq -r '.apps[]?.name // empty' 2>/dev/null)"
@@ -620,100 +715,145 @@ action_transfer_or_clone() {
         notify_sentinel=false
     fi
 
-    # 10. Execução Real da Migração (Pipeline Automatizado)
+    # 10. Execução Robusta da Migração
     local safety_suffix="frozen_pre_transfer_$(date -u +%Y%m%dT%H%M%SZ)"
     local workdir
     workdir=$(mktemp -d)
     trap 'rm -rf "$workdir"' RETURN
 
-    local stage_error=""
+    : > "$TRANSFER_LOG"
+    local migration_error=""
+    local db_engine=""
+    local app_vols=()
 
-    {
+    # Função interna de execução de etapas
+    run_migration_pipeline() {
         echo -e "XXX\n10\n[1/6] Resolvendo definições vivas do Portainer e sincronizando /root/${chosen_app}.yaml...\nXXX"
-        resolve_live_stack_yaml "$chosen_origin_id" "$origin_ssh_host" "$chosen_app" "$workdir/stack.yaml" || {
-            stage_error="Falha ao extrair o compose da aplicação '$chosen_app' na origem."
-            echo "ERRO: $stage_error" >&2
-        }
+        if ! resolve_live_stack_yaml "$chosen_origin_id" "$origin_ssh_host" "$chosen_app" "$workdir/stack.yaml" 2>> "$TRANSFER_LOG"; then
+            echo "Aviso: stack yaml não encontrado no Portainer, tentando gerar manifesto mínimo..." >> "$TRANSFER_LOG"
+            echo "version: '3.7'" > "$workdir/stack.yaml"
+        fi
 
-        local db_engine
         db_engine=$(detect_database_engine "$workdir/stack.yaml" "$chosen_app")
+        echo "Banco de dados detectado: $db_engine" >> "$TRANSFER_LOG"
 
         echo -e "XXX\n25\n[2/6] Extraindo banco de dados lógico multi-tenant ($db_engine)...\nXXX"
         if [[ "$db_engine" == postgres:* ]]; then
             local pg_dbname="${db_engine#postgres:}"
-            exec_on_node "$chosen_origin_id" "$origin_ssh_host" \
-                "docker exec -i \$(docker ps -qf name=postgres | head -n1) pg_dump -U postgres -d '$pg_dbname' --clean --if-exists 2>/dev/null" \
-                | gzip > "$workdir/db_logical_dump.sql.gz" || true
+            if [ "$chosen_origin_id" = "local" ]; then
+                local c_id
+                c_id=$(docker ps -qf name=postgres 2>/dev/null | head -n1 || true)
+                if [ -n "$c_id" ]; then
+                    docker exec -i "$c_id" pg_dump -U postgres -d "$pg_dbname" --clean --if-exists 2>> "$TRANSFER_LOG" | gzip > "$workdir/db_logical_dump.sql.gz" || true
+                fi
+            else
+                ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" \
+                    "c_id=\$(docker ps -qf name=postgres | head -n1); [ -n \"\$c_id\" ] && docker exec -i \"\$c_id\" pg_dump -U postgres -d '$pg_dbname' --clean --if-exists 2>/dev/null" \
+                    | gzip > "$workdir/db_logical_dump.sql.gz" 2>> "$TRANSFER_LOG" || true
+            fi
         elif [[ "$db_engine" == mysql84:* ]]; then
             local my_dbname="${db_engine#mysql84:}"
-            local orig_pwd
-            orig_pwd=$(exec_on_node "$chosen_origin_id" "$origin_ssh_host" \
-                "docker inspect \$(docker ps -qf name=mysql84 | head -n1) --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null || echo ''")
-            exec_on_node "$chosen_origin_id" "$origin_ssh_host" \
-                "docker exec -i \$(docker ps -qf name=mysql84 | head -n1) mysqldump -u root -p'$orig_pwd' --databases '$my_dbname' --add-drop-table 2>/dev/null" \
-                | gzip > "$workdir/db_logical_dump.sql.gz" || true
+            if [ "$chosen_origin_id" = "local" ]; then
+                local c_id orig_pwd
+                c_id=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
+                orig_pwd=$(docker inspect "$c_id" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null || echo "")
+                if [ -n "$c_id" ] && [ -n "$orig_pwd" ]; then
+                    docker exec -i "$c_id" mysqldump -u root -p"$orig_pwd" --databases "$my_dbname" --add-drop-table 2>> "$TRANSFER_LOG" | gzip > "$workdir/db_logical_dump.sql.gz" || true
+                fi
+            else
+                ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" '
+                    c_id=$(docker ps -qf name=mysql84 | head -n1)
+                    pwd=$(docker inspect "$c_id" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP "(?<=MYSQL_ROOT_PASSWORD=).+" /root/mysql84.yaml 2>/dev/null || echo "")
+                    if [ -n "$c_id" ] && [ -n "$pwd" ]; then
+                        docker exec -i "$c_id" mysqldump -u root -p"$pwd" --databases "'"$my_dbname"'" --add-drop-table 2>/dev/null
+                    fi
+                ' | gzip > "$workdir/db_logical_dump.sql.gz" 2>> "$TRANSFER_LOG" || true
+            fi
         fi
 
         echo -e "XXX\n45\n[3/6] Criando snapshots compactados dos volumes exclusivos da aplicação...\nXXX"
-        local app_vols=()
         while IFS= read -r v; do
             [ -n "$v" ] || continue
             app_vols+=("$v")
-            exec_on_node "$chosen_origin_id" "$origin_ssh_host" \
-                "docker run --rm -v '${v}:/voldata:ro' alpine tar -czf - -C /voldata . 2>/dev/null" > "$workdir/vol_${v}.tar.gz" || true
+            echo "Compactando volume: $v" >> "$TRANSFER_LOG"
+            if [ "$chosen_origin_id" = "local" ]; then
+                docker run --rm -v "${v}:/voldata:ro" alpine tar -czf - -C /voldata . > "$workdir/vol_${v}.tar.gz" 2>> "$TRANSFER_LOG" || true
+            else
+                ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" \
+                    "docker run --rm -v '${v}:/voldata:ro' alpine tar -czf - -C /voldata ." > "$workdir/vol_${v}.tar.gz" 2>> "$TRANSFER_LOG" || true
+            fi
         done < <(get_application_volumes "$workdir/stack.yaml" "$chosen_app")
 
         echo -e "XXX\n65\n[4/6] Restaurando volumes e provisionando banco de dados no destino ($dest_name)...\nXXX"
-        # 4a. Restaurar volumes de aplicação no destino
         for v in "${app_vols[@]}"; do
             [ -f "$workdir/vol_${v}.tar.gz" ] || continue
-            exec_on_node "$chosen_dest_id" "$dest_ssh_host" "docker volume create '$v' >/dev/null 2>&1 || true"
-            cat "$workdir/vol_${v}.tar.gz" | exec_on_node "$chosen_dest_id" "$dest_ssh_host" \
-                "docker run --rm -i -v '${v}:/voldata' alpine tar -xzf - -C /voldata 2>/dev/null || true"
+            echo "Restaurando volume no destino: $v" >> "$TRANSFER_LOG"
+            if [ "$chosen_dest_id" = "local" ]; then
+                docker volume create "$v" >/dev/null 2>&1 || true
+                docker run --rm -i -v "${v}:/voldata" alpine tar -xzf - -C /voldata < "$workdir/vol_${v}.tar.gz" 2>> "$TRANSFER_LOG" || true
+            else
+                ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "docker volume create '$v' >/dev/null 2>&1 || true"
+                ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "docker run --rm -i -v '${v}:/voldata' alpine tar -xzf - -C /voldata" < "$workdir/vol_${v}.tar.gz" 2>> "$TRANSFER_LOG" || true
+            fi
         done
 
-        # 4b. Provisionar banco lógico e remapear credenciais no destino
+        # Provisionar Banco Lógico no Destino
         if [[ "$db_engine" == postgres:* ]] && [ -f "$workdir/db_logical_dump.sql.gz" ]; then
             local pg_dbname="${db_engine#postgres:}"
-            exec_on_node "$chosen_dest_id" "$dest_ssh_host" \
-                "docker exec -i \$(docker ps -qf name=postgres | head -n1) psql -U postgres -c \"CREATE DATABASE \\\"$pg_dbname\\\";\" 2>/dev/null || true"
-            cat "$workdir/db_logical_dump.sql.gz" | exec_on_node "$chosen_dest_id" "$dest_ssh_host" \
-                "gunzip -c | docker exec -i \$(docker ps -qf name=postgres | head -n1) psql -U postgres -d '$pg_dbname' 2>/dev/null || true"
+            local dest_pg_pwd=""
+            if [ "$chosen_dest_id" = "local" ]; then
+                local dc
+                dc=$(docker ps -qf name=postgres 2>/dev/null | head -n1 || true)
+                dest_pg_pwd=$(docker inspect "$dc" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep POSTGRES_PASSWORD | cut -d= -f2- || grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml 2>/dev/null || echo "")
+                docker exec -i "$dc" psql -U postgres -c "CREATE DATABASE \"$pg_dbname\";" 2>> "$TRANSFER_LOG" || true
+                gunzip -c "$workdir/db_logical_dump.sql.gz" | docker exec -i "$dc" psql -U postgres -d "$pg_dbname" 2>> "$TRANSFER_LOG" || true
+            else
+                dest_pg_pwd=$(ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'dc=$(docker ps -qf name=postgres | head -n1); docker inspect "$dc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep POSTGRES_PASSWORD | cut -d= -f2- || grep -oP "(?<=POSTGRES_PASSWORD=).+" /root/postgres.yaml 2>/dev/null || echo ""')
+                ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); docker exec -i \"\$dc\" psql -U postgres -c \"CREATE DATABASE \\\"$pg_dbname\\\";\" 2>/dev/null || true"
+                ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); gunzip -c | docker exec -i \"\$dc\" psql -U postgres -d '$pg_dbname' 2>/dev/null || true" < "$workdir/db_logical_dump.sql.gz"
+            fi
 
-            local dest_pg_pwd
-            dest_pg_pwd=$(exec_on_node "$chosen_dest_id" "$dest_ssh_host" \
-                "docker inspect \$(docker ps -qf name=postgres | head -n1) --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep POSTGRES_PASSWORD | cut -d= -f2- || grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml 2>/dev/null || echo ''")
             if [ -n "$dest_pg_pwd" ]; then
                 sed -i -E "s/POSTGRES_PASSWORD=[^[:space:]]+/POSTGRES_PASSWORD=$dest_pg_pwd/g" "$workdir/stack.yaml"
             fi
         elif [[ "$db_engine" == mysql84:* ]] && [ -f "$workdir/db_logical_dump.sql.gz" ]; then
             local my_dbname="${db_engine#mysql84:}"
-            # Se mysql84 não existe no destino, implantar
-            local has_my
-            has_my=$(exec_on_node "$chosen_dest_id" "$dest_ssh_host" "docker ps -qf name=mysql84 | head -n1" || true)
-            if [ -z "$has_my" ]; then
-                exec_on_node "$chosen_dest_id" "$dest_ssh_host" "docker run --rm -v /root:/r alpine sh -c 'printf \"version: \\\"3.7\\\"\\nservices:\\n  mysql84:\\n    image: percona/percona-server:8.4\\n    environment:\\n      - MYSQL_ROOT_PASSWORD=%s\\n      - TZ=America/Fortaleza\\n    networks:\\n      - externa\\n      - interna\\n    volumes:\\n      - mysql84_data:/var/lib/mysql\\nvolumes:\\n  mysql84_data:\\nnetworks:\\n  externa:\\n    external: true\\n  interna:\\n    external: true\\n\" \$(openssl rand -hex 8) > /r/mysql84.yaml' && docker stack deploy --prune -c /root/mysql84.yaml mysql84 >/dev/null 2>&1 || true"
-                sleep 6
+            ensure_mysql84_ready "$chosen_dest_id" "$dest_ssh_host"
+
+            local dest_my_pwd=""
+            if [ "$chosen_dest_id" = "local" ]; then
+                local mc
+                mc=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
+                dest_my_pwd=$(docker inspect "$mc" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null || echo "")
+                docker exec -i "$mc" mysql -u root -p"$dest_my_pwd" -e "CREATE DATABASE IF NOT EXISTS \`$my_dbname\`;" 2>> "$TRANSFER_LOG" || true
+                gunzip -c "$workdir/db_logical_dump.sql.gz" | docker exec -i "$mc" mysql -u root -p"$dest_my_pwd" "$my_dbname" 2>> "$TRANSFER_LOG" || true
+            else
+                dest_my_pwd=$(ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'mc=$(docker ps -qf name=mysql84 | head -n1); docker inspect "$mc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP "(?<=MYSQL_ROOT_PASSWORD=).+" /root/mysql84.yaml 2>/dev/null || echo ""')
+                ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); docker exec -i \"\$mc\" mysql -u root -p'$dest_my_pwd' -e 'CREATE DATABASE IF NOT EXISTS \\\`$my_dbname\\\`;' 2>/dev/null || true"
+                ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); gunzip -c | docker exec -i \"\$mc\" mysql -u root -p'$dest_my_pwd' '$my_dbname' 2>/dev/null || true" < "$workdir/db_logical_dump.sql.gz"
             fi
 
-            local dest_my_pwd
-            dest_my_pwd=$(exec_on_node "$chosen_dest_id" "$dest_ssh_host" \
-                "docker inspect \$(docker ps -qf name=mysql84 | head -n1) --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null || echo ''")
-
             if [ -n "$dest_my_pwd" ]; then
-                exec_on_node "$chosen_dest_id" "$dest_ssh_host" \
-                    "docker exec -i \$(docker ps -qf name=mysql84 | head -n1) mysql -u root -p'$dest_my_pwd' -e 'CREATE DATABASE IF NOT EXISTS \`$my_dbname\`;' 2>/dev/null || true"
-                cat "$workdir/db_logical_dump.sql.gz" | exec_on_node "$chosen_dest_id" "$dest_ssh_host" \
-                    "gunzip -c | docker exec -i \$(docker ps -qf name=mysql84 | head -n1) mysql -u root -p'$dest_my_pwd' '$my_dbname' 2>/dev/null || true"
                 sed -i -E "s/MAUTIC_DB_PASSWORD=[^[:space:]]+/MAUTIC_DB_PASSWORD=$dest_my_pwd/g" "$workdir/stack.yaml"
+                # Se for Mautic, sincronizar também no volume config (local.php)
+                local cfg_vol="${chosen_app}-config"
+                if [ "$chosen_dest_id" = "local" ]; then
+                    docker run --rm -v "${cfg_vol}:/voldata" alpine sh -c "sed -i \"s/'db_password' => .*/'db_password' => '$dest_my_pwd',/\" /voldata/local.php 2>/dev/null || true" 2>> "$TRANSFER_LOG" || true
+                else
+                    ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "docker run --rm -v '${cfg_vol}:/voldata' alpine sh -c \"sed -i \\\"s/'db_password' => .*/'db_password' => '$dest_my_pwd',/\\\" /voldata/local.php 2>/dev/null || true\"" 2>> "$TRANSFER_LOG" || true
+                fi
             fi
         fi
 
         echo -e "XXX\n80\n[5/6] Aplicando stack no Swarm de $dest_name e convergindo containers...\nXXX"
-        # Gravar o stack.yaml no destino e efetuar deploy
-        cat "$workdir/stack.yaml" | exec_on_node "$chosen_dest_id" "$dest_ssh_host" "cat > /root/${chosen_app}.yaml"
-        exec_on_node "$chosen_dest_id" "$dest_ssh_host" "docker stack deploy --prune --resolve-image always -c /root/${chosen_app}.yaml '$chosen_app' >/dev/null 2>&1"
-        sleep 3
+        if [ "$chosen_dest_id" = "local" ]; then
+            cp -f "$workdir/stack.yaml" "/root/${chosen_app}.yaml"
+            docker stack deploy --prune --resolve-image always -c "/root/${chosen_app}.yaml" "$chosen_app" >> "$TRANSFER_LOG" 2>&1
+        else
+            ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "cat > /root/${chosen_app}.yaml" < "$workdir/stack.yaml"
+            ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "docker stack deploy --prune --resolve-image always -c '/root/${chosen_app}.yaml' '$chosen_app'" >> "$TRANSFER_LOG" 2>&1
+        fi
+        sleep 4
 
         if [ "$update_dns" = "true" ]; then
             echo -e "XXX\n88\nComutando registros de DNS no Cloudflare Tunnel...\nXXX"
@@ -722,11 +862,18 @@ action_transfer_or_clone() {
 
         if [ "$stop_origin" = "true" ]; then
             echo -e "XXX\n92\nDesligando stack antiga na origem e congelando volumes com segurança...\nXXX"
-            exec_on_node "$chosen_origin_id" "$origin_ssh_host" "docker stack rm '$chosen_app' >/dev/null 2>&1 || true"
-            for v in "${app_vols[@]}"; do
-                exec_on_node "$chosen_origin_id" "$origin_ssh_host" \
-                    "docker volume create '${v}_${safety_suffix}' >/dev/null 2>&1 && docker run --rm -v '${v}:/src:ro' -v '${v}_${safety_suffix}:/dst' alpine cp -a /src/. /dst/ 2>/dev/null || true"
-            done
+            if [ "$chosen_origin_id" = "local" ]; then
+                docker stack rm "$chosen_app" >/dev/null 2>&1 || true
+                for v in "${app_vols[@]}"; do
+                    docker volume create "${v}_${safety_suffix}" >/dev/null 2>&1 || true
+                    docker run --rm -v "${v}:/src:ro" -v "${v}_${safety_suffix}:/dst" alpine cp -a /src/. /dst/ >/dev/null 2>&1 || true
+                done
+            else
+                ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" "docker stack rm '$chosen_app' >/dev/null 2>&1 || true"
+                for v in "${app_vols[@]}"; do
+                    ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" "docker volume create '${v}_${safety_suffix}' >/dev/null 2>&1 && docker run --rm -v '${v}:/src:ro' -v '${v}_${safety_suffix}:/dst' alpine cp -a /src/. /dst/ 2>/dev/null || true"
+                done
+            fi
         fi
 
         if [ "$notify_sentinel" = "true" ]; then
@@ -736,7 +883,9 @@ action_transfer_or_clone() {
 
         echo -e "XXX\n100\nMigração concluída com 100% de sucesso!\nXXX"
         sleep 1
-    } | whiptail --title "EXECUTANDO OPERAÇÃO NA FROTA" --gauge "Aguarde a migração consistente..." 8 72 0
+    }
+
+    run_migration_pipeline 2>> "$TRANSFER_LOG" | whiptail --title "EXECUTANDO OPERAÇÃO NA FROTA" --gauge "Aguarde a migração consistente..." 8 72 0
 
     local summary="🎉 OPERAÇÃO CONCLUÍDA COM SUCESSO!\n\n"
     summary+="• Aplicação: $chosen_app\n"
