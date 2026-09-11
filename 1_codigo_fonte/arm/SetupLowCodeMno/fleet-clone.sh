@@ -121,55 +121,57 @@ list_local_swarm_stacks() {
     fi
 }
 
-get_worker_ssh_host() {
-    local node_id="$1"
-    local node_name="${2:-}"
-    local host=""
+resolve_worker_ssh_host() {
+    local _r_node_id="$1"
+    local _r_node_name="${2:-}"
+    local _r_ret_var="$3"
+    local _r_host=""
 
     mkdir -p "$CONTROL_DIR" 2>/dev/null || true
 
     if [ -f "$SSH_HOSTS_FILE" ]; then
-        host=$(jq -r --arg id "$node_id" --arg name "$node_name" '.[$id] // .[$name] // empty' "$SSH_HOSTS_FILE" 2>/dev/null || true)
+        _r_host=$(jq -r --arg id "$_r_node_id" --arg name "$_r_node_name" '.[$id] // .[$name] // empty' "$SSH_HOSTS_FILE" 2>/dev/null || true)
     fi
 
-    if [ -z "$host" ] && [ -f "$INVENTORY_FILE" ]; then
+    if [ -z "$_r_host" ] && [ -f "$INVENTORY_FILE" ]; then
         local ep
-        ep=$(jq -r --arg id "$node_id" '.nodes[]? | select(.id == $id) | .endpoint' "$INVENTORY_FILE" 2>/dev/null || true)
+        ep=$(jq -r --arg id "$_r_node_id" '.nodes[]? | select(.id == $id) | .endpoint' "$INVENTORY_FILE" 2>/dev/null || true)
         if [[ "$ep" =~ ^https?://([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+) ]]; then
-            host="${BASH_REMATCH[1]}"
+            _r_host="${BASH_REMATCH[1]}"
         fi
     fi
 
-    if [ -z "$host" ] && { [ "$node_id" = "node-worker-a8454ed4" ] || [ "$node_name" = "Server2" ]; }; then
-        host="91.99.117.159"
+    if [ -z "$_r_host" ] && { [ "$_r_node_id" = "node-worker-a8454ed4" ] || [ "$_r_node_name" = "Server2" ]; }; then
+        _r_host="91.99.117.159"
     fi
 
-    if [ -z "$host" ]; then
-        host=$(whiptail --title "CONEXÃO SSH COM O WORKER ($node_name)" --inputbox \
+    if [ -z "$_r_host" ]; then
+        _r_host=$(whiptail --title "CONEXÃO SSH COM O SERVIDOR ($_r_node_name)" --inputbox \
             "Informe o endereço IP da VPS para transferência de dados:" 12 74 "91.99.117.159" 3>&1 1>&2 2>&3) || return 1
-        [ -n "$host" ] || return 1
+        [ -n "$_r_host" ] || return 1
 
         local current_json="{}"
         [ -f "$SSH_HOSTS_FILE" ] && current_json=$(cat "$SSH_HOSTS_FILE" 2>/dev/null || printf '{}')
         local updated_json
-        updated_json=$(printf '%s' "$current_json" | jq --arg id "$node_id" --arg name "$node_name" --arg h "$host" '.[$id] = $h | .[$name] = $h' 2>/dev/null || printf '{"%s": "%s"}' "$node_id" "$host")
+        updated_json=$(printf '%s' "$current_json" | jq --arg id "$_r_node_id" --arg name "$_r_node_name" --arg h "$_r_host" '.[$id] = $h | .[$name] = $h' 2>/dev/null || printf '{"%s": "%s"}' "$_r_node_id" "$_r_host")
         printf '%s\n' "$updated_json" > "$SSH_HOSTS_FILE" 2>/dev/null || true
     fi
 
     ensure_ssh_keys_available
 
-    # Testar conectividade SSH
-    if ! ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 "root@$host" "echo ok" >/dev/null 2>&1; then
+    # Testar conectividade SSH com timeout estrito de 4s (evita qualquer travamento)
+    if ! timeout 4 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=3 -o ServerAliveInterval=2 -o ServerAliveCountMax=1 "root@$_r_host" "echo ok" >/dev/null 2>&1; then
         local vps_pwd
         vps_pwd=$(whiptail --title "AUTENTICAÇÃO SSH NECESSÁRIA" --passwordbox \
-            "A chave SSH ainda não está autorizada no nó '$node_name' ($host).\n\nInforme a senha de root da VPS para estabelecer a conexão segura:" 12 74 3>&1 1>&2 2>&3) || return 1
+            "A chave SSH ainda não está autorizada no nó '$_r_node_name' ($_r_host).\n\nInforme a senha de root da VPS para estabelecer a conexão segura:" 12 74 3>&1 1>&2 2>&3) || return 1
         
         if command -v sshpass >/dev/null 2>&1 && [ -n "$vps_pwd" ]; then
-            sshpass -p "$vps_pwd" ssh-copy-id -o StrictHostKeyChecking=no "root@$host" >/dev/null 2>&1 || true
+            timeout 8 sshpass -p "$vps_pwd" ssh-copy-id -o StrictHostKeyChecking=no "root@$_r_host" >/dev/null 2>&1 || true
         fi
     fi
 
-    printf '%s\n' "$host"
+    printf -v "$_r_ret_var" '%s' "$_r_host"
+    return 0
 }
 
 # Executa comandos locais ou remotos de forma segura
@@ -213,16 +215,16 @@ resolve_live_stack_yaml() {
             return 0
         fi
     else
-        pfile=$(ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "docker run --rm -v portainer_data:/pdata alpine sh -c \"grep -rl '$app' /pdata/compose/*/docker-compose.yml 2>/dev/null | head -n 1\" 2>/dev/null" || true)
+        pfile=$(timeout 8 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -o ServerAliveInterval=2 -o ServerAliveCountMax=1 "root@$host" "docker run --rm -v portainer_data:/pdata alpine sh -c \"grep -rl '$app' /pdata/compose/*/docker-compose.yml 2>/dev/null | head -n 1\" 2>/dev/null" || true)
         if [ -n "$pfile" ]; then
-            ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "docker run --rm -v portainer_data:/pdata alpine cat '$pfile' 2>/dev/null" > "$out_file" 2>/dev/null || true
+            timeout 8 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -o ServerAliveInterval=2 -o ServerAliveCountMax=1 "root@$host" "docker run --rm -v portainer_data:/pdata alpine cat '$pfile' 2>/dev/null" > "$out_file" 2>/dev/null || true
             if [ -s "$out_file" ]; then
-                ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "cp -f '$pfile' /root/${app}.yaml 2>/dev/null || true" >/dev/null 2>&1 || true
+                timeout 8 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 "root@$host" "cat > /root/${app}.yaml" < "$out_file" 2>/dev/null || true
                 return 0
             fi
         fi
-        if ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "[ -s /root/${app}.yaml ]"; then
-            ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "cat /root/${app}.yaml" > "$out_file"
+        if timeout 8 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -o ServerAliveInterval=2 -o ServerAliveCountMax=1 "root@$host" "[ -s /root/${app}.yaml ]"; then
+            timeout 8 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -o ServerAliveInterval=2 -o ServerAliveCountMax=1 "root@$host" "cat /root/${app}.yaml" > "$out_file"
             return 0
         fi
     fi
@@ -270,7 +272,13 @@ get_application_volumes() {
                 vols+=("$v")
                 ;;
         esac
-    done < <(awk '/^volumes:/{flag=1; next} /^[a-zA-Z0-9_-]+:/{if(flag && !/^  /) {print $1}}' "$yaml_file" 2>/dev/null | tr -d ':' || true)
+    done < <(awk '
+        /^volumes:/ { in_vols=1; next }
+        in_vols && /^  [a-zA-Z0-9_.-]+:/ {
+            v=$1; sub(/^  /, "", v); sub(/:.*/, "", v); print v; next
+        }
+        in_vols && /^[a-zA-Z0-9_.-]+:/ { in_vols=0 }
+    ' "$yaml_file" 2>/dev/null || true)
 
     if [ ${#vols[@]} -eq 0 ]; then
         while IFS= read -r v; do
@@ -617,10 +625,10 @@ action_transfer_or_clone() {
     # 6. Obter Hosts SSH para Comunicação Segura
     local origin_ssh_host="" dest_ssh_host=""
     if [ "$chosen_origin_id" != "local" ]; then
-        origin_ssh_host=$(get_worker_ssh_host "$chosen_origin_id" "$origin_name") || return 0
+        resolve_worker_ssh_host "$chosen_origin_id" "$origin_name" origin_ssh_host || return 0
     fi
     if [ "$chosen_dest_id" != "local" ]; then
-        dest_ssh_host=$(get_worker_ssh_host "$chosen_dest_id" "$dest_name") || return 0
+        resolve_worker_ssh_host "$chosen_dest_id" "$dest_name" dest_ssh_host || return 0
     fi
 
     # 7. Selecionar a APLICAÇÃO na ORIGEM (Filtra estritamente bancos e infraestrutura)
@@ -651,9 +659,25 @@ action_transfer_or_clone() {
             "${stack_menu[@]}" 3>&1 1>&2 2>&3) || return 0
     else
         local remote_apps=()
-        if [ -n "$origin_endpoint" ] && [ -n "$origin_token" ]; then
+        # 1. Tentar listar stacks diretamente via SSH (instantâneo e 100% confiável)
+        if [ -n "$origin_ssh_host" ]; then
+            local remote_stacks
+            remote_stacks=$(timeout 4 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=3 -o ServerAliveInterval=2 -o ServerAliveCountMax=1 "root@$origin_ssh_host" "docker stack ls --format '{{.Name}}'" 2>/dev/null || true)
+            if [ -n "$remote_stacks" ]; then
+                while IFS= read -r aname; do
+                    [ -n "$aname" ] || continue
+                    case "$aname" in
+                        mnoctrl*|cloudflared|traefik|portainer|pgbouncer|redis*|postgres*|mysql84*|mysql*) continue ;;
+                    esac
+                    remote_apps+=("$aname" "Aplicação ativa no Worker")
+                done <<< "$remote_stacks"
+            fi
+        fi
+
+        # 2. Se SSH não retornou, tentar via API do Worker com timeout curto
+        if [ ${#remote_apps[@]} -eq 0 ] && [ -n "$origin_endpoint" ] && [ -n "$origin_token" ]; then
             local structure_raw
-            structure_raw=$(curl -s -k -m 8 -H "X-SetupMNO-Fleet-Token: $origin_token" "$origin_endpoint/api/fleet/worker/structure" 2>/dev/null || true)
+            structure_raw=$(curl -s -k --connect-timeout 3 -m 5 -H "X-SetupMNO-Fleet-Token: $origin_token" "$origin_endpoint/api/fleet/worker/structure" 2>/dev/null || true)
             if [ -n "$structure_raw" ]; then
                 while IFS= read -r aname; do
                     [ -n "$aname" ] || continue
