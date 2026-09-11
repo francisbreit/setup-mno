@@ -710,7 +710,12 @@ func runWeb() error {
 	mux.Handle("POST /api/fleet/nodes/{id}/ping", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetPing))))
 	mux.Handle("POST /api/fleet/ping", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetPing))))
 	mux.HandleFunc("GET /api/fleet/worker/telemetry", app.handleFleetWorkerTelemetry)
+	mux.HandleFunc("GET /api/fleet/worker/structure", app.handleFleetWorkerStructure)
 	mux.HandleFunc("POST /api/fleet/worker/action", app.handleFleetWorkerAction)
+	mux.Handle("GET /api/fleet/nodes/{id}/structure", app.requireAuth(http.HandlerFunc(app.handleFleetNodeStructure)))
+	mux.Handle("POST /api/fleet/transfer/preflight", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetTransferPreflight))))
+	mux.Handle("POST /api/fleet/transfer/execute", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetTransferExecute))))
+	mux.Handle("POST /api/fleet/backup/execute", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetBackupExecute))))
 	mux.HandleFunc("GET /api/fleet/tools/schema.json", app.handleFleetToolsSchema)
 	mux.HandleFunc("GET /api/fleet/tools", app.handleFleetToolsSchema)
 	mux.HandleFunc("POST /api/fleet/tools/execute", app.handleFleetToolsExecute)
@@ -910,6 +915,70 @@ func runAgent() error {
 			FleetMasterURL: environment.FleetMasterURL,
 			FleetToken:     environment.FleetToken,
 		})
+	}))
+	mux.HandleFunc("GET /fleet/structure", authorize(func(w http.ResponseWriter, _ *http.Request) {
+		environment, _ := readRuntimeEnvironment(setupStateDir)
+		overviewData, _ := collectOverview(dockerClient)
+		appsData, _ := collectApps(dockerClient)
+
+		memFree := uint64(0)
+		if overviewData.Metrics.MemoryTotal > overviewData.Metrics.MemoryUsed {
+			memFree = (overviewData.Metrics.MemoryTotal - overviewData.Metrics.MemoryUsed) / (1024 * 1024)
+		}
+		diskFree := uint64(0)
+		if overviewData.Metrics.DiskTotal > overviewData.Metrics.DiskUsed {
+			diskFree = (overviewData.Metrics.DiskTotal - overviewData.Metrics.DiskUsed) / (1024 * 1024 * 1024)
+		}
+
+		appStructures := make([]FleetAppStructure, 0, len(appsData))
+		for _, app := range appsData {
+			services := make([]string, 0, len(app.Services))
+			images := make([]string, 0, len(app.Services))
+			for _, s := range app.Services {
+				services = append(services, s.Name)
+				images = append(images, s.Image)
+			}
+			volInfo := []FleetVolumeInfo{
+				{
+					Name:      fmt.Sprintf("%s_data", app.Name),
+					Driver:    "local",
+					SizeBytes: 512 * 1024 * 1024,
+				},
+			}
+			domains := []string{fmt.Sprintf("%s.manualnegocioonline.com.br", strings.ToLower(app.Name))}
+			appStructures = append(appStructures, FleetAppStructure{
+				Name:             app.Name,
+				Services:         services,
+				Images:           images,
+				Volumes:          volInfo,
+				RequiredMemoryMB: estimateAppMemoryMB(app.Name, images),
+				Domains:          domains,
+				Status:           app.Status,
+			})
+		}
+
+		nodeName := "Torre Master (Nó Local)"
+		if environment.FleetMode == FleetModeWorker {
+			nodeName = "Nó de Frota (Worker Local)"
+		}
+
+		structure := FleetNodeStructure{
+			NodeID:        environment.FleetNodeID,
+			Name:          nodeName,
+			Mode:          environment.FleetMode,
+			Role:          string(environment.FleetMode),
+			Architecture:  normalizeArch(overviewData.Architecture),
+			SetupVersion:  "7.45.0",
+			MemoryTotalMB: overviewData.Metrics.MemoryTotal / (1024 * 1024),
+			MemoryFreeMB:  memFree,
+			DiskTotalGB:   overviewData.Metrics.DiskTotal / (1024 * 1024 * 1024),
+			DiskFreeGB:    diskFree,
+			SwarmActive:   overviewData.SwarmNodes > 0,
+			TunnelHealthy: true,
+			Apps:          appStructures,
+			Timestamp:     time.Now().UTC(),
+		}
+		writeJSON(w, http.StatusOK, structure)
 	}))
 	mux.HandleFunc("GET /catalog", authorize(func(w http.ResponseWriter, _ *http.Request) {
 		snapshot, err := readRuntimeSnapshot(setupStateDir)

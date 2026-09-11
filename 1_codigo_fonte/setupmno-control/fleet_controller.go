@@ -688,3 +688,130 @@ func (a *webApp) handleFleetSync(w http.ResponseWriter, r *http.Request) {
 		"syncedAt":      time.Now().UTC().Format(time.RFC3339),
 	})
 }
+
+// handleFleetNodeStructure retorna a inspeção de infraestrutura e catálogo de um nó.
+func (a *webApp) handleFleetNodeStructure(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	nodeID := strings.TrimSpace(r.PathValue("id"))
+	if nodeID == "" {
+		nodeID = "local"
+	}
+
+	structure, err := a.InspectNodeStructure(ctx, nodeID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, fmt.Sprintf("falha ao inspecionar estrutura do nó: %v", err))
+		return
+	}
+
+	writeJSON(w, http.StatusOK, structure)
+}
+
+// handleFleetWorkerStructure é o endpoint exposto pelo Worker para probes estruturais da Torre Master.
+func (a *webApp) handleFleetWorkerStructure(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	cfg, err := a.fetchFleetConfig(ctx)
+	if err != nil || !a.authenticateFleetWorkerRequest(r, cfg.FleetToken, cfg.FleetMode) {
+		writeError(w, http.StatusUnauthorized, "acesso não autorizado ao endpoint estrutural do nó")
+		return
+	}
+
+	structure, err := a.InspectNodeStructure(ctx, "local")
+	if err != nil {
+		writeError(w, http.StatusBadGateway, fmt.Sprintf("falha ao coletar estrutura local: %v", err))
+		return
+	}
+
+	writeJSON(w, http.StatusOK, structure)
+}
+
+// handleFleetTransferPreflight avalia previamente os gates de arquitetura e recursos antes de transferir.
+func (a *webApp) handleFleetTransferPreflight(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	var req struct {
+		AppName      string `json:"appName"`
+		OriginNodeID string `json:"originNodeId"`
+		DestNodeID   string `json:"destNodeId"`
+		Mode         string `json:"mode"`
+	}
+
+	data, err := io.ReadAll(io.LimitReader(r.Body, 16<<10))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "falha ao ler requisição")
+		return
+	}
+
+	if err := decodeStrictJSON(data, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "JSON inválido na requisição de preflight")
+		return
+	}
+
+	if req.AppName == "" || req.OriginNodeID == "" || req.DestNodeID == "" {
+		writeError(w, http.StatusBadRequest, "campos 'appName', 'originNodeId' e 'destNodeId' são obrigatórios")
+		return
+	}
+
+	origStruct, err := a.InspectNodeStructure(ctx, req.OriginNodeID)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, fmt.Sprintf("falha ao inspecionar nó de origem: %v", err))
+		return
+	}
+
+	destStruct, err := a.InspectNodeStructure(ctx, req.DestNodeID)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, fmt.Sprintf("falha ao inspecionar nó de destino: %v", err))
+		return
+	}
+
+	result := EvaluateTransferPreflight(origStruct, destStruct, req.AppName, req.Mode)
+	writeJSON(w, http.StatusOK, result)
+}
+
+// handleFleetTransferExecute inicia a transferência segura com alteração de DNS.
+func (a *webApp) handleFleetTransferExecute(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	var req FleetTransferExecutionRequest
+
+	data, err := io.ReadAll(io.LimitReader(r.Body, 32<<10))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "falha ao ler requisição")
+		return
+	}
+
+	if err := decodeStrictJSON(data, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "JSON inválido na requisição de transferência")
+		return
+	}
+
+	res, err := a.ExecuteApplicationTransfer(ctx, req)
+	if err != nil {
+		writeJSON(w, http.StatusUnprocessableEntity, res)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, res)
+}
+
+// handleFleetBackupExecute dispara a criação de um backup portátil consistente.
+func (a *webApp) handleFleetBackupExecute(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	var req FleetBackupExecutionRequest
+
+	data, err := io.ReadAll(io.LimitReader(r.Body, 16<<10))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "falha ao ler requisição")
+		return
+	}
+
+	if err := decodeStrictJSON(data, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "JSON inválido na requisição de backup")
+		return
+	}
+
+	res, err := a.ExecuteApplicationBackup(ctx, req)
+	if err != nil {
+		writeJSON(w, http.StatusUnprocessableEntity, res)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, res)
+}

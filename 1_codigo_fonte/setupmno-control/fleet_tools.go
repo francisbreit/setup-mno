@@ -154,6 +154,114 @@ func getFleetToolsDefinitions() []FleetToolDefinition {
 				},
 			},
 		},
+		{
+			Type: "function",
+			Function: FleetToolFunctionSpec{
+				Name:        "fleet_inspect_structure",
+				Description: "Executa um raio-X completo da estrutura de um nó da frota (Torre Master ou Nó Worker), retornando arquitetura de CPU (amd64/arm64), RAM total e livre, disco total e livre, estado do Swarm e a lista de aplicações/stacks instaladas com seus respectivos volumes e domínios.",
+				Parameters: FleetToolParamSpec{
+					Type: "object",
+					Properties: map[string]FleetToolPropField{
+						"node_id": {
+							Type:        "string",
+							Description: "ID ou nome do nó a inspecionar (ex: 'local', 'node-master' ou 'node-worker-3bb2fb9f'). Se omitido, inspeciona o nó local.",
+						},
+					},
+					Required: []string{},
+				},
+			},
+		},
+		{
+			Type: "function",
+			Function: FleetToolFunctionSpec{
+				Name:        "fleet_preflight_transfer",
+				Description: "Avalia rigorosamente os gates de segurança antes de clonar ou transferir uma aplicação entre dois servidores: verifica se ambos possuem a mesma arquitetura de hardware (bloqueia transferência cross-arch se forem diferentes, autorizando apenas backup) e se o nó destino possui capacidade suficiente de RAM e disco.",
+				Parameters: FleetToolParamSpec{
+					Type: "object",
+					Properties: map[string]FleetToolPropField{
+						"origin_node_id": {
+							Type:        "string",
+							Description: "ID ou nome do servidor de origem da aplicação.",
+						},
+						"dest_node_id": {
+							Type:        "string",
+							Description: "ID ou nome do servidor de destino da aplicação.",
+						},
+						"application": {
+							Type:        "string",
+							Description: "Nome da aplicação a ser transferida/clonada (ex: 'wordpress', 'chatwoot', 'n8n').",
+						},
+						"mode": {
+							Type:        "string",
+							Description: "Modo da operação: 'transfer' (migração com desligamento da origem e atualização de DNS) ou 'clone' (cópia mantendo a origem ativa).",
+						},
+					},
+					Required: []string{"origin_node_id", "dest_node_id", "application"},
+				},
+			},
+		},
+		{
+			Type: "function",
+			Function: FleetToolFunctionSpec{
+				Name:        "fleet_execute_transfer",
+				Description: "Executa a transferência ou clonagem atômica de uma aplicação entre servidores da frota: valida preflight, migra volumes, aplica a stack no Swarm destino, comuta automaticamente os apontamentos de DNS e rotas de Ingress no Cloudflare Tunnel, desliga a stack antiga na origem (se modo transfer) preservando volumes congelados com sufixo de segurança, e dispara relatório no Sentinel (Telegram e Webhook n8n).",
+				Parameters: FleetToolParamSpec{
+					Type: "object",
+					Properties: map[string]FleetToolPropField{
+						"origin_node_id": {
+							Type:        "string",
+							Description: "ID ou nome do servidor de origem.",
+						},
+						"dest_node_id": {
+							Type:        "string",
+							Description: "ID ou nome do servidor de destino.",
+						},
+						"application": {
+							Type:        "string",
+							Description: "Nome da aplicação a transferir.",
+						},
+						"mode": {
+							Type:        "string",
+							Description: "Modo: 'transfer' (padrão) ou 'clone'.",
+						},
+						"update_dns": {
+							Type:        "boolean",
+							Description: "Se true, comuta os apontamentos CNAME de DNS e rotas do Cloudflare Tunnel para o novo servidor.",
+						},
+						"stop_origin_stack": {
+							Type:        "boolean",
+							Description: "Se true, desliga a stack na origem após convergência no destino, mantendo os volumes congelados como backup.",
+						},
+						"notify_sentinel": {
+							Type:        "boolean",
+							Description: "Se true, emite notificação formatada no Telegram e webhook estruturado para o n8n.",
+						},
+					},
+					Required: []string{"origin_node_id", "dest_node_id", "application"},
+				},
+			},
+		},
+		{
+			Type: "function",
+			Function: FleetToolFunctionSpec{
+				Name:        "fleet_create_backup",
+				Description: "Cria um pacote portátil de backup (.tar.gz) de uma aplicação com dump consistente e manifesto com hash SHA-256. Esta operação é universal e permitida em qualquer cenário, inclusive para migração e salvaguarda entre servidores de arquiteturas diferentes (x86 e ARM).",
+				Parameters: FleetToolParamSpec{
+					Type: "object",
+					Properties: map[string]FleetToolPropField{
+						"node_id": {
+							Type:        "string",
+							Description: "ID ou nome do servidor onde a aplicação está instalada.",
+						},
+						"application": {
+							Type:        "string",
+							Description: "Nome da aplicação para gerar o backup (ex: 'n8n', 'chatwoot', 'wordpress').",
+						},
+					},
+					Required: []string{"node_id", "application"},
+				},
+			},
+		},
 	}
 }
 
@@ -619,6 +727,176 @@ func (a *webApp) handleFleetToolsExecute(w http.ResponseWriter, r *http.Request)
 				"activeCount":     len(activeIncidents),
 				"activeIncidents": activeIncidents,
 				"recentAlerts":    recentAlerts,
+			},
+		})
+
+	case "fleet_inspect_structure":
+		nodeID, _ := req.Arguments["node_id"].(string)
+		nodeID = strings.TrimSpace(nodeID)
+		if nodeID == "" {
+			nodeID = "local"
+		}
+
+		structure, err := a.InspectNodeStructure(ctx, nodeID)
+		if err != nil {
+			writeJSON(w, http.StatusOK, FleetToolExecuteResponse{
+				Success:   false,
+				Tool:      toolName,
+				Timestamp: timestamp,
+				Error:     fmt.Sprintf("falha ao inspecionar estrutura do nó '%s': %v", nodeID, err),
+			})
+			return
+		}
+
+		a.addAudit("fleet_tool_call", fmt.Sprintf("Tool fleet_inspect_structure executada para '%s' (%s, %d apps)", structure.Name, structure.Architecture, len(structure.Apps)), clientAddress(r))
+		writeJSON(w, http.StatusOK, FleetToolExecuteResponse{
+			Success:   true,
+			Tool:      toolName,
+			Timestamp: timestamp,
+			Result: map[string]any{
+				"node": structure,
+			},
+		})
+
+	case "fleet_preflight_transfer":
+		origID, _ := req.Arguments["origin_node_id"].(string)
+		destID, _ := req.Arguments["dest_node_id"].(string)
+		appName, _ := req.Arguments["application"].(string)
+		mode, _ := req.Arguments["mode"].(string)
+
+		origID = strings.TrimSpace(origID)
+		destID = strings.TrimSpace(destID)
+		appName = strings.TrimSpace(appName)
+		if mode == "" {
+			mode = "transfer"
+		}
+
+		if origID == "" || destID == "" || appName == "" {
+			writeJSON(w, http.StatusBadRequest, FleetToolExecuteResponse{
+				Success:   false,
+				Tool:      toolName,
+				Timestamp: timestamp,
+				Error:     "argumentos obrigatórios 'origin_node_id', 'dest_node_id' e 'application' necessários",
+			})
+			return
+		}
+
+		origStruct, err := a.InspectNodeStructure(ctx, origID)
+		if err != nil {
+			writeJSON(w, http.StatusOK, FleetToolExecuteResponse{
+				Success:   false,
+				Tool:      toolName,
+				Timestamp: timestamp,
+				Error:     fmt.Sprintf("erro ao inspecionar nó de origem '%s': %v", origID, err),
+			})
+			return
+		}
+
+		destStruct, err := a.InspectNodeStructure(ctx, destID)
+		if err != nil {
+			writeJSON(w, http.StatusOK, FleetToolExecuteResponse{
+				Success:   false,
+				Tool:      toolName,
+				Timestamp: timestamp,
+				Error:     fmt.Sprintf("erro ao inspecionar nó de destino '%s': %v", destID, err),
+			})
+			return
+		}
+
+		preflight := EvaluateTransferPreflight(origStruct, destStruct, appName, mode)
+		a.addAudit("fleet_tool_call", fmt.Sprintf("Tool fleet_preflight_transfer avaliada para '%s' (allowed: %v, sameArch: %v)", appName, preflight.Allowed, preflight.SameArchitecture), clientAddress(r))
+		writeJSON(w, http.StatusOK, FleetToolExecuteResponse{
+			Success:   true,
+			Tool:      toolName,
+			Timestamp: timestamp,
+			Result: map[string]any{
+				"preflight": preflight,
+			},
+		})
+
+	case "fleet_execute_transfer":
+		origID, _ := req.Arguments["origin_node_id"].(string)
+		destID, _ := req.Arguments["dest_node_id"].(string)
+		appName, _ := req.Arguments["application"].(string)
+		mode, _ := req.Arguments["mode"].(string)
+
+		updateDNS := true
+		if val, ok := req.Arguments["update_dns"].(bool); ok {
+			updateDNS = val
+		}
+		stopOrigin := true
+		if val, ok := req.Arguments["stop_origin_stack"].(bool); ok {
+			stopOrigin = val
+		}
+		notifySentinel := true
+		if val, ok := req.Arguments["notify_sentinel"].(bool); ok {
+			notifySentinel = val
+		}
+
+		xferReq := FleetTransferExecutionRequest{
+			AppName:         strings.TrimSpace(appName),
+			OriginNodeID:    strings.TrimSpace(origID),
+			DestNodeID:      strings.TrimSpace(destID),
+			Mode:            mode,
+			UpdateDNS:       updateDNS,
+			StopOriginStack: stopOrigin,
+			NotifySentinel:  notifySentinel,
+		}
+
+		xferRes, err := a.ExecuteApplicationTransfer(ctx, xferReq)
+		if err != nil {
+			writeJSON(w, http.StatusOK, FleetToolExecuteResponse{
+				Success:   false,
+				Tool:      toolName,
+				Timestamp: timestamp,
+				Error:     err.Error(),
+				Result: map[string]any{
+					"details": xferRes,
+				},
+			})
+			return
+		}
+
+		writeJSON(w, http.StatusOK, FleetToolExecuteResponse{
+			Success:   true,
+			Tool:      toolName,
+			Timestamp: timestamp,
+			Result: map[string]any{
+				"transfer": xferRes,
+			},
+		})
+
+	case "fleet_create_backup":
+		nodeID, _ := req.Arguments["node_id"].(string)
+		appName, _ := req.Arguments["application"].(string)
+		notifySentinel := true
+		if val, ok := req.Arguments["notify_sentinel"].(bool); ok {
+			notifySentinel = val
+		}
+
+		backupReq := FleetBackupExecutionRequest{
+			AppName:        strings.TrimSpace(appName),
+			NodeID:         strings.TrimSpace(nodeID),
+			NotifySentinel: notifySentinel,
+		}
+
+		backupRes, err := a.ExecuteApplicationBackup(ctx, backupReq)
+		if err != nil {
+			writeJSON(w, http.StatusOK, FleetToolExecuteResponse{
+				Success:   false,
+				Tool:      toolName,
+				Timestamp: timestamp,
+				Error:     err.Error(),
+			})
+			return
+		}
+
+		writeJSON(w, http.StatusOK, FleetToolExecuteResponse{
+			Success:   true,
+			Tool:      toolName,
+			Timestamp: timestamp,
+			Result: map[string]any{
+				"backup": backupRes,
 			},
 		})
 
