@@ -133,12 +133,13 @@ show_menu() {
 
     local fleet_choice
     fleet_choice=$(whiptail --title "MNO FLEET HUB — GESTÃO DE SERVIDORES" --menu \
-        "Estado Atual: $status_desc\n\nSelecione uma opção:" 19 78 5 \
+        "Estado Atual: $status_desc\n\nSelecione uma opção:" 20 78 6 \
         "1" "Manter Modo Simples Standalone (Desativado - 0 MB overhead)" \
         "2" "Ativar como Torre Master (Cockpit Local no WSL2 ou VPS)" \
         "3" "Conectar à Frota como Nó Worker (Subordinado - Exige VPS 24/7)" \
         "4" "Ver Informações de Pareamento (ID e Token do Nó)" \
-        "5" "Voltar ao Menu Principal" \
+        "5" "Clone, Transferência e Backup de Aplicações da Frota" \
+        "6" "Voltar ao Menu Principal" \
         3>&1 1>&2 2>&3) || return 0
 
     case "$fleet_choice" in
@@ -175,6 +176,20 @@ show_menu() {
             cur_info=$(get_info)
             whiptail --title "INFORMAÇÕES DE PAREAMENTO — FLEET HUB" --msgbox \
                 "$cur_info\n\nUse o Token de Pareamento acima na sua Torre Master para conectar este nó à sua frota centralizada." 15 76
+            ;;
+        5)
+            local clone_script="/root/SetupLowCodeMno/fleet-clone.sh"
+            if [ ! -f "$clone_script" ]; then
+                clone_script="$(dirname "${BASH_SOURCE[0]}")/fleet-clone.sh"
+            fi
+            if [ -f "$clone_script" ]; then
+                bash "$clone_script" menu
+            else
+                whiptail --title "MNO FLEET HUB" --msgbox "Script fleet-clone.sh não localizado." 10 60
+            fi
+            ;;
+        6)
+            return 0
             ;;
         *)
             return 0
