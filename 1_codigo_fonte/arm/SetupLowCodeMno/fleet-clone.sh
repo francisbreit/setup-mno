@@ -297,6 +297,153 @@ get_application_volumes() {
     printf '%s\n' "${vols[@]}"
 }
 
+## Aplica stack garantindo registro no Portainer para torná-la EDITÁVEL
+deploy_stack_with_portainer_priority() {
+    local node_id="$1"
+    local host="$2"
+    local stack_name="$3"
+    local stack_file="$4"
+
+    local portainer_script='
+        dados="/root/dados_portainer/dados_portainer"
+        if [ -f "$dados" ]; then
+            p_url=$(grep "Dominio do portainer:" "$dados" | cut -d: -f2 | xargs)
+            p_user=$(grep "Usuario:" "$dados" | cut -d: -f2 | xargs)
+            p_pass=$(grep "Senha:" "$dados" | cut -d: -f2 | xargs)
+            if [ -n "$p_url" ] && [ -n "$p_user" ] && [ -n "$p_pass" ]; then
+                resp=$(curl -k -sS -m 6 -X POST "https://$p_url/api/auth" -H "Content-Type: application/json" -d "{\"username\":\"$p_user\",\"password\":\"$p_pass\"}" 2>/dev/null || true)
+                jwt=$(echo "$resp" | jq -r .jwt 2>/dev/null || true)
+                if [ -n "$jwt" ] && [ "$jwt" != "null" ]; then
+                    ep_id=$(curl -k -sS -m 6 -H "Authorization: Bearer $jwt" "https://$p_url/api/endpoints" 2>/dev/null | jq -r ".[0].Id" || true)
+                    swarm_id=$(curl -k -sS -m 6 -H "Authorization: Bearer $jwt" "https://$p_url/api/endpoints/$ep_id/docker/swarm" 2>/dev/null | jq -r ".ID" || true)
+                    if [ -n "$ep_id" ] && [ -n "$swarm_id" ]; then
+                        docker stack rm "'"$stack_name"'" >/dev/null 2>&1 || true
+                        sleep 3
+                        code=$(curl -k -sS -m 15 -w "%{http_code}" -o /dev/null -X POST \
+                            -H "Authorization: Bearer $jwt" \
+                            -F "Name='"$stack_name"'" \
+                            -F "file=@'"$stack_file"'" \
+                            -F "SwarmID=$swarm_id" \
+                            -F "endpointId=$ep_id" \
+                            "https://$p_url/api/stacks/create/swarm/file" 2>/dev/null || true)
+                        if [ "$code" = "200" ]; then
+                            echo "PORTAINER_SUCCESS"
+                            exit 0
+                        fi
+                    fi
+                fi
+            fi
+        fi
+        exit 1
+    '
+
+    local success=false
+    if [ "$node_id" = "local" ]; then
+        if bash -c "$portainer_script" 2>/dev/null | grep -q "PORTAINER_SUCCESS"; then
+            success=true
+        fi
+    else
+        if ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "bash -c '$portainer_script'" 2>/dev/null | grep -q "PORTAINER_SUCCESS"; then
+            success=true
+        fi
+    fi
+
+    if [ "$success" = "false" ]; then
+        if [ "$node_id" = "local" ]; then
+            docker stack deploy --prune --resolve-image always -c "$stack_file" "$stack_name"
+        else
+            ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "docker stack deploy --prune --resolve-image always -c '$stack_file' '$stack_name'"
+        fi
+    fi
+}
+
+# Comutação atômica de DNS Cloudflare e rotas de Ingress no Tunnel
+switch_cloudflare_dns_and_ingress() {
+    local node_id="$1"
+    local host="$2"
+    local yaml_file="$3"
+    local app_name="$4"
+
+    local hostname=""
+    hostname=$(grep -oP '(?<=MAUTIC_URL=https://)[^[:space:]/]+' "$yaml_file" 2>/dev/null || true)
+    if [ -z "$hostname" ]; then
+        hostname=$(grep -oP 'Host\(`\K[^`]+' "$yaml_file" 2>/dev/null | head -n1 || true)
+    fi
+    if [ -z "$hostname" ]; then
+        hostname=$(grep -oP '(?<=URL=https://)[^[:space:]/]+' "$yaml_file" 2>/dev/null | head -n1 || true)
+    fi
+
+    [ -n "$hostname" ] || return 0
+
+    local internal_service=""
+    if grep -q "mautic_web" "$yaml_file"; then
+        local mautic_svc
+        mautic_svc=$(grep -oP 'mautic_web[a-zA-Z0-9_-]*' "$yaml_file" | head -n1 || echo "mautic_web")
+        internal_service="http://${mautic_svc}:80"
+    else
+        local first_svc
+        first_svc=$(awk '/^services:/{flag=1; next} flag && /^[[:space:]]{2}[a-zA-Z0-9_-]+:/{print $1; exit}' "$yaml_file" | tr -d ':' || true)
+        if [ -n "$first_svc" ]; then
+            internal_service="http://${first_svc}:80"
+        fi
+    fi
+
+    [ -n "$internal_service" ] || return 0
+
+    local cf_script="
+        creds=\"/root/.cloudflared_config/cloudflare_credentials\"
+        if [ -f \"\$creds\" ]; then
+            source \"\$creds\"
+            if [ -n \"\${CLOUDFLARE_API_TOKEN:-}\" ] && [ -n \"\${CLOUDFLARE_ZONE_ID:-}\" ] && [ -n \"\${CLOUDFLARE_ACCOUNT_ID:-}\" ] && [ -n \"\${TUNNEL_ID:-}\" ]; then
+                records=\$(curl -s -X GET \"https://api.cloudflare.com/client/v4/zones/\${CLOUDFLARE_ZONE_ID}/dns_records?name=${hostname}\" \
+                    -H \"Authorization: Bearer \${CLOUDFLARE_API_TOKEN}\" \
+                    -H \"Content-Type: application/json\")
+                echo \"\$records\" | jq -r '.result[]?.id // empty' | while read -r r_id; do
+                    [ -n \"\$r_id\" ] || continue
+                    curl -s -X DELETE \"https://api.cloudflare.com/client/v4/zones/\${CLOUDFLARE_ZONE_ID}/dns_records/\${r_id}\" \
+                        -H \"Authorization: Bearer \${CLOUDFLARE_API_TOKEN}\" \
+                        -H \"Content-Type: application/json\" >/dev/null 2>&1 || true
+                done
+
+                curl -s -X POST \"https://api.cloudflare.com/client/v4/zones/\${CLOUDFLARE_ZONE_ID}/dns_records\" \
+                    -H \"Authorization: Bearer \${CLOUDFLARE_API_TOKEN}\" \
+                    -H \"Content-Type: application/json\" \
+                    --data '{\"type\":\"CNAME\",\"name\":\"${hostname}\",\"content\":\"'\${TUNNEL_ID}'.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}' >/dev/null 2>&1 || true
+
+                cfg_raw=\$(curl -sS -H \"Authorization: Bearer \${CLOUDFLARE_API_TOKEN}\" \
+                    \"https://api.cloudflare.com/client/v4/accounts/\${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/\${TUNNEL_ID}/configurations\")
+                if echo \"\$cfg_raw\" | grep -q '\"success\":true'; then
+                    to_put=\$(mktemp)
+                    printf '%s' \"\$cfg_raw\" | jq --arg host \"${hostname}\" --arg service \"${internal_service}\" '
+                        (.result.config // {}) as \$cfg
+                        | (\$cfg.ingress // []) as \$ing
+                        | (\$ing | map(select(.service != \"http_status:404\"))) as \$clean
+                        | (\$clean | map(select(.hostname != \$host))) as \$filtered
+                        | (\$filtered + [ { hostname: \$host, service: \$service, originRequest: { noTlsVerify: true, httpHostHeader: \$host } } ]) as \$merged
+                        | (\$merged + [{ service: \"http_status:404\" }]) as \$final_ing
+                        | (\$cfg + { ingress: \$final_ing }) as \$newcfg
+                        | { config: \$newcfg }
+                    ' > \"\$to_put\" 2>/dev/null || true
+
+                    if [ -s \"\$to_put\" ]; then
+                        curl -sS -X PUT \"https://api.cloudflare.com/client/v4/accounts/\${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/\${TUNNEL_ID}/configurations\" \
+                            -H \"Authorization: Bearer \${CLOUDFLARE_API_TOKEN}\" \
+                            -H \"Content-Type: application/json\" \
+                            --data-binary @\"\$to_put\" >/dev/null 2>&1 || true
+                    fi
+                    rm -f \"\$to_put\"
+                fi
+            fi
+        fi
+    "
+
+    if [ "$node_id" = "local" ]; then
+        bash -c "$cf_script" 2>/dev/null || true
+    else
+        ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "bash -c '$cf_script'" 2>/dev/null || true
+    fi
+}
+
 # Garante que MySQL 8.4 está rodando no nó destino
 ensure_mysql84_ready() {
     local node_id="$1"
@@ -348,10 +495,10 @@ networks:
 "
     if [ "$node_id" = "local" ]; then
         printf '%s\n' "$yaml_body" > /root/mysql84.yaml 2>/dev/null || true
-        docker stack deploy --prune -c /root/mysql84.yaml mysql84 >/dev/null 2>&1 || true
+        deploy_stack_with_portainer_priority "local" "" "mysql84" "/root/mysql84.yaml" >/dev/null 2>&1 || true
     else
         ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "cat > /root/mysql84.yaml" <<< "$yaml_body"
-        ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "docker stack deploy --prune -c /root/mysql84.yaml mysql84 >/dev/null 2>&1 || true"
+        deploy_stack_with_portainer_priority "$node_id" "$host" "mysql84" "/root/mysql84.yaml" >/dev/null 2>&1 || true
     fi
 
     local wait_count=0
@@ -869,18 +1016,19 @@ action_transfer_or_clone() {
             fi
         fi
 
-        echo -e "XXX\n80\n[5/6] Aplicando stack no Swarm de $dest_name e convergindo containers...\nXXX"
+        echo -e "XXX\n80\n[5/6] Aplicando stack no Swarm de $dest_name e registrando no Portainer...\nXXX"
         if [ "$chosen_dest_id" = "local" ]; then
             cp -f "$workdir/stack.yaml" "/root/${chosen_app}.yaml"
-            docker stack deploy --prune --resolve-image always -c "/root/${chosen_app}.yaml" "$chosen_app" >> "$TRANSFER_LOG" 2>&1
+            deploy_stack_with_portainer_priority "local" "" "$chosen_app" "/root/${chosen_app}.yaml" >> "$TRANSFER_LOG" 2>&1
         else
             ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "cat > /root/${chosen_app}.yaml" < "$workdir/stack.yaml"
-            ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "docker stack deploy --prune --resolve-image always -c '/root/${chosen_app}.yaml' '$chosen_app'" >> "$TRANSFER_LOG" 2>&1
+            deploy_stack_with_portainer_priority "$chosen_dest_id" "$dest_ssh_host" "$chosen_app" "/root/${chosen_app}.yaml" >> "$TRANSFER_LOG" 2>&1
         fi
         sleep 4
 
         if [ "$update_dns" = "true" ]; then
-            echo -e "XXX\n88\nComutando registros de DNS no Cloudflare Tunnel...\nXXX"
+            echo -e "XXX\n88\nComutando registros de DNS e rotas no Cloudflare Tunnel...\nXXX"
+            switch_cloudflare_dns_and_ingress "$chosen_dest_id" "$dest_ssh_host" "$workdir/stack.yaml" "$chosen_app" >> "$TRANSFER_LOG" 2>&1 || true
             sleep 1
         fi
 
