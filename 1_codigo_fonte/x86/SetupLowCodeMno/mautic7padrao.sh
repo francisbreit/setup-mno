@@ -1,4 +1,194 @@
 #!/usr/bin/bash
+
+# ==============================================================================
+# Setup MNO - Funções de Gerenciamento e Prontidão do MySQL 8.4
+# ==============================================================================
+setupmno_mysql84_service_exists() {
+    docker service inspect mysql84_mysql84 >/dev/null 2>&1 || [ -n "$(docker ps -qf name=mysql84 2>/dev/null | head -n1)" ]
+}
+
+setupmno_mysql84_wait_ready() {
+    local yaml_file="${1:-/root/mysql84.yaml}"
+    local progress_mode="${2:-silent}"
+    local attempt auth_err percent elapsed
+
+    MYSQL84_CONTAINER_ID=""
+    MYSQL84_ROOT_PASSWORD=""
+
+    if [ "$progress_mode" = "progress" ]; then
+        printf 'XXX\n5\nPreparando a validação do MySQL 8.4...\nXXX\n'
+    fi
+
+    # 1. Obter a senha: tenta pelo yaml_file
+    if [ -s "$yaml_file" ]; then
+        MYSQL84_ROOT_PASSWORD=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' "$yaml_file" 2>/dev/null | tr -d '\r\n ' || true)
+    fi
+
+    # 2. Aguarda o container do MySQL 8.4 aparecer no Docker Swarm
+    for attempt in $(seq 1 60); do
+        MYSQL84_CONTAINER_ID=$(docker ps -qf name=mysql84 2>/dev/null | head -n1)
+        [ -n "$MYSQL84_CONTAINER_ID" ] && break
+        if [ "$progress_mode" = "progress" ]; then
+            percent=$((5 + (attempt * 20 / 60)))
+            printf 'XXX\n%s\nAguardando o container do MySQL 8.4 iniciar... (%ss)\nXXX\n' "$percent" "$((attempt * 2))"
+        fi
+        sleep 2
+    done
+
+    [ -n "$MYSQL84_CONTAINER_ID" ] || return 64
+
+    # Se a senha não veio do yaml, tenta inspecionar o container
+    if [ -z "$MYSQL84_ROOT_PASSWORD" ]; then
+        MYSQL84_ROOT_PASSWORD=$(docker inspect "$MYSQL84_CONTAINER_ID" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep '^MYSQL_ROOT_PASSWORD=' | cut -d= -f2- | tr -d '\r\n ')
+    fi
+
+    [ -n "$MYSQL84_ROOT_PASSWORD" ] || return 66
+
+    # 3. Aguardar o MySQL aceitar conexões autenticadas (até 3 minutos)
+    for attempt in $(seq 1 60); do
+        MYSQL84_CONTAINER_ID=$(docker ps -qf name=mysql84 2>/dev/null | head -n1)
+        if [ -n "$MYSQL84_CONTAINER_ID" ]; then
+            auth_err=$(docker exec -e MYSQL_PWD="$MYSQL84_ROOT_PASSWORD" "$MYSQL84_CONTAINER_ID" \
+                mysql -uroot --batch --skip-column-names -e "SELECT 1" \
+                2>&1) || true
+            if [ "$auth_err" = "1" ]; then
+                if [ "$progress_mode" = "progress" ]; then
+                    printf 'XXX\n100\nMySQL 8.4 pronto e autenticado com sucesso!\nXXX\n'
+                    sleep 1
+                fi
+                return 0
+            fi
+            if echo "$auth_err" | grep -qi "Access denied"; then
+                return 68
+            fi
+        fi
+
+        if [ "$progress_mode" = "progress" ]; then
+            percent=$((25 + (attempt * 70 / 60)))
+            elapsed=$((attempt * 3))
+            printf 'XXX\n%s\nMySQL 8.4 iniciando. Validando conexao autenticada... (%ss)\nXXX\n' "$percent" "$elapsed"
+        fi
+        sleep 3
+    done
+
+    return 67
+}
+
+setupmno_mysql84_require_ready() {
+    local yaml_file="${1:-/root/mysql84.yaml}"
+    local status message gauge_pid
+
+    exec 9> >(whiptail --title "INICIALIZANDO MYSQL 8.4" --gauge \
+        "O MySQL 8.4 está iniciando. Aguarde a validação da conexão..." \
+        8 76 0)
+    gauge_pid=$!
+
+    setupmno_mysql84_wait_ready "$yaml_file" progress >&9
+    status=$?
+
+    exec 9>&-
+    [ -n "$gauge_pid" ] && wait "$gauge_pid" 2>/dev/null || true
+
+    [ "$status" -eq 0 ] && return 0
+
+    case "$status" in
+        64) message="O container do MySQL 8.4 não foi encontrado após 2 minutos." ;;
+        65) message="O arquivo de configuração /root/mysql84.yaml não foi encontrado." ;;
+        66) message="A senha do MySQL 8.4 não pôde ser recuperada com segurança." ;;
+        68)
+            {
+              tput reset 2>/dev/null
+              exec 0</dev/tty 1>/dev/tty 2>&1
+              sleep 0.01
+              clear
+            } || true
+            if whiptail --title "CONFLITO DE SENHA MYSQL 8.4 (ERRO 1045)" \
+                --yesno "O MySQL 8.4 rejeitou a senha informada (Access Denied).\n\nIsso ocorre quando o volume 'mysql84_mysql84_data' já existia no servidor com uma senha antiga diferente do arquivo /root/mysql84.yaml.\n\nDeseja que o instalador reinicialize o volume do MySQL 8.4 do zero com uma nova senha agora?\n\n[SIM] Recriar MySQL 8.4 limpo e continuar a instalação\n[NÃO] Cancelar a instalação para preservar os dados existentes" 16 76; then
+                docker stack rm mysql84 >/dev/null 2>&1 || true
+                sleep 5
+                docker volume rm -f mysql84_mysql84_data >/dev/null 2>&1 || true
+                local nova_senha
+                nova_senha=$(openssl rand -hex 8)
+                MYSQL84_ROOT_PASSWORD="$nova_senha"
+                senha_mysql="$nova_senha"
+                cat > /root/mysql84.yaml << EOL
+version: '3.7'
+services:
+    mysql84:
+        image: percona/percona-server:8.4
+        environment:
+            - MYSQL_ROOT_PASSWORD=$nova_senha
+            - TZ=America/Fortaleza
+        networks:
+            - externa
+            - interna
+        volumes:
+            - mysql84_data:/var/lib/mysql
+        deploy:
+            placement:
+                constraints: [node.role == manager]
+        command:
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_general_ci
+            - --sql-mode=
+            - --mysql-native-password=ON
+            - --port=3306
+            - --max-allowed-packet=512MB
+volumes:
+    mysql84_data:
+networks:
+    externa:
+        external: true
+    interna:
+        external: true
+EOL
+                docker stack deploy --prune --resolve-image always -c /root/mysql84.yaml mysql84 >/dev/null 2>&1
+                exec 9> >(whiptail --title "REINICIANDO MYSQL 8.4 LIMPO" --gauge \
+                    "Recriando o MySQL 8.4 limpo do zero. Aguarde a validação..." \
+                    8 76 0)
+                gauge_pid=$!
+                setupmno_mysql84_wait_ready "$yaml_file" progress >&9
+                status=$?
+                exec 9>&-
+                [ -n "$gauge_pid" ] && wait "$gauge_pid" 2>/dev/null || true
+                [ "$status" -eq 0 ] && return 0
+                message="Falha ao tentar inicializar o MySQL 8.4 mesmo após a recriação do volume."
+            else
+                message="Instalação cancelada pelo usuário para preservar o volume 'mysql84_mysql84_data'."
+            fi
+            ;;
+        *)  message="O MySQL 8.4 não aceitou conexão autenticada dentro do tempo limite de 3 minutos." ;;
+    esac
+
+    whiptail --title "ERRO CRÍTICO MYSQL 8.4" --msgbox \
+        "$message\n\nA instalação foi interrompida para proteger seu servidor." \
+        16 78 1>&2
+    return "$status"
+}
+
+setupmno_mysql84_create_database() {
+    local database_name="$1"
+    local check
+
+    [[ "$database_name" =~ ^[A-Za-z0-9_]+$ ]] || return 69
+    [ -n "$MYSQL84_CONTAINER_ID" ] || return 70
+    [ -n "$MYSQL84_ROOT_PASSWORD" ] || return 71
+
+    # Executar CREATE DATABASE
+    docker exec -e MYSQL_PWD="$MYSQL84_ROOT_PASSWORD" "$MYSQL84_CONTAINER_ID" \
+        mysql -uroot -e "CREATE DATABASE IF NOT EXISTS \`$database_name\`;" >/dev/null 2>&1
+
+    # Verificar se realmente foi criado
+    check=$(docker exec -e MYSQL_PWD="$MYSQL84_ROOT_PASSWORD" "$MYSQL84_CONTAINER_ID" \
+        mysql -uroot --batch --skip-column-names -e "SHOW DATABASES LIKE '$database_name';" 2>/dev/null | tr -d '\r\n ' || true)
+
+    if [ "$check" = "$database_name" ]; then
+        return 0
+    else
+        return 72
+    fi
+}
+
 #########################################################
 # # cloudflare tunnel - records automáticos
 #    LOADING
@@ -126,16 +316,47 @@ done
 nome_principal="mautic"  #nome do app
 sufixo_app=$(date | md5sum | head -c7)
 nome_app=$nome_principal$sufixo_app
-mysql_container=$(docker ps -qf name=mysql84)
+mysql_container=$(docker ps -qf name=mysql84 2>/dev/null | head -n1)
 
-if [[ ("$mysql_container" == "") ]]; then
- senha_mysql=$(openssl rand -hex 8)
+if [[ -z "$mysql_container" ]]; then
+    # Verificar se já existe arquivo /root/mysql84.yaml com senha válida
+    senha_mysql=""
+    if [ -f /root/mysql84.yaml ]; then
+        senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null | tr -d '\r\n ' || true)
+    fi
 
-cd
+    # Verificar se existe volume de dados órfão mysql84_mysql84_data
+    volume_existe=$(docker volume ls -q -f name=^mysql84_mysql84_data$ 2>/dev/null || true)
 
-cd
+    if [ -n "$volume_existe" ]; then
+        if [ -z "$senha_mysql" ]; then
+            # Volume existe mas não há arquivo de senha: volume órfão sem senha conhecida!
+            {
+              tput reset 2>/dev/null
+              exec 0</dev/tty 1>/dev/tty 2>&1
+              sleep 0.01
+              clear
+            } || true
+            if whiptail --title "VOLUME MYSQL 8.4 ÓRFÃO DETECTADO" \
+                --yesno "Foi detectado um volume de dados antigo ('mysql84_mysql84_data') sem o arquivo de credenciais (/root/mysql84.yaml).\n\nPara que a nova instalação funcione corretamente, o volume precisa ser reinicializado.\n\nDeseja limpar o volume antigo e iniciar do zero?\n\n[SIM] Limpar volume antigo e instalar do zero\n[NÃO] Cancelar instalação para preservar dados" 15 74; then
+                docker volume rm -f mysql84_mysql84_data >/dev/null 2>&1 || true
+                senha_mysql=$(openssl rand -hex 8)
+            else
+                whiptail --title "INSTALAÇÃO CANCELADA" --msgbox "Instalação cancelada pelo usuário para preservar o volume 'mysql84_mysql84_data'." 10 60
+                exit 1
+            fi
+        fi
+        # Se senha_mysql já existia em /root/mysql84.yaml, preservamos a senha para reconectar ao volume
+    else
+        # Se não há volume nem senha, gera uma nova senha segura
+        if [ -z "$senha_mysql" ]; then
+            senha_mysql=$(openssl rand -hex 8)
+        fi
+    fi
 
-cat > mysql84.yaml << EOL
+    cd /root || cd ~
+
+    cat > /root/mysql84.yaml << EOL
 version: '3.7'
 services:
     mysql84:
@@ -341,17 +562,15 @@ create_stack || exit 1
 
 elif [[ "$criar_portainer" == "1" ]]; then
     # A stack será criada diretamente no Docker
-    echo -e "XXX\n22\nCRIANDO STACK NO PORTAINER 3/4  \nXXX"
-    docker stack deploy --prune --resolve-image always -c mysql84.yaml mysql84 >/dev/null 2>&1
+    echo -e "XXX\n22\nCRIANDO STACK NO DOCKER SWARM 3/4  \nXXX"
+    docker stack deploy --prune --resolve-image always -c /root/mysql84.yaml mysql84 >/dev/null 2>&1
 else
     # Caso inesperado (não deve ocorrer devido à validação anterior no while loop)
-   # echo "Erro: valor inesperado para criar_portainer. Encerrando..."
     echo -e "XXX\n22\n[ERRO] ERRO INESPERADO PARA CRIAR STACK NO PORTAINER 3/4  \nXXX"
     sleep 5
     echo -e "XXX\n22\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
-docker stack deploy --prune --resolve-image always -c mysql84.yaml mysql84 >/dev/null 2>&1
-sleep 5
-
+    docker stack deploy --prune --resolve-image always -c /root/mysql84.yaml mysql84 >/dev/null 2>&1
+    sleep 5
     exit 1
 fi
 
@@ -368,114 +587,26 @@ fi
   clear                          # Limpeza final antes do whiptail
 } || true
 
-export NEWT_COLORS='
-#root=,white
-#window=,black
-#border=white,black
-#textbox=white,black
-#button=black,white
-
-root=,white
-border=black,gray
-title=white,black
-roottext=red,gray
-window=red,gray
-textbox=white,gray
-button=white,green
-compactbutton=white,black
-listbox=black,white
-actlistbox=white,black
-actsellistbox=white,blue
-checkbox=red,black
-actcheckbox=white,blue
-'
-
-clear
-{
-
-
-sleep 1
-echo -e "XXX\n23\nAGUARDANDO MOTOR MYSQL 8.4 INICIAR...\nXXX"
-
-# 1. Aguardar o container do MySQL 8.4 aparecer no Docker
-container_id2=""
-for i in $(seq 1 60); do
-    container_id2=$(docker ps -qf name=mysql84 2>/dev/null | head -n1)
-    if [ -n "$container_id2" ]; then
-        break
-    fi
-    sleep 2
-done
-
-if [ -z "$container_id2" ]; then
-    echo -e "XXX\n24\nERRO: Container MySQL 8.4 não encontrado\nXXX"
-    sleep 5
+if ! setupmno_mysql84_require_ready /root/mysql84.yaml; then
     exit 1
 fi
 
-echo -e "XXX\n24\nCONTAINER MYSQL ENCONTRADO, VALIDANDO CREDENCIAIS...\nXXX"
-
-# 2. Obter senha do MySQL (inspecionando o container ou lendo o arquivo yaml)
-senha_mysql=$(docker inspect "$container_id2" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep '^MYSQL_ROOT_PASSWORD=' | cut -d= -f2-)
-if [ -z "$senha_mysql" ] && [ -f /root/mysql84.yaml ]; then
-    senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null || true)
-fi
-
-if [ -z "$senha_mysql" ]; then
-    echo -e "XXX\n25\nERRO: Senha MySQL não encontrada\nXXX"
-    sleep 5
+if ! setupmno_mysql84_create_database "$nome_app"; then
+    {
+      tput reset 2>/dev/null
+      exec 0</dev/tty 1>/dev/tty 2>&1
+      sleep 0.01
+      clear
+    } || true
+    whiptail --title "ERRO CRÍTICO MYSQL 8.4" --msgbox \
+        "Não foi possível criar o banco de dados '$nome_app'. A instalação foi cancelada para proteger o servidor." \
+        12 76 1>&2
     exit 1
 fi
 
-# 3. Aguardar MySQL 8.4 aceitar conexões autenticadas (readiness loop ativo de até 3 minutos)
-echo -e "XXX\n25\nAGUARDANDO MYSQL 8.4 FICAR PRONTO PARA CONEXÃO...\nXXX"
-mysql_ready=0
-for attempt in $(seq 1 60); do
-    container_id2=$(docker ps -qf name=mysql84 2>/dev/null | head -n1)
-    if [ -n "$container_id2" ]; then
-        if docker exec -i "$container_id2" bash -c "MYSQL_PWD=\"$senha_mysql\" mysql -u root -e 'SELECT 1;'" >/dev/null 2>&1; then
-            mysql_ready=1
-            break
-        fi
-    fi
-    sleep 3
-done
-
-if [ "$mysql_ready" -ne 1 ]; then
-    echo -e "XXX\n25\nERRO: MySQL 8.4 não aceitou conexão em até 3 minutos\nXXX"
-    sleep 5
-    exit 1
-fi
-
-echo -e "XXX\n26\nCRIANDO BANCO: $nome_app\nXXX"
-
-# 4. Criar banco de dados com retentativas seguras
-db_created=0
-for attempt in $(seq 1 5); do
-    if docker exec -i "$container_id2" bash -c "MYSQL_PWD=\"$senha_mysql\" mysql -u root -e \"CREATE DATABASE IF NOT EXISTS \`$nome_app\`;\"" >/dev/null 2>&1; then
-        db_created=1
-        break
-    fi
-    sleep 2
-done
-
-if [ "$db_created" -eq 1 ]; then
-    echo -e "XXX\n27\nBANCO $nome_app CRIADO COM SUCESSO\nXXX"
-    sleep 2
-else
-    echo -e "XXX\n28\nERRO AO CRIAR BANCO DE DADOS, CANCELANDO INSTALAÇÃO\nXXX"
-    sleep 5
-    exit 1
-fi
-
-echo -e "XXX\n29\nCRIAÇÃO DO BANCO FINALIZADA\nXXX"
-sleep 2
-
-
-
-
-
-}|whiptail --title "CRIANDO BANCO MYSQL" --gauge "Aguarde a instalação dos ítens necessários" 6 60 0
+# Sincroniza credenciais para as etapas subsequentes do Mautic
+senha_mysql="$MYSQL84_ROOT_PASSWORD"
+container_id2="$MYSQL84_CONTAINER_ID"
 
 #CRIAÇÃO DE BANCO MYSQL FIM
 
