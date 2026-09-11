@@ -691,18 +691,24 @@ networks:
     fi
 
     local wait_count=0
-    while [ $wait_count -lt 15 ]; do
-        sleep 1
+    while [ $wait_count -lt 60 ]; do
+        sleep 2
         wait_count=$((wait_count + 1))
         local chk=""
         if [ "$node_id" = "local" ]; then
             chk=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
+            if [ -n "$chk" ]; then
+                if docker exec -i "$chk" bash -c "MYSQL_PWD=\"$new_pwd\" mysql -u root -e 'SELECT 1;'" >/dev/null 2>&1; then
+                    return 0
+                fi
+            fi
         else
             chk=$(ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" 'docker ps -qf name=mysql84 | head -n1' 2>/dev/null || true)
-        fi
-        if [ -n "$chk" ]; then
-            sleep 4
-            return 0
+            if [ -n "$chk" ]; then
+                if ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "docker exec -i '$chk' bash -c 'MYSQL_PWD=\"$new_pwd\" mysql -u root -e \"SELECT 1;\"'" >/dev/null 2>&1; then
+                    return 0
+                fi
+            fi
         fi
     done
 }

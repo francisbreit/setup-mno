@@ -395,33 +395,31 @@ clear
 
 
 sleep 1
-echo -e "XXX\n23\nBANCO DE DADOS DO MAUTIC - ATÉ 15 MINUTOS\nXXX"
-sleep 60
-# Aguardar container MySQL ficar disponível
-max_wait_time=2000
-wait_interval=60
-elapsed_time=0
-container_id2=""
+echo -e "XXX\n23\nAGUARDANDO MOTOR MYSQL 8.4 INICIAR...\nXXX"
 
-while [ $elapsed_time -lt $max_wait_time ]; do
-    container_id2=$(docker ps -qf name=mysql84)
+# 1. Aguardar o container do MySQL 8.4 aparecer no Docker
+container_id2=""
+for i in $(seq 1 60); do
+    container_id2=$(docker ps -qf name=mysql84 2>/dev/null | head -n1)
     if [ -n "$container_id2" ]; then
         break
     fi
-    sleep $wait_interval
-    elapsed_time=$((elapsed_time + wait_interval))  # CORREÇÃO: removed extra 'a'
+    sleep 2
 done
 
 if [ -z "$container_id2" ]; then
-    echo -e "XXX\n24\nERRO: Container MySQL não encontrado\nXXX"
+    echo -e "XXX\n24\nERRO: Container MySQL 8.4 não encontrado\nXXX"
     sleep 5
     exit 1
 fi
 
-echo -e "XXX\n25\nCONTAINER MYSQL ENCONTRADO\nXXX"
+echo -e "XXX\n24\nCONTAINER MYSQL ENCONTRADO, VALIDANDO CREDENCIAIS...\nXXX"
 
-# Extrair senha do MySQL
-senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml)
+# 2. Obter senha do MySQL (inspecionando o container ou lendo o arquivo yaml)
+senha_mysql=$(docker inspect "$container_id2" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep '^MYSQL_ROOT_PASSWORD=' | cut -d= -f2-)
+if [ -z "$senha_mysql" ] && [ -f /root/mysql84.yaml ]; then
+    senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null || true)
+fi
 
 if [ -z "$senha_mysql" ]; then
     echo -e "XXX\n25\nERRO: Senha MySQL não encontrada\nXXX"
@@ -429,20 +427,49 @@ if [ -z "$senha_mysql" ]; then
     exit 1
 fi
 
+# 3. Aguardar MySQL 8.4 aceitar conexões autenticadas (readiness loop ativo de até 3 minutos)
+echo -e "XXX\n25\nAGUARDANDO MYSQL 8.4 FICAR PRONTO PARA CONEXÃO...\nXXX"
+mysql_ready=0
+for attempt in $(seq 1 60); do
+    container_id2=$(docker ps -qf name=mysql84 2>/dev/null | head -n1)
+    if [ -n "$container_id2" ]; then
+        if docker exec -i "$container_id2" bash -c "MYSQL_PWD=\"$senha_mysql\" mysql -u root -e 'SELECT 1;'" >/dev/null 2>&1; then
+            mysql_ready=1
+            break
+        fi
+    fi
+    sleep 3
+done
+
+if [ "$mysql_ready" -ne 1 ]; then
+    echo -e "XXX\n25\nERRO: MySQL 8.4 não aceitou conexão em até 3 minutos\nXXX"
+    sleep 5
+    exit 1
+fi
+
 echo -e "XXX\n26\nCRIANDO BANCO: $nome_app\nXXX"
 
-# Criar banco de dados (versão mais segura)
- if docker exec -i $container_id2 bash -c "MYSQL_PWD=\"$senha_mysql\" mysql -u root -e \"CREATE DATABASE $nome_app;\"" >/dev/null 2>&1; then
+# 4. Criar banco de dados com retentativas seguras
+db_created=0
+for attempt in $(seq 1 5); do
+    if docker exec -i "$container_id2" bash -c "MYSQL_PWD=\"$senha_mysql\" mysql -u root -e \"CREATE DATABASE IF NOT EXISTS \`$nome_app\`;\"" >/dev/null 2>&1; then
+        db_created=1
+        break
+    fi
+    sleep 2
+done
+
+if [ "$db_created" -eq 1 ]; then
     echo -e "XXX\n27\nBANCO $nome_app CRIADO COM SUCESSO\nXXX"
-    sleep 5
+    sleep 2
 else
     echo -e "XXX\n28\nERRO AO CRIAR BANCO DE DADOS, CANCELANDO INSTALAÇÃO\nXXX"
     sleep 5
-setup-mno
+    exit 1
 fi
 
 echo -e "XXX\n29\nCRIAÇÃO DO BANCO FINALIZADA\nXXX"
-sleep 5
+sleep 2
 
 
 
@@ -841,7 +868,12 @@ sleep 3
 #secret_key="base64:$(openssl rand -base64 32)"
 
 clear
-senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml)
+if [ -z "$senha_mysql" ] && [ -f /root/mysql84.yaml ]; then
+    senha_mysql=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null || true)
+fi
+if [ -z "$senha_mysql" ]; then
+    senha_mysql=$(docker inspect $(docker ps -qf name=mysql84 2>/dev/null | head -n1) --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep '^MYSQL_ROOT_PASSWORD=' | cut -d= -f2-)
+fi
 
 cat > $nome_app.yaml << EOL
 
@@ -1764,8 +1796,8 @@ BD_MAUTIC7_SIMPLES="https://manualnegocioonline.com.br/downloads/mautic712/backu
 wget $BD_MAUTIC7_SIMPLES >/dev/null 2>&1
 unzip backupsimples.zip  >/dev/null 2>&1
 
-mysql_container=$(docker ps -qf name=mysql84)
-docker exec -i $mysql_container mysql -p$senha_mysql -u root $nome_app < backupsimples.sql >/dev/null 2>&1
+mysql_container=$(docker ps -qf name=mysql84 2>/dev/null | head -n1)
+docker exec -i "$mysql_container" bash -c "MYSQL_PWD=\"$senha_mysql\" mysql -u root \"$nome_app\"" < backupsimples.sql >/dev/null 2>&1
 
 sleep 1
 
