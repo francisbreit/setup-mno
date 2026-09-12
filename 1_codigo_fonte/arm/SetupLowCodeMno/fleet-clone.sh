@@ -1411,12 +1411,17 @@ action_transfer_or_clone() {
         for cur_app in "${apps_to_migrate[@]}"; do
             app_idx=$((app_idx + 1))
             local app_workdir="$workdir/$cur_app"
+            mkdir -p "$app_workdir"
+
             local pct_base=$(( (app_idx - 1) * 100 / total_apps ))
             local pct_step=$(( 100 / total_apps ))
 
             # 1. Obtenção do manifesto da stack
-            echo -e "XXX\n$((pct_base + (pct_step * 10 / 100)))\n[$app_idx/$total_apps] Extraindo manifesto compose ($cur_app)...\nXXX"
-            export_stack_manifest "$chosen_origin_id" "$origin_ssh_host" "$cur_app" "$app_workdir/stack.yaml"
+            echo -e "XXX\n$((pct_base + (pct_step * 10 / 100)))\n[$app_idx/$total_apps] Sincronizando stack viva '$cur_app'...\nXXX"
+            if ! resolve_live_stack_yaml "$chosen_origin_id" "$origin_ssh_host" "$cur_app" "$app_workdir/stack.yaml" 2>> "$TRANSFER_LOG"; then
+                echo "Aviso: stack yaml não encontrado no Portainer para $cur_app, gerando manifesto mínimo..." >> "$TRANSFER_LOG"
+                echo "version: '3.7'" > "$app_workdir/stack.yaml"
+            fi
 
             # 2. Resolução de Topologia & Dependências
             local cur_db_engine="none:"
@@ -1424,9 +1429,9 @@ action_transfer_or_clone() {
             local cur_mq_engine="none:"
 
             echo -e "XXX\n$((pct_base + (pct_step * 25 / 100)))\n[$app_idx/$total_apps] Detectando dependências de infraestrutura ($cur_app)...\nXXX"
-            cur_db_engine=$(detect_stack_database_engine "$app_workdir/stack.yaml" "$cur_app")
-            cur_s3_engine=$(detect_stack_s3_engine "$app_workdir/stack.yaml" "$cur_app")
-            cur_mq_engine=$(detect_stack_rabbitmq_engine "$app_workdir/stack.yaml" "$cur_app")
+            cur_db_engine=$(detect_database_engine "$app_workdir/stack.yaml" "$cur_app")
+            cur_s3_engine=$(detect_s3_storage_engine "$app_workdir/stack.yaml" "$cur_app")
+            cur_mq_engine=$(detect_rabbitmq_engine "$app_workdir/stack.yaml" "$cur_app")
 
             echo "Stack: $cur_app | DB: $cur_db_engine | S3: $cur_s3_engine | MQ: $cur_mq_engine" >> "$TRANSFER_LOG"
 
@@ -1434,11 +1439,36 @@ action_transfer_or_clone() {
             if [[ "$cur_db_engine" == postgres:* ]]; then
                 local pg_dbname="${cur_db_engine#postgres:}"
                 echo -e "XXX\n$((pct_base + (pct_step * 35 / 100)))\n[$app_idx/$total_apps] Executando dump lógico consistente do PostgreSQL ($pg_dbname)...\nXXX"
-                dump_postgres_database "$chosen_origin_id" "$origin_ssh_host" "$pg_dbname" "$app_workdir/db_logical_dump.sql.gz"
+                if [ "$chosen_origin_id" = "local" ]; then
+                    local c_id
+                    c_id=$(docker ps -qf name=postgres 2>/dev/null | head -n1 || true)
+                    if [ -n "$c_id" ]; then
+                        docker exec -i "$c_id" pg_dump -U postgres -d "$pg_dbname" --clean --if-exists 2>> "$TRANSFER_LOG" | gzip > "$app_workdir/db_logical_dump.sql.gz" || true
+                    fi
+                else
+                    ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" \
+                        "c_id=\$(docker ps -qf name=postgres | head -n1); [ -n \"\$c_id\" ] && docker exec -i \"\$c_id\" pg_dump -U postgres -d '$pg_dbname' --clean --if-exists 2>/dev/null" \
+                        | gzip > "$app_workdir/db_logical_dump.sql.gz" 2>> "$TRANSFER_LOG" || true
+                fi
             elif [[ "$cur_db_engine" == mysql84:* ]]; then
                 local my_dbname="${cur_db_engine#mysql84:}"
                 echo -e "XXX\n$((pct_base + (pct_step * 35 / 100)))\n[$app_idx/$total_apps] Executando dump lógico consistente do MySQL 8.4 ($my_dbname)...\nXXX"
-                dump_mysql84_database "$chosen_origin_id" "$origin_ssh_host" "$my_dbname" "$app_workdir/db_logical_dump.sql.gz"
+                if [ "$chosen_origin_id" = "local" ]; then
+                    local c_id orig_pwd
+                    c_id=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
+                    orig_pwd=$(docker inspect "$c_id" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null || echo "")
+                    if [ -n "$c_id" ] && [ -n "$orig_pwd" ]; then
+                        docker exec -i -e MYSQL_PWD="$orig_pwd" "$c_id" mysqldump -u root --databases "$my_dbname" --add-drop-table 2>> "$TRANSFER_LOG" | gzip > "$app_workdir/db_logical_dump.sql.gz" || true
+                    fi
+                else
+                    ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" '
+                        c_id=$(docker ps -qf name=mysql84 | head -n1)
+                        pwd=$(docker inspect "$c_id" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP "(?<=MYSQL_ROOT_PASSWORD=).+" /root/mysql84.yaml 2>/dev/null || echo "")
+                        if [ -n "$c_id" ] && [ -n "$pwd" ]; then
+                            docker exec -i -e MYSQL_PWD="$pwd" "$c_id" mysqldump -u root --databases "'"$my_dbname"'" --add-drop-table 2>/dev/null
+                        fi
+                    ' | gzip > "$app_workdir/db_logical_dump.sql.gz" 2>> "$TRANSFER_LOG" || true
+                fi
             fi
 
             # Sincronização de S3 MinIO se aplicável
@@ -1556,18 +1586,22 @@ action_transfer_or_clone() {
 
             # 8. Desligar e congelar na origem se solicitado
             if [ "$stop_origin" = "true" ]; then
-                echo -e "XXX\n$((pct_base + (pct_step * 95 / 100)))\n[$app_idx/$total_apps] Congelando volumes e desligando na origem ($cur_app)...\nXXX"
-                if [ "$chosen_origin_id" = "local" ]; then
-                    docker stack rm "$cur_app" >/dev/null 2>&1 || true
-                    for v in "${cur_vols[@]}"; do
-                        docker volume create "${v}_${safety_suffix}" >/dev/null 2>&1 || true
-                        docker run --rm -v "${v}:/src:ro" -v "${v}_${safety_suffix}:/dst" alpine cp -a /src/. /dst/ >/dev/null 2>&1 || true
-                    done
+                if [ ! -s "$app_workdir/stack.yaml" ] || [ ${#cur_vols[@]} -eq 0 ]; then
+                    echo "ALERTA DE SEGURANÇA: Manifestos ou volumes vazios para '$cur_app'. Origem mantida ativa para evitar indisponibilidade." >> "$TRANSFER_LOG"
                 else
-                    ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" "docker stack rm '$cur_app' >/dev/null 2>&1 || true"
-                    for v in "${cur_vols[@]}"; do
-                        ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" "docker volume create '${v}_${safety_suffix}' >/dev/null 2>&1 && docker run --rm -v '${v}:/src:ro' -v '${v}_${safety_suffix}:/dst' alpine cp -a /src/. /dst/ 2>/dev/null || true"
-                    done
+                    echo -e "XXX\n$((pct_base + (pct_step * 95 / 100)))\n[$app_idx/$total_apps] Congelando volumes e desligando na origem ($cur_app)...\nXXX"
+                    if [ "$chosen_origin_id" = "local" ]; then
+                        for v in "${cur_vols[@]}"; do
+                            docker volume create "${v}_${safety_suffix}" >/dev/null 2>&1 || true
+                            docker run --rm -v "${v}:/src:ro" -v "${v}_${safety_suffix}:/dst" alpine cp -a /src/. /dst/ >/dev/null 2>&1 || true
+                        done
+                        docker stack rm "$cur_app" >/dev/null 2>&1 || true
+                    else
+                        for v in "${cur_vols[@]}"; do
+                            ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" "docker volume create '${v}_${safety_suffix}' >/dev/null 2>&1 && docker run --rm -v '${v}:/src:ro' -v '${v}_${safety_suffix}:/dst' alpine cp -a /src/. /dst/ 2>/dev/null || true"
+                        done
+                        ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" "docker stack rm '$cur_app' >/dev/null 2>&1 || true"
+                    fi
                 fi
             fi
 
