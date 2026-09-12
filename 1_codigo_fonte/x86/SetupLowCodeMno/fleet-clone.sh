@@ -809,16 +809,18 @@ ensure_mysql84_ready() {
     fi
 
     if [ -n "$running" ]; then
+        echo "MySQL 8.4 já está em execução no nó '$node_id'." >> "$TRANSFER_LOG"
         return 0
     fi
 
+    echo "Inicializando stack mysql84 no nó '$node_id'..." >> "$TRANSFER_LOG"
     local new_pwd=""
     if [ "$node_id" = "local" ]; then
         if [ -s /root/mysql84.yaml ]; then
-            new_pwd=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null | head -n1 | tr -d ' "\r' || true)
+            new_pwd=$(grep 'MYSQL_ROOT_PASSWORD=' /root/mysql84.yaml 2>/dev/null | head -n1 | sed 's/.*MYSQL_ROOT_PASSWORD=//' | tr -d ' "\r' || true)
         fi
     else
-        new_pwd=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "[ -s /root/mysql84.yaml ] && grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml | head -n1 | tr -d ' \"\r'" 2>/dev/null || true)
+        new_pwd=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "[ -s /root/mysql84.yaml ] && grep 'MYSQL_ROOT_PASSWORD=' /root/mysql84.yaml | head -n1 | sed 's/.*MYSQL_ROOT_PASSWORD=//' | tr -d ' \"\r'" 2>/dev/null || true)
     fi
     [ -n "$new_pwd" ] || new_pwd=$(openssl rand -hex 8)
 
@@ -856,10 +858,10 @@ networks:
         if [ ! -s /root/mysql84.yaml ]; then
             printf '%s\n' "$yaml_body" > /root/mysql84.yaml 2>/dev/null || true
         fi
-        deploy_stack_with_portainer_priority "local" "" "mysql84" "/root/mysql84.yaml" >/dev/null 2>&1 || true
+        deploy_stack_with_portainer_priority "local" "" "mysql84" "/root/mysql84.yaml" >> "$TRANSFER_LOG" 2>&1 || true
     else
-        ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "[ -s /root/mysql84.yaml ] || cat > /root/mysql84.yaml" <<< "$yaml_body"
-        deploy_stack_with_portainer_priority "$node_id" "$host" "mysql84" "/root/mysql84.yaml" >/dev/null 2>&1 || true
+        ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "[ -s /root/mysql84.yaml ] || cat > /root/mysql84.yaml" <<< "$yaml_body"
+        deploy_stack_with_portainer_priority "$node_id" "$host" "mysql84" "/root/mysql84.yaml" >> "$TRANSFER_LOG" 2>&1 || true
     fi
 
     local wait_count=0
@@ -871,6 +873,7 @@ networks:
             chk=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
             if [ -n "$chk" ]; then
                 if docker exec -i -e MYSQL_PWD="$new_pwd" "$chk" mysql -u root -e 'SELECT 1;' >/dev/null 2>&1; then
+                    echo "MySQL 8.4 operacional no nó '$node_id'." >> "$TRANSFER_LOG"
                     return 0
                 fi
             fi
@@ -878,11 +881,14 @@ networks:
             chk=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" 'docker ps -qf name=mysql84 | head -n1' 2>/dev/null || true)
             if [ -n "$chk" ]; then
                 if ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "docker exec -i -e MYSQL_PWD='$new_pwd' '$chk' mysql -u root -e 'SELECT 1;'" >/dev/null 2>&1; then
+                    echo "MySQL 8.4 operacional no nó '$node_id'." >> "$TRANSFER_LOG"
                     return 0
                 fi
             fi
         fi
     done
+    echo "FALHA: Timeout aguardando inicialização do MySQL 8.4 no nó '$node_id'." >> "$TRANSFER_LOG"
+    return 1
 }
 
 # Garante que MinIO S3 está rodando no nó destino
@@ -1571,24 +1577,34 @@ action_transfer_or_clone() {
                         "c_id=\$(docker ps -qf name=postgres | head -n1); [ -n \"\$c_id\" ] && docker exec -i \"\$c_id\" pg_dump -U postgres -d '$pg_dbname' --clean --if-exists 2>/dev/null" \
                         | gzip > "$app_workdir/db_logical_dump.sql.gz" 2>> "$TRANSFER_LOG" || true
                 fi
+                if [ ! -s "$app_workdir/db_logical_dump.sql.gz" ] || [ "$(gunzip -c "$app_workdir/db_logical_dump.sql.gz" 2>/dev/null | head -c 10 | wc -c)" -eq 0 ]; then
+                    echo "ERRO CRÍTICO: Dump do banco PostgreSQL '$pg_dbname' falhou ou gerou arquivo vazio na origem. Abortando migração." >> "$TRANSFER_LOG"
+                    echo "ERROR_ABORT" > "$stats_file"
+                    return 1
+                fi
             elif [[ "$cur_db_engine" == mysql84:* ]]; then
                 local my_dbname="${cur_db_engine#mysql84:}"
                 echo -e "XXX\n$((pct_base + (pct_step * 35 / 100)))\n[$app_idx/$total_apps] Executando dump lógico consistente do MySQL 8.4 ($my_dbname)...\nXXX"
                 if [ "$chosen_origin_id" = "local" ]; then
                     local c_id orig_pwd
                     c_id=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
-                    orig_pwd=$(docker inspect "$c_id" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null || echo "")
+                    orig_pwd=$(docker inspect "$c_id" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep 'MYSQL_ROOT_PASSWORD=' /root/mysql84.yaml 2>/dev/null | head -n1 | sed 's/.*MYSQL_ROOT_PASSWORD=//' | tr -d ' "\r' || echo "")
                     if [ -n "$c_id" ] && [ -n "$orig_pwd" ]; then
                         docker exec -i -e MYSQL_PWD="$orig_pwd" "$c_id" mysqldump -u root --databases "$my_dbname" --add-drop-table 2>> "$TRANSFER_LOG" | gzip > "$app_workdir/db_logical_dump.sql.gz" || true
                     fi
                 else
                     ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" '
                         c_id=$(docker ps -qf name=mysql84 | head -n1)
-                        pwd=$(docker inspect "$c_id" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP "(?<=MYSQL_ROOT_PASSWORD=).+" /root/mysql84.yaml 2>/dev/null || echo "")
+                        pwd=$(docker inspect "$c_id" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep "MYSQL_ROOT_PASSWORD=" /root/mysql84.yaml 2>/dev/null | head -n1 | sed "s/.*MYSQL_ROOT_PASSWORD=//" | tr -d " \"\r" || echo "")
                         if [ -n "$c_id" ] && [ -n "$pwd" ]; then
                             docker exec -i -e MYSQL_PWD="$pwd" "$c_id" mysqldump -u root --databases "'"$my_dbname"'" --add-drop-table 2>/dev/null
                         fi
                     ' | gzip > "$app_workdir/db_logical_dump.sql.gz" 2>> "$TRANSFER_LOG" || true
+                fi
+                if [ ! -s "$app_workdir/db_logical_dump.sql.gz" ] || [ "$(gunzip -c "$app_workdir/db_logical_dump.sql.gz" 2>/dev/null | head -c 10 | wc -c)" -eq 0 ]; then
+                    echo "ERRO CRÍTICO: Dump do banco MySQL '$my_dbname' falhou ou gerou arquivo vazio na origem. Abortando migração." >> "$TRANSFER_LOG"
+                    echo "ERROR_ABORT" > "$stats_file"
+                    return 1
                 fi
             fi
 
@@ -1651,13 +1667,13 @@ action_transfer_or_clone() {
                     if [ "$chosen_dest_id" = "local" ]; then
                         dc=$(docker ps -qf name=postgres 2>/dev/null | head -n1 || true)
                         if [ -n "$dc" ]; then
-                            dest_pg_pwd=$(docker inspect "$dc" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep POSTGRES_PASSWORD | cut -d= -f2- || grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml 2>/dev/null || echo "")
+                            dest_pg_pwd=$(docker inspect "$dc" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep POSTGRES_PASSWORD | cut -d= -f2- || grep 'POSTGRES_PASSWORD=' /root/postgres.yaml 2>/dev/null | head -n1 | sed 's/.*POSTGRES_PASSWORD=//' | tr -d ' "\r' || echo "")
                             [ -n "$dest_pg_pwd" ] && break
                         fi
                     else
                         dc=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'docker ps -qf name=postgres | head -n1' 2>/dev/null || true)
                         if [ -n "$dc" ]; then
-                            dest_pg_pwd=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'dc=$(docker ps -qf name=postgres | head -n1); docker inspect "$dc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep POSTGRES_PASSWORD | cut -d= -f2- || grep -oP "(?<=POSTGRES_PASSWORD=).+" /root/postgres.yaml 2>/dev/null || echo ""')
+                            dest_pg_pwd=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'dc=$(docker ps -qf name=postgres | head -n1); docker inspect "$dc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep POSTGRES_PASSWORD | cut -d= -f2- || grep "POSTGRES_PASSWORD=" /root/postgres.yaml 2>/dev/null | head -n1 | sed "s/.*POSTGRES_PASSWORD=//" | tr -d " \"\r" || echo ""')
                             [ -n "$dest_pg_pwd" ] && break
                         fi
                     fi
@@ -1666,16 +1682,33 @@ action_transfer_or_clone() {
                 done
 
                 if [ -z "$dc" ]; then
-                    echo "ERRO CRÍTICO: Container postgres não encontrado no destino após aguardar. Abortando restauração de banco." >> "$TRANSFER_LOG"
+                    echo "ERRO CRÍTICO: Container postgres não encontrado no destino após aguardar. Abortando migração." >> "$TRANSFER_LOG"
+                    echo "ERROR_ABORT" > "$stats_file"
+                    return 1
+                fi
+
+                echo "Restaurando banco PostgreSQL '$pg_dbname' no destino..." >> "$TRANSFER_LOG"
+                if [ "$chosen_dest_id" = "local" ]; then
+                    printf 'CREATE DATABASE "%s";\n' "$pg_dbname" | docker exec -i "$dc" psql -U postgres >> "$TRANSFER_LOG" 2>&1 || true
+                    gunzip -c "$app_workdir/db_logical_dump.sql.gz" | docker exec -i "$dc" psql -U postgres -d "$pg_dbname" >> "$TRANSFER_LOG" 2>&1 || true
                 else
-                    echo "Restaurando banco PostgreSQL '$pg_dbname' no destino..." >> "$TRANSFER_LOG"
-                    if [ "$chosen_dest_id" = "local" ]; then
-                        printf 'CREATE DATABASE "%s";\n' "$pg_dbname" | docker exec -i "$dc" psql -U postgres >> "$TRANSFER_LOG" 2>&1 || true
-                        gunzip -c "$app_workdir/db_logical_dump.sql.gz" | docker exec -i "$dc" psql -U postgres -d "$pg_dbname" >> "$TRANSFER_LOG" 2>&1 || true
-                    else
-                        printf 'CREATE DATABASE "%s";\n' "$pg_dbname" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); docker exec -i \"\$dc\" psql -U postgres" >> "$TRANSFER_LOG" 2>&1 || true
-                        gunzip -c "$app_workdir/db_logical_dump.sql.gz" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); gunzip -c | docker exec -i \"\$dc\" psql -U postgres -d '$pg_dbname'" >> "$TRANSFER_LOG" 2>&1 || true
-                    fi
+                    printf 'CREATE DATABASE "%s";\n' "$pg_dbname" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); docker exec -i \"\$dc\" psql -U postgres" >> "$TRANSFER_LOG" 2>&1 || true
+                    gunzip -c "$app_workdir/db_logical_dump.sql.gz" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); gunzip -c | docker exec -i \"\$dc\" psql -U postgres -d '$pg_dbname'" >> "$TRANSFER_LOG" 2>&1 || true
+                fi
+
+                # Verificação de integridade pós-restauração Postgres
+                local check_pg=""
+                if [ "$chosen_dest_id" = "local" ]; then
+                    check_pg=$(docker exec -i "$dc" psql -U postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$pg_dbname';" 2>/dev/null | tr -d '\r\n ' || true)
+                else
+                    check_pg=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); docker exec -i \"\$dc\" psql -U postgres -tAc \"SELECT 1 FROM pg_database WHERE datname='$pg_dbname';\"" 2>/dev/null | tr -d '\r\n ' || true)
+                fi
+                if [ "$check_pg" != "1" ]; then
+                    echo "ERRO CRÍTICO: Verificação pós-restore falhou! Banco de dados PostgreSQL '$pg_dbname' não foi encontrado no destino. Abortando migração." >> "$TRANSFER_LOG"
+                    echo "ERROR_ABORT" > "$stats_file"
+                    return 1
+                else
+                    echo "Banco de dados PostgreSQL '$pg_dbname' verificado com sucesso no destino." >> "$TRANSFER_LOG"
                 fi
 
                 if [ -n "$dest_pg_pwd" ]; then
@@ -1683,7 +1716,11 @@ action_transfer_or_clone() {
                 fi
             elif [[ "$cur_db_engine" == mysql84:* ]] && [ -f "$app_workdir/db_logical_dump.sql.gz" ]; then
                 local my_dbname="${cur_db_engine#mysql84:}"
-                ensure_mysql84_ready "$chosen_dest_id" "$dest_ssh_host"
+                if ! ensure_mysql84_ready "$chosen_dest_id" "$dest_ssh_host"; then
+                    echo "ERRO CRÍTICO: Falha ao garantir MySQL 8.4 no nó de destino. Abortando migração para proteger dados." >> "$TRANSFER_LOG"
+                    echo "ERROR_ABORT" > "$stats_file"
+                    return 1
+                fi
 
                 local mc=""
                 local dest_my_pwd=""
@@ -1692,13 +1729,13 @@ action_transfer_or_clone() {
                     if [ "$chosen_dest_id" = "local" ]; then
                         mc=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
                         if [ -n "$mc" ]; then
-                            dest_my_pwd=$(docker inspect "$mc" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null || echo "")
+                            dest_my_pwd=$(docker inspect "$mc" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep 'MYSQL_ROOT_PASSWORD=' /root/mysql84.yaml 2>/dev/null | head -n1 | sed 's/.*MYSQL_ROOT_PASSWORD=//' | tr -d ' "\r' || echo "")
                             [ -n "$dest_my_pwd" ] && break
                         fi
                     else
                         mc=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'docker ps -qf name=mysql84 | head -n1' 2>/dev/null || true)
                         if [ -n "$mc" ]; then
-                            dest_my_pwd=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'mc=$(docker ps -qf name=mysql84 | head -n1); docker inspect "$mc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP "(?<=MYSQL_ROOT_PASSWORD=).+" /root/mysql84.yaml 2>/dev/null || echo ""')
+                            dest_my_pwd=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'mc=$(docker ps -qf name=mysql84 | head -n1); docker inspect "$mc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep "MYSQL_ROOT_PASSWORD=" /root/mysql84.yaml 2>/dev/null | head -n1 | sed "s/.*MYSQL_ROOT_PASSWORD=//" | tr -d " \"\r" || echo ""')
                             [ -n "$dest_my_pwd" ] && break
                         fi
                     fi
@@ -1706,30 +1743,34 @@ action_transfer_or_clone() {
                     wait_mc=$((wait_mc + 1))
                 done
 
-                if [ -z "$mc" ]; then
-                    echo "ERRO CRÍTICO: Container mysql84 não encontrado no destino após aguardar. Abortando restauração de banco." >> "$TRANSFER_LOG"
-                else
-                    echo "Restaurando banco MySQL '$my_dbname' no destino..." >> "$TRANSFER_LOG"
-                    if [ "$chosen_dest_id" = "local" ]; then
-                        printf 'CREATE DATABASE IF NOT EXISTS `%s`;\n' "$my_dbname" | docker exec -i -e MYSQL_PWD="$dest_my_pwd" "$mc" mysql -u root >> "$TRANSFER_LOG" 2>&1 || true
-                        gunzip -c "$app_workdir/db_logical_dump.sql.gz" | docker exec -i -e MYSQL_PWD="$dest_my_pwd" "$mc" mysql -u root "$my_dbname" >> "$TRANSFER_LOG" 2>&1 || true
-                    else
-                        printf 'CREATE DATABASE IF NOT EXISTS `%s`;\n' "$my_dbname" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); docker exec -i -e MYSQL_PWD='$dest_my_pwd' \"\$mc\" mysql -u root" >> "$TRANSFER_LOG" 2>&1 || true
-                        gunzip -c "$app_workdir/db_logical_dump.sql.gz" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); docker exec -i -e MYSQL_PWD='$dest_my_pwd' \"\$mc\" mysql -u root '$my_dbname'" >> "$TRANSFER_LOG" 2>&1 || true
-                    fi
+                if [ -z "$mc" ] || [ -z "$dest_my_pwd" ]; then
+                    echo "ERRO CRÍTICO: Container mysql84 ou senha não identificada no destino após aguardar. Abortando migração." >> "$TRANSFER_LOG"
+                    echo "ERROR_ABORT" > "$stats_file"
+                    return 1
+                fi
 
-                    # Verificação de integridade pós-restauração
-                    local check_db=""
-                    if [ "$chosen_dest_id" = "local" ]; then
-                        check_db=$(docker exec -i -e MYSQL_PWD="$dest_my_pwd" "$mc" mysql -u root -s -N -e "SHOW DATABASES LIKE '$my_dbname';" 2>/dev/null | tr -d '\r\n ' || true)
-                    else
-                        check_db=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); docker exec -i -e MYSQL_PWD='$dest_my_pwd' \"\$mc\" mysql -u root -s -N -e \"SHOW DATABASES LIKE '$my_dbname';\"" 2>/dev/null | tr -d '\r\n ' || true)
-                    fi
-                    if [ "$check_db" != "$my_dbname" ]; then
-                        echo "ALERTA: Banco de dados '$my_dbname' não retornou na verificação após restore!" >> "$TRANSFER_LOG"
-                    else
-                        echo "Banco de dados '$my_dbname' verificado com sucesso no destino." >> "$TRANSFER_LOG"
-                    fi
+                echo "Restaurando banco MySQL '$my_dbname' no destino..." >> "$TRANSFER_LOG"
+                if [ "$chosen_dest_id" = "local" ]; then
+                    printf 'CREATE DATABASE IF NOT EXISTS `%s`;\n' "$my_dbname" | docker exec -i -e MYSQL_PWD="$dest_my_pwd" "$mc" mysql -u root >> "$TRANSFER_LOG" 2>&1 || true
+                    gunzip -c "$app_workdir/db_logical_dump.sql.gz" | docker exec -i -e MYSQL_PWD="$dest_my_pwd" "$mc" mysql -u root "$my_dbname" >> "$TRANSFER_LOG" 2>&1 || true
+                else
+                    printf 'CREATE DATABASE IF NOT EXISTS `%s`;\n' "$my_dbname" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); docker exec -i -e MYSQL_PWD='$dest_my_pwd' \"\$mc\" mysql -u root" >> "$TRANSFER_LOG" 2>&1 || true
+                    gunzip -c "$app_workdir/db_logical_dump.sql.gz" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); docker exec -i -e MYSQL_PWD='$dest_my_pwd' \"\$mc\" mysql -u root '$my_dbname'" >> "$TRANSFER_LOG" 2>&1 || true
+                fi
+
+                # Verificação de integridade pós-restauração
+                local check_db=""
+                if [ "$chosen_dest_id" = "local" ]; then
+                    check_db=$(docker exec -i -e MYSQL_PWD="$dest_my_pwd" "$mc" mysql -u root -s -N -e "SHOW DATABASES LIKE '$my_dbname';" 2>/dev/null | tr -d '\r\n ' || true)
+                else
+                    check_db=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); docker exec -i -e MYSQL_PWD='$dest_my_pwd' \"\$mc\" mysql -u root -s -N -e \"SHOW DATABASES LIKE '$my_dbname';\"" 2>/dev/null | tr -d '\r\n ' || true)
+                fi
+                if [ "$check_db" != "$my_dbname" ]; then
+                    echo "ERRO CRÍTICO: Verificação pós-restore falhou! Banco de dados '$my_dbname' não foi encontrado no destino. Abortando migração." >> "$TRANSFER_LOG"
+                    echo "ERROR_ABORT" > "$stats_file"
+                    return 1
+                else
+                    echo "Banco de dados '$my_dbname' verificado com sucesso no destino." >> "$TRANSFER_LOG"
                 fi
 
                 if [ -n "$dest_my_pwd" ]; then
