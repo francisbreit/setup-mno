@@ -805,15 +805,22 @@ ensure_mysql84_ready() {
     if [ "$node_id" = "local" ]; then
         running=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
     else
-        running=$(ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" 'docker ps -qf name=mysql84 | head -n1' 2>/dev/null || true)
+        running=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" 'docker ps -qf name=mysql84 | head -n1' 2>/dev/null || true)
     fi
 
     if [ -n "$running" ]; then
         return 0
     fi
 
-    local new_pwd
-    new_pwd=$(openssl rand -hex 8)
+    local new_pwd=""
+    if [ "$node_id" = "local" ]; then
+        if [ -s /root/mysql84.yaml ]; then
+            new_pwd=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null | head -n1 | tr -d ' "\r' || true)
+        fi
+    else
+        new_pwd=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "[ -s /root/mysql84.yaml ] && grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml | head -n1 | tr -d ' \"\r'" 2>/dev/null || true)
+    fi
+    [ -n "$new_pwd" ] || new_pwd=$(openssl rand -hex 8)
 
     local yaml_body="version: '3.7'
 services:
@@ -846,10 +853,12 @@ networks:
         external: true
 "
     if [ "$node_id" = "local" ]; then
-        printf '%s\n' "$yaml_body" > /root/mysql84.yaml 2>/dev/null || true
+        if [ ! -s /root/mysql84.yaml ]; then
+            printf '%s\n' "$yaml_body" > /root/mysql84.yaml 2>/dev/null || true
+        fi
         deploy_stack_with_portainer_priority "local" "" "mysql84" "/root/mysql84.yaml" >/dev/null 2>&1 || true
     else
-        ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "cat > /root/mysql84.yaml" <<< "$yaml_body"
+        ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "[ -s /root/mysql84.yaml ] || cat > /root/mysql84.yaml" <<< "$yaml_body"
         deploy_stack_with_portainer_priority "$node_id" "$host" "mysql84" "/root/mysql84.yaml" >/dev/null 2>&1 || true
     fi
 
@@ -861,14 +870,14 @@ networks:
         if [ "$node_id" = "local" ]; then
             chk=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
             if [ -n "$chk" ]; then
-                if docker exec -i "$chk" bash -c "MYSQL_PWD=\"$new_pwd\" mysql -u root -e 'SELECT 1;'" >/dev/null 2>&1; then
+                if docker exec -i -e MYSQL_PWD="$new_pwd" "$chk" mysql -u root -e 'SELECT 1;' >/dev/null 2>&1; then
                     return 0
                 fi
             fi
         else
-            chk=$(ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" 'docker ps -qf name=mysql84 | head -n1' 2>/dev/null || true)
+            chk=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" 'docker ps -qf name=mysql84 | head -n1' 2>/dev/null || true)
             if [ -n "$chk" ]; then
-                if ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "docker exec -i '$chk' bash -c 'MYSQL_PWD=\"$new_pwd\" mysql -u root -e \"SELECT 1;\"'" >/dev/null 2>&1; then
+                if ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "docker exec -i -e MYSQL_PWD='$new_pwd' '$chk' mysql -u root -e 'SELECT 1;'" >/dev/null 2>&1; then
                     return 0
                 fi
             fi
@@ -1602,14 +1611,18 @@ action_transfer_or_clone() {
             while IFS= read -r v; do
                 [ -n "$v" ] || continue
                 cur_vols+=("$v")
+            done < <(get_application_volumes "$app_workdir/stack.yaml" "$cur_app" "$chosen_origin_id" "$origin_ssh_host")
+
+            for v in "${cur_vols[@]}"; do
+                [ -n "$v" ] || continue
                 echo "Compactando volume de $cur_app: $v" >> "$TRANSFER_LOG"
                 if [ "$chosen_origin_id" = "local" ]; then
                     docker run --rm -v "${v}:/voldata:ro" alpine tar -czf - -C /voldata . > "$app_workdir/vol_${v}.tar.gz" 2>> "$TRANSFER_LOG" || true
                 else
-                    ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" \
+                    ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" \
                         "docker run --rm -v '${v}:/voldata:ro' alpine tar -czf - -C /voldata ." > "$app_workdir/vol_${v}.tar.gz" 2>> "$TRANSFER_LOG" || true
                 fi
-            done < <(get_application_volumes "$app_workdir/stack.yaml" "$cur_app" "$chosen_origin_id" "$origin_ssh_host")
+            done
 
             total_migrated_vols=$((total_migrated_vols + ${#cur_vols[@]}))
             echo "$total_migrated_vols" > "$stats_file" 2>/dev/null || true
@@ -1623,7 +1636,7 @@ action_transfer_or_clone() {
                     docker volume create "$v" >/dev/null 2>&1 || true
                     docker run --rm -i -v "${v}:/voldata" alpine tar -xzf - -C /voldata < "$app_workdir/vol_${v}.tar.gz" 2>> "$TRANSFER_LOG" || true
                 else
-                    ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "docker volume create '$v' >/dev/null 2>&1 || true"
+                    ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "docker volume create '$v' >/dev/null 2>&1 || true"
                     ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "docker run --rm -i -v '${v}:/voldata' alpine tar -xzf - -C /voldata" < "$app_workdir/vol_${v}.tar.gz" 2>> "$TRANSFER_LOG" || true
                 fi
             done
@@ -1631,17 +1644,38 @@ action_transfer_or_clone() {
             # Restauração lógica do Banco no destino
             if [[ "$cur_db_engine" == postgres:* ]] && [ -f "$app_workdir/db_logical_dump.sql.gz" ]; then
                 local pg_dbname="${cur_db_engine#postgres:}"
+                local dc=""
                 local dest_pg_pwd=""
-                if [ "$chosen_dest_id" = "local" ]; then
-                    local dc
-                    dc=$(docker ps -qf name=postgres 2>/dev/null | head -n1 || true)
-                    dest_pg_pwd=$(docker inspect "$dc" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep POSTGRES_PASSWORD | cut -d= -f2- || grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml 2>/dev/null || echo "")
-                    printf 'CREATE DATABASE "%s";\n' "$pg_dbname" | docker exec -i "$dc" psql -U postgres >> "$TRANSFER_LOG" 2>&1 || true
-                    gunzip -c "$app_workdir/db_logical_dump.sql.gz" | docker exec -i "$dc" psql -U postgres -d "$pg_dbname" >> "$TRANSFER_LOG" 2>&1 || true
+                local wait_dc=0
+                while [ $wait_dc -lt 30 ]; do
+                    if [ "$chosen_dest_id" = "local" ]; then
+                        dc=$(docker ps -qf name=postgres 2>/dev/null | head -n1 || true)
+                        if [ -n "$dc" ]; then
+                            dest_pg_pwd=$(docker inspect "$dc" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep POSTGRES_PASSWORD | cut -d= -f2- || grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml 2>/dev/null || echo "")
+                            [ -n "$dest_pg_pwd" ] && break
+                        fi
+                    else
+                        dc=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'docker ps -qf name=postgres | head -n1' 2>/dev/null || true)
+                        if [ -n "$dc" ]; then
+                            dest_pg_pwd=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'dc=$(docker ps -qf name=postgres | head -n1); docker inspect "$dc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep POSTGRES_PASSWORD | cut -d= -f2- || grep -oP "(?<=POSTGRES_PASSWORD=).+" /root/postgres.yaml 2>/dev/null || echo ""')
+                            [ -n "$dest_pg_pwd" ] && break
+                        fi
+                    fi
+                    sleep 2
+                    wait_dc=$((wait_dc + 1))
+                done
+
+                if [ -z "$dc" ]; then
+                    echo "ERRO CRÍTICO: Container postgres não encontrado no destino após aguardar. Abortando restauração de banco." >> "$TRANSFER_LOG"
                 else
-                    dest_pg_pwd=$(ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'dc=$(docker ps -qf name=postgres | head -n1); docker inspect "$dc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep POSTGRES_PASSWORD | cut -d= -f2- || grep -oP "(?<=POSTGRES_PASSWORD=).+" /root/postgres.yaml 2>/dev/null || echo ""')
-                    printf 'CREATE DATABASE "%s";\n' "$pg_dbname" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); docker exec -i \"\$dc\" psql -U postgres" >> "$TRANSFER_LOG" 2>&1 || true
-                    gunzip -c "$app_workdir/db_logical_dump.sql.gz" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); gunzip -c | docker exec -i \"\$dc\" psql -U postgres -d '$pg_dbname'" >> "$TRANSFER_LOG" 2>&1 || true
+                    echo "Restaurando banco PostgreSQL '$pg_dbname' no destino..." >> "$TRANSFER_LOG"
+                    if [ "$chosen_dest_id" = "local" ]; then
+                        printf 'CREATE DATABASE "%s";\n' "$pg_dbname" | docker exec -i "$dc" psql -U postgres >> "$TRANSFER_LOG" 2>&1 || true
+                        gunzip -c "$app_workdir/db_logical_dump.sql.gz" | docker exec -i "$dc" psql -U postgres -d "$pg_dbname" >> "$TRANSFER_LOG" 2>&1 || true
+                    else
+                        printf 'CREATE DATABASE "%s";\n' "$pg_dbname" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); docker exec -i \"\$dc\" psql -U postgres" >> "$TRANSFER_LOG" 2>&1 || true
+                        gunzip -c "$app_workdir/db_logical_dump.sql.gz" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); gunzip -c | docker exec -i \"\$dc\" psql -U postgres -d '$pg_dbname'" >> "$TRANSFER_LOG" 2>&1 || true
+                    fi
                 fi
 
                 if [ -n "$dest_pg_pwd" ]; then
@@ -1651,17 +1685,51 @@ action_transfer_or_clone() {
                 local my_dbname="${cur_db_engine#mysql84:}"
                 ensure_mysql84_ready "$chosen_dest_id" "$dest_ssh_host"
 
+                local mc=""
                 local dest_my_pwd=""
-                if [ "$chosen_dest_id" = "local" ]; then
-                    local mc
-                    mc=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
-                    dest_my_pwd=$(docker inspect "$mc" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null || echo "")
-                    printf 'CREATE DATABASE IF NOT EXISTS `%s`;\n' "$my_dbname" | docker exec -i -e MYSQL_PWD="$dest_my_pwd" "$mc" mysql -u root >> "$TRANSFER_LOG" 2>&1 || true
-                    gunzip -c "$app_workdir/db_logical_dump.sql.gz" | docker exec -i -e MYSQL_PWD="$dest_my_pwd" "$mc" mysql -u root "$my_dbname" >> "$TRANSFER_LOG" 2>&1 || true
+                local wait_mc=0
+                while [ $wait_mc -lt 30 ]; do
+                    if [ "$chosen_dest_id" = "local" ]; then
+                        mc=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
+                        if [ -n "$mc" ]; then
+                            dest_my_pwd=$(docker inspect "$mc" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null || echo "")
+                            [ -n "$dest_my_pwd" ] && break
+                        fi
+                    else
+                        mc=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'docker ps -qf name=mysql84 | head -n1' 2>/dev/null || true)
+                        if [ -n "$mc" ]; then
+                            dest_my_pwd=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'mc=$(docker ps -qf name=mysql84 | head -n1); docker inspect "$mc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP "(?<=MYSQL_ROOT_PASSWORD=).+" /root/mysql84.yaml 2>/dev/null || echo ""')
+                            [ -n "$dest_my_pwd" ] && break
+                        fi
+                    fi
+                    sleep 2
+                    wait_mc=$((wait_mc + 1))
+                done
+
+                if [ -z "$mc" ]; then
+                    echo "ERRO CRÍTICO: Container mysql84 não encontrado no destino após aguardar. Abortando restauração de banco." >> "$TRANSFER_LOG"
                 else
-                    dest_my_pwd=$(ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'mc=$(docker ps -qf name=mysql84 | head -n1); docker inspect "$mc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP "(?<=MYSQL_ROOT_PASSWORD=).+" /root/mysql84.yaml 2>/dev/null || echo ""')
-                    printf 'CREATE DATABASE IF NOT EXISTS `%s`;\n' "$my_dbname" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); docker exec -i -e MYSQL_PWD='$dest_my_pwd' \"\$mc\" mysql -u root" >> "$TRANSFER_LOG" 2>&1 || true
-                    gunzip -c "$app_workdir/db_logical_dump.sql.gz" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); docker exec -i -e MYSQL_PWD='$dest_my_pwd' \"\$mc\" mysql -u root '$my_dbname'" >> "$TRANSFER_LOG" 2>&1 || true
+                    echo "Restaurando banco MySQL '$my_dbname' no destino..." >> "$TRANSFER_LOG"
+                    if [ "$chosen_dest_id" = "local" ]; then
+                        printf 'CREATE DATABASE IF NOT EXISTS `%s`;\n' "$my_dbname" | docker exec -i -e MYSQL_PWD="$dest_my_pwd" "$mc" mysql -u root >> "$TRANSFER_LOG" 2>&1 || true
+                        gunzip -c "$app_workdir/db_logical_dump.sql.gz" | docker exec -i -e MYSQL_PWD="$dest_my_pwd" "$mc" mysql -u root "$my_dbname" >> "$TRANSFER_LOG" 2>&1 || true
+                    else
+                        printf 'CREATE DATABASE IF NOT EXISTS `%s`;\n' "$my_dbname" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); docker exec -i -e MYSQL_PWD='$dest_my_pwd' \"\$mc\" mysql -u root" >> "$TRANSFER_LOG" 2>&1 || true
+                        gunzip -c "$app_workdir/db_logical_dump.sql.gz" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); docker exec -i -e MYSQL_PWD='$dest_my_pwd' \"\$mc\" mysql -u root '$my_dbname'" >> "$TRANSFER_LOG" 2>&1 || true
+                    fi
+
+                    # Verificação de integridade pós-restauração
+                    local check_db=""
+                    if [ "$chosen_dest_id" = "local" ]; then
+                        check_db=$(docker exec -i -e MYSQL_PWD="$dest_my_pwd" "$mc" mysql -u root -s -N -e "SHOW DATABASES LIKE '$my_dbname';" 2>/dev/null | tr -d '\r\n ' || true)
+                    else
+                        check_db=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); docker exec -i -e MYSQL_PWD='$dest_my_pwd' \"\$mc\" mysql -u root -s -N -e \"SHOW DATABASES LIKE '$my_dbname';\"" 2>/dev/null | tr -d '\r\n ' || true)
+                    fi
+                    if [ "$check_db" != "$my_dbname" ]; then
+                        echo "ALERTA: Banco de dados '$my_dbname' não retornou na verificação após restore!" >> "$TRANSFER_LOG"
+                    else
+                        echo "Banco de dados '$my_dbname' verificado com sucesso no destino." >> "$TRANSFER_LOG"
+                    fi
                 fi
 
                 if [ -n "$dest_my_pwd" ]; then
@@ -1670,7 +1738,7 @@ action_transfer_or_clone() {
                     if [ "$chosen_dest_id" = "local" ]; then
                         docker run --rm -v "${cfg_vol}:/voldata" alpine sh -c "sed -i \"s/'db_password' => .*/'db_password' => '$dest_my_pwd',/\" /voldata/local.php 2>/dev/null || true" 2>> "$TRANSFER_LOG" || true
                     else
-                        ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "docker run --rm -v '${cfg_vol}:/voldata' alpine sh -c \"sed -i \\\"s/'db_password' => .*/'db_password' => '$dest_my_pwd',/\\\" /voldata/local.php 2>/dev/null || true\"" 2>> "$TRANSFER_LOG" || true
+                        ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "docker run --rm -v '${cfg_vol}:/voldata' alpine sh -c \"sed -i \\\"s/'db_password' => .*/'db_password' => '$dest_my_pwd',/\\\" /voldata/local.php 2>/dev/null || true\"" 2>> "$TRANSFER_LOG" || true
                     fi
                 fi
             fi
@@ -1710,9 +1778,9 @@ action_transfer_or_clone() {
                         docker stack rm "$cur_app" >/dev/null 2>&1 || true
                     else
                         for v in "${cur_vols[@]}"; do
-                            ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" "docker volume create '${v}_${safety_suffix}' >/dev/null 2>&1 && docker run --rm -v '${v}:/src:ro' -v '${v}_${safety_suffix}:/dst' alpine cp -a /src/. /dst/ 2>/dev/null || true"
+                            ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" "docker volume create '${v}_${safety_suffix}' >/dev/null 2>&1 && docker run --rm -v '${v}:/src:ro' -v '${v}_${safety_suffix}:/dst' alpine cp -a /src/. /dst/ 2>/dev/null || true"
                         done
-                        ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" "docker stack rm '$cur_app' >/dev/null 2>&1 || true"
+                        ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" "docker stack rm '$cur_app' >/dev/null 2>&1 || true"
                     fi
                 fi
             fi
