@@ -198,14 +198,6 @@ resolve_live_stack_yaml() {
 
     local pfile=""
     if [ "$node_id" = "local" ]; then
-        pfile=$(docker run --rm -v portainer_data:/pdata alpine sh -c "grep -rl '$app' /pdata/compose/*/docker-compose.yml 2>/dev/null | head -n 1" 2>/dev/null || true)
-        if [ -n "$pfile" ]; then
-            docker run --rm -v portainer_data:/pdata alpine cat "$pfile" > "$out_file" 2>/dev/null || true
-            if [ -s "$out_file" ]; then
-                cp -f "$out_file" "/root/${app}.yaml" 2>/dev/null || true
-                return 0
-            fi
-        fi
         if [ -s "/root/${app}.yaml" ]; then
             cp -f "/root/${app}.yaml" "$out_file"
             return 0
@@ -214,18 +206,58 @@ resolve_live_stack_yaml() {
             cp -f "/root/SetupLowCodeMno/stacks/${app}.yml" "$out_file"
             return 0
         fi
-    else
-        pfile=$(timeout 8 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -o ServerAliveInterval=2 -o ServerAliveCountMax=1 "root@$host" "docker run --rm -v portainer_data:/pdata alpine sh -c \"grep -rl '$app' /pdata/compose/*/docker-compose.yml 2>/dev/null | head -n 1\" 2>/dev/null" || true)
+        # Checagem direta no sistema de arquivos do volume se acessivel
+        local local_pfile
+        local_pfile=$(grep -rl "$app" /var/lib/docker/volumes/portainer_data/_data/compose/*/docker-compose.yml 2>/dev/null | head -n 1 || true)
+        if [ -n "$local_pfile" ] && [ -s "$local_pfile" ]; then
+            cp -f "$local_pfile" "$out_file" 2>/dev/null || true
+            if [ -s "$out_file" ]; then
+                cp -f "$out_file" "/root/${app}.yaml" 2>/dev/null || true
+                return 0
+            fi
+        fi
+        # Fallback com container auxiliar
+        pfile=$(docker run --rm -v portainer_data:/pdata alpine sh -c "grep -rl '$app' /pdata/compose/*/docker-compose.yml 2>/dev/null | head -n 1" 2>/dev/null || true)
         if [ -n "$pfile" ]; then
-            timeout 8 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -o ServerAliveInterval=2 -o ServerAliveCountMax=1 "root@$host" "docker run --rm -v portainer_data:/pdata alpine cat '$pfile' 2>/dev/null" > "$out_file" 2>/dev/null || true
+            docker run --rm -v portainer_data:/pdata alpine cat "$pfile" > "$out_file" 2>/dev/null || true
+            if [ -s "$out_file" ]; then
+                cp -f "$out_file" "/root/${app}.yaml" 2>/dev/null || true
+                return 0
+            fi
+        fi
+    else
+        # 1. Checagem direta ultra-rápida do arquivo /root/${app}.yaml (0.05s)
+        if timeout 8 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 "root@$host" "[ -s /root/${app}.yaml ]"; then
+            timeout 8 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 "root@$host" "cat /root/${app}.yaml" > "$out_file" 2>/dev/null || true
+            if [ -s "$out_file" ]; then
+                return 0
+            fi
+        fi
+        # 2. Checagem ultra-rápida no fs do volume Portainer do host remoto (0.004s)
+        local direct_pfile
+        direct_pfile=$(timeout 8 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 "root@$host" "grep -rl '$app' /var/lib/docker/volumes/portainer_data/_data/compose/*/docker-compose.yml 2>/dev/null | head -n 1" 2>/dev/null || true)
+        if [ -n "$direct_pfile" ]; then
+            timeout 8 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 "root@$host" "cat '$direct_pfile'" > "$out_file" 2>/dev/null || true
             if [ -s "$out_file" ]; then
                 timeout 8 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 "root@$host" "cat > /root/${app}.yaml" < "$out_file" 2>/dev/null || true
                 return 0
             fi
         fi
-        if timeout 8 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -o ServerAliveInterval=2 -o ServerAliveCountMax=1 "root@$host" "[ -s /root/${app}.yaml ]"; then
-            timeout 8 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -o ServerAliveInterval=2 -o ServerAliveCountMax=1 "root@$host" "cat /root/${app}.yaml" > "$out_file"
-            return 0
+        # 3. Fallback via docker run no nó remoto (com timeout seguro de 25s)
+        pfile=$(timeout 25 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=8 "root@$host" "docker run --rm -v portainer_data:/pdata alpine sh -c \"grep -rl '$app' /pdata/compose/*/docker-compose.yml 2>/dev/null | head -n 1\" 2>/dev/null" || true)
+        if [ -n "$pfile" ]; then
+            timeout 25 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=8 "root@$host" "docker run --rm -v portainer_data:/pdata alpine cat '$pfile' 2>/dev/null" > "$out_file" 2>/dev/null || true
+            if [ -s "$out_file" ]; then
+                timeout 8 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 "root@$host" "cat > /root/${app}.yaml" < "$out_file" 2>/dev/null || true
+                return 0
+            fi
+        fi
+        # 4. Checagem em stacks do repositório remoto
+        if timeout 8 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 "root@$host" "[ -s /root/SetupLowCodeMno/stacks/${app}.yml ]"; then
+            timeout 8 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 "root@$host" "cat /root/SetupLowCodeMno/stacks/${app}.yml" > "$out_file" 2>/dev/null || true
+            if [ -s "$out_file" ]; then
+                return 0
+            fi
         fi
     fi
 
@@ -440,6 +472,8 @@ save_app_manifest() {
 get_application_volumes() {
     local yaml_file="$1"
     local app="$2"
+    local origin_id="${3:-}"
+    local origin_host="${4:-}"
 
     local vols=()
     while IFS= read -r v; do
@@ -472,6 +506,23 @@ get_application_volumes() {
                     ;;
             esac
         done < <(grep -oE "${app}[a-zA-Z0-9_-]*" "$yaml_file" | grep -E "(data|config|media|themes|logs|import|uploads)" | sort -u || true)
+    fi
+
+    # Fallback de segurança: se o YAML não declarou explicitamente, inspeciona volumes vivos no nó origem
+    if [ ${#vols[@]} -eq 0 ] && [ -n "$origin_id" ]; then
+        local live_vols=""
+        if [ "$origin_id" = "local" ]; then
+            live_vols=$(docker volume ls --format '{{.Name}}' 2>/dev/null | grep -E "^${app}[-_]" || true)
+        elif [ -n "$origin_host" ]; then
+            live_vols=$(ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=8 "root@$origin_host" "docker volume ls --format '{{.Name}}'" 2>/dev/null | grep -E "^${app}[-_]" || true)
+        fi
+        while IFS= read -r lv; do
+            [ -n "$lv" ] || continue
+            case "$lv" in
+                *_frozen_*|*_backup_*|*_pre_transfer_*) continue ;;
+                *) vols+=("$lv") ;;
+            esac
+        done <<< "$live_vols"
     fi
 
     printf '%s\n' "${vols[@]}"
@@ -628,62 +679,120 @@ switch_cloudflare_dns_and_ingress() {
     fi
     [ -n "$target_svc" ] || target_svc="$app_name"
 
-    local hostnames_list="${hostnames[*]}"
-
-    local cf_script="
-        creds=\"/root/.cloudflared_config/cloudflare_credentials\"
-        if [ -f \"\$creds\" ]; then
-            source \"\$creds\"
-            if [ -n \"\${CLOUDFLARE_API_TOKEN:-}\" ] && [ -n \"\${CLOUDFLARE_ZONE_ID:-}\" ] && [ -n \"\${CLOUDFLARE_ACCOUNT_ID:-}\" ] && [ -n \"\${TUNNEL_ID:-}\" ]; then
-                for h in ${hostnames_list}; do
-                    [ -n \"\$h\" ] || continue
-                    records=\$(curl -s -X GET \"https://api.cloudflare.com/client/v4/zones/\${CLOUDFLARE_ZONE_ID}/dns_records?name=\${h}\" \
-                        -H \"Authorization: Bearer \${CLOUDFLARE_API_TOKEN}\" \
-                        -H \"Content-Type: application/json\")
-                    echo \"\$records\" | jq -r '.result[]?.id // empty' | while read -r r_id; do
-                        [ -n \"\$r_id\" ] || continue
-                        curl -s -X DELETE \"https://api.cloudflare.com/client/v4/zones/\${CLOUDFLARE_ZONE_ID}/dns_records/\${r_id}\" \
-                            -H \"Authorization: Bearer \${CLOUDFLARE_API_TOKEN}\" \
-                            -H \"Content-Type: application/json\" >/dev/null 2>&1 || true
-                    done
-
-                    curl -s -X POST \"https://api.cloudflare.com/client/v4/zones/\${CLOUDFLARE_ZONE_ID}/dns_records\" \
-                        -H \"Authorization: Bearer \${CLOUDFLARE_API_TOKEN}\" \
-                        -H \"Content-Type: application/json\" \
-                        --data '{\"type\":\"CNAME\",\"name\":\"'\${h}'\",\"content\":\"'\${TUNNEL_ID}'.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}' >/dev/null 2>&1 || true
-
-                    cfg_raw=\$(curl -sS -H \"Authorization: Bearer \${CLOUDFLARE_API_TOKEN}\" \
-                        \"https://api.cloudflare.com/client/v4/accounts/\${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/\${TUNNEL_ID}/configurations\")
-                    if echo \"\$cfg_raw\" | grep -q '\"success\":true'; then
-                        to_put=\$(mktemp)
-                        target_service=\"http://${target_svc}:${default_port}\"
-                        printf '%s' \"\$cfg_raw\" | jq --arg host \"\${h}\" --arg service \"\$target_service\" '
-                            (.result.config // {}) as \$cfg
-                            | (\$cfg.ingress // []) as \$ing
-                            | (\$ing | map(select(.service != \"http_status:404\"))) as \$clean
-                            | (\$clean | map(select(.hostname != \$host))) as \$filtered
-                            | (\$filtered + [ { hostname: \$host, service: \$service, originRequest: { noTlsVerify: true, httpHostHeader: \$host } } ]) as \$merged
-                            | (\$merged + [{ service: \"http_status:404\" }]) as \$final_ing
-                            | { config: (\$cfg + { ingress: \$final_ing }) }
-                        ' > \"\$to_put\" 2>/dev/null || true
-
-                        if [ -s \"\$to_put\" ]; then
-                            curl -sS -X PUT \"https://api.cloudflare.com/client/v4/accounts/\${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/\${TUNNEL_ID}/configurations\" \
-                                -H \"Authorization: Bearer \${CLOUDFLARE_API_TOKEN}\" \
-                                -H \"Content-Type: application/json\" \
-                                --data-binary @\"\$to_put\" >/dev/null 2>&1 || true
-                        fi
-                        rm -f \"\$to_put\"
-                    fi
-                done
-            fi
-        fi
-    "
-
     if [ "$node_id" = "local" ]; then
-        bash -c "$cf_script" >> "$TRANSFER_LOG" 2>&1 || true
+        bash -s "$target_svc" "$default_port" "${hostnames[@]}" << 'EOF' >> "$TRANSFER_LOG" 2>&1 || true
+target_service_name="$1"
+default_port="$2"
+shift 2
+hostnames=("$@")
+
+creds="/root/.cloudflared_config/cloudflare_credentials"
+if [ -f "$creds" ]; then
+    source "$creds"
+    if [ -n "${CLOUDFLARE_API_TOKEN:-}" ] && [ -n "${CLOUDFLARE_ZONE_ID:-}" ] && [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] && [ -n "${TUNNEL_ID:-}" ]; then
+        for h in "${hostnames[@]}"; do
+            [ -n "$h" ] || continue
+            # 1. Update/create CNAME DNS record
+            records=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${h}" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                -H "Content-Type: application/json")
+            echo "$records" | jq -r '.result[]?.id // empty' | while read -r r_id; do
+                [ -n "$r_id" ] || continue
+                curl -s -X DELETE "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${r_id}" \
+                    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                    -H "Content-Type: application/json" >/dev/null 2>&1 || true
+            done
+
+            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                -H "Content-Type: application/json" \
+                --data "{\"type\":\"CNAME\",\"name\":\"${h}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}" >/dev/null 2>&1 || true
+
+            # 2. Update Tunnel Ingress configuration
+            cfg_raw=$(curl -sS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}/configurations")
+            if echo "$cfg_raw" | grep -q '"success":true'; then
+                to_put=$(mktemp)
+                target_service="http://${target_service_name}:${default_port}"
+                printf '%s' "$cfg_raw" | jq --arg host "$h" --arg service "$target_service" '
+                    (.result.config // {}) as $cfg
+                    | ($cfg.ingress // []) as $ing
+                    | ($ing | map(select(.service != "http_status:404"))) as $clean
+                    | ($clean | map(select(.hostname != $host))) as $filtered
+                    | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
+                    | ($merged + [{ service: "http_status:404" }]) as $final_ing
+                    | { config: ($cfg + { ingress: $final_ing }) }
+                ' > "$to_put" 2>/dev/null || true
+
+                if [ -s "$to_put" ]; then
+                    curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}/configurations" \
+                        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                        -H "Content-Type: application/json" \
+                        --data-binary @"$to_put" >/dev/null 2>&1 || true
+                fi
+                rm -f "$to_put"
+            fi
+        done
+    fi
+fi
+EOF
     else
-        ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "bash -c '$cf_script'" >> "$TRANSFER_LOG" 2>&1 || true
+        ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" bash -s "$target_svc" "$default_port" "${hostnames[@]}" << 'EOF' >> "$TRANSFER_LOG" 2>&1 || true
+target_service_name="$1"
+default_port="$2"
+shift 2
+hostnames=("$@")
+
+creds="/root/.cloudflared_config/cloudflare_credentials"
+if [ -f "$creds" ]; then
+    source "$creds"
+    if [ -n "${CLOUDFLARE_API_TOKEN:-}" ] && [ -n "${CLOUDFLARE_ZONE_ID:-}" ] && [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] && [ -n "${TUNNEL_ID:-}" ]; then
+        for h in "${hostnames[@]}"; do
+            [ -n "$h" ] || continue
+            # 1. Update/create CNAME DNS record
+            records=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${h}" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                -H "Content-Type: application/json")
+            echo "$records" | jq -r '.result[]?.id // empty' | while read -r r_id; do
+                [ -n "$r_id" ] || continue
+                curl -s -X DELETE "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${r_id}" \
+                    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                    -H "Content-Type: application/json" >/dev/null 2>&1 || true
+            done
+
+            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                -H "Content-Type: application/json" \
+                --data "{\"type\":\"CNAME\",\"name\":\"${h}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}" >/dev/null 2>&1 || true
+
+            # 2. Update Tunnel Ingress configuration
+            cfg_raw=$(curl -sS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}/configurations")
+            if echo "$cfg_raw" | grep -q '"success":true'; then
+                to_put=$(mktemp)
+                target_service="http://${target_service_name}:${default_port}"
+                printf '%s' "$cfg_raw" | jq --arg host "$h" --arg service "$target_service" '
+                    (.result.config // {}) as $cfg
+                    | ($cfg.ingress // []) as $ing
+                    | ($ing | map(select(.service != "http_status:404"))) as $clean
+                    | ($clean | map(select(.hostname != $host))) as $filtered
+                    | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
+                    | ($merged + [{ service: "http_status:404" }]) as $final_ing
+                    | { config: ($cfg + { ingress: $final_ing }) }
+                ' > "$to_put" 2>/dev/null || true
+
+                if [ -s "$to_put" ]; then
+                    curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}/configurations" \
+                        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                        -H "Content-Type: application/json" \
+                        --data-binary @"$to_put" >/dev/null 2>&1 || true
+                fi
+                rm -f "$to_put"
+            fi
+        done
+    fi
+fi
+EOF
     fi
 }
 
@@ -1418,9 +1527,12 @@ action_transfer_or_clone() {
 
             # 1. Obtenção do manifesto da stack
             echo -e "XXX\n$((pct_base + (pct_step * 10 / 100)))\n[$app_idx/$total_apps] Sincronizando stack viva '$cur_app'...\nXXX"
-            if ! resolve_live_stack_yaml "$chosen_origin_id" "$origin_ssh_host" "$cur_app" "$app_workdir/stack.yaml" 2>> "$TRANSFER_LOG"; then
-                echo "Aviso: stack yaml não encontrado no Portainer para $cur_app, gerando manifesto mínimo..." >> "$TRANSFER_LOG"
-                echo "version: '3.7'" > "$app_workdir/stack.yaml"
+            if ! resolve_live_stack_yaml "$chosen_origin_id" "$origin_ssh_host" "$cur_app" "$app_workdir/stack.yaml" 2>> "$TRANSFER_LOG" || [ ! -s "$app_workdir/stack.yaml" ] || ! grep -qE "(services|image):" "$app_workdir/stack.yaml"; then
+                echo "ERRO CRÍTICO: Manifesto da stack '$cur_app' não foi encontrado na origem ou está corrompido/vazio. Operação abortada para segurança dos dados." >> "$TRANSFER_LOG"
+                echo "ERROR_ABORT" > "$stats_file"
+                echo -e "XXX\n0\nERRO: Manifesto da stack '$cur_app' não encontrado na origem. Operação abortada com segurança.\nXXX"
+                sleep 2
+                return 1
             fi
 
             # 2. Resolução de Topologia & Dependências
@@ -1497,7 +1609,7 @@ action_transfer_or_clone() {
                     ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" \
                         "docker run --rm -v '${v}:/voldata:ro' alpine tar -czf - -C /voldata ." > "$app_workdir/vol_${v}.tar.gz" 2>> "$TRANSFER_LOG" || true
                 fi
-            done < <(get_application_volumes "$app_workdir/stack.yaml" "$cur_app")
+            done < <(get_application_volumes "$app_workdir/stack.yaml" "$cur_app" "$chosen_origin_id" "$origin_ssh_host")
 
             total_migrated_vols=$((total_migrated_vols + ${#cur_vols[@]}))
             echo "$total_migrated_vols" > "$stats_file" 2>/dev/null || true
@@ -1524,11 +1636,11 @@ action_transfer_or_clone() {
                     local dc
                     dc=$(docker ps -qf name=postgres 2>/dev/null | head -n1 || true)
                     dest_pg_pwd=$(docker inspect "$dc" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep POSTGRES_PASSWORD | cut -d= -f2- || grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml 2>/dev/null || echo "")
-                    docker exec -i "$dc" psql -U postgres -c "CREATE DATABASE \"$pg_dbname\";" >> "$TRANSFER_LOG" 2>&1 || true
+                    printf 'CREATE DATABASE "%s";\n' "$pg_dbname" | docker exec -i "$dc" psql -U postgres >> "$TRANSFER_LOG" 2>&1 || true
                     gunzip -c "$app_workdir/db_logical_dump.sql.gz" | docker exec -i "$dc" psql -U postgres -d "$pg_dbname" >> "$TRANSFER_LOG" 2>&1 || true
                 else
                     dest_pg_pwd=$(ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'dc=$(docker ps -qf name=postgres | head -n1); docker inspect "$dc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep POSTGRES_PASSWORD | cut -d= -f2- || grep -oP "(?<=POSTGRES_PASSWORD=).+" /root/postgres.yaml 2>/dev/null || echo ""')
-                    ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); docker exec -i \"\$dc\" psql -U postgres -c \"CREATE DATABASE \\\"$pg_dbname\\\";\"" >> "$TRANSFER_LOG" 2>&1 || true
+                    printf 'CREATE DATABASE "%s";\n' "$pg_dbname" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); docker exec -i \"\$dc\" psql -U postgres" >> "$TRANSFER_LOG" 2>&1 || true
                     gunzip -c "$app_workdir/db_logical_dump.sql.gz" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); gunzip -c | docker exec -i \"\$dc\" psql -U postgres -d '$pg_dbname'" >> "$TRANSFER_LOG" 2>&1 || true
                 fi
 
@@ -1544,11 +1656,11 @@ action_transfer_or_clone() {
                     local mc
                     mc=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
                     dest_my_pwd=$(docker inspect "$mc" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null || echo "")
-                    docker exec -i -e MYSQL_PWD="$dest_my_pwd" "$mc" mysql -u root -e "CREATE DATABASE IF NOT EXISTS \`$my_dbname\`;" >> "$TRANSFER_LOG" 2>&1 || true
+                    printf 'CREATE DATABASE IF NOT EXISTS `%s`;\n' "$my_dbname" | docker exec -i -e MYSQL_PWD="$dest_my_pwd" "$mc" mysql -u root >> "$TRANSFER_LOG" 2>&1 || true
                     gunzip -c "$app_workdir/db_logical_dump.sql.gz" | docker exec -i -e MYSQL_PWD="$dest_my_pwd" "$mc" mysql -u root "$my_dbname" >> "$TRANSFER_LOG" 2>&1 || true
                 else
                     dest_my_pwd=$(ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'mc=$(docker ps -qf name=mysql84 | head -n1); docker inspect "$mc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP "(?<=MYSQL_ROOT_PASSWORD=).+" /root/mysql84.yaml 2>/dev/null || echo ""')
-                    ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); docker exec -i -e MYSQL_PWD='$dest_my_pwd' \"\$mc\" mysql -u root -e \"CREATE DATABASE IF NOT EXISTS \`$my_dbname\`;\"" >> "$TRANSFER_LOG" 2>&1 || true
+                    printf 'CREATE DATABASE IF NOT EXISTS `%s`;\n' "$my_dbname" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); docker exec -i -e MYSQL_PWD='$dest_my_pwd' \"\$mc\" mysql -u root" >> "$TRANSFER_LOG" 2>&1 || true
                     gunzip -c "$app_workdir/db_logical_dump.sql.gz" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); docker exec -i -e MYSQL_PWD='$dest_my_pwd' \"\$mc\" mysql -u root '$my_dbname'" >> "$TRANSFER_LOG" 2>&1 || true
                 fi
 
@@ -1621,10 +1733,26 @@ action_transfer_or_clone() {
 
     run_migration_pipeline 2>> "$TRANSFER_LOG" | whiptail --title "EXECUTANDO OPERAÇÃO NA FROTA" --gauge "Aguarde a migração consistente..." 8 72 0
 
+    local op_aborted=false
     if [ -s "$stats_file" ]; then
-        total_migrated_vols=$(cat "$stats_file" 2>/dev/null || echo "0")
+        local sf_val
+        sf_val=$(cat "$stats_file" 2>/dev/null || echo "0")
+        if [ "$sf_val" = "ERROR_ABORT" ]; then
+            op_aborted=true
+            total_migrated_vols=0
+        else
+            total_migrated_vols="$sf_val"
+        fi
     fi
     rm -f "$stats_file"
+
+    if [ "$op_aborted" = "true" ]; then
+        local err_tail
+        err_tail=$(tail -n 12 "$TRANSFER_LOG" 2>/dev/null || echo "Erro desconhecido")
+        whiptail --title "MIGRAÇÃO ABORTADA COM SEGURANÇA" --msgbox \
+            "⚠️ A transferência da aplicação foi abortada para proteger a integridade dos dados.\n\nA origem foi mantida 100% intacta e em execução.\n\nDetalhes do log:\n$err_tail" 18 76
+        return 1
+    fi
 
     local summary="🎉 OPERAÇÃO CONCLUÍDA COM SUCESSO!\n\n"
     summary+="• Aplicação(ões): ${apps_to_migrate[*]}\n"
