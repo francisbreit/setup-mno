@@ -865,15 +865,18 @@ networks:
     fi
 
     local wait_count=0
-    while [ $wait_count -lt 60 ]; do
+    while [ $wait_count -lt 180 ]; do
         sleep 2
         wait_count=$((wait_count + 1))
+        if [ $((wait_count % 15)) -eq 0 ]; then
+            echo "Aguardando inicialização do MySQL 8.4 no nó '$node_id' ($((wait_count * 2))s/360s)..." >> "$TRANSFER_LOG"
+        fi
         local chk=""
         if [ "$node_id" = "local" ]; then
             chk=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
             if [ -n "$chk" ]; then
                 if docker exec -i -e MYSQL_PWD="$new_pwd" "$chk" mysql -u root -e 'SELECT 1;' >/dev/null 2>&1; then
-                    echo "MySQL 8.4 operacional no nó '$node_id'." >> "$TRANSFER_LOG"
+                    echo "MySQL 8.4 operacional no nó '$node_id' em $((wait_count * 2))s." >> "$TRANSFER_LOG"
                     return 0
                 fi
             fi
@@ -881,13 +884,13 @@ networks:
             chk=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" 'docker ps -qf name=mysql84 | head -n1' 2>/dev/null || true)
             if [ -n "$chk" ]; then
                 if ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "docker exec -i -e MYSQL_PWD='$new_pwd' '$chk' mysql -u root -e 'SELECT 1;'" >/dev/null 2>&1; then
-                    echo "MySQL 8.4 operacional no nó '$node_id'." >> "$TRANSFER_LOG"
+                    echo "MySQL 8.4 operacional no nó '$node_id' em $((wait_count * 2))s." >> "$TRANSFER_LOG"
                     return 0
                 fi
             fi
         fi
     done
-    echo "FALHA: Timeout aguardando inicialização do MySQL 8.4 no nó '$node_id'." >> "$TRANSFER_LOG"
+    echo "FALHA: Timeout de 360s aguardando inicialização do MySQL 8.4 no nó '$node_id'." >> "$TRANSFER_LOG"
     return 1
 }
 
@@ -904,9 +907,11 @@ ensure_minio_ready() {
     fi
 
     if [ -n "$running" ]; then
+        echo "MinIO S3 já está em execução no nó '$node_id'." >> "$TRANSFER_LOG"
         return 0
     fi
 
+    echo "Inicializando stack minio no nó '$node_id'..." >> "$TRANSFER_LOG"
     local minio_user="admin"
     local minio_pwd
     minio_pwd=$(openssl rand -hex 12)
@@ -948,16 +953,16 @@ networks:
         mkdir -p /root/dados_minio 2>/dev/null || true
         printf '%s\n' "$dados_content" > /root/dados_minio/dados_minio 2>/dev/null || true
         printf '%s\n' "$yaml_body" > /root/minio.yaml 2>/dev/null || true
-        deploy_stack_with_portainer_priority "local" "" "minio" "/root/minio.yaml" >/dev/null 2>&1 || true
+        deploy_stack_with_portainer_priority "local" "" "minio" "/root/minio.yaml" >> "$TRANSFER_LOG" 2>&1 || true
     else
         ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "mkdir -p /root/dados_minio && cat > /root/dados_minio/dados_minio" <<< "$dados_content"
         ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "cat > /root/minio.yaml" <<< "$yaml_body"
-        deploy_stack_with_portainer_priority "$node_id" "$host" "minio" "/root/minio.yaml" >/dev/null 2>&1 || true
+        deploy_stack_with_portainer_priority "$node_id" "$host" "minio" "/root/minio.yaml" >> "$TRANSFER_LOG" 2>&1 || true
     fi
 
     local wait_count=0
-    while [ $wait_count -lt 20 ]; do
-        sleep 1
+    while [ $wait_count -lt 90 ]; do
+        sleep 2
         wait_count=$((wait_count + 1))
         local chk=""
         if [ "$node_id" = "local" ]; then
@@ -967,9 +972,12 @@ networks:
         fi
         if [ -n "$chk" ]; then
             sleep 4
+            echo "MinIO S3 operacional no nó '$node_id' em $((wait_count * 2))s." >> "$TRANSFER_LOG"
             return 0
         fi
     done
+    echo "FALHA: Timeout de 180s aguardando inicialização do MinIO no nó '$node_id'." >> "$TRANSFER_LOG"
+    return 1
 }
 
 # Sincronização multi-tenant de bucket individual MinIO S3 (Zero sobrescrita)
@@ -1090,15 +1098,15 @@ networks:
 "
     if [ "$node_id" = "local" ]; then
         printf '%s\n' "$yaml_body" > /root/rabbitmq.yaml 2>/dev/null || true
-        deploy_stack_with_portainer_priority "local" "" "rabbitmq" "/root/rabbitmq.yaml" >/dev/null 2>&1 || true
+        deploy_stack_with_portainer_priority "local" "" "rabbitmq" "/root/rabbitmq.yaml" >> "$TRANSFER_LOG" 2>&1 || true
     else
         ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "cat > /root/rabbitmq.yaml" <<< "$yaml_body"
-        deploy_stack_with_portainer_priority "$node_id" "$host" "rabbitmq" "/root/rabbitmq.yaml" >/dev/null 2>&1 || true
+        deploy_stack_with_portainer_priority "$node_id" "$host" "rabbitmq" "/root/rabbitmq.yaml" >> "$TRANSFER_LOG" 2>&1 || true
     fi
 
     local wait_count=0
-    while [ $wait_count -lt 20 ]; do
-        sleep 1
+    while [ $wait_count -lt 90 ]; do
+        sleep 2
         wait_count=$((wait_count + 1))
         local chk=""
         if [ "$node_id" = "local" ]; then
@@ -1108,9 +1116,12 @@ networks:
         fi
         if [ -n "$chk" ]; then
             sleep 4
+            echo "RabbitMQ operacional no nó '$node_id' em $((wait_count * 2))s." >> "$TRANSFER_LOG"
             return 0
         fi
     done
+    echo "FALHA: Timeout de 180s aguardando inicialização do RabbitMQ no nó '$node_id'." >> "$TRANSFER_LOG"
+    return 1
 }
 
 # Raio-X da Frota
@@ -1612,14 +1623,22 @@ action_transfer_or_clone() {
             if [[ "$cur_s3_engine" == minio:* ]]; then
                 local s3_bucket="${cur_s3_engine#minio:}"
                 echo -e "XXX\n$((pct_base + (pct_step * 45 / 100)))\n[$app_idx/$total_apps] Sincronizando bucket S3 MinIO ($s3_bucket)...\nXXX"
-                ensure_minio_ready "$chosen_dest_id" "$dest_ssh_host"
+                if ! ensure_minio_ready "$chosen_dest_id" "$dest_ssh_host"; then
+                    echo "ERRO CRÍTICO: Falha ao garantir MinIO no nó de destino. Abortando migração." >> "$TRANSFER_LOG"
+                    echo "ERROR_ABORT" > "$stats_file"
+                    return 1
+                fi
                 sync_s3_bucket_data "$chosen_origin_id" "$origin_ssh_host" "$chosen_dest_id" "$dest_ssh_host" "$s3_bucket"
             fi
 
             # 3. RabbitMQ Broker Check
             if [[ "$cur_mq_engine" == rabbitmq:* ]]; then
                 echo -e "XXX\n$((pct_base + (pct_step * 50 / 100)))\n[$app_idx/$total_apps] Verificando broker RabbitMQ no destino...\nXXX"
-                ensure_rabbitmq_ready "$chosen_dest_id" "$dest_ssh_host"
+                if ! ensure_rabbitmq_ready "$chosen_dest_id" "$dest_ssh_host"; then
+                    echo "ERRO CRÍTICO: Falha ao garantir RabbitMQ no nó de destino. Abortando migração." >> "$TRANSFER_LOG"
+                    echo "ERROR_ABORT" > "$stats_file"
+                    return 1
+                fi
             fi
 
             # 4. Snapshot de Volumes Exclusivos
@@ -1663,7 +1682,7 @@ action_transfer_or_clone() {
                 local dc=""
                 local dest_pg_pwd=""
                 local wait_dc=0
-                while [ $wait_dc -lt 30 ]; do
+                while [ $wait_dc -lt 60 ]; do
                     if [ "$chosen_dest_id" = "local" ]; then
                         dc=$(docker ps -qf name=postgres 2>/dev/null | head -n1 || true)
                         if [ -n "$dc" ]; then
@@ -1725,7 +1744,7 @@ action_transfer_or_clone() {
                 local mc=""
                 local dest_my_pwd=""
                 local wait_mc=0
-                while [ $wait_mc -lt 30 ]; do
+                while [ $wait_mc -lt 60 ]; do
                     if [ "$chosen_dest_id" = "local" ]; then
                         mc=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
                         if [ -n "$mc" ]; then
