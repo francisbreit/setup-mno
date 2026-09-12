@@ -477,6 +477,61 @@ get_application_volumes() {
     printf '%s\n' "${vols[@]}"
 }
 
+## Garante que imagens locais ou customizadas da stack existam no nó destino
+ensure_stack_images_on_dest() {
+    local origin_id="$1"
+    local origin_host="$2"
+    local dest_id="$3"
+    local dest_host="$4"
+    local yaml_file="$5"
+
+    local images=()
+    while IFS= read -r img; do
+        [ -n "$img" ] || continue
+        img=$(echo "$img" | tr -d '"' | tr -d "'" | tr -d ' ')
+        images+=("$img")
+    done < <(grep -oP '^[[:space:]]*image:[[:space:]]*\K[^[:space:]]+' "$yaml_file" 2>/dev/null | sort -u || true)
+
+    for img in "${images[@]}"; do
+        [ -n "$img" ] || continue
+
+        local dest_has_img="false"
+        if [ "$dest_id" = "local" ]; then
+            if docker image inspect "$img" >/dev/null 2>&1; then
+                dest_has_img="true"
+            fi
+        else
+            if ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_host" "docker image inspect '$img' >/dev/null 2>&1"; then
+                dest_has_img="true"
+            fi
+        fi
+
+        [ "$dest_has_img" = "true" ] && continue
+
+        local origin_has_img="false"
+        if [ "$origin_id" = "local" ]; then
+            if docker image inspect "$img" >/dev/null 2>&1; then
+                origin_has_img="true"
+            fi
+        else
+            if ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_host" "docker image inspect '$img' >/dev/null 2>&1"; then
+                origin_has_img="true"
+            fi
+        fi
+
+        if [ "$origin_has_img" = "true" ]; then
+            echo "Sincronizando imagem local/customizada '$img' da origem para o destino..." >> "$TRANSFER_LOG"
+            if [ "$origin_id" = "local" ] && [ "$dest_id" != "local" ]; then
+                docker save "$img" | gzip -1 | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_host" "gunzip | docker load" >> "$TRANSFER_LOG" 2>&1 || true
+            elif [ "$origin_id" != "local" ] && [ "$dest_id" = "local" ]; then
+                ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_host" "docker save '$img' | gzip -1" | gunzip | docker load >> "$TRANSFER_LOG" 2>&1 || true
+            elif [ "$origin_id" != "local" ] && [ "$dest_id" != "local" ]; then
+                ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_host" "docker save '$img' | gzip -1" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_host" "gunzip | docker load" >> "$TRANSFER_LOG" 2>&1 || true
+            fi
+        fi
+    done
+}
+
 ## Aplica stack garantindo registro no Portainer para torná-la EDITÁVEL
 deploy_stack_with_portainer_priority() {
     local node_id="$1"
@@ -484,30 +539,29 @@ deploy_stack_with_portainer_priority() {
     local stack_name="$3"
     local stack_file="$4"
 
-    local portainer_script='
-        dados="/root/dados_portainer/dados_portainer"
-        if [ -f "$dados" ]; then
-            p_url=$(grep "Dominio do portainer:" "$dados" | cut -d: -f2 | xargs)
-            p_user=$(grep "Usuario:" "$dados" | cut -d: -f2 | xargs)
-            p_pass=$(grep "Senha:" "$dados" | cut -d: -f2 | xargs)
-            if [ -n "$p_url" ] && [ -n "$p_user" ] && [ -n "$p_pass" ]; then
-                resp=$(curl -k -sS -m 6 -X POST "https://$p_url/api/auth" -H "Content-Type: application/json" -d "{\"username\":\"$p_user\",\"password\":\"$p_pass\"}" 2>/dev/null || true)
-                jwt=$(echo "$resp" | jq -r .jwt 2>/dev/null || true)
-                if [ -n "$jwt" ] && [ "$jwt" != "null" ]; then
-                    ep_id=$(curl -k -sS -m 6 -H "Authorization: Bearer $jwt" "https://$p_url/api/endpoints" 2>/dev/null | jq -r ".[0].Id" || true)
-                    swarm_id=$(curl -k -sS -m 6 -H "Authorization: Bearer $jwt" "https://$p_url/api/endpoints/$ep_id/docker/swarm" 2>/dev/null | jq -r ".ID" || true)
-                    if [ -n "$ep_id" ] && [ -n "$swarm_id" ]; then
-                        docker stack rm "'"$stack_name"'" >/dev/null 2>&1 || true
-                        sleep 3
-                        code=$(curl -k -sS -m 15 -w "%{http_code}" -o /dev/null -X POST \
-                            -H "Authorization: Bearer $jwt" \
-                            -F "Name='"$stack_name"'" \
-                            -F "file=@'"$stack_file"'" \
-                            -F "SwarmID=$swarm_id" \
-                            -F "endpointId=$ep_id" \
-                            "https://$p_url/api/stacks/create/swarm/file" 2>/dev/null || true)
-                        if [ "$code" = "200" ]; then
-                            echo "PORTAINER_SUCCESS"
+    local portainer_script="
+        dados=\"/root/dados_portainer/dados_portainer\"
+        if [ -f \"\$dados\" ]; then
+            p_url=\$(grep \"Dominio do portainer:\" \"\$dados\" | cut -d: -f2 | xargs)
+            p_user=\$(grep \"Usuario:\" \"\$dados\" | cut -d: -f2 | xargs)
+            p_pass=\$(grep \"Senha:\" \"\$dados\" | cut -d: -f2 | xargs)
+            if [ -n \"\$p_url\" ] && [ -n \"\$p_user\" ] && [ -n \"\$p_pass\" ]; then
+                resp=\$(curl -k -sS -m 8 -X POST \"https://\$p_url/api/auth\" -H \"Content-Type: application/json\" -d \"{\\\"username\\\":\\\"\$p_user\\\",\\\"password\\\":\\\"\$p_pass\\\"}\" 2>/dev/null || true)
+                jwt=\$(echo \"\$resp\" | jq -r .jwt 2>/dev/null || true)
+                if [ -n \"\$jwt\" ] && [ \"\$jwt\" != \"null\" ]; then
+                    ep_id=\$(curl -k -sS -m 8 -H \"Authorization: Bearer \$jwt\" \"https://\$p_url/api/endpoints\" 2>/dev/null | jq -r \".[0].Id // 1\" || true)
+                    swarm_id=\$(curl -k -sS -m 8 -H \"Authorization: Bearer \$jwt\" \"https://\$p_url/api/endpoints/\$ep_id/docker/swarm\" 2>/dev/null | jq -r \".ID // empty\" || true)
+                    if [ -n \"\$ep_id\" ] && [ -n \"\$swarm_id\" ]; then
+                        docker stack rm \"$stack_name\" >/dev/null 2>&1 || true
+                        sleep 2
+                        code=\$(curl -k -sS -m 20 -w \"%{http_code}\" -o /dev/null -X POST \
+                            -H \"Authorization: Bearer \$jwt\" \
+                            -F \"Name=$stack_name\" \
+                            -F \"file=@$stack_file\" \
+                            -F \"SwarmID=\$swarm_id\" \
+                            \"https://\$p_url/api/stacks/create/swarm/file?endpointId=\$ep_id\" 2>/dev/null || true)
+                        if [ \"\$code\" = \"200\" ] || [ \"\$code\" = \"201\" ]; then
+                            echo \"PORTAINER_SUCCESS\"
                             exit 0
                         fi
                     fi
@@ -515,7 +569,7 @@ deploy_stack_with_portainer_priority() {
             fi
         fi
         exit 1
-    '
+    "
 
     local success=false
     if [ "$node_id" = "local" ]; then
@@ -548,13 +602,11 @@ switch_cloudflare_dns_and_ingress() {
     while IFS= read -r h; do
         [ -n "$h" ] || continue
         hostnames+=("$h")
-    done < <(grep -oP 'Host\(`\K[^`]+' "$yaml_file" 2>/dev/null | sort -u || true)
-
-    if [ ${#hostnames[@]} -eq 0 ]; then
-        local single_h
-        single_h=$(grep -oP '(?<=MAUTIC_URL=https://)[^[:space:]/]+' "$yaml_file" 2>/dev/null || grep -oP '(?<=URL=https://)[^[:space:]/]+' "$yaml_file" 2>/dev/null | head -n1 || true)
-        [ -n "$single_h" ] && hostnames+=("$single_h")
-    fi
+    done < <({
+        grep -oP 'Host\(`\K[^`]+' "$yaml_file" 2>/dev/null || true
+        grep -oP '(?<=[A-Z0-9_]URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+        grep -oP '(?<=WEB_DOMAIN=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+    } | sort -u)
 
     [ ${#hostnames[@]} -gt 0 ] || return 0
 
@@ -569,9 +621,12 @@ switch_cloudflare_dns_and_ingress() {
         default_port="5678"
     fi
 
-    local first_svc
-    first_svc=$(awk '/^services:/{flag=1; next} flag && /^[[:space:]]{2}[a-zA-Z0-9_-]+:/{print $1; exit}' "$yaml_file" | tr -d ':' || true)
-    [ -n "$first_svc" ] || first_svc="$app_name"
+    local target_svc=""
+    target_svc=$(grep -oP '^[[:space:]]{2}\K[a-zA-Z0-9_-]+(?=:)' "$yaml_file" 2>/dev/null | grep -E '(_web|_app|web|app)' | head -n1 || true)
+    if [ -z "$target_svc" ]; then
+        target_svc=$(awk '/^services:/{flag=1; next} flag && /^[[:space:]]{2}[a-zA-Z0-9_-]+:/{print $1; exit}' "$yaml_file" | tr -d ':' || true)
+    fi
+    [ -n "$target_svc" ] || target_svc="$app_name"
 
     local hostnames_list="${hostnames[*]}"
 
@@ -601,7 +656,7 @@ switch_cloudflare_dns_and_ingress() {
                         \"https://api.cloudflare.com/client/v4/accounts/\${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/\${TUNNEL_ID}/configurations\")
                     if echo \"\$cfg_raw\" | grep -q '\"success\":true'; then
                         to_put=\$(mktemp)
-                        target_service=\"http://${first_svc}:${default_port}\"
+                        target_service=\"http://${target_svc}:${default_port}\"
                         printf '%s' \"\$cfg_raw\" | jq --arg host \"\${h}\" --arg service \"\$target_service\" '
                             (.result.config // {}) as \$cfg
                             | (\$cfg.ingress // []) as \$ing
@@ -609,8 +664,7 @@ switch_cloudflare_dns_and_ingress() {
                             | (\$clean | map(select(.hostname != \$host))) as \$filtered
                             | (\$filtered + [ { hostname: \$host, service: \$service, originRequest: { noTlsVerify: true, httpHostHeader: \$host } } ]) as \$merged
                             | (\$merged + [{ service: \"http_status:404\" }]) as \$final_ing
-                            | (\$cfg + { ingress: \$final_ing }) as \$newcfg
-                            | { config: \$newcfg }
+                            | { config: (\$cfg + { ingress: \$final_ing }) }
                         ' > \"\$to_put\" 2>/dev/null || true
 
                         if [ -s \"\$to_put\" ]; then
@@ -627,9 +681,9 @@ switch_cloudflare_dns_and_ingress() {
     "
 
     if [ "$node_id" = "local" ]; then
-        bash -c "$cf_script" 2>/dev/null || true
+        bash -c "$cf_script" >> "$TRANSFER_LOG" 2>&1 || true
     else
-        ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "bash -c '$cf_script'" 2>/dev/null || true
+        ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "bash -c '$cf_script'" >> "$TRANSFER_LOG" 2>&1 || true
     fi
 }
 
@@ -1323,7 +1377,7 @@ action_transfer_or_clone() {
         fi
 
         if ! whiptail --title "COMUTAÇÃO DE DNS CLOUDFLARE" --yesno \
-            "Deseja atualizar automaticamente os apontamentos de DNS e rotas do Cloudflare Tunnel para que a(s) URL(s) apontem imediatamente para o novo servidor ($dest_name)?" 12 76; then
+            "Deseja atualizar automaticamente os apontamentos de DNS e rotas do Cloudflare Tunnel para que as URLs apontem imediatamente para o novo servidor ($dest_name)?\n\n[SIM - RECOMENDADO]: O tráfego de internet é comutado agora para o novo servidor. Suas URLs passam a responder no novo nó imediatamente.\n\n[NÃO]: As URLs continuam apontando para o servidor antigo (escolha 'Não' apenas se você pretende mudar o DNS manualmente depois)." 15 76; then
             update_dns=false
         fi
     else
@@ -1341,7 +1395,10 @@ action_transfer_or_clone() {
     local safety_suffix="frozen_pre_transfer_$(date -u +%Y%m%dT%H%M%SZ)"
     local workdir
     workdir=$(mktemp -d)
-    trap 'rm -rf "$workdir"' RETURN
+    local stats_file
+    stats_file=$(mktemp /tmp/fleet_stats_XXXXXX 2>/dev/null || echo "/tmp/fleet_stats_$$")
+    echo "0" > "$stats_file"
+    trap 'rm -rf "$workdir" "$stats_file"' RETURN
 
     : > "$TRANSFER_LOG"
     local total_migrated_vols=0
@@ -1354,64 +1411,40 @@ action_transfer_or_clone() {
         for cur_app in "${apps_to_migrate[@]}"; do
             app_idx=$((app_idx + 1))
             local app_workdir="$workdir/$cur_app"
-            mkdir -p "$app_workdir"
-
             local pct_base=$(( (app_idx - 1) * 100 / total_apps ))
             local pct_step=$(( 100 / total_apps ))
 
-            echo -e "XXX\n$((pct_base + (pct_step * 10 / 100)))\n[$app_idx/$total_apps] Sincronizando stack viva '$cur_app'...\nXXX"
-            if ! resolve_live_stack_yaml "$chosen_origin_id" "$origin_ssh_host" "$cur_app" "$app_workdir/stack.yaml" 2>> "$TRANSFER_LOG"; then
-                echo "Aviso: stack yaml não encontrado no Portainer para $cur_app, gerando manifesto mínimo..." >> "$TRANSFER_LOG"
-                echo "version: '3.7'" > "$app_workdir/stack.yaml"
-            fi
+            # 1. Obtenção do manifesto da stack
+            echo -e "XXX\n$((pct_base + (pct_step * 10 / 100)))\n[$app_idx/$total_apps] Extraindo manifesto compose ($cur_app)...\nXXX"
+            export_stack_manifest "$chosen_origin_id" "$origin_ssh_host" "$cur_app" "$app_workdir/stack.yaml"
 
-            local cur_db_engine cur_s3_engine cur_mq_engine
-            cur_db_engine=$(detect_database_engine "$app_workdir/stack.yaml" "$cur_app")
-            cur_s3_engine=$(detect_s3_storage_engine "$app_workdir/stack.yaml" "$cur_app")
-            cur_mq_engine=$(detect_rabbitmq_engine "$app_workdir/stack.yaml" "$cur_app")
+            # 2. Resolução de Topologia & Dependências
+            local cur_db_engine="none:"
+            local cur_s3_engine="none:"
+            local cur_mq_engine="none:"
+
+            echo -e "XXX\n$((pct_base + (pct_step * 25 / 100)))\n[$app_idx/$total_apps] Detectando dependências de infraestrutura ($cur_app)...\nXXX"
+            cur_db_engine=$(detect_stack_database_engine "$app_workdir/stack.yaml" "$cur_app")
+            cur_s3_engine=$(detect_stack_s3_engine "$app_workdir/stack.yaml" "$cur_app")
+            cur_mq_engine=$(detect_stack_rabbitmq_engine "$app_workdir/stack.yaml" "$cur_app")
 
             echo "Stack: $cur_app | DB: $cur_db_engine | S3: $cur_s3_engine | MQ: $cur_mq_engine" >> "$TRANSFER_LOG"
 
-            # 1. Extração Lógica do Banco de Dados
+            # Dump lógico do banco de dados na origem se aplicável
             if [[ "$cur_db_engine" == postgres:* ]]; then
-                echo -e "XXX\n$((pct_base + (pct_step * 25 / 100)))\n[$app_idx/$total_apps] Extraindo banco PostgreSQL ($cur_app)...\nXXX"
                 local pg_dbname="${cur_db_engine#postgres:}"
-                if [ "$chosen_origin_id" = "local" ]; then
-                    local c_id
-                    c_id=$(docker ps -qf name=postgres 2>/dev/null | head -n1 || true)
-                    if [ -n "$c_id" ]; then
-                        docker exec -i "$c_id" pg_dump -U postgres -d "$pg_dbname" --clean --if-exists 2>> "$TRANSFER_LOG" | gzip > "$app_workdir/db_logical_dump.sql.gz" || true
-                    fi
-                else
-                    ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" \
-                        "c_id=\$(docker ps -qf name=postgres | head -n1); [ -n \"\$c_id\" ] && docker exec -i \"\$c_id\" pg_dump -U postgres -d '$pg_dbname' --clean --if-exists 2>/dev/null" \
-                        | gzip > "$app_workdir/db_logical_dump.sql.gz" 2>> "$TRANSFER_LOG" || true
-                fi
+                echo -e "XXX\n$((pct_base + (pct_step * 35 / 100)))\n[$app_idx/$total_apps] Executando dump lógico consistente do PostgreSQL ($pg_dbname)...\nXXX"
+                dump_postgres_database "$chosen_origin_id" "$origin_ssh_host" "$pg_dbname" "$app_workdir/db_logical_dump.sql.gz"
             elif [[ "$cur_db_engine" == mysql84:* ]]; then
-                echo -e "XXX\n$((pct_base + (pct_step * 25 / 100)))\n[$app_idx/$total_apps] Extraindo banco MySQL 8.4 ($cur_app)...\nXXX"
                 local my_dbname="${cur_db_engine#mysql84:}"
-                if [ "$chosen_origin_id" = "local" ]; then
-                    local c_id orig_pwd
-                    c_id=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
-                    orig_pwd=$(docker inspect "$c_id" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null || echo "")
-                    if [ -n "$c_id" ] && [ -n "$orig_pwd" ]; then
-                        docker exec -i "$c_id" mysqldump -u root -p"$orig_pwd" --databases "$my_dbname" --add-drop-table 2>> "$TRANSFER_LOG" | gzip > "$app_workdir/db_logical_dump.sql.gz" || true
-                    fi
-                else
-                    ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" '
-                        c_id=$(docker ps -qf name=mysql84 | head -n1)
-                        pwd=$(docker inspect "$c_id" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP "(?<=MYSQL_ROOT_PASSWORD=).+" /root/mysql84.yaml 2>/dev/null || echo "")
-                        if [ -n "$c_id" ] && [ -n "$pwd" ]; then
-                            docker exec -i "$c_id" mysqldump -u root -p"$pwd" --databases "'"$my_dbname"'" --add-drop-table 2>/dev/null
-                        fi
-                    ' | gzip > "$app_workdir/db_logical_dump.sql.gz" 2>> "$TRANSFER_LOG" || true
-                fi
+                echo -e "XXX\n$((pct_base + (pct_step * 35 / 100)))\n[$app_idx/$total_apps] Executando dump lógico consistente do MySQL 8.4 ($my_dbname)...\nXXX"
+                dump_mysql84_database "$chosen_origin_id" "$origin_ssh_host" "$my_dbname" "$app_workdir/db_logical_dump.sql.gz"
             fi
 
-            # 2. S3 MinIO Storage Sync
+            # Sincronização de S3 MinIO se aplicável
             if [[ "$cur_s3_engine" == minio:* ]]; then
                 local s3_bucket="${cur_s3_engine#minio:}"
-                echo -e "XXX\n$((pct_base + (pct_step * 40 / 100)))\n[$app_idx/$total_apps] Sincronizando storage S3 MinIO (Bucket: $s3_bucket)...\nXXX"
+                echo -e "XXX\n$((pct_base + (pct_step * 45 / 100)))\n[$app_idx/$total_apps] Sincronizando bucket S3 MinIO ($s3_bucket)...\nXXX"
                 ensure_minio_ready "$chosen_dest_id" "$dest_ssh_host"
                 sync_s3_bucket_data "$chosen_origin_id" "$origin_ssh_host" "$chosen_dest_id" "$dest_ssh_host" "$s3_bucket"
             fi
@@ -1437,6 +1470,7 @@ action_transfer_or_clone() {
             done < <(get_application_volumes "$app_workdir/stack.yaml" "$cur_app")
 
             total_migrated_vols=$((total_migrated_vols + ${#cur_vols[@]}))
+            echo "$total_migrated_vols" > "$stats_file" 2>/dev/null || true
 
             # 5. Restauração de Volumes e Banco no Destino
             echo -e "XXX\n$((pct_base + (pct_step * 65 / 100)))\n[$app_idx/$total_apps] Restaurando volumes e banco de dados no destino...\nXXX"
@@ -1460,12 +1494,12 @@ action_transfer_or_clone() {
                     local dc
                     dc=$(docker ps -qf name=postgres 2>/dev/null | head -n1 || true)
                     dest_pg_pwd=$(docker inspect "$dc" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep POSTGRES_PASSWORD | cut -d= -f2- || grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml 2>/dev/null || echo "")
-                    docker exec -i "$dc" psql -U postgres -c "CREATE DATABASE \"$pg_dbname\";" 2>> "$TRANSFER_LOG" || true
-                    gunzip -c "$app_workdir/db_logical_dump.sql.gz" | docker exec -i "$dc" psql -U postgres -d "$pg_dbname" 2>> "$TRANSFER_LOG" || true
+                    docker exec -i "$dc" psql -U postgres -c "CREATE DATABASE \"$pg_dbname\";" >> "$TRANSFER_LOG" 2>&1 || true
+                    gunzip -c "$app_workdir/db_logical_dump.sql.gz" | docker exec -i "$dc" psql -U postgres -d "$pg_dbname" >> "$TRANSFER_LOG" 2>&1 || true
                 else
                     dest_pg_pwd=$(ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'dc=$(docker ps -qf name=postgres | head -n1); docker inspect "$dc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep POSTGRES_PASSWORD | cut -d= -f2- || grep -oP "(?<=POSTGRES_PASSWORD=).+" /root/postgres.yaml 2>/dev/null || echo ""')
-                    ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); docker exec -i \"\$dc\" psql -U postgres -c \"CREATE DATABASE \\\"$pg_dbname\\\";\" 2>/dev/null || true"
-                    ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); gunzip -c | docker exec -i \"\$dc\" psql -U postgres -d '$pg_dbname' 2>/dev/null || true" < "$app_workdir/db_logical_dump.sql.gz"
+                    ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); docker exec -i \"\$dc\" psql -U postgres -c \"CREATE DATABASE \\\"$pg_dbname\\\";\"" >> "$TRANSFER_LOG" 2>&1 || true
+                    gunzip -c "$app_workdir/db_logical_dump.sql.gz" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); gunzip -c | docker exec -i \"\$dc\" psql -U postgres -d '$pg_dbname'" >> "$TRANSFER_LOG" 2>&1 || true
                 fi
 
                 if [ -n "$dest_pg_pwd" ]; then
@@ -1480,12 +1514,12 @@ action_transfer_or_clone() {
                     local mc
                     mc=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
                     dest_my_pwd=$(docker inspect "$mc" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null || echo "")
-                    docker exec -i "$mc" mysql -u root -p"$dest_my_pwd" -e "CREATE DATABASE IF NOT EXISTS \`$my_dbname\`;" 2>> "$TRANSFER_LOG" || true
-                    gunzip -c "$app_workdir/db_logical_dump.sql.gz" | docker exec -i "$mc" mysql -u root -p"$dest_my_pwd" "$my_dbname" 2>> "$TRANSFER_LOG" || true
+                    docker exec -i -e MYSQL_PWD="$dest_my_pwd" "$mc" mysql -u root -e "CREATE DATABASE IF NOT EXISTS \`$my_dbname\`;" >> "$TRANSFER_LOG" 2>&1 || true
+                    gunzip -c "$app_workdir/db_logical_dump.sql.gz" | docker exec -i -e MYSQL_PWD="$dest_my_pwd" "$mc" mysql -u root "$my_dbname" >> "$TRANSFER_LOG" 2>&1 || true
                 else
                     dest_my_pwd=$(ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'mc=$(docker ps -qf name=mysql84 | head -n1); docker inspect "$mc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP "(?<=MYSQL_ROOT_PASSWORD=).+" /root/mysql84.yaml 2>/dev/null || echo ""')
-                    ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); docker exec -i \"\$mc\" mysql -u root -p'$dest_my_pwd' -e 'CREATE DATABASE IF NOT EXISTS \\\`$my_dbname\\\`;' 2>/dev/null || true"
-                    ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); gunzip -c | docker exec -i \"\$mc\" mysql -u root -p'$dest_my_pwd' '$my_dbname' 2>/dev/null || true" < "$app_workdir/db_logical_dump.sql.gz"
+                    ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); docker exec -i -e MYSQL_PWD='$dest_my_pwd' \"\$mc\" mysql -u root -e \"CREATE DATABASE IF NOT EXISTS \`$my_dbname\`;\"" >> "$TRANSFER_LOG" 2>&1 || true
+                    gunzip -c "$app_workdir/db_logical_dump.sql.gz" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps -qf name=mysql84 | head -n1); docker exec -i -e MYSQL_PWD='$dest_my_pwd' \"\$mc\" mysql -u root '$my_dbname'" >> "$TRANSFER_LOG" 2>&1 || true
                 fi
 
                 if [ -n "$dest_my_pwd" ]; then
@@ -1498,6 +1532,10 @@ action_transfer_or_clone() {
                     fi
                 fi
             fi
+
+            # 5.5 Sincronizar imagens customizadas/locais para prevenir rejeição no Swarm
+            echo -e "XXX\n$((pct_base + (pct_step * 75 / 100)))\n[$app_idx/$total_apps] Sincronizando imagens da stack no destino ($cur_app)...\nXXX"
+            ensure_stack_images_on_dest "$chosen_origin_id" "$origin_ssh_host" "$chosen_dest_id" "$dest_ssh_host" "$app_workdir/stack.yaml"
 
             # 6. Deploy no Swarm do Destino via Portainer REST API (Editável)
             echo -e "XXX\n$((pct_base + (pct_step * 80 / 100)))\n[$app_idx/$total_apps] Registrando stack '$cur_app' no Portainer do destino...\nXXX"
@@ -1548,6 +1586,11 @@ action_transfer_or_clone() {
     }
 
     run_migration_pipeline 2>> "$TRANSFER_LOG" | whiptail --title "EXECUTANDO OPERAÇÃO NA FROTA" --gauge "Aguarde a migração consistente..." 8 72 0
+
+    if [ -s "$stats_file" ]; then
+        total_migrated_vols=$(cat "$stats_file" 2>/dev/null || echo "0")
+    fi
+    rm -f "$stats_file"
 
     local summary="🎉 OPERAÇÃO CONCLUÍDA COM SUCESSO!\n\n"
     summary+="• Aplicação(ões): ${apps_to_migrate[*]}\n"
