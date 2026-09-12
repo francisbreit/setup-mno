@@ -1538,8 +1538,42 @@ action_transfer_or_clone() {
     : > "$TRANSFER_LOG"
     local total_migrated_vols=0
 
+    # Heartbeat dinâmico para etapas demoradas (restauração de volumes/banco e download/sincronização de imagens)
+    local fleet_heartbeat_pid=""
+
+    fleet_heartbeat_loop() {
+        local percent="$1" message="$2" started now elapsed frame=0
+        local -a frames=('|' '/' '-' '\')
+        trap - EXIT
+        printf -v started '%(%s)T' -1
+        while :; do
+            printf -v now '%(%s)T' -1
+            elapsed=$((now - started))
+            printf 'XXX\n%s\n%s [%s] há %02d:%02d\nPode demorar vários minutos. Caso a conexão caia, volte para acompanhar.\nXXX\n' \
+                "$percent" "$message" "${frames[$frame]}" \
+                "$((elapsed / 60))" "$((elapsed % 60))"
+            frame=$(((frame + 1) % ${#frames[@]}))
+            sleep 1
+        done
+    }
+
+    start_fleet_heartbeat() {
+        stop_fleet_heartbeat
+        fleet_heartbeat_loop "$1" "$2" &
+        fleet_heartbeat_pid=$!
+    }
+
+    stop_fleet_heartbeat() {
+        if [ -n "$fleet_heartbeat_pid" ]; then
+            kill "$fleet_heartbeat_pid" 2>/dev/null || true
+            wait "$fleet_heartbeat_pid" 2>/dev/null || true
+            fleet_heartbeat_pid=""
+        fi
+    }
+
     # Função interna de execução de etapas
     run_migration_pipeline() {
+        trap 'stop_fleet_heartbeat' RETURN
         local total_apps=${#apps_to_migrate[@]}
         local app_idx=0
 
@@ -1663,7 +1697,7 @@ action_transfer_or_clone() {
             echo "$total_migrated_vols" > "$stats_file" 2>/dev/null || true
 
             # 5. Restauração de Volumes e Banco no Destino
-            echo -e "XXX\n$((pct_base + (pct_step * 65 / 100)))\n[$app_idx/$total_apps] Restaurando volumes e banco de dados no destino...\nXXX"
+            start_fleet_heartbeat "$((pct_base + (pct_step * 65 / 100)))" "[$app_idx/$total_apps] Restaurando volumes e banco de dados no destino..."
             for v in "${cur_vols[@]}"; do
                 [ -f "$app_workdir/vol_${v}.tar.gz" ] || continue
                 echo "Restaurando volume no destino: $v" >> "$TRANSFER_LOG"
@@ -1703,6 +1737,7 @@ action_transfer_or_clone() {
                 if [ -z "$dc" ]; then
                     echo "ERRO CRÍTICO: Container postgres não encontrado no destino após aguardar. Abortando migração." >> "$TRANSFER_LOG"
                     echo "ERROR_ABORT" > "$stats_file"
+                    stop_fleet_heartbeat
                     return 1
                 fi
 
@@ -1725,6 +1760,7 @@ action_transfer_or_clone() {
                 if [ "$check_pg" != "1" ]; then
                     echo "ERRO CRÍTICO: Verificação pós-restore falhou! Banco de dados PostgreSQL '$pg_dbname' não foi encontrado no destino. Abortando migração." >> "$TRANSFER_LOG"
                     echo "ERROR_ABORT" > "$stats_file"
+                    stop_fleet_heartbeat
                     return 1
                 else
                     echo "Banco de dados PostgreSQL '$pg_dbname' verificado com sucesso no destino." >> "$TRANSFER_LOG"
@@ -1738,6 +1774,7 @@ action_transfer_or_clone() {
                 if ! ensure_mysql84_ready "$chosen_dest_id" "$dest_ssh_host"; then
                     echo "ERRO CRÍTICO: Falha ao garantir MySQL 8.4 no nó de destino. Abortando migração para proteger dados." >> "$TRANSFER_LOG"
                     echo "ERROR_ABORT" > "$stats_file"
+                    stop_fleet_heartbeat
                     return 1
                 fi
 
@@ -1765,6 +1802,7 @@ action_transfer_or_clone() {
                 if [ -z "$mc" ] || [ -z "$dest_my_pwd" ]; then
                     echo "ERRO CRÍTICO: Container mysql84 ou senha não identificada no destino após aguardar. Abortando migração." >> "$TRANSFER_LOG"
                     echo "ERROR_ABORT" > "$stats_file"
+                    stop_fleet_heartbeat
                     return 1
                 fi
 
@@ -1787,6 +1825,7 @@ action_transfer_or_clone() {
                 if [ "$check_db" != "$my_dbname" ]; then
                     echo "ERRO CRÍTICO: Verificação pós-restore falhou! Banco de dados '$my_dbname' não foi encontrado no destino. Abortando migração." >> "$TRANSFER_LOG"
                     echo "ERROR_ABORT" > "$stats_file"
+                    stop_fleet_heartbeat
                     return 1
                 else
                     echo "Banco de dados '$my_dbname' verificado com sucesso no destino." >> "$TRANSFER_LOG"
@@ -1802,10 +1841,12 @@ action_transfer_or_clone() {
                     fi
                 fi
             fi
+            stop_fleet_heartbeat
 
             # 5.5 Sincronizar imagens customizadas/locais para prevenir rejeição no Swarm
-            echo -e "XXX\n$((pct_base + (pct_step * 75 / 100)))\n[$app_idx/$total_apps] Sincronizando imagens da stack no destino ($cur_app)...\nXXX"
+            start_fleet_heartbeat "$((pct_base + (pct_step * 75 / 100)))" "[$app_idx/$total_apps] Sincronizando imagens da stack no destino ($cur_app)..."
             ensure_stack_images_on_dest "$chosen_origin_id" "$origin_ssh_host" "$chosen_dest_id" "$dest_ssh_host" "$app_workdir/stack.yaml"
+            stop_fleet_heartbeat
 
             # 6. Deploy no Swarm do Destino via Portainer REST API (Editável)
             echo -e "XXX\n$((pct_base + (pct_step * 80 / 100)))\n[$app_idx/$total_apps] Registrando stack '$cur_app' no Portainer do destino...\nXXX"
@@ -1859,7 +1900,7 @@ action_transfer_or_clone() {
         sleep 1
     }
 
-    run_migration_pipeline 2>> "$TRANSFER_LOG" | whiptail --title "EXECUTANDO OPERAÇÃO NA FROTA" --gauge "Aguarde a migração consistente..." 8 72 0
+    run_migration_pipeline 2>> "$TRANSFER_LOG" | whiptail --title "EXECUTANDO OPERAÇÃO NA FROTA" --gauge "Aguarde a migração consistente..." 10 78 0
 
     local op_aborted=false
     if [ -s "$stats_file" ]; then
