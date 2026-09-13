@@ -370,23 +370,27 @@ detect_app_combo_context() {
         done <<< "$all_stacks"
     fi
 
-    if [[ "$app" == chatwoot* ]] || [[ "$app" == evolution* ]]; then
+    if [[ "$app" == chatwoot* ]] || [[ "$app" == evolution* ]] || [[ "$app" == minio* ]] || [[ "$app" == rabbitmq* ]]; then
         while IFS= read -r s; do
             [ -n "$s" ] || continue
             [ "$s" = "$app" ] && continue
             case "$s" in
-                chatwoot*|evolution*|rabbitmq*|cwt_redis*|evo_redis*)
+                chatwoot*|evolution*|rabbitmq*|minio*|cwt_redis*|evo_redis*)
                     if [[ ! " ${linked[*]} " =~ " ${s} " ]]; then
                         linked+=("$s")
                     fi
                     ;;
             esac
         done <<< "$all_stacks"
-        detected_combo_name="Combo Multicanais (Chatwoot + Evolution + Filas)"
+        detected_combo_name="Combo Multicanais (Chatwoot + Evolution + RabbitMQ + S3)"
+    elif [[ "$app" == typebot* ]] && echo "$all_stacks" | grep -qE "minio.*$app_suffix"; then
+        detected_combo_name="Combo Typebot + MinIO S3"
+    elif [[ "$app" == evoai* ]] && echo "$all_stacks" | grep -qE "minio.*$app_suffix"; then
+        detected_combo_name="Combo EvoAI + Evolution + MinIO S3"
     fi
 
     if [ ${#linked[@]} -gt 0 ]; then
-        [ -n "$detected_combo_name" ] || detected_combo_name="Ecossistema Integrado (${app})"
+        [ -n "$detected_combo_name" ] || detected_combo_name="Combo Integrado (${app_suffix:-$app})"
         printf "true|%s|%s\n" "$detected_combo_name" "${linked[*]}"
         return 0
     fi
@@ -1487,6 +1491,96 @@ action_transfer_or_clone() {
         fi
     fi
 
+    # 7.1 Detecção e Governança de Storage S3 (MinIO)
+    local minio_stack_in_combo=""
+    for app_item in "${apps_to_migrate[@]}"; do
+        if [[ "$app_item" == minio* ]]; then
+            minio_stack_in_combo="$app_item"
+            break
+        fi
+    done
+
+    local any_uses_minio=false
+    if [ -n "$minio_stack_in_combo" ]; then
+        any_uses_minio=true
+    else
+        for app_item in "${apps_to_migrate[@]}"; do
+            local chk_yaml_tmp
+            chk_yaml_tmp=$(mktemp)
+            if resolve_live_stack_yaml "$chosen_origin_id" "$origin_ssh_host" "$app_item" "$chk_yaml_tmp" 2>/dev/null; then
+                if grep -qiE "(minio|s3_endpoint|aws_endpoint)" "$chk_yaml_tmp"; then
+                    any_uses_minio=true
+                    rm -f "$chk_yaml_tmp"
+                    break
+                fi
+            fi
+            rm -f "$chk_yaml_tmp"
+        done
+    fi
+
+    local minio_policy="migrate"
+    if [ "$any_uses_minio" = "true" ]; then
+        local dest_has_minio=false
+        if [ "$chosen_dest_id" = "local" ]; then
+            if docker ps -qf "name=minio" 2>/dev/null | grep -q . || docker stack ls --format '{{.Name}}' 2>/dev/null | grep -qE '^minio'; then
+                dest_has_minio=true
+            fi
+        else
+            if ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "docker ps -qf 'name=minio' 2>/dev/null | grep -q . || docker stack ls --format '{{.Name}}' 2>/dev/null | grep -qE '^minio'"; then
+                dest_has_minio=true
+            fi
+        fi
+
+        if [ "$dest_has_minio" = "true" ]; then
+            local minio_choice
+            minio_choice=$(whiptail --title "⚠️ MINIO DETECTADO NO DESTINO" --menu \
+                "O servidor de destino ('$dest_name') já possui um serviço MinIO ativo em execução.\n\nPara garantir que nenhuma foto, áudio ou anexo histórico gravado no banco de dados seja quebrado (pois aponta para a URL do S3 deste combo), escolha como deseja proceder:\n" 20 78 2 \
+                "1" "TRANSFERIR NOVO MINIO DESTE COMBO (Recomendado — Zero Links Quebrados)" \
+                "2" "MANTER MINIO NO SERVIDOR DE ORIGEM (Economiza RAM; mídias na origem)" \
+                3>&1 1>&2 2>&3) || return 0
+            if [ "$minio_choice" = "2" ]; then
+                minio_policy="keep_origin"
+            else
+                minio_policy="migrate"
+            fi
+        else
+            local minio_choice
+            minio_choice=$(whiptail --title "ARMAZENAMENTO S3 (MINIO) DO COMBO" --menu \
+                "A aplicação/combo utiliza armazenamento S3 MinIO para fotos, áudios e arquivos.\n\nO servidor de destino ('$dest_name') ainda NÃO possui nenhum serviço MinIO instalado.\n\nComo você deseja proceder com o armazenamento deste combo?\n" 19 78 2 \
+                "1" "TRANSFERIR MINIO PARA O DESTINO (Recomendado — migra mídias e mantém tudo junto)" \
+                "2" "MANTER MINIO NO SERVIDOR DE ORIGEM (Economiza RAM no destino; mídias na origem)" \
+                3>&1 1>&2 2>&3) || return 0
+            if [ "$minio_choice" = "2" ]; then
+                minio_policy="keep_origin"
+            else
+                minio_policy="migrate"
+            fi
+        fi
+
+        if [ "$minio_policy" = "keep_origin" ]; then
+            if [ -n "$minio_stack_in_combo" ]; then
+                local filtered_apps=()
+                for a in "${apps_to_migrate[@]}"; do
+                    [ "$a" = "$minio_stack_in_combo" ] && continue
+                    filtered_apps+=("$a")
+                done
+                apps_to_migrate=("${filtered_apps[@]}")
+            fi
+        fi
+    fi
+
+    # Ordenação topológica: dependências de infra (minio, rabbitmq, redis) antes das aplicações
+    local dep_apps=()
+    local main_apps=()
+    for a in "${apps_to_migrate[@]}"; do
+        if [[ "$a" == minio* ]] || [[ "$a" == rabbitmq* ]] || [[ "$a" == *redis* ]]; then
+            dep_apps+=("$a")
+        else
+            main_apps+=("$a")
+        fi
+    done
+    apps_to_migrate=("${dep_apps[@]}" "${main_apps[@]}")
+
     # 8. Trava de Capacidade de Recursos no Destino
     local dest_ram_free
     if [ "$chosen_dest_id" = "local" ]; then
@@ -1867,7 +1961,9 @@ action_transfer_or_clone() {
 
             # 8. Desligar e congelar na origem se solicitado
             if [ "$stop_origin" = "true" ]; then
-                if [ ! -s "$app_workdir/stack.yaml" ] || [ ${#cur_vols[@]} -eq 0 ]; then
+                if [[ "$cur_app" == minio* ]] && [ "$minio_policy" = "keep_origin" ]; then
+                    echo "[SEGURANÇA MINIO] Stack '$cur_app' PRESERVADA ATIVA na origem para fornecer mídias S3 à nova VPS." >> "$TRANSFER_LOG"
+                elif [ ! -s "$app_workdir/stack.yaml" ] || [ ${#cur_vols[@]} -eq 0 ]; then
                     echo "ALERTA DE SEGURANÇA: Manifestos ou volumes vazios para '$cur_app'. Origem mantida ativa para evitar indisponibilidade." >> "$TRANSFER_LOG"
                 else
                     echo -e "XXX\n$((pct_base + (pct_step * 95 / 100)))\n[$app_idx/$total_apps] Congelando volumes e desligando na origem ($cur_app)...\nXXX"
@@ -1932,6 +2028,13 @@ action_transfer_or_clone() {
     summary+="• Destino: $dest_name ($dest_arch)\n"
     summary+="• Total de Stacks: ${#apps_to_migrate[@]}\n"
     summary+="• Volumes Migrados: $total_migrated_vols volume(s)\n"
+    if [ "$any_uses_minio" = "true" ]; then
+        if [ "$minio_policy" = "keep_origin" ]; then
+            summary+="• Storage S3 (MinIO): Mantido ativo na origem (mídias preservadas)\n"
+        else
+            summary+="• Storage S3 (MinIO): Migrado para o destino (novo MinIO isolado)\n"
+        fi
+    fi
     if [ "$update_dns" = "true" ]; then
         summary+="• DNS & Ingress: Atualizado(s) no Cloudflare para o nó destino\n"
     fi
