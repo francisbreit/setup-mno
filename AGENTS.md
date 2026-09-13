@@ -280,6 +280,30 @@ Ative este modo quando o usuário disser **“Modo Administrador da Comunidade E
   2. Executar autonomamente `./2_empacotador/gerar_distribuicao.sh` para compactar os zips com senha (`SetupLowCodeMno.zip`) e compilar os binários estáticos SHC para x86 e ARM.
   3. Validar a pasta `3_distribuicao/` (verificar `ferramentas.html`, binários SHC e zips).
   4. Criar o commit Git com a nova versão antes de receber autorização para avançar para a próxima etapa.
+
+### ⚠️ REGRA CRÍTICA ANTI-ERRO 41: SINCRONIZAÇÃO OBRIGATÓRIA DO CONTROL CENTER NAS RELEASES ⚠️
+O **Código da falha: 41** ("O manifesto runtime do Control Center é inválido ou não corresponde ao Setup MNO vX.Y.Z") ocorre quando a versão do Setup MNO é alterada nos scripts sem sincronizar o manifesto criptográfico (`.control-package/release.json`) e os pacotes de runtime do Control Center.
+- **Causa raiz técnica do Erro 41:** O script compilado `start_full.sh` / `start_arm_full.sh` valida em runtime:
+  `[ "$control_version" != "$VERSIONSETUP" ]` e compara os hashes SHA256 do `release.json`, `knowledge-package`, `catalog.json` e âncoras da fronteira SHC. Se houver divergência de versão ou hash, ele aborta imediatamente com `exit 41`.
+- **Lista exata de arquivos que DEVEM ser atualizados ao alterar a versão:**
+  1. `1_codigo_fonte/setup-mno.sh` e `setup-mno-oracle.sh` (`VERSIONSETUP="X.Y.Z"`)
+  2. `1_codigo_fonte/x86/start_full.sh` e `1_codigo_fonte/arm/start_arm_full.sh` (`VERSIONSETUP="X.Y.Z"`)
+  3. `1_codigo_fonte/x86/SetupLowCodeMno/install.sh` e `1_codigo_fonte/arm/SetupLowCodeMno/install.sh` (`VERSIONSETUP="X.Y.Z"`)
+  4. `1_codigo_fonte/ferramentas.html` (no cabeçalho e rodapé)
+  5. `1_codigo_fonte/setupmno-knowledge/registry/setups.json` (`"setupVersion": "X.Y.Z"`)
+  6. `1_codigo_fonte/setupmno-knowledge/registry/governance.json` (`"setupVersion": "X.Y.Z"`)
+  7. `1_codigo_fonte/setupmno-knowledge/evals/dataset.json` (`"setupVersion": "X.Y.Z"`)
+  8. `1_codigo_fonte/setupmno-knowledge/blueprints/*/blueprint.json` (`"setupVersion": "X.Y.Z"`)
+  9. `1_codigo_fonte/setupmno-knowledge/tools/test_blueprints.py` (`SETUP_VERSION = "X.Y.Z"`)
+  10. `1_codigo_fonte/setupmno-control/fleet_transfer.go` e `fleet_transfer_test.go` (`setupVer = "X.Y.Z"`)
+  11. `1_codigo_fonte/setupmno-control/main.go` (`SetupVersion: "X.Y.Z"`)
+  12. Todos os `.md` em `1_codigo_fonte/setupmno-knowledge/` com `"setupVersion": "X.Y.Z"`
+- **Regeneração obrigatória do Quality Report:**
+  Após atualizar as versões acima, execute:
+  `python3 -B 1_codigo_fonte/setupmno-knowledge/tools/knowledge_quality.py --root 1_codigo_fonte/setupmno-knowledge --catalog 1_codigo_fonte/setupmno-control/catalog.json --write-report 1_codigo_fonte/setupmno-knowledge/registry/quality-report.json --enforce-baseline`
+- **Garantia estrutural no empacotador:**
+  O script `./2_empacotador/gerar_distribuicao.sh` agora executa AUTOMATICAMENTE `bash 1_codigo_fonte/setupmno-control/generate-installers.sh` antes de gerar os arquivos `.zip` e compilar os binários SHC. Se qualquer validação falhar, o empacotamento é bloqueado na raiz.
+
 - **Versão Estável de Referência Fixada:** **v7.45.0** (homologada em 07/09/2026).
 - **Versão Vigente Implementada:** **v7.47.2** (Roteamento Multi-Porta Cloudflare Tunnel, Prevenção de Tela Preta e Blindagem SSH na Frota).
 

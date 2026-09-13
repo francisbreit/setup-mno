@@ -44,6 +44,13 @@ cp "$BASE_DIR/1_codigo_fonte/ferramentas.html" "$BASE_DIR/3_distribuicao/"
 echo "🎨 Copiando a identidade visual pública do Setup MNO..."
 cp "$BASE_DIR/1_codigo_fonte/setup-mno-logo.svg" "$BASE_DIR/3_distribuicao/"
 
+# 3.1 Sincronização e Validação do Control Center e Manifestos Runtime
+echo -e "${amarelo}⚙️  Sincronizando Control Center, manifestos runtime e ancoragens SHC...${reset}"
+bash "$BASE_DIR/1_codigo_fonte/setupmno-control/generate-installers.sh" || {
+    echo -e "\e[31m❌ ERRO CRÍTICO: Falha na geração dos manifestos e instaladores do Control Center. Abortando empacotamento!\e[0m" >&2
+    exit 1
+}
+
 # 4. Zipar os ficheiros x86 com senha
 echo -e "${amarelo}📦 Compactando arquivos x86...${reset}"
 cd "$BASE_DIR/1_codigo_fonte/x86"
