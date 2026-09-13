@@ -563,14 +563,14 @@ else
     minio_host=$nome_app2
 fi
 
-if ! command -v mc &> /dev/null; then
-    ARCH=$(uname -m)
-    if [[ "$ARCH" == "x86_64" ]]; then
-        wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc >/dev/null 2>&1
-    elif [[ "$ARCH" == "aarch64" ]] || [[ "$ARCH" == "armv7l" ]]; then
-        wget https://dl.min.io/client/mc/release/linux-arm64/mc -O /usr/local/bin/mc >/dev/null 2>&1
+if ! command -v mc &> /dev/null || [ ! -s "$(command -v mc 2>/dev/null || echo /usr/local/bin/mc)" ] || ! mc --version &>/dev/null; then
+    rm -f /usr/local/bin/mc 2>/dev/null || true
+    mc_cid=$(docker create quay.io/minio/mc:latest 2>/dev/null || docker create minio/mc:latest 2>/dev/null || true)
+    if [ -n "$mc_cid" ]; then
+        docker cp "${mc_cid}:/usr/bin/mc" /usr/local/bin/mc >/dev/null 2>&1 || true
+        docker rm -f "$mc_cid" >/dev/null 2>&1 || true
+        chmod +x /usr/local/bin/mc 2>/dev/null || true
     fi
-    chmod +x /usr/local/bin/mc
 fi
 
 if ! command -v jq &> /dev/null; then

@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Reactive Resume no Setup MNO",
   "setupId": "reactive-resume",
-  "setupVersion": "7.47.0",
+  "setupVersion": "7.47.1",
   "architectures": [
     "amd64",
     "arm64"

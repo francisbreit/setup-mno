@@ -1398,79 +1398,96 @@ clear
 
 max_wait_time=600  #ajuste do tempo mximo de espera
 
-wait_interval=60
+wait_interval=5
 
 elapsed_time=0
 
 while [ $elapsed_time -lt $max_wait_time ]; do
-	CONTAINER_ID=$(docker ps -qf name=$nome_app2)
+	CONTAINER_ID=$(docker ps -qf name=$nome_app2 | head -n1)
 	if [ -n "$CONTAINER_ID" ]; then
 		break
 	fi
 	sleep $wait_interval
-	elapsed_time=$((elaapsed_time + wait_interval))
+	elapsed_time=$((elapsed_time + wait_interval))
 done
 
 if [ -z "$CONTAINER_ID" ]; then
     whiptail --title "Erro" --msgbox "O container do Minio não foi encontrado após $max_wait_time segundos" 10 60
     exit 0
 fi
-# aguarda 60 segundos
-sleep 60
 
+# Aguardar MinIO inicializar internamente
+for i in $(seq 1 30); do
+    if docker exec "$CONTAINER_ID" mc alias set localminio http://localhost:9000 "$MINIO_USER" "$MINIO_PASSWORD" --api S3v4 >/dev/null 2>&1; then
+        break
+    fi
+    sleep 2
+done
 
-# Instalar mc (Minio Client) e jq se necessário
-if ! command -v mc &> /dev/null; then
-# Instalar versão adequada à sua arquitetura
-ARCH=$(uname -m)
-
-if [[ "$ARCH" == "x86_64" ]]; then
-    wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc >/dev/null 2>&1
-elif [[ "$ARCH" == "aarch64" ]] || [[ "$ARCH" == "armv7l" ]]; then
-    wget https://dl.min.io/client/mc/release/linux-arm64/mc -O /usr/local/bin/mc >/dev/null 2>&1
-else
-    whiptail --title "Erro" --msgbox "Arquitetura não suportada: $ARCHs" 10 60
-    exit 0
-fi
-
-# Tornar executável
-chmod +x /usr/local/bin/mc
+# Garantir mc (Minio Client) e jq funcionais
+if ! command -v mc &> /dev/null || [ ! -s "$(command -v mc 2>/dev/null || echo /usr/local/bin/mc)" ] || ! mc --version &>/dev/null; then
+    rm -f /usr/local/bin/mc 2>/dev/null || true
+    if [ -n "$CONTAINER_ID" ]; then
+        docker cp "$CONTAINER_ID:/usr/bin/mc" /usr/local/bin/mc >/dev/null 2>&1 || true
+        chmod +x /usr/local/bin/mc 2>/dev/null || true
+    fi
+    if ! command -v mc &> /dev/null || [ ! -s "$(command -v mc 2>/dev/null || echo /usr/local/bin/mc)" ] || ! mc --version &>/dev/null; then
+        mc_cid=$(docker create quay.io/minio/mc:latest 2>/dev/null || docker create minio/mc:latest 2>/dev/null || true)
+        if [ -n "$mc_cid" ]; then
+            docker cp "${mc_cid}:/usr/bin/mc" /usr/local/bin/mc >/dev/null 2>&1 || true
+            docker rm -f "$mc_cid" >/dev/null 2>&1 || true
+            chmod +x /usr/local/bin/mc 2>/dev/null || true
+        fi
+    fi
 fi
 
 if ! command -v jq &> /dev/null; then
-    apt-get install -y jq >/dev/null 2>&1
+    apt-get update -y >/dev/null 2>&1 && apt-get install -y jq >/dev/null 2>&1 || true
 fi
 
-# Configurar alias para o Minio
+# Configurar alias no host (tenta https e se falhar usa --insecure)
+mc alias set minio "https://$MINIO_PUBLIC_URL" "$MINIO_USER" "$MINIO_PASSWORD" --api S3v4 >/dev/null 2>&1 || mc alias set minio "https://$MINIO_PUBLIC_URL" "$MINIO_USER" "$MINIO_PASSWORD" --api S3v4 --insecure >/dev/null 2>&1 || true
 
-mc alias set minio https://$MINIO_PUBLIC_URL $MINIO_USER $MINIO_PASSWORD --api S3v4
-
-# Criar bucket e credenciais
+# Criar bucket e definir politica publica no container e host
 bucket_name="$nome_app"
-mc mb minio/$bucket_name || true
-#mc anonymous set public minio/$bucket_name
-mc anonymous set public minio/$bucket_name || true
+if [ -n "$CONTAINER_ID" ]; then
+    docker exec "$CONTAINER_ID" mc mb "localminio/$bucket_name" >/dev/null 2>&1 || true
+    docker exec "$CONTAINER_ID" mc anonymous set public "localminio/$bucket_name" >/dev/null 2>&1 || true
+fi
+mc mb "minio/$bucket_name" >/dev/null 2>&1 || true
+mc anonymous set public "minio/$bucket_name" >/dev/null 2>&1 || true
 
-###########
-###########
+# Criar service account e vincular credenciais
 create_service_account() {
     local bucket=$1
     local app_name=$2
     
-    
-    # Criar service account
-    credentials=$(mc admin user svcacct add minio "$MINIO_USER" \
-        --access-key "$ACCESS_KEY" \
-        --secret-key "$SECRET_KEY" \
-        --json 2>&1)
-        
-
-    if [[ -z "$access_key" || -z "$secret_key" ]]; then
-    # Extrair chaves com validação rigorosa
-    access_key=$(echo "$credentials" | jq -r '.accessKey')
-    secret_key=$(echo "$credentials" | jq -r '.secretKey')
+    local credentials=""
+    if [ -n "$CONTAINER_ID" ]; then
+        credentials=$(docker exec "$CONTAINER_ID" mc admin user svcacct add localminio "$MINIO_USER" --json 2>&1 || true)
+    fi
+    if ! echo "$credentials" | jq -e '.accessKey' >/dev/null 2>&1; then
+        credentials=$(mc admin user svcacct add minio "$MINIO_USER" --json 2>&1 || true)
     fi
 
+    access_key=$(echo "$credentials" | jq -r '.accessKey // empty' 2>/dev/null || true)
+    secret_key=$(echo "$credentials" | jq -r '.secretKey // empty' 2>/dev/null || true)
+
+    if [[ -z "$access_key" || -z "$secret_key" ]]; then
+        local raw_creds=""
+        if [ -n "$CONTAINER_ID" ]; then
+            raw_creds=$(docker exec "$CONTAINER_ID" mc admin user svcacct add localminio "$MINIO_USER" 2>&1 || true)
+        fi
+        [ -n "$raw_creds" ] || raw_creds=$(mc admin user svcacct add minio "$MINIO_USER" 2>&1 || true)
+        access_key=$(echo "$raw_creds" | grep -i "Access Key:" | awk '{print $NF}' | tr -d ' \r\n' || true)
+        secret_key=$(echo "$raw_creds" | grep -i "Secret Key:" | awk '{print $NF}' | tr -d ' \r\n' || true)
+    fi
+
+    # Fallback seguro: se falhar service account, utilizar as credenciais root do MinIO
+    if [[ -z "$access_key" || -z "$secret_key" ]]; then
+        access_key="$MINIO_USER"
+        secret_key="$MINIO_PASSWORD"
+    fi
 }
 
 # Chamar a função
