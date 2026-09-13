@@ -1488,3 +1488,55 @@ No `install.sh` do ARM, DELETE a linha do menu whiptail (NÃO comente):
 **Ferramentas conhecidas que NÃO funcionam em ARM (verificar periodicamente):**
 - Algumas imagens com binários compilados estaticamente para x86
 - Ferramentas com dependências de bibliotecas nativas x86 específicas
+
+---
+
+## PROTOCOLO DE AUDITORIA DE MIGRAÇÃO, CLONE E BACKUP DA FROTA (FLEET CLONE READINESS GATE)
+
+Toda nova ferramenta individual, combo ou blueprint adicionado ou atualizado no Setup MNO deve passar obrigatoriamente por esta auditoria para garantir compatibilidade com o **MNO Fleet Hub (Opção 5: Clone, Transferência e Backup de Aplicações da Frota)**.
+
+### Checklist Obrigatório para Novos Setups (Gate de Homologação)
+
+1. **Sufixo Único Padronizado (`sufixo_app`):**
+   - A stack, serviços, volumes e bancos de dados DEVEM utilizar sufixo hexadecimal de 7 caracteres gerado no padrão:
+     `sufixo_app=$(date | md5sum | head -c7 | tr '[:upper:]' '[:lower:]')`
+   - Em combos integrados, TODAS as stacks e serviços irmãos (ex: Chatwoot, Evolution, RabbitMQ, MinIO) DEVEM compartilhar estritamente o mesmo `sufixo_app`.
+   - Isso permite ao Fleet Hub agrupar o ecossistema automaticamente e oferecer ao usuário a escolha entre migrar o combo completo ou apenas uma aplicação isolada.
+
+2. **Registro de Manifesto Padronizado (`mno-manifest-writer.sh`):**
+   - O instalador da aplicação DEVE acionar o gravador de manifesto ao final do deploy:
+     `/root/SetupLowCodeMno/mno-manifest-writer.sh "$APP_NAME" "$STACK_NAME" "$COMBO_ID" "$COMBO_NAME" "$DB_ENGINE" "$DB_NAME" "$S3_BUCKET" "$RABBITMQ_VHOST" "$DOMAINS" "$VOLUMES"`
+   - O manifesto gerado em `/root/SetupLowCodeMno/.control/manifests/${STACK_NAME}.json` garante que o Fleet Hub reconheça instantaneamente toda a topologia da aplicação sem depender de adivinhações.
+
+3. **Compatibilidade e Isolamento de Banco de Dados:**
+   - **PostgreSQL:** O banco de dados DEVE ser criado com nome exclusivo (ex: `${nome_app}`) e ser compatível com dump lógico atômico `pg_dump --clean --if-exists`.
+   - **MySQL 8.4 (Percona):** Aplicações com MySQL 8.4 (como Mautic 7) DEVEM ser compatíveis com o provisionador automático `ensure_mysql84_ready` e restauração com senha dinâmica.
+   - **MySQL 8.0:** Aplicações legadas com MySQL 8.0 DEVEM declarar o motor `mysql80` para acionar o provisionador correspondente sem colidir com instâncias do MySQL 8.4.
+   - **SQLite / Motores Locais:** Devem armazenar seu arquivo de banco em volume Docker mapeado (não em `/root/` ou path anônimo) para garantir portabilidade via snapshot `tar.gz`.
+   - **NoSQL / Motores Especiais (MongoDB, Redis, ClickHouse, Qdrant):** Devem possuir estratégia de snapshot atômico ou isolamento em volume Docker dedicado com política de desligamento ordenado.
+
+4. **Tratamento de Storage S3 / MinIO (Dedicado vs Central):**
+   - Se a ferramenta utiliza MinIO como dependência de combo, o Fleet Hub DEVE verificar se já existe MinIO no nó de destino.
+   - Para prevenir quebra de links históricos de mídias (fotos, áudios e vídeos já gravados no banco de dados com a URL pública da origem), a estratégia NUNCA deve mesclar forçadamente buckets em um MinIO alienígena.
+   - **Se NÃO existir MinIO no destino:** O usuário escolhe entre transferir o MinIO para o destino (com seu domínio e dados) ou manter na origem.
+   - **Se JÁ existir outro MinIO no destino:** O Fleet Hub avisa da existência do outro serviço e oferece a escolha:
+     a) *TRANSFERIR UM NOVO MINIO DESTE COMBO PARA O DESTINO:* Clona a stack isolada `minio_${sufixo_app}` e seus volumes para o destino, comutando o domínio do S3 no Cloudflare Tunnel. Roda como serviço independente no Swarm sem colisão de portas (Traefik roteia por hostname). 100% dos links históricos preservados!
+     b) *MANTER O MINIO NA ORIGEM:* O MinIO da origem NÃO é clonado e recebe TRAVA CRÍTICA: **NÃO pode ser desligado, pausado nem ter seus volumes excluídos**, pois o novo servidor continuará acessando as mídias antigas e novas pela URL pública da origem.
+
+
+5. **Broker RabbitMQ e Filas Quorum:**
+   - Se a aplicação utiliza mensageria, deve registrar o VHost exclusivo utilizado (ex: `/${sufixo_app}`). O Fleet Hub DEVE garantir a existência do RabbitMQ e criar o VHost no destino antes de subir a stack.
+
+6. **Imagens Docker Customizadas e Paridade de Arquitetura:**
+   - Imagens que não estão no Docker Hub público (como `francisbreit/mautic...`) DEVEM ser sincronizadas via `ensure_stack_images_on_dest` (`docker save | gzip | ssh | docker load`).
+   - Transferências ao vivo entre arquiteturas incompatíveis (x86 ↔ ARM) permanecem estritamente BLOQUEADAS, autorizando apenas o Backup Portátil (`.tar.gz`).
+
+7. **Compatibilidade com Portainer REST API:**
+   - O arquivo `stack.yaml` gerado DEVE ser sintaticamente válido para a API de Stacks do Portainer (`deploy_stack_with_portainer_priority`), permitindo que o usuário edite variáveis no Portainer após a migração.
+
+### Dever do Agente ao Implementar ou Avaliar Novos Setups
+Ao receber qualquer solicitação para criar ou modificar scripts de instalação:
+1. Aplicar este checklist integralmente.
+2. Identificar se o novo setup introduz algum motor de banco, storage ou dependência inédita.
+3. Se houver incompatibilidade, emitir alerta imediato com as alterações necessárias no código fonte antes de autorizar o empacotamento para produção.
+
