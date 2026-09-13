@@ -318,7 +318,7 @@ func TestExecuteApplicationTransferWithSentinelNotification(t *testing.T) {
 				Name:          "Worker Hetzner",
 				Mode:          FleetModeWorker,
 				Architecture:  "amd64",
-				SetupVersion:  "7.46.0",
+				SetupVersion:  "7.47.0",
 				MemoryTotalMB: 4096,
 				MemoryFreeMB:  2048,
 				DiskTotalGB:   80,

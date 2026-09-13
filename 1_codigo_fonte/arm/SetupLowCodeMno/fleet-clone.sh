@@ -277,11 +277,19 @@ detect_database_engine() {
         return 0
     fi
 
-    if grep -qE "MAUTIC_DB_HOST=mysql84|MYSQL_HOST=mysql84|mysql84:3306|MAUTIC_DB_NAME" "$yaml_file"; then
+    if grep -qE "MAUTIC_DB_HOST=mysql84|MYSQL_HOST=mysql84|mysql84:3306" "$yaml_file"; then
         local my_db
         my_db=$(grep -E "MAUTIC_DB_NAME=|MYSQL_DATABASE=" "$yaml_file" 2>/dev/null | head -n1 | cut -d= -f2 | tr -d ' "\r' || true)
         [ -n "$my_db" ] || my_db="$app"
         printf "mysql84:%s\n" "$my_db"
+        return 0
+    fi
+
+    if grep -qE "WORDPRESS_DB_HOST=mysql|MAUTIC_DB_HOST=mysql|HUMHUB_DB_HOST=mysql|BOOKSTACK_DB_HOST=mysql|DB_HOST=mysql|MYSQL_HOST=mysql|mysql:3306|WORDPRESS_DB_NAME" "$yaml_file"; then
+        local my_db
+        my_db=$(grep -E "WORDPRESS_DB_NAME=|MAUTIC_DB_NAME=|HUMHUB_DB_NAME=|BOOKSTACK_DB_DATABASE=|DB_NAME=|DB_DATABASE=|MYSQL_DATABASE=" "$yaml_file" 2>/dev/null | head -n1 | cut -d= -f2 | tr -d ' "\r' || true)
+        [ -n "$my_db" ] || my_db="$app"
+        printf "mysql:%s\n" "$my_db"
         return 0
     fi
 
@@ -422,6 +430,9 @@ save_app_manifest() {
     elif [[ "$db_engine" == mysql84:* ]]; then
         db_type="mysql84"
         db_name="${db_engine#mysql84:}"
+    elif [[ "$db_engine" == mysql:* ]]; then
+        db_type="mysql"
+        db_name="${db_engine#mysql:}"
     fi
 
     local s3_bucket=""
@@ -898,6 +909,103 @@ networks:
     return 1
 }
 
+# Garante que MySQL 8.0 compartilhado está rodando no nó destino
+ensure_mysql_ready() {
+    local node_id="$1"
+    local host="$2"
+
+    local running=""
+    if [ "$node_id" = "local" ]; then
+        running=$(docker ps --filter "label=com.docker.swarm.service.name=mysql_mysql" -q 2>/dev/null | head -n1 || true)
+        [ -n "$running" ] || running=$(docker ps -qf name=mysql_mysql 2>/dev/null | head -n1 || true)
+        [ -n "$running" ] || running=$(docker ps --format '{{.ID}} {{.Names}}' 2>/dev/null | grep -v 'mysql84' | grep -E 'mysql_mysql|mysql\.1' | awk '{print $1}' | head -n1 || true)
+    else
+        running=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" 'docker ps --filter "label=com.docker.swarm.service.name=mysql_mysql" -q 2>/dev/null | head -n1 || docker ps -qf name=mysql_mysql 2>/dev/null | head -n1 || docker ps --format "{{.ID}} {{.Names}}" 2>/dev/null | grep -v "mysql84" | grep -E "mysql_mysql|mysql\.1" | awk "{print \$1}" | head -n1' 2>/dev/null || true)
+    fi
+
+    if [ -n "$running" ]; then
+        echo "MySQL 8.0 já está em execução no nó '$node_id'." >> "$TRANSFER_LOG"
+        return 0
+    fi
+
+    echo "Inicializando stack mysql (8.0) no nó '$node_id'..." >> "$TRANSFER_LOG"
+    local new_pwd=""
+    if [ "$node_id" = "local" ]; then
+        if [ -s /root/mysql.yaml ]; then
+            new_pwd=$(grep 'MYSQL_ROOT_PASSWORD=' /root/mysql.yaml 2>/dev/null | head -n1 | sed 's/.*MYSQL_ROOT_PASSWORD=//' | tr -d ' "\r' || true)
+        fi
+    else
+        new_pwd=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "[ -s /root/mysql.yaml ] && grep 'MYSQL_ROOT_PASSWORD=' /root/mysql.yaml | head -n1 | sed 's/.*MYSQL_ROOT_PASSWORD=//' | tr -d ' \"\r'" 2>/dev/null || true)
+    fi
+    [ -n "$new_pwd" ] || new_pwd=$(openssl rand -hex 8)
+
+    local yaml_body="version: '3.7'
+services:
+    mysql:
+        image: percona/percona-server:8.0
+        environment:
+            - MYSQL_ROOT_PASSWORD=${new_pwd}
+            - TZ=America/Fortaleza
+        networks:
+            - externa
+            - interna
+        volumes:
+            - mysql_data:/var/lib/mysql
+        deploy:
+            placement:
+                constraints: [node.role == manager]
+        command:
+            --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --sql-mode=\"\" --default-authentication-plugin=mysql_native_password --port=3306 --max-allowed-packet=512MB
+volumes:
+    mysql_data:
+networks:
+    externa:
+        external: true
+    interna:
+        external: true
+"
+    if [ "$node_id" = "local" ]; then
+        if [ ! -s /root/mysql.yaml ]; then
+            printf '%s\n' "$yaml_body" > /root/mysql.yaml 2>/dev/null || true
+        fi
+        deploy_stack_with_portainer_priority "local" "" "mysql" "/root/mysql.yaml" >> "$TRANSFER_LOG" 2>&1 || true
+    else
+        ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "[ -s /root/mysql.yaml ] || cat > /root/mysql.yaml" <<< "$yaml_body"
+        deploy_stack_with_portainer_priority "$node_id" "$host" "mysql" "/root/mysql.yaml" >> "$TRANSFER_LOG" 2>&1 || true
+    fi
+
+    local wait_count=0
+    while [ $wait_count -lt 180 ]; do
+        sleep 2
+        wait_count=$((wait_count + 1))
+        if [ $((wait_count % 15)) -eq 0 ]; then
+            echo "Aguardando inicialização do MySQL 8.0 no nó '$node_id' ($((wait_count * 2))s/360s)..." >> "$TRANSFER_LOG"
+        fi
+        local chk=""
+        if [ "$node_id" = "local" ]; then
+            chk=$(docker ps --filter "label=com.docker.swarm.service.name=mysql_mysql" -q 2>/dev/null | head -n1 || true)
+            [ -n "$chk" ] || chk=$(docker ps -qf name=mysql_mysql 2>/dev/null | head -n1 || true)
+            [ -n "$chk" ] || chk=$(docker ps --format '{{.ID}} {{.Names}}' 2>/dev/null | grep -v 'mysql84' | grep -E 'mysql_mysql|mysql\.1' | awk '{print $1}' | head -n1 || true)
+            if [ -n "$chk" ]; then
+                if docker exec -i -e MYSQL_PWD="$new_pwd" "$chk" mysql -u root -e 'SELECT 1;' >/dev/null 2>&1; then
+                    echo "MySQL 8.0 operacional no nó '$node_id' em $((wait_count * 2))s." >> "$TRANSFER_LOG"
+                    return 0
+                fi
+            fi
+        else
+            chk=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" 'docker ps --filter "label=com.docker.swarm.service.name=mysql_mysql" -q 2>/dev/null | head -n1 || docker ps -qf name=mysql_mysql 2>/dev/null | head -n1 || docker ps --format "{{.ID}} {{.Names}}" 2>/dev/null | grep -v "mysql84" | grep -E "mysql_mysql|mysql\.1" | awk "{print \$1}" | head -n1' 2>/dev/null || true)
+            if [ -n "$chk" ]; then
+                if ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$host" "docker exec -i -e MYSQL_PWD='$new_pwd' '$chk' mysql -u root -e 'SELECT 1;'" >/dev/null 2>&1; then
+                    echo "MySQL 8.0 operacional no nó '$node_id' em $((wait_count * 2))s." >> "$TRANSFER_LOG"
+                    return 0
+                fi
+            fi
+        fi
+    done
+    echo "FALHA: Timeout de 360s aguardando inicialização do MySQL 8.0 no nó '$node_id'." >> "$TRANSFER_LOG"
+    return 1
+}
+
 # Garante que MinIO S3 está rodando no nó destino
 ensure_minio_ready() {
     local node_id="$1"
@@ -1255,6 +1363,16 @@ action_backup_app() {
         if [ -n "$my_c" ]; then
             my_pwd=$(docker inspect "$my_c" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null || echo "")
             docker exec -i "$my_c" mysqldump -u root -p"$my_pwd" --databases "$db_name" --add-drop-table 2>/dev/null | gzip > "$tmpdir/db_logical_dump.sql.gz" || true
+        fi
+    elif [[ "$db_info" == mysql:* ]]; then
+        local db_name="${db_info#mysql:}"
+        local my_c my_pwd
+        my_c=$(docker ps --filter "label=com.docker.swarm.service.name=mysql_mysql" -q 2>/dev/null | head -n1 || true)
+        [ -n "$my_c" ] || my_c=$(docker ps -qf name=mysql_mysql 2>/dev/null | head -n1 || true)
+        [ -n "$my_c" ] || my_c=$(docker ps --format '{{.ID}} {{.Names}}' 2>/dev/null | grep -v 'mysql84' | grep -E 'mysql_mysql|mysql\.1' | awk '{print $1}' | head -n1 || true)
+        if [ -n "$my_c" ]; then
+            my_pwd=$(docker inspect "$my_c" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml 2>/dev/null || echo "")
+            docker exec -i -e MYSQL_PWD="$my_pwd" "$my_c" mysqldump -u root --databases "$db_name" --add-drop-table 2>/dev/null | gzip > "$tmpdir/db_logical_dump.sql.gz" || true
         fi
     fi
 
@@ -1745,6 +1863,32 @@ action_transfer_or_clone() {
                     echo "ERROR_ABORT" > "$stats_file"
                     return 1
                 fi
+            elif [[ "$cur_db_engine" == mysql:* ]]; then
+                local my_dbname="${cur_db_engine#mysql:}"
+                echo -e "XXX\n$((pct_base + (pct_step * 35 / 100)))\n[$app_idx/$total_apps] Executando dump lógico consistente do MySQL 8.0 ($my_dbname)...\nXXX"
+                if [ "$chosen_origin_id" = "local" ]; then
+                    local c_id orig_pwd
+                    c_id=$(docker ps --filter "label=com.docker.swarm.service.name=mysql_mysql" -q 2>/dev/null | head -n1 || true)
+                    [ -n "$c_id" ] || c_id=$(docker ps -qf name=mysql_mysql 2>/dev/null | head -n1 || true)
+                    [ -n "$c_id" ] || c_id=$(docker ps --format '{{.ID}} {{.Names}}' 2>/dev/null | grep -v 'mysql84' | grep -E 'mysql_mysql|mysql\.1' | awk '{print $1}' | head -n1 || true)
+                    orig_pwd=$(docker inspect "$c_id" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep 'MYSQL_ROOT_PASSWORD=' /root/mysql.yaml 2>/dev/null | head -n1 | sed 's/.*MYSQL_ROOT_PASSWORD=//' | tr -d ' "\r' || echo "")
+                    if [ -n "$c_id" ] && [ -n "$orig_pwd" ]; then
+                        docker exec -i -e MYSQL_PWD="$orig_pwd" "$c_id" mysqldump -u root --databases "$my_dbname" --add-drop-table 2>> "$TRANSFER_LOG" | gzip > "$app_workdir/db_logical_dump.sql.gz" || true
+                    fi
+                else
+                    ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$origin_ssh_host" '
+                        c_id=$(docker ps --filter "label=com.docker.swarm.service.name=mysql_mysql" -q 2>/dev/null | head -n1 || docker ps -qf name=mysql_mysql 2>/dev/null | head -n1 || docker ps --format "{{.ID}} {{.Names}}" 2>/dev/null | grep -v "mysql84" | grep -E "mysql_mysql|mysql\.1" | awk "{print \$1}" | head -n1)
+                        pwd=$(docker inspect "$c_id" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep "MYSQL_ROOT_PASSWORD=" /root/mysql.yaml 2>/dev/null | head -n1 | sed "s/.*MYSQL_ROOT_PASSWORD=//" | tr -d " \"\r" || echo "")
+                        if [ -n "$c_id" ] && [ -n "$pwd" ]; then
+                            docker exec -i -e MYSQL_PWD="$pwd" "$c_id" mysqldump -u root --databases "'"$my_dbname"'" --add-drop-table 2>/dev/null
+                        fi
+                    ' | gzip > "$app_workdir/db_logical_dump.sql.gz" 2>> "$TRANSFER_LOG" || true
+                fi
+                if [ ! -s "$app_workdir/db_logical_dump.sql.gz" ] || [ "$(gunzip -c "$app_workdir/db_logical_dump.sql.gz" 2>/dev/null | head -c 10 | wc -c)" -eq 0 ]; then
+                    echo "ERRO CRÍTICO: Dump do banco MySQL 8.0 '$my_dbname' falhou ou gerou arquivo vazio na origem. Abortando migração." >> "$TRANSFER_LOG"
+                    echo "ERROR_ABORT" > "$stats_file"
+                    return 1
+                fi
             fi
 
             # Sincronização de S3 MinIO se aplicável
@@ -1927,6 +2071,90 @@ action_transfer_or_clone() {
 
                 if [ -n "$dest_my_pwd" ]; then
                     sed -i -E "s/MAUTIC_DB_PASSWORD=[^[:space:]]+/MAUTIC_DB_PASSWORD=$dest_my_pwd/g" "$app_workdir/stack.yaml"
+                    local cfg_vol="${cur_app}-config"
+                    if [ "$chosen_dest_id" = "local" ]; then
+                        docker run --rm -v "${cfg_vol}:/voldata" alpine sh -c "sed -i \"s/'db_password' => .*/'db_password' => '$dest_my_pwd',/\" /voldata/local.php 2>/dev/null || true" 2>> "$TRANSFER_LOG" || true
+                    else
+                        ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "docker run --rm -v '${cfg_vol}:/voldata' alpine sh -c \"sed -i \\\"s/'db_password' => .*/'db_password' => '$dest_my_pwd',/\\\" /voldata/local.php 2>/dev/null || true\"" 2>> "$TRANSFER_LOG" || true
+                    fi
+                fi
+            elif [[ "$cur_db_engine" == mysql:* ]] && [ -f "$app_workdir/db_logical_dump.sql.gz" ]; then
+                local my_dbname="${cur_db_engine#mysql:}"
+                if ! ensure_mysql_ready "$chosen_dest_id" "$dest_ssh_host"; then
+                    echo "ERRO CRÍTICO: Falha ao garantir MySQL 8.0 no nó de destino. Abortando migração para proteger dados." >> "$TRANSFER_LOG"
+                    echo "ERROR_ABORT" > "$stats_file"
+                    stop_fleet_heartbeat
+                    return 1
+                fi
+
+                local mc=""
+                local dest_my_pwd=""
+                local wait_mc=0
+                while [ $wait_mc -lt 60 ]; do
+                    if [ "$chosen_dest_id" = "local" ]; then
+                        mc=$(docker ps --filter "label=com.docker.swarm.service.name=mysql_mysql" -q 2>/dev/null | head -n1 || true)
+                        [ -n "$mc" ] || mc=$(docker ps -qf name=mysql_mysql 2>/dev/null | head -n1 || true)
+                        [ -n "$mc" ] || mc=$(docker ps --format '{{.ID}} {{.Names}}' 2>/dev/null | grep -v 'mysql84' | grep -E 'mysql_mysql|mysql\.1' | awk '{print $1}' | head -n1 || true)
+                        if [ -n "$mc" ]; then
+                            dest_my_pwd=$(docker inspect "$mc" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep 'MYSQL_ROOT_PASSWORD=' /root/mysql.yaml 2>/dev/null | head -n1 | sed 's/.*MYSQL_ROOT_PASSWORD=//' | tr -d ' "\r' || echo "")
+                            [ -n "$dest_my_pwd" ] && break
+                        fi
+                    else
+                        mc=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'docker ps --filter "label=com.docker.swarm.service.name=mysql_mysql" -q 2>/dev/null | head -n1 || docker ps -qf name=mysql_mysql 2>/dev/null | head -n1 || docker ps --format "{{.ID}} {{.Names}}" 2>/dev/null | grep -v "mysql84" | grep -E "mysql_mysql|mysql\.1" | awk "{print \$1}" | head -n1' 2>/dev/null || true)
+                        if [ -n "$mc" ]; then
+                            dest_my_pwd=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" 'mc=$(docker ps --filter "label=com.docker.swarm.service.name=mysql_mysql" -q 2>/dev/null | head -n1 || docker ps -qf name=mysql_mysql 2>/dev/null | head -n1 || docker ps --format "{{.ID}} {{.Names}}" 2>/dev/null | grep -v "mysql84" | grep -E "mysql_mysql|mysql\.1" | awk "{print \$1}" | head -n1); docker inspect "$mc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep "MYSQL_ROOT_PASSWORD=" /root/mysql.yaml 2>/dev/null | head -n1 | sed "s/.*MYSQL_ROOT_PASSWORD=//" | tr -d " \"\r" || echo ""')
+                            [ -n "$dest_my_pwd" ] && break
+                        fi
+                    fi
+                    sleep 2
+                    wait_mc=$((wait_mc + 1))
+                done
+
+                if [ -z "$mc" ] || [ -z "$dest_my_pwd" ]; then
+                    echo "ERRO CRÍTICO: Container mysql (8.0) ou senha não identificada no destino após aguardar. Abortando migração." >> "$TRANSFER_LOG"
+                    echo "ERROR_ABORT" > "$stats_file"
+                    stop_fleet_heartbeat
+                    return 1
+                fi
+
+                echo "Restaurando banco MySQL 8.0 '$my_dbname' no destino..." >> "$TRANSFER_LOG"
+                if [ "$chosen_dest_id" = "local" ]; then
+                    printf 'CREATE DATABASE IF NOT EXISTS `%s`;\n' "$my_dbname" | docker exec -i -e MYSQL_PWD="$dest_my_pwd" "$mc" mysql -u root >> "$TRANSFER_LOG" 2>&1 || true
+                    gunzip -c "$app_workdir/db_logical_dump.sql.gz" | docker exec -i -e MYSQL_PWD="$dest_my_pwd" "$mc" mysql -u root "$my_dbname" >> "$TRANSFER_LOG" 2>&1 || true
+                else
+                    printf 'CREATE DATABASE IF NOT EXISTS `%s`;\n' "$my_dbname" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps --filter 'label=com.docker.swarm.service.name=mysql_mysql' -q 2>/dev/null | head -n1 || docker ps -qf name=mysql_mysql 2>/dev/null | head -n1 || docker ps --format '{{.ID}} {{.Names}}' 2>/dev/null | grep -v 'mysql84' | grep -E 'mysql_mysql|mysql\.1' | awk '{print \$1}' | head -n1); docker exec -i -e MYSQL_PWD='$dest_my_pwd' \"\$mc\" mysql -u root" >> "$TRANSFER_LOG" 2>&1 || true
+                    gunzip -c "$app_workdir/db_logical_dump.sql.gz" | ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps --filter 'label=com.docker.swarm.service.name=mysql_mysql' -q 2>/dev/null | head -n1 || docker ps -qf name=mysql_mysql 2>/dev/null | head -n1 || docker ps --format '{{.ID}} {{.Names}}' 2>/dev/null | grep -v 'mysql84' | grep -E 'mysql_mysql|mysql\.1' | awk '{print \$1}' | head -n1); docker exec -i -e MYSQL_PWD='$dest_my_pwd' \"\$mc\" mysql -u root '$my_dbname'" >> "$TRANSFER_LOG" 2>&1 || true
+                fi
+
+                # Verificação de integridade pós-restauração
+                local check_db=""
+                if [ "$chosen_dest_id" = "local" ]; then
+                    check_db=$(docker exec -i -e MYSQL_PWD="$dest_my_pwd" "$mc" mysql -u root -s -N -e "SHOW DATABASES LIKE '$my_dbname';" 2>/dev/null | tr -d '\r\n ' || true)
+                else
+                    check_db=$(ssh -n -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "mc=\$(docker ps --filter 'label=com.docker.swarm.service.name=mysql_mysql' -q 2>/dev/null | head -n1 || docker ps -qf name=mysql_mysql 2>/dev/null | head -n1 || docker ps --format '{{.ID}} {{.Names}}' 2>/dev/null | grep -v 'mysql84' | grep -E 'mysql_mysql|mysql\.1' | awk '{print \$1}' | head -n1); docker exec -i -e MYSQL_PWD='$dest_my_pwd' \"\$mc\" mysql -u root -s -N -e \"SHOW DATABASES LIKE '$my_dbname';\"" 2>/dev/null | tr -d '\r\n ' || true)
+                fi
+                if [ "$check_db" != "$my_dbname" ]; then
+                    echo "ERRO CRÍTICO: Verificação pós-restore falhou! Banco de dados MySQL 8.0 '$my_dbname' não foi encontrado no destino. Abortando migração." >> "$TRANSFER_LOG"
+                    echo "ERROR_ABORT" > "$stats_file"
+                    stop_fleet_heartbeat
+                    return 1
+                else
+                    echo "Banco de dados MySQL 8.0 '$my_dbname' verificado com sucesso no destino." >> "$TRANSFER_LOG"
+                fi
+
+                # Reconciliação dinâmica de senhas na stack e volumes
+                if [ -n "$dest_my_pwd" ]; then
+                    sed -i -E "s/(WORDPRESS_DB_PASSWORD|DB_PASSWORD|MYSQL_PASSWORD|MAUTIC_DB_PASSWORD|HUMHUB_DB_PASSWORD|BOOKSTACK_DB_PASSWORD|DB_PASS)=[^[:space:]]+/\1=$dest_my_pwd/g" "$app_workdir/stack.yaml"
+
+                    # Se for WordPress, atualizar também wp-config.php dentro do volume de arquivos
+                    local wp_vol="${cur_app}"
+                    if [ "$chosen_dest_id" = "local" ]; then
+                        docker run --rm -v "${wp_vol}:/var/www/html" alpine sed -i -E "s/define\(\s*['\"]DB_PASSWORD['\"]\s*,\s*['\"][^'\"]*['\"]\s*\);/define( 'DB_PASSWORD', '$dest_my_pwd' );/g" /var/www/html/wp-config.php 2>/dev/null || true
+                    else
+                        ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@$dest_ssh_host" "docker run --rm -v '${wp_vol}:/var/www/html' alpine sed -i -E \"s/define\(\s*['\\\"]DB_PASSWORD['\\\"]\s*,\s*['\\\"][^'\\\"]*['\\\"]\s*\);/define( 'DB_PASSWORD', '$dest_my_pwd' );/g\" /var/www/html/wp-config.php" 2>/dev/null || true
+                    fi
+
+                    # Se for Mautic 4/5/6, atualizar local.php no volume config
                     local cfg_vol="${cur_app}-config"
                     if [ "$chosen_dest_id" = "local" ]; then
                         docker run --rm -v "${cfg_vol}:/voldata" alpine sh -c "sed -i \"s/'db_password' => .*/'db_password' => '$dest_my_pwd',/\" /voldata/local.php 2>/dev/null || true" 2>> "$TRANSFER_LOG" || true

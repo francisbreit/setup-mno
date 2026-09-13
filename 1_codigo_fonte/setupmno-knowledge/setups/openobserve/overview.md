@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "OpenObserve no Setup MNO",
   "setupId": "openobserve",
-  "setupVersion": "7.46.0",
+  "setupVersion": "7.47.0",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",
