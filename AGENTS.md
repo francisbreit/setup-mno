@@ -304,16 +304,16 @@ O **Código da falha: 41** ("O manifesto runtime do Control Center é inválido 
 - **Garantia estrutural no empacotador:**
   O script `./2_empacotador/gerar_distribuicao.sh` agora executa AUTOMATICAMENTE `bash 1_codigo_fonte/setupmno-control/generate-installers.sh` antes de gerar os arquivos `.zip` e compilar os binários SHC. Se qualquer validação falhar, o empacotamento é bloqueado na raiz.
 
-- **Versão Estável de Referência Fixada:** **v7.47.4** (homologada em 14/09/2026).
-- **Versão Vigente Implementada:** **v7.48.0** (Fleet Clone Universal - Backups e Restaurações Portáteis de Combos Completos, Volumes Persistentes e Suporte NoSQL).
+- **Versão Estável de Referência Fixada:** **v7.48.1** (homologada em 14/09/2026).
+- **Versão Vigente Implementada:** **v7.48.1** (Otimização de CPU, Healthcheck e Convergência do Control Center no Debian 13 e Servidores ARM64).
 
 ### Versão estável vigente
-- A versão estável homologada vigente de referência do Setup MNO é **v7.47.4** (161 Setups, 144 ARM, 897 Evals, Control Center v4.44.3, MNO Fleet Hub com Fleet Clone universal, isolamento de MinIO/MySQL/PostgreSQL, comutação de rotas Cloudflare e blindagem de argumentos SSH via Base64).
-- A versão estável homologada anterior de referência é a **v7.45.0** (homologada em 07/09/2026).
-- Tag Git da estável de referência: `v7.47.4`.
-- Commit de implementação homologado da estável de referência: `62f65d13b` (`fix(release): v7.47.4 - Comutacao robusta de rotas Cloudflare em migracoes multiplas e blindagem de argumentos SSH`).
-- A promoção de v7.47.4 foi declarada explicitamente por Francis MNO em 14/09/2026 após validação no WSL2 x86-64 e em VPS Hetzner Debian 13 (ida e volta de migração de combos Typebot + MinIO, comutação atômica de rotas Cloudflare, idempotência de restore Postgres e endpoints HTTP 200 OK).
-- Versão ativa empacotada: **v7.48.0** (Fleet Clone Universal - Backups e Restaurações Portáteis de Combos Completos, Volumes Persistentes e Suporte NoSQL).
+- A versão estável homologada vigente de referência do Setup MNO é **v7.48.1** (161 Setups, 144 ARM, 897 Evals determinísticos, Control Center v4.44.3 com inicialização otimizada para Debian 13/Ubuntu ARM64, MNO Fleet Hub com Fleet Clone Universal, backups e restaurações portáteis completas de combos, volumes persistentes e suporte NoSQL).
+- A versão estável homologada anterior de referência é a **v7.47.4** (homologada em 14/09/2026).
+- Tag Git da estável de referência: `v7.48.1`.
+- Commit de implementação homologado da estável de referência: `c8b959084` (`fix(control): v7.48.1 - Resolucao de timeout e convergencia do Control Center no Debian 13 ARM por adequacao de CPU e healthcheck`).
+- A promoção de v7.48.1 foi declarada explicitamente por Francis MNO em 14/09/2026 após formatação limpa e validação em dois novos servidores Hetzner ARM64 rodando Ubuntu 26.04 e Debian 13 (Trixie) no Kernel Linux 6.12, com convergência sem falhas e conclusão em 100% da instalação do Control Center.
+- Versão ativa empacotada: **v7.48.1**.
 - SRE-3, SRE-4, SRE-5, SRE-6, Resiliência Operacional, Onboarding, Assistente MNO, Blueprints e MNO Fleet Hub continuam **BETA**.
 - Este registro somente deve ser alterado quando o usuário declarar explicitamente uma nova versão como estável após a homologação.
 
