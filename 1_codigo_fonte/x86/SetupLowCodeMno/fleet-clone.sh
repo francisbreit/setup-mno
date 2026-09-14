@@ -302,6 +302,14 @@ detect_database_engine() {
         return 0
     fi
 
+    if grep -qE "MONGO_URL|MONGODB_URL|mongodb://|mongo:27017" "$yaml_file"; then
+        local mg_db
+        mg_db=$(grep -E "MONGO_URL=|MONGODB_URL=" "$yaml_file" 2>/dev/null | head -n1 | sed -E 's/.*\/(.*)\?.*/\1/' | sed -E 's/.*\/([a-zA-Z0-9_-]+)$/\1/' | tr -d ' "\r' || true)
+        [ -n "$mg_db" ] || mg_db="$app"
+        printf "mongodb:%s\n" "$mg_db"
+        return 0
+    fi
+
     printf "none:\n"
 }
 
@@ -1473,7 +1481,87 @@ action_inspect_nodes() {
     whiptail --title "RAIO-X ESTRUTURAL DA FROTA MNO" --msgbox "$report" 20 78
 }
 
-# Criar backup portátil universal
+# Notificação executiva via MNO Sentinel (Telegram e Webhook n8n)
+dispatch_sentinel_notification_bash() {
+    local op_title="$1"
+    local app_name="$2"
+    local origin_desc="$3"
+    local dest_desc="$4"
+    local vols_count="${5:-0}"
+    local dns_status="${6:-Não alterado}"
+    local duration_sec="${7:-30}"
+
+    local config_file=""
+    if [ -f "/audit/sentinel_config.json" ]; then
+        config_file="/audit/sentinel_config.json"
+    elif [ -f "/root/SetupLowCodeMno/.control/sentinel_config.json" ]; then
+        config_file="/root/SetupLowCodeMno/.control/sentinel_config.json"
+    elif [ -f "/root/.control/sentinel.json" ]; then
+        config_file="/root/.control/sentinel.json"
+    fi
+
+    local tg_token="" tg_chat="" wh_url=""
+    if [ -n "$config_file" ] && command -v jq >/dev/null 2>&1; then
+        tg_token=$(jq -r '.telegramBotToken // empty' "$config_file" 2>/dev/null || true)
+        tg_chat=$(jq -r '.telegramChatID // empty' "$config_file" 2>/dev/null || true)
+        wh_url=$(jq -r '.webhookURL // empty' "$config_file" 2>/dev/null || true)
+    fi
+
+    [ -n "$tg_token" ] || tg_token=$(grep -E '^TELEGRAM_BOT_TOKEN=' /root/.env 2>/dev/null | cut -d= -f2- | tr -d ' "\r' || true)
+    [ -n "$tg_chat" ] || tg_chat=$(grep -E '^TELEGRAM_CHAT_ID=' /root/.env 2>/dev/null | cut -d= -f2- | tr -d ' "\r' || true)
+    [ -n "$wh_url" ] || wh_url=$(cat /root/.sentinel_webhook 2>/dev/null | tr -d ' \r\n' || true)
+
+    local tg_msg="🚀 *[MNO FLEET HUB] ${op_title} Concluída com Sucesso!*\n\n"
+    tg_msg+="📦 *Aplicação / Combo:* \`${app_name}\`\n"
+    tg_msg+="🛫 *Origem:* ${origin_desc}\n"
+    tg_msg+="🛬 *Destino:* ${dest_desc}\n\n"
+    tg_msg+="🌐 *DNS & Ingress:* ${dns_status}\n"
+    tg_msg+="💾 *Volumes Processados:* ${vols_count} volume(s)\n"
+    tg_msg+="⏱️ *Duração Estimada:* ${duration_sec}s\n\n"
+    tg_msg+="✅ _Ambiente auditado e pronto para uso pelo Setup MNO._"
+
+    # Envio Telegram
+    if [ -n "$tg_token" ] && [ -n "$tg_chat" ]; then
+        echo "[SENTINEL] Enviando alerta para o Telegram..." >> "$TRANSFER_LOG" 2>/dev/null || true
+        curl -s -m 5 -X POST "https://api.telegram.org/bot${tg_token}/sendMessage" \
+            -d chat_id="$tg_chat" \
+            -d parse_mode="Markdown" \
+            -d text="$tg_msg" >> "$TRANSFER_LOG" 2>&1 || true
+    fi
+
+    # Envio Webhook n8n
+    if [ -n "$wh_url" ]; then
+        echo "[SENTINEL] Disparando payload JSON para o Webhook ($wh_url)..." >> "$TRANSFER_LOG" 2>/dev/null || true
+        local payload
+        payload=$(jq -n \
+            --arg event "fleet_operation_completed" \
+            --arg op "$op_title" \
+            --arg app "$app_name" \
+            --arg origin "$origin_desc" \
+            --arg dest "$dest_desc" \
+            --arg dns "$dns_status" \
+            --argjson vols "$vols_count" \
+            --argjson duration "$duration_sec" \
+            --arg report "$tg_msg" \
+            --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{
+                event: $event,
+                operation: $op,
+                appName: $app,
+                origin: $origin,
+                destination: $dest,
+                dnsStatus: $dns,
+                volumesCount: $vols,
+                durationSeconds: $duration,
+                formattedReport: $report,
+                timestamp: $now,
+                status: "healthy"
+            }' 2>/dev/null || echo "{}")
+        curl -s -m 5 -X POST -H "Content-Type: application/json" -d "$payload" "$wh_url" >> "$TRANSFER_LOG" 2>&1 || true
+    fi
+}
+
+# Criar backup portátil universal (com suporte a combos completos, volumes e NoSQL)
 action_backup_app() {
     local chosen_app="${1:-}"
     local is_cli=false
@@ -1507,73 +1595,694 @@ action_backup_app() {
             "${stack_menu[@]}" 3>&1 1>&2 2>&3) || return 0
     fi
 
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    trap 'rm -rf "$tmpdir"' RETURN
+
+    # 1. Detecção Inteligente de Contexto de Combo
+    local initial_yaml_tmp="$tmpdir/initial_detect.yaml"
+    resolve_live_stack_yaml "local" "" "$chosen_app" "$initial_yaml_tmp" || true
+
+    local combo_info
+    combo_info=$(detect_app_combo_context "local" "" "$chosen_app" "$initial_yaml_tmp")
+    rm -f "$initial_yaml_tmp"
+
+    local is_combo="false" combo_name="" linked_stacks=""
+    IFS='|' read -r is_combo combo_name linked_stacks <<< "$combo_info"
+
+    local apps_to_backup=("$chosen_app")
+    if [ "$is_combo" = "true" ] && [ -n "$linked_stacks" ] && [ "$linked_stacks" != "none" ]; then
+        if [ "$is_cli" = "false" ]; then
+            local combo_choice
+            combo_choice=$(whiptail --title "🤖 DETECÇÃO INTELIGENTE DE COMBO" --menu \
+                "A aplicação '$chosen_app' faz parte de um Combo Integrado:\n$combo_name\n\nFerramentas conectadas detectadas neste servidor:\n• $(echo "$linked_stacks" | sed 's/ / \n• /g')\n\nComo você deseja gerar o Backup Portátil (.tar.gz)?" 20 78 2 \
+                "1" "BACKUP DO COMBO COMPLETO (Gera pacote único com todas as ferramentas)" \
+                "2" "BACKUP APENAS DE '$chosen_app' (somente esta aplicação isolada)" \
+                3>&1 1>&2 2>&3) || return 0
+
+            if [ "$combo_choice" = "1" ]; then
+                for ls in $linked_stacks; do
+                    [ -n "$ls" ] || continue
+                    if [[ ! " ${apps_to_backup[*]} " =~ " ${ls} " ]]; then
+                        apps_to_backup+=("$ls")
+                    fi
+                done
+            fi
+        else
+            for ls in $linked_stacks; do
+                [ -n "$ls" ] || continue
+                if [[ ! " ${apps_to_backup[*]} " =~ " ${ls} " ]]; then
+                    apps_to_backup+=("$ls")
+                fi
+            done
+        fi
+    fi
+
     local timestamp
     timestamp=$(date -u +%Y%m%d_%H%M%SZ)
     local local_arch
     local_arch=$(get_local_arch)
     mkdir -p "$BACKUP_BASE_DIR"
 
-    local backup_file="$BACKUP_BASE_DIR/${chosen_app}_backup_${local_arch}_${timestamp}.tar.gz"
+    local backup_prefix="$chosen_app"
+    if [ "$is_combo" = "true" ] && [ ${#apps_to_backup[@]} -gt 1 ]; then
+        backup_prefix="combo_${chosen_app}"
+    fi
+    local backup_file="$BACKUP_BASE_DIR/${backup_prefix}_backup_${local_arch}_${timestamp}.tar.gz"
+
+    mkdir -p "$tmpdir/stacks" "$tmpdir/volumes" "$tmpdir/dumps"
+
+    local total_apps=${#apps_to_backup[@]}
+    local total_vols_backed_up=0
+    local manifest_stacks=()
+
+    local backup_log="$tmpdir/backup_progress.log"
+    : > "$backup_log"
+
+    run_backup_subpipeline() {
+        local a_idx=0
+        for cur_app in "${apps_to_backup[@]}"; do
+            a_idx=$((a_idx + 1))
+            local pct_base=$(( (a_idx - 1) * 100 / total_apps ))
+            local pct_step=$(( 100 / total_apps ))
+
+            echo -e "XXX\n$((pct_base + (pct_step * 10 / 100)))\n[$a_idx/$total_apps] Obtendo manifesto da stack '$cur_app'...\nXXX"
+            local stack_yaml="$tmpdir/stacks/${cur_app}.yaml"
+            resolve_live_stack_yaml "local" "" "$cur_app" "$stack_yaml" || true
+            [ -s "$stack_yaml" ] || echo "# Stack: $cur_app" > "$stack_yaml"
+
+            if [ "$cur_app" = "$chosen_app" ]; then
+                cp -f "$stack_yaml" "$tmpdir/stack.yaml"
+            fi
+
+            local db_info
+            db_info=$(detect_database_engine "$stack_yaml" "$cur_app")
+            local db_dump_file=""
+
+            if [[ "$db_info" == postgres:* ]]; then
+                local pg_dbname="${db_info#postgres:}"
+                echo -e "XXX\n$((pct_base + (pct_step * 30 / 100)))\n[$a_idx/$total_apps] Extraindo dump PostgreSQL ($pg_dbname)...\nXXX"
+                local pg_c
+                pg_c=$(docker ps -qf name=postgres 2>/dev/null | head -n1 || true)
+                if [ -n "$pg_c" ]; then
+                    docker exec -i "$pg_c" pg_dump -U postgres -d "$pg_dbname" --clean --if-exists 2>> "$backup_log" | gzip > "$tmpdir/dumps/${cur_app}_postgres.sql.gz" || true
+                    if [ -s "$tmpdir/dumps/${cur_app}_postgres.sql.gz" ]; then
+                        db_dump_file="dumps/${cur_app}_postgres.sql.gz"
+                        if [ "$cur_app" = "$chosen_app" ]; then
+                            cp -f "$tmpdir/dumps/${cur_app}_postgres.sql.gz" "$tmpdir/db_logical_dump.sql.gz"
+                        fi
+                    fi
+                fi
+            elif [[ "$db_info" == mysql84:* ]]; then
+                local my_dbname="${db_info#mysql84:}"
+                echo -e "XXX\n$((pct_base + (pct_step * 30 / 100)))\n[$a_idx/$total_apps] Extraindo dump MySQL 8.4 ($my_dbname)...\nXXX"
+                local my_c my_pwd
+                my_c=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
+                if [ -n "$my_c" ]; then
+                    my_pwd=$(docker inspect "$my_c" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null || echo "")
+                    docker exec -i "$my_c" mysqldump -u root -p"$my_pwd" --databases "$my_dbname" --add-drop-table 2>> "$backup_log" | gzip > "$tmpdir/dumps/${cur_app}_mysql84.sql.gz" || true
+                    if [ -s "$tmpdir/dumps/${cur_app}_mysql84.sql.gz" ]; then
+                        db_dump_file="dumps/${cur_app}_mysql84.sql.gz"
+                        if [ "$cur_app" = "$chosen_app" ]; then
+                            cp -f "$tmpdir/dumps/${cur_app}_mysql84.sql.gz" "$tmpdir/db_logical_dump.sql.gz"
+                        fi
+                    fi
+                fi
+            elif [[ "$db_info" == mysql:* ]]; then
+                local my_dbname="${db_info#mysql:}"
+                echo -e "XXX\n$((pct_base + (pct_step * 30 / 100)))\n[$a_idx/$total_apps] Extraindo dump MySQL 8.0 ($my_dbname)...\nXXX"
+                local my_c my_pwd
+                my_c=$(docker ps --filter "label=com.docker.swarm.service.name=mysql_mysql" -q 2>/dev/null | head -n1 || true)
+                [ -n "$my_c" ] || my_c=$(docker ps -qf name=mysql_mysql 2>/dev/null | head -n1 || true)
+                [ -n "$my_c" ] || my_c=$(docker ps --format '{{.ID}} {{.Names}}' 2>/dev/null | grep -v 'mysql84' | grep -E 'mysql_mysql|mysql\.1' | awk '{print $1}' | head -n1 || true)
+                if [ -n "$my_c" ]; then
+                    my_pwd=$(docker inspect "$my_c" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml 2>/dev/null || echo "")
+                    docker exec -i -e MYSQL_PWD="$my_pwd" "$my_c" mysqldump -u root --databases "$my_dbname" --add-drop-table 2>> "$backup_log" | gzip > "$tmpdir/dumps/${cur_app}_mysql.sql.gz" || true
+                    if [ -s "$tmpdir/dumps/${cur_app}_mysql.sql.gz" ]; then
+                        db_dump_file="dumps/${cur_app}_mysql.sql.gz"
+                        if [ "$cur_app" = "$chosen_app" ]; then
+                            cp -f "$tmpdir/dumps/${cur_app}_mysql.sql.gz" "$tmpdir/db_logical_dump.sql.gz"
+                        fi
+                    fi
+                fi
+            elif [[ "$db_info" == mongodb:* ]]; then
+                local mg_dbname="${db_info#mongodb:}"
+                echo -e "XXX\n$((pct_base + (pct_step * 30 / 100)))\n[$a_idx/$total_apps] Extraindo dump MongoDB ($mg_dbname)...\nXXX"
+                local mg_c
+                mg_c=$(docker ps --filter "label=com.docker.swarm.service.name=${cur_app}_mongo" -q 2>/dev/null | head -n1 || docker ps -qf name=mongo 2>/dev/null | head -n1 || true)
+                if [ -n "$mg_c" ]; then
+                    docker exec -i "$mg_c" mongodump --archive --gzip 2>> "$backup_log" > "$tmpdir/dumps/${cur_app}_mongo.archive.gz" || true
+                    if [ -s "$tmpdir/dumps/${cur_app}_mongo.archive.gz" ]; then
+                        db_dump_file="dumps/${cur_app}_mongo.archive.gz"
+                    fi
+                fi
+            fi
+
+            # Extração de Volumes Docker Persistentes
+            echo -e "XXX\n$((pct_base + (pct_step * 60 / 100)))\n[$a_idx/$total_apps] Compactando volumes persistentes ($cur_app)...\nXXX"
+            local cur_vols=()
+            while IFS= read -r v; do
+                [ -n "$v" ] || continue
+                cur_vols+=("$v")
+                echo "Compactando volume $v de $cur_app..." >> "$backup_log"
+                docker run --rm -v "${v}:/voldata:ro" alpine tar -czf - -C /voldata . > "$tmpdir/volumes/vol_${v}.tar.gz" 2>> "$backup_log" || true
+                total_vols_backed_up=$((total_vols_backed_up + 1))
+            done < <(get_application_volumes "$stack_yaml" "$cur_app" "local" "")
+
+            # Extração de domínios e portas mapeadas
+            local cur_domains=()
+            while IFS= read -r d; do
+                [ -n "$d" ] || continue
+                local target_sp
+                target_sp=$(resolve_host_service_port "$stack_yaml" "$d" "$cur_app")
+                local svc_n="${target_sp%%:*}"
+                local svc_p="${target_sp##*:}"
+                cur_domains+=("${d}|${svc_n}|${svc_p}")
+            done < <(grep -oP 'Host\(`\K[^`]+' "$stack_yaml" 2>/dev/null | sort -u || true)
+
+            local s3_info
+            s3_info=$(detect_s3_storage_engine "$stack_yaml" "$cur_app")
+            local mq_info
+            mq_info=$(detect_rabbitmq_engine "$stack_yaml" "$cur_app")
+
+            local vols_json
+            vols_json=$(printf '%s\n' "${cur_vols[@]}" | jq -R . | jq -s . 2>/dev/null || echo "[]")
+            local domains_json
+            domains_json=$(printf '%s\n' "${cur_domains[@]}" | jq -R . | jq -s . 2>/dev/null || echo "[]")
+
+            manifest_stacks+=("$(jq -n \
+                --arg name "$cur_app" \
+                --arg yaml "stacks/${cur_app}.yaml" \
+                --arg db "$db_info" \
+                --arg dump "$db_dump_file" \
+                --arg s3 "$s3_info" \
+                --arg mq "$mq_info" \
+                --argjson vols "$vols_json" \
+                --argjson doms "$domains_json" \
+                '{
+                    name: $name,
+                    yamlFile: $yaml,
+                    dbEngine: $db,
+                    dbDumpFile: $dump,
+                    s3Engine: $s3,
+                    mqEngine: $mq,
+                    volumes: $vols,
+                    domains: $doms
+                }')")
+        done
+
+        local stacks_arr_json
+        stacks_arr_json=$(printf '%s\n' "${manifest_stacks[@]}" | jq -s . 2>/dev/null || echo "[]")
+
+        local btype="single_app"
+        [ "$is_combo" = "true" ] && [ ${#apps_to_backup[@]} -gt 1 ] && btype="combo_bundle"
+
+        cat > "$tmpdir/manifest.json" << EOF
+{
+  "schemaVersion": 2,
+  "backupType": "$btype",
+  "appName": "$chosen_app",
+  "comboName": "$combo_name",
+  "architecture": "$local_arch",
+  "stacksCount": ${#apps_to_backup[@]},
+  "volumesCount": $total_vols_backed_up,
+  "createdAt": "$(date -u -Iseconds)",
+  "stacks": $stacks_arr_json
+}
+EOF
+
+        echo -e "XXX\n90\nEmpacotando arquivo tar.gz universal...\nXXX"
+        tar -czf "$backup_file" -C "$tmpdir" .
+        echo -e "XXX\n100\nBackup concluído com sucesso!\nXXX"
+        sleep 1
+    }
+
+    if [ "$is_cli" = "true" ]; then
+        run_backup_subpipeline
+    else
+        run_backup_subpipeline | whiptail --title "CRIANDO BACKUP PORTÁTIL UNIVERSAL" --gauge "Iniciando snapshot consistente de volumes e bancos..." 10 78 0
+    fi
+
+    local sha size
+    sha=$(sha256sum "$backup_file" | awk '{print $1}')
+    size=$(du -h "$backup_file" | awk '{print $1}')
+
+    local notify_opt=false
+    if [ "$is_cli" = "false" ]; then
+        if whiptail --title "NOTIFICAÇÃO DO SENTINEL" --yesno \
+            "Backup portátil gerado com sucesso!\n\nDeseja enviar uma notificação via Telegram e Webhook (n8n) informando a criação deste backup?" 11 70; then
+            notify_opt=true
+        fi
+    fi
+
+    if [ "$notify_opt" = "true" ]; then
+        dispatch_sentinel_notification_bash "Backup Portátil" "$chosen_app" "Torre Master ($local_arch)" "$backup_file" "$total_vols_backed_up" "Preservado (sem alteração)" "25"
+    fi
+
+    local summary="✅ O Backup Portátil foi concluído com sucesso!\n\n"
+    summary+="• Arquivo: $backup_file\n"
+    summary+="• Tamanho: $size\n"
+    summary+="• SHA-256: ${sha:0:16}...\n"
+    summary+="• Arquitetura: $local_arch\n"
+    summary+="• Stacks Inclusas (${#apps_to_backup[@]}): ${apps_to_backup[*]}\n"
+    summary+="• Volumes Docker Compactados: $total_vols_backed_up\n"
+    if [ "$is_combo" = "true" ] && [ ${#apps_to_backup[@]} -gt 1 ]; then
+        summary+="• Tipo: Combo Integrado ($combo_name)\n"
+    fi
+    summary+="\nEste arquivo é universal e autossuficiente: pode ser transportado para qualquer outro servidor e restaurado via Opção 5 do Fleet Hub!"
+
+    if [ "$is_cli" = "true" ]; then
+        echo -e "$summary"
+    else
+        whiptail --title "BACKUP GERADO COM SUCESSO" --msgbox "$summary" 19 76
+    fi
+}
+
+# Restaurar backup portátil universal em um servidor (Local ou Remoto)
+action_restore_backup() {
+    local backup_file="${1:-}"
+    local dest_target="${2:-}"
+
+    local is_cli=false
+    if [ -n "$backup_file" ] || [ -z "${TERM:-}" ]; then
+        is_cli=true
+    fi
+
+    # 1. Seleção do arquivo de backup
+    if [ -z "$backup_file" ]; then
+        local backups_menu=()
+        if [ -d "$BACKUP_BASE_DIR" ]; then
+            while IFS= read -r bf; do
+                [ -f "$bf" ] || continue
+                local bname bsize bdate
+                bname=$(basename "$bf")
+                bsize=$(du -h "$bf" | awk '{print $1}')
+                bdate=$(date -r "$bf" "+%d/%m/%y %H:%M" 2>/dev/null || date "+%d/%m/%y %H:%M")
+                backups_menu+=("$bname" "$bsize ($bdate)")
+            done < <(find "$BACKUP_BASE_DIR" -maxdepth 1 -name "*.tar.gz" 2>/dev/null | sort -r)
+        fi
+
+        if [ ${#backups_menu[@]} -gt 0 ]; then
+            backups_menu+=("OUTRO" "Digitar o caminho de outro arquivo .tar.gz")
+            local chosen_bname
+            chosen_bname=$(whiptail --title "RESTAURAÇÃO: SELECIONE O ARQUIVO DE BACKUP" --menu \
+                "Escolha o arquivo de Backup Portátil para restaurar neste ou em outro servidor:" 18 78 6 \
+                "${backups_menu[@]}" 3>&1 1>&2 2>&3) || return 0
+
+            if [ "$chosen_bname" = "OUTRO" ]; then
+                backup_file=$(whiptail --title "CAMINHO DO BACKUP" --inputbox \
+                    "Informe o caminho absoluto do arquivo .tar.gz:" 10 70 "/root/backup_fleet/" 3>&1 1>&2 2>&3) || return 0
+            else
+                backup_file="$BACKUP_BASE_DIR/$chosen_bname"
+            fi
+        else
+            backup_file=$(whiptail --title "CAMINHO DO BACKUP" --inputbox \
+                "Nenhum backup encontrado em $BACKUP_BASE_DIR.\nInforme o caminho do arquivo .tar.gz:" 11 70 "/root/backup_fleet/" 3>&1 1>&2 2>&3) || return 0
+        fi
+    fi
+
+    if [ ! -f "$backup_file" ]; then
+        if [ "$is_cli" = "true" ]; then
+            echo "Erro: Arquivo de backup '$backup_file' não encontrado."
+        else
+            whiptail --title "ERRO: ARQUIVO NÃO ENCONTRADO" --msgbox "O arquivo '$backup_file' não existe ou não pôde ser lido." 10 70
+        fi
+        return 1
+    fi
 
     local tmpdir
     tmpdir=$(mktemp -d)
     trap 'rm -rf "$tmpdir"' RETURN
 
-    resolve_live_stack_yaml "local" "" "$chosen_app" "$tmpdir/stack.yaml" || true
-    [ -s "$tmpdir/stack.yaml" ] || echo "# Stack: $chosen_app" > "$tmpdir/stack.yaml"
+    whiptail --infobox "🔍 Inspecionando manifesto e integridade do backup...\nAguarde..." 8 70
 
-    local db_info
-    db_info=$(detect_database_engine "$tmpdir/stack.yaml" "$chosen_app")
+    tar -xzf "$backup_file" -C "$tmpdir" manifest.json 2>/dev/null || true
+    if [ ! -f "$tmpdir/manifest.json" ]; then
+        tar -xzf "$backup_file" -C "$tmpdir" stack.yaml 2>/dev/null || true
+        if [ ! -f "$tmpdir/stack.yaml" ]; then
+            whiptail --title "ARQUIVO INVÁLIDO" --msgbox "O arquivo '$backup_file' não é um Backup Portátil válido do Setup MNO (manifest.json e stack.yaml ausentes)." 11 74
+            return 1
+        fi
+        cat > "$tmpdir/manifest.json" << EOF
+{
+  "schemaVersion": 1,
+  "backupType": "single_app",
+  "appName": "app_restaurada",
+  "architecture": "amd64",
+  "createdAt": "$(date -u -Iseconds)"
+}
+EOF
+    fi
 
-    if [[ "$db_info" == postgres:* ]]; then
-        local db_name="${db_info#postgres:}"
-        local pg_c
-        pg_c=$(docker ps -qf name=postgres 2>/dev/null | head -n1 || true)
-        if [ -n "$pg_c" ]; then
-            docker exec -i "$pg_c" pg_dump -U postgres -d "$db_name" --clean --if-exists 2>/dev/null | gzip > "$tmpdir/db_logical_dump.sql.gz" || true
-        fi
-    elif [[ "$db_info" == mysql84:* ]]; then
-        local db_name="${db_info#mysql84:}"
-        local my_c my_pwd
-        my_c=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
-        if [ -n "$my_c" ]; then
-            my_pwd=$(docker inspect "$my_c" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null || echo "")
-            docker exec -i "$my_c" mysqldump -u root -p"$my_pwd" --databases "$db_name" --add-drop-table 2>/dev/null | gzip > "$tmpdir/db_logical_dump.sql.gz" || true
-        fi
-    elif [[ "$db_info" == mysql:* ]]; then
-        local db_name="${db_info#mysql:}"
-        local my_c my_pwd
-        my_c=$(docker ps --filter "label=com.docker.swarm.service.name=mysql_mysql" -q 2>/dev/null | head -n1 || true)
-        [ -n "$my_c" ] || my_c=$(docker ps -qf name=mysql_mysql 2>/dev/null | head -n1 || true)
-        [ -n "$my_c" ] || my_c=$(docker ps --format '{{.ID}} {{.Names}}' 2>/dev/null | grep -v 'mysql84' | grep -E 'mysql_mysql|mysql\.1' | awk '{print $1}' | head -n1 || true)
-        if [ -n "$my_c" ]; then
-            my_pwd=$(docker inspect "$my_c" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml 2>/dev/null || echo "")
-            docker exec -i -e MYSQL_PWD="$my_pwd" "$my_c" mysqldump -u root --databases "$db_name" --add-drop-table 2>/dev/null | gzip > "$tmpdir/db_logical_dump.sql.gz" || true
+    local schema_ver backup_type app_name combo_name backup_arch stacks_count
+    schema_ver=$(jq -r '.schemaVersion // 1' "$tmpdir/manifest.json" 2>/dev/null || echo "1")
+    backup_type=$(jq -r '.backupType // "single_app"' "$tmpdir/manifest.json" 2>/dev/null || echo "single_app")
+    app_name=$(jq -r '.appName // "app"' "$tmpdir/manifest.json" 2>/dev/null || echo "app")
+    combo_name=$(jq -r '.comboName // empty' "$tmpdir/manifest.json" 2>/dev/null || true)
+    backup_arch=$(jq -r '.architecture // "amd64"' "$tmpdir/manifest.json" 2>/dev/null || echo "amd64")
+
+    # 2. Selecionar o SERVIDOR DE DESTINO para a Restauração
+    sync_fleet_inventory
+    local local_arch
+    local_arch=$(get_local_arch)
+
+    local workers_tsv=""
+    if [ -f "$INVENTORY_FILE" ]; then
+        workers_tsv=$(jq -r '.nodes[]? | select(.role == "worker" or .mode == "worker") | select(.status != "deleted") | "\(.id)\t\(.name)\t\(.architecture // "amd64")\t\(.endpoint)\t\(.token)"' "$INVENTORY_FILE" 2>/dev/null || true)
+    fi
+
+    local chosen_dest_id="local"
+    local dest_name="Torre Master (Nó Local)"
+    local dest_arch="$local_arch"
+    local dest_ssh_host=""
+
+    if [ -n "$dest_target" ]; then
+        chosen_dest_id="$dest_target"
+    elif [ "$is_cli" = "false" ] && [ -n "$workers_tsv" ]; then
+        local dest_menu=()
+        dest_menu+=("local" "Torre Master (Nó Local) [$local_arch]")
+        while IFS=$'\t' read -r wid wname warch wendpoint wtoken; do
+            [ -n "$wid" ] || continue
+            dest_menu+=("$wid" "$wname (Worker Remoto) [$warch]")
+        done <<< "$workers_tsv"
+
+        chosen_dest_id=$(whiptail --title "RESTAURAÇÃO: SELECIONE O SERVIDOR DE DESTINO" --menu \
+            "Em qual servidor você deseja restaurar a aplicação '$app_name'?" 18 78 6 \
+            "${dest_menu[@]}" 3>&1 1>&2 2>&3) || return 0
+    fi
+
+    if [ "$chosen_dest_id" != "local" ]; then
+        dest_name=$(jq -r --arg id "$chosen_dest_id" '.nodes[]? | select(.id == $id) | .name' "$INVENTORY_FILE" 2>/dev/null)
+        dest_arch=$(jq -r --arg id "$chosen_dest_id" '.nodes[]? | select(.id == $id) | .architecture // "amd64"' "$INVENTORY_FILE" 2>/dev/null)
+        resolve_worker_ssh_host "$chosen_dest_id" "$dest_name" dest_ssh_host || return 0
+    fi
+
+    case "$backup_arch" in x86_64|amd64) backup_arch="amd64" ;; aarch64|arm64) backup_arch="arm64" ;; esac
+    case "$dest_arch" in x86_64|amd64) dest_arch="amd64" ;; aarch64|arm64) dest_arch="arm64" ;; esac
+
+    # Hardware Parity Advisory Gate
+    if [ "$backup_arch" != "$dest_arch" ]; then
+        if ! whiptail --title "⚠️ AVISO DE ARQUITETURA DE HARDWARE" --yesno \
+            "O backup foi gerado na arquitetura: $backup_arch\nO servidor de destino opera em: $dest_arch\n\nAplicações com imagens multi-arquitetura iniciarão normalmente, mas binários nativos específicos podem requerer ajustes.\n\nDeseja prosseguir com a restauração mesmo assim?" 15 76; then
+            return 0
         fi
     fi
 
-    cat > "$tmpdir/manifest.json" << EOF
-{
-  "schemaVersion": 1,
-  "appName": "$chosen_app",
-  "architecture": "$local_arch",
-  "database": "$db_info",
-  "createdAt": "$(date -u -Iseconds)",
-  "type": "portable_application_backup"
-}
-EOF
+    whiptail --infobox "📦 Descompactando arquivos de volumes, stacks e banco...\nAguarde..." 8 70
+    tar -xzf "$backup_file" -C "$tmpdir"
 
-    tar -czf "$backup_file" -C "$tmpdir" .
-    local sha
-    sha=$(sha256sum "$backup_file" | awk '{print $1}')
-    local size
-    size=$(du -h "$backup_file" | awk '{print $1}')
+    local stacks_to_restore=()
+    if [ "$schema_ver" -ge 2 ] && [ -d "$tmpdir/stacks" ]; then
+        while IFS= read -r sy; do
+            [ -f "$sy" ] || continue
+            local sname
+            sname=$(basename "$sy" .yaml)
+            stacks_to_restore+=("$sname")
+        done < <(find "$tmpdir/stacks" -maxdepth 1 -name "*.yaml" | sort)
+    fi
+
+    if [ ${#stacks_to_restore[@]} -eq 0 ]; then
+        stacks_to_restore+=("$app_name")
+        mkdir -p "$tmpdir/stacks"
+        [ -f "$tmpdir/stack.yaml" ] && cp -f "$tmpdir/stack.yaml" "$tmpdir/stacks/${app_name}.yaml"
+    fi
+
+    # Decisão de Combo na Restauração
+    if [ "$backup_type" = "combo_bundle" ] && [ ${#stacks_to_restore[@]} -gt 1 ]; then
+        local combo_restore_choice
+        combo_restore_choice=$(whiptail --title "🤖 RESTAURAÇÃO DE COMBO INTEGRADO" --menu \
+            "Este backup contém o Combo Completo:\n$combo_name\n\nFerramentas prontas para restaurar:\n• $(echo "${stacks_to_restore[*]}" | sed 's/ / \n• /g')\n\nComo deseja proceder na restauração para '$dest_name'?" 20 78 2 \
+            "1" "RESTAURAR COMBO COMPLETO (Recomendado — restaura todas as ferramentas)" \
+            "2" "SELECIONAR UMA FERRAMENTA INDIVIDUAL DO COMBO" \
+            3>&1 1>&2 2>&3) || return 0
+
+        if [ "$combo_restore_choice" = "2" ]; then
+            local sel_menu=()
+            for st in "${stacks_to_restore[@]}"; do
+                sel_menu+=("$st" "Ferramenta do combo")
+            done
+            local single_sel
+            single_sel=$(whiptail --title "SELECIONE A FERRAMENTA" --menu \
+                "Escolha qual ferramenta do combo você deseja restaurar isoladamente:" 18 70 6 \
+                "${sel_menu[@]}" 3>&1 1>&2 2>&3) || return 0
+            stacks_to_restore=("$single_sel")
+        fi
+    fi
+
+    # Ordenação topológica: dependências de infra (minio, rabbitmq, redis) antes das aplicações
+    local dep_stacks=()
+    local main_stacks=()
+    for st in "${stacks_to_restore[@]}"; do
+        if [[ "$st" == minio* ]] || [[ "$st" == rabbitmq* ]] || [[ "$st" == *redis* ]]; then
+            dep_stacks+=("$st")
+        else
+            main_stacks+=("$st")
+        fi
+    done
+    stacks_to_restore=("${dep_stacks[@]}" "${main_stacks[@]}")
+
+    # Decisão de DNS e Ingress
+    local configure_dns=false
+    local all_domains=()
+    for st in "${stacks_to_restore[@]}"; do
+        local st_yaml="$tmpdir/stacks/${st}.yaml"
+        [ -f "$st_yaml" ] || continue
+        while IFS= read -r d; do
+            [ -n "$d" ] || continue
+            all_domains+=("$d")
+        done < <(grep -oP 'Host\(`\K[^`]+' "$st_yaml" 2>/dev/null | sort -u || true)
+    done
+
+    if [ ${#all_domains[@]} -gt 0 ]; then
+        local dns_choice
+        dns_choice=$(whiptail --title "🌐 COMUTAÇÃO DE DNS E TÚNEL CLOUDFLARE" --menu \
+            "Domínios registrados neste backup:\n• $(echo "${all_domains[*]}" | sed 's/ / \n• /g')\n\nComo deseja tratar os acessos deste servidor que está recebendo a restauração?" 20 78 2 \
+            "1" "RECUPERAÇÃO DE DESASTRE (Produção Definitiva — comutar domínios agora)" \
+            "2" "CÓPIA DE TESTES (NÃO alterar DNS agora — mantém original intacto)" \
+            3>&1 1>&2 2>&3) || return 0
+
+        if [ "$dns_choice" = "1" ]; then
+            configure_dns=true
+        fi
+    fi
+
+    local restore_log="$tmpdir/restore_progress.log"
+    : > "$restore_log"
+    local total_restored_vols=0
+    local total_rest_apps=${#stacks_to_restore[@]}
+
+    run_restore_subpipeline() {
+        local r_idx=0
+        for cur_app in "${stacks_to_restore[@]}"; do
+            r_idx=$((r_idx + 1))
+            local pct_base=$(( (r_idx - 1) * 100 / total_rest_apps ))
+            local pct_step=$(( 100 / total_rest_apps ))
+
+            local cur_yaml="$tmpdir/stacks/${cur_app}.yaml"
+            [ -f "$cur_yaml" ] || cur_yaml="$tmpdir/stack.yaml"
+
+            local cur_db_engine="none:"
+            cur_db_engine=$(detect_database_engine "$cur_yaml" "$cur_app")
+
+            local cur_s3_engine="none:"
+            cur_s3_engine=$(detect_s3_storage_engine "$cur_yaml" "$cur_app")
+
+            local cur_mq_engine="none:"
+            cur_mq_engine=$(detect_rabbitmq_engine "$cur_yaml" "$cur_app")
+
+            if [[ "$cur_db_engine" == mysql84:* ]]; then
+                echo -e "XXX\n$((pct_base + (pct_step * 20 / 100)))\n[$r_idx/$total_rest_apps] Garantindo MySQL 8.4 no destino ($cur_app)...\nXXX"
+                ensure_mysql84_ready "$chosen_dest_id" "$dest_ssh_host" >> "$restore_log" 2>&1 || true
+            elif [[ "$cur_db_engine" == mysql:* ]]; then
+                echo -e "XXX\n$((pct_base + (pct_step * 20 / 100)))\n[$r_idx/$total_rest_apps] Garantindo MySQL 8.0 no destino ($cur_app)...\nXXX"
+                ensure_mysql_ready "$chosen_dest_id" "$dest_ssh_host" >> "$restore_log" 2>&1 || true
+            fi
+
+            if [[ "$cur_s3_engine" == minio:* ]] && [[ ! "$cur_app" == minio* ]]; then
+                echo -e "XXX\n$((pct_base + (pct_step * 25 / 100)))\n[$r_idx/$total_rest_apps] Verificando MinIO no destino ($cur_app)...\nXXX"
+                ensure_minio_ready "$chosen_dest_id" "$dest_ssh_host" >> "$restore_log" 2>&1 || true
+            fi
+
+            if [[ "$cur_mq_engine" == rabbitmq:* ]] && [[ ! "$cur_app" == rabbitmq* ]]; then
+                echo -e "XXX\n$((pct_base + (pct_step * 25 / 100)))\n[$r_idx/$total_rest_apps] Verificando RabbitMQ no destino ($cur_app)...\nXXX"
+                ensure_rabbitmq_ready "$chosen_dest_id" "$dest_ssh_host" >> "$restore_log" 2>&1 || true
+            fi
+
+            # Restaurar Volumes Persistentes
+            echo -e "XXX\n$((pct_base + (pct_step * 45 / 100)))\n[$r_idx/$total_rest_apps] Restaurando volumes Docker ($cur_app)...\nXXX"
+            local vol_files=()
+            while IFS= read -r vf; do
+                [ -f "$vf" ] || continue
+                vol_files+=("$vf")
+            done < <(find "$tmpdir/volumes" "$tmpdir" -maxdepth 1 -name "vol_*.tar.gz" 2>/dev/null | grep -E "${cur_app}|vol_" || true)
+
+            for vf in "${vol_files[@]}"; do
+                local vname
+                vname=$(basename "$vf" .tar.gz | sed 's/^vol_//')
+                [ -n "$vname" ] || continue
+                echo "Criando e restaurando volume: $vname" >> "$restore_log"
+
+                if [ "$chosen_dest_id" = "local" ]; then
+                    docker volume create "$vname" >/dev/null 2>&1 || true
+                    docker run --rm -i -v "${vname}:/voldata" alpine tar -xzf - -C /voldata < "$vf" >> "$restore_log" 2>&1 || true
+                else
+                    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "docker volume create '$vname' >/dev/null 2>&1 || true"
+                    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "docker run --rm -i -v '${vname}:/voldata' alpine tar -xzf - -C /voldata" < "$vf" >> "$restore_log" 2>&1 || true
+                fi
+                total_restored_vols=$((total_restored_vols + 1))
+            done
+
+            # Restaurar Banco de Dados Lógico
+            echo -e "XXX\n$((pct_base + (pct_step * 65 / 100)))\n[$r_idx/$total_rest_apps] Restaurando banco de dados ($cur_app)...\nXXX"
+            local dump_candidate=""
+            for dmp in "$tmpdir/dumps/${cur_app}"* "$tmpdir/db_logical_dump.sql.gz" "$tmpdir/dumps/"*.sql.gz "$tmpdir/dumps/"*.archive.gz; do
+                if [ -s "$dmp" ]; then
+                    dump_candidate="$dmp"
+                    break
+                fi
+            done
+
+            if [ -n "$dump_candidate" ]; then
+                if [[ "$cur_db_engine" == postgres:* ]]; then
+                    local pg_db="${cur_db_engine#postgres:}"
+                    local dc=""
+                    if [ "$chosen_dest_id" = "local" ]; then
+                        dc=$(docker ps -qf name=postgres 2>/dev/null | head -n1 || true)
+                        if [ -n "$dc" ]; then
+                            docker exec -i "$dc" psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$pg_db'" | grep -q 1 || docker exec -i "$dc" psql -U postgres -c "CREATE DATABASE \"$pg_db\";" >> "$restore_log" 2>&1 || true
+                            gunzip -c "$dump_candidate" | docker exec -i "$dc" psql -U postgres -d "$pg_db" >> "$restore_log" 2>&1 || true
+                        fi
+                    else
+                        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" \
+                            "dc=\$(docker ps -qf name=postgres | head -n1); [ -n \"\$dc\" ] && docker exec -i \"\$dc\" psql -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname = '$pg_db'\" | grep -q 1 || docker exec -i \"\$dc\" psql -U postgres -c \"CREATE DATABASE \\\"$pg_db\\\";\"" >> "$restore_log" 2>&1 || true
+                        gunzip -c "$dump_candidate" | ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" \
+                            "dc=\$(docker ps -qf name=postgres | head -n1); [ -n \"\$dc\" ] && docker exec -i \"\$dc\" psql -U postgres -d '$pg_db'" >> "$restore_log" 2>&1 || true
+                    fi
+                elif [[ "$cur_db_engine" == mysql84:* ]]; then
+                    local my_db="${cur_db_engine#mysql84:}"
+                    local mc="" dest_pwd=""
+                    if [ "$chosen_dest_id" = "local" ]; then
+                        mc=$(docker ps -qf name=mysql84 2>/dev/null | head -n1 || true)
+                        dest_pwd=$(docker inspect "$mc" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql84.yaml 2>/dev/null || echo "")
+                        if [ -n "$mc" ] && [ -n "$dest_pwd" ]; then
+                            printf 'CREATE DATABASE IF NOT EXISTS `%s`;\n' "$my_db" | docker exec -i -e MYSQL_PWD="$dest_pwd" "$mc" mysql -u root >> "$restore_log" 2>&1 || true
+                            gunzip -c "$dump_candidate" | docker exec -i -e MYSQL_PWD="$dest_pwd" "$mc" mysql -u root "$my_db" >> "$restore_log" 2>&1 || true
+                        fi
+                    else
+                        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" '
+                            mc=$(docker ps -qf name=mysql84 | head -n1)
+                            pwd=$(docker inspect "$mc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP "(?<=MYSQL_ROOT_PASSWORD=).+" /root/mysql84.yaml 2>/dev/null || echo "")
+                            if [ -n "$mc" ] && [ -n "$pwd" ]; then
+                                printf "CREATE DATABASE IF NOT EXISTS \`'"$my_db"'\`;\n" | docker exec -i -e MYSQL_PWD="$pwd" "$mc" mysql -u root
+                            fi
+                        ' >> "$restore_log" 2>&1 || true
+                        gunzip -c "$dump_candidate" | ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" '
+                            mc=$(docker ps -qf name=mysql84 | head -n1)
+                            pwd=$(docker inspect "$mc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP "(?<=MYSQL_ROOT_PASSWORD=).+" /root/mysql84.yaml 2>/dev/null || echo "")
+                            if [ -n "$mc" ] && [ -n "$pwd" ]; then
+                                docker exec -i -e MYSQL_PWD="$pwd" "$mc" mysql -u root "'"$my_db"'"
+                            fi
+                        ' >> "$restore_log" 2>&1 || true
+                    fi
+                elif [[ "$cur_db_engine" == mysql:* ]]; then
+                    local my_db="${cur_db_engine#mysql:}"
+                    local mc="" dest_pwd=""
+                    if [ "$chosen_dest_id" = "local" ]; then
+                        mc=$(docker ps --filter "label=com.docker.swarm.service.name=mysql_mysql" -q 2>/dev/null | head -n1 || docker ps -qf name=mysql_mysql 2>/dev/null | head -n1 || true)
+                        dest_pwd=$(docker inspect "$mc" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' /root/mysql.yaml 2>/dev/null || echo "")
+                        if [ -n "$mc" ] && [ -n "$dest_pwd" ]; then
+                            printf 'CREATE DATABASE IF NOT EXISTS `%s`;\n' "$my_db" | docker exec -i -e MYSQL_PWD="$dest_pwd" "$mc" mysql -u root >> "$restore_log" 2>&1 || true
+                            gunzip -c "$dump_candidate" | docker exec -i -e MYSQL_PWD="$dest_pwd" "$mc" mysql -u root "$my_db" >> "$restore_log" 2>&1 || true
+                        fi
+                    else
+                        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" '
+                            mc=$(docker ps --filter "label=com.docker.swarm.service.name=mysql_mysql" -q 2>/dev/null | head -n1 || docker ps -qf name=mysql_mysql 2>/dev/null | head -n1)
+                            pwd=$(docker inspect "$mc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP "(?<=MYSQL_ROOT_PASSWORD=).+" /root/mysql.yaml 2>/dev/null || echo "")
+                            if [ -n "$mc" ] && [ -n "$pwd" ]; then
+                                printf "CREATE DATABASE IF NOT EXISTS \`'"$my_db"'\`;\n" | docker exec -i -e MYSQL_PWD="$pwd" "$mc" mysql -u root
+                            fi
+                        ' >> "$restore_log" 2>&1 || true
+                        gunzip -c "$dump_candidate" | ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" '
+                            mc=$(docker ps --filter "label=com.docker.swarm.service.name=mysql_mysql" -q 2>/dev/null | head -n1 || docker ps -qf name=mysql_mysql 2>/dev/null | head -n1)
+                            pwd=$(docker inspect "$mc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP "(?<=MYSQL_ROOT_PASSWORD=).+" /root/mysql.yaml 2>/dev/null || echo "")
+                            if [ -n "$mc" ] && [ -n "$pwd" ]; then
+                                docker exec -i -e MYSQL_PWD="$pwd" "$mc" mysql -u root "'"$my_db"'"
+                            fi
+                        ' >> "$restore_log" 2>&1 || true
+                    fi
+                elif [[ "$cur_db_engine" == mongodb:* ]]; then
+                    if [ "$chosen_dest_id" = "local" ]; then
+                        local mg_c
+                        mg_c=$(docker ps --filter "label=com.docker.swarm.service.name=${cur_app}_mongo" -q 2>/dev/null | head -n1 || docker ps -qf name=mongo 2>/dev/null | head -n1 || true)
+                        if [ -n "$mg_c" ]; then
+                            docker exec -i "$mg_c" mongorestore --archive --gzip --drop < "$dump_candidate" >> "$restore_log" 2>&1 || true
+                        fi
+                    else
+                        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" \
+                            "mg_c=\$(docker ps --filter 'label=com.docker.swarm.service.name=${cur_app}_mongo' -q 2>/dev/null | head -n1 || docker ps -qf name=mongo 2>/dev/null | head -n1); [ -n \"\$mg_c\" ] && docker exec -i \"\$mg_c\" mongorestore --archive --gzip --drop" \
+                            < "$dump_candidate" >> "$restore_log" 2>&1 || true
+                    fi
+                fi
+            fi
+
+            # 4. Deploy no Swarm de Destino
+            echo -e "XXX\n$((pct_base + (pct_step * 85 / 100)))\n[$r_idx/$total_rest_apps] Fazendo deploy da stack '$cur_app' no Swarm...\nXXX"
+            if [ "$chosen_dest_id" = "local" ]; then
+                cp -f "$cur_yaml" "/root/${cur_app}.yaml"
+                deploy_stack_with_portainer_priority "local" "" "$cur_app" "/root/${cur_app}.yaml" >> "$restore_log" 2>&1
+            else
+                ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "cat > /root/${cur_app}.yaml" < "$cur_yaml"
+                deploy_stack_with_portainer_priority "$chosen_dest_id" "$dest_ssh_host" "$cur_app" "/root/${cur_app}.yaml" >> "$restore_log" 2>&1
+            fi
+
+            # 5. Comutação de DNS se solicitado
+            if [ "$configure_dns" = "true" ]; then
+                echo -e "XXX\n$((pct_base + (pct_step * 95 / 100)))\n[$r_idx/$total_rest_apps] Comutando rotas Cloudflare ($cur_app)...\nXXX"
+                switch_cloudflare_dns_and_ingress "$chosen_dest_id" "$dest_ssh_host" "$cur_yaml" "$cur_app" >> "$restore_log" 2>&1 || true
+            fi
+        done
+
+        echo -e "XXX\n100\nRestauração concluída com sucesso!\nXXX"
+        sleep 1
+    }
 
     if [ "$is_cli" = "true" ]; then
-        echo "Backup concluído: $backup_file ($size)"
+        run_restore_subpipeline
     else
-        whiptail --title "BACKUP GERADO COM SUCESSO" --msgbox \
-            "✅ O Backup Portátil da aplicação '$chosen_app' foi concluído!\n\nArquivo: $backup_file\nTamanho: $size\nSHA-256: ${sha:0:16}...\nArquitetura: $local_arch\nBanco Lógico Extraído: $db_info\n\nEste arquivo é universal e pode ser usado para restauração de emergência em qualquer servidor." 17 76
+        run_restore_subpipeline | whiptail --title "RESTAURANDO BACKUP PORTÁTIL" --gauge "Iniciando descompactação e restauração..." 10 78 0
+    fi
+
+    local notify_opt=false
+    if [ "$is_cli" = "false" ]; then
+        if whiptail --title "NOTIFICAÇÃO DO SENTINEL" --yesno \
+            "Restauração concluída com sucesso!\n\nDeseja enviar uma notificação via Telegram e Webhook (n8n) informando a restauração deste backup?" 11 70; then
+            notify_opt=true
+        fi
+    fi
+
+    local dns_desc="Preservado (modo cópia de testes)"
+    [ "$configure_dns" = "true" ] && dns_desc="Comutado para o novo servidor ($dest_name)"
+
+    if [ "$notify_opt" = "true" ]; then
+        dispatch_sentinel_notification_bash "Restauração de Backup" "$app_name" "$backup_file" "$dest_name ($dest_arch)" "$total_restored_vols" "$dns_desc" "35"
+    fi
+
+    local res_summary="🎉 RESTAURAÇÃO CONCLUÍDA COM SUCESSO!\n\n"
+    res_summary+="• Aplicação / Combo: $app_name\n"
+    if [ "$backup_type" = "combo_bundle" ]; then
+        res_summary+="• Ecossistema: $combo_name\n"
+    fi
+    res_summary+="• Arquivo de Origem: $(basename "$backup_file")\n"
+    res_summary+="• Servidor Destino: $dest_name ($dest_arch)\n"
+    res_summary+="• Stacks Restauradas (${#stacks_to_restore[@]}): ${stacks_to_restore[*]}\n"
+    res_summary+="• Volumes Docker Restaurados: $total_restored_vols\n"
+    res_summary+="• Roteamento DNS / Túnel: $dns_desc\n\n"
+    res_summary+="✅ Todos os containers e dados persistentes estão ativos e funcionais no Swarm de destino."
+
+    if [ "$is_cli" = "true" ]; then
+        echo -e "$res_summary"
+    else
+        whiptail --title "RESTAURAÇÃO CONCLUÍDA" --msgbox "$res_summary" 19 76
     fi
 }
 
@@ -2067,6 +2776,23 @@ action_transfer_or_clone() {
                     echo "ERROR_ABORT" > "$stats_file"
                     return 1
                 fi
+            elif [[ "$cur_db_engine" == mongodb:* ]]; then
+                local mg_dbname="${cur_db_engine#mongodb:}"
+                echo -e "XXX\n$((pct_base + (pct_step * 35 / 100)))\n[$app_idx/$total_apps] Executando dump lógico do MongoDB ($mg_dbname)...\nXXX"
+                if [ "$chosen_origin_id" = "local" ]; then
+                    local mg_c
+                    mg_c=$(docker ps --filter "label=com.docker.swarm.service.name=${cur_app}_mongo" -q 2>/dev/null | head -n1 || docker ps -qf name=mongo 2>/dev/null | head -n1 || true)
+                    if [ -n "$mg_c" ]; then
+                        docker exec -i "$mg_c" mongodump --archive --gzip 2>> "$TRANSFER_LOG" > "$app_workdir/db_logical_dump.archive.gz" || true
+                    fi
+                else
+                    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$origin_ssh_host" '
+                        mg_c=$(docker ps --filter "label=com.docker.swarm.service.name='"${cur_app}"'_mongo" -q 2>/dev/null | head -n1 || docker ps -qf name=mongo 2>/dev/null | head -n1)
+                        if [ -n "$mg_c" ]; then
+                            docker exec -i "$mg_c" mongodump --archive --gzip 2>/dev/null
+                        fi
+                    ' > "$app_workdir/db_logical_dump.archive.gz" 2>> "$TRANSFER_LOG" || true
+                fi
             fi
 
             # Sincronização de S3 MinIO se aplicável
@@ -2354,6 +3080,20 @@ action_transfer_or_clone() {
                         ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "docker run --rm -v '${cfg_vol}:/voldata' alpine sh -c \"sed -i \\\"s/'db_password' => .*/'db_password' => '$dest_my_pwd',/\\\" /voldata/local.php 2>/dev/null || true\"" 2>> "$TRANSFER_LOG" || true
                     fi
                 fi
+            elif [[ "$cur_db_engine" == mongodb:* ]] && [ -s "$app_workdir/db_logical_dump.archive.gz" ]; then
+                local mg_dbname="${cur_db_engine#mongodb:}"
+                echo "Restaurando dump lógico MongoDB ($mg_dbname) no destino..." >> "$TRANSFER_LOG"
+                if [ "$chosen_dest_id" = "local" ]; then
+                    local mg_c
+                    mg_c=$(docker ps --filter "label=com.docker.swarm.service.name=${cur_app}_mongo" -q 2>/dev/null | head -n1 || docker ps -qf name=mongo 2>/dev/null | head -n1 || true)
+                    if [ -n "$mg_c" ]; then
+                        docker exec -i "$mg_c" mongorestore --archive --gzip --drop < "$app_workdir/db_logical_dump.archive.gz" >> "$TRANSFER_LOG" 2>&1 || true
+                    fi
+                else
+                    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" \
+                        "mg_c=\$(docker ps --filter 'label=com.docker.swarm.service.name=${cur_app}_mongo' -q 2>/dev/null | head -n1 || docker ps -qf name=mongo 2>/dev/null | head -n1); [ -n \"\$mg_c\" ] && docker exec -i \"\$mg_c\" mongorestore --archive --gzip --drop" \
+                        < "$app_workdir/db_logical_dump.archive.gz" >> "$TRANSFER_LOG" 2>&1 || true
+                fi
             fi
             stop_fleet_heartbeat
 
@@ -2411,6 +3151,9 @@ action_transfer_or_clone() {
 
         if [ "$notify_sentinel" = "true" ]; then
             echo -e "XXX\n98\nDisparando relatório no Telegram e Webhook n8n...\nXXX"
+            local dns_str="Não alterado (modo clone)"
+            [ "$update_dns" = "true" ] && dns_str="Comutado para $dest_name"
+            dispatch_sentinel_notification_bash "Migração de Aplicação" "${apps_to_migrate[*]}" "$origin_name ($origin_arch)" "$dest_name ($dest_arch)" "$total_migrated_vols" "$dns_str" "40"
             sleep 1
         fi
 
@@ -2474,12 +3217,13 @@ show_menu() {
     while true; do
         local choice
         choice=$(whiptail --title "MNO FLEET HUB — CLONE, TRANSFERÊNCIA E BACKUP" --menu \
-            "Selecione a ação desejada na frota de servidores:" 18 78 5 \
+            "Selecione a ação desejada na frota de servidores:" 18 78 6 \
             "1" "Raio-X da Frota (Ver Arquitetura, RAM, Disco e Apps de cada Nó)" \
             "2" "Transferir Aplicação para outro Servidor (Com migração de DNS)" \
             "3" "Clonar Aplicação para Teste (Sem alterar DNS)" \
             "4" "Criar Backup Portátil (.tar.gz compatível com qualquer arquitetura)" \
-            "5" "Voltar ao Menu Anterior" \
+            "5" "Restaurar Backup Portátil em um Servidor (Local ou Remoto)" \
+            "6" "Voltar ao Menu Anterior" \
             3>&1 1>&2 2>&3) || return 0
 
         case "$choice" in
@@ -2487,7 +3231,8 @@ show_menu() {
             2) action_transfer_or_clone "transfer" ;;
             3) action_transfer_or_clone "clone" ;;
             4) action_backup_app ;;
-            5) return 0 ;;
+            5) action_restore_backup ;;
+            6) return 0 ;;
         esac
     done
 }
@@ -2495,8 +3240,9 @@ show_menu() {
 case "${1:-menu}" in
     inspect) action_inspect_nodes "${2:-}" ;;
     backup) action_backup_app "${2:-}" "${3:-}" ;;
+    restore) action_restore_backup "${2:-}" "${3:-}" ;;
     transfer) action_transfer_or_clone "transfer" ;;
     clone) action_transfer_or_clone "clone" ;;
     menu) show_menu ;;
-    *) fail "Uso: $0 [inspect [--cli] | backup [app] [--cli] | transfer | clone | menu]" ;;
+    *) fail "Uso: $0 [inspect [--cli] | backup [app] [--cli] | restore [archive] [target] | transfer | clone | menu]" ;;
 esac

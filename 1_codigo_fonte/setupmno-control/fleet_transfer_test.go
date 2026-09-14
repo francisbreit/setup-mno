@@ -441,12 +441,49 @@ services:
 	}
 }
 
+func TestDetectDatabaseDependencies_MySQL(t *testing.T) {
+	yaml := `version: '3.8'
+services:
+  wordpress:
+    image: wordpress:latest
+    environment:
+      - WORDPRESS_DB_HOST=mysql:3306
+      - WORDPRESS_DB_NAME=wp_loja
+`
+	dbType, dbName := detectDatabaseDependencies(yaml, "wp_loja")
+	if dbType != "mysql" {
+		t.Errorf("dbType esperado 'mysql', recebido: %s", dbType)
+	}
+	if dbName != "wp_loja" {
+		t.Errorf("dbName esperado 'wp_loja', recebido: %s", dbName)
+	}
+}
+
+func TestDetectDatabaseDependencies_MongoDB(t *testing.T) {
+	yaml := `version: '3.8'
+services:
+  rocketchat:
+    image: rocketchat/rocket.chat:latest
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/rocketchat
+`
+	dbType, dbName := detectDatabaseDependencies(yaml, "rocketchat")
+	if dbType != "mongodb" {
+		t.Errorf("dbType esperado 'mongodb', recebido: %s", dbType)
+	}
+	if dbName != "rocketchat" {
+		t.Errorf("dbName esperado 'rocketchat', recebido: %s", dbName)
+	}
+}
+
 func TestFilterAppSpecificVolumes(t *testing.T) {
 	rawVolumes := []string{
 		"mautic8c155a0-config",
 		"mautic8c155a0-media",
 		"postgres_data",
 		"mysql84_data",
+		"mysql_data",
+		"mongodb_data",
 		"portainer_data",
 		"traefik_data",
 		"mautic8c155a0-logs",
@@ -458,7 +495,7 @@ func TestFilterAppSpecificVolumes(t *testing.T) {
 	}
 
 	for _, v := range filtered {
-		if strings.Contains(v, "postgres") || strings.Contains(v, "mysql84") || strings.Contains(v, "portainer") || strings.Contains(v, "traefik") {
+		if strings.Contains(v, "postgres") || strings.Contains(v, "mysql84") || strings.Contains(v, "mysql_") || strings.Contains(v, "mongodb") || strings.Contains(v, "portainer") || strings.Contains(v, "traefik") {
 			t.Errorf("Volume de infraestrutura vazou no filtro: %s", v)
 		}
 	}

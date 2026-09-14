@@ -968,7 +968,7 @@ func runAgent() error {
 			Mode:          environment.FleetMode,
 			Role:          string(environment.FleetMode),
 			Architecture:  normalizeArch(overviewData.Architecture),
-			SetupVersion:  "7.47.4",
+			SetupVersion:  "7.48.0",
 			MemoryTotalMB: overviewData.Metrics.MemoryTotal / (1024 * 1024),
 			MemoryFreeMB:  memFree,
 			DiskTotalGB:   overviewData.Metrics.DiskTotal / (1024 * 1024 * 1024),

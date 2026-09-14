@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Milvus com Attu no Setup MNO",
   "setupId": "milvus-attu",
-  "setupVersion": "7.47.4",
+  "setupVersion": "7.48.0",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

@@ -126,6 +126,47 @@ func detectDatabaseDependencies(stackYAML, appName string) (dbType, dbName strin
 		return dbType, dbName
 	}
 
+	// 3. Detecção de MySQL 8.0 (mysql clássico)
+	if strings.Contains(upperYAML, "WORDPRESS_DB_HOST=MYSQL") ||
+		strings.Contains(upperYAML, "DB_HOST=MYSQL") ||
+		strings.Contains(upperYAML, "MYSQL_HOST=MYSQL") ||
+		strings.Contains(upperYAML, "MYSQL:3306") ||
+		strings.Contains(upperYAML, "WORDPRESS_DB_NAME") {
+
+		dbType = "mysql"
+		for _, line := range strings.Split(stackYAML, "\n") {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "- ") {
+				trimmed = strings.TrimPrefix(trimmed, "- ")
+			}
+			if strings.HasPrefix(trimmed, "WORDPRESS_DB_NAME=") ||
+				strings.HasPrefix(trimmed, "DB_NAME=") ||
+				strings.HasPrefix(trimmed, "DB_DATABASE=") ||
+				strings.HasPrefix(trimmed, "MYSQL_DATABASE=") {
+				parts := strings.SplitN(trimmed, "=", 2)
+				if len(parts) == 2 {
+					dbName = strings.Trim(parts[1], " \"'\r")
+					break
+				}
+			}
+		}
+		if dbName == "" {
+			dbName = appName
+		}
+		return dbType, dbName
+	}
+
+	// 4. Detecção de MongoDB
+	if strings.Contains(upperYAML, "MONGO_URL") ||
+		strings.Contains(upperYAML, "MONGODB_URL") ||
+		strings.Contains(upperYAML, "MONGODB://") ||
+		strings.Contains(upperYAML, "MONGO:27017") {
+
+		dbType = "mongodb"
+		dbName = appName
+		return dbType, dbName
+	}
+
 	return "none", ""
 }
 
@@ -135,6 +176,8 @@ func filterAppSpecificVolumes(volumes []string, appName string) []string {
 	ignored := map[string]bool{
 		"postgres_data":            true,
 		"mysql84_data":             true,
+		"mysql_data":               true,
+		"mongodb_data":             true,
 		"portainer_data":           true,
 		"portainer_portainer_data": true,
 		"traefik_data":             true,
@@ -148,7 +191,7 @@ func filterAppSpecificVolumes(volumes []string, appName string) []string {
 		if vTrim == "" || ignored[vTrim] {
 			continue
 		}
-		if strings.HasPrefix(vTrim, "postgres_") || strings.HasPrefix(vTrim, "mysql84_") || strings.HasPrefix(vTrim, "portainer_") {
+		if strings.HasPrefix(vTrim, "postgres_") || strings.HasPrefix(vTrim, "mysql84_") || strings.HasPrefix(vTrim, "mysql_") || strings.HasPrefix(vTrim, "portainer_") {
 			continue
 		}
 		clean = append(clean, vTrim)
