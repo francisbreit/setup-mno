@@ -819,9 +819,15 @@ switch_cloudflare_dns_and_ingress() {
         mappings+=("${h}|${s_svc}|${s_port}")
     done
 
+    local mappings_b64
+    mappings_b64=$(printf '%s\n' "${mappings[@]}" | base64 -w 0)
+
     if [ "$node_id" = "local" ]; then
-        bash -s "${mappings[@]}" << 'EOF' >> "$TRANSFER_LOG" 2>&1 || true
-mappings=("$@")
+        MAPPINGS_B64="$mappings_b64" bash << 'EOF' >> "$TRANSFER_LOG" 2>&1 || true
+mappings=()
+while IFS= read -r line; do
+    [ -n "$line" ] && mappings+=("$line")
+done < <(printf "%s" "$MAPPINGS_B64" | base64 -d)
 
 creds="/root/.cloudflared_config/cloudflare_credentials"
 if [ -f "$creds" ]; then
@@ -834,25 +840,38 @@ if [ -f "$creds" ]; then
             [ -n "$target_service_name" ] || continue
             [ -n "$default_port" ] || default_port="80"
 
-            # 1. Update/create CNAME DNS record
-            records=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${h}" \
-                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                -H "Content-Type: application/json")
-            echo "$records" | jq -r '.result[]?.id // empty' | while read -r r_id; do
-                [ -n "$r_id" ] || continue
-                curl -s -X DELETE "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${r_id}" \
-                    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                    -H "Content-Type: application/json" >/dev/null 2>&1 || true
-            done
+            echo "[ROTEAMENTO CLOUDFLARE] Comutando domínio $h -> ${target_service_name}:${default_port} (Túnel: $TUNNEL_ID)..."
 
-            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
+            # 1. Update/create CNAME DNS record (atômico via PUT quando existente)
+            records=$(curl -sS -X GET "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${h}&type=CNAME" \
                 -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                -H "Content-Type: application/json" \
-                --data "{\"type\":\"CNAME\",\"name\":\"${h}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}" >/dev/null 2>&1 || true
+                -H "Content-Type: application/json" 2>/dev/null || true)
+            r_id=$(echo "$records" | jq -r '.result[0]?.id // empty' 2>/dev/null || true)
+
+            if [ -n "$r_id" ]; then
+                up_res=$(curl -sS -X PUT "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${r_id}" \
+                    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                    -H "Content-Type: application/json" \
+                    --data "{\"type\":\"CNAME\",\"name\":\"${h}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}" 2>/dev/null || true)
+                echo "$up_res" | grep -q '"success":true' && echo "  [OK] CNAME atualizado para ${TUNNEL_ID}.cfargotunnel.com" || echo "  [ALERTA] Falha ao atualizar CNAME: $up_res"
+            else
+                all_rec=$(curl -sS -X GET "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${h}" \
+                    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                    -H "Content-Type: application/json" 2>/dev/null || true)
+                echo "$all_rec" | jq -r '.result[]?.id // empty' 2>/dev/null | while read -r old_id; do
+                    [ -n "$old_id" ] && curl -sS -X DELETE "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${old_id}" \
+                        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" >/dev/null 2>&1 || true
+                done
+                post_res=$(curl -sS -X POST "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
+                    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                    -H "Content-Type: application/json" \
+                    --data "{\"type\":\"CNAME\",\"name\":\"${h}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}" 2>/dev/null || true)
+                echo "$post_res" | grep -q '"success":true' && echo "  [OK] CNAME criado para ${TUNNEL_ID}.cfargotunnel.com" || echo "  [ALERTA] Falha ao criar CNAME: $post_res"
+            fi
 
             # 2. Update Tunnel Ingress configuration
             cfg_raw=$(curl -sS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}/configurations")
+                "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}/configurations" 2>/dev/null || true)
             if echo "$cfg_raw" | grep -q '"success":true'; then
                 to_put=$(mktemp)
                 target_service="http://${target_service_name}:${default_port}"
@@ -867,20 +886,28 @@ if [ -f "$creds" ]; then
                 ' > "$to_put" 2>/dev/null || true
 
                 if [ -s "$to_put" ]; then
-                    curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}/configurations" \
+                    ing_res=$(curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}/configurations" \
                         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
                         -H "Content-Type: application/json" \
-                        --data-binary @"$to_put" >/dev/null 2>&1 || true
+                        --data-binary @"$to_put" 2>/dev/null || true)
+                    echo "$ing_res" | grep -q '"success":true' && echo "  [OK] Ingress configurado para $target_service" || echo "  [ALERTA] Falha no Ingress: $ing_res"
                 fi
                 rm -f "$to_put"
             fi
         done
+    else
+        echo "[ALERTA] Credenciais Cloudflare incompletas no nó destino."
     fi
+else
+    echo "[ALERTA] Arquivo cloudflare_credentials não encontrado no nó destino."
 fi
 EOF
     else
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$host" bash -s "${mappings[@]}" << 'EOF' >> "$TRANSFER_LOG" 2>&1 || true
-mappings=("$@")
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$host" "MAPPINGS_B64='$mappings_b64' bash" << 'EOF' >> "$TRANSFER_LOG" 2>&1 || true
+mappings=()
+while IFS= read -r line; do
+    [ -n "$line" ] && mappings+=("$line")
+done < <(printf "%s" "$MAPPINGS_B64" | base64 -d)
 
 creds="/root/.cloudflared_config/cloudflare_credentials"
 if [ -f "$creds" ]; then
@@ -893,25 +920,38 @@ if [ -f "$creds" ]; then
             [ -n "$target_service_name" ] || continue
             [ -n "$default_port" ] || default_port="80"
 
-            # 1. Update/create CNAME DNS record
-            records=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${h}" \
-                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                -H "Content-Type: application/json")
-            echo "$records" | jq -r '.result[]?.id // empty' | while read -r r_id; do
-                [ -n "$r_id" ] || continue
-                curl -s -X DELETE "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${r_id}" \
-                    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                    -H "Content-Type: application/json" >/dev/null 2>&1 || true
-            done
+            echo "[ROTEAMENTO CLOUDFLARE] Comutando domínio $h -> ${target_service_name}:${default_port} (Túnel: $TUNNEL_ID)..."
 
-            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
+            # 1. Update/create CNAME DNS record (atômico via PUT quando existente)
+            records=$(curl -sS -X GET "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${h}&type=CNAME" \
                 -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                -H "Content-Type: application/json" \
-                --data "{\"type\":\"CNAME\",\"name\":\"${h}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}" >/dev/null 2>&1 || true
+                -H "Content-Type: application/json" 2>/dev/null || true)
+            r_id=$(echo "$records" | jq -r '.result[0]?.id // empty' 2>/dev/null || true)
+
+            if [ -n "$r_id" ]; then
+                up_res=$(curl -sS -X PUT "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${r_id}" \
+                    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                    -H "Content-Type: application/json" \
+                    --data "{\"type\":\"CNAME\",\"name\":\"${h}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}" 2>/dev/null || true)
+                echo "$up_res" | grep -q '"success":true' && echo "  [OK] CNAME atualizado para ${TUNNEL_ID}.cfargotunnel.com" || echo "  [ALERTA] Falha ao atualizar CNAME: $up_res"
+            else
+                all_rec=$(curl -sS -X GET "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${h}" \
+                    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                    -H "Content-Type: application/json" 2>/dev/null || true)
+                echo "$all_rec" | jq -r '.result[]?.id // empty' 2>/dev/null | while read -r old_id; do
+                    [ -n "$old_id" ] && curl -sS -X DELETE "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${old_id}" \
+                        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" >/dev/null 2>&1 || true
+                done
+                post_res=$(curl -sS -X POST "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
+                    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                    -H "Content-Type: application/json" \
+                    --data "{\"type\":\"CNAME\",\"name\":\"${h}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}" 2>/dev/null || true)
+                echo "$post_res" | grep -q '"success":true' && echo "  [OK] CNAME criado para ${TUNNEL_ID}.cfargotunnel.com" || echo "  [ALERTA] Falha ao criar CNAME: $post_res"
+            fi
 
             # 2. Update Tunnel Ingress configuration
             cfg_raw=$(curl -sS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}/configurations")
+                "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}/configurations" 2>/dev/null || true)
             if echo "$cfg_raw" | grep -q '"success":true'; then
                 to_put=$(mktemp)
                 target_service="http://${target_service_name}:${default_port}"
@@ -926,15 +966,20 @@ if [ -f "$creds" ]; then
                 ' > "$to_put" 2>/dev/null || true
 
                 if [ -s "$to_put" ]; then
-                    curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}/configurations" \
+                    ing_res=$(curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}/configurations" \
                         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
                         -H "Content-Type: application/json" \
-                        --data-binary @"$to_put" >/dev/null 2>&1 || true
+                        --data-binary @"$to_put" 2>/dev/null || true)
+                    echo "$ing_res" | grep -q '"success":true' && echo "  [OK] Ingress configurado para $target_service" || echo "  [ALERTA] Falha no Ingress: $ing_res"
                 fi
                 rm -f "$to_put"
             fi
         done
+    else
+        echo "[ALERTA] Credenciais Cloudflare incompletas no nó destino."
     fi
+else
+    echo "[ALERTA] Arquivo cloudflare_credentials não encontrado no nó destino."
 fi
 EOF
     fi
@@ -2128,11 +2173,11 @@ action_transfer_or_clone() {
 
                 echo "Restaurando banco PostgreSQL '$pg_dbname' no destino..." >> "$TRANSFER_LOG"
                 if [ "$chosen_dest_id" = "local" ]; then
-                    printf 'CREATE DATABASE "%s";\n' "$pg_dbname" | docker exec -i "$dc" psql -U postgres >> "$TRANSFER_LOG" 2>&1 || true
+                    docker exec -i "$dc" psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$pg_dbname'" | grep -q 1 || docker exec -i "$dc" psql -U postgres -c "CREATE DATABASE \"$pg_dbname\"" >> "$TRANSFER_LOG" 2>&1 || true
                     gunzip -c "$app_workdir/db_logical_dump.sql.gz" | docker exec -i "$dc" psql -U postgres -d "$pg_dbname" >> "$TRANSFER_LOG" 2>&1 || true
                 else
-                    printf 'CREATE DATABASE "%s";\n' "$pg_dbname" | ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); docker exec -i \"\$dc\" psql -U postgres" >> "$TRANSFER_LOG" 2>&1 || true
-                    gunzip -c "$app_workdir/db_logical_dump.sql.gz" | ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); gunzip -c | docker exec -i \"\$dc\" psql -U postgres -d '$pg_dbname'" >> "$TRANSFER_LOG" 2>&1 || true
+                    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); docker exec -i \"\$dc\" psql -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname = '$pg_dbname'\" | grep -q 1 || docker exec -i \"\$dc\" psql -U postgres -c \"CREATE DATABASE \\\"$pg_dbname\\\"\"" >> "$TRANSFER_LOG" 2>&1 || true
+                    gunzip -c "$app_workdir/db_logical_dump.sql.gz" | ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "dc=\$(docker ps -qf name=postgres | head -n1); docker exec -i \"\$dc\" psql -U postgres -d '$pg_dbname'" >> "$TRANSFER_LOG" 2>&1 || true
                 fi
 
                 # Verificação de integridade pós-restauração Postgres
