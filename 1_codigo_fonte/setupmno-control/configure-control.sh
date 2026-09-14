@@ -812,8 +812,8 @@ EOF
       test: [CMD, /setupmno-control, healthcheck]
       interval: 30s
       timeout: 5s
-      retries: 3
-      start_period: 15s
+      retries: 5
+      start_period: 120s
     deploy:
       mode: replicated
       replicas: 1
@@ -826,8 +826,8 @@ EOF
         order: stop-first
       resources:
         limits:
-          cpus: "0.50"
-          memory: 256M
+          cpus: "1.00"
+          memory: 384M
 networks:
   interna:
     external: true

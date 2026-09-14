@@ -197,7 +197,7 @@ wait_service() {
 
 update_agent() {
     local service="$1" image="$2" args
-    args=(service update --image "$image" --detach=true)
+    args=(service update --image "$image" --limit-cpu 0.50 --limit-memory 192M --health-start-period 90s --health-retries 5 --detach=true)
     if ! service_has_mount_target "$service" /runtime-control; then
         args+=(--mount-add type=bind,src=/root/SetupLowCodeMno/.control,dst=/runtime-control,readonly)
     fi
@@ -244,7 +244,7 @@ ensure_runtime_permissions() {
 update_web() {
     local service="$1" image="$2" plan="$3" args key
     local access_required access_team access_aud access_email access_mfa
-    args=(service update --image "$image" --detach=true)
+    args=(service update --image "$image" --limit-cpu 2.00 --limit-memory 384M --health-start-period 180s --health-retries 6 --detach=true)
     service_has_env_key "$service" APP_VERSION && args+=(--env-rm APP_VERSION)
     args+=(--env-add "APP_VERSION=$target_version")
     service_has_env_key "$service" SETUPMNO_PLAN && args+=(--env-rm SETUPMNO_PLAN)
@@ -423,7 +423,8 @@ run_with_heartbeat 66 "AGUARDANDO O AGENTE ATINGIR 1/1 RÉPLICA..." \
 
 if [ "$assistant_exists" = "true" ]; then
     run_with_heartbeat 72 "ATUALIZANDO O ASSISTENTE E PRESERVANDO O PLANO $plan..." \
-        docker service update --image "$control_image" --replicas "$assistant_replicas" \
+        docker service update --image "$control_image" --limit-cpu 1.00 --limit-memory 384M \
+        --health-start-period 120s --health-retries 5 --replicas "$assistant_replicas" \
         --detach=true "$assistant_service" ||
         fail_upgrade 42 "Falha ao atualizar o Assistente MNO."
     changed_services+=("$assistant_service")

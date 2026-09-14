@@ -1934,7 +1934,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 15s
+      start_period: 30s
     deploy:
       mode: replicated
       replicas: 1
@@ -1989,7 +1989,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 5
-      start_period: 60s
+      start_period: 90s
     deploy:
       mode: replicated
       replicas: 1
@@ -1998,8 +1998,8 @@ services:
         - node.role == manager
       resources:
         limits:
-          cpus: "0.25"
-          memory: 128M
+          cpus: "0.50"
+          memory: 192M
 
 networks:
   interna:
@@ -2061,8 +2061,8 @@ EOL
         - healthcheck
       interval: 30s
       timeout: 5s
-      retries: 3
-      start_period: 15s
+      retries: 5
+      start_period: 120s
     deploy:
       mode: replicated
       replicas: 1
@@ -2071,8 +2071,8 @@ EOL
         - node.role == manager
       resources:
         limits:
-          cpus: "0.50"
-          memory: 256M
+          cpus: "1.00"
+          memory: 384M
 
 networks:
   interna:
@@ -2140,8 +2140,8 @@ services:
         - healthcheck
       interval: 30s
       timeout: 5s
-      retries: 5
-      start_period: 10s
+      retries: 6
+      start_period: 180s
     deploy:
       mode: replicated
       replicas: 1
@@ -2150,8 +2150,8 @@ services:
         - node.role == manager
       resources:
         limits:
-          cpus: "0.50"
-          memory: 192M
+          cpus: "2.00"
+          memory: 384M
 EOL
 
     if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
