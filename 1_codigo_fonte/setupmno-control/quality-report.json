@@ -1,0 +1,3465 @@
+{
+  "entries": [
+    {
+      "catalogName": "ACTIVEPIECES",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "official-source-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "activepieces",
+      "sourceClassification": "internal-only",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "ACTUAL BUDGET",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "actual-budget",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "ADGUARDHOME",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "official-source-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "adguardhome",
+      "sourceClassification": "internal-only",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "AFFINE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "affine",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "APPSMITH",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "official-source-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "appsmith",
+      "sourceClassification": "internal-only",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "AUTOGEN STUDIO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "autogen-studio",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "BASEROW",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "catalog-description-invalid",
+        "official-source-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "baserow",
+      "sourceClassification": "internal-only",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "BESZEL",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "official-source-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "beszel",
+      "sourceClassification": "internal-only",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "BOOKSTACK",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "official-source-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "bookstack",
+      "sourceClassification": "internal-only",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "BOTPRESS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "botpress",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64"
+      ]
+    },
+    {
+      "catalogName": "BUDIBASE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "official-source-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "budibase",
+      "sourceClassification": "internal-only",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "BYTEBASE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "bytebase",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "CAL.COM",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "calcom",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64"
+      ]
+    },
+    {
+      "catalogName": "CHANGEDETECTION.IO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "changedetection",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "CHATWOOT AI CUSTOMER SERVICE*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "chatwoot-ai-customer-service",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "chatwoot-evolution-rabbitmq",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "chatwoot-evolution-rabbitmq-minio",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "chatwoot-original-evolution-rabbitmq-minio",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "capacity-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "chatwoot-original-unlocked-evolution-rabbitmq-minio",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "CHROMADB",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "official-source-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "chromadb",
+      "sourceClassification": "internal-only",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "CLICKHOUSE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "clickhouse",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "CODE SERVER",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "official-source-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "code-server",
+      "sourceClassification": "internal-only",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "COGNEE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "cognee",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "combo-ia-whatsapp-sdr-crm",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "COMBO VIBE OPS (HERMES AGENT + N8N)*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "combo-vibe-ops",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "COMBO WHATSAPP MARKETING COMPLETO*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "combo-whatsapp-marketing",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "DATABASUS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "databasus",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "DIFY",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "dify",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "DIRECTUS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "official-source-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "directus",
+      "sourceClassification": "internal-only",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "DISCOURSE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "discourse",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "DOCMOST",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "docmost",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "DOCUMENSO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "documenso",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "DOCUSEAL",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "docuseal",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "DOZZLE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "dozzle",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "DUPLICATI",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "official-source-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "duplicati",
+      "sourceClassification": "internal-only",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "EVO NEXUS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "evo-nexus",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "EVOAI",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "evoai",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "EVOAI + EVOLUTION 2.0 + MINIO*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "evoai-evolution-minio",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "EVOLUTION 1.0 API PADRÃO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "evolution-api-v1",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "EVOLUTION 2.0 API PADRÃO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "evolution-api-v2",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "EVOLUTION CRM",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "evolution-crm",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "EVOLUTION GO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "evolution-go",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "EXCALIDRAW",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "excalidraw",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64"
+      ]
+    },
+    {
+      "catalogName": "FILEBROWSER",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "filebrowser",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "FIRECRAWL",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "firecrawl",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64"
+      ]
+    },
+    {
+      "catalogName": "FIREFLY III",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "firefly-iii",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "FLOWISE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "flowise",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "FOCALBOARD",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "focalboard",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64"
+      ]
+    },
+    {
+      "catalogName": "FORMBRICKS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "formbricks",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64"
+      ]
+    },
+    {
+      "catalogName": "FRESHRSS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "freshrss",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "GHOST",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "ghost",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "GITEA",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "gitea",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "GITLAB",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "gitlab",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "GLANCE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "glance",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "GLPI",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "glpi",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64"
+      ]
+    },
+    {
+      "catalogName": "GRAFANA/PROMETHEUS MONITOR",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "official-source-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "grafana-prometheus",
+      "sourceClassification": "internal-only",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "HERMES AGENT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "capacity-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "hermes-agent",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "HEYFORM",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "heyform",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "HOME ASSISTANT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "home-assistant",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "HOMEPAGE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "homepage",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "HOPPSCOTCH",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "hoppscotch",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "HUMHUB",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "humhub",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64"
+      ]
+    },
+    {
+      "catalogName": "IMMICH",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "immich",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "INFISICAL",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "infisical",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "IT-TOOLS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "it-tools",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "JELLYFIN",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "jellyfin",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "JITSI MEET",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "jitsi-meet",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "JOPLIN",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "joplin",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "KARAKEEP",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "karakeep",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "KEYCLOAK",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "keycloak",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "KRAYIN CRM",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "krayin-crm",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "LANGFLOW",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "langflow",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64"
+      ]
+    },
+    {
+      "catalogName": "LANGFUSE + MINIO + CLICKHOUSE*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "langfuse-minio-clickhouse",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "LIBRECHAT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "librechat",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "LINKWARDEN",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "linkwarden",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "LISTMONK",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "listmonk",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "LITELLM",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "litellm",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "LOBECHAT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "lobechat",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "LOCALAI",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "capacity-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "localai",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "MATOMO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "matomo",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "MATTERMOST",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "mattermost",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64"
+      ]
+    },
+    {
+      "catalogName": "MAUTIC 4 PADRÃO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "mautic-4",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64"
+      ]
+    },
+    {
+      "catalogName": "MAUTIC 4 WHATSAPP MKT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "mautic-4-whatsapp",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64"
+      ]
+    },
+    {
+      "catalogName": "MAUTIC 6 PADRÃO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "mautic-6",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "MAUTIC 6 WHATSAPP MKT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "mautic-6-whatsapp",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "MAUTIC 7 PADRÃO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "mautic-7",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "MAUTIC 7 WHATSAPP MKT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "mautic-7-whatsapp",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "MAYBE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "maybe",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "MEILISEARCH",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "meilisearch",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "MEMGRAPH",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "memgraph",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "MEMOS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "memos",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "METABASE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "metabase",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "MILVUS + ATTU*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "milvus-attu",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "MINIO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "minio",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "MONGODB",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "mongodb",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "MYSQL",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "mysql",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "N8N V1 - SEM FILA (MAIN)",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "official-source-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "n8n-main",
+      "sourceClassification": "internal-only",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "N8N V1 - FILA (QUEUE)",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "n8n-queue-v1",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "N8N V2 - FILA (QUEUE)",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "n8n-queue-v2",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "n8n-templates",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "NAVIDROME",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "2026-08-14T00:00:00Z",
+      "maturity": "operational-reviewed",
+      "operationalArchitectures": [
+        "amd64"
+      ],
+      "operationalCoverage": "partial",
+      "operationalEvidence": true,
+      "operationalEvidenceIds": [
+        "navidrome-amd64-20260814-wsl2"
+      ],
+      "scriptSourceDeclared": true,
+      "setupId": "navidrome",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "NEO4J",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "neo4j",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "NETDADA",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "netdada",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "NEXTCLOUD",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "official-source-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "nextcloud",
+      "sourceClassification": "internal-only",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "NGINXPROXYMANAGER",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "nginx-proxy-manager",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "NOCOBASE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "nocobase",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "NOCODB",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "official-source-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "nocodb",
+      "sourceClassification": "internal-only",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "NTFY",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "ntfy",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "ODOO",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "odoo",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64"
+      ]
+    },
+    {
+      "catalogName": "OLLAMA + OPENWEBUI*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "capacity-missing",
+        "official-source-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "ollama-openwebui",
+      "sourceClassification": "internal-only",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "OPEN WEBUI",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "open-webui",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "OPENCLAW",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "capacity-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "openclaw",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "openclaw-knowledge-stack",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "OPENFANG",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "capacity-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "openfang",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "OPENOBSERVE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "openobserve",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "OPEN PROJECT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "openproject",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "OUTLINE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "capacity-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "outline",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "PAPERCLIP",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "paperclip",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64"
+      ]
+    },
+    {
+      "catalogName": "PAPERLESS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "paperless",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "PENPOT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "penpot",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "PGADMIN4",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "pgadmin4",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "PHOTOPRISM",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "photoprism",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "PHPMYADMIN",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "phpmyadmin",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "PI-HOLE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "pihole",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "PLANE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "capacity-inconsistent"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "plane",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "PLANKA",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "planka",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "POCKET ID",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "pocket-id",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "POCKETBASE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "pocketbase",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "QDRANT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "official-source-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "qdrant",
+      "sourceClassification": "internal-only",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "RABBITMQ",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "rabbitmq",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "REACTIVE RESUME",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "reactive-resume",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "REDIS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "official-source-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "redis",
+      "sourceClassification": "internal-only",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "REDIS COMMANDER",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "redis-commander",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "REDISINSIGHT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "redisinsight",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "ROCKET.CHAT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "rocketchat",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "SEARXNG",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "searxng",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "SETUP MNO CONTROL CENTER",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "setupmno-control",
+      "sourceClassification": "exception-approved",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "SHLINK",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "shlink",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "SIYUAN",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "siyuan",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "STIRLING PDF",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "stirling-pdf",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "STRAPI",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "strapi",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "SUPERSET",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "superset",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "SYNCTHING",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "syncthing",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "TOOLJET",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "tooljet",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64"
+      ]
+    },
+    {
+      "catalogName": "TRILIUMNEXT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "triliumnext",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "TWENTY CRM",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "twenty-crm",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64"
+      ]
+    },
+    {
+      "catalogName": "TYPEBOT",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "typebot",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "TYPEBOT + MINIO*",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "official-source-missing"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "typebot-minio",
+      "sourceClassification": "internal-only",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "UMAMI",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "umami",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "UPTIMEKUMA",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "uptime-kuma",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "VAULTWARDEN",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "vaultwarden",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "VIKUNJA",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "vikunja",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "VLLM",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [
+        "architecture-inconsistent"
+      ],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "vllm",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64"
+      ]
+    },
+    {
+      "catalogName": "WAHA API",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "waha-api",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "WEAVIATE",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "weaviate",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "WEKAN",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "wekan",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "WIKI.JS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "wiki-js",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "WINDMILL",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "windmill",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "WOOFED CRM",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "woofed-crm",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64"
+      ]
+    },
+    {
+      "catalogName": "WORDPRESS",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "wordpress",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    {
+      "catalogName": "WUZAP",
+      "editorialStatus": "reviewed",
+      "homologationEvidence": false,
+      "installationStatus": "maintainer-homologated",
+      "integrationMaturity": "not-mapped",
+      "issues": [],
+      "lastOperationalVerification": "",
+      "maturity": "structural",
+      "operationalArchitectures": [],
+      "operationalCoverage": "none",
+      "operationalEvidence": false,
+      "operationalEvidenceIds": [],
+      "scriptSourceDeclared": true,
+      "setupId": "wuzap",
+      "sourceClassification": "official-and-internal",
+      "testedArchitectures": [
+        "amd64",
+        "arm64"
+      ]
+    }
+  ],
+  "evidenceSchemaVersion": 1,
+  "generatedAt": "2026-09-06T00:00:00Z",
+  "knowledgeVersion": "3.34.2",
+  "schemaVersion": 2,
+  "setupVersion": "7.47.3",
+  "summary": {
+    "editorialStatuses": {
+      "deprecated": 0,
+      "draft": 0,
+      "homologated": 0,
+      "outdated": 0,
+      "reviewed": 161
+    },
+    "homologatedEntries": 0,
+    "installationStatuses": {
+      "maintainer-homologated": 161
+    },
+    "integrationMaturityLevels": {
+      "documented": 0,
+      "not-mapped": 161,
+      "suggested": 0,
+      "validated": 0
+    },
+    "internalOnlySourceEntries": 19,
+    "issueEntries": 27,
+    "maturityLevels": {
+      "homologated": 0,
+      "operational-reviewed": 1,
+      "script-reviewed": 0,
+      "source-reviewed": 0,
+      "structural": 160
+    },
+    "officialSourceEntries": 141,
+    "officialSourceExceptions": 1,
+    "operationalEvidenceEntries": 1,
+    "setupEntries": 161,
+    "unresolvedIssueCount": 29
+  }
+}

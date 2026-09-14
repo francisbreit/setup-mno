@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Ollama e Open WebUI no Setup MNO",
   "setupId": "ollama-openwebui",
-  "setupVersion": "7.47.2",
+  "setupVersion": "7.47.3",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

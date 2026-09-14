@@ -272,6 +272,12 @@ detect_database_engine() {
     local yaml_file="$1"
     local app="$2"
 
+    # Se a própria stack for de banco de dados, ela é o servidor, não consumidora
+    if [[ "$app" == postgres* ]] || [[ "$app" == mysql* ]]; then
+        printf "none:\n"
+        return 0
+    fi
+
     if grep -qE "POSTGRES_DB|DB_POSTGRESDB_DATABASE|POSTGRES_HOST=postgres|postgres:5432" "$yaml_file"; then
         local pg_db
         pg_db=$(grep -E "POSTGRES_DB=|DB_POSTGRESDB_DATABASE=" "$yaml_file" 2>/dev/null | head -n1 | cut -d= -f2 | tr -d ' "\r' || true)
@@ -304,6 +310,12 @@ detect_s3_storage_engine() {
     local yaml_file="$1"
     local app="$2"
 
+    # Se a própria stack for MinIO, ela é o servidor de armazenamento, não consumidora
+    if [[ "$app" == minio* ]]; then
+        printf "none:\n"
+        return 0
+    fi
+
     if grep -qE "S3_BUCKET|S3_BUCKET_NAME|AWS_BUCKET|AWS_S3_BUCKET|MINIO_PUBLIC_URL|MINIO_SERVER_URL" "$yaml_file"; then
         local b_name
         b_name=$(grep -E "S3_BUCKET=|S3_BUCKET_NAME=|AWS_BUCKET=" "$yaml_file" 2>/dev/null | head -n1 | cut -d= -f2 | tr -d ' "\r' || true)
@@ -318,6 +330,12 @@ detect_s3_storage_engine() {
 detect_rabbitmq_engine() {
     local yaml_file="$1"
     local app="$2"
+
+    # Se a própria stack for RabbitMQ, ela é o broker, não consumidora
+    if [[ "$app" == rabbitmq* ]]; then
+        printf "none:\n"
+        return 0
+    fi
 
     if grep -qE "RABBITMQ_URI|RABBITMQ_URL|RABBITMQ_DEFAULT_USER|amqp://" "$yaml_file"; then
         local mq_vhost
@@ -1124,9 +1142,10 @@ ensure_minio_ready() {
 
     local running=""
     if [ "$node_id" = "local" ]; then
-        running=$(docker ps -qf name=minio 2>/dev/null | head -n1 || true)
+        running=$(docker ps --filter "name=minio" -q 2>/dev/null | head -n1 || true)
+        [ -n "$running" ] || running=$(docker stack ls --format '{{.Name}}' 2>/dev/null | grep -E '^minio' | head -n1 || true)
     else
-        running=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$host" 'docker ps -qf name=minio | head -n1' 2>/dev/null || true)
+        running=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$host" 'docker ps --filter "name=minio" -q 2>/dev/null | head -n1 || docker stack ls --format "{{.Name}}" 2>/dev/null | grep -E "^minio" | head -n1' 2>/dev/null || true)
     fi
 
     if [ -n "$running" ]; then
@@ -1278,9 +1297,10 @@ ensure_rabbitmq_ready() {
 
     local running=""
     if [ "$node_id" = "local" ]; then
-        running=$(docker ps -qf name=rabbitmq 2>/dev/null | head -n1 || true)
+        running=$(docker ps --filter "name=rabbitmq" -q 2>/dev/null | head -n1 || true)
+        [ -n "$running" ] || running=$(docker stack ls --format '{{.Name}}' 2>/dev/null | grep -E '^rabbitmq' | head -n1 || true)
     else
-        running=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$host" 'docker ps -qf name=rabbitmq | head -n1' 2>/dev/null || true)
+        running=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$host" 'docker ps --filter "name=rabbitmq" -q 2>/dev/null | head -n1 || docker stack ls --format "{{.Name}}" 2>/dev/null | grep -E "^rabbitmq" | head -n1' 2>/dev/null || true)
     fi
 
     if [ -n "$running" ]; then
@@ -2006,23 +2026,37 @@ action_transfer_or_clone() {
 
             # Sincronização de S3 MinIO se aplicável
             if [[ "$cur_s3_engine" == minio:* ]]; then
-                local s3_bucket="${cur_s3_engine#minio:}"
-                echo -e "XXX\n$((pct_base + (pct_step * 45 / 100)))\n[$app_idx/$total_apps] Sincronizando bucket S3 MinIO ($s3_bucket)...\nXXX"
-                if ! ensure_minio_ready "$chosen_dest_id" "$dest_ssh_host"; then
-                    echo "ERRO CRÍTICO: Falha ao garantir MinIO no nó de destino. Abortando migração." >> "$TRANSFER_LOG"
-                    echo "ERROR_ABORT" > "$stats_file"
-                    return 1
+                if [[ "$cur_app" == minio* ]]; then
+                    echo "Stack '$cur_app' é o próprio servidor MinIO S3. Volumes e dados são migrados diretamente." >> "$TRANSFER_LOG"
+                elif [ -n "$minio_stack_in_combo" ] && [[ " ${apps_to_migrate[*]} " =~ " ${minio_stack_in_combo} " ]]; then
+                    echo "Combo já possui stack MinIO dedicada ('$minio_stack_in_combo') sendo migrada com seus volumes. Ignorando provisionamento de MinIO compartilhado para '$cur_app'." >> "$TRANSFER_LOG"
+                elif [ "$minio_policy" = "keep_origin" ]; then
+                    echo "Política de MinIO configurada para 'keep_origin'. Mídias e MinIO preservados na origem para '$cur_app'." >> "$TRANSFER_LOG"
+                else
+                    local s3_bucket="${cur_s3_engine#minio:}"
+                    echo -e "XXX\n$((pct_base + (pct_step * 45 / 100)))\n[$app_idx/$total_apps] Sincronizando bucket S3 MinIO ($s3_bucket)...\nXXX"
+                    if ! ensure_minio_ready "$chosen_dest_id" "$dest_ssh_host"; then
+                        echo "ERRO CRÍTICO: Falha ao garantir MinIO no nó de destino. Abortando migração." >> "$TRANSFER_LOG"
+                        echo "ERROR_ABORT" > "$stats_file"
+                        return 1
+                    fi
+                    sync_s3_bucket_data "$chosen_origin_id" "$origin_ssh_host" "$chosen_dest_id" "$dest_ssh_host" "$s3_bucket"
                 fi
-                sync_s3_bucket_data "$chosen_origin_id" "$origin_ssh_host" "$chosen_dest_id" "$dest_ssh_host" "$s3_bucket"
             fi
 
             # 3. RabbitMQ Broker Check
             if [[ "$cur_mq_engine" == rabbitmq:* ]]; then
-                echo -e "XXX\n$((pct_base + (pct_step * 50 / 100)))\n[$app_idx/$total_apps] Verificando broker RabbitMQ no destino...\nXXX"
-                if ! ensure_rabbitmq_ready "$chosen_dest_id" "$dest_ssh_host"; then
-                    echo "ERRO CRÍTICO: Falha ao garantir RabbitMQ no nó de destino. Abortando migração." >> "$TRANSFER_LOG"
-                    echo "ERROR_ABORT" > "$stats_file"
-                    return 1
+                if [[ "$cur_app" == rabbitmq* ]]; then
+                    echo "Stack '$cur_app' é o próprio broker RabbitMQ. Volumes e dados são migrados diretamente." >> "$TRANSFER_LOG"
+                elif [[ " ${apps_to_migrate[*]} " =~ " rabbitmq" ]]; then
+                    echo "Stack RabbitMQ dedicada faz parte da migração do combo. Ignorando provisionamento de broker compartilhado para '$cur_app'." >> "$TRANSFER_LOG"
+                else
+                    echo -e "XXX\n$((pct_base + (pct_step * 50 / 100)))\n[$app_idx/$total_apps] Verificando broker RabbitMQ no destino...\nXXX"
+                    if ! ensure_rabbitmq_ready "$chosen_dest_id" "$dest_ssh_host"; then
+                        echo "ERRO CRÍTICO: Falha ao garantir RabbitMQ no nó de destino. Abortando migração." >> "$TRANSFER_LOG"
+                        echo "ERROR_ABORT" > "$stats_file"
+                        return 1
+                    fi
                 fi
             fi
 
