@@ -148,6 +148,15 @@ function bindEvents() {
         guide.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     }
+    if (action.dataset.action === "help-fleet-clone-guide") {
+      navigate("help");
+      setHelpFilter("vibeops");
+      const guide = $("help-guide-fleet-clone");
+      if (guide) {
+        guide.open = true;
+        guide.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
   });
   $("open-terminal-top").addEventListener("click", openTerminal);
   $("terminal-close").addEventListener("click", closeTerminal);
