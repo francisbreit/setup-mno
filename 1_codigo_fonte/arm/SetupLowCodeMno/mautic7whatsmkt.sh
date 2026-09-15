@@ -45,12 +45,15 @@ setupmno_mysql84_wait_ready() {
     [ -n "$MYSQL84_ROOT_PASSWORD" ] || return 66
 
     # 3. Aguardar o MySQL aceitar conexões autenticadas (até 3 minutos)
+    local access_denied_consecutive=0
+    local last_err=""
     for attempt in $(seq 1 60); do
         MYSQL84_CONTAINER_ID=$(docker ps -qf name=mysql84 2>/dev/null | head -n1)
         if [ -n "$MYSQL84_CONTAINER_ID" ]; then
             auth_err=$(docker exec -e MYSQL_PWD="$MYSQL84_ROOT_PASSWORD" "$MYSQL84_CONTAINER_ID" \
                 mysql -uroot --batch --skip-column-names -e "SELECT 1" \
                 2>&1) || true
+            last_err="$auth_err"
             if [ "$auth_err" = "1" ]; then
                 if [ "$progress_mode" = "progress" ]; then
                     printf 'XXX\n100\nMySQL 8.4 pronto e autenticado com sucesso!\nXXX\n'
@@ -59,7 +62,14 @@ setupmno_mysql84_wait_ready() {
                 return 0
             fi
             if echo "$auth_err" | grep -qi "Access denied"; then
-                return 68
+                access_denied_consecutive=$((access_denied_consecutive + 1))
+                # Somente decreta conflito real se houver pelo menos 8 falhas consecutivas de "Access denied" (24s)
+                # para tolerar a fase de inicialização temporária do Percona/MySQL 8.4 sem falsos positivos
+                if [ "$access_denied_consecutive" -ge 8 ]; then
+                    return 68
+                fi
+            else
+                access_denied_consecutive=0
             fi
         fi
 
@@ -70,6 +80,10 @@ setupmno_mysql84_wait_ready() {
         fi
         sleep 3
     done
+
+    if echo "$last_err" | grep -qi "Access denied"; then
+        return 68
+    fi
 
     return 67
 }
