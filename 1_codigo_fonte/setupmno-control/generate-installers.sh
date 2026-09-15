@@ -1209,7 +1209,7 @@ smoke_expiration=$(date +'%d/%m/%Y' -d '+7 days')
 install -m 0755 "$x86_target" "$smoke_source"
 if ! (
     cd "$temporary_dir"
-    shc -e "$smoke_expiration" \
+    shc -r -e "$smoke_expiration" \
         -m "Smoke test Setup MNO Control Center" \
         -o "$smoke_binary" -f "$smoke_source"
 ) >"$smoke_log" 2>&1; then

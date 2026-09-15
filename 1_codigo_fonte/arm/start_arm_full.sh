@@ -1159,7 +1159,7 @@ data_expiracao=$(date -d "$(echo $DATAAQ | awk -F/ '{print $2 "/" $1 "/" $3}') +
 fi
 
 msg_expiracao="$msg_expiracao"
-shc -e $data_expiracao -m "$msg_expiracao" -o affine -f affine.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o affine -f affine.sh
 rm affine.sh
 rm affine.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1170,42 +1170,42 @@ rm affine
 fi
 
 echo -e "XXX\n51\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o anythingllm -f anythingllm.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o anythingllm -f anythingllm.sh
 rm anythingllm.sh
 rm anythingllm.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm anythingllm
 fi
 echo -e "XXX\n52\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o clickhouse -f clickhouse.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o clickhouse -f clickhouse.sh
 rm clickhouse.sh
 rm clickhouse.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm clickhouse
 fi
 echo -e "XXX\n52.5\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o codeserver -f codeserver.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o codeserver -f codeserver.sh
 rm codeserver.sh
 rm codeserver.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm codeserver
 fi
 echo -e "XXX\n53\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o directus -f directus.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o directus -f directus.sh
 rm directus.sh
 rm directus.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm directus
 fi
 echo -e "XXX\n53.5\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o docmost -f docmost.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o docmost -f docmost.sh
 rm docmost.sh
 rm docmost.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm docmost
 fi
 echo -e "XXX\n54\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o documenso -f documenso.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o documenso -f documenso.sh
 rm documenso.sh
 rm documenso.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1215,7 +1215,7 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm documenso
 fi
 echo -e "XXX\n55\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o docuseal -f docuseal.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o docuseal -f docuseal.sh
 rm docuseal.sh
 rm docuseal.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1225,7 +1225,7 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm docuseal
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o duplicati -f duplicati.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o duplicati -f duplicati.sh
 rm duplicati.sh
 rm duplicati.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
@@ -1233,77 +1233,77 @@ rm duplicati
 fi
 
 echo -e "XXX\n56\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o easyappointments -f easyappointments.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o easyappointments -f easyappointments.sh
 rm easyappointments.sh
 rm easyappointments.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm easyappointments
 fi
 echo -e "XXX\n57\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o excalidraw -f excalidraw.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o excalidraw -f excalidraw.sh
 rm excalidraw.sh
 rm excalidraw.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm excalidraw
 fi
 echo -e "XXX\n58\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o firecrawl -f firecrawl.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o firecrawl -f firecrawl.sh
 rm firecrawl.sh
 rm firecrawl.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm firecrawl
 fi
 echo -e "XXX\n59\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o focalboard -f focalboard.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o focalboard -f focalboard.sh
 rm focalboard.sh
 rm focalboard.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm focalboard
 fi
 echo -e "XXX\n60\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o freshrss -f freshrss.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o freshrss -f freshrss.sh
 rm freshrss.sh
 rm freshrss.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm freshrss
 fi
 echo -e "XXX\n61\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o filebrowser -f filebrowser.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o filebrowser -f filebrowser.sh
 rm filebrowser.sh
 rm filebrowser.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm filebrowser
 fi
 echo -e "XXX\n62\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o formbricks -f formbricks.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o formbricks -f formbricks.sh
 rm formbricks.sh
 rm formbricks.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm formbricks
 fi
 echo -e "XXX\n61\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o glpi -f glpi.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o glpi -f glpi.sh
 rm glpi.sh
 rm glpi.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm glpi
 fi
 echo -e "XXX\n62\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o humhub -f humhub.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o humhub -f humhub.sh
 rm humhub.sh
 rm humhub.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm humhub
 fi
 echo -e "XXX\n62.5\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o keycloak -f keycloak.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o keycloak -f keycloak.sh
 rm keycloak.sh
 rm keycloak.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm keycloak
 fi
 echo -e "XXX\n63\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o krayincrm -f krayincrm.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o krayincrm -f krayincrm.sh
 rm krayincrm.sh
 rm krayincrm.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1313,42 +1313,42 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm krayincrm
 fi
 echo -e "XXX\n64\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o karakeep -f karakeep.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o karakeep -f karakeep.sh
 rm karakeep.sh
 rm karakeep.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm karakeep
 fi
 echo -e "XXX\n65\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o lowcoder -f lowcoder.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o lowcoder -f lowcoder.sh
 rm lowcoder.sh
 rm lowcoder.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm lowcoder
 fi
 echo -e "XXX\n65\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o mattermost -f mattermost.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o mattermost -f mattermost.sh
 rm mattermost.sh
 rm mattermost.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm mattermost
 fi
 echo -e "XXX\n66\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o metabase -f metabase.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o metabase -f metabase.sh
 rm metabase.sh
 rm metabase.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm metabase
 fi
 echo -e "XXX\n67\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o mongodb -f mongodb.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o mongodb -f mongodb.sh
 rm mongodb.sh
 rm mongodb.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm mongodb
 fi
 echo -e "XXX\n68\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o moodle -f moodle.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o moodle -f moodle.sh
 rm moodle.sh
 rm moodle.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1358,13 +1358,13 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm moodle
 fi
 echo -e "XXX\n69\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o nginxproxymanager -f nginxproxymanager.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o nginxproxymanager -f nginxproxymanager.sh
 rm nginxproxymanager.sh
 rm nginxproxymanager.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm nginxproxymanager
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o nextcloud -f nextcloud.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o nextcloud -f nextcloud.sh
 rm nextcloud.sh
 rm nextcloud.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1374,64 +1374,64 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm nextcloud
 fi
 echo -e "XXX\n70\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o ntfy -f ntfy.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o ntfy -f ntfy.sh
 rm ntfy.sh
 rm ntfy.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm ntfy
 fi
 echo -e "XXX\n71\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o odoo -f odoo.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o odoo -f odoo.sh
 rm odoo.sh
 rm odoo.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm odoo
 fi
 echo -e "XXX\n72\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o ollama -f ollama.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o ollama -f ollama.sh
 rm ollama.sh
 rm ollama.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm ollama
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o openwebui -f openwebui.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o openwebui -f openwebui.sh
 rm openwebui.sh
 rm openwebui.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm openwebui
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o immich -f immich.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o immich -f immich.sh
 rm immich.sh
 rm immich.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm immich
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o homeassistant -f homeassistant.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o homeassistant -f homeassistant.sh
 rm homeassistant.sh
 rm homeassistant.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm homeassistant
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o homepage -f homepage.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o homepage -f homepage.sh
 rm homepage.sh
 rm homepage.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm homepage
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o hoppscotch -f hoppscotch.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o hoppscotch -f hoppscotch.sh
 rm hoppscotch.sh
 rm hoppscotch.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm hoppscotch
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o localai -f localai.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o localai -f localai.sh
 rm localai.sh
 rm localai.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm localai
 fi
 echo -e "XXX\n73\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o outline -f outline.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o outline -f outline.sh
 rm outline.sh
 rm outline.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1441,7 +1441,7 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm outline
 fi
 echo -e "XXX\n74\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o openproject -f openproject.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o openproject -f openproject.sh
 rm openproject.sh
 rm openproject.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1451,56 +1451,56 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm openproject
 fi
 echo -e "XXX\n75\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o quepasa -f quepasa.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o quepasa -f quepasa.sh
 rm quepasa.sh
 rm quepasa.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm quepasa
 fi
 echo -e "XXX\n76\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o redisinsight -f redisinsight.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o redisinsight -f redisinsight.sh
 rm redisinsight.sh
 rm redisinsight.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm redisinsight
 fi
 echo -e "XXX\n77\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o stirlingpdf -f stirlingpdf.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o stirlingpdf -f stirlingpdf.sh
 rm stirlingpdf.sh
 rm stirlingpdf.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm stirlingpdf
 fi
 echo -e "XXX\n78\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o superset -f superset.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o superset -f superset.sh
 rm superset.sh
 rm superset.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm superset
 fi
 echo -e "XXX\n79\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o strap -f strap.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o strap -f strap.sh
 rm strap.sh
 rm strap.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm strap
 fi
 echo -e "XXX\n79\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o toojet -f toojet.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o toojet -f toojet.sh
 rm toojet.sh
 rm toojet.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm toojet
 fi
 echo -e "XXX\n80\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o triliumnext -f triliumnext.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o triliumnext -f triliumnext.sh
 rm triliumnext.sh
 rm triliumnext.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm triliumnext
 fi
 echo -e "XXX\n81\nINSTALANDO SETUPMNO 3/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o twentycrm -f twentycrm.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o twentycrm -f twentycrm.sh
 rm twentycrm.sh
 rm twentycrm.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1510,42 +1510,42 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm twentycrm
 fi
 echo -e "XXX\n81\nINSTALANDO SETUPMNO 4/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o vaultwarden -f vaultwarden.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o vaultwarden -f vaultwarden.sh
 rm vaultwarden.sh
 rm vaultwarden.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm vaultwarden
 fi
 echo -e "XXX\n82\nINSTALANDO SETUPMNO 4/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o vikunja -f vikunja.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o vikunja -f vikunja.sh
 rm vikunja.sh
 rm vikunja.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm vikunja
 fi
 echo -e "XXX\n83\nINSTALANDO SETUPMNO 4/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o woofedcrm -f woofedcrm.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o woofedcrm -f woofedcrm.sh
 rm woofedcrm.sh
 rm woofedcrm.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm woofedcrm
 fi
 echo -e "XXX\n83\nINSTALANDO SETUPMNO 4/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o wuzap -f wuzap.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o wuzap -f wuzap.sh
 rm wuzap.sh
 rm wuzap.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm wuzap
 fi
 echo -e "XXX\n84\nINSTALANDO SETUPMNO 4/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o yourl -f yourl.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o yourl -f yourl.sh
 rm yourl.sh
 rm yourl.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm yourl
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o wekan -f wekan.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o wekan -f wekan.sh
 rm wekan.sh
 rm wekan.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
@@ -1554,48 +1554,48 @@ fi
 
 echo -e "XXX\n85\nINSTALANDO SETUPMNO 4/8 \nXXX"
 
-shc -e $data_expiracao -m "$msg_expiracao" -o grafana -f grafana.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o grafana -f grafana.sh
 rm grafana.sh
 rm grafana.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm grafana
 fi
 echo -e "XXX\n86\nINSTALANDO SETUPMNO 4/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o chatwoot -f chatwoot.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o chatwoot -f chatwoot.sh
 rm chatwoot.sh
 rm chatwoot.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm chatwoot
 fi
 echo -e "XXX\n87\nINSTALANDO SETUPMNO 4/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o evolutionapi -f evolutionapi.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o evolutionapi -f evolutionapi.sh
 rm evolutionapi.sh
 rm evolutionapi.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm evolutionapi
 fi
 echo -e "XXX\n88\nINSTALANDO SETUPMNO 4/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o evolution2api -f evolution2api.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o evolution2api -f evolution2api.sh
 rm evolution2api.sh
 rm evolution2api.sh.x.c
 echo -e "XXX\n89\nINSTALANDO SETUPMNO 4/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o typebot -f typebot.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o typebot -f typebot.sh
 rm typebot.sh
 rm typebot.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm typebot
 fi
 echo -e "XXX\n90\nINSTALANDO SETUPMNO 5/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o n8n -f n8n.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o n8n -f n8n.sh
 rm n8n.sh
 rm n8n.sh.x.c
 
-shc -e $data_expiracao -m "$msg_expiracao" -o n8n2 -f n8n2.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o n8n2 -f n8n2.sh
 rm n8n2.sh
 rm n8n2.sh.x.c
 
 echo -e "XXX\n91\nINSTALANDO SETUPMNO 5/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o appsmith -f appsmith.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o appsmith -f appsmith.sh
 rm appsmith.sh
 rm appsmith.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1605,44 +1605,44 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm appsmith
 fi
 echo -e "XXX\n92\nINSTALANDO SETUPMNO 5/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o minio -f minio.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o minio -f minio.sh
 rm minio.sh
 rm minio.sh.x.c
 echo -e "XXX\n93\nINSTALANDO SETUPMNO 5/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o zep -f zep.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o zep -f zep.sh
 rm zep.sh
 rm zep.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm zep
 fi
 echo -e "XXX\n94\nINSTALANDO SETUPMNO 5/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o redicommander -f redicommander.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o redicommander -f redicommander.sh
 rm redicommander.sh
 rm redicommander.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm redicommander
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o rabbitmq -f rabbitmq.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o rabbitmq -f rabbitmq.sh
 rm rabbitmq.sh
 rm rabbitmq.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm rabbitmq
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o flowise -f flowise.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o flowise -f flowise.sh
 rm flowise.sh
 rm flowise.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm flowise
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o uptimekuma -f uptimekuma.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o uptimekuma -f uptimekuma.sh
 rm uptimekuma.sh
 rm uptimekuma.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm uptimekuma
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o waha -f waha.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o waha -f waha.sh
 rm waha.sh
 rm waha.sh.x.c
 if [[ ("$PLANO" == "free") ]]; then
@@ -1650,61 +1650,61 @@ rm waha
 fi
 
 echo -e "XXX\n95\nINSTALANDO SETUPMNO 5/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o pgadmin -f pgadmin.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o pgadmin -f pgadmin.sh
 rm pgadmin.sh
 rm pgadmin.sh.x.c
 
-shc -e $data_expiracao -m "$msg_expiracao" -o planka -f planka.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o planka -f planka.sh
 rm planka.sh
 rm planka.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm planka
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o mauticpadrao -f mauticpadrao.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o mauticpadrao -f mauticpadrao.sh
 rm mauticpadrao.sh
 rm mauticpadrao.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm mauticpadrao
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o wordpress -f wordpress.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o wordpress -f wordpress.sh
 rm wordpress.sh
 rm wordpress.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm wordpress
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o wikijs -f wikijs.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o wikijs -f wikijs.sh
 rm wikijs.sh
 rm wikijs.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm wikijs
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o weaviate -f weaviate.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o weaviate -f weaviate.sh
 rm weaviate.sh
 rm weaviate.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm weaviate
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o vllm -f vllm.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o vllm -f vllm.sh
 rm vllm.sh
 rm vllm.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm vllm
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o windmill -f windmill.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o windmill -f windmill.sh
 rm windmill.sh
 rm windmill.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm windmill
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o milvus -f milvus.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o milvus -f milvus.sh
 rm milvus.sh
 rm milvus.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm milvus
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o botpress -f botpress.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o botpress -f botpress.sh
 rm botpress.sh
 rm botpress.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1714,26 +1714,26 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm botpress
 fi
 echo -e "XXX\n96\nINSTALANDO SETUPMNO 6/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o budibase -f budibase.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o budibase -f budibase.sh
 rm budibase.sh
 rm budibase.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm budibase
 fi
 echo -e "XXX\n97\nINSTALANDO SETUPMNO 6/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o nocodb -f nocodb.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o nocodb -f nocodb.sh
 rm nocodb.sh
 rm nocodb.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm nocodb
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o nocobase -f nocobase.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o nocobase -f nocobase.sh
 rm nocobase.sh
 rm nocobase.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm nocobase
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o baserow -f baserow.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o baserow -f baserow.sh
 rm baserow.sh
 rm baserow.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1743,71 +1743,71 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm baserow
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o bytebase -f bytebase.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o bytebase -f bytebase.sh
 rm bytebase.sh
 rm bytebase.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm bytebase
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o beszel -f beszel.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o beszel -f beszel.sh
 rm beszel.sh
 rm beszel.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm beszel
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o mysql -f mysql.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o mysql -f mysql.sh
 rm mysql.sh
 rm mysql.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm mysql
 fi
 echo -e "XXX\n97\nINSTALANDO SETUPMNO 7/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o pma -f pma.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o pma -f pma.sh
 rm pma.sh
 rm pma.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm pma
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o restartservice -f restartservice.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o restartservice -f restartservice.sh
 rm restartservice.sh
 rm restartservice.sh.x.c
-shc -e $data_expiracao -m "$msg_expiracao" -o securitydiagnostic -f securitydiagnostic.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o securitydiagnostic -f securitydiagnostic.sh
 rm securitydiagnostic.sh
 rm securitydiagnostic.sh.x.c
-shc -e $data_expiracao -m "$msg_expiracao" -o uninstall -f uninstall.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o uninstall -f uninstall.sh
 rm uninstall.sh
 rm uninstall.sh.x.c
-shc -e $data_expiracao -m "$msg_expiracao" -o dockerswarm -f dockerswarm.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o dockerswarm -f dockerswarm.sh
 rm dockerswarm.sh
 rm dockerswarm.sh.x.c
-shc -e $data_expiracao -m "$msg_expiracao" -o install -f install.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o install -f install.sh
 rm install.sh
 rm install.sh.x.c
 echo -e "XXX\n98\nINSTALANDO SETUPMNO 7/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o calcom -f calcom.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o calcom -f calcom.sh
 rm calcom.sh
 rm calcom.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm calcom
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o chatwootn_evon_rabbitmq -f chatwootn_evon_rabbitmq.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o chatwootn_evon_rabbitmq -f chatwootn_evon_rabbitmq.sh
 rm chatwootn_evon_rabbitmq.sh
 rm chatwootn_evon_rabbitmq.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm chatwootn_evon_rabbitmq
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o   chatwootn_evo2_rabbitmq_redisevo -f     chatwootn_evo2_rabbitmq_redisevo.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o   chatwootn_evo2_rabbitmq_redisevo -f     chatwootn_evo2_rabbitmq_redisevo.sh
 rm      chatwootn_evo2_rabbitmq_redisevo.sh
 rm      chatwootn_evo2_rabbitmq_redisevo.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm chatwootn_evo2_rabbitmq_redisevo
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o langfuse -f langfuse.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o langfuse -f langfuse.sh
 rm langfuse.sh
 rm langfuse.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1818,7 +1818,7 @@ rm langfuse
 fi
 
 echo -e "XXX\n99\nINSTALANDO SETUPMNO 7/8 \nXXX"
-shc -e $data_expiracao -m "$msg_expiracao" -o langflow -f langflow.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o langflow -f langflow.sh
 rm langflow.sh
 rm langflow.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
@@ -1826,7 +1826,7 @@ rm langflow
 fi
 
 
-shc -e $data_expiracao -m "$msg_expiracao" -o dozzle -f dozzle.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o dozzle -f dozzle.sh
 rm dozzle.sh
 rm dozzle.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1836,76 +1836,76 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm dozzle
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o syncthing -f syncthing.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o syncthing -f syncthing.sh
 rm syncthing.sh
 rm syncthing.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm syncthing
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o changedetection -f changedetection.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o changedetection -f changedetection.sh
 rm changedetection.sh
 rm changedetection.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm changedetection
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o plane -f plane.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o plane -f plane.sh
 rm plane.sh
 rm plane.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm plane
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o shlink -f shlink.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o shlink -f shlink.sh
 rm shlink.sh
 rm shlink.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm shlink
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o siyuan -f siyuan.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o siyuan -f siyuan.sh
 rm siyuan.sh
 rm siyuan.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm siyuan
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o tooljet -f tooljet.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o tooljet -f tooljet.sh
 rm tooljet.sh
 rm tooljet.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm tooljet
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o reactiveresume -f reactiveresume.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o reactiveresume -f reactiveresume.sh
 rm reactiveresume.sh
 rm reactiveresume.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm reactiveresume
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o photoprism -f photoprism.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o photoprism -f photoprism.sh
 rm photoprism.sh
 rm photoprism.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm photoprism
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o geracloudflare -f geracloudflare.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o geracloudflare -f geracloudflare.sh
 rm geracloudflare.sh
 rm geracloudflare.sh.x.c
 
-shc -e $data_expiracao -m "$msg_expiracao" -o mautic5padrao -f mautic5padrao.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o mautic5padrao -f mautic5padrao.sh
 rm mautic5padrao.sh
 rm mautic5padrao.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm mautic5padrao
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o mautic4whatsmkt -f mautic4whatsmkt.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o mautic4whatsmkt -f mautic4whatsmkt.sh
 rm mautic4whatsmkt.sh
 rm mautic4whatsmkt.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm mautic4whatsmkt
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o mautic5whatsmkt -f mautic5whatsmkt.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o mautic5whatsmkt -f mautic5whatsmkt.sh
 rm mautic5whatsmkt.sh
 rm mautic5whatsmkt.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1915,35 +1915,35 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm mautic5whatsmkt
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o n8nmain -f n8nmain.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o n8nmain -f n8nmain.sh
 rm n8nmain.sh
 rm n8nmain.sh.x.c
 
-shc -e $data_expiracao -m "$msg_expiracao" -o qdrant -f qdrant.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o qdrant -f qdrant.sh
 rm qdrant.sh
 rm qdrant.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm qdrant
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o chromadb -f chromadb.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o chromadb -f chromadb.sh
 rm chromadb.sh
 rm chromadb.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm chromadb
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o essenciais -f essenciais.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o essenciais -f essenciais.sh
 rm essenciais.sh
 rm essenciais.sh.x.c
 
-shc -e $data_expiracao -m "$msg_expiracao" -o evoai -f evoai.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o evoai -f evoai.sh
 rm evoai.sh
 rm evoai.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm evoai
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o chatwootn_evo2_rabbitmq_minio -f chatwootn_evo2_rabbitmq_minio.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o chatwootn_evo2_rabbitmq_minio -f chatwootn_evo2_rabbitmq_minio.sh
 rm chatwootn_evo2_rabbitmq_minio.sh
 rm chatwootn_evo2_rabbitmq_minio.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1953,7 +1953,7 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm chatwootn_evo2_rabbitmq_minio
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o combo_whatsapp_marketing -f combo_whatsapp_marketing.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o combo_whatsapp_marketing -f combo_whatsapp_marketing.sh
 rm combo_whatsapp_marketing.sh
 rm combo_whatsapp_marketing.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1962,7 +1962,7 @@ fi
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm combo_whatsapp_marketing
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o combo_ia_whatsapp_sdr_crm -f combo_ia_whatsapp_sdr_crm.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o combo_ia_whatsapp_sdr_crm -f combo_ia_whatsapp_sdr_crm.sh
 rm combo_ia_whatsapp_sdr_crm.sh
 rm combo_ia_whatsapp_sdr_crm.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1971,7 +1971,7 @@ fi
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm combo_ia_whatsapp_sdr_crm
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o combo_vibe_ops -f combo_vibe_ops.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o combo_vibe_ops -f combo_vibe_ops.sh
 rm combo_vibe_ops.sh
 rm combo_vibe_ops.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1981,7 +1981,7 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm combo_vibe_ops
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o typebot_minio -f typebot_minio.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o typebot_minio -f typebot_minio.sh
 rm typebot_minio.sh
 rm typebot_minio.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -1990,11 +1990,11 @@ fi
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm typebot_minio
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o redis -f redis.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o redis -f redis.sh
 rm redis.sh
 rm redis.sh.x.c
 
-shc -e $data_expiracao -m "$msg_expiracao" -o evoai_evo2_minio -f evoai_evo2_minio.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o evoai_evo2_minio -f evoai_evo2_minio.sh
 rm evoai_evo2_minio.sh
 rm evoai_evo2_minio.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -2004,7 +2004,7 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm evoai_evo2_minio
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o litellm -f litellm.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o litellm -f litellm.sh
 rm litellm.sh
 rm litellm.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -2013,19 +2013,19 @@ fi
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm litellm
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o librechat -f librechat.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o librechat -f librechat.sh
 rm librechat.sh
 rm librechat.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm librechat
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o linkwarden -f linkwarden.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o linkwarden -f linkwarden.sh
 rm linkwarden.sh
 rm linkwarden.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm linkwarden
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o listmonk -f listmonk.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o listmonk -f listmonk.sh
 rm listmonk.sh
 rm listmonk.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -2034,20 +2034,20 @@ fi
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm listmonk
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o lobechat -f lobechat.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o lobechat -f lobechat.sh
 rm lobechat.sh
 rm lobechat.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm lobechat
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o mautic6padrao -f mautic6padrao.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o mautic6padrao -f mautic6padrao.sh
 rm mautic6padrao.sh
 rm mautic6padrao.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm mautic6padrao
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o mautic6whatsmkt -f mautic6whatsmkt.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o mautic6whatsmkt -f mautic6whatsmkt.sh
 rm mautic6whatsmkt.sh
 rm mautic6whatsmkt.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -2058,14 +2058,14 @@ rm mautic6whatsmkt
 fi
 
 
-shc -e $data_expiracao -m "$msg_expiracao" -o n8n-workflows -f n8n-workflows.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o n8n-workflows -f n8n-workflows.sh
 rm n8n-workflows.sh
 rm n8n-workflows.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm n8n-workflows
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o matomo -f matomo.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o matomo -f matomo.sh
 rm matomo.sh
 rm matomo.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -2075,26 +2075,26 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm matomo
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o maybe -f maybe.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o maybe -f maybe.sh
 rm maybe.sh
 rm maybe.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm maybe
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o meilisearch -f meilisearch.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o meilisearch -f meilisearch.sh
 rm meilisearch.sh
 rm meilisearch.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm meilisearch
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o memos -f memos.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o memos -f memos.sh
 rm memos.sh
 rm memos.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm memos
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o openclaw -f openclaw.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o openclaw -f openclaw.sh
 rm openclaw.sh
 rm openclaw.sh.x.c
 if [ "$PLANO" == "free" ]; then
@@ -2104,7 +2104,7 @@ if [ "$PLANO" == "free1" ]; then
 rm openclaw
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o databasus -f databasus.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o databasus -f databasus.sh
 rm databasus.sh
 rm databasus.sh.x.c
 if [ "$PLANO" == "free2" ]; then
@@ -2112,28 +2112,28 @@ rm databasus
 fi
 
 
-shc -e $data_expiracao -m "$msg_expiracao" -o ghost -f ghost.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o ghost -f ghost.sh
 rm ghost.sh
 rm ghost.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm ghost
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o discourse -f discourse.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o discourse -f discourse.sh
 rm discourse.sh
 rm discourse.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm discourse
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o mautic7padrao -f mautic7padrao.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o mautic7padrao -f mautic7padrao.sh
 rm mautic7padrao.sh
 rm mautic7padrao.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm mautic7padrao
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o mautic7whatsmkt -f mautic7whatsmkt.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o mautic7whatsmkt -f mautic7whatsmkt.sh
 rm mautic7whatsmkt.sh
 rm mautic7whatsmkt.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
@@ -2142,7 +2142,7 @@ fi
 
 # Novas Ferramentas de IA
 
-shc -e $data_expiracao -m "$msg_expiracao" -o autogen -f autogen.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o autogen -f autogen.sh
 rm autogen.sh
 rm autogen.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
@@ -2150,153 +2150,153 @@ rm autogen
 fi
 
 
-shc -e $data_expiracao -m "$msg_expiracao" -o cognee -f cognee.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o cognee -f cognee.sh
 rm cognee.sh
 rm cognee.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm cognee
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o memgraph -f memgraph.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o memgraph -f memgraph.sh
 rm memgraph.sh
 rm memgraph.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm memgraph
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o neo4j -f neo4j.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o neo4j -f neo4j.sh
 rm neo4j.sh
 rm neo4j.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm neo4j
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o netdada -f netdada.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o netdada -f netdada.sh
 rm netdada.sh
 rm netdada.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm netdada
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o openfang -f openfang.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o openfang -f openfang.sh
 rm openfang.sh
 rm openfang.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm openfang
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o openobserve -f openobserve.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o openobserve -f openobserve.sh
 rm openobserve.sh
 rm openobserve.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm openobserve
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o paperclip -f paperclip.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o paperclip -f paperclip.sh
 rm paperclip.sh
 rm paperclip.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm paperclip
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o penpot -f penpot.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o penpot -f penpot.sh
 rm penpot.sh
 rm penpot.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm penpot
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o pihole -f pihole.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o pihole -f pihole.sh
 rm pihole.sh
 rm pihole.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm pihole
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o pocketid -f pocketid.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o pocketid -f pocketid.sh
 rm pocketid.sh
 rm pocketid.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm pocketid
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o pocketbase -f pocketbase.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o pocketbase -f pocketbase.sh
 rm pocketbase.sh
 rm pocketbase.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm pocketbase
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o rocketchat -f rocketchat.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o rocketchat -f rocketchat.sh
 rm rocketchat.sh
 rm rocketchat.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm rocketchat
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o navidrome -f navidrome.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o navidrome -f navidrome.sh
 rm navidrome.sh
 rm navidrome.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm navidrome
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o gitea -f gitea.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o gitea -f gitea.sh
 rm gitea.sh
 rm gitea.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm gitea
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o gitlab -f gitlab.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o gitlab -f gitlab.sh
 rm gitlab.sh
 rm gitlab.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm gitlab
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o glance -f glance.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o glance -f glance.sh
 rm glance.sh
 rm glance.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm glance
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o umami -f umami.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o umami -f umami.sh
 rm umami.sh
 rm umami.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm umami
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o actualbudget -f actualbudget.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o actualbudget -f actualbudget.sh
 rm actualbudget.sh
 rm actualbudget.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm actualbudget
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o bookstack -f bookstack.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o bookstack -f bookstack.sh
 rm bookstack.sh
 rm bookstack.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm bookstack
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o paperless -f paperless.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o paperless -f paperless.sh
 rm paperless.sh
 rm paperless.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm paperless
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o fireflyiii -f fireflyiii.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o fireflyiii -f fireflyiii.sh
 rm fireflyiii.sh
 rm fireflyiii.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm fireflyiii
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o searxng -f searxng.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o searxng -f searxng.sh
 rm searxng.sh
 rm searxng.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
@@ -2304,114 +2304,114 @@ rm searxng
 fi
 
 
-shc -e $data_expiracao -m "$msg_expiracao" -o openclawpro -f openclawpro.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o openclawpro -f openclawpro.sh
 rm openclawpro.sh
 rm openclawpro.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm openclawpro
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o evocrm -f evocrm.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o evocrm -f evocrm.sh
 rm evocrm.sh
 rm evocrm.sh.x.c
 
-shc -e $data_expiracao -m "$msg_expiracao" -o evolutiongo -f evolutiongo.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o evolutiongo -f evolutiongo.sh
 rm evolutiongo.sh
 rm evolutiongo.sh.x.c
 
-shc -e $data_expiracao -m "$msg_expiracao" -o evonexus -f evonexus.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o evonexus -f evonexus.sh
 rm evonexus.sh
 rm evonexus.sh.x.c
 
-shc -e $data_expiracao -m "$msg_expiracao" -o hermes -f hermes.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o hermes -f hermes.sh
 rm hermes.sh
 rm hermes.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm hermes
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o heyform -f heyform.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o heyform -f heyform.sh
 rm heyform.sh
 rm heyform.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm heyform
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o infisical -f infisical.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o infisical -f infisical.sh
 rm infisical.sh
 rm infisical.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm infisical
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o it_tools -f it_tools.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o it_tools -f it_tools.sh
 rm it_tools.sh
 rm it_tools.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm it_tools
 fi
-shc -e $data_expiracao -m "$msg_expiracao" -o chatwooto_evo2_rabbitmq_minio -f chatwooto_evo2_rabbitmq_minio.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o chatwooto_evo2_rabbitmq_minio -f chatwooto_evo2_rabbitmq_minio.sh
 rm chatwooto_evo2_rabbitmq_minio.sh
 rm chatwooto_evo2_rabbitmq_minio.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm chatwooto_evo2_rabbitmq_minio
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o chatwootorig_desbloq__evo2_rabbitmq_minio -f chatwootorig_desbloq__evo2_rabbitmq_minio.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o chatwootorig_desbloq__evo2_rabbitmq_minio -f chatwootorig_desbloq__evo2_rabbitmq_minio.sh
 rm chatwootorig_desbloq__evo2_rabbitmq_minio.sh
 rm chatwootorig_desbloq__evo2_rabbitmq_minio.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm chatwootorig_desbloq__evo2_rabbitmq_minio
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o chatwoot_ai_customer_service -f chatwoot_ai_customer_service.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o chatwoot_ai_customer_service -f chatwoot_ai_customer_service.sh
 rm chatwoot_ai_customer_service.sh
 rm chatwoot_ai_customer_service.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm chatwoot_ai_customer_service
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o jitsi -f jitsi.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o jitsi -f jitsi.sh
 rm jitsi.sh
 rm jitsi.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm jitsi
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o joplin -f joplin.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o joplin -f joplin.sh
 rm joplin.sh
 rm joplin.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm joplin
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o jellyfin -f jellyfin.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o jellyfin -f jellyfin.sh
 rm jellyfin.sh
 rm jellyfin.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm jellyfin
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o activepieces -f activepieces.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o activepieces -f activepieces.sh
 rm activepieces.sh
 rm activepieces.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm activepieces
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o adguardhome -f adguardhome.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o adguardhome -f adguardhome.sh
 rm adguardhome.sh
 rm adguardhome.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm adguardhome
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o dify -f dify.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o dify -f dify.sh
 rm dify.sh
 rm dify.sh.x.c
 if [[ ("$PLANO" == "free") || ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm dify
 fi
 
-shc -e $data_expiracao -m "$msg_expiracao" -o setupmno_control -f setupmno_control.sh
+shc -r -e $data_expiracao -m "$msg_expiracao" -o setupmno_control -f setupmno_control.sh
 rm setupmno_control.sh
 rm setupmno_control.sh.x.c
 echo -e "XXX\n99\nINSTALANDO SETUPMNO 7/8 \nXXX"
