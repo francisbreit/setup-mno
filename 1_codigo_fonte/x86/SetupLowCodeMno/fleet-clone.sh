@@ -64,21 +64,42 @@ ensure_ssh_keys_available() {
 }
 
 sync_fleet_inventory() {
-    if [ -f "$INVENTORY_FILE" ] && [ -s "$INVENTORY_FILE" ]; then
-        local node_count
-        node_count=$(jq -r '[.nodes[]? | select(.role == "worker" or .mode == "worker")] | length' "$INVENTORY_FILE" 2>/dev/null || printf '0')
-        if [ "$node_count" -gt 0 ]; then
-            return 0
+    if ! command -v docker >/dev/null 2>&1; then
+        return 0
+    fi
+
+    local audit_vol=""
+    # 1. Tentar obter o volume montado em /audit no container web ativo do Control Center
+    local web_container
+    web_container=$(docker ps -q --filter "name=mnoctrl.*web" 2>/dev/null | head -n 1)
+    if [ -n "$web_container" ]; then
+        audit_vol=$(docker inspect "$web_container" --format '{{range .Mounts}}{{if eq .Destination "/audit"}}{{.Name}}{{end}}{{end}}' 2>/dev/null || true)
+    fi
+
+    # 2. Se o container não estiver rodando no momento, tentar inspecionar o serviço Swarm
+    if [ -z "$audit_vol" ]; then
+        local web_service
+        web_service=$(docker service ls -q --filter "name=mnoctrl.*web" 2>/dev/null | head -n 1)
+        if [ -n "$web_service" ]; then
+            audit_vol=$(docker service inspect "$web_service" --format '{{range .Spec.TaskTemplate.ContainerSpec.Mounts}}{{if eq .Target "/audit"}}{{.Source}}{{end}}{{end}}' 2>/dev/null || true)
         fi
     fi
 
-    if command -v docker >/dev/null 2>&1; then
-        local audit_vol
-        audit_vol=$(docker volume ls -q --filter "name=audit_data" 2>/dev/null | head -n 1)
-        if [ -n "$audit_vol" ]; then
-            local inv_data
-            inv_data=$(docker run --rm -v "${audit_vol}:/audit" alpine cat /audit/fleet-inventory.json 2>/dev/null || true)
-            if [ -n "$inv_data" ] && [ "$inv_data" != "null" ]; then
+    # 3. Fallback: volume audit_data mais recente
+    if [ -z "$audit_vol" ]; then
+        audit_vol=$(docker volume ls --filter "name=audit_data" --format '{{.CreatedAt}}\t{{.Name}}' 2>/dev/null | sort -r | head -n 1 | awk '{print $NF}')
+    fi
+
+    # 4. Fallback final
+    if [ -z "$audit_vol" ]; then
+        audit_vol=$(docker volume ls -q --filter "name=audit_data" 2>/dev/null | tail -n 1)
+    fi
+
+    if [ -n "$audit_vol" ]; then
+        local inv_data
+        inv_data=$(docker run --rm -v "${audit_vol}:/audit" alpine cat /audit/fleet-inventory.json 2>/dev/null || true)
+        if [ -n "$inv_data" ] && [ "$inv_data" != "null" ]; then
+            if printf '%s' "$inv_data" | jq -e . >/dev/null 2>&1; then
                 mkdir -p "$(dirname "$INVENTORY_FILE")" 2>/dev/null || true
                 printf '%s\n' "$inv_data" > "$INVENTORY_FILE" 2>/dev/null || true
                 return 0
@@ -1453,8 +1474,8 @@ action_inspect_nodes() {
         report+="• Esta VPS opera como Nó Worker subordinado.\n"
         report+="• A central de comando, o catálogo de nós e as migrações entre servidores são gerenciadas a partir da sua Torre Master.\n"
         report+="• Funções disponíveis neste nó: Inspeção local e criação de Backup Portátil (.tar.gz).\n"
-    else
-        report+="📡 NÓS REMOTOS DA FROTA (WORKERS CADASTRADOS):\n"
+    elif [ "$fleet_mode" = "master" ]; then
+        report+="📡 NÓS REMOTOS DA FROTA (TORRE MASTER):\n"
         if [ -f "$INVENTORY_FILE" ]; then
             local count
             count=$(jq -r '[.nodes[]? | select(.role == "worker" or .mode == "worker") | select(.status != "deleted")] | length' "$INVENTORY_FILE" 2>/dev/null || printf '0')
@@ -1466,11 +1487,16 @@ action_inspect_nodes() {
                     report+="• $wline\n"
                 done <<< "$worker_lines"
             else
-                report+="Nenhum nó worker cadastrado no momento no fleet-inventory.json.\n"
+                report+="• Nenhum nó worker cadastrado no momento no fleet-inventory.json.\n"
             fi
         else
-            report+="Inventário de frota não localizado. Cadastre nós remotos no menu Fleet Hub.\n"
+            report+="• Inventário de frota não localizado. Cadastre nós remotos no menu Fleet Hub.\n"
         fi
+    else
+        report+="🛰️ CONTEXTO DA FROTA (MODO SIMPLES / STANDALONE):\n"
+        report+="• O MNO Fleet Hub está inativo neste nó (Consumo ocioso: 0 MB de RAM).\n"
+        report+="• Este servidor opera como nó isolado e não coordena a frota no momento.\n"
+        report+="• Para conectar servidores operários (Workers) ou clonar stacks entre VPSs, altere o modo para Torre Master no Control Center ou no menu Fleet Hub.\n"
     fi
 
     if [ "${1:-}" = "--cli" ] || [ "${1:-}" = "text" ] || [ -z "${TERM:-}" ]; then
