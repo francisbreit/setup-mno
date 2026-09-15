@@ -214,6 +214,26 @@ function bindEvents() {
   $("fleet-add-cancel")?.addEventListener("click", closeFleetAddDialog);
   $("fleet-add-form")?.addEventListener("submit", submitFleetAddNode);
   $("fleet-add-dialog")?.addEventListener("cancel", closeFleetAddDialog);
+  $("fleet-clone-btn")?.addEventListener("click", () => openFleetCloneDialog());
+  $("fleet-clone-dialog-close")?.addEventListener("click", closeFleetCloneDialog);
+  $("fleet-clone-cancel")?.addEventListener("click", closeFleetCloneDialog);
+  $("fleet-clone-dialog")?.addEventListener("cancel", closeFleetCloneDialog);
+  $("fleet-clone-origin")?.addEventListener("change", () => onFleetCloneOriginChanged());
+  $("fleet-clone-app")?.addEventListener("change", onFleetCloneAppChanged);
+  $("fleet-clone-dest")?.addEventListener("change", runFleetClonePreflight);
+  $("fleet-clone-mode")?.addEventListener("change", onFleetCloneModeChanged);
+  $("fleet-clone-form")?.addEventListener("submit", submitFleetClone);
+  $("fleet-preflight-backup-btn")?.addEventListener("click", () => {
+    const originId = $("fleet-clone-origin")?.value;
+    const appName = $("fleet-clone-app")?.value;
+    closeFleetCloneDialog();
+    openFleetBackupDialog(originId, appName);
+  });
+  $("fleet-backup-dialog-close")?.addEventListener("click", closeFleetBackupDialog);
+  $("fleet-backup-cancel")?.addEventListener("click", closeFleetBackupDialog);
+  $("fleet-backup-dialog")?.addEventListener("cancel", closeFleetBackupDialog);
+  $("fleet-backup-node")?.addEventListener("change", () => onFleetBackupNodeChanged());
+  $("fleet-backup-form")?.addEventListener("submit", submitFleetBackup);
   $("fleet-change-mode-btn")?.addEventListener("click", openFleetModeDialog);
   $("fleet-mode-dialog-close")?.addEventListener("click", closeFleetModeDialog);
   $("fleet-mode-dialog-ok")?.addEventListener("click", closeFleetModeDialog);
@@ -3042,6 +3062,19 @@ function renderFleet() {
     }
   }
 
+  const cloneBtn = $("fleet-clone-btn");
+  if (cloneBtn) {
+    if (!isAllowed) {
+      cloneBtn.disabled = true;
+      cloneBtn.classList.add("disabled", "btn-pro-locked");
+      cloneBtn.title = "Recurso exclusivo para planos PRO e PRO MASTER no modo Cloudflare Tunnel";
+    } else {
+      cloneBtn.disabled = false;
+      cloneBtn.classList.remove("disabled", "btn-pro-locked");
+      cloneBtn.title = "Clonar ou migrar aplicações entre servidores da frota";
+    }
+  }
+
   const disabledPanel = $("fleet-disabled-panel");
   const masterPanel = $("fleet-master-panel");
   const workerPanel = $("fleet-worker-panel");
@@ -3203,10 +3236,13 @@ function renderFleetNodes() {
         </div>
 
         <div class="fleet-card-actions">
-          <button type="button" class="light-button small${lockClass}" data-fleet-action="ping" data-node-id="${escapeHTML(node.id)}"${disabledAttr}>Testar Conexão ⚡</button>
+          <button type="button" class="light-button small${lockClass}" data-fleet-action="ping" data-node-id="${escapeHTML(node.id)}"${disabledAttr}>Testar ⚡</button>
+          <button type="button" class="primary-button small${lockClass}" data-fleet-action="clone" data-node-id="${escapeHTML(node.id)}" data-node-name="${escapeHTML(node.name)}"${disabledAttr}>Clonar 🚀</button>
+          <button type="button" class="light-button small${lockClass}" data-fleet-action="apps" data-node-id="${escapeHTML(node.id)}" data-node-name="${escapeHTML(node.name)}"${disabledAttr}>Apps (${serviceCount}) 📦</button>
           ${openBtnHTML}
           ${removeBtnHTML}
         </div>
+        <div id="fleet-apps-drawer-${escapeHTML(node.id)}" class="fleet-apps-drawer hidden"></div>
       </article>
     `;
   }).join("");
@@ -3275,6 +3311,16 @@ async function handleFleetGridAction(event) {
     await pingFleetNode(nodeId, button);
   } else if (action === "remove") {
     await removeFleetNode(nodeId, nodeName);
+  } else if (action === "clone") {
+    openFleetCloneDialog(nodeId);
+  } else if (action === "apps") {
+    await toggleFleetNodeApps(nodeId);
+  } else if (action === "clone-app") {
+    const appName = button.dataset.appName;
+    openFleetCloneDialog(nodeId, appName);
+  } else if (action === "backup-app") {
+    const appName = button.dataset.appName;
+    openFleetBackupDialog(nodeId, appName);
   }
 }
 
@@ -3438,6 +3484,568 @@ async function copyWorkerURL() {
     input.select();
     document.execCommand("copy");
     showToast("URL copiada!");
+  }
+}
+
+async function fetchNodeStructure(nodeId) {
+  if (!state.fleetNodeStructures) state.fleetNodeStructures = {};
+  if (state.fleetNodeStructures[nodeId]) {
+    return state.fleetNodeStructures[nodeId];
+  }
+  const cleanId = nodeId || "local";
+  const data = await api(`/api/fleet/nodes/${encodeURIComponent(cleanId)}/structure`);
+  state.fleetNodeStructures[nodeId] = data;
+  return data;
+}
+
+async function toggleFleetNodeApps(nodeId) {
+  const drawer = $(`fleet-apps-drawer-${nodeId}`);
+  if (!drawer) return;
+  if (!drawer.classList.contains("hidden")) {
+    drawer.classList.add("hidden");
+    drawer.innerHTML = "";
+    return;
+  }
+  drawer.classList.remove("hidden");
+  drawer.innerHTML = `<div class="muted" style="padding:8px 0;">Consultando estrutura e stacks instaladas...</div>`;
+
+  try {
+    const structure = await fetchNodeStructure(nodeId);
+    const apps = structure.apps || [];
+    if (apps.length === 0) {
+      drawer.innerHTML = `<div class="muted" style="padding:8px 0; font-size:12px;">Nenhuma aplicação ou stack encontrada neste servidor.</div>`;
+      return;
+    }
+    drawer.innerHTML = `
+      <div class="fleet-apps-list">
+        ${apps.map(app => {
+          const srvList = (app.services || []).join(", ") || app.name;
+          const reqRAM = app.requiredMemoryMB || 512;
+          return `
+            <div class="fleet-app-row">
+              <div class="fleet-app-info">
+                <strong>${escapeHTML(app.name)}</strong>
+                <small>${escapeHTML(srvList)} · ${reqRAM} MB RAM requeridos</small>
+              </div>
+              <div class="fleet-app-actions">
+                <button type="button" class="primary-button small" data-fleet-action="clone-app" data-node-id="${escapeHTML(nodeId)}" data-app-name="${escapeHTML(app.name)}" title="Clonar ${escapeHTML(app.name)} para outro nó">Clonar 🚀</button>
+                <button type="button" class="light-button small" data-fleet-action="backup-app" data-node-id="${escapeHTML(nodeId)}" data-app-name="${escapeHTML(app.name)}" title="Gerar backup portátil de ${escapeHTML(app.name)}">Backup 💾</button>
+              </div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    `;
+  } catch (err) {
+    drawer.innerHTML = `<div class="form-error" style="margin:8px 0;">Falha ao obter aplicações: ${escapeHTML(err.message)}</div>`;
+  }
+}
+
+function openFleetCloneDialog(originNodeId, targetAppName, destNodeId) {
+  if (!state.fleetAllowed) {
+    showToast("Ação bloqueada: exclusivo para planos PRO e PRO MASTER com Cloudflare Tunnel.");
+    return;
+  }
+  const dialog = $("fleet-clone-dialog");
+  if (!dialog) return;
+
+  const originSelect = $("fleet-clone-origin");
+  const resultEl = $("fleet-clone-result");
+  const submitBtn = $("fleet-clone-submit");
+
+  if (resultEl) {
+    resultEl.className = "fleet-exec-result hidden";
+    resultEl.innerHTML = "";
+  }
+  if (submitBtn) submitBtn.disabled = true;
+
+  const nodes = state.fleetNodes || [];
+  if (originSelect) {
+    originSelect.innerHTML = nodes.map(n => {
+      const isMaster = n.mode === "master" || (n.id && n.id.startsWith("node-master"));
+      const arch = n.architecture ? (n.architecture === "amd64" ? "x86-64" : n.architecture) : "x86-64";
+      const label = `${n.name || n.id} (${arch} · ${isMaster ? "Master" : "Worker"})`;
+      return `<option value="${escapeHTML(n.id)}">${escapeHTML(label)}</option>`;
+    }).join("");
+
+    if (originNodeId && nodes.some(n => n.id === originNodeId)) {
+      originSelect.value = originNodeId;
+    } else if (nodes.length > 0) {
+      originSelect.value = nodes[0].id;
+    }
+  }
+
+  onFleetCloneOriginChanged(targetAppName, destNodeId);
+
+  if (!dialog.open) dialog.showModal();
+}
+
+function closeFleetCloneDialog() {
+  const dialog = $("fleet-clone-dialog");
+  if (dialog?.open) dialog.close();
+}
+
+async function onFleetCloneOriginChanged(presetAppName, presetDestNodeId) {
+  const originId = $("fleet-clone-origin")?.value;
+  const appSelect = $("fleet-clone-app");
+  const destSelect = $("fleet-clone-dest");
+  const originMeta = $("fleet-clone-origin-meta");
+
+  if (!originId) return;
+
+  if (originMeta) originMeta.textContent = "Carregando stacks instaladas...";
+  if (appSelect) {
+    appSelect.disabled = true;
+    appSelect.innerHTML = `<option value="">Carregando aplicações...</option>`;
+  }
+
+  const nodes = state.fleetNodes || [];
+  const destNodes = nodes.filter(n => n.id !== originId);
+  if (destSelect) {
+    if (destNodes.length === 0) {
+      destSelect.innerHTML = `<option value="">Nenhum outro servidor disponível na frota</option>`;
+      destSelect.disabled = true;
+    } else {
+      destSelect.disabled = false;
+      destSelect.innerHTML = destNodes.map(n => {
+        const isMaster = n.mode === "master" || (n.id && n.id.startsWith("node-master"));
+        const arch = n.architecture ? (n.architecture === "amd64" ? "x86-64" : n.architecture) : "x86-64";
+        const memFree = n.memoryTotalMB && n.memoryUsedMB ? `${Math.round((n.memoryTotalMB - n.memoryUsedMB))} MB livres` : "RAM";
+        const label = `${n.name || n.id} (${arch} · ${memFree} · ${isMaster ? "Master" : "Worker"})`;
+        return `<option value="${escapeHTML(n.id)}">${escapeHTML(label)}</option>`;
+      }).join("");
+
+      if (presetDestNodeId && destNodes.some(n => n.id === presetDestNodeId)) {
+        destSelect.value = presetDestNodeId;
+      }
+    }
+  }
+
+  try {
+    const structure = await fetchNodeStructure(originId);
+    const apps = structure.apps || [];
+
+    if (originMeta) {
+      originMeta.textContent = `${apps.length} aplicação(ões) detectada(s) · ${structure.architecture || "x86-64"}`;
+    }
+
+    if (appSelect) {
+      if (apps.length === 0) {
+        appSelect.innerHTML = `<option value="">Nenhuma aplicação encontrada na origem</option>`;
+        appSelect.disabled = true;
+      } else {
+        appSelect.disabled = false;
+        appSelect.innerHTML = `<option value="">-- Selecione uma aplicação --</option>` +
+          apps.map(a => `<option value="${escapeHTML(a.name)}">${escapeHTML(a.name)} (${a.requiredMemoryMB || 512} MB RAM)</option>`).join("");
+
+        if (presetAppName && apps.some(a => a.name.toLowerCase() === presetAppName.toLowerCase())) {
+          const matched = apps.find(a => a.name.toLowerCase() === presetAppName.toLowerCase());
+          appSelect.value = matched.name;
+        }
+      }
+    }
+
+    onFleetCloneAppChanged();
+  } catch (err) {
+    if (originMeta) originMeta.textContent = `Falha ao inspecionar nó: ${err.message}`;
+    if (appSelect) {
+      appSelect.innerHTML = `<option value="">Erro ao carregar aplicações</option>`;
+    }
+    resetFleetPreflight("Erro ao inspecionar servidor de origem");
+  }
+}
+
+function onFleetCloneAppChanged() {
+  const originId = $("fleet-clone-origin")?.value;
+  const appName = $("fleet-clone-app")?.value;
+  const appDetails = $("fleet-clone-app-details");
+
+  if (!originId || !appName) {
+    if (appDetails) {
+      appDetails.classList.add("hidden");
+      appDetails.innerHTML = "";
+    }
+    resetFleetPreflight("Selecione a aplicação para verificar preflight");
+    return;
+  }
+
+  const structure = state.fleetNodeStructures?.[originId];
+  const app = structure?.apps?.find(a => a.name === appName);
+
+  if (appDetails && app) {
+    appDetails.classList.remove("hidden");
+    const vols = (app.volumes || []).map(v => v.name).join(", ") || "volumes locais padrão";
+    const doms = (app.domains || []).join(", ") || `${appName.toLowerCase()}.manualnegocioonline.com.br`;
+    appDetails.innerHTML = `
+      <div><strong>Serviços:</strong> <code>${escapeHTML((app.services || []).join(', ') || app.name)}</code></div>
+      <div><strong>Volumes de Dados:</strong> <code>${escapeHTML(vols)}</code></div>
+      <div><strong>Domínio Ingress:</strong> <code>${escapeHTML(doms)}</code></div>
+      <div><strong>Estimativa de RAM:</strong> ${app.requiredMemoryMB || 512} MB</div>
+    `;
+  }
+
+  runFleetClonePreflight();
+}
+
+function onFleetCloneModeChanged() {
+  const mode = $("fleet-clone-mode")?.value;
+  const stopWrap = $("fleet-clone-stop-wrap");
+  const modeMeta = $("fleet-clone-mode-meta");
+
+  if (mode === "transfer") {
+    if (stopWrap) stopWrap.style.display = "flex";
+    if (modeMeta) modeMeta.textContent = "Comuta CNAME no Cloudflare Tunnel e desliga a stack de origem com segurança.";
+  } else {
+    if (stopWrap) stopWrap.style.display = "none";
+    if (modeMeta) modeMeta.textContent = "Origem permanece intocada. Ideal para testes de carga e redundância.";
+  }
+
+  runFleetClonePreflight();
+}
+
+async function runFleetClonePreflight() {
+  const originId = $("fleet-clone-origin")?.value;
+  const appName = $("fleet-clone-app")?.value;
+  const destId = $("fleet-clone-dest")?.value;
+  const mode = $("fleet-clone-mode")?.value || "clone";
+  const submitBtn = $("fleet-clone-submit");
+  const badge = $("fleet-preflight-badge");
+  const archVal = $("fleet-preflight-arch-val");
+  const archStatus = $("fleet-preflight-arch-status");
+  const ramVal = $("fleet-preflight-ram-val");
+  const ramStatus = $("fleet-preflight-ram-status");
+  const diskVal = $("fleet-preflight-disk-val");
+  const diskStatus = $("fleet-preflight-disk-status");
+  const dnsVal = $("fleet-preflight-dns-val");
+  const dnsStatus = $("fleet-preflight-dns-status");
+  const feedback = $("fleet-preflight-feedback");
+  const backupAction = $("fleet-preflight-backup-action");
+
+  if (!originId || !appName || !destId || originId === destId) {
+    resetFleetPreflight(originId === destId ? "Origem e destino devem ser servidores diferentes" : "Aguardando seleção de origem, aplicação e destino");
+    return;
+  }
+
+  if (badge) {
+    badge.className = "mode-pill mode-disabled";
+    badge.textContent = "Avaliando Gates...";
+  }
+
+  try {
+    const res = await api("/api/fleet/transfer/preflight", {
+      method: "POST",
+      body: JSON.stringify({ appName, originNodeId: originId, destNodeId: destId, mode })
+    });
+
+    state.activeClonePreflight = res;
+
+    const origArch = res.originNode?.architecture || "—";
+    const destArch = res.destNode?.architecture || "—";
+    if (archVal) archVal.textContent = `${origArch} → ${destArch}`;
+    if (archStatus) {
+      if (res.sameArchitecture) {
+        archStatus.className = "preflight-status ok";
+        archStatus.textContent = "✓ Compatível";
+      } else {
+        archStatus.className = "preflight-status fail";
+        archStatus.textContent = "⛔ Incompatível (x86 vs ARM)";
+      }
+    }
+
+    if (ramVal) ramVal.textContent = `Req: ${res.requiredMemoryMB} MB / Disp: ${res.availableMemoryMB} MB`;
+    if (ramStatus) {
+      if (res.availableMemoryMB >= res.requiredMemoryMB) {
+        ramStatus.className = "preflight-status ok";
+        ramStatus.textContent = "✓ RAM Suficiente";
+      } else {
+        ramStatus.className = "preflight-status fail";
+        ramStatus.textContent = "⛔ RAM Insuficiente";
+      }
+    }
+
+    if (diskVal) diskVal.textContent = `Req: ${res.requiredDiskGB} GB / Disp: ${res.availableDiskGB} GB`;
+    if (diskStatus) {
+      if (res.availableDiskGB >= res.requiredDiskGB) {
+        diskStatus.className = "preflight-status ok";
+        diskStatus.textContent = "✓ Espaço Suficiente";
+      } else {
+        diskStatus.className = "preflight-status fail";
+        diskStatus.textContent = "⛔ Disco Cheio";
+      }
+    }
+
+    if (dnsVal) {
+      dnsVal.textContent = res.dnsAction === "update_cname_and_ingress" ? "Comutar CNAME Cloudflare" : "Manter DNS Atual";
+    }
+    if (dnsStatus) {
+      dnsStatus.className = "preflight-status ok";
+      dnsStatus.textContent = res.dnsAction === "update_cname_and_ingress" ? "✓ Atualização Zero-Downtime" : "✓ Isolado";
+    }
+
+    if (res.allowed) {
+      if (badge) {
+        badge.className = "mode-pill mode-master";
+        badge.textContent = "✓ Aprovado para Transferência";
+      }
+      if (feedback) {
+        feedback.classList.remove("hidden", "blocked");
+        feedback.classList.add("ok");
+        feedback.textContent = res.recommendation || "Preflight aprovado com sucesso. Todos os requisitos de arquitetura, memória e disco foram verificados.";
+      }
+      if (backupAction) backupAction.classList.add("hidden");
+      if (submitBtn) submitBtn.disabled = false;
+    } else {
+      if (badge) {
+        badge.className = "mode-pill mode-worker";
+        badge.textContent = "⛔ Bloqueado pelo Preflight";
+      }
+      if (feedback) {
+        feedback.classList.remove("hidden", "ok");
+        feedback.classList.add("blocked");
+        feedback.textContent = `${res.blockReason} ${res.recommendation ? `\nRecomendação: ${res.recommendation}` : ""}`;
+      }
+      if (backupAction) {
+        backupAction.classList.remove("hidden");
+      }
+      if (submitBtn) submitBtn.disabled = true;
+    }
+  } catch (err) {
+    resetFleetPreflight(`Falha na avaliação: ${err.message}`);
+  }
+}
+
+function resetFleetPreflight(reason) {
+  const badge = $("fleet-preflight-badge");
+  const submitBtn = $("fleet-clone-submit");
+  const feedback = $("fleet-preflight-feedback");
+  const backupAction = $("fleet-preflight-backup-action");
+
+  if (badge) {
+    badge.className = "mode-pill mode-disabled";
+    badge.textContent = "Aguardando";
+  }
+  if ($("fleet-preflight-arch-val")) $("fleet-preflight-arch-val").textContent = "—";
+  if ($("fleet-preflight-arch-status")) {
+    $("fleet-preflight-arch-status").className = "preflight-status";
+    $("fleet-preflight-arch-status").textContent = "Pendente";
+  }
+  if ($("fleet-preflight-ram-val")) $("fleet-preflight-ram-val").textContent = "—";
+  if ($("fleet-preflight-ram-status")) {
+    $("fleet-preflight-ram-status").className = "preflight-status";
+    $("fleet-preflight-ram-status").textContent = "Pendente";
+  }
+  if ($("fleet-preflight-disk-val")) $("fleet-preflight-disk-val").textContent = "—";
+  if ($("fleet-preflight-disk-status")) {
+    $("fleet-preflight-disk-status").className = "preflight-status";
+    $("fleet-preflight-disk-status").textContent = "Pendente";
+  }
+  if ($("fleet-preflight-dns-val")) $("fleet-preflight-dns-val").textContent = "—";
+  if ($("fleet-preflight-dns-status")) {
+    $("fleet-preflight-dns-status").className = "preflight-status";
+    $("fleet-preflight-dns-status").textContent = "Pendente";
+  }
+  if (feedback) {
+    if (reason) {
+      feedback.classList.remove("hidden", "ok");
+      feedback.classList.add("blocked");
+      feedback.textContent = reason;
+    } else {
+      feedback.classList.add("hidden");
+    }
+  }
+  if (backupAction) backupAction.classList.add("hidden");
+  if (submitBtn) submitBtn.disabled = true;
+}
+
+async function submitFleetClone(event) {
+  event.preventDefault();
+  const originId = $("fleet-clone-origin")?.value;
+  const appName = $("fleet-clone-app")?.value;
+  const destId = $("fleet-clone-dest")?.value;
+  const mode = $("fleet-clone-mode")?.value || "clone";
+  const notifySentinel = $("fleet-clone-notify")?.checked === true;
+  const stopOriginStack = $("fleet-clone-stop-origin")?.checked === true;
+  const submitBtn = $("fleet-clone-submit");
+  const resultEl = $("fleet-clone-result");
+
+  if (!originId || !appName || !destId) {
+    showAlert("Preencha todos os campos obrigatórios do clone.");
+    return;
+  }
+
+  const modeLabel = mode === "transfer" ? "Migração Definitiva" : "Clone de Teste";
+  if (!confirm(`Deseja iniciar a operação [${modeLabel}] da aplicação "${appName}"?\n\nOrigem: ${originId}\nDestino: ${destId}`)) {
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Orquestrando transferência...";
+
+  if (resultEl) {
+    resultEl.classList.remove("hidden", "error", "success");
+    resultEl.innerHTML = `<div class="muted">⏳ Transferindo stack, congelando volumes de segurança e ajustando orquestração Swarm...</div>`;
+  }
+
+  try {
+    const res = await api("/api/fleet/transfer/execute", {
+      method: "POST",
+      body: JSON.stringify({
+        appName,
+        originNodeId: originId,
+        destNodeId: destId,
+        mode,
+        updateDns: mode === "transfer",
+        stopOriginStack: mode === "transfer" && stopOriginStack,
+        notifySentinel
+      })
+    });
+
+    if (resultEl) {
+      resultEl.classList.remove("hidden", "error");
+      resultEl.classList.add("success");
+      const dnsSummary = res.dnsUpdated ? `✓ Comutado: ${res.dnsRecords?.join(', ')}` : "Não alterado (Modo clone)";
+      const frozenSummary = (res.frozenVolumes || []).join(", ") || "nenhum";
+      resultEl.innerHTML = `
+        <h4 style="margin:0 0 6px; color:#86efac;">🚀 Transferência Concluída com Sucesso!</h4>
+        <div><strong>Tarefa:</strong> <code>${escapeHTML(res.taskId || '')}</code> (${res.durationMs || 0} ms)</div>
+        <div><strong>Aplicação:</strong> <code>${escapeHTML(res.appName || '')}</code> (${escapeHTML(res.mode || '')})</div>
+        <div><strong>Origem / Destino:</strong> ${escapeHTML(res.originNode || '')} → ${escapeHTML(res.destNode || '')}</div>
+        <div><strong>DNS Cloudflare:</strong> ${escapeHTML(dnsSummary)}</div>
+        <div><strong>Volumes Transferidos:</strong> ${res.volumesTransferred || 1}</div>
+        <div><strong>Volumes Congelados na Origem:</strong> <code>${escapeHTML(frozenSummary)}</code></div>
+        <div><strong>Stack Antiga Desligada:</strong> ${res.originStackStopped ? "Sim" : "Não (Origem preservada)"}</div>
+        <div><strong>Alerta Sentinel:</strong> ${res.notificationDispatched ? "✓ Despachado para Telegram/Webhook" : "Inativo"}</div>
+      `;
+    }
+
+    showToast(`✓ Aplicação "${appName}" clonada com sucesso para ${res.destNode || destId}!`);
+
+    state.fleetNodeStructures = {};
+    await loadFleet();
+  } catch (err) {
+    if (resultEl) {
+      resultEl.classList.remove("hidden", "success");
+      resultEl.classList.add("error");
+      resultEl.innerHTML = `<h4 style="margin:0 0 6px; color:#fca5a5;">⛔ Falha na Transferência</h4><p>${escapeHTML(err.message)}</p>`;
+    }
+    showAlert(`Erro ao transferir aplicação: ${err.message}`);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Executar Transferência / Clone 🚀";
+  }
+}
+
+function openFleetBackupDialog(nodeId, appName) {
+  if (!state.fleetAllowed) {
+    showToast("Ação bloqueada: exclusivo para planos PRO e PRO MASTER com Cloudflare Tunnel.");
+    return;
+  }
+  const dialog = $("fleet-backup-dialog");
+  if (!dialog) return;
+
+  const nodeSelect = $("fleet-backup-node");
+  const resultEl = $("fleet-backup-result");
+  const submitBtn = $("fleet-backup-submit");
+
+  if (resultEl) {
+    resultEl.className = "fleet-exec-result hidden";
+    resultEl.innerHTML = "";
+  }
+  if (submitBtn) submitBtn.disabled = false;
+
+  const nodes = state.fleetNodes || [];
+  if (nodeSelect) {
+    nodeSelect.innerHTML = nodes.map(n => `<option value="${escapeHTML(n.id)}">${escapeHTML(n.name || n.id)} (${n.architecture || 'x86-64'})</option>`).join("");
+    if (nodeId && nodes.some(n => n.id === nodeId)) {
+      nodeSelect.value = nodeId;
+    } else if (nodes.length > 0) {
+      nodeSelect.value = nodes[0].id;
+    }
+  }
+
+  onFleetBackupNodeChanged(appName);
+
+  if (!dialog.open) dialog.showModal();
+}
+
+function closeFleetBackupDialog() {
+  const dialog = $("fleet-backup-dialog");
+  if (dialog?.open) dialog.close();
+}
+
+async function onFleetBackupNodeChanged(presetAppName) {
+  const nodeId = $("fleet-backup-node")?.value;
+  const appSelect = $("fleet-backup-app");
+  if (!nodeId || !appSelect) return;
+
+  appSelect.innerHTML = `<option value="">Carregando aplicações...</option>`;
+  try {
+    const structure = await fetchNodeStructure(nodeId);
+    const apps = structure.apps || [];
+    if (apps.length === 0) {
+      appSelect.innerHTML = `<option value="">Nenhuma aplicação encontrada</option>`;
+    } else {
+      appSelect.innerHTML = apps.map(a => `<option value="${escapeHTML(a.name)}">${escapeHTML(a.name)}</option>`).join("");
+      if (presetAppName && apps.some(a => a.name.toLowerCase() === presetAppName.toLowerCase())) {
+        const matched = apps.find(a => a.name.toLowerCase() === presetAppName.toLowerCase());
+        appSelect.value = matched.name;
+      }
+    }
+  } catch (err) {
+    appSelect.innerHTML = `<option value="">Erro ao carregar aplicações</option>`;
+  }
+}
+
+async function submitFleetBackup(event) {
+  event.preventDefault();
+  const nodeId = $("fleet-backup-node")?.value;
+  const appName = $("fleet-backup-app")?.value;
+  const targetDir = $("fleet-backup-target-dir")?.value || "/tmp/setupmno-backups";
+  const submitBtn = $("fleet-backup-submit");
+  const resultEl = $("fleet-backup-result");
+
+  if (!nodeId || !appName) {
+    showAlert("Selecione o servidor e a aplicação.");
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Empacotando backup consistente...";
+
+  if (resultEl) {
+    resultEl.classList.remove("hidden", "error", "success");
+    resultEl.innerHTML = `<div class="muted">Gerando arquivo .tar.gz e calculando hash SHA-256...</div>`;
+  }
+
+  try {
+    const res = await api("/api/fleet/backup/execute", {
+      method: "POST",
+      body: JSON.stringify({ appName, nodeId, targetDirectory: targetDir })
+    });
+
+    if (resultEl) {
+      resultEl.classList.remove("hidden", "error");
+      resultEl.classList.add("success");
+      resultEl.innerHTML = `
+        <h4 style="margin:0 0 6px; color:#86efac;">💾 Backup Portátil Gerado com Sucesso!</h4>
+        <div><strong>Aplicação:</strong> <code>${escapeHTML(res.appName || appName)}</code></div>
+        <div><strong>Arquivo:</strong> <code>${escapeHTML(res.backupFile || '')}</code></div>
+        <div><strong>Tamanho:</strong> ${bytes(res.sizeBytes || 0)}</div>
+        <div><strong>Hash SHA-256:</strong> <code style="font-size:11px;">${escapeHTML(res.sha256 || '')}</code></div>
+        <p class="muted" style="margin-top:8px; font-size:12px;">Este pacote é independente de arquitetura e pode ser transferido ou restaurado em qualquer nó x86-64 ou ARM64.</p>
+      `;
+    }
+    showToast(`✓ Backup portátil de "${appName}" gerado com sucesso!`);
+  } catch (err) {
+    if (resultEl) {
+      resultEl.classList.remove("hidden", "success");
+      resultEl.classList.add("error");
+      resultEl.innerHTML = `<h4 style="margin:0 0 6px; color:#fca5a5;">⛔ Falha na Geração do Backup</h4><p>${escapeHTML(err.message)}</p>`;
+    }
+    showAlert(`Erro ao gerar backup: ${err.message}`);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Gerar Backup (.tar.gz) 💾";
   }
 }
 

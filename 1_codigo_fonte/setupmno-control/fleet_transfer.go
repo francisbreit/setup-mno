@@ -278,7 +278,7 @@ func (a *webApp) InspectNodeStructure(ctx context.Context, nodeID string) (Fleet
 		cfg.FleetMode = FleetModeDisabled
 	}
 
-	isLocal := nodeID == "" || nodeID == "local" || nodeID == cfg.FleetNodeID
+	isLocal := nodeID == "" || nodeID == "local" || (cfg.FleetNodeID != "" && nodeID == cfg.FleetNodeID) || strings.HasPrefix(nodeID, "node-master")
 
 	if isLocal {
 		var localStruct FleetNodeStructure

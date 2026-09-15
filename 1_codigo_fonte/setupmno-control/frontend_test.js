@@ -609,4 +609,31 @@ assert.match(app, /loadVibeOpsAudit/);
 assert.match(app, /renderVibeOpsAudit/);
 assert.match(app, /state\.auditScope/);
 
-console.log("Markdown, RAG, Blueprints, evals, feedback privado, Fleet Hub e Vibe Ops Audit conferidos.");
+// Testes da Opção 3: Painel Visual Web do Fleet Hub (Clone & Backup Portátil)
+assert.match(html, /id="fleet-clone-btn"/);
+assert.match(html, /id="fleet-clone-dialog"/);
+assert.match(html, /id="fleet-backup-dialog"/);
+assert.match(html, /id="fleet-preflight-card"/);
+assert.match(html, /id="fleet-preflight-badge"/);
+assert.match(html, /Clonar \/ Migrar Aplicação <span class="mode-pill mode-beta">BETA<\/span>/);
+assert.match(html, /Backup Portátil de Aplicação <span class="mode-pill mode-beta">BETA<\/span>/);
+assert.match(styles, /\.fleet-clone-modal/);
+assert.match(styles, /\.fleet-preflight-card/);
+assert.match(styles, /\.fleet-apps-drawer/);
+assert.match(app, /function fetchNodeStructure/);
+assert.match(app, /function openFleetCloneDialog/);
+assert.match(app, /function runFleetClonePreflight/);
+assert.match(app, /function submitFleetClone/);
+assert.match(app, /function openFleetBackupDialog/);
+assert.match(app, /function submitFleetBackup/);
+
+// Teste de controle de acesso ao botão de clone na barra da frota
+vm.runInContext('state.fleetAllowed = false; renderFleet();', terminalContext);
+assert.equal(terminalElement("fleet-clone-btn").disabled, true);
+assert.ok(terminalElement("fleet-clone-btn").classList.contains("btn-pro-locked"));
+
+vm.runInContext('state.fleetAllowed = true; renderFleet();', terminalContext);
+assert.equal(terminalElement("fleet-clone-btn").disabled, false);
+assert.equal(terminalElement("fleet-clone-btn").classList.contains("btn-pro-locked"), false);
+
+console.log("Markdown, RAG, Blueprints, evals, feedback privado, Fleet Hub, Vibe Ops e Fleet Clone Web conferidos.");

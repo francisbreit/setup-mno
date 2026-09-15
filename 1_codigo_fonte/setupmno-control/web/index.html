@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta id="theme-color" name="theme-color" content="#07090d">
   <title>Setup MNO Control Center</title>
-  <link rel="stylesheet" href="/styles.css?v=4.44.4">
+  <link rel="stylesheet" href="/styles.css?v=4.44.5">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -559,6 +559,7 @@
                 <option value="worker">Worker</option>
               </select>
               <button id="fleet-sync-button" class="light-button" type="button" title="Sincronizar e auditar conectividade de todos os servidores agora">↻ Sincronizar Frota</button>
+              <button id="fleet-clone-btn" class="primary-button" type="button" title="Clonar ou migrar aplicações entre servidores da frota"><span>🚀</span> Clonar Aplicação <span class="mode-pill mode-beta mini-tag">BETA</span></button>
               <button id="fleet-add-node-button" class="primary-button" type="button"><span>＋</span> Adicionar Nó à Frota</button>
             </div>
 
@@ -1367,9 +1368,158 @@
     </div>
   </dialog>
 
+  <!-- DIALOG: CLONAR OU MIGRAR APLICAÇÃO ENTRE SERVIDORES -->
+  <dialog id="fleet-clone-dialog" class="mno-dialog fleet-dialog fleet-clone-modal" aria-labelledby="fleet-clone-title">
+    <div class="dialog-content">
+      <header class="dialog-header">
+        <div>
+          <p class="eyebrow">Orquestração Multi-Servidor · Vibe Ops</p>
+          <h3 id="fleet-clone-title">Clonar / Migrar Aplicação <span class="mode-pill mode-beta">BETA</span></h3>
+        </div>
+        <button id="fleet-clone-dialog-close" class="icon-button" type="button" aria-label="Fechar modal">×</button>
+      </header>
+      <form id="fleet-clone-form">
+        <div class="dialog-body">
+          <p class="dialog-description">Transfira ou replique stacks completas (containers, volumes de dados e bancos) entre servidores da sua frota com validação antecipada de segurança (Preflight Gate).</p>
+
+          <div class="form-row">
+            <div class="form-group half">
+              <label for="fleet-clone-origin"><strong>Servidor de Origem *</strong></label>
+              <select id="fleet-clone-origin" required></select>
+              <small class="muted" id="fleet-clone-origin-meta">Carregando servidores...</small>
+            </div>
+            <div class="form-group half">
+              <label for="fleet-clone-app"><strong>Aplicação / Stack *</strong></label>
+              <select id="fleet-clone-app" required disabled>
+                <option value="">Selecione o servidor de origem</option>
+              </select>
+              <small class="muted" id="fleet-clone-app-meta">Aplicações ativas no nó de origem.</small>
+            </div>
+          </div>
+
+          <div id="fleet-clone-app-details" class="fleet-app-meta-box hidden"></div>
+
+          <div class="form-row">
+            <div class="form-group half">
+              <label for="fleet-clone-dest"><strong>Servidor de Destino *</strong></label>
+              <select id="fleet-clone-dest" required></select>
+              <small class="muted" id="fleet-clone-dest-meta">Selecione para onde transferir.</small>
+            </div>
+            <div class="form-group half">
+              <label for="fleet-clone-mode"><strong>Modo de Operação</strong></label>
+              <select id="fleet-clone-mode">
+                <option value="clone">Clone de Teste (Origem segue rodando · Sem alterar DNS)</option>
+                <option value="transfer">Migração Definitiva (Comutar DNS Cloudflare + Desligar Origem)</option>
+              </select>
+              <small class="muted" id="fleet-clone-mode-meta">Estratégia de tráfego e DNS pós-operação.</small>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="toggle-label">
+              <input type="checkbox" id="fleet-clone-notify" checked>
+              <span>Notificar conclusão via MNO Sentinel (Telegram &amp; Webhook n8n)</span>
+            </label>
+          </div>
+
+          <div class="form-group" id="fleet-clone-stop-wrap" style="display:none;">
+            <label class="toggle-label">
+              <input type="checkbox" id="fleet-clone-stop-origin" checked>
+              <span>Desligar stack antiga na origem e congelar volumes com carimbo de segurança</span>
+            </label>
+            <small class="muted">Volumes congelados recebem sufixo _frozen_pre_transfer_TIMESTAMP para garantia de rollback.</small>
+          </div>
+
+          <!-- PAINEL DE PREFLIGHT EM TEMPO REAL -->
+          <div class="fleet-preflight-card" id="fleet-preflight-card">
+            <div class="fleet-preflight-head">
+              <div>
+                <small class="eyebrow">Auditoria de Segurança Antecipada</small>
+                <h4>Preflight Gate (Verificação em Tempo Real)</h4>
+              </div>
+              <span id="fleet-preflight-badge" class="mode-pill mode-disabled">Aguardando Seleção</span>
+            </div>
+            <div class="fleet-preflight-grid">
+              <div class="fleet-preflight-item" id="preflight-box-arch">
+                <small>Arquitetura de CPU</small>
+                <strong id="fleet-preflight-arch-val">—</strong>
+                <span id="fleet-preflight-arch-status" class="preflight-status">Pendente</span>
+              </div>
+              <div class="fleet-preflight-item" id="preflight-box-ram">
+                <small>Memória RAM</small>
+                <strong id="fleet-preflight-ram-val">—</strong>
+                <span id="fleet-preflight-ram-status" class="preflight-status">Pendente</span>
+              </div>
+              <div class="fleet-preflight-item" id="preflight-box-disk">
+                <small>Espaço em Disco</small>
+                <strong id="fleet-preflight-disk-val">—</strong>
+                <span id="fleet-preflight-disk-status" class="preflight-status">Pendente</span>
+              </div>
+              <div class="fleet-preflight-item" id="preflight-box-dns">
+                <small>DNS Cloudflare</small>
+                <strong id="fleet-preflight-dns-val">—</strong>
+                <span id="fleet-preflight-dns-status" class="preflight-status">Pendente</span>
+              </div>
+            </div>
+            <div id="fleet-preflight-feedback" class="fleet-preflight-feedback hidden"></div>
+            <div id="fleet-preflight-backup-action" class="hidden">
+              <button type="button" class="light-button" id="fleet-preflight-backup-btn">💾 Gerar Backup Portátil (.tar.gz) Desta Aplicação</button>
+            </div>
+          </div>
+
+          <div id="fleet-clone-result" class="fleet-exec-result hidden"></div>
+        </div>
+        <footer class="dialog-actions">
+          <button type="button" class="ghost-button" id="fleet-clone-cancel">Cancelar</button>
+          <button type="submit" class="primary-button" id="fleet-clone-submit" disabled>Executar Transferência / Clone 🚀</button>
+        </footer>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- DIALOG: BACKUP PORTÁTIL INDEPENDENTE DE ARQUITETURA -->
+  <dialog id="fleet-backup-dialog" class="mno-dialog fleet-dialog" aria-labelledby="fleet-backup-title">
+    <div class="dialog-content">
+      <header class="dialog-header">
+        <div>
+          <p class="eyebrow">Portabilidade Universal · Backup Independente</p>
+          <h3 id="fleet-backup-title">Backup Portátil de Aplicação <span class="mode-pill mode-beta">BETA</span></h3>
+        </div>
+        <button id="fleet-backup-dialog-close" class="icon-button" type="button" aria-label="Fechar modal">×</button>
+      </header>
+      <form id="fleet-backup-form">
+        <div class="dialog-body">
+          <p class="dialog-description">Gere um arquivo <code>.tar.gz</code> consistente contendo a stack YAML e os manifestos estruturais da aplicação, com hash criptográfico SHA-256 e pronto para ser restaurado em qualquer servidor x86-64 ou ARM64.</p>
+
+          <div class="form-group">
+            <label for="fleet-backup-node"><strong>Servidor da Aplicação *</strong></label>
+            <select id="fleet-backup-node" required></select>
+          </div>
+
+          <div class="form-group">
+            <label for="fleet-backup-app"><strong>Nome da Aplicação / Stack *</strong></label>
+            <select id="fleet-backup-app" required></select>
+          </div>
+
+          <div class="form-group">
+            <label for="fleet-backup-target-dir"><strong>Diretório de Destino no Servidor</strong></label>
+            <input type="text" id="fleet-backup-target-dir" value="/tmp/setupmno-backups" placeholder="/tmp/setupmno-backups">
+            <small class="muted">Pasta onde o arquivo .tar.gz será gerado no servidor.</small>
+          </div>
+
+          <div id="fleet-backup-result" class="fleet-exec-result hidden"></div>
+        </div>
+        <footer class="dialog-actions">
+          <button type="button" class="ghost-button" id="fleet-backup-cancel">Cancelar</button>
+          <button type="submit" class="primary-button" id="fleet-backup-submit">Gerar Backup (.tar.gz) 💾</button>
+        </footer>
+      </form>
+    </div>
+  </dialog>
+
   <div id="toast" class="toast" role="status"></div>
-  <script src="/markdown.js?v=4.44.4" defer></script>
-  <script src="/assistant-route.js?v=4.44.4" defer></script>
-  <script src="/app.js?v=4.44.4" defer></script>
+  <script src="/markdown.js?v=4.44.5" defer></script>
+  <script src="/assistant-route.js?v=4.44.5" defer></script>
+  <script src="/app.js?v=4.44.5" defer></script>
 </body>
 </html>

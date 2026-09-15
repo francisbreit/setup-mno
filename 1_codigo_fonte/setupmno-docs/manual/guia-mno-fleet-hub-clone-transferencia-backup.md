@@ -2,8 +2,8 @@
 
 - Estado: `implemented`
 - Maturidade da funcionalidade: `beta`
-- Versão do Setup MNO: `v7.48.1`
-- Versão do Control Center: `v4.44.4`
+- Versão do Setup MNO: `v7.48.2`
+- Versão do Control Center: `v4.44.5`
 - Ambientes Alvo: Torre Master (Cockpit Local no WSL2 ou VPS) e Nós Workers (VPS Remotas)
 - Ambientes Homologados: WSL2 (Windows 10/11 x86_64), Ubuntu 22.04/24.04 (x86_64 e ARM64), Debian 12/13 (x86_64 e ARM64)
 - Destinatário: Francis Breit (Francis MNO), alunos, agências e profissionais de DevOps
