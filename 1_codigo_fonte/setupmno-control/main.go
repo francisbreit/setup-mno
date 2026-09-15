@@ -3634,6 +3634,8 @@ func terminalIntentAllowed(values []string) bool {
 	switch values[0] {
 	case "installer", "settings", "homologation", "sre", "strix", "gateway":
 		return true
+	case "fleet":
+		return true
 	default:
 		return false
 	}

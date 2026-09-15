@@ -2648,7 +2648,7 @@ function navigate(view) {
 
 function openTerminal(intent = "installer") {
   intent = typeof intent === "string" ? intent : "installer";
-  if (!["installer", "settings", "homologation", "sre", "strix", "gateway"].includes(intent)) intent = "gateway";
+  if (!["installer", "settings", "homologation", "sre", "strix", "gateway"].includes(intent) && intent !== "fleet") intent = "gateway";
   if (!terminalAccessAllowed()) {
     showAlert("🔒 Recurso disponível apenas quando é usado Cloudflare Tunnel.");
     return;
@@ -2659,6 +2659,10 @@ function openTerminal(intent = "installer") {
   }
   if (intent === "homologation" && !state.maintainerAccess) {
     showAlert("🔒 O Homologation Runner é exclusivo do plano PRO MASTER.");
+    return;
+  }
+  if (intent === "fleet" && !state.fleetAllowed) {
+    showAlert("🔒 O Fleet Hub e migração de servidores é exclusivo dos planos PRO e PRO MASTER.");
     return;
   }
   if (intent === "strix" && !state.strixDiagnosticsAccess) {
@@ -2675,37 +2679,33 @@ function openTerminal(intent = "installer") {
 
 async function confirmTerminalAccess(event) {
   event.preventDefault();
-  const passwordInput = $("terminal-reauth-password");
+  const password = $("terminal-reauth-password").value;
   const submit = $("terminal-reauth-submit");
-  const password = passwordInput.value;
   if (!password) {
     $("terminal-reauth-error").textContent = "Informe sua senha administrativa.";
-    passwordInput.focus();
     return;
   }
   submit.disabled = true;
   $("terminal-reauth-error").textContent = "";
   try {
     await api("/api/terminal/reauth", { method: "POST", body: JSON.stringify({ password, intent: pendingTerminalIntent || "installer" }) });
-    passwordInput.value = "";
     const intent = pendingTerminalIntent || "installer";
     pendingTerminalIntent = "";
     $("terminal-reauth-dialog").close();
     openAuthorizedTerminal(intent);
   } catch (error) {
-    passwordInput.value = "";
     $("terminal-reauth-error").textContent = error.message;
-    passwordInput.focus();
+    $("terminal-reauth-password").focus();
   } finally {
     submit.disabled = false;
   }
 }
 
 function closeTerminalReauth() {
-  pendingTerminalIntent = "";
+  const dialog = $("terminal-reauth-dialog");
   $("terminal-reauth-password").value = "";
   $("terminal-reauth-error").textContent = "";
-  const dialog = $("terminal-reauth-dialog");
+  pendingTerminalIntent = "";
   if (dialog.open) dialog.close();
 }
 
@@ -2737,6 +2737,11 @@ function openAuthorizedTerminal(intent) {
       title: "Análise avançada de código · BETA",
       subtitle: "Strix SRE-6 · opcional para PRO e PRO MASTER",
       warning: "Analisa somente uma cópia compactada do código escolhida por você. O modo guiado usa limites seguros automáticos. O executor não recebe acesso ao servidor, às aplicações ou aos dados de produção."
+    },
+    fleet: {
+      title: "MNO Fleet Hub — Migração e Clone de Frota",
+      subtitle: "Transferência atômica com streaming seguro de volumes e bancos",
+      warning: "O utilitário oficial de migração e clone entre servidores será aberto diretamente com canal SSH seguro."
     },
     gateway: {
       title: "Terminal Seguro",
@@ -3906,19 +3911,40 @@ async function submitFleetClone(event) {
       const dnsSummary = res.dnsUpdated ? `✓ Comutado: ${res.dnsRecords?.join(', ')}` : "Não alterado (Modo clone)";
       const frozenSummary = (res.frozenVolumes || []).join(", ") || "nenhum";
       resultEl.innerHTML = `
-        <h4 style="margin:0 0 6px; color:#86efac;">🚀 Transferência Concluída com Sucesso!</h4>
-        <div><strong>Tarefa:</strong> <code>${escapeHTML(res.taskId || '')}</code> (${res.durationMs || 0} ms)</div>
-        <div><strong>Aplicação:</strong> <code>${escapeHTML(res.appName || '')}</code> (${escapeHTML(res.mode || '')})</div>
-        <div><strong>Origem / Destino:</strong> ${escapeHTML(res.originNode || '')} → ${escapeHTML(res.destNode || '')}</div>
-        <div><strong>DNS Cloudflare:</strong> ${escapeHTML(dnsSummary)}</div>
-        <div><strong>Volumes Transferidos:</strong> ${res.volumesTransferred || 1}</div>
-        <div><strong>Volumes Congelados na Origem:</strong> <code>${escapeHTML(frozenSummary)}</code></div>
-        <div><strong>Stack Antiga Desligada:</strong> ${res.originStackStopped ? "Sim" : "Não (Origem preservada)"}</div>
-        <div><strong>Alerta Sentinel:</strong> ${res.notificationDispatched ? "✓ Despachado para Telegram/Webhook" : "Inativo"}</div>
+        <h4 style="margin:0 0 6px; color:#93c5fd;">🚀 Plano de Migração Aprovado e Pronto!</h4>
+        <div style="font-size:13px; line-height:1.6; margin-bottom:10px;">
+          <div><strong>Tarefa:</strong> <code>${escapeHTML(res.taskId || '')}</code> (${res.durationMs || 0} ms)</div>
+          <div><strong>Aplicação:</strong> <code>${escapeHTML(res.appName || '')}</code> (${escapeHTML(res.mode === 'transfer' ? 'Migração Definitiva' : 'Clone de Teste')})</div>
+          <div><strong>Trajeto:</strong> ${escapeHTML(res.originNode || '')} → ${escapeHTML(res.destNode || '')}</div>
+          <div><strong>DNS Cloudflare:</strong> ${escapeHTML(dnsSummary)}</div>
+          <div><strong>Volumes Mapeados:</strong> ${res.volumesTransferred || 1} volume(s)</div>
+          <div><strong>Segurança de Origem:</strong> ${res.originStackStopped ? "Desligar e congelar volumes" : "Manter rodando intacta"}</div>
+          <div><strong>Alerta Sentinel:</strong> ${res.notificationDispatched ? "✓ Despachado para Telegram/Webhook" : "Inativo"}</div>
+        </div>
+        <div style="padding:12px; background:rgba(30,41,59,0.7); border:1px solid #3b82f6; border-radius:8px; margin-top:8px;">
+          <p style="margin:0 0 6px; font-weight:600; color:#bfdbfe;">
+            🔒 Execução Segura de Dados e Bancos (SSH Handoff)
+          </p>
+          <p style="margin:0 0 10px; font-size:12px; color:#cbd5e1; line-height:1.4;">
+            A cópia física de volumes pesados e dump atômico do banco de dados (MySQL 8.4 / PostgreSQL) requer o canal criptografado do Terminal Seguro.
+          </p>
+          <button type="button" class="primary-button" id="fleet-clone-terminal-btn" style="width:100%; justify-content:center; padding:10px 14px; font-weight:600;">
+            🚀 Abrir Terminal Seguro e Concluir Clone / Migração
+          </button>
+          <div style="margin-top:8px; font-size:11px; color:#94a3b8; text-align:center;">
+            Comando no servidor: <code>${escapeHTML(res.requiredCommand || '/root/SetupLowCodeMno/fleet-clone.sh ' + (res.mode || 'clone'))}</code>
+          </div>
+        </div>
       `;
+      const termBtn = $("fleet-clone-terminal-btn");
+      if (termBtn) {
+        termBtn.addEventListener("click", () => {
+          openTerminal("fleet");
+        });
+      }
     }
 
-    showToast(`✓ Aplicação "${appName}" clonada com sucesso para ${res.destNode || destId}!`);
+    showToast(`✓ Plano de migração aprovado para ${res.destNode || destId}! Abra o Terminal Seguro para concluir.`);
 
     state.fleetNodeStructures = {};
     await loadFleet();

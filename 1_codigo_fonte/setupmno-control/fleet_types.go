@@ -214,6 +214,11 @@ type FleetTransferExecutionResponse struct {
 	OriginNode             string   `json:"originNode"`
 	DestNode               string   `json:"destNode"`
 	Mode                   string   `json:"mode"`
+	Status                 string   `json:"status,omitempty"`
+	Message                string   `json:"message,omitempty"`
+	TerminalIntent         string   `json:"terminalIntent,omitempty"`
+	RequiredCommand        string   `json:"requiredCommand,omitempty"`
+	ExecutionPlan          string   `json:"executionPlan,omitempty"`
 	DNSUpdated             bool     `json:"dnsUpdated"`
 	DNSRecords             []string `json:"dnsRecords,omitempty"`
 	VolumesTransferred     int      `json:"volumesTransferred"`

@@ -10,7 +10,7 @@ if [ "$#" -gt 1 ]; then
 fi
 
 case "$intent" in
-    installer|settings|homologation|sre|strix|gateway) ;;
+    installer|settings|homologation|sre|strix|fleet|gateway) ;;
     *)
         printf 'Terminal Seguro: intenção recusada.\n' >&2
         exit 64
@@ -44,6 +44,10 @@ CONTROL_PLAN=$(jq -er \
 }
 if [ "$intent" = "homologation" ] && [ "$CONTROL_PLAN" != "pro-master" ]; then
     printf 'Terminal Seguro: recurso exclusivo do plano PRO MASTER.\n' >&2
+    exit 77
+fi
+if [ "$intent" = "fleet" ] && [ "$CONTROL_PLAN" != "pro" ] && [ "$CONTROL_PLAN" != "pro-master" ]; then
+    printf 'Terminal Seguro: recurso exclusivo dos planos PRO e PRO MASTER.\n' >&2
     exit 77
 fi
 if [ "$intent" = "strix" ] && [ "$CONTROL_PLAN" != "pro" ] && [ "$CONTROL_PLAN" != "pro-master" ]; then
@@ -125,6 +129,9 @@ case "$intent" in
     strix)
         exec /usr/bin/bash /opt/setupmno/strix-lab/wizard.sh
         ;;
+    fleet)
+        exec /usr/bin/bash /root/SetupLowCodeMno/fleet-clone.sh
+        ;;
     gateway)
         ;;
 esac
@@ -140,6 +147,9 @@ while true; do
         "SETTINGS" "Configurar conta e provedor do Control Center"
         "SRE" "Analisar segurança do servidor e aplicações · BETA"
     )
+    if [ "$CONTROL_PLAN" = "pro" ] || [ "$CONTROL_PLAN" = "pro-master" ]; then
+        menu_entries+=("FLEET" "Migrar, clonar ou backup na frota · PRO")
+    fi
     if [ "$CONTROL_PLAN" = "pro-master" ]; then
         menu_entries+=("HOMOLOGATION" "Abrir a Central do Mantenedor · PRO MASTER")
     fi
@@ -158,6 +168,9 @@ while true; do
     case "$choice" in
         INSTALLER)
             exec /root/SetupLowCodeMno/install
+            ;;
+        FLEET)
+            /usr/bin/bash /root/SetupLowCodeMno/fleet-clone.sh
             ;;
         HOMOLOGATION)
             /usr/bin/bash \

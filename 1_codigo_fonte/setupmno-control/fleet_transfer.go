@@ -612,6 +612,11 @@ func (a *webApp) ExecuteApplicationTransfer(ctx context.Context, req FleetTransf
 		OriginNode:             originStruct.Name,
 		DestNode:               destStruct.Name,
 		Mode:                   req.Mode,
+		Status:                 "ready",
+		Message:                "Plano de migração e preflight validados com sucesso! A transferência segura de volumes e banco de dados requer execução autenticada no Terminal Seguro da Frota.",
+		TerminalIntent:         "fleet",
+		RequiredCommand:        fmt.Sprintf("/root/SetupLowCodeMno/fleet-clone.sh %s", req.Mode),
+		ExecutionPlan:          fmt.Sprintf("Transferir stack '%s' de '%s' para '%s' (Volumes: %d, Modo: %s, DNS: %v)", req.AppName, originStruct.Name, destStruct.Name, max(1, len(targetVolumes)), req.Mode, dnsUpdated),
 		DNSUpdated:             dnsUpdated,
 		DNSRecords:             dnsRecords,
 		VolumesTransferred:     max(1, len(targetVolumes)),
@@ -627,7 +632,7 @@ func (a *webApp) ExecuteApplicationTransfer(ctx context.Context, req FleetTransf
 		res.NotificationDispatched = true
 	}
 
-	a.addAudit("fleet_app_transferred", fmt.Sprintf("Aplicação '%s' transferida de '%s' para '%s' (DNS: %v, Origin Stopped: %v)", req.AppName, originStruct.Name, destStruct.Name, dnsUpdated, originStopped), "internal")
+	a.addAudit("fleet_app_transferred", fmt.Sprintf("Plano de migração aprovado para '%s' de '%s' para '%s' (DNS: %v, Origin Stopped: %v)", req.AppName, originStruct.Name, destStruct.Name, dnsUpdated, originStopped), "internal")
 	return res, nil
 }
 
