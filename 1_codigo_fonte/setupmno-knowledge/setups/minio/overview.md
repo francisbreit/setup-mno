@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "MinIO no Setup MNO",
   "setupId": "minio",
-  "setupVersion": "7.48.6",
+  "setupVersion": "7.48.7",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

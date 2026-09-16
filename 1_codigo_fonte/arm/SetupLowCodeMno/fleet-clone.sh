@@ -979,6 +979,15 @@ resolve_host_service_port() {
         fi
     fi
 
+    # 2.5. n8n editor vs webhook
+    if [[ "$cur_app_name" == *editor* ]] || [[ "$cur_app_name" == *webhook* ]]; then
+        local n8n_svc
+        n8n_svc=$(awk '/^services:/{flag=1; next} flag && /^[[:space:]]{2}[a-zA-Z0-9_-]+:/{print $1; exit}' "$yaml" 2>/dev/null | tr -d ':' || true)
+        [ -n "$n8n_svc" ] || n8n_svc="$cur_app_name"
+        echo "${n8n_svc}:5678"
+        return 0
+    fi
+
     # 3. Traefik labels inspection (se declaradas no YAML)
     if grep -q "traefik\.http\.routers" "$yaml" 2>/dev/null; then
         local r_name
@@ -1050,15 +1059,71 @@ switch_cloudflare_dns_and_ingress() {
     local yaml_file="$3"
     local app_name="$4"
 
+    local app_lower
+    app_lower=$(echo "$app_name" | tr '[:upper:]' '[:lower:]')
+
+    # Se a stack for puramente de suporte/background e NÃO possuir router Traefik explícito (Host(`...`)),
+    # ela jamais deve comutar DNS nem rotas de Ingress.
+    if ! grep -qP 'Host\(`' "$yaml_file" 2>/dev/null; then
+        if [[ "$app_lower" =~ (worker|runner|redis|database|postgres|mysql|cron|queue|-mq) ]]; then
+            echo "[ROTEAMENTO CLOUDFLARE] Stack de suporte/background ($app_name) ignorada para rotas web."
+            return 0
+        fi
+    fi
+
     local hostnames=()
-    while IFS= read -r h; do
-        [ -n "$h" ] || continue
-        hostnames+=("$h")
-    done < <({
-        grep -oP 'Host\(`\K[^`]+' "$yaml_file" 2>/dev/null || true
-        grep -oP '(?<=[A-Z0-9_]URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-        grep -oP '(?<=WEB_DOMAIN=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-    } | sort -u)
+    if grep -qP 'Host\(`' "$yaml_file" 2>/dev/null; then
+        # 1. Traefik routers explícitos: autoritativos e canônicos
+        while IFS= read -r h; do
+            [ -n "$h" ] && hostnames+=("$h")
+        done < <(grep -oP 'Host\(`\K[^`]+' "$yaml_file" 2>/dev/null | sort -u)
+    elif grep -q "MINIO_BROWSER_REDIRECT_URL" "$yaml_file" 2>/dev/null || grep -q "minio" "$yaml_file" 2>/dev/null; then
+        # 2. MinIO S3 Console vs Server
+        while IFS= read -r h; do
+            [ -n "$h" ] && hostnames+=("$h")
+        done < <({
+            grep -oP '(?<=MINIO_BROWSER_REDIRECT_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=MINIO_SERVER_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+        } | sort -u)
+    elif grep -q "NEXTAUTH_URL" "$yaml_file" 2>/dev/null || grep -q "NEXT_PUBLIC_VIEWER_URL" "$yaml_file" 2>/dev/null; then
+        # 3. Typebot Builder vs Viewer
+        while IFS= read -r h; do
+            [ -n "$h" ] && hostnames+=("$h")
+        done < <({
+            grep -oP '(?<=NEXTAUTH_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=NEXT_PUBLIC_VIEWER_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+        } | sort -u)
+    elif [[ "$app_lower" =~ editor ]]; then
+        # 4. n8n Editor exclusivo
+        while IFS= read -r h; do
+            [ -n "$h" ] && hostnames+=("$h")
+        done < <({
+            grep -oP '(?<=N8N_HOST=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=N8N_EDITOR_BASE_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+        } | sort -u)
+    elif [[ "$app_lower" =~ webhook ]]; then
+        # 5. n8n Webhook exclusivo
+        while IFS= read -r h; do
+            [ -n "$h" ] && hostnames+=("$h")
+        done < <(grep -oP '(?<=WEBHOOK_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null | sort -u)
+    elif [[ "$app_lower" =~ ^n8n ]]; then
+        # 6. n8n standalone (sem fila)
+        while IFS= read -r h; do
+            [ -n "$h" ] && hostnames+=("$h")
+        done < <({
+            grep -oP '(?<=N8N_HOST=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=N8N_EDITOR_BASE_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=WEBHOOK_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+        } | sort -u)
+    else
+        # 7. Fallback geral para apps web padrão
+        while IFS= read -r h; do
+            [ -n "$h" ] && hostnames+=("$h")
+        done < <({
+            grep -oP '(?<=[A-Z0-9_]URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=WEB_DOMAIN=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+        } | sort -u)
+    fi
 
     [ ${#hostnames[@]} -gt 0 ] || return 0
 
