@@ -1399,6 +1399,49 @@
 
           <div id="fleet-clone-app-details" class="fleet-app-meta-box hidden"></div>
 
+          <!-- SEÇÃO DINÂMICA: DETECÇÃO INTELIGENTE DE COMBO -->
+          <div id="fleet-clone-combo-section" class="fleet-app-meta-box hidden" style="border: 1px solid #3b82f6; background: rgba(30, 58, 138, 0.2); padding: 12px; border-radius: 8px; margin-bottom: 14px;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+              <span style="font-size:18px;">🤖</span>
+              <strong style="color:#93c5fd; font-size:13px;">ECOSSISTEMA / COMBO INTEGRADO DETECTADO</strong>
+            </div>
+            <p style="margin:0 0 8px; font-size:12px; color:#e2e8f0; line-height:1.4;">
+              A aplicação selecionada faz parte do ecossistema: <strong id="fleet-combo-name" style="color:#60a5fa;"></strong>.<br>
+              Ferramentas conectadas detectadas nesta VPS: <span id="fleet-combo-tools" style="color:#fde047; font-weight:600;"></span>
+            </p>
+            <div style="display:flex; flex-direction:column; gap:6px; font-size:12px;">
+              <label class="radio-label" style="display:flex; align-items:flex-start; gap:8px; cursor:pointer;">
+                <input type="radio" name="fleet-combo-choice" id="fleet-combo-choice-all" value="1" checked style="margin-top:2px;">
+                <span><strong>MIGRAR COMBO COMPLETO (Recomendado)</strong> — Transfere todas as ferramentas conectadas em conjunto, mantendo integrações 100% ativas.</span>
+              </label>
+              <label class="radio-label" style="display:flex; align-items:flex-start; gap:8px; cursor:pointer;">
+                <input type="radio" name="fleet-combo-choice" id="fleet-combo-choice-single" value="2" style="margin-top:2px;">
+                <span><strong>MIGRAR APENAS ESTA APLICAÇÃO</strong> — Transfere somente a stack selecionada de forma isolada.</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- SEÇÃO DINÂMICA: GOVERNANÇA DE STORAGE S3 (MINIO) -->
+          <div id="fleet-clone-minio-section" class="fleet-app-meta-box hidden" style="border: 1px solid #f59e0b; background: rgba(120, 53, 15, 0.2); padding: 12px; border-radius: 8px; margin-bottom: 14px;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+              <span style="font-size:18px;">🪣</span>
+              <strong style="color:#fcd34d; font-size:13px;">ARMAZENAMENTO S3 (MINIO) DO COMBO</strong>
+            </div>
+            <p id="fleet-minio-desc" style="margin:0 0 8px; font-size:12px; color:#e2e8f0; line-height:1.4;">
+              Esta aplicação utiliza MinIO para guardar mídias, fotos e áudios.
+            </p>
+            <div style="display:flex; flex-direction:column; gap:6px; font-size:12px;">
+              <label class="radio-label" style="display:flex; align-items:flex-start; gap:8px; cursor:pointer;">
+                <input type="radio" name="fleet-minio-policy" id="fleet-minio-migrate" value="migrate" checked style="margin-top:2px;">
+                <span><strong>TRANSFERIR MINIO PARA O DESTINO (Recomendado)</strong> — Cria o MinIO na nova VPS, migra mídias e garante zero links quebrados.</span>
+              </label>
+              <label class="radio-label" style="display:flex; align-items:flex-start; gap:8px; cursor:pointer;">
+                <input type="radio" name="fleet-minio-policy" id="fleet-minio-keep" value="keep_origin" style="margin-top:2px;">
+                <span><strong>MANTER MINIO NO SERVIDOR DE ORIGEM</strong> — Economiza memória RAM no destino; as aplicações apontam para o MinIO da VPS de origem.</span>
+              </label>
+            </div>
+          </div>
+
           <div class="form-row">
             <div class="form-group half">
               <label for="fleet-clone-dest"><strong>Servidor de Destino *</strong></label>

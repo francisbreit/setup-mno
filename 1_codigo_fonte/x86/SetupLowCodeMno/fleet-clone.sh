@@ -2393,6 +2393,7 @@ action_transfer_or_clone() {
             cli_stop_origin=$(jq -r 'if .stopOriginStack != null then (.stopOriginStack | tostring) else empty end' "$pending_file")
             cli_update_dns=$(jq -r 'if .updateDns != null then (.updateDns | tostring) else empty end' "$pending_file")
             cli_minio=$(jq -r '.minioPolicy // empty' "$pending_file")
+            cli_combo_choice=$(jq -r '.comboChoice // empty' "$pending_file")
             is_cli=true
         fi
     fi
@@ -3350,6 +3351,12 @@ action_transfer_or_clone() {
         echo -e "   Origem:   $origin_name ($origin_arch)"
         echo -e "   Destino:  $dest_name ($dest_arch)"
         echo -e "   Apps:     ${apps_to_migrate[*]}"
+        if [ "$is_combo" = "true" ]; then
+            echo -e "   Combo:    $combo_name (Estratégia: ${combo_choice:-1})"
+        fi
+        if [ "$any_uses_minio" = "true" ]; then
+            echo -e "   MinIO S3: $minio_policy"
+        fi
         echo -e "==================================================\n"
 
         run_migration_pipeline 2>&1 | while IFS= read -r line; do

@@ -732,6 +732,8 @@ func (a *webApp) handleFleetTransferPreflight(w http.ResponseWriter, r *http.Req
 		OriginNodeID string `json:"originNodeId"`
 		DestNodeID   string `json:"destNodeId"`
 		Mode         string `json:"mode"`
+		ComboChoice  string `json:"comboChoice"`
+		MinioPolicy  string `json:"minioPolicy"`
 	}
 
 	data, err := io.ReadAll(io.LimitReader(r.Body, 16<<10))
@@ -762,7 +764,7 @@ func (a *webApp) handleFleetTransferPreflight(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	result := EvaluateTransferPreflight(origStruct, destStruct, req.AppName, req.Mode)
+	result := EvaluateTransferPreflight(origStruct, destStruct, req.AppName, req.Mode, req.ComboChoice, req.MinioPolicy)
 	writeJSON(w, http.StatusOK, result)
 }
 

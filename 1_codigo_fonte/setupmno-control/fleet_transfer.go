@@ -386,10 +386,131 @@ func (a *webApp) InspectNodeStructure(ctx context.Context, nodeID string) (Fleet
 	return remoteStruct, nil
 }
 
+// uniqueStrings elimina valores vazios e duplicados preservando a ordem.
+func uniqueStrings(slice []string) []string {
+	seen := make(map[string]bool)
+	var out []string
+	for _, s := range slice {
+		trimmed := strings.TrimSpace(s)
+		if trimmed == "" || seen[trimmed] {
+			continue
+		}
+		seen[trimmed] = true
+		out = append(out, trimmed)
+	}
+	return out
+}
+
+type comboDetection struct {
+	IsCombo      bool
+	ComboName    string
+	LinkedStacks []string
+	UsesMinio    bool
+}
+
+func detectAppComboContextGo(origin FleetNodeStructure, appName string) comboDetection {
+	var linked []string
+	appLower := strings.ToLower(appName)
+
+	var suffix string
+	if len(appLower) >= 7 {
+		candidate := appLower[len(appLower)-7:]
+		isHex := true
+		for _, c := range candidate {
+			if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+				isHex = false
+				break
+			}
+		}
+		if isHex {
+			suffix = candidate
+		}
+	}
+
+	for _, a := range origin.Apps {
+		otherLower := strings.ToLower(a.Name)
+		if otherLower == appLower {
+			continue
+		}
+		switch otherLower {
+		case "cloudflared", "traefik", "portainer", "pgbouncer", "redis", "postgres", "mysql84", "mysql":
+			continue
+		}
+		if strings.HasPrefix(otherLower, "mnoctrl") {
+			continue
+		}
+
+		if suffix != "" && strings.HasSuffix(otherLower, suffix) {
+			linked = append(linked, a.Name)
+			continue
+		}
+
+		if strings.HasPrefix(appLower, "chatwoot") || strings.HasPrefix(appLower, "evolution") || strings.HasPrefix(appLower, "rabbitmq") || strings.HasPrefix(appLower, "minio") {
+			if strings.HasPrefix(otherLower, "chatwoot") || strings.HasPrefix(otherLower, "evolution") || strings.HasPrefix(otherLower, "rabbitmq") || strings.HasPrefix(otherLower, "minio") || strings.HasPrefix(otherLower, "cwt_redis") || strings.HasPrefix(otherLower, "evo_redis") {
+				linked = append(linked, a.Name)
+			}
+		} else if strings.HasPrefix(appLower, "typebot") && strings.HasPrefix(otherLower, "minio") {
+			linked = append(linked, a.Name)
+		} else if strings.HasPrefix(appLower, "evoai") && (strings.HasPrefix(otherLower, "evolution") || strings.HasPrefix(otherLower, "minio")) {
+			linked = append(linked, a.Name)
+		}
+	}
+
+	linked = uniqueStrings(linked)
+
+	usesMinio := strings.HasPrefix(appLower, "minio")
+	for _, l := range linked {
+		if strings.HasPrefix(strings.ToLower(l), "minio") {
+			usesMinio = true
+		}
+	}
+
+	if len(linked) > 0 {
+		cName := "Combo Integrado"
+		if strings.HasPrefix(appLower, "chatwoot") || strings.HasPrefix(appLower, "evolution") {
+			cName = "Combo Multicanais (Chatwoot + Evolution + RabbitMQ + S3)"
+		} else if strings.HasPrefix(appLower, "typebot") {
+			cName = "Combo Typebot + MinIO S3"
+		} else if suffix != "" {
+			cName = fmt.Sprintf("Combo Integrado (%s)", suffix)
+		}
+		return comboDetection{
+			IsCombo:      true,
+			ComboName:    cName,
+			LinkedStacks: linked,
+			UsesMinio:    usesMinio,
+		}
+	}
+
+	return comboDetection{
+		IsCombo:   false,
+		UsesMinio: usesMinio,
+	}
+}
+
 // EvaluateTransferPreflight avalia os gates de arquitetura e recursos antes de qualquer transferência.
-func EvaluateTransferPreflight(origin, dest FleetNodeStructure, appName string, mode string) FleetTransferPreflightResult {
+func EvaluateTransferPreflight(origin, dest FleetNodeStructure, appName string, mode string, extraOpts ...string) FleetTransferPreflightResult {
 	if mode == "" {
 		mode = "transfer"
+	}
+
+	comboChoice := "1"
+	minioPolicy := "migrate"
+	if len(extraOpts) > 0 && extraOpts[0] != "" {
+		comboChoice = extraOpts[0]
+	}
+	if len(extraOpts) > 1 && extraOpts[1] != "" {
+		minioPolicy = extraOpts[1]
+	}
+
+	combo := detectAppComboContextGo(origin, appName)
+
+	destHasMinio := false
+	for _, a := range dest.Apps {
+		if strings.HasPrefix(strings.ToLower(a.Name), "minio") {
+			destHasMinio = true
+			break
+		}
 	}
 
 	origArch := normalizeArch(origin.Architecture)
@@ -420,6 +541,37 @@ func EvaluateTransferPreflight(origin, dest FleetNodeStructure, appName string, 
 		reqDisk = uint64(float64(volGB)*1.20) + 1
 	} else {
 		reqRAM = estimateAppMemoryMB(appName, nil)
+	}
+
+	// Se for combo e usuário optou por combo completo, somar recursos das ferramentas vinculadas
+	if combo.IsCombo && (comboChoice == "1" || comboChoice == "") {
+		for _, lStack := range combo.LinkedStacks {
+			if minioPolicy == "keep_origin" && strings.HasPrefix(strings.ToLower(lStack), "minio") {
+				continue
+			}
+			var lApp *FleetAppStructure
+			for i := range origin.Apps {
+				if strings.EqualFold(origin.Apps[i].Name, lStack) {
+					lApp = &origin.Apps[i]
+					break
+				}
+			}
+			if lApp != nil {
+				extraRAM := lApp.RequiredMemoryMB
+				if extraRAM == 0 {
+					extraRAM = estimateAppMemoryMB(lApp.Name, lApp.Images)
+				}
+				reqRAM += extraRAM
+				var extraVolBytes uint64
+				for _, v := range lApp.Volumes {
+					extraVolBytes += v.SizeBytes
+				}
+				reqDisk += (extraVolBytes / (1024 * 1024 * 1024)) + 1
+			} else {
+				reqRAM += estimateAppMemoryMB(lStack, nil)
+				reqDisk += 1
+			}
+		}
 	}
 
 	destMemFree := dest.MemoryFreeMB
@@ -462,6 +614,13 @@ func EvaluateTransferPreflight(origin, dest FleetNodeStructure, appName string, 
 				origArch, destArch,
 			),
 			Recommendation: "Gere um Backup Portátil da aplicação. Transferências e clones ao vivo são permitidos exclusivamente entre servidores com a mesma arquitetura de hardware.",
+			IsCombo:        combo.IsCombo,
+			ComboName:      combo.ComboName,
+			LinkedStacks:   combo.LinkedStacks,
+			ComboChoice:    comboChoice,
+			UsesMinio:      combo.UsesMinio,
+			DestHasMinio:   destHasMinio,
+			MinioPolicy:    minioPolicy,
 		}
 	}
 
@@ -469,7 +628,11 @@ func EvaluateTransferPreflight(origin, dest FleetNodeStructure, appName string, 
 	if !hasCapacity {
 		var reasons []string
 		if destMemFree < reqRAM {
-			reasons = append(reasons, fmt.Sprintf("Memória RAM livre insuficiente (Destino possui %d MB livres, mas a aplicação '%s' requer no mínimo %d MB)", destMemFree, appName, reqRAM))
+			if combo.IsCombo && (comboChoice == "1" || comboChoice == "") {
+				reasons = append(reasons, fmt.Sprintf("Memória RAM livre insuficiente para o combo completo (Destino possui %d MB livres, mas o ecossistema '%s' requer no mínimo %d MB)", destMemFree, combo.ComboName, reqRAM))
+			} else {
+				reasons = append(reasons, fmt.Sprintf("Memória RAM livre insuficiente (Destino possui %d MB livres, mas a aplicação '%s' requer no mínimo %d MB)", destMemFree, appName, reqRAM))
+			}
 		}
 		if destDiskFree < reqDisk {
 			reasons = append(reasons, fmt.Sprintf("Espaço em disco insuficiente (Destino possui %d GB livres, mas são necessários %d GB)", destDiskFree, reqDisk))
@@ -489,6 +652,13 @@ func EvaluateTransferPreflight(origin, dest FleetNodeStructure, appName string, 
 			DNSAction:         "none",
 			BlockReason:       strings.Join(reasons, "; "),
 			Recommendation:    "Libere recursos ou encerre containers ociosos no servidor de destino antes de transferir a aplicação.",
+			IsCombo:           combo.IsCombo,
+			ComboName:      combo.ComboName,
+			LinkedStacks:   combo.LinkedStacks,
+			ComboChoice:    comboChoice,
+			UsesMinio:      combo.UsesMinio,
+			DestHasMinio:   destHasMinio,
+			MinioPolicy:    minioPolicy,
 		}
 	}
 
@@ -496,6 +666,11 @@ func EvaluateTransferPreflight(origin, dest FleetNodeStructure, appName string, 
 	dnsAction := "update_cname_and_ingress"
 	if mode == "clone" {
 		dnsAction = "none" // Clones mantém DNS separado ou exigem subdomínio novo
+	}
+
+	recommendation := "Preflight aprovado com sucesso. Todos os requisitos de arquitetura, memória e disco foram verificados e validados."
+	if combo.IsCombo && (comboChoice == "1" || comboChoice == "") {
+		recommendation = fmt.Sprintf("Preflight aprovado para o combo completo: %s (%d ferramentas vinculadas validadas).", combo.ComboName, len(combo.LinkedStacks)+1)
 	}
 
 	return FleetTransferPreflightResult{
@@ -511,7 +686,14 @@ func EvaluateTransferPreflight(origin, dest FleetNodeStructure, appName string, 
 		RequiredDiskGB:    reqDisk,
 		AvailableDiskGB:   destDiskFree,
 		DNSAction:         dnsAction,
-		Recommendation:    "Preflight aprovado com sucesso. Todos os requisitos de arquitetura, memória e disco foram verificados e validados.",
+		Recommendation:    recommendation,
+		IsCombo:           combo.IsCombo,
+		ComboName:         combo.ComboName,
+		LinkedStacks:      combo.LinkedStacks,
+		ComboChoice:       comboChoice,
+		UsesMinio:         combo.UsesMinio,
+		DestHasMinio:      destHasMinio,
+		MinioPolicy:       minioPolicy,
 	}
 }
 
@@ -541,7 +723,7 @@ func (a *webApp) ExecuteApplicationTransfer(ctx context.Context, req FleetTransf
 		return FleetTransferExecutionResponse{Success: false, TaskID: taskID, Error: fmt.Sprintf("falha ao inspecionar nó de destino: %v", err)}, err
 	}
 
-	preflight := EvaluateTransferPreflight(originStruct, destStruct, req.AppName, req.Mode)
+	preflight := EvaluateTransferPreflight(originStruct, destStruct, req.AppName, req.Mode, req.ComboChoice, req.MinioPolicy)
 	if !preflight.Allowed {
 		return FleetTransferExecutionResponse{
 			Success:    false,
@@ -627,6 +809,15 @@ func (a *webApp) ExecuteApplicationTransfer(ctx context.Context, req FleetTransf
 	}
 
 	// 6. Gravação da intenção de tarefa pendente para execução no Terminal Seguro
+	comboChoiceVal := req.ComboChoice
+	if comboChoiceVal == "" {
+		comboChoiceVal = "1"
+	}
+	minioPolicyVal := req.MinioPolicy
+	if minioPolicyVal == "" {
+		minioPolicyVal = "migrate"
+	}
+
 	pendingTask := map[string]any{
 		"appName":         req.AppName,
 		"originNodeId":    req.OriginNodeID,
@@ -635,7 +826,8 @@ func (a *webApp) ExecuteApplicationTransfer(ctx context.Context, req FleetTransf
 		"operation":       req.Mode,
 		"stopOriginStack": originStopped,
 		"updateDns":       dnsUpdated,
-		"minioPolicy":     req.MinioPolicy,
+		"comboChoice":     comboChoiceVal,
+		"minioPolicy":     minioPolicyVal,
 		"timestamp":       time.Now().UTC().Format(time.RFC3339),
 	}
 	if b, err := json.MarshalIndent(pendingTask, "", "  "); err == nil {

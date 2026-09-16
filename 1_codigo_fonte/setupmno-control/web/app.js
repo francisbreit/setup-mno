@@ -222,6 +222,8 @@ function bindEvents() {
   $("fleet-clone-app")?.addEventListener("change", onFleetCloneAppChanged);
   $("fleet-clone-dest")?.addEventListener("change", runFleetClonePreflight);
   $("fleet-clone-mode")?.addEventListener("change", onFleetCloneModeChanged);
+  document.querySelectorAll('input[name="fleet-combo-choice"]').forEach(el => el.addEventListener("change", runFleetClonePreflight));
+  document.querySelectorAll('input[name="fleet-minio-policy"]').forEach(el => el.addEventListener("change", runFleetClonePreflight));
   $("fleet-clone-form")?.addEventListener("submit", submitFleetClone);
   $("fleet-preflight-backup-btn")?.addEventListener("click", () => {
     const originId = $("fleet-clone-origin")?.value;
@@ -3713,6 +3715,8 @@ async function runFleetClonePreflight() {
   const appName = $("fleet-clone-app")?.value;
   const destId = $("fleet-clone-dest")?.value;
   const mode = $("fleet-clone-mode")?.value || "clone";
+  const comboChoice = document.querySelector('input[name="fleet-combo-choice"]:checked')?.value || "1";
+  const minioPolicy = document.querySelector('input[name="fleet-minio-policy"]:checked')?.value || "migrate";
   const submitBtn = $("fleet-clone-submit");
   const badge = $("fleet-preflight-badge");
   const archVal = $("fleet-preflight-arch-val");
@@ -3739,10 +3743,38 @@ async function runFleetClonePreflight() {
   try {
     const res = await api("/api/fleet/transfer/preflight", {
       method: "POST",
-      body: JSON.stringify({ appName, originNodeId: originId, destNodeId: destId, mode })
+      body: JSON.stringify({ appName, originNodeId: originId, destNodeId: destId, mode, comboChoice, minioPolicy })
     });
 
     state.activeClonePreflight = res;
+
+    // Gerenciamento dinâmico da seção de COMBO
+    const comboSection = $("fleet-clone-combo-section");
+    const comboNameEl = $("fleet-combo-name");
+    const comboToolsEl = $("fleet-combo-tools");
+    if (res.isCombo) {
+      if (comboSection) comboSection.classList.remove("hidden");
+      if (comboNameEl) comboNameEl.textContent = res.comboName || "Combo Integrado";
+      if (comboToolsEl) comboToolsEl.textContent = (res.linkedStacks || []).join(" • ") || "nenhuma";
+    } else {
+      if (comboSection) comboSection.classList.add("hidden");
+    }
+
+    // Gerenciamento dinâmico da seção de MINIO
+    const minioSection = $("fleet-clone-minio-section");
+    const minioDescEl = $("fleet-minio-desc");
+    if (res.usesMinio) {
+      if (minioSection) minioSection.classList.remove("hidden");
+      if (minioDescEl) {
+        if (res.destHasMinio) {
+          minioDescEl.innerHTML = "⚠️ O servidor de destino já possui um serviço MinIO ativo. Para garantir que nenhuma foto ou anexo histórico gravado no banco seja quebrado, escolha como proceder:";
+        } else {
+          minioDescEl.innerHTML = "A aplicação selecionada utiliza armazenamento MinIO S3 para anexos, fotos e áudios. Escolha como deseja proceder:";
+        }
+      }
+    } else {
+      if (minioSection) minioSection.classList.add("hidden");
+    }
 
     const origArch = res.originNode?.architecture || "—";
     const destArch = res.destNode?.architecture || "—";
@@ -3825,6 +3857,9 @@ function resetFleetPreflight(reason) {
   const feedback = $("fleet-preflight-feedback");
   const backupAction = $("fleet-preflight-backup-action");
 
+  $("fleet-clone-combo-section")?.classList.add("hidden");
+  $("fleet-clone-minio-section")?.classList.add("hidden");
+
   if (badge) {
     badge.className = "mode-pill mode-disabled";
     badge.textContent = "Aguardando";
@@ -3868,6 +3903,8 @@ async function submitFleetClone(event) {
   const appName = $("fleet-clone-app")?.value;
   const destId = $("fleet-clone-dest")?.value;
   const mode = $("fleet-clone-mode")?.value || "clone";
+  const comboChoice = document.querySelector('input[name="fleet-combo-choice"]:checked')?.value || "1";
+  const minioPolicy = document.querySelector('input[name="fleet-minio-policy"]:checked')?.value || "migrate";
   const notifySentinel = $("fleet-clone-notify")?.checked === true;
   const stopOriginStack = $("fleet-clone-stop-origin")?.checked === true;
   const submitBtn = $("fleet-clone-submit");
@@ -3899,6 +3936,8 @@ async function submitFleetClone(event) {
         originNodeId: originId,
         destNodeId: destId,
         mode,
+        comboChoice,
+        minioPolicy,
         updateDns: mode === "transfer",
         stopOriginStack: mode === "transfer" && stopOriginStack,
         notifySentinel

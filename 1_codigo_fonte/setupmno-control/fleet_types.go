@@ -192,6 +192,13 @@ type FleetTransferPreflightResult struct {
 	DNSAction         string           `json:"dnsAction"` // "update_cname_and_ingress", "none"
 	BlockReason       string           `json:"blockReason,omitempty"`
 	Recommendation    string           `json:"recommendation"`
+	IsCombo           bool             `json:"isCombo"`
+	ComboName         string           `json:"comboName,omitempty"`
+	LinkedStacks      []string         `json:"linkedStacks,omitempty"`
+	ComboChoice       string           `json:"comboChoice,omitempty"` // "1" (all) ou "2" (single)
+	UsesMinio         bool             `json:"usesMinio"`
+	DestHasMinio      bool             `json:"destHasMinio"`
+	MinioPolicy       string           `json:"minioPolicy,omitempty"` // "migrate" ou "keep_origin"
 }
 
 // FleetTransferExecutionRequest representa os parâmetros de disparo da transferência ou clone.
@@ -202,6 +209,8 @@ type FleetTransferExecutionRequest struct {
 	Mode               string `json:"mode"` // "transfer" ou "clone"
 	UpdateDNS          bool   `json:"updateDns"`
 	StopOriginStack    bool   `json:"stopOriginStack"`
+	ComboChoice        string `json:"comboChoice,omitempty"`
+	MinioPolicy        string `json:"minioPolicy,omitempty"`
 	SafetyFreezeSuffix string `json:"safetyFreezeSuffix,omitempty"`
 	NotifySentinel     bool   `json:"notifySentinel"`
 }
