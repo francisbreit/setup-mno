@@ -413,8 +413,8 @@ func detectAppComboContextGo(origin FleetNodeStructure, appName string) comboDet
 	appLower := strings.ToLower(appName)
 
 	var suffix string
-	if len(appLower) >= 7 {
-		candidate := appLower[len(appLower)-7:]
+	for i := 0; i <= len(appLower)-7; i++ {
+		candidate := appLower[i : i+7]
 		isHex := true
 		for _, c := range candidate {
 			if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
@@ -423,7 +423,9 @@ func detectAppComboContextGo(origin FleetNodeStructure, appName string) comboDet
 			}
 		}
 		if isHex {
-			suffix = candidate
+			if i+7 == len(appLower) || appLower[i+7] == '-' || appLower[i+7] == '_' {
+				suffix = candidate
+			}
 		}
 	}
 
@@ -440,7 +442,7 @@ func detectAppComboContextGo(origin FleetNodeStructure, appName string) comboDet
 			continue
 		}
 
-		if suffix != "" && strings.HasSuffix(otherLower, suffix) {
+		if suffix != "" && strings.Contains(otherLower, suffix) {
 			linked = append(linked, a.Name)
 			continue
 		}
@@ -467,7 +469,9 @@ func detectAppComboContextGo(origin FleetNodeStructure, appName string) comboDet
 
 	if len(linked) > 0 {
 		cName := "Combo Integrado"
-		if strings.HasPrefix(appLower, "chatwoot") || strings.HasPrefix(appLower, "evolution") {
+		if strings.HasPrefix(appLower, "n8n") {
+			cName = "Combo N8N Automação & IA (Editor + Webhook + Worker + MCP + Redis)"
+		} else if strings.HasPrefix(appLower, "chatwoot") || strings.HasPrefix(appLower, "evolution") {
 			cName = "Combo Multicanais (Chatwoot + Evolution + RabbitMQ + S3)"
 		} else if strings.HasPrefix(appLower, "typebot") {
 			cName = "Combo Typebot + MinIO S3"

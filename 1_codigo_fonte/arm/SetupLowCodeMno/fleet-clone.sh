@@ -436,7 +436,7 @@ detect_app_combo_context() {
     fi
 
     local app_suffix=""
-    if [[ "$app" =~ ([a-f0-9]{7})$ ]]; then
+    if [[ "$app" =~ ([a-f0-9]{7}) ]]; then
         app_suffix="${BASH_REMATCH[1]}"
     fi
 
@@ -450,13 +450,15 @@ detect_app_combo_context() {
             case "$s" in
                 mnoctrl*|cloudflared|traefik|portainer|pgbouncer|redis|postgres|mysql84|mysql) continue ;;
             esac
-            if [[ "$s" == *"$app_suffix" ]]; then
+            if [[ "$s" == *"$app_suffix"* ]]; then
                 linked+=("$s")
             fi
         done <<< "$all_stacks"
     fi
 
-    if [[ "$app" == chatwoot* ]] || [[ "$app" == evolution* ]] || [[ "$app" == minio* ]] || [[ "$app" == rabbitmq* ]]; then
+    if [[ "$app" == n8n* ]]; then
+        detected_combo_name="Combo N8N Automação & IA (Editor + Webhook + Worker + MCP + Redis)"
+    elif [[ "$app" == chatwoot* ]] || [[ "$app" == evolution* ]] || [[ "$app" == minio* ]] || [[ "$app" == rabbitmq* ]]; then
         while IFS= read -r s; do
             [ -n "$s" ] || continue
             [ "$s" = "$app" ] && continue
@@ -482,6 +484,106 @@ detect_app_combo_context() {
     fi
 
     printf "false||none\n"
+}
+
+# Detecta se uma aplicação utiliza uma stack de Redis dedicado
+detect_dedicated_redis_stack() {
+    local node_id="$1"
+    local host="$2"
+    local app="$3"
+    local yaml_file="$4"
+
+    # Se a própria stack já for a de redis dedicado ou redis global, não busca redis de si mesma
+    if [ "$app" = "redis" ] || [[ "$app" == *-redis ]] || [[ "$app" == *redis* && "$app" != n8n* && "$app" != chatwoot* && "$app" != evo* ]]; then
+        return 0
+    fi
+
+    local all_stacks=""
+    if [ "$node_id" = "local" ]; then
+        all_stacks=$(list_local_swarm_stacks)
+    else
+        all_stacks=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$host" "docker stack ls --format '{{.Name}}'" 2>/dev/null || true)
+    fi
+
+    local app_suffix=""
+    if [[ "$app" =~ ([a-f0-9]{7}) ]]; then
+        app_suffix="${BASH_REMATCH[1]}"
+    fi
+
+    # 1. Busca por sufixo compartilhado + palavra "redis" nas stacks ativas da origem
+    # Exemplos: n8na8ebda2-redis, redisevoa8ebda2, difya8ebda2-redis, directusa8ebda2-redis, cwt_redisa8ebda2
+    if [ -n "$app_suffix" ]; then
+        while IFS= read -r s; do
+            [ -n "$s" ] || continue
+            [ "$s" = "$app" ] && continue
+            [ "$s" = "redis" ] && continue
+            if [[ "$s" == *"$app_suffix"* ]] && [[ "$s" == *redis* ]]; then
+                printf "%s\n" "$s"
+                return 0
+            fi
+        done <<< "$all_stacks"
+    fi
+
+    # 2. Busca por análise de variáveis de ambiente no arquivo YAML da stack
+    if [ -s "$yaml_file" ]; then
+        local found_redis_host=""
+        found_redis_host=$(grep -oE "(QUEUE_BULL_REDIS_HOST|REDIS_HOST|REDIS_SERVER|CACHE_REDIS_HOST|REDIS_ENDPOINT)=[^[:space:]]+" "$yaml_file" 2>/dev/null | head -n1 | cut -d= -f2 | tr -d ' "\r' || true)
+        if [ -z "$found_redis_host" ]; then
+            found_redis_host=$(grep -oE "redis://([^:/[:space:]]+)" "$yaml_file" 2>/dev/null | head -n1 | sed -E 's/redis:\/\/([^:/[:space:]]+).*/\1/' | tr -d ' "\r' || true)
+        fi
+
+        if [ -n "$found_redis_host" ] && [ "$found_redis_host" != "redis" ] && [ "$found_redis_host" != "localhost" ] && [ "$found_redis_host" != "127.0.0.1" ]; then
+            if echo "$all_stacks" | grep -qx "$found_redis_host"; then
+                printf "%s\n" "$found_redis_host"
+                return 0
+            fi
+            local match_st
+            match_st=$(echo "$all_stacks" | grep -E "^${found_redis_host}" | head -n1 || true)
+            if [ -n "$match_st" ]; then
+                printf "%s\n" "$match_st"
+                return 0
+            fi
+        fi
+    fi
+
+    # 3. Busca por convenção padrão ${app}-redis ou ${app}_redis
+    for cand in "${app}-redis" "${app}_redis"; do
+        if echo "$all_stacks" | grep -qx "$cand"; then
+            printf "%s\n" "$cand"
+            return 0
+        fi
+    done
+
+    return 0
+}
+
+# Garante que qualquer stack ou combo que possua Redis dedicado tenha o Redis anexado obrigatoriamente
+attach_dedicated_redis_to_list() {
+    local node_id="$1"
+    local host="$2"
+    local -n _arr_ref="$3"
+
+    local redis_found=()
+    for cur_item in "${_arr_ref[@]}"; do
+        [ -n "$cur_item" ] || continue
+        local tmp_y
+        tmp_y=$(mktemp)
+        resolve_live_stack_yaml "$node_id" "$host" "$cur_item" "$tmp_y" 2>/dev/null || true
+        local ded_redis
+        ded_redis=$(detect_dedicated_redis_stack "$node_id" "$host" "$cur_item" "$tmp_y")
+        rm -f "$tmp_y"
+
+        if [ -n "$ded_redis" ] && [ "$ded_redis" != "redis" ]; then
+            if [[ ! " ${_arr_ref[*]} " =~ " ${ded_redis} " ]] && [[ ! " ${redis_found[*]} " =~ " ${ded_redis} " ]]; then
+                redis_found+=("$ded_redis")
+            fi
+        fi
+    done
+
+    for rf in "${redis_found[@]}"; do
+        _arr_ref+=("$rf")
+        echo "[REDIS DEDICADO DETECTADO] Stack '$rf' vinculada à aplicação/combo adicionada para migração conjunta obrigatória." >> "${TRANSFER_LOG:-/dev/null}" 2>&1 || true
+    done
 }
 
 # Gravador de Manifesto Padronizado
@@ -568,17 +670,38 @@ get_application_volumes() {
     local origin_id="${3:-}"
     local origin_host="${4:-}"
 
+    local is_redis_stack=false
+    if [ "$app" = "redis" ] || [[ "$app" == *-redis ]] || [[ "$app" == *redis* ]]; then
+        is_redis_stack=true
+    fi
+
     local vols=()
     while IFS= read -r v; do
         [ -n "$v" ] || continue
         case "$v" in
-            postgres*|mysql*|portainer*|traefik*|cloudflared*|audit*|interna|externa|redis*)
+            postgres_data|mysql84_mysql84_data|mysql_data|portainer_data|traefik*|cloudflared*|audit*|interna|externa)
                 continue
                 ;;
+            redis_data)
+                # Volume da infra global compartilhada; ignora a menos que a stack seja a própria stack global redis
+                [ "$app" != "redis" ] && continue
+                ;;
+            postgres*|mysql*|portainer*)
+                if [ "$app" != "postgres" ] && [ "$app" != "mysql84" ] && [ "$app" != "mysql" ]; then
+                    continue
+                fi
+                ;;
+            redis*)
+                # Preserva volumes de redis dedicado (ex: redisevo-data, redis-data)
+                if [ "$is_redis_stack" = "true" ] || [[ "$v" == *"$app"* ]]; then
+                    vols+=("$v")
+                    continue
+                fi
+                ;;
             *)
-                vols+=("$v")
                 ;;
         esac
+        vols+=("$v")
     done < <(awk '
         /^volumes:/ { in_vols=1; next }
         in_vols && /^  [a-zA-Z0-9_.-]+:/ {
@@ -591,13 +714,27 @@ get_application_volumes() {
         while IFS= read -r v; do
             [ -n "$v" ] || continue
             case "$v" in
-                postgres*|mysql*|portainer*|traefik*|cloudflared*|audit*|interna|externa|redis*)
+                postgres_data|mysql84_mysql84_data|mysql_data|portainer_data|traefik*|cloudflared*|audit*|interna|externa)
                     continue
                     ;;
+                redis_data)
+                    [ "$app" != "redis" ] && continue
+                    ;;
+                postgres*|mysql*|portainer*)
+                    if [ "$app" != "postgres" ] && [ "$app" != "mysql84" ] && [ "$app" != "mysql" ]; then
+                        continue
+                    fi
+                    ;;
+                redis*)
+                    if [ "$is_redis_stack" = "true" ] || [[ "$v" == *"$app"* ]]; then
+                        vols+=("$v")
+                        continue
+                    fi
+                    ;;
                 *)
-                    vols+=("$v")
                     ;;
             esac
+            vols+=("$v")
         done < <(grep -oE "${app}[a-zA-Z0-9_-]*" "$yaml_file" | grep -E "(data|config|media|themes|logs|import|uploads)" | sort -u || true)
     fi
 
@@ -1170,10 +1307,11 @@ ensure_mysql_ready() {
     fi
     [ -n "$new_pwd" ] || new_pwd=$(openssl rand -hex 8)
 
+    local mysql_img="percona/percona-server:8.0"
     local yaml_body="version: '3.7'
 services:
     mysql:
-        image: percona/percona-server:8.0
+        image: ${mysql_img}
         environment:
             - MYSQL_ROOT_PASSWORD=${new_pwd}
             - TZ=America/Fortaleza
@@ -1692,6 +1830,21 @@ action_backup_app() {
         fi
     fi
 
+    # Anexar obrigatoriamente qualquer stack de Redis dedicado associada às ferramentas selecionadas
+    attach_dedicated_redis_to_list "local" "" apps_to_backup
+
+    # Ordenação topológica: dependências de infra (minio, rabbitmq, redis) antes das aplicações
+    local dep_bkp=()
+    local main_bkp=()
+    for a in "${apps_to_backup[@]}"; do
+        if [[ "$a" == minio* ]] || [[ "$a" == rabbitmq* ]] || [[ "$a" == *redis* ]]; then
+            dep_bkp+=("$a")
+        else
+            main_bkp+=("$a")
+        fi
+    done
+    apps_to_backup=("${dep_bkp[@]}" "${main_bkp[@]}")
+
     local timestamp
     timestamp=$(date -u +%Y%m%d_%H%M%SZ)
     local local_arch
@@ -2080,6 +2233,19 @@ EOF
                 "Escolha qual ferramenta do combo você deseja restaurar isoladamente:" 18 70 6 \
                 "${sel_menu[@]}" 3>&1 1>&2 2>&3) || return 0
             stacks_to_restore=("$single_sel")
+
+            # Se a ferramenta selecionada possuir Redis dedicado no pacote de backup, anexa obrigatoriamente
+            local sel_suf=""
+            [[ "$single_sel" =~ ([a-f0-9]{7}) ]] && sel_suf="${BASH_REMATCH[1]}"
+            for pack_sy in $(find "$tmpdir/stacks" -maxdepth 1 -name "*.yaml" 2>/dev/null); do
+                local ps_cand
+                ps_cand=$(basename "$pack_sy" .yaml)
+                if [[ "$ps_cand" == *redis* ]] && [ "$ps_cand" != "$single_sel" ]; then
+                    if [ -n "$sel_suf" ] && [[ "$ps_cand" == *"$sel_suf"* ]]; then
+                        stacks_to_restore+=("$ps_cand")
+                    fi
+                fi
+            done
         fi
     fi
 
@@ -2655,6 +2821,9 @@ action_transfer_or_clone() {
             done
         fi
     fi
+
+    # Anexar obrigatoriamente qualquer stack de Redis dedicado vinculada às ferramentas a serem migradas
+    attach_dedicated_redis_to_list "$chosen_origin_id" "$origin_ssh_host" apps_to_migrate
 
     # 7.1 Detecção e Governança de Storage S3 (MinIO)
     local minio_stack_in_combo=""
@@ -3287,6 +3456,17 @@ action_transfer_or_clone() {
 
             # 6. Deploy no Swarm do Destino via Portainer REST API (Editável)
             echo -e "XXX\n$((pct_base + (pct_step * 80 / 100)))\n[$app_idx/$total_apps] Registrando stack '$cur_app' no Portainer do destino...\nXXX"
+
+            # Assegurar que volumes declarados como externos no YAML existam no nó destino antes do deploy
+            while IFS= read -r ext_vol; do
+                [ -n "$ext_vol" ] || continue
+                if [ "$chosen_dest_id" = "local" ]; then
+                    docker volume create "$ext_vol" >/dev/null 2>&1 || true
+                else
+                    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "docker volume create '$ext_vol' >/dev/null 2>&1 || true"
+                fi
+            done < <(awk '/^volumes:/{flag=1; next} flag && /^[[:space:]]{2}[a-zA-Z0-9_.-]+:/{v=$1; sub(/^[[:space:]]*/, "", v); sub(/:.*/, "", v); in_v=v; next} flag && in_v && /external:[[:space:]]*true/{print in_v; in_v=""}' "$app_workdir/stack.yaml" 2>/dev/null || true)
+
             if [ "$chosen_dest_id" = "local" ]; then
                 cp -f "$app_workdir/stack.yaml" "/root/${cur_app}.yaml"
                 deploy_stack_with_portainer_priority "local" "" "$cur_app" "/root/${cur_app}.yaml" >> "$TRANSFER_LOG" 2>&1
@@ -3474,6 +3654,7 @@ case "${1:-menu}" in
     restore) action_restore_backup "${2:-}" "${3:-}" ;;
     transfer) shift; action_transfer_or_clone "transfer" "$@" ;;
     clone) shift; action_transfer_or_clone "clone" "$@" ;;
+    --source-only|source-only) return 0 2>/dev/null || exit 0 ;;
     menu) show_menu ;;
     *) fail "Uso: $0 [inspect [--cli] | backup [app] [--cli] | restore [archive] [target] | transfer [app] [origin] [dest] [--cli] | clone [app] [origin] [dest] [--cli] | menu]" ;;
 esac

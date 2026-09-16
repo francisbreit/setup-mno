@@ -8,7 +8,7 @@
   "status": "homologated",
   "fictitious": false,
   "deployable": true,
-  "setupVersion": "7.48.4",
+  "setupVersion": "7.48.5",
   "updatedAt": "2026-09-03",
   "architectures": [
     "amd64",
