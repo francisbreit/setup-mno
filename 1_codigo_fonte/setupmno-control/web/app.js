@@ -3942,9 +3942,12 @@ async function submitFleetClone(event) {
           openTerminal("fleet");
         });
       }
+      setTimeout(() => {
+        openTerminal("fleet");
+      }, 1200);
     }
 
-    showToast(`✓ Plano de migração aprovado para ${res.destNode || destId}! Abra o Terminal Seguro para concluir.`);
+    showToast(`✓ Plano de migração aprovado para ${res.destNode || destId}! Conectando ao Terminal Seguro...`);
 
     state.fleetNodeStructures = {};
     await loadFleet();

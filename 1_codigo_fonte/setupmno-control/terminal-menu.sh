@@ -64,6 +64,18 @@ fi
 # depois de uma nova autenticação. O socket dedicado evita colisão com tmux do
 # host e o ttyd continua limitando o acesso a um único cliente por vez.
 if [ -z "${TMUX:-}" ] && [ "${SETUPMNO_TMUX_CHILD:-0}" != "1" ]; then
+    if [ "$intent" = "fleet" ]; then
+        pending_fleet_task="/root/SetupLowCodeMno/.control/pending-fleet-clone.json"
+        if [ ! -f "$pending_fleet_task" ] && command -v docker >/dev/null 2>&1; then
+            audit_vol=$(docker volume ls --filter "name=audit_data" --format '{{.Name}}' 2>/dev/null | head -n 1 || true)
+            if [ -n "$audit_vol" ]; then
+                docker run --rm -v "${audit_vol}:/audit" alpine cat /audit/pending-fleet-clone.json 2>/dev/null > "$pending_fleet_task" || true
+            fi
+        fi
+        if [ -s "$pending_fleet_task" ]; then
+            tmux -L setupmno-control kill-session -t "setupmno-terminal-fleet" 2>/dev/null || true
+        fi
+    fi
     exec tmux -L setupmno-control new-session -A \
         -s "setupmno-terminal-$intent" \
         -e SETUPMNO_TMUX_CHILD=1 \

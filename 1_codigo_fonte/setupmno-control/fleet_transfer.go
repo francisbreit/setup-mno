@@ -626,7 +626,27 @@ func (a *webApp) ExecuteApplicationTransfer(ctx context.Context, req FleetTransf
 		DurationMs:             duration,
 	}
 
-	// 6. Notificação via MNO Sentinel (Telegram & Webhook n8n)
+	// 6. Gravação da intenção de tarefa pendente para execução no Terminal Seguro
+	pendingTask := map[string]any{
+		"appName":         req.AppName,
+		"originNodeId":    req.OriginNodeID,
+		"destNodeId":      req.DestNodeID,
+		"mode":            req.Mode,
+		"operation":       req.Mode,
+		"stopOriginStack": originStopped,
+		"updateDns":       dnsUpdated,
+		"minioPolicy":     req.MinioPolicy,
+		"timestamp":       time.Now().UTC().Format(time.RFC3339),
+	}
+	if b, err := json.MarshalIndent(pendingTask, "", "  "); err == nil {
+		targetAuditDir := "/audit"
+		if _, err := os.Stat(targetAuditDir); os.IsNotExist(err) {
+			targetAuditDir = os.TempDir()
+		}
+		_ = os.WriteFile(filepath.Join(targetAuditDir, "pending-fleet-clone.json"), b, 0600)
+	}
+
+	// 7. Notificação via MNO Sentinel (Telegram & Webhook n8n)
 	if req.NotifySentinel {
 		a.dispatchMigrationNotification(ctx, res, originStruct.Architecture, destStruct.Architecture)
 		res.NotificationDispatched = true

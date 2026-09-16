@@ -102,8 +102,28 @@ sync_fleet_inventory() {
             if printf '%s' "$inv_data" | jq -e . >/dev/null 2>&1; then
                 mkdir -p "$(dirname "$INVENTORY_FILE")" 2>/dev/null || true
                 printf '%s\n' "$inv_data" > "$INVENTORY_FILE" 2>/dev/null || true
-                return 0
             fi
+        fi
+
+        local pending_data
+        pending_data=$(docker run --rm -v "${audit_vol}:/audit" alpine cat /audit/pending-fleet-clone.json 2>/dev/null || true)
+        if [ -n "$pending_data" ] && [ "$pending_data" != "null" ]; then
+            if printf '%s' "$pending_data" | jq -e . >/dev/null 2>&1; then
+                mkdir -p "$(dirname "$INVENTORY_FILE")" 2>/dev/null || true
+                printf '%s\n' "$pending_data" > "$CONTROL_DIR/pending-fleet-clone.json" 2>/dev/null || true
+            fi
+        fi
+        return 0
+    fi
+}
+
+cleanup_pending_fleet_task() {
+    rm -f "$CONTROL_DIR/pending-fleet-clone.json" 2>/dev/null || true
+    if command -v docker >/dev/null 2>&1; then
+        local audit_vol
+        audit_vol=$(docker volume ls --filter "name=audit_data" --format '{{.Name}}' 2>/dev/null | head -n 1)
+        if [ -n "$audit_vol" ]; then
+            docker run --rm -v "${audit_vol}:/audit" alpine rm -f /audit/pending-fleet-clone.json 2>/dev/null || true
         fi
     fi
 }
@@ -167,6 +187,10 @@ resolve_worker_ssh_host() {
     fi
 
     if [ -z "$_r_host" ]; then
+        if [ "${is_cli:-false}" = "true" ] || [ ! -t 0 ]; then
+            echo "ERRO SSH: Endereço IP do servidor '$_r_node_name' não encontrado em fleet-ssh.json." >&2
+            return 1
+        fi
         _r_host=$(whiptail --title "CONEXÃO SSH COM O SERVIDOR ($_r_node_name)" --inputbox \
             "Informe o endereço IP da VPS para transferência de dados:" 12 74 "91.99.117.159" 3>&1 1>&2 2>&3) || return 1
         [ -n "$_r_host" ] || return 1
@@ -185,6 +209,10 @@ resolve_worker_ssh_host() {
 
     # Testar conectividade SSH com timeout estrito de 4s (evita qualquer travamento)
     if ! timeout 4 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes -o ConnectTimeout=3 -o ServerAliveInterval=2 -o ServerAliveCountMax=1 "root@$_r_host" "echo ok" >/dev/null 2>&1; then
+        if [ "${is_cli:-false}" = "true" ] || [ ! -t 0 ]; then
+            echo "ERRO SSH: Chave SSH pública não autorizada no servidor '$_r_node_name' ($_r_host)." >&2
+            return 1
+        fi
         local vps_pwd
         vps_pwd=$(whiptail --title "AUTENTICAÇÃO SSH NECESSÁRIA" --passwordbox \
             "A chave SSH ainda não está autorizada no nó '$_r_node_name' ($_r_host).\n\nInforme a senha de root da VPS para estabelecer a conexão segura:" 12 74 3>&1 1>&2 2>&3) || return 1
@@ -2315,16 +2343,77 @@ EOF
 # Transferência e Clonagem Atômica
 action_transfer_or_clone() {
     local op_mode="${1:-transfer}"
-    local op_title="TRANSFERÊNCIA DE APLICAÇÃO"
-    [ "$op_mode" = "clone" ] && op_title="CLONAGEM DE APLICAÇÃO (TESTE)"
+    shift 2>/dev/null || true
+
+    local is_cli=false
+    local cli_app=""
+    local cli_origin=""
+    local cli_dest=""
+    local cli_stop_origin=""
+    local cli_update_dns=""
+    local cli_minio=""
+    local cli_combo_choice=""
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --cli) is_cli=true ;;
+            --stop-origin) cli_stop_origin="true" ;;
+            --keep-origin) cli_stop_origin="false" ;;
+            --update-dns) cli_update_dns="true" ;;
+            --no-dns) cli_update_dns="false" ;;
+            --minio=*) cli_minio="${1#*=}" ;;
+            --minio) shift; cli_minio="$1" ;;
+            --combo-all) cli_combo_choice="1" ;;
+            --combo-only-app) cli_combo_choice="2" ;;
+            -*) ;;
+            *)
+                if [ -z "$cli_app" ]; then
+                    cli_app="$1"
+                elif [ -z "$cli_origin" ]; then
+                    cli_origin="$1"
+                elif [ -z "$cli_dest" ]; then
+                    cli_dest="$1"
+                fi
+                ;;
+        esac
+        shift
+    done
 
     sync_fleet_inventory
+
+    local pending_file="$CONTROL_DIR/pending-fleet-clone.json"
+    if [ -z "$cli_app" ] && [ -f "$pending_file" ]; then
+        if jq -e . "$pending_file" >/dev/null 2>&1; then
+            cli_app=$(jq -r '.appName // empty' "$pending_file")
+            cli_origin=$(jq -r '.originNodeId // empty' "$pending_file")
+            cli_dest=$(jq -r '.destNodeId // empty' "$pending_file")
+            local p_mode
+            p_mode=$(jq -r '.mode // empty' "$pending_file")
+            [ -n "$p_mode" ] && op_mode="$p_mode"
+            cli_stop_origin=$(jq -r 'if .stopOriginStack != null then (.stopOriginStack | tostring) else empty end' "$pending_file")
+            cli_update_dns=$(jq -r 'if .updateDns != null then (.updateDns | tostring) else empty end' "$pending_file")
+            cli_minio=$(jq -r '.minioPolicy // empty' "$pending_file")
+            is_cli=true
+        fi
+    fi
+
+    if [ -n "$cli_app" ] && [ -n "$cli_origin" ] && [ -n "$cli_dest" ]; then
+        is_cli=true
+    fi
+
+    local op_title="TRANSFERÊNCIA DE APLICAÇÃO"
+    [ "$op_mode" = "clone" ] && op_title="CLONAGEM DE APLICAÇÃO (TESTE)"
 
     local fleet_mode
     fleet_mode=$(get_local_fleet_mode)
     if [ "$fleet_mode" = "worker" ]; then
-        whiptail --title "$op_title" --msgbox \
-            "Esta VPS está configurada como Nó Worker subordinado.\n\nA transferência e clonagem de aplicações entre servidores é orquestrada centralmente a partir da sua Torre Master (Cockpit Local no WSL2).\n\nAbra o menu Fleet Hub na sua Torre Master para iniciar a transferência de qualquer aplicação deste Worker para a Torre ou para outro servidor!\n\nNeste nó Worker, você também pode usar a Opção 4 para gerar um Backup Portátil (.tar.gz) dos dados a qualquer momento." 16 76
+        if [ "$is_cli" = "true" ]; then
+            echo "ERRO: Esta VPS está configurada como Nó Worker subordinado. A transferência deve ser acionada a partir da Torre Master." >&2
+        else
+            whiptail --title "$op_title" --msgbox \
+                "Esta VPS está configurada como Nó Worker subordinado.\n\nA transferência e clonagem de aplicações entre servidores é orquestrada centralmente a partir da sua Torre Master (Cockpit Local no WSL2).\n\nAbra o menu Fleet Hub na sua Torre Master para iniciar a transferência de qualquer aplicação deste Worker para a Torre ou para outro servidor!\n\nNeste nó Worker, você também pode usar a Opção 4 para gerar um Backup Portátil (.tar.gz) dos dados a qualquer momento." 16 76
+        fi
+        cleanup_pending_fleet_task
         return 0
     fi
 
@@ -2337,44 +2426,68 @@ action_transfer_or_clone() {
         workers_tsv=$(jq -r '.nodes[]? | select(.role == "worker" or .mode == "worker") | select(.status != "deleted") | "\(.id)\t\(.name)\t\(.architecture // "amd64")\t\(.endpoint)\t\(.token)"' "$INVENTORY_FILE" 2>/dev/null || true)
     fi
 
-    if [ -z "$workers_tsv" ]; then
+    if [ -z "$workers_tsv" ] && [ "$is_cli" != "true" ]; then
         whiptail --title "$op_title" --msgbox "Nenhum nó worker remoto cadastrado na frota. Acesse o menu Fleet Hub no Control Center e faça o pareamento de um Worker antes de transferir." 12 76
+        cleanup_pending_fleet_task
         return 0
     fi
 
-    # 2. Selecionar o SERVIDOR DE ORIGEM
-    local origin_menu=()
-    origin_menu+=("local" "Torre Master (Nó Local) [$local_arch]")
-    while IFS=$'\t' read -r wid wname warch wendpoint wtoken; do
-        [ -n "$wid" ] || continue
-        origin_menu+=("$wid" "$wname (Worker Remoto) [$warch]")
-    done <<< "$workers_tsv"
+    local chosen_origin_id=""
+    local chosen_dest_id=""
 
-    local chosen_origin_id
-    chosen_origin_id=$(whiptail --title "SELECIONE O SERVIDOR DE ORIGEM" --menu \
-        "Onde a aplicação que você deseja mover está rodando HOJE?" 18 78 6 \
-        "${origin_menu[@]}" 3>&1 1>&2 2>&3) || return 0
+    if [ "$is_cli" = "true" ]; then
+        case "$cli_origin" in
+            local|master|"Torre Master"|"torre"|"master-local") chosen_origin_id="local" ;;
+            *)
+                if [ -f "$INVENTORY_FILE" ]; then
+                    chosen_origin_id=$(jq -r --arg q "$cli_origin" '.nodes[]? | select(.id == $q or .name == $q or (.endpoint // "" | test($q))) | .id' "$INVENTORY_FILE" 2>/dev/null | head -n1 || true)
+                fi
+                [ -n "$chosen_origin_id" ] || chosen_origin_id="$cli_origin"
+                ;;
+        esac
 
-    # 3. Selecionar o SERVIDOR DE DESTINO
-    local dest_menu=()
-    if [ "$chosen_origin_id" != "local" ]; then
-        dest_menu+=("local" "Torre Master (Nó Local) [$local_arch]")
+        case "$cli_dest" in
+            local|master|"Torre Master"|"torre"|"master-local") chosen_dest_id="local" ;;
+            *)
+                if [ -f "$INVENTORY_FILE" ]; then
+                    chosen_dest_id=$(jq -r --arg q "$cli_dest" '.nodes[]? | select(.id == $q or .name == $q or (.endpoint // "" | test($q))) | .id' "$INVENTORY_FILE" 2>/dev/null | head -n1 || true)
+                fi
+                [ -n "$chosen_dest_id" ] || chosen_dest_id="$cli_dest"
+                ;;
+        esac
+    else
+        # 2. Selecionar o SERVIDOR DE ORIGEM
+        local origin_menu=()
+        origin_menu+=("local" "Torre Master (Nó Local) [$local_arch]")
+        while IFS=$'\t' read -r wid wname warch wendpoint wtoken; do
+            [ -n "$wid" ] || continue
+            origin_menu+=("$wid" "$wname (Worker Remoto) [$warch]")
+        done <<< "$workers_tsv"
+
+        chosen_origin_id=$(whiptail --title "SELECIONE O SERVIDOR DE ORIGEM" --menu \
+            "Onde a aplicação que você deseja mover está rodando HOJE?" 18 78 6 \
+            "${origin_menu[@]}" 3>&1 1>&2 2>&3) || return 0
+
+        # 3. Selecionar o SERVIDOR DE DESTINO
+        local dest_menu=()
+        if [ "$chosen_origin_id" != "local" ]; then
+            dest_menu+=("local" "Torre Master (Nó Local) [$local_arch]")
+        fi
+        while IFS=$'\t' read -r wid wname warch wendpoint wtoken; do
+            [ -n "$wid" ] || continue
+            [ "$wid" != "$chosen_origin_id" ] || continue
+            dest_menu+=("$wid" "$wname (Worker Remoto) [$warch]")
+        done <<< "$workers_tsv"
+
+        if [ ${#dest_menu[@]} -eq 0 ]; then
+            whiptail --title "$op_title" --msgbox "Nenhum servidor de destino disponível na frota." 10 70
+            return 0
+        fi
+
+        chosen_dest_id=$(whiptail --title "SELECIONE O SERVIDOR DE DESTINO" --menu \
+            "Para qual servidor a aplicação deve ser transferida?" 18 78 6 \
+            "${dest_menu[@]}" 3>&1 1>&2 2>&3) || return 0
     fi
-    while IFS=$'\t' read -r wid wname warch wendpoint wtoken; do
-        [ -n "$wid" ] || continue
-        [ "$wid" != "$chosen_origin_id" ] || continue
-        dest_menu+=("$wid" "$wname (Worker Remoto) [$warch]")
-    done <<< "$workers_tsv"
-
-    if [ ${#dest_menu[@]} -eq 0 ]; then
-        whiptail --title "$op_title" --msgbox "Nenhum servidor de destino disponível na frota." 10 70
-        return 0
-    fi
-
-    local chosen_dest_id
-    chosen_dest_id=$(whiptail --title "SELECIONE O SERVIDOR DE DESTINO" --menu \
-        "Para qual servidor a aplicação deve ser transferida?" 18 78 6 \
-        "${dest_menu[@]}" 3>&1 1>&2 2>&3) || return 0
 
     # 4. Dados e Arquiteturas dos Servidores
     local origin_name origin_arch dest_name dest_arch origin_endpoint origin_token dest_endpoint dest_token
@@ -2387,6 +2500,8 @@ action_transfer_or_clone() {
         origin_endpoint=$(jq -r --arg id "$chosen_origin_id" '.nodes[]? | select(.id == $id) | .endpoint' "$INVENTORY_FILE" 2>/dev/null)
         origin_token=$(jq -r --arg id "$chosen_origin_id" '.nodes[]? | select(.id == $id) | .token' "$INVENTORY_FILE" 2>/dev/null)
     fi
+    [ -n "$origin_name" ] || origin_name="$chosen_origin_id"
+    [ -n "$origin_arch" ] || origin_arch="$local_arch"
 
     if [ "$chosen_dest_id" = "local" ]; then
         dest_name="Torre Master (Nó Local)"
@@ -2397,29 +2512,43 @@ action_transfer_or_clone() {
         dest_endpoint=$(jq -r --arg id "$chosen_dest_id" '.nodes[]? | select(.id == $id) | .endpoint' "$INVENTORY_FILE" 2>/dev/null)
         dest_token=$(jq -r --arg id "$chosen_dest_id" '.nodes[]? | select(.id == $id) | .token' "$INVENTORY_FILE" 2>/dev/null)
     fi
+    [ -n "$dest_name" ] || dest_name="$chosen_dest_id"
+    [ -n "$dest_arch" ] || dest_arch="$local_arch"
 
     case "$origin_arch" in x86_64|amd64) origin_arch="amd64" ;; aarch64|arm64) origin_arch="arm64" ;; esac
     case "$dest_arch" in x86_64|amd64) dest_arch="amd64" ;; aarch64|arm64) dest_arch="arm64" ;; esac
 
     # 5. Trava de Arquitetura Rigorosa (Hardware Parity Gate)
     if [ "$origin_arch" != "$dest_arch" ]; then
-        whiptail --title "⚠️ BLOQUEIO DE SEGURANÇA: ARQUITETURAS DIFERENTES" --msgbox \
-            "TRANSFERÊNCIA AO VIVO BLOQUEADA!\n\nOrigem ($origin_name): $origin_arch\nDestino ($dest_name): $dest_arch\n\nProcessadores x86 e ARM possuem binários nativos e estruturas de banco de dados incompatíveis. Transferir containers ao vivo entre eles causará falhas críticas de inicialização.\n\nPara proteger seus dados, apenas o BACKUP PORTÁTIL (.tar.gz) é autorizado neste cenário.\n\nUtilize a Opção 4 do menu para gerar o Backup Portátil com segurança!" 18 78
-        return 0
+        if [ "$is_cli" = "true" ]; then
+            echo "ERRO CRÍTICO: TRANSFERÊNCIA AO VIVO BLOQUEADA! Arquiteturas incompatíveis (Origem: $origin_arch, Destino: $dest_arch). Para proteger os dados, utilize o Backup Portátil (.tar.gz)." >&2
+        else
+            whiptail --title "⚠️ BLOQUEIO DE SEGURANÇA: ARQUITETURAS DIFERENTES" --msgbox \
+                "TRANSFERÊNCIA AO VIVO BLOQUEADA!\n\nOrigem ($origin_name): $origin_arch\nDestino ($dest_name): $dest_arch\n\nProcessadores x86 e ARM possuem binários nativos e estruturas de banco de dados incompatíveis. Transferir containers ao vivo entre eles causará falhas críticas de inicialização.\n\nPara proteger seus dados, apenas o BACKUP PORTÁTIL (.tar.gz) é autorizado neste cenário.\n\nUtilize a Opção 4 do menu para gerar o Backup Portátil com segurança!" 18 78
+        fi
+        cleanup_pending_fleet_task
+        return 1
     fi
 
     # 6. Obter Hosts SSH para Comunicação Segura
     local origin_ssh_host="" dest_ssh_host=""
     if [ "$chosen_origin_id" != "local" ]; then
-        resolve_worker_ssh_host "$chosen_origin_id" "$origin_name" origin_ssh_host || return 0
+        resolve_worker_ssh_host "$chosen_origin_id" "$origin_name" origin_ssh_host || { cleanup_pending_fleet_task; return 1; }
     fi
     if [ "$chosen_dest_id" != "local" ]; then
-        resolve_worker_ssh_host "$chosen_dest_id" "$dest_name" dest_ssh_host || return 0
+        resolve_worker_ssh_host "$chosen_dest_id" "$dest_name" dest_ssh_host || { cleanup_pending_fleet_task; return 1; }
     fi
 
     # 7. Selecionar a APLICAÇÃO na ORIGEM (Filtra estritamente bancos e infraestrutura)
     local chosen_app=""
-    if [ "$chosen_origin_id" = "local" ]; then
+    if [ "$is_cli" = "true" ]; then
+        chosen_app="$cli_app"
+        if [ -z "$chosen_app" ]; then
+            echo "ERRO: Nome da aplicação a migrar é obrigatório no modo CLI." >&2
+            cleanup_pending_fleet_task
+            return 1
+        fi
+    elif [ "$chosen_origin_id" = "local" ]; then
         local stacks
         stacks=$(list_local_swarm_stacks)
         if [ -z "$stacks" ]; then
@@ -2487,7 +2616,9 @@ action_transfer_or_clone() {
 
     [ -n "$chosen_app" ] || return 0
 
-    whiptail --infobox "🔍 Analisando dependências, banco de dados e ecossistema de '$chosen_app'...\nAguarde alguns instantes..." 8 72
+    if [ "$is_cli" != "true" ]; then
+        whiptail --infobox "🔍 Analisando dependências, banco de dados e ecossistema de '$chosen_app'...\nAguarde alguns instantes..." 8 72
+    fi
 
     # Detecção Inteligente de Contexto de Combo
     local initial_yaml_tmp
@@ -2505,12 +2636,14 @@ action_transfer_or_clone() {
 
     local apps_to_migrate=("$chosen_app")
     if [ "$is_combo" = "true" ] && [ -n "$linked_stacks" ] && [ "$linked_stacks" != "none" ]; then
-        local combo_choice
-        combo_choice=$(whiptail --title "🤖 DETECÇÃO INTELIGENTE DE COMBO" --menu \
-            "A aplicação '$chosen_app' faz parte de um ecossistema integrado:\n$combo_name\n\nFerramentas conectadas detectadas nesta VPS:\n• $(echo "$linked_stacks" | sed 's/ / \n• /g')\n\nComo você deseja proceder com a transferência para '$dest_name'?" 20 78 2 \
-            "1" "MIGRAR COMBO COMPLETO (Recomendado — migra todas as ferramentas)" \
-            "2" "MIGRAR APENAS '$chosen_app' (somente esta aplicação)" \
-            3>&1 1>&2 2>&3) || return 0
+        local combo_choice="${cli_combo_choice:-1}"
+        if [ "$is_cli" != "true" ]; then
+            combo_choice=$(whiptail --title "🤖 DETECÇÃO INTELIGENTE DE COMBO" --menu \
+                "A aplicação '$chosen_app' faz parte de um ecossistema integrado:\n$combo_name\n\nFerramentas conectadas detectadas nesta VPS:\n• $(echo "$linked_stacks" | sed 's/ / \n• /g')\n\nComo você deseja proceder com a transferência para '$dest_name'?" 20 78 2 \
+                "1" "MIGRAR COMBO COMPLETO (Recomendado — migra todas as ferramentas)" \
+                "2" "MIGRAR APENAS '$chosen_app' (somente esta aplicação)" \
+                3>&1 1>&2 2>&3) || return 0
+        fi
 
         if [ "$combo_choice" = "1" ]; then
             for ls in $linked_stacks; do
@@ -2562,7 +2695,13 @@ action_transfer_or_clone() {
             fi
         fi
 
-        if [ "$dest_has_minio" = "true" ]; then
+        if [ "$is_cli" = "true" ]; then
+            if [ "$cli_minio" = "keep_origin" ]; then
+                minio_policy="keep_origin"
+            else
+                minio_policy="migrate"
+            fi
+        elif [ "$dest_has_minio" = "true" ]; then
             local minio_choice
             minio_choice=$(whiptail --title "⚠️ MINIO DETECTADO NO DESTINO" --menu \
                 "O servidor de destino ('$dest_name') já possui um serviço MinIO ativo em execução.\n\nPara garantir que nenhuma foto, áudio ou anexo histórico gravado no banco de dados seja quebrado (pois aponta para a URL do S3 deste combo), escolha como deseja proceder:\n" 20 78 2 \
@@ -2621,34 +2760,51 @@ action_transfer_or_clone() {
     fi
 
     if [ "$dest_ram_free" -lt 512 ]; then
-        whiptail --title "⚠️ BLOQUEIO: MEMÓRIA INSUFICIENTE NO DESTINO" --msgbox \
-            "O servidor de destino ($dest_name) possui apenas ${dest_ram_free} MB de RAM livre.\n\nA aplicação requer memória adicional para operar no Docker Swarm.\n\nA transferência foi interrompida para prevenir sobrecarga no destino." 14 76
-        return 0
+        if [ "$is_cli" = "true" ]; then
+            echo "ERRO CRÍTICO: Servidor de destino ($dest_name) possui apenas ${dest_ram_free} MB de RAM livre. Transferência interrompida para prevenir sobrecarga no destino." >&2
+        else
+            whiptail --title "⚠️ BLOQUEIO: MEMÓRIA INSUFICIENTE NO DESTINO" --msgbox \
+                "O servidor de destino ($dest_name) possui apenas ${dest_ram_free} MB de RAM livre.\n\nA aplicação requer memória adicional para operar no Docker Swarm.\n\nA transferência foi interrompida para prevenir sobrecarga no destino." 14 76
+        fi
+        cleanup_pending_fleet_task
+        return 1
     fi
 
     # 9. Opções de Pós-Transferência
     local stop_origin=true
     local update_dns=true
-    if [ "$op_mode" = "transfer" ]; then
-        local apps_display="${apps_to_migrate[*]}"
-        if ! whiptail --title "POLÍTICA PÓS-TRANSFERÊNCIA NA ORIGEM" --yesno \
-            "Deseja que as stacks antigas ($apps_display) sejam DESLIGADAS em '$origin_name' para liberar memória RAM após o sucesso da migração?\n\nOs volumes de dados antigos permanecerão CONGELADOS e intactos no disco com sufixo de segurança para permitir rollback a qualquer momento." 14 76; then
-            stop_origin=false
-        fi
+    local notify_sentinel=true
 
-        if ! whiptail --title "COMUTAÇÃO DE DNS CLOUDFLARE" --yesno \
-            "Deseja atualizar automaticamente os apontamentos de DNS e rotas do Cloudflare Tunnel para que as URLs apontem imediatamente para o novo servidor ($dest_name)?\n\n[SIM - RECOMENDADO]: O tráfego de internet é comutado agora para o novo servidor. Suas URLs passam a responder no novo nó imediatamente.\n\n[NÃO]: As URLs continuam apontando para o servidor antigo (escolha 'Não' apenas se você pretende mudar o DNS manualmente depois)." 15 76; then
+    if [ "$is_cli" = "true" ]; then
+        if [ "$op_mode" = "transfer" ]; then
+            stop_origin="${cli_stop_origin:-true}"
+            update_dns="${cli_update_dns:-true}"
+        else
+            stop_origin="${cli_stop_origin:-false}"
+            update_dns="${cli_update_dns:-false}"
+        fi
+        notify_sentinel=true
+    else
+        if [ "$op_mode" = "transfer" ]; then
+            local apps_display="${apps_to_migrate[*]}"
+            if ! whiptail --title "POLÍTICA PÓS-TRANSFERÊNCIA NA ORIGEM" --yesno \
+                "Deseja que as stacks antigas ($apps_display) sejam DESLIGADAS em '$origin_name' para liberar memória RAM após o sucesso da migração?\n\nOs volumes de dados antigos permanecerão CONGELADOS e intactos no disco com sufixo de segurança para permitir rollback a qualquer momento." 14 76; then
+                stop_origin=false
+            fi
+
+            if ! whiptail --title "COMUTAÇÃO DE DNS CLOUDFLARE" --yesno \
+                "Deseja atualizar automaticamente os apontamentos de DNS e rotas do Cloudflare Tunnel para que as URLs apontem imediatamente para o novo servidor ($dest_name)?\n\n[SIM - RECOMENDADO]: O tráfego de internet é comutado agora para o novo servidor. Suas URLs passam a responder no novo nó imediatamente.\n\n[NÃO]: As URLs continuam apontando para o servidor antigo (escolha 'Não' apenas se você pretende mudar o DNS manualmente depois)." 15 76; then
+                update_dns=false
+            fi
+        else
+            stop_origin=false
             update_dns=false
         fi
-    else
-        stop_origin=false
-        update_dns=false
-    fi
 
-    local notify_sentinel=true
-    if ! whiptail --title "NOTIFICAÇÃO DO SENTINEL (TELEGRAM / N8N)" --yesno \
-        "Deseja que o MNO Sentinel envie um relatório no Telegram e dispare um Webhook (para seu n8n notificar WhatsApp) ao concluir a migração com sucesso?" 12 76; then
-        notify_sentinel=false
+        if ! whiptail --title "NOTIFICAÇÃO DO SENTINEL (TELEGRAM / N8N)" --yesno \
+            "Deseja que o MNO Sentinel envie um relatório no Telegram e dispare um Webhook (para seu n8n notificar WhatsApp) ao concluir a migração com sucesso?" 12 76; then
+            notify_sentinel=false
+        fi
     fi
 
     # 10. Execução Robusta da Migração
@@ -3187,7 +3343,29 @@ action_transfer_or_clone() {
         sleep 1
     }
 
-    run_migration_pipeline 2>> "$TRANSFER_LOG" | whiptail --title "EXECUTANDO OPERAÇÃO NA FROTA" --gauge "Aguarde a migração consistente..." 10 78 0
+    if [ "$is_cli" = "true" ]; then
+        echo -e "\n=================================================="
+        echo -e "🚀 INICIANDO MIGRAÇÃO NO FLEET HUB"
+        echo -e "   Operação: $op_mode"
+        echo -e "   Origem:   $origin_name ($origin_arch)"
+        echo -e "   Destino:  $dest_name ($dest_arch)"
+        echo -e "   Apps:     ${apps_to_migrate[*]}"
+        echo -e "==================================================\n"
+
+        run_migration_pipeline 2>&1 | while IFS= read -r line; do
+            if [ "$line" = "XXX" ]; then
+                continue
+            fi
+            if [[ "$line" =~ ^[0-9]+$ ]]; then
+                printf "\n[%3d%%] " "$line"
+            else
+                echo -n "$line "
+            fi
+        done
+        echo ""
+    else
+        run_migration_pipeline 2>> "$TRANSFER_LOG" | whiptail --title "EXECUTANDO OPERAÇÃO NA FROTA" --gauge "Aguarde a migração consistente..." 10 78 0
+    fi
 
     local op_aborted=false
     if [ -s "$stats_file" ]; then
@@ -3203,12 +3381,23 @@ action_transfer_or_clone() {
     rm -f "$stats_file"
 
     if [ "$op_aborted" = "true" ]; then
+        cleanup_pending_fleet_task
         local err_tail
-        err_tail=$(tail -n 12 "$TRANSFER_LOG" 2>/dev/null || echo "Erro desconhecido")
-        whiptail --title "MIGRAÇÃO ABORTADA COM SEGURANÇA" --msgbox \
-            "⚠️ A transferência da aplicação foi abortada para proteger a integridade dos dados.\n\nA origem foi mantida 100% intacta e em execução.\n\nDetalhes do log:\n$err_tail" 18 76
-        return 1
+        err_tail=$(tail -n 15 "$TRANSFER_LOG" 2>/dev/null || echo "Erro desconhecido")
+        if [ "$is_cli" = "true" ]; then
+            echo -e "\n❌ OPERAÇÃO ABORTADA COM SEGURANÇA!" >&2
+            echo -e "A integridade dos dados foi protegida. Origem mantida intacta.\n" >&2
+            echo -e "Detalhes do erro:" >&2
+            echo "$err_tail" >&2
+            return 1
+        else
+            whiptail --title "MIGRAÇÃO ABORTADA COM SEGURANÇA" --msgbox \
+                "⚠️ A transferência da aplicação foi abortada para proteger a integridade dos dados.\n\nA origem foi mantida 100% intacta e em execução.\n\nDetalhes do log:\n$err_tail" 18 76
+            return 1
+        fi
     fi
+
+    cleanup_pending_fleet_task
 
     local summary="🎉 OPERAÇÃO CONCLUÍDA COM SUCESSO!\n\n"
     summary+="• Aplicação(ões): ${apps_to_migrate[*]}\n"
@@ -3235,11 +3424,29 @@ action_transfer_or_clone() {
     fi
     summary+="• Manifestos: Salvos em .control/manifests/\n"
 
-    whiptail --title "SUCESSO DA MIGRAÇÃO" --msgbox "$summary" 19 76
+    if [ "$is_cli" = "true" ]; then
+        echo -e "\n=================================================="
+        printf "%b\n" "$summary"
+        echo -e "==================================================\n"
+        return 0
+    else
+        whiptail --title "SUCESSO DA MIGRAÇÃO" --msgbox "$summary" 19 76
+    fi
 }
 
 # Menu Principal Interativo
 show_menu() {
+    local pending_file="$CONTROL_DIR/pending-fleet-clone.json"
+    if [ -f "$pending_file" ]; then
+        local p_op
+        p_op=$(jq -r '.operation // .mode // empty' "$pending_file" 2>/dev/null || true)
+        if [ "$p_op" = "transfer" ] || [ "$p_op" = "clone" ]; then
+            echo -e "\n📋 Tarefa pendente detectada via Control Center: $p_op"
+            action_transfer_or_clone "$p_op" --cli
+            return $?
+        fi
+    fi
+
     while true; do
         local choice
         choice=$(whiptail --title "MNO FLEET HUB — CLONE, TRANSFERÊNCIA E BACKUP" --menu \
@@ -3267,8 +3474,8 @@ case "${1:-menu}" in
     inspect) action_inspect_nodes "${2:-}" ;;
     backup) action_backup_app "${2:-}" "${3:-}" ;;
     restore) action_restore_backup "${2:-}" "${3:-}" ;;
-    transfer) action_transfer_or_clone "transfer" ;;
-    clone) action_transfer_or_clone "clone" ;;
+    transfer) shift; action_transfer_or_clone "transfer" "$@" ;;
+    clone) shift; action_transfer_or_clone "clone" "$@" ;;
     menu) show_menu ;;
-    *) fail "Uso: $0 [inspect [--cli] | backup [app] [--cli] | restore [archive] [target] | transfer | clone | menu]" ;;
+    *) fail "Uso: $0 [inspect [--cli] | backup [app] [--cli] | restore [archive] [target] | transfer [app] [origin] [dest] [--cli] | clone [app] [origin] [dest] [--cli] | menu]" ;;
 esac

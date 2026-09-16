@@ -21,6 +21,7 @@ RUN apt-get update \
         iproute2 \
         jq \
         ncurses-bin \
+        openssh-client \
         openssl \
         procps \
         python3 \
