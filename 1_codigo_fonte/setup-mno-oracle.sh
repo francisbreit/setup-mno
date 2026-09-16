@@ -1,6 +1,6 @@
 #!/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 22:39:34
-VERSIONSETUP="7.48.5"
+VERSIONSETUP="7.48.6"
 
 # Cores
 amarelo="\e[33m"

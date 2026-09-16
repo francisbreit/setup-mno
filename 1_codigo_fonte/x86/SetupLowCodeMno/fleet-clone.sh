@@ -471,6 +471,21 @@ detect_app_combo_context() {
             esac
         done <<< "$all_stacks"
         detected_combo_name="Combo Multicanais (Chatwoot + Evolution + RabbitMQ + S3)"
+    elif [[ "$app" == plane* ]]; then
+        while IFS= read -r s; do
+            [ -n "$s" ] || continue
+            [ "$s" = "$app" ] && continue
+            case "$s" in
+                *redis*|*-mq*)
+                    if [[ "$s" == *"$app_suffix"* ]] || [[ "$s" == plane* ]]; then
+                        if [[ ! " ${linked[*]} " =~ " ${s} " ]]; then
+                            linked+=("$s")
+                        fi
+                    fi
+                    ;;
+            esac
+        done <<< "$all_stacks"
+        detected_combo_name="Combo Plane Workspaces (Plane + Redis + RabbitMQ)"
     elif [[ "$app" == typebot* ]] && echo "$all_stacks" | grep -qE "minio.*$app_suffix"; then
         detected_combo_name="Combo Typebot + MinIO S3"
     elif [[ "$app" == evoai* ]] && echo "$all_stacks" | grep -qE "minio.*$app_suffix"; then
@@ -486,17 +501,19 @@ detect_app_combo_context() {
     printf "false||none\n"
 }
 
-# Detecta se uma aplicação utiliza uma stack de Redis dedicado
+# Detecta se uma aplicação utiliza uma ou mais stacks de Redis dedicado
 detect_dedicated_redis_stack() {
     local node_id="$1"
     local host="$2"
     local app="$3"
     local yaml_file="$4"
 
-    # Se a própria stack já for a de redis dedicado ou redis global, não busca redis de si mesma
-    if [ "$app" = "redis" ] || [[ "$app" == *-redis ]] || [[ "$app" == *redis* && "$app" != n8n* && "$app" != chatwoot* && "$app" != evo* ]]; then
-        return 0
-    fi
+    # Se a própria stack já for uma stack de redis dedicado ou infraestrutura de redis global, não busca redis para si mesma
+    case "$app" in
+        redis|redisinsight|redicommander|cwt_redis*|evo_redis*|redisevo*|*-redis|*_redis|cwt-redis*|evo-redis*)
+            return 0
+            ;;
+    esac
 
     local all_stacks=""
     if [ "$node_id" = "local" ]; then
@@ -504,55 +521,93 @@ detect_dedicated_redis_stack() {
     else
         all_stacks=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$host" "docker stack ls --format '{{.Name}}'" 2>/dev/null || true)
     fi
+    [ -n "$all_stacks" ] || return 0
 
+    local found_redis_stacks=()
+
+    # 1. Busca por análise profunda de variáveis de ambiente no arquivo YAML da stack
+    # Varre qualquer variável com REDIS (case-insensitive) ou URLs redis:// ou rediss://
+    if [ -s "$yaml_file" ]; then
+        # Extrai linhas com URLs redis:// ou rediss://
+        local url_hosts
+        url_hosts=$(grep -oE "rediss?://[^[:space:]'\"<]+" "$yaml_file" 2>/dev/null | sed -E 's|^rediss?://([^@]+@)?([^:/[:space:]'\"']+).*|\2|' | tr -d ' "\r' | grep -vE "^(localhost|127\.0\.0\.1|redis)$" || true)
+
+        # Extrai valores de variáveis contendo REDIS (ex: REDIS=..., REDIS_HOST=..., DISCOURSE_REDIS_HOST=..., etc.)
+        local env_hosts
+        env_hosts=$(grep -iE "[A-Za-z0-9_]*REDIS[A-Za-z0-9_]*=" "$yaml_file" 2>/dev/null | grep -vE "(PASSWORD|TOKEN|SECRET|PORT|DB|PREFIX|TTL|ENABLED|SSL|SAVE|TIMEOUT)" | cut -d= -f2- | sed -E 's|^rediss?://([^@]+@)?([^:/[:space:]'\"']+).*|\2|' | cut -d: -f1 | tr -d ' "\r' | grep -vE "^(localhost|127\.0\.0\.1|redis)$" || true)
+
+        local candidate_hosts
+        candidate_hosts=$(printf "%s\n%s\n" "$url_hosts" "$env_hosts" | sort -u | grep -v '^$')
+
+        while IFS= read -r ch; do
+            [ -n "$ch" ] || continue
+            # Se o host for diretamente o nome de uma stack existente
+            if echo "$all_stacks" | grep -qx "$ch"; then
+                [ "$ch" != "$app" ] && found_redis_stacks+=("$ch")
+                continue
+            fi
+            # Se o host for o nome de serviço com underline (ex: plane_redis, dify_redis), testar com hífen
+            local alt_hyphen="${ch//_/-}"
+            if echo "$all_stacks" | grep -qx "$alt_hyphen"; then
+                [ "$alt_hyphen" != "$app" ] && found_redis_stacks+=("$alt_hyphen")
+                continue
+            fi
+            local alt_under="${ch//-/_}"
+            if echo "$all_stacks" | grep -qx "$alt_under"; then
+                [ "$alt_under" != "$app" ] && found_redis_stacks+=("$alt_under")
+                continue
+            fi
+            # Se uma stack ativa iniciar pelo host ou contiver o host + redis
+            while IFS= read -r s; do
+                [ -n "$s" ] || continue
+                [ "$s" = "$app" ] && continue
+                [ "$s" = "redis" ] && continue
+                if [[ "$s" == *redis* ]] && ([[ "$s" == *"$ch"* ]] || [[ "$ch" == *"$s"* ]]); then
+                    found_redis_stacks+=("$s")
+                fi
+            done <<< "$all_stacks"
+        done <<< "$candidate_hosts"
+    fi
+
+    # 2. Busca por sufixo compartilhado (hash de 7 caracteres ou tags como -ai) + palavra "redis" nas stacks ativas
     local app_suffix=""
     if [[ "$app" =~ ([a-f0-9]{7}) ]]; then
         app_suffix="${BASH_REMATCH[1]}"
+    elif [[ "$app" =~ (-[a-zA-Z0-9]+)$ ]]; then
+        app_suffix="${BASH_REMATCH[1]}"
     fi
 
-    # 1. Busca por sufixo compartilhado + palavra "redis" nas stacks ativas da origem
-    # Exemplos: n8na8ebda2-redis, redisevoa8ebda2, difya8ebda2-redis, directusa8ebda2-redis, cwt_redisa8ebda2
-    if [ -n "$app_suffix" ]; then
+    if [ -n "$app_suffix" ] && [ "$app_suffix" != "-redis" ]; then
         while IFS= read -r s; do
             [ -n "$s" ] || continue
             [ "$s" = "$app" ] && continue
             [ "$s" = "redis" ] && continue
             if [[ "$s" == *"$app_suffix"* ]] && [[ "$s" == *redis* ]]; then
-                printf "%s\n" "$s"
-                return 0
+                found_redis_stacks+=("$s")
             fi
         done <<< "$all_stacks"
     fi
 
-    # 2. Busca por análise de variáveis de ambiente no arquivo YAML da stack
-    if [ -s "$yaml_file" ]; then
-        local found_redis_host=""
-        found_redis_host=$(grep -oE "(QUEUE_BULL_REDIS_HOST|REDIS_HOST|REDIS_SERVER|CACHE_REDIS_HOST|REDIS_ENDPOINT)=[^[:space:]]+" "$yaml_file" 2>/dev/null | head -n1 | cut -d= -f2 | tr -d ' "\r' || true)
-        if [ -z "$found_redis_host" ]; then
-            found_redis_host=$(grep -oE "redis://([^:/[:space:]]+)" "$yaml_file" 2>/dev/null | head -n1 | sed -E 's/redis:\/\/([^:/[:space:]]+).*/\1/' | tr -d ' "\r' || true)
-        fi
-
-        if [ -n "$found_redis_host" ] && [ "$found_redis_host" != "redis" ] && [ "$found_redis_host" != "localhost" ] && [ "$found_redis_host" != "127.0.0.1" ]; then
-            if echo "$all_stacks" | grep -qx "$found_redis_host"; then
-                printf "%s\n" "$found_redis_host"
-                return 0
-            fi
-            local match_st
-            match_st=$(echo "$all_stacks" | grep -E "^${found_redis_host}" | head -n1 || true)
-            if [ -n "$match_st" ]; then
-                printf "%s\n" "$match_st"
-                return 0
-            fi
-        fi
-    fi
-
-    # 3. Busca por convenção padrão ${app}-redis ou ${app}_redis
-    for cand in "${app}-redis" "${app}_redis"; do
-        if echo "$all_stacks" | grep -qx "$cand"; then
-            printf "%s\n" "$cand"
-            return 0
+    # 3. Busca por convenções canônicas de nomenclatura
+    local base_clean="${app%%-*}"
+    base_clean="${base_clean%%_*}"
+    for cand in \
+        "${app}-redis" "${app}_redis" \
+        "${app}-database-redis" "${app}_database-redis" \
+        "${app}_directus-redis" "${app}-directus-redis" \
+        "${app}_evolution-redis" "${app}-evolution-redis" \
+        "${app}_evocrm-redis" "${app}-evocrm-redis" \
+        "${app}_evoai-redis" "${app}-evoai-redis" \
+        "${base_clean}-redis" "${base_clean}_redis"; do
+        if [ "$cand" != "$app" ] && echo "$all_stacks" | grep -qx "$cand"; then
+            found_redis_stacks+=("$cand")
         fi
     done
+
+    # Retorna todas as stacks encontradas (sem duplicatas, sem a própria app e sem redis global)
+    if [ ${#found_redis_stacks[@]} -gt 0 ]; then
+        printf "%s\n" "${found_redis_stacks[@]}" | grep -vE "^(redis|redisinsight|redicommander|$app)$" | sort -u
+    fi
 
     return 0
 }
@@ -569,14 +624,18 @@ attach_dedicated_redis_to_list() {
         local tmp_y
         tmp_y=$(mktemp)
         resolve_live_stack_yaml "$node_id" "$host" "$cur_item" "$tmp_y" 2>/dev/null || true
-        local ded_redis
-        ded_redis=$(detect_dedicated_redis_stack "$node_id" "$host" "$cur_item" "$tmp_y")
+        local ded_redis_output
+        ded_redis_output=$(detect_dedicated_redis_stack "$node_id" "$host" "$cur_item" "$tmp_y")
         rm -f "$tmp_y"
 
-        if [ -n "$ded_redis" ] && [ "$ded_redis" != "redis" ]; then
-            if [[ ! " ${_arr_ref[*]} " =~ " ${ded_redis} " ]] && [[ ! " ${redis_found[*]} " =~ " ${ded_redis} " ]]; then
-                redis_found+=("$ded_redis")
-            fi
+        if [ -n "$ded_redis_output" ]; then
+            while IFS= read -r rstack; do
+                [ -n "$rstack" ] || continue
+                [ "$rstack" = "redis" ] && continue
+                if [[ ! " ${_arr_ref[*]} " =~ " ${rstack} " ]] && [[ ! " ${redis_found[*]} " =~ " ${rstack} " ]]; then
+                    redis_found+=("$rstack")
+                fi
+            done <<< "$ded_redis_output"
         fi
     done
 
@@ -1837,7 +1896,7 @@ action_backup_app() {
     local dep_bkp=()
     local main_bkp=()
     for a in "${apps_to_backup[@]}"; do
-        if [[ "$a" == minio* ]] || [[ "$a" == rabbitmq* ]] || [[ "$a" == *redis* ]]; then
+        if [[ "$a" == minio* ]] || [[ "$a" == rabbitmq* ]] || [[ "$a" == *redis* ]] || [[ "$a" == *-mq* ]] || [[ "$a" == *redisevo* ]]; then
             dep_bkp+=("$a")
         else
             main_bkp+=("$a")
@@ -2913,7 +2972,7 @@ action_transfer_or_clone() {
     local dep_apps=()
     local main_apps=()
     for a in "${apps_to_migrate[@]}"; do
-        if [[ "$a" == minio* ]] || [[ "$a" == rabbitmq* ]] || [[ "$a" == *redis* ]]; then
+        if [[ "$a" == minio* ]] || [[ "$a" == rabbitmq* ]] || [[ "$a" == *redis* ]] || [[ "$a" == *-mq* ]] || [[ "$a" == *redisevo* ]]; then
             dep_apps+=("$a")
         else
             main_apps+=("$a")
@@ -3465,7 +3524,13 @@ action_transfer_or_clone() {
                 else
                     ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "docker volume create '$ext_vol' >/dev/null 2>&1 || true"
                 fi
-            done < <(awk '/^volumes:/{flag=1; next} flag && /^[[:space:]]{2}[a-zA-Z0-9_.-]+:/{v=$1; sub(/^[[:space:]]*/, "", v); sub(/:.*/, "", v); in_v=v; next} flag && in_v && /external:[[:space:]]*true/{print in_v; in_v=""}' "$app_workdir/stack.yaml" 2>/dev/null || true)
+            done < <(awk '
+/^volumes:/{flag=1; next}
+flag && /^[[:space:]]{2}[a-zA-Z0-9_.-]+:/{v=$1; sub(/^[[:space:]]*/, "", v); sub(/:.*/, "", v); in_v=v; next}
+flag && in_v && /external:[[:space:]]*true/{print in_v}
+flag && in_v && /name:[[:space:]]*/{nm=$0; sub(/.*name:[[:space:]]*/, "", nm); sub(/[[:space:]].*/, "", nm); gsub(/["'\''\r]/, "", nm); if (nm != "") print nm}
+flag && /^[a-zA-Z0-9_.-]+:/{flag=0}
+' "$app_workdir/stack.yaml" 2>/dev/null | sort -u || true)
 
             if [ "$chosen_dest_id" = "local" ]; then
                 cp -f "$app_workdir/stack.yaml" "/root/${cur_app}.yaml"

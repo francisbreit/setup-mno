@@ -455,6 +455,8 @@ func detectAppComboContextGo(origin FleetNodeStructure, appName string) comboDet
 			linked = append(linked, a.Name)
 		} else if strings.HasPrefix(appLower, "evoai") && (strings.HasPrefix(otherLower, "evolution") || strings.HasPrefix(otherLower, "minio")) {
 			linked = append(linked, a.Name)
+		} else if strings.HasPrefix(appLower, "plane") && (strings.Contains(otherLower, "redis") || strings.Contains(otherLower, "-mq")) {
+			linked = append(linked, a.Name)
 		}
 	}
 
@@ -473,6 +475,8 @@ func detectAppComboContextGo(origin FleetNodeStructure, appName string) comboDet
 			cName = "Combo N8N Automação & IA (Editor + Webhook + Worker + MCP + Redis)"
 		} else if strings.HasPrefix(appLower, "chatwoot") || strings.HasPrefix(appLower, "evolution") {
 			cName = "Combo Multicanais (Chatwoot + Evolution + RabbitMQ + S3)"
+		} else if strings.HasPrefix(appLower, "plane") {
+			cName = "Combo Plane Workspaces (Plane + Redis + RabbitMQ)"
 		} else if strings.HasPrefix(appLower, "typebot") {
 			cName = "Combo Typebot + MinIO S3"
 		} else if suffix != "" {

@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Evolution Go no Setup MNO",
   "setupId": "evolution-go",
-  "setupVersion": "7.48.5",
+  "setupVersion": "7.48.6",
   "architectures": [
     "amd64",
     "arm64"
