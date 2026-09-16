@@ -214,7 +214,7 @@ function bindEvents() {
   $("fleet-add-cancel")?.addEventListener("click", closeFleetAddDialog);
   $("fleet-add-form")?.addEventListener("submit", submitFleetAddNode);
   $("fleet-add-dialog")?.addEventListener("cancel", closeFleetAddDialog);
-  $("fleet-clone-btn")?.addEventListener("click", () => openFleetCloneDialog());
+  $("fleet-clone-btn")?.addEventListener("click", () => openTerminal("fleet"));
   $("fleet-clone-dialog-close")?.addEventListener("click", closeFleetCloneDialog);
   $("fleet-clone-cancel")?.addEventListener("click", closeFleetCloneDialog);
   $("fleet-clone-dialog")?.addEventListener("cancel", closeFleetCloneDialog);
@@ -3078,7 +3078,7 @@ function renderFleet() {
     } else {
       cloneBtn.disabled = false;
       cloneBtn.classList.remove("disabled", "btn-pro-locked");
-      cloneBtn.title = "Clonar ou migrar aplicações entre servidores da frota";
+      cloneBtn.title = "Abrir Terminal Seguro para clonar ou migrar aplicações entre servidores da frota";
     }
   }
 
@@ -3318,13 +3318,10 @@ async function handleFleetGridAction(event) {
     await pingFleetNode(nodeId, button);
   } else if (action === "remove") {
     await removeFleetNode(nodeId, nodeName);
-  } else if (action === "clone") {
-    openFleetCloneDialog(nodeId);
+  } else if (action === "clone" || action === "clone-app") {
+    openTerminal("fleet");
   } else if (action === "apps") {
     await toggleFleetNodeApps(nodeId);
-  } else if (action === "clone-app") {
-    const appName = button.dataset.appName;
-    openFleetCloneDialog(nodeId, appName);
   } else if (action === "backup-app") {
     const appName = button.dataset.appName;
     openFleetBackupDialog(nodeId, appName);
@@ -3553,38 +3550,7 @@ function openFleetCloneDialog(originNodeId, targetAppName, destNodeId) {
     showToast("Ação bloqueada: exclusivo para planos PRO e PRO MASTER com Cloudflare Tunnel.");
     return;
   }
-  const dialog = $("fleet-clone-dialog");
-  if (!dialog) return;
-
-  const originSelect = $("fleet-clone-origin");
-  const resultEl = $("fleet-clone-result");
-  const submitBtn = $("fleet-clone-submit");
-
-  if (resultEl) {
-    resultEl.className = "fleet-exec-result hidden";
-    resultEl.innerHTML = "";
-  }
-  if (submitBtn) submitBtn.disabled = true;
-
-  const nodes = state.fleetNodes || [];
-  if (originSelect) {
-    originSelect.innerHTML = nodes.map(n => {
-      const isMaster = n.mode === "master" || (n.id && n.id.startsWith("node-master"));
-      const arch = n.architecture ? (n.architecture === "amd64" ? "x86-64" : n.architecture) : "x86-64";
-      const label = `${n.name || n.id} (${arch} · ${isMaster ? "Master" : "Worker"})`;
-      return `<option value="${escapeHTML(n.id)}">${escapeHTML(label)}</option>`;
-    }).join("");
-
-    if (originNodeId && nodes.some(n => n.id === originNodeId)) {
-      originSelect.value = originNodeId;
-    } else if (nodes.length > 0) {
-      originSelect.value = nodes[0].id;
-    }
-  }
-
-  onFleetCloneOriginChanged(targetAppName, destNodeId);
-
-  if (!dialog.open) dialog.showModal();
+  openTerminal("fleet");
 }
 
 function closeFleetCloneDialog() {

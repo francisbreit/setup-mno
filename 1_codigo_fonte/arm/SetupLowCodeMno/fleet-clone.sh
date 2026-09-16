@@ -3443,16 +3443,7 @@ action_transfer_or_clone() {
 
 # Menu Principal Interativo
 show_menu() {
-    local pending_file="$CONTROL_DIR/pending-fleet-clone.json"
-    if [ -f "$pending_file" ]; then
-        local p_op
-        p_op=$(jq -r '.operation // .mode // empty' "$pending_file" 2>/dev/null || true)
-        if [ "$p_op" = "transfer" ] || [ "$p_op" = "clone" ]; then
-            echo -e "\n📋 Tarefa pendente detectada via Control Center: $p_op"
-            action_transfer_or_clone "$p_op" --cli
-            return $?
-        fi
-    fi
+    cleanup_pending_fleet_task
 
     while true; do
         local choice

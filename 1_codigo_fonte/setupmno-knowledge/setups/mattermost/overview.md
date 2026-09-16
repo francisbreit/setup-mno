@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Mattermost no Setup MNO",
   "setupId": "mattermost",
-  "setupVersion": "7.48.3",
+  "setupVersion": "7.48.4",
   "architectures": ["amd64"],
   "category": "overview",
   "status": "reviewed",

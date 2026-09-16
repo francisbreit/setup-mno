@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "PhotoPrism no Setup MNO",
   "setupId": "photoprism",
-  "setupVersion": "7.48.3",
+  "setupVersion": "7.48.4",
   "architectures": [
     "amd64",
     "arm64"

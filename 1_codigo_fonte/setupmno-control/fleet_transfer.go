@@ -830,13 +830,7 @@ func (a *webApp) ExecuteApplicationTransfer(ctx context.Context, req FleetTransf
 		"minioPolicy":     minioPolicyVal,
 		"timestamp":       time.Now().UTC().Format(time.RFC3339),
 	}
-	if b, err := json.MarshalIndent(pendingTask, "", "  "); err == nil {
-		targetAuditDir := "/audit"
-		if _, err := os.Stat(targetAuditDir); os.IsNotExist(err) {
-			targetAuditDir = os.TempDir()
-		}
-		_ = os.WriteFile(filepath.Join(targetAuditDir, "pending-fleet-clone.json"), b, 0600)
-	}
+	_ = pendingTask
 
 	// 7. Notificação via MNO Sentinel (Telegram & Webhook n8n)
 	if req.NotifySentinel {

@@ -142,7 +142,8 @@ case "$intent" in
         exec /usr/bin/bash /opt/setupmno/strix-lab/wizard.sh
         ;;
     fleet)
-        exec /usr/bin/bash /root/SetupLowCodeMno/fleet-clone.sh
+        rm -f /root/SetupLowCodeMno/.control/pending-fleet-clone.json 2>/dev/null || true
+        /usr/bin/bash /root/SetupLowCodeMno/fleet-clone.sh
         ;;
     gateway)
         ;;
