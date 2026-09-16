@@ -217,7 +217,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.48.2"
+VERSIONSETUP="7.48.3"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
