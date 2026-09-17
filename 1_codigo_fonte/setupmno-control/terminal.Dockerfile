@@ -11,6 +11,7 @@ ARG TARGETARCH
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash \
+        bind9-dnsutils \
         ca-certificates \
         coreutils \
         curl \

@@ -24,19 +24,35 @@ setupmno_check_dns() {
     [ -n "$domain" ] || return 1
 
     while [ "$attempt" -le "$max_attempts" ]; do
-        # 1. Tenta resolver diretamente no DNS público 1.1.1.1 da Cloudflare (mais rápido para CNAME do Tunnel)
-        if timeout 3 command nslookup "$domain" 1.1.1.1 >/dev/null 2>&1; then
+        # 1. Tenta resolver via DNS público 1.1.1.1 da Cloudflare (se nslookup existir)
+        if command -v nslookup >/dev/null 2>&1; then
+            if timeout 3 command nslookup "$domain" 1.1.1.1 >/dev/null 2>&1; then
+                return 0
+            fi
+            if timeout 3 command nslookup "$domain" 8.8.8.8 >/dev/null 2>&1; then
+                return 0
+            fi
+            if timeout 3 command nslookup "$domain" >/dev/null 2>&1; then
+                return 0
+            fi
+        fi
+
+        # 2. Tenta resolver via DNS-over-HTTPS da Cloudflare (1.1.1.1) via curl (funciona em containers sem nslookup)
+        if curl -s -f --connect-timeout 2 --max-time 3 -H "accept: application/dns-json" "https://1.1.1.1/dns-query?name=${domain}" 2>/dev/null | grep -q '"Answer"'; then
             return 0
         fi
-        # 2. Tenta resolver no Google 8.8.8.8
-        if timeout 3 command nslookup "$domain" 8.8.8.8 >/dev/null 2>&1; then
+
+        # 3. Tenta resolver via DNS-over-HTTPS do Google via curl
+        if curl -s -f --connect-timeout 2 --max-time 3 "https://dns.google/resolve?name=${domain}" 2>/dev/null | grep -q '"Answer"'; then
             return 0
         fi
-        # 3. Tenta resolver via DNS padrão do sistema local
-        if timeout 3 command nslookup "$domain" >/dev/null 2>&1; then
+
+        # 4. Tenta resolver via getent local do sistema
+        if getent hosts "$domain" >/dev/null 2>&1; then
             return 0
         fi
-        # 4. Tenta probe HTTP direto (se a Cloudflare já estiver respondendo pelo proxy, o DNS já propagou)
+
+        # 5. Tenta probe HTTP direto (se a Cloudflare já estiver respondendo pelo proxy, o DNS já propagou)
         if curl -s -k --connect-timeout 2 --max-time 3 -o /dev/null -I "https://$domain" 2>/dev/null; then
             return 0
         fi
@@ -54,8 +70,10 @@ nslookup() {
     # Se chamada com apenas 1 argumento de hostname sem flags (ex: nslookup "$url_mautic")
     if [ "$#" -eq 1 ] && [[ "$1" =~ ^[a-zA-Z0-9.-]+$ ]] && [[ "$1" == *.* ]] && [[ "$1" != -* ]]; then
         setupmno_check_dns "$1" 8
-    else
+    elif command -v nslookup >/dev/null 2>&1; then
         command nslookup "$@"
+    else
+        setupmno_check_dns "$1" 8
     fi
 }
 export -f setupmno_check_dns 2>/dev/null || true
