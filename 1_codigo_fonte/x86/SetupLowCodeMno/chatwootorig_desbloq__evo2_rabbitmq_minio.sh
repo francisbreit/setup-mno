@@ -408,9 +408,214 @@ while true; do
 done
 #
 # FIM DE VERIFICAÇÃO DE DADOS
-#
 
+# ==============================================================================
+# FUNÇÕES UNIVERSAIS: DNS / CLOUDFLARE TUNNEL E DEPLOY PORTAINER
+# ==============================================================================
 
+configurar_dns_e_tunnel() {
+    local DOMINIO_ALVO="$1"
+    local SERVICO_BACKEND="$2"
+    local ROTULO_APP="$3"
+
+    [ -n "$DOMINIO_ALVO" ] || return 0
+
+    echo -e "XXX\n5\nCONFIGURANDO DNS / TUNNEL: $ROTULO_APP ($DOMINIO_ALVO)... \nXXX"
+
+    if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
+        echo -e "XXX\n6\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
+        local DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
+        
+        local EXISTING_RECORDS COUNT
+        EXISTING_RECORDS=$(curl -s -X GET \
+            "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${DOMINIO_ALVO}" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json")
+
+        COUNT=$(echo "$EXISTING_RECORDS" | jq '.result | length' 2>/dev/null || echo 0)
+        if [[ "$COUNT" -gt 0 ]]; then
+            echo "$EXISTING_RECORDS" | jq -r '.result[].id' 2>/dev/null | while read -r REC_ID; do
+                [[ -z "$REC_ID" ]] && continue
+                curl -s -X DELETE \
+                    "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${REC_ID}" \
+                    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                    -H "Content-Type: application/json" >/dev/null 2>&1
+            done
+        fi
+
+        local CNAME_RESPONSE
+        CNAME_RESPONSE=$(curl -s -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"type":"CNAME","name":"'${DOMINIO_ALVO}'","content":"'${nome_servidor}'.'${DOMINIO_PRINCIPAL}'","ttl":1,"proxied":false}')
+
+        if echo "$CNAME_RESPONSE" | grep -q '"success":true'; then
+            echo -e "XXX\n10\nREGISTRO CNAME CRIADO COM SUCESSO! \nXXX"
+        else
+            echo -e "XXX\n10\nAVISO: ERRO AO CRIAR REGISTRO CNAME \nXXX"
+        fi
+
+    elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+        echo -e "XXX\n10\nCONFIGURANDO CLOUDFLARE TUNNEL (DNS + ROTAS)... \nXXX"
+        local DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
+
+        local EXISTING_RECORDS COUNT DNS_RESPONSE
+        EXISTING_RECORDS=$(curl -s -X GET \
+            "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${DOMINIO_ALVO}" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json")
+
+        COUNT=$(echo "$EXISTING_RECORDS" | jq '.result | length' 2>/dev/null || echo 0)
+        if [[ "$COUNT" -gt 0 ]]; then
+            echo "$EXISTING_RECORDS" | jq -r '.result[].id' 2>/dev/null | while read -r REC_ID; do
+                [[ -z "$REC_ID" ]] && continue
+                curl -s -X DELETE \
+                    "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${REC_ID}" \
+                    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                    -H "Content-Type: application/json" >/dev/null 2>&1
+            done
+        fi
+
+        DNS_RESPONSE=$(curl -s -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "{\"type\":\"CNAME\",\"name\":\"${DOMINIO_ALVO}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}")
+
+        if echo "$DNS_RESPONSE" | grep -q '"success":true'; then
+            echo -e "XXX\n14\nREGISTRO DNS CRIADO COM SUCESSO! \nXXX"
+        fi
+
+        if [ -n "$SERVICO_BACKEND" ]; then
+            local TMPDIR TIMESTAMP BACKUP_RAW TO_PUT APPLY_RESPONSE
+            TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+            TMPDIR=$(mktemp -d)
+            BACKUP_RAW="$TMPDIR/backup_raw.$TIMESTAMP.json"
+            TO_PUT="$TMPDIR/to_put.$TIMESTAMP.json"
+
+            curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+              | jq '.' > "$BACKUP_RAW" 2>/dev/null
+
+            jq --arg host "$DOMINIO_ALVO" --arg service "$SERVICO_BACKEND" '
+              (.result.config // {}) as $cfg
+              | ($cfg.ingress // []) as $ing
+              | ($ing | map(select(.service != "http_status:404"))) as $clean
+              | ($clean | map(select(.hostname != $host))) as $filtered
+              | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
+              | ($merged + [{ service: "http_status:404" }]) as $final_ing
+              | ($cfg + { ingress: $final_ing }) as $newcfg
+              | { config: $newcfg }
+            ' "$BACKUP_RAW" > "$TO_PUT" 2>/dev/null
+
+            APPLY_RESPONSE=$(curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data-binary @"$TO_PUT")
+
+            if echo "$APPLY_RESPONSE" | grep -q '"success":true'; then
+                echo -e "XXX\n20\nTUNNEL CONFIGURADO COM SUCESSO! \nXXX"
+            fi
+            rm -rf "$TMPDIR"
+        fi
+
+    elif [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "1" ]; then
+        local ip_servidor tentativa_atual=1 tentativas=5 sucesso=0 dns_ip
+        ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
+
+        echo -e "XXX\n33\nVERIFICANDO SUBDOMÍNIO: $DOMINIO_ALVO \nXXX"
+        while [ $tentativa_atual -le $tentativas ]; do
+            dns_ip=$(timeout 10 nslookup -type=A "$DOMINIO_ALVO" 2>/dev/null | grep -E "Address: [0-9]+\." | awk '{print $2}' | head -n1)
+            if [[ -n "$dns_ip" && "$dns_ip" == "$ip_servidor" ]]; then
+                sucesso=1
+                break
+            fi
+            sleep 1
+            ((tentativa_atual++))
+        done
+
+        if [ $sucesso -eq 0 ]; then
+            echo -e "XXX\n14\nERRO: SUBDOMÍNIO $DOMINIO_ALVO NÃO APONTA PARA O IP ($ip_servidor) \nXXX"
+            sleep 2
+            exit 1
+        fi
+        echo -e "XXX\n15\nDOMÍNIO $DOMINIO_ALVO VERIFICADO COM SUCESSO \nXXX"
+    else
+        if nslookup "$DOMINIO_ALVO" >/dev/null 2>&1; then
+            echo -e "XXX\n23\nDNS CONFIGURADO \nXXX"
+        fi
+    fi
+}
+
+deploy_stack_app() {
+    local STACK_NAME="$1"
+    local STACK_FILE_PATH="/root/${STACK_NAME}.yaml"
+
+    if [[ "$criar_portainer" == "0" ]]; then
+        echo -e "XXX\n46\nCRIANDO STACK $STACK_NAME NO PORTAINER 3/4  \nXXX"
+        local dados_file="$HOME/dados_portainer/dados_portainer"
+        if [[ ! -f "$dados_file" ]]; then
+            echo -e "XXX\n50\nSEM ARQUIVO DO PORTAINER, CRIANDO VIA DOCKER 3/4  \nXXX"
+            docker stack deploy --prune --resolve-image always -c "$STACK_FILE_PATH" "$STACK_NAME" >/dev/null 2>&1
+            return 0
+        fi
+
+        local PORTAINER_URL ADMIN_USERNAME ADMIN_PASSWORD
+        PORTAINER_URL=$(grep "Dominio do portainer:" "$dados_file" | cut -d':' -f2 | xargs)
+        ADMIN_USERNAME=$(grep "Usuario:" "$dados_file" | cut -d':' -f2 | xargs)
+        ADMIN_PASSWORD=$(grep "Senha:" "$dados_file" | cut -d':' -f2 | xargs)
+
+        local RESPONSE TOKEN ENDPOINT_ID SWARM_ID
+        RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
+            -H "Content-Type: application/json" \
+            -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
+        TOKEN=$(echo "$RESPONSE" | jq -r '.jwt // empty' 2>/dev/null)
+
+        if [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ]; then
+            RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
+                -H "Authorization: Bearer $TOKEN")
+            ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id // empty' 2>/dev/null)
+
+            if [ -n "$ENDPOINT_ID" ] && [ "$ENDPOINT_ID" != "null" ]; then
+                RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
+                    -H "Authorization: Bearer $TOKEN")
+                SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID // empty' 2>/dev/null)
+
+                if [ -n "$SWARM_ID" ] && [ "$SWARM_ID" != "null" ] && [ -f "$STACK_FILE_PATH" ]; then
+                    local response_output erro_output http_code
+                    response_output=$(mktemp)
+                    erro_output=$(mktemp)
+
+                    http_code=$(curl -s -o "$response_output" -w "%{http_code}" -X POST \
+                        -H "Authorization: Bearer $TOKEN" \
+                        -F "Name=$STACK_NAME" \
+                        -F "file=@$STACK_FILE_PATH" \
+                        -F "SwarmID=$SWARM_ID" \
+                        -F "endpointId=$ENDPOINT_ID" \
+                        "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
+                    rm -f "$response_output" "$erro_output"
+
+                    if [ "$http_code" -eq 200 ]; then
+                        echo -e "XXX\n62\n[SUCESSO] STACK $STACK_NAME CRIADA NO PORTAINER 3/4  \nXXX"
+                        return 0
+                    fi
+                fi
+            fi
+        fi
+
+        # Fallback se falhar API do Portainer
+        echo -e "XXX\n50\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
+        docker stack deploy --prune --resolve-image always -c "$STACK_FILE_PATH" "$STACK_NAME" >/dev/null 2>&1
+        sleep 2
+    elif [[ "$criar_portainer" == "1" ]]; then
+        echo "Criando a stack diretamente no Docker (não editável no Portainer)."
+        docker stack deploy --prune --resolve-image always -c "$STACK_FILE_PATH" "$STACK_NAME" >/dev/null 2>&1
+    else
+        echo -e "XXX\n63\nCRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
+        docker stack deploy --prune --resolve-image always -c "$STACK_FILE_PATH" "$STACK_NAME" >/dev/null 2>&1
+    fi
+}
 
 #########################################################
 #
@@ -427,430 +632,14 @@ button=black,white
 clear
 {
 
- if [[ ("$minio_container" == "") ]]; then
-
-echo -e "XXX\n5\nVERIFICANDO DOMINIO 1... \nXXX"
-
-if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
-    # CONFIGURAÇÃO TRADICIONAL COM DNS AUTOMÁTICO
-    echo -e "XXX\n6\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
-    
-    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
-    SUBDOMINIO=${painel%%.$DOMINIO_PRINCIPAL}
-
-    # Verificar e remover registros existentes
-    echo -e "XXX\n7\nVERIFICANDO REGISTROS EXISTENTES... \nXXX"
-    EXISTING_RECORDS=$(curl -s -X GET \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${painel}" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json")
-
-    COUNT=$(echo "$EXISTING_RECORDS" | jq '.result | length')
-    if [[ "$COUNT" -gt 0 ]]; then
-        echo -e "XXX\n8\nREMOVENDO REGISTROS ANTIGOS... \nXXX"
-        echo "$EXISTING_RECORDS" | jq -r '.result[].id' | while read -r REC_ID; do
-            [[ -z "$REC_ID" ]] && continue
-            curl -s -X DELETE \
-                "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${REC_ID}" \
-                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                -H "Content-Type: application/json" >/dev/null 2>&1
-        done
-    fi
-
-    # Criar registro CNAME
-    echo -e "XXX\n9\nCRIANDO REGISTRO CNAME... \nXXX"
-    CNAME_RESPONSE=$(curl -s -X POST \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json" \
-        --data '{"type":"CNAME","name":"'${painel}'","content":"'${nome_servidor}'.'${DOMINIO_PRINCIPAL}'","ttl":1,"proxied":false}')
-
-    if echo "$CNAME_RESPONSE" | grep -q '"success":true'; then
-        echo -e "XXX\n10\nREGISTRO CNAME CRIADO COM SUCESSO! \nXXX"
-    else
-        echo -e "XXX\n10\nAVISO: ERRO AO CRIAR REGISTRO CNAME \nXXX"
-    fi
-
-elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-    # CONFIGURAÇÃO CLOUDFLARE TUNNEL - DNS E ROTAS
-    echo -e "XXX\n10\nCONFIGURANDO CLOUDFLARE TUNNEL (DNS + ROTAS)... \nXXX"
-    
-    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
-    SUBDOMINIO=${painel%%.$DOMINIO_PRINCIPAL}
-
-    # 1. PRIMEIRO CONFIGURAR O DNS
-    echo -e "XXX\n11\nCONFIGURANDO REGISTRO DNS... \nXXX"
-    
-    # Verificar e remover registros existentes
-    EXISTING_RECORDS=$(curl -s -X GET \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${painel}" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json")
-
-    COUNT=$(echo "$EXISTING_RECORDS" | jq '.result | length')
-    if [[ "$COUNT" -gt 0 ]]; then
-        echo -e "XXX\n12\nREMOVENDO REGISTROS DNS ANTIGOS... \nXXX"
-        echo "$EXISTING_RECORDS" | jq -r '.result[].id' | while read -r REC_ID; do
-            [[ -z "$REC_ID" ]] && continue
-            curl -s -X DELETE \
-                "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${REC_ID}" \
-                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                -H "Content-Type: application/json" >/dev/null 2>&1
-        done
-    fi
-
-    # Criar registro CNAME para o tunnel
-    echo -e "XXX\n13\nCRIANDO REGISTRO CNAME PARA TUNNEL... \nXXX"
-    DNS_RESPONSE=$(curl -s -X POST \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json" \
-        --data "{\"type\":\"CNAME\",\"name\":\"${painel}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}")
-
-    if echo "$DNS_RESPONSE" | grep -q '"success":true'; then
-        echo -e "XXX\n14\nREGISTRO DNS CRIADO COM SUCESSO! \nXXX"
-    else
-        echo -e "XXX\n14\nAVISO: ERRO AO CRIAR REGISTRO DNS \nXXX"
-    fi
-
-    # 2. AGORA ATUALIZAR AS ROTAS DO TUNNEL
-    echo -e "XXX\n15\nATUALIZANDO CONFIGURAÇÃO DO TUNNEL... \nXXX"
-
-    # Configuração do novo serviço para o Minio
-    NEW_SERVICE="http://${nome_app2}:9001"
-    
-    # Arquivos temporários
-    TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
-    TMPDIR=$(mktemp -d)
-    BACKUP_RAW="$TMPDIR/backup_raw.$TIMESTAMP.json"
-    TO_PUT="$TMPDIR/to_put.$TIMESTAMP.json"
-
-    # 1) Obter configuração atual do tunnel
-    echo -e "XXX\n16\nOBTENDO CONFIGURAÇÃO ATUAL DO TUNNEL... \nXXX"
-    curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-      "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
-      | jq '.' > "$BACKUP_RAW"
-
-    # Verificar se obteve sucesso
-    if ! jq -e '.success == true' "$BACKUP_RAW" >/dev/null 2>&1; then
-        echo -e "XXX\n45\nERRO: FALHA AO OBTER CONFIGURAÇÃO DO TUNNEL \nXXX"
-        sleep 3
-    else
-        echo -e "XXX\n17\nCONFIGURAÇÃO OBTIDA COM SUCESSO \nXXX"
-    fi
-
-    # 2) Construir novo payload
-    echo -e "XXX\n18\nCONFIGURANDO NOVAS ROTAS... \nXXX"
-    
-    jq --arg host "$painel" --arg service "$NEW_SERVICE" '
-      (.result.config // {}) as $cfg
-      | ($cfg.ingress // []) as $ing
-      # Remover entradas catch-all existentes no meio
-      | ($ing | map(select(.service != "http_status:404"))) as $clean
-      # Coletar hostnames existentes para evitar duplicatas
-      
-      # Se o novo host já existe, não adicionar duplicata; senão adicionar nova rota
-      | ($clean | map(select(.hostname != $host))) as $filtered
-      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
-      # Adicionar exatamente um catch-all
-      | ($merged + [{ service: "http_status:404" }]) as $final_ing
-      # Construir novo objeto de configuração, preservando outras chaves
-      | ($cfg + { ingress: $final_ing }) as $newcfg
-      | { config: $newcfg }
-    ' "$BACKUP_RAW" > "$TO_PUT"
-
-    # 3) Aplicar nova configuração
-    echo -e "XXX\n19\nAPLICANDO NOVA CONFIGURAÇÃO DO TUNNEL... \nXXX"
-    APPLY_RESPONSE=$(curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
-      -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-      -H "Content-Type: application/json" \
-      --data-binary @"$TO_PUT")
-
-    if echo "$APPLY_RESPONSE" | grep -q '"success":true'; then
-        echo -e "XXX\n20\nTUNNEL CONFIGURADO COM SUCESSO! \nXXX"
-    else
-        echo -e "XXX\n21\nAVISO: ERRO AO CONFIGURAR TUNNEL \nXXX"
-    fi
-
-    # Limpeza
-    rm -rf "$TMPDIR"
-
- else
-    # INSTALAÇÃO TRADICIONAL SEM DNS AUTOMÁTICO
-    echo -e "XXX\n22\nVERIFICANDO CONFIGURAÇÃO (TRADICIONAL SEM AUTOMAÇÃO)... \nXXX"
-    # Verificação básica de DNS
-    if nslookup "$painel" >/dev/null 2>&1; then
-        echo -e "XXX\n23\nDNS CONFIGURADO \nXXX"
-    else
-        echo -e "XXX\n23\nAVISO: VERIFIQUE A CONFIGURAÇÃO DNS \nXXX"
-    fi
-fi
-
-
-if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "1" ]; then
-
-
-# Função para verificar o domínio quando fora do cloudflare
-
-ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
-
-echo -e "XXX\n33\nVERIFICANDO SUBDOMÍNIO: $painel \nXXX"
-sleep 3
-
-tentativas=5
-tentativa_atual=1
-sucesso=0
-
-while [ $tentativa_atual -le $tentativas ]; do
-    echo -e "XXX\n$(( (tentativa_atual * 12) / tentativas + 3 ))\nTentativa $tentativa_atual de $tentativas...\nXXX"
-    
-    dns_ip1=$(timeout 10 nslookup -type=A "$painel" | grep -E "Address: [0-9]+\." | awk '{print $2}' | head -n1)
-    
-    if [[ -n "$dns_ip1" && "$dns_ip1" == "$ip_servidor" ]]; then
-        sucesso=1
-       # break
-    fi
-    
-  #  sleep $((tentativa_atual * 2))
-  sleep 1
-    ((tentativa_atual++))
-done
-
-if [ $sucesso -eq 0 ]; then
-
-    echo -e "XXX\n14\nERRO: SUBDOMÍNIO DO PAINEL MINIO NÃO APONTA PARA O IP ($ip_servidor) \nXXX"
-    sleep 3
-    echo -e "XXX\n14\nERRO: DNS NÃO CONFIGURADO CORRETAMENTE \nXXX"
-    sleep 3
-    exit 1
-fi
-
-    echo -e "XXX\n15\nDOMÍNIO 1 PAINEL MINIO VERIFICADO COM SUCESSO \nXXX"
-sleep 4
-fi
-
-
-echo -e "XXX\n5\nVERIFICANDO DOMINIO 2... \nXXX"
-
-if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
-    # CONFIGURAÇÃO TRADICIONAL COM DNS AUTOMÁTICO
-    echo -e "XXX\n6\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
-    
-    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
-    SUBDOMINIO=${publico%%.$DOMINIO_PRINCIPAL}
-
-    # Verificar e remover registros existentes
-    echo -e "XXX\n7\nVERIFICANDO REGISTROS EXISTENTES... \nXXX"
-    EXISTING_RECORDS=$(curl -s -X GET \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${publico}" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json")
-
-    COUNT=$(echo "$EXISTING_RECORDS" | jq '.result | length')
-    if [[ "$COUNT" -gt 0 ]]; then
-        echo -e "XXX\n8\nREMOVENDO REGISTROS ANTIGOS... \nXXX"
-        echo "$EXISTING_RECORDS" | jq -r '.result[].id' | while read -r REC_ID; do
-            [[ -z "$REC_ID" ]] && continue
-            curl -s -X DELETE \
-                "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${REC_ID}" \
-                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                -H "Content-Type: application/json" >/dev/null 2>&1
-        done
-    fi
-
-    # Criar registro CNAME
-    echo -e "XXX\n9\nCRIANDO REGISTRO CNAME... \nXXX"
-    CNAME_RESPONSE=$(curl -s -X POST \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json" \
-        --data '{"type":"CNAME","name":"'${publico}'","content":"'${nome_servidor}'.'${DOMINIO_PRINCIPAL}'","ttl":1,"proxied":false}')
-
-    if echo "$CNAME_RESPONSE" | grep -q '"success":true'; then
-        echo -e "XXX\n10\nREGISTRO CNAME CRIADO COM SUCESSO! \nXXX"
-    else
-        echo -e "XXX\n10\nAVISO: ERRO AO CRIAR REGISTRO CNAME \nXXX"
-    fi
-
-elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-    # CONFIGURAÇÃO CLOUDFLARE TUNNEL - DNS E ROTAS
-    echo -e "XXX\n10\nCONFIGURANDO CLOUDFLARE TUNNEL (DNS + ROTAS)... \nXXX"
-    
-    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
-    SUBDOMINIO=${publico%%.$DOMINIO_PRINCIPAL}
-
-    # 1. PRIMEIRO CONFIGURAR O DNS
-    echo -e "XXX\n11\nCONFIGURANDO REGISTRO DNS... \nXXX"
-    
-    # Verificar e remover registros existentes
-    EXISTING_RECORDS=$(curl -s -X GET \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${publico}" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json")
-
-    COUNT=$(echo "$EXISTING_RECORDS" | jq '.result | length')
-    if [[ "$COUNT" -gt 0 ]]; then
-        echo -e "XXX\n12\nREMOVENDO REGISTROS DNS ANTIGOS... \nXXX"
-        echo "$EXISTING_RECORDS" | jq -r '.result[].id' | while read -r REC_ID; do
-            [[ -z "$REC_ID" ]] && continue
-            curl -s -X DELETE \
-                "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${REC_ID}" \
-                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                -H "Content-Type: application/json" >/dev/null 2>&1
-        done
-    fi
-
-    # Criar registro CNAME para o tunnel
-    echo -e "XXX\n13\nCRIANDO REGISTRO CNAME PARA TUNNEL... \nXXX"
-    DNS_RESPONSE=$(curl -s -X POST \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json" \
-        --data "{\"type\":\"CNAME\",\"name\":\"${publico}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}")
-
-    if echo "$DNS_RESPONSE" | grep -q '"success":true'; then
-        echo -e "XXX\n14\nREGISTRO DNS CRIADO COM SUCESSO! \nXXX"
-    else
-        echo -e "XXX\n14\nAVISO: ERRO AO CRIAR REGISTRO DNS \nXXX"
-    fi
-
-    # 2. AGORA ATUALIZAR AS ROTAS DO TUNNEL
-    echo -e "XXX\n15\nATUALIZANDO CONFIGURAÇÃO DO TUNNEL... \nXXX"
-
-    # Configuração do novo serviço para o Minio
-    NEW_SERVICE="http://${nome_app2}:9000"
-    
-    # Arquivos temporários
-    TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
-    TMPDIR=$(mktemp -d)
-    BACKUP_RAW="$TMPDIR/backup_raw.$TIMESTAMP.json"
-    TO_PUT="$TMPDIR/to_put.$TIMESTAMP.json"
-
-    # 1) Obter configuração atual do tunnel
-    echo -e "XXX\n16\nOBTENDO CONFIGURAÇÃO ATUAL DO TUNNEL... \nXXX"
-    curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-      "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
-      | jq '.' > "$BACKUP_RAW"
-
-    # Verificar se obteve sucesso
-    if ! jq -e '.success == true' "$BACKUP_RAW" >/dev/null 2>&1; then
-        echo -e "XXX\n45\nERRO: FALHA AO OBTER CONFIGURAÇÃO DO TUNNEL \nXXX"
-        sleep 3
-    else
-        echo -e "XXX\n17\nCONFIGURAÇÃO OBTIDA COM SUCESSO \nXXX"
-    fi
-
-    # 2) Construir novo payload
-    echo -e "XXX\n18\nCONFIGURANDO NOVAS ROTAS... \nXXX"
-    
-    jq --arg host "$publico" --arg service "$NEW_SERVICE" '
-      (.result.config // {}) as $cfg
-      | ($cfg.ingress // []) as $ing
-      # Remover entradas catch-all existentes no meio
-      | ($ing | map(select(.service != "http_status:404"))) as $clean
-      # Coletar hostnames existentes para evitar duplicatas
-      
-      # Se o novo host já existe, não adicionar duplicata; senão adicionar nova rota
-      | ($clean | map(select(.hostname != $host))) as $filtered
-      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
-      # Adicionar exatamente um catch-all
-      | ($merged + [{ service: "http_status:404" }]) as $final_ing
-      # Construir novo objeto de configuração, preservando outras chaves
-      | ($cfg + { ingress: $final_ing }) as $newcfg
-      | { config: $newcfg }
-    ' "$BACKUP_RAW" > "$TO_PUT"
-
-    # 3) Aplicar nova configuração
-    echo -e "XXX\n19\nAPLICANDO NOVA CONFIGURAÇÃO DO TUNNEL... \nXXX"
-    APPLY_RESPONSE=$(curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
-      -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-      -H "Content-Type: application/json" \
-      --data-binary @"$TO_PUT")
-
-    if echo "$APPLY_RESPONSE" | grep -q '"success":true'; then
-        echo -e "XXX\n20\nTUNNEL CONFIGURADO COM SUCESSO! \nXXX"
-    else
-        echo -e "XXX\n21\nAVISO: ERRO AO CONFIGURAR TUNNEL \nXXX"
-    fi
-
-    # Limpeza
-    rm -rf "$TMPDIR"
-
- else
-    # INSTALAÇÃO TRADICIONAL SEM DNS AUTOMÁTICO
-    echo -e "XXX\n22\nVERIFICANDO CONFIGURAÇÃO (TRADICIONAL SEM AUTOMAÇÃO)... \nXXX"
-    # Verificação básica de DNS
-    if nslookup "$publico" >/dev/null 2>&1; then
-        echo -e "XXX\n23\nDNS CONFIGURADO \nXXX"
-    else
-        echo -e "XXX\n23\nAVISO: VERIFIQUE A CONFIGURAÇÃO DNS \nXXX"
-    fi
-fi
-
-
-if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "1" ]; then
-
-
-# Função para verificar o domínio quando fora do cloudflare
-
-ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
-
-echo -e "XXX\n33\nVERIFICANDO SUBDOMÍNIO2: $publico \nXXX"
-sleep 3
-
-tentativas=5
-tentativa_atual=1
-sucesso=0
-
-while [ $tentativa_atual -le $tentativas ]; do
-    echo -e "XXX\n$(( (tentativa_atual * 12) / tentativas + 3 ))\nTentativa $tentativa_atual de $tentativas...\nXXX"
-    
-    dns_ip2=$(timeout 10 nslookup -type=A "$publico" | grep -E "Address: [0-9]+\." | awk '{print $2}' | head -n1)
-    
-    if [[ -n "$dns_ip2" && "$dns_ip2" == "$ip_servidor" ]]; then
-        sucesso=1
-       # break
-    fi
-    
-  #  sleep $((tentativa_atual * 2))
-  sleep 1
-    ((tentativa_atual++))
-done
-
-if [ $sucesso -eq 0 ]; then
-
-    echo -e "XXX\n14\nERRO: SUBDOMÍNIO2 PUBLICO DO MINIO NÃO APONTA PARA O IP ($ip_servidor) \nXXX"
-    sleep 3
-    echo -e "XXX\n14\nERRO: DNS NÃO CONFIGURADO CORRETAMENTE \nXXX"
-    sleep 3
-    exit 1
-fi
-
-    echo -e "XXX\n15\nDOMÍNIO 2 URL PÙBLICA MINIO VERIFICADO COM SUCESSO \nXXX"
-sleep 4
-fi
-
+if [[ ("$minio_container" == "") ]]; then
+    configurar_dns_e_tunnel "$painel" "http://${nome_app2}:9001" "PAINEL MINIO"
+    configurar_dns_e_tunnel "$publico" "http://${nome_app2}:9000" "S3 MINIO"
 
     echo -e "XXX\n12\nCRIANDO STACKS DO MINIO 1/4 \nXXX"
     sleep 1
-    echo -e "XXX\n12\nCRIANDO STACKS DO MINIO 1/4 - CONCLUÍDO \nXXX"
-    sleep 1 
-    echo -e "XXX\n13\nFAZENDO O BUILD DOS STACKS DO MINIO 2/4 \nXXX"
-    sleep 1
-    echo -e "XXX\n13\nFAZENDO O BUILD DOS STACKS DO MINIO 2/4 - CONCLUÍDO \nXXX"
-    sleep 1
-    echo -e "XXX\n14\nINICIANDO BUILD DO MINIO 3/4 \nXXX"
-    sleep 1
-    echo -e "XXX\n15\nINICIANDO BUILD DO MINIO 3/4 - CONCLUÍDO \nXXX"
-
-    #######################################################
-    #
-    #  INSTALANDO O MINIO
-    #
-
     cd ~
     clear
-
     cat > $nome_app2.yaml << EOL
 version: "3.7"
 
@@ -907,754 +696,19 @@ networks:
     external: true
 EOL
 
-    if [[ "$criar_portainer" == "0" ]]; then
-        echo -e "XXX\n13\nCRIANDO STACK NO PORTAINER 3/4  \nXXX"
-        # Configurações para criação via Portainer
-        dados_file="$HOME/dados_portainer/dados_portainer"
-        if [[ -f "$dados_file" ]]; then
-            PORTAINER_URL=$(grep "Dominio do portainer:" "$dados_file" | cut -d':' -f2 | xargs)
-            ADMIN_USERNAME=$(grep "Usuario:" "$dados_file" | cut -d':' -f2 | xargs)
-            ADMIN_PASSWORD=$(grep "Senha:" "$dados_file" | cut -d':' -f2 | xargs)
-            STACK_NAME=$nome_app2
-            STACK_FILE_PATH="/root/$nome_app2.yaml"
-        else
-            sleep 5
-            echo -e "XXX\n14\nSEM ARQUIVO DE DADOS DO PORTAINER 3/4  \nXXX"
-            docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
-            sleep 5
-            exit 1
-        fi
-
-        get_auth_token() {
-            echo -e "XXX\n15\nAUTENTICANDO NO PORTAINER... 3/4  \nXXX"
-            RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
-                -H "Content-Type: application/json" \
-                -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
-            TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
-            if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-                echo -e "XXX\n16\nFALHA NA AUTENTICAÇÃO.. 3/4  \nXXX"
-                sleep 5
-                echo -e "XXX\n17\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
-                docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
-                sleep 5
-                exit 1
-            fi
-            echo -e "XXX\n18\n[SUCESSO] AUTENTICAÇÃO OK 3/4  \nXXX"
-        }
-
-        get_endpoint_id() {
-            echo -e "XXX\n19\n[INFO] OBTENDO ENDPOINTID 3/4  \nXXX"
-            RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
-                -H "Authorization: Bearer $TOKEN")
-            ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
-            if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
-                echo -e "XXX\n20\n[ERRO] ENDPOINTID NÃO ENCONTRADO 3/4  \nXXX"
-                docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
-                exit 1
-            fi
-            echo -e "XXX\n21\n[SUCESSO] ENDPOINTID OBTIDO: $ENDPOINT_ID  3/4  \nXXX"
-        }
-
-        get_swarm_id() {
-            echo -e "XXX\n22\n[INFO] OBTENDO SWARMID  3/4  \nXXX"
-            RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
-                -H "Authorization: Bearer $TOKEN")
-            SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
-            if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
-                echo -e "XXX\n23\n[ERRO] SWARMID NÃO ENCONTRADO 3/4  \nXXX"
-                docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
-                exit 1
-            fi
-            echo -e "XXX\n24\n[SUCESSO] SWARMID OBTIDO: $SWARM_ID  3/4  \nXXX"
-        }
-
-        create_stack() {
-            echo -e "XXX\n25\n[INFO] VERIFICANDO SE YAML EXISTE 3/4  \nXXX"
-            if [ ! -f "$STACK_FILE_PATH" ]; then
-                echo -e "XXX\n26\n[ERRO] ARQUIVO $STACK_FILE_PATH NÃO ENCONTRADO 3/4  \nXXX"
-                docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
-                exit 1
-            fi
-
-            echo -e "XXX\n27\n[INFO] CRIANDO STACK $STACK_NAME NO PORTAINER 3/4  \nXXX"
-            response_output=$(mktemp)
-            erro_output=$(mktemp)
-
-            http_code=$(curl -s -o "$response_output" -w "%{http_code}"  -X POST \
-                -H "Authorization: Bearer $TOKEN" \
-                -F "Name=$STACK_NAME" \
-                -F "file=@$STACK_FILE_PATH" \
-                -F "SwarmID=$SWARM_ID" \
-                -F "endpointId=$ENDPOINT_ID" \
-                "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
-
-            response=$(cat "$response_output")
-            rm -f "$response_output" "$erro_output"
-
-            if [ "$http_code" -ne 200 ]; then
-                echo -e "XXX\n28\n[ERRO] ERRO AO CRIAR STACK 3/4  \nXXX"
-                docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
-                exit 1
-            fi
-
-            echo -e "XXX\n29\n[SUCESSO] STACK $STACK_NAME CRIADA COM SUCESSO 3/4  \nXXX"
-        }
-
-        get_auth_token || exit 1
-        get_endpoint_id || exit 1
-        get_swarm_id || exit 1
-        create_stack || exit 1
-
-    elif [[ "$criar_portainer" == "1" ]]; then
-        echo "Criando a stack diretamente no Docker (não editável no Portainer)."
-        docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
-    else
-        echo -e "XXX\n30\n[ERRO] ERRO INESPERADO PARA CRIAR STACK NO PORTAINER 3/4  \nXXX"
-        sleep 5
-        echo -e "XXX\n31\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
-        docker stack deploy --prune --resolve-image always -c $nome_app2.yaml $nome_app2 >/dev/null 2>&1
-        sleep 5
-        exit 1
-    fi
-
-    echo -e "XXX\n32\nFINALIZANDO BUILD DO MINIO 4/4  \nXXX"
+    deploy_stack_app "$nome_app2"
+    echo -e "XXX\n32\nFINALIZANDO BUILD DO MINIO 4/4 - CONCLUÍDO  \nXXX"
     sleep 2
-    echo -e "XXX\n33\nFINALIZANDO BUILD DO MINIO 4/4 - CONCLUÍDO  \nXXX"
-    sleep 3
-
-
- fi
-
-
-# Função para verificar o domínio
-
-
-#########################################################
-#
-# MENSAGEM DE INSTALANDO
-#
-
-# Função para verificar o domínio
-
-#VERIFICANDO CONFIGURAÇÃO RABBITMQ
-
-echo -e "XXX\n5\nVERIFICANDO CONFIGURAÇÃO RABBITMQ... \nXXX"
-
-if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
-    # CONFIGURAÇÃO TRADICIONAL COM DNS AUTOMÁTICO
-    echo -e "XXX\n10\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
-    
-    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
-    SUBDOMINIO=${painelrabbitmq%%.$DOMINIO_PRINCIPAL}
-
-    # Verificar e remover registros existentes
-    echo -e "XXX\n15\nVERIFICANDO REGISTROS EXISTENTES... \nXXX"
-    EXISTING_RECORDS=$(curl -s -X GET \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${painelrabbitmq}" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json")
-
-    COUNT=$(echo "$EXISTING_RECORDS" | jq '.result | length')
-    if [[ "$COUNT" -gt 0 ]]; then
-        echo -e "XXX\n20\nREMOVENDO REGISTROS ANTIGOS... \nXXX"
-        echo "$EXISTING_RECORDS" | jq -r '.result[].id' | while read -r REC_ID; do
-            [[ -z "$REC_ID" ]] && continue
-            curl -s -X DELETE \
-                "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${REC_ID}" \
-                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                -H "Content-Type: application/json" >/dev/null 2>&1
-        done
-    fi
-
-    # Criar registro CNAME
-    echo -e "XXX\n25\nCRIANDO REGISTRO CNAME... \nXXX"
-    CNAME_RESPONSE=$(curl -s -X POST \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json" \
-        --data '{"type":"CNAME","name":"'${painelrabbitmq}'","content":"'${nome_servidor}'.'${DOMINIO_PRINCIPAL}'","ttl":1,"proxied":false}')
-
-    if echo "$CNAME_RESPONSE" | grep -q '"success":true'; then
-        echo -e "XXX\n30\nREGISTRO CNAME CRIADO COM SUCESSO! \nXXX"
-    else
-        echo -e "XXX\n30\nAVISO: ERRO AO CRIAR REGISTRO CNAME \nXXX"
-    fi
-
-elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-    # CONFIGURAÇÃO CLOUDFLARE TUNNEL - DNS E ROTAS
-    echo -e "XXX\n10\nCONFIGURANDO CLOUDFLARE TUNNEL (DNS + ROTAS)... \nXXX"
-    
-    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
-    SUBDOMINIO=${painelrabbitmq%%.$DOMINIO_PRINCIPAL}
-
-    # 1. PRIMEIRO CONFIGURAR O DNS
-    echo -e "XXX\n15\nCONFIGURANDO REGISTRO DNS... \nXXX"
-    
-    # Verificar e remover registros existentes
-    EXISTING_RECORDS=$(curl -s -X GET \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${painelrabbitmq}" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json")
-
-    COUNT=$(echo "$EXISTING_RECORDS" | jq '.result | length')
-    if [[ "$COUNT" -gt 0 ]]; then
-        echo -e "XXX\n20\nREMOVENDO REGISTROS DNS ANTIGOS... \nXXX"
-        echo "$EXISTING_RECORDS" | jq -r '.result[].id' | while read -r REC_ID; do
-            [[ -z "$REC_ID" ]] && continue
-            curl -s -X DELETE \
-                "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${REC_ID}" \
-                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                -H "Content-Type: application/json" >/dev/null 2>&1
-        done
-    fi
-
-    # Criar registro CNAME para o tunnel
-    echo -e "XXX\n25\nCRIANDO REGISTRO CNAME PARA TUNNEL... \nXXX"
-    DNS_RESPONSE=$(curl -s -X POST \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json" \
-        --data "{\"type\":\"CNAME\",\"name\":\"${painelrabbitmq}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}")
-
-    if echo "$DNS_RESPONSE" | grep -q '"success":true'; then
-        echo -e "XXX\n30\nREGISTRO DNS CRIADO COM SUCESSO! \nXXX"
-    else
-        echo -e "XXX\n30\nAVISO: ERRO AO CRIAR REGISTRO DNS \nXXX"
-    fi
-
-    # 2. AGORA ATUALIZAR AS ROTAS DO TUNNEL
-    echo -e "XXX\n35\nATUALIZANDO CONFIGURAÇÃO DO TUNNEL... \nXXX"
-
-    # Configuração do novo serviço para o Rabbitmq
-    NEW_SERVICE="http://${nome_app_rabbitmq}:15672"
-    
-    # Arquivos temporários
-    TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
-    TMPDIR=$(mktemp -d)
-    BACKUP_RAW="$TMPDIR/backup_raw.$TIMESTAMP.json"
-    TO_PUT="$TMPDIR/to_put.$TIMESTAMP.json"
-
-    # 1) Obter configuração atual do tunnel
-    echo -e "XXX\n40\nOBTENDO CONFIGURAÇÃO ATUAL DO TUNNEL... \nXXX"
-    curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-      "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
-      | jq '.' > "$BACKUP_RAW"
-
-    # Verificar se obteve sucesso
-    if ! jq -e '.success == true' "$BACKUP_RAW" >/dev/null 2>&1; then
-        echo -e "XXX\n45\nERRO: FALHA AO OBTER CONFIGURAÇÃO DO TUNNEL \nXXX"
-        sleep 3
-    else
-        echo -e "XXX\n45\nCONFIGURAÇÃO OBTIDA COM SUCESSO \nXXX"
-    fi
-
-    # 2) Construir novo payload
-    echo -e "XXX\n50\nCONFIGURANDO NOVAS ROTAS... \nXXX"
-    
-    jq --arg host "$painelrabbitmq" --arg service "$NEW_SERVICE" '
-      (.result.config // {}) as $cfg
-      | ($cfg.ingress // []) as $ing
-      # Remover entradas catch-all existentes no meio
-      | ($ing | map(select(.service != "http_status:404"))) as $clean
-      # Coletar hostnames existentes para evitar duplicatas
-      
-      # Se o novo host já existe, não adicionar duplicata; senão adicionar nova rota
-      | ($clean | map(select(.hostname != $host))) as $filtered
-      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
-      # Adicionar exatamente um catch-all
-      | ($merged + [{ service: "http_status:404" }]) as $final_ing
-      # Construir novo objeto de configuração, preservando outras chaves
-      | ($cfg + { ingress: $final_ing }) as $newcfg
-      | { config: $newcfg }
-    ' "$BACKUP_RAW" > "$TO_PUT"
-
-    # 3) Aplicar nova configuração
-    echo -e "XXX\n55\nAPLICANDO NOVA CONFIGURAÇÃO DO TUNNEL... \nXXX"
-    APPLY_RESPONSE=$(curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
-      -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-      -H "Content-Type: application/json" \
-      --data-binary @"$TO_PUT")
-
-    if echo "$APPLY_RESPONSE" | grep -q '"success":true'; then
-        echo -e "XXX\n60\nTUNNEL CONFIGURADO COM SUCESSO! \nXXX"
-    else
-        echo -e "XXX\n60\nAVISO: ERRO AO CONFIGURAR TUNNEL \nXXX"
-    fi
-
-    # Limpeza
-    rm -rf "$TMPDIR"
-
- else
-    # INSTALAÇÃO TRADICIONAL SEM DNS AUTOMÁTICO
-    echo -e "XXX\n10\nVERIFICANDO CONFIGURAÇÃO (TRADICIONAL SEM AUTOMAÇÃO)... \nXXX"
-    # Verificação básica de DNS
-    if nslookup "$painelrabbitmq" >/dev/null 2>&1; then
-        echo -e "XXX\n15\nDNS CONFIGURADO \nXXX"
-    else
-        echo -e "XXX\n15\nAVISO: VERIFIQUE A CONFIGURAÇÃO DNS \nXXX"
-    fi
 fi
 
+configurar_dns_e_tunnel "$painelrabbitmq" "http://${nome_app_rabbitmq}:15672" "RABBITMQ"
+configurar_dns_e_tunnel "$dominio_chatwoot" "http://${nome_app_chatwoot}:3000" "CHATWOOT"
+configurar_dns_e_tunnel "$dominio_evolution" "http://${nome_app_evolution}:8080" "EVOLUTION"
 
-if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "1" ]; then
-
-
-# Função para verificar o domínio quando fora do cloudflare
-
-ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
-
-echo -e "XXX\n3\nVERIFICANDO SUBDOMÍNIO: $painelrabbitmq \nXXX"
-sleep 3
-
-tentativas=5
-tentativa_atual=1
-sucesso=0
-
-while [ $tentativa_atual -le $tentativas ]; do
-    echo -e "XXX\n$(( (tentativa_atual * 12) / tentativas + 3 ))\nTentativa $tentativa_atual de $tentativas...\nXXX"
-    
-    dns_ip3=$(timeout 10 nslookup -type=A "$painelrabbitmq" | grep -E "Address: [0-9]+\." | awk '{print $2}' | head -n1)
-    
-    if [[ -n "$dns_ip3" && "$dns_ip3" == "$ip_servidor" ]]; then
-        sucesso=1
-       # break
-    fi
-    
-  #  sleep $((tentativa_atual * 2))
-  sleep 1
-    ((tentativa_atual++))
-done
-
-if [ $sucesso -eq 0 ]; then
-
-    echo -e "XXX\n10\nERRO: SUBDOMÍNIO DO RABBITMQ NÃO APONTA PARA O IP ($ip_servidor) \nXXX"
-    sleep 3
-    echo -e "XXX\n18\nERRO: DNS NÃO CONFIGURADO CORRETAMENTE \nXXX"
-    sleep 3
-    exit 1
-fi
-    echo -e "XXX\n18\nDOMÍNIO RABBITMQ VERIFICADO COM SUCESSO \nXXX"
-sleep 4
-fi
-
-#VERIFICANDO CONFIGURAÇÃO CHATWOOT
-
-echo -e "XXX\n5\nVERIFICANDO CONFIGURAÇÃO CHATWOOT... \nXXX"
-
-if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
-    # CONFIGURAÇÃO TRADICIONAL COM DNS AUTOMÁTICO
-    echo -e "XXX\n10\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
-    
-    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
-    SUBDOMINIO=${dominiochat%%.$DOMINIO_PRINCIPAL}
-
-    # Verificar e remover registros existentes
-    echo -e "XXX\n15\nVERIFICANDO REGISTROS EXISTENTES... \nXXX"
-    EXISTING_RECORDS=$(curl -s -X GET \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${dominiochat}" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json")
-
-    COUNT=$(echo "$EXISTING_RECORDS" | jq '.result | length')
-    if [[ "$COUNT" -gt 0 ]]; then
-        echo -e "XXX\n20\nREMOVENDO REGISTROS ANTIGOS... \nXXX"
-        echo "$EXISTING_RECORDS" | jq -r '.result[].id' | while read -r REC_ID; do
-            [[ -z "$REC_ID" ]] && continue
-            curl -s -X DELETE \
-                "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${REC_ID}" \
-                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                -H "Content-Type: application/json" >/dev/null 2>&1
-        done
-    fi
-
-    # Criar registro CNAME
-    echo -e "XXX\n25\nCRIANDO REGISTRO CNAME... \nXXX"
-    CNAME_RESPONSE=$(curl -s -X POST \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json" \
-        --data '{"type":"CNAME","name":"'${dominiochat}'","content":"'${nome_servidor}'.'${DOMINIO_PRINCIPAL}'","ttl":1,"proxied":false}')
-
-    if echo "$CNAME_RESPONSE" | grep -q '"success":true'; then
-        echo -e "XXX\n30\nREGISTRO CNAME CRIADO COM SUCESSO! \nXXX"
-    else
-        echo -e "XXX\n30\nAVISO: ERRO AO CRIAR REGISTRO CNAME \nXXX"
-    fi
-
-elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-    # CONFIGURAÇÃO CLOUDFLARE TUNNEL - DNS E ROTAS
-    echo -e "XXX\n10\nCONFIGURANDO CLOUDFLARE TUNNEL (DNS + ROTAS)... \nXXX"
-    
-    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
-    SUBDOMINIO=${dominiochat%%.$DOMINIO_PRINCIPAL}
-
-    # 1. PRIMEIRO CONFIGURAR O DNS
-    echo -e "XXX\n15\nCONFIGURANDO REGISTRO DNS... \nXXX"
-    
-    # Verificar e remover registros existentes
-    EXISTING_RECORDS=$(curl -s -X GET \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${dominiochat}" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json")
-
-    COUNT=$(echo "$EXISTING_RECORDS" | jq '.result | length')
-    if [[ "$COUNT" -gt 0 ]]; then
-        echo -e "XXX\n20\nREMOVENDO REGISTROS DNS ANTIGOS... \nXXX"
-        echo "$EXISTING_RECORDS" | jq -r '.result[].id' | while read -r REC_ID; do
-            [[ -z "$REC_ID" ]] && continue
-            curl -s -X DELETE \
-                "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${REC_ID}" \
-                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                -H "Content-Type: application/json" >/dev/null 2>&1
-        done
-    fi
-
-    # Criar registro CNAME para o tunnel
-    echo -e "XXX\n25\nCRIANDO REGISTRO CNAME PARA TUNNEL... \nXXX"
-  
-    DNS_RESPONSE=$(curl -s -X POST \
-    "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
-    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-    -H "Content-Type: application/json" \
-    --data "{\"type\":\"CNAME\",\"name\":\"${dominiochat}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}")
-
-    if echo "$DNS_RESPONSE" | grep -q '"success":true'; then
-        echo -e "XXX\n30\nREGISTRO DNS CRIADO COM SUCESSO! \nXXX"
-    else
-        echo -e "XXX\n30\nAVISO: ERRO AO CRIAR REGISTRO DNS \nXXX"
-    fi
-
-    # 2. AGORA ATUALIZAR AS ROTAS DO TUNNEL
-    echo -e "XXX\n35\nATUALIZANDO CONFIGURAÇÃO DO TUNNEL... \nXXX"
-
-    # Configuração do novo serviço
-  #  NEW_SERVICE="http://${$nome_app_chatwoot-app}:3000" errado
-    NEW_SERVICE="http://${nome_app_chatwoot}-app:3000"
-    
-    # Arquivos temporários
-    TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
-    TMPDIR=$(mktemp -d)
-    BACKUP_RAW="$TMPDIR/backup_raw.$TIMESTAMP.json"
-    TO_PUT="$TMPDIR/to_put.$TIMESTAMP.json"
-
-    # 1) Obter configuração atual do tunnel
-    echo -e "XXX\n40\nOBTENDO CONFIGURAÇÃO ATUAL DO TUNNEL... \nXXX"
-    curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-      "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
-      | jq '.' > "$BACKUP_RAW"
-
-    # Verificar se obteve sucesso
-    if ! jq -e '.success == true' "$BACKUP_RAW" >/dev/null 2>&1; then
-        echo -e "XXX\n45\nERRO: FALHA AO OBTER CONFIGURAÇÃO DO TUNNEL \nXXX"
-        sleep 3
-    else
-        echo -e "XXX\n45\nCONFIGURAÇÃO OBTIDA COM SUCESSO \nXXX"
-    fi
-
-    # 2) Construir novo payload
-    echo -e "XXX\n50\nCONFIGURANDO NOVAS ROTAS... \nXXX"
-    
-    jq --arg host "$dominiochat" --arg service "$NEW_SERVICE" '
-      (.result.config // {}) as $cfg
-      | ($cfg.ingress // []) as $ing
-      # Remover entradas catch-all existentes no meio
-      | ($ing | map(select(.service != "http_status:404"))) as $clean
-      # Coletar hostnames existentes para evitar duplicatas
-      
-      # Se o novo host já existe, não adicionar duplicata; senão adicionar nova rota
-      | ($clean | map(select(.hostname != $host))) as $filtered
-      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
-      # Adicionar exatamente um catch-all
-      | ($merged + [{ service: "http_status:404" }]) as $final_ing
-      # Construir novo objeto de configuração, preservando outras chaves
-      | ($cfg + { ingress: $final_ing }) as $newcfg
-      | { config: $newcfg }
-    ' "$BACKUP_RAW" > "$TO_PUT"
-
-    # 3) Aplicar nova configuração
-    echo -e "XXX\n55\nAPLICANDO NOVA CONFIGURAÇÃO DO TUNNEL... \nXXX"
-    APPLY_RESPONSE=$(curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
-      -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-      -H "Content-Type: application/json" \
-      --data-binary @"$TO_PUT")
-
-    if echo "$APPLY_RESPONSE" | grep -q '"success":true'; then
-        echo -e "XXX\n60\nTUNNEL CONFIGURADO COM SUCESSO! \nXXX"
-    else
-        echo -e "XXX\n60\nAVISO: ERRO AO CONFIGURAR TUNNEL \nXXX"
-    fi
-
-    # Limpeza
-    rm -rf "$TMPDIR"
-
- else
-    # INSTALAÇÃO TRADICIONAL SEM DNS AUTOMÁTICO
-    echo -e "XXX\n10\nVERIFICANDO CONFIGURAÇÃO (TRADICIONAL SEM AUTOMAÇÃO)... \nXXX"
-    # Verificação básica de DNS
-    if nslookup "$dominiochat" >/dev/null 2>&1; then
-        echo -e "XXX\n15\nDNS CONFIGURADO \nXXX"
-    else
-        echo -e "XXX\n15\nAVISO: VERIFIQUE A CONFIGURAÇÃO DNS \nXXX"
-    fi
-fi
-
-
-if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "1" ]; then
-
-
-# Função para verificar o domínio quando fora do cloudflare
-ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
-
-echo -e "XXX\n3\nVERIFICANDO SUBDOMÍNIO: $dominiochat \nXXX"
-sleep 3
-
-tentativas=5
-tentativa_atual=1
-sucesso=0
-
-while [ $tentativa_atual -le $tentativas ]; do
-    echo -e "XXX\n$(( (tentativa_atual * 12) / tentativas + 3 ))\nTentativa $tentativa_atual de $tentativas...\nXXX"
-    
-    dns_ip4=$(timeout 10 nslookup -type=A "$dominiochat" | grep -E "Address: [0-9]+\." | awk '{print $2}' | head -n1)
-    
-    if [[ -n "$dns_ip4" && "$dns_ip4" == "$ip_servidor" ]]; then
-        sucesso=1
-       # break
-    fi
-    
-  #  sleep $((tentativa_atual * 2))
-  sleep 1
-    ((tentativa_atual++))
-done
-
-if [ $sucesso -eq 0 ]; then
-
-    echo -e "XXX\n10\nERRO: SUBDOMÍNIO DO CHATWOOT NÃO APONTA PARA O IP ($ip_servidor) \nXXX"
-    sleep 3
-    echo -e "XXX\n18\nERRO: DNS NÃO CONFIGURADO CORRETAMENTE \nXXX"
-    sleep 3
-    exit 1
-fi
-    echo -e "XXX\n18\nDOMÍNIO DO CHATWOOT VERIFICADO COM SUCESSO \nXXX"
-sleep 4
-fi
-
-
-echo -e "XXX\n5\nVERIFICANDO CONFIGURAÇÃO... \nXXX"
-
-if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; then
-    # CONFIGURAÇÃO TRADICIONAL COM DNS AUTOMÁTICO
-    echo -e "XXX\n10\nCONFIGURANDO DNS AUTOMÁTICO (TRADICIONAL)... \nXXX"
-    
-    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
-    SUBDOMINIO=${dominio%%.$DOMINIO_PRINCIPAL}
-
-    # Verificar e remover registros existentes
-    echo -e "XXX\n15\nVERIFICANDO REGISTROS EXISTENTES... \nXXX"
-    EXISTING_RECORDS=$(curl -s -X GET \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${dominio}" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json")
-
-    COUNT=$(echo "$EXISTING_RECORDS" | jq '.result | length')
-    if [[ "$COUNT" -gt 0 ]]; then
-        echo -e "XXX\n20\nREMOVENDO REGISTROS ANTIGOS... \nXXX"
-        echo "$EXISTING_RECORDS" | jq -r '.result[].id' | while read -r REC_ID; do
-            [[ -z "$REC_ID" ]] && continue
-            curl -s -X DELETE \
-                "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${REC_ID}" \
-                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                -H "Content-Type: application/json" >/dev/null 2>&1
-        done
-    fi
-
-    # Criar registro CNAME
-    echo -e "XXX\n25\nCRIANDO REGISTRO CNAME... \nXXX"
-    CNAME_RESPONSE=$(curl -s -X POST \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json" \
-        --data '{"type":"CNAME","name":"'${dominio}'","content":"'${nome_servidor}'.'${DOMINIO_PRINCIPAL}'","ttl":1,"proxied":false}')
-
-    if echo "$CNAME_RESPONSE" | grep -q '"success":true'; then
-        echo -e "XXX\n30\nREGISTRO CNAME CRIADO COM SUCESSO! \nXXX"
-    else
-        echo -e "XXX\n30\nAVISO: ERRO AO CRIAR REGISTRO CNAME \nXXX"
-    fi
-
-elif [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
-    # CONFIGURAÇÃO CLOUDFLARE TUNNEL - DNS E ROTAS
-    echo -e "XXX\n10\nCONFIGURANDO CLOUDFLARE TUNNEL (DNS + ROTAS)... \nXXX"
-    
-    DOMINIO_PRINCIPAL="${SETUPMNO_SELECTED_ROOT_DOMAIN:-${SETUPMNO_DOMAIN_ROOT:-${CLOUDFLARE_ZONE_NAME:-}}}"
-    SUBDOMINIO=${dominio%%.$DOMINIO_PRINCIPAL}
-
-    # 1. PRIMEIRO CONFIGURAR O DNS
-    echo -e "XXX\n15\nCONFIGURANDO REGISTRO DNS... \nXXX"
-    
-    # Verificar e remover registros existentes
-    EXISTING_RECORDS=$(curl -s -X GET \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${dominio}" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json")
-
-    COUNT=$(echo "$EXISTING_RECORDS" | jq '.result | length')
-    if [[ "$COUNT" -gt 0 ]]; then
-        echo -e "XXX\n20\nREMOVENDO REGISTROS DNS ANTIGOS... \nXXX"
-        echo "$EXISTING_RECORDS" | jq -r '.result[].id' | while read -r REC_ID; do
-            [[ -z "$REC_ID" ]] && continue
-            curl -s -X DELETE \
-                "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${REC_ID}" \
-                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                -H "Content-Type: application/json" >/dev/null 2>&1
-        done
-    fi
-
-    # Criar registro CNAME para o tunnel
-    echo -e "XXX\n25\nCRIANDO REGISTRO CNAME PARA TUNNEL... \nXXX"
-    DNS_RESPONSE=$(curl -s -X POST \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json" \
-        --data "{\"type\":\"CNAME\",\"name\":\"${dominio}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}")
-
-    if echo "$DNS_RESPONSE" | grep -q '"success":true'; then
-        echo -e "XXX\n30\nREGISTRO DNS CRIADO COM SUCESSO! \nXXX"
-    else
-        echo -e "XXX\n30\nAVISO: ERRO AO CRIAR REGISTRO DNS \nXXX"
-    fi
-
-    # 2. AGORA ATUALIZAR AS ROTAS DO TUNNEL
-    echo -e "XXX\n35\nATUALIZANDO CONFIGURAÇÃO DO TUNNEL... \nXXX"
-
-    # Configuração do novo serviço para o Evolution
-    NEW_SERVICE="http://${nome_app_evolution}:8080"
-    
-    # Arquivos temporários
-    TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
-    TMPDIR=$(mktemp -d)
-    BACKUP_RAW="$TMPDIR/backup_raw.$TIMESTAMP.json"
-    TO_PUT="$TMPDIR/to_put.$TIMESTAMP.json"
-
-    # 1) Obter configuração atual do tunnel
-    echo -e "XXX\n40\nOBTENDO CONFIGURAÇÃO ATUAL DO TUNNEL... \nXXX"
-    curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-      "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
-      | jq '.' > "$BACKUP_RAW"
-
-    # Verificar se obteve sucesso
-    if ! jq -e '.success == true' "$BACKUP_RAW" >/dev/null 2>&1; then
-        echo -e "XXX\n45\nERRO: FALHA AO OBTER CONFIGURAÇÃO DO TUNNEL \nXXX"
-        sleep 3
-    else
-        echo -e "XXX\n45\nCONFIGURAÇÃO OBTIDA COM SUCESSO \nXXX"
-    fi
-
-    # 2) Construir novo payload
-    echo -e "XXX\n50\nCONFIGURANDO NOVAS ROTAS... \nXXX"
-    
-    jq --arg host "$dominio" --arg service "$NEW_SERVICE" '
-      (.result.config // {}) as $cfg
-      | ($cfg.ingress // []) as $ing
-      # Remover entradas catch-all existentes no meio
-      | ($ing | map(select(.service != "http_status:404"))) as $clean
-      # Coletar hostnames existentes para evitar duplicatas
-      
-      # Se o novo host já existe, não adicionar duplicata; senão adicionar nova rota
-      | ($clean | map(select(.hostname != $host))) as $filtered
-      | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
-      # Adicionar exatamente um catch-all
-      | ($merged + [{ service: "http_status:404" }]) as $final_ing
-      # Construir novo objeto de configuração, preservando outras chaves
-      | ($cfg + { ingress: $final_ing }) as $newcfg
-      | { config: $newcfg }
-    ' "$BACKUP_RAW" > "$TO_PUT"
-
-    # 3) Aplicar nova configuração
-    echo -e "XXX\n55\nAPLICANDO NOVA CONFIGURAÇÃO DO TUNNEL... \nXXX"
-    APPLY_RESPONSE=$(curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" \
-      -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-      -H "Content-Type: application/json" \
-      --data-binary @"$TO_PUT")
-
-    if echo "$APPLY_RESPONSE" | grep -q '"success":true'; then
-        echo -e "XXX\n60\nTUNNEL CONFIGURADO COM SUCESSO! \nXXX"
-    else
-        echo -e "XXX\n60\nAVISO: ERRO AO CONFIGURAR TUNNEL \nXXX"
-    fi
-
-    # Limpeza
-    rm -rf "$TMPDIR"
-
- else
-    # INSTALAÇÃO TRADICIONAL SEM DNS AUTOMÁTICO
-    echo -e "XXX\n10\nVERIFICANDO CONFIGURAÇÃO (TRADICIONAL SEM AUTOMAÇÃO)... \nXXX"
-    # Verificação básica de DNS
-    if nslookup "$dominio" >/dev/null 2>&1; then
-        echo -e "XXX\n15\nDNS CONFIGURADO \nXXX"
-    else
-        echo -e "XXX\n15\nAVISO: VERIFIQUE A CONFIGURAÇÃO DNS \nXXX"
-    fi
-fi
-
-
-if [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "1" ]; then
-
-
-# Função para verificar o domínio quando fora do cloudflare
-ip_servidor=$(curl -s --max-time 10 ipinfo.io/ip)
-
-echo -e "XXX\n3\nVERIFICANDO SUBDOMÍNIO: $dominio \nXXX"
-sleep 3
-
-tentativas=5
-tentativa_atual=1
-sucesso=0
-
-while [ $tentativa_atual -le $tentativas ]; do
-    echo -e "XXX\n$(( (tentativa_atual * 12) / tentativas + 3 ))\nTentativa $tentativa_atual de $tentativas...\nXXX"
-    
-    dns_ip5=$(timeout 10 nslookup -type=A "$dominio" | grep -E "Address: [0-9]+\." | awk '{print $2}' | head -n1)
-    
-    if [[ -n "$dns_ip5" && "$dns_ip5" == "$ip_servidor" ]]; then
-        sucesso=1
-       # break
-    fi
-    
-  #  sleep $((tentativa_atual * 2))
-  sleep 1
-    ((tentativa_atual++))
-done
-
-if [ $sucesso -eq 0 ]; then
-
-    echo -e "XXX\n10\nERRO: SUBDOMÍNIO DA EVOLUTION NÃO APONTA PARA O IP ($ip_servidor) \nXXX"
-    sleep 3
-    echo -e "XXX\n18\nERRO: DNS NÃO CONFIGURADO CORRETAMENTE \nXXX"
-    sleep 3
-    exit 1
-fi
-    echo -e "XXX\n18\nDOMÍNIO DA EVOLUTION VERIFICADO COM SUCESSO \nXXX"
-sleep 4
-fi
-
-
-
-####### fim de verificando dominio   
 echo -e "XXX\n44\nCRIANDO STACKS 1/4 \nXXX"
-sleep 3
-echo -e "XXX\n45\nAGUARDANDO PROPAGAÇÃO - PODE DEMORAR UM POUCO \nXXX"
+sleep 2
 
-#######################################################
-#
-#  INSTALANDO O REDISEVO
-#
-
-cd
-
-cd
-#clear
-
+cd ~
 if [[ ("$minio_container" == "") ]]; then
 ###### checa se minio está rodando
 
@@ -1804,8 +858,9 @@ create_service_account2 "$bucket_name_evolution" "$nome_app_evolution"
 ####### fim da checagem se minio rodando
 
 
-#######EVO cwt
 
+
+cd ~
 cat > $nome_cwt_redis.yaml << EOL
 
 version: "3.7"
@@ -1845,174 +900,9 @@ networks:
 
 
 EOL
+deploy_stack_app "$nome_cwt_redis"
 
-#docker stack deploy --prune --resolve-image always -c evo_redis.yaml evo_redis >/dev/null 2>&1
-if [[ "$criar_portainer" == "0" ]]; then
-    # A stack será criada no Portainer
-    echo -e "XXX\n46\nCRIANDO STACK NO PORTAINER 3/4  \nXXX"
-   # echo "Criando a stack no Portainer para edição."
-    # Substituir pelo comando ou rotina para criar a stack no Portainer
-    # Aqui pode chamar um novo script ou rotina específica, exemplo:
-   ## /path/to/criar_stack_no_portainer.sh "$nome_app" "$painelpma"
-
-#!/bin/bash
-
-# Configurações
-
-# Caminho para o arquivo de dados
-dados_file="$HOME/dados_portainer/dados_portainer"
-
-# Verifica se o arquivo existe
-if [[ -f "$dados_file" ]]; then
-    # Coleta as informações do arquivo
-PORTAINER_URL=$(grep "Dominio do portainer:" "$dados_file" | cut -d':' -f2 | xargs)
-ADMIN_USERNAME=$(grep "Usuario:" "$dados_file" | cut -d':' -f2 | xargs)
-ADMIN_PASSWORD=$(grep "Senha:" "$dados_file" | cut -d':' -f2 | xargs)
-STACK_NAME=$nome_cwt_redis
-STACK_FILE_PATH="/root/$nome_cwt_redis.yaml"
-
-else
-   # echo "Erro: Arquivo de dados não encontrado em $dados_file."
-    sleep 5
-echo -e "XXX\n47\nSEM ARQUIVO DE DADOS DO PORTAINER 3/4  \nXXX"
-docker stack deploy --prune --resolve-image always -c $nome_cwt_redis.yaml $nome_cwt_redis >/dev/null 2>&1
-sleep 5
-    exit 1
-fi
-
-# Função para autenticação
-get_auth_token() {
-    #echo "[INFO] Autenticando no Portainer..."
-    echo -e "XXX\n48\nAUTENTICANDO NO PORTAINER... 3/4  \nXXX"
-    RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
-        -H "Content-Type: application/json" \
-        -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
-    TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
-    if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-        # echo "[ERRO] Falha na autenticação."
-        echo -e "XXX\n49\nFALHA NA AUTENTICAÇÃO.. 3/4  \nXXX"
-sleep 5
-echo -e "XXX\n50\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
-docker stack deploy --prune --resolve-image always -c $nome_cwt_redis.yaml $nome_cwt_redis >/dev/null 2>&1
-sleep 5
-        exit 1
-    fi
-  #  echo "[SUCESSO] Autenticação realizada com sucesso. Token obtido."
- echo -e "XXX\n51\n[SUCESSO] AUTENTICAÇÃO OK 3/4  \nXXX"
-}
-
-# Função para obter o EndpointID
-get_endpoint_id() {
-   # echo "[INFO] Obtendo EndpointID..."
-    echo -e "XXX\n52\n[INFO] OBTENDO ENDPOINTID 3/4  \nXXX"
-    RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
-        -H "Authorization: Bearer $TOKEN")
-    ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
-    if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
-        # echo "[ERRO] EndpointID não encontrado! Resposta: $RESPONSE"
-        echo -e "XXX\n53\n[ERRO] ENDPOINTID NÃO ENCONTRADO 3/4  \nXXX"
-        docker stack deploy --prune --resolve-image always -c $nome_cwt_redis.yaml $nome_cwt_redis >/dev/null 2>&1
-        exit 1
-    fi
-     echo -e "XXX\n54\n[SUCESSO] ENDPOINTID OBTIDO: $ENDPOINT_ID  3/4  \nXXX"
-    #echo "[SUCESSO] EndpointID obtido: $ENDPOINT_ID"
-}
-
-# Função para obter o SwarmID
-get_swarm_id() {
-   # echo "[INFO] Obtendo SwarmID..."
-    echo -e "XXX\n55\n[INFO] OBTENDO SWARMID  3/4  \nXXX"
-    RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
-        -H "Authorization: Bearer $TOKEN")
-    SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
-    if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
-        #echo "[ERRO] SwarmID não encontrado! Resposta: $RESPONSE"
-        echo -e "XXX\n56\n[ERRO] SWARMID NÃO ENCONTRADO 3/4  \nXXX"
-        docker stack deploy --prune --resolve-image always -c $nome_cwt_redis.yaml $nome_cwt_redis >/dev/null 2>&1
-        exit 1
-    fi
-    #echo "[SUCESSO] SwarmID obtido: $SWARM_ID"
-    echo -e "XXX\n57\n[SUCESSO] SWARMID OBTIDO: $SWARM_ID  3/4  \nXXX"
-}
-
-# Função para criar a stack
-create_stack() {
-    #echo "[INFO] Verificando existência do arquivo YAML..."
-    echo -e "XXX\n58\n[INFO] VERIFICANDO SE YAML EXISTE 3/4  \nXXX"
-    if [ ! -f "$STACK_FILE_PATH" ]; then
-        #echo "[ERRO] Arquivo $STACK_FILE_PATH não encontrado!"
-        echo -e "XXX\n59\n[ERRO] ARQUIVO $STACK_FILE_PATH NÃO ENCONTRADO 3/4  \nXXX"
-        docker stack deploy --prune --resolve-image always -c $nome_cwt_redis.yaml $nome_cwt_redis >/dev/null 2>&1
-        exit 1
-    fi
-
-    #echo "[INFO] Criando stack '$STACK_NAME' no Portainer..."
-     echo -e "XXX\n60\n[INFO] CRIANDO STACK $STACK_NAME NO PORTAINER 3/4  \nXXX"
-    response_output=$(mktemp)
-    erro_output=$(mktemp)
-
-    http_code=$(curl -s -o "$response_output" -w "%{http_code}"  -X POST \
-        -H "Authorization: Bearer $TOKEN" \
-        -F "Name=$STACK_NAME" \
-        -F "file=@$STACK_FILE_PATH" \
-        -F "SwarmID=$SWARM_ID" \
-        -F "endpointId=$ENDPOINT_ID" \
-        "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
-
-    response=$(cat "$response_output")
-    rm -f "$response_output" "$erro_output"
-
-   # echo "[DEBUG] Resposta da criação da stack: $response"
-   # echo "[DEBUG] Código HTTP: $http_code"
-
-    if [ "$http_code" -ne 200 ]; then
-       # echo "[ERRO] Erro ao criar a stack. Código HTTP: $http_code. Resposta: $response"
-        echo -e "XXX\n61\n[ERRO] ERRO AO CRIAR STACK 3/4  \nXXX"
-        docker stack deploy --prune --resolve-image always -c $nome_cwt_redis.yaml $nome_cwt_redis >/dev/null 2>&1
-        exit 1
-    fi
-
-   # echo "[SUCESSO] Stack '$STACK_NAME' criada com sucesso!"
-    echo -e "XXX\n62\n[SUCESSO] STACK $STACK_NAME  CRIADA COM SUCESSO 3/4  \nXXX"
-}
-
-# Fluxo de execução principal
-# echo "[INFO] Iniciando processo de criação da stack..."
-get_auth_token || exit 1
-get_endpoint_id || exit 1
-get_swarm_id || exit 1
-create_stack || exit 1
-# echo "[SUCESSO] Processo concluído."
-
-
-
-
-elif [[ "$criar_portainer" == "1" ]]; then
-    # A stack será criada diretamente no Docker
-    echo "Criando a stack diretamente no Docker (não editável no Portainer)."
-    docker stack deploy --prune --resolve-image always -c $nome_cwt_redis.yaml $nome_cwt_redis >/dev/null 2>&1
-else
-    # Caso inesperado (não deve ocorrer devido à validação anterior no while loop)
-   # echo "Erro: valor inesperado para criar_portainer. Encerrando..."
-    echo -e "XXX\n63\n[ERRO] ERRO INESPERADO PARA CRIAR STACK NO PORTAINER 3/4  \nXXX"
-    sleep 5
-    echo -e "XXX\n64\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
-docker stack deploy --prune --resolve-image always -c $nome_cwt_redis.yaml $nome_cwt_redis >/dev/null 2>&1
-sleep 5
-
-    exit 1
-fi
-
-# FIM DE INSTALANDO O REDISCWT
-#
-
-
-
-
-
-
-#######EVO REDIS
-
+cd ~
 cat > $nome_evo_redis.yaml << EOL
 
 version: "3.7"
@@ -2052,180 +942,9 @@ networks:
 
 
 EOL
+deploy_stack_app "$nome_evo_redis"
 
-#docker stack deploy --prune --resolve-image always -c evo_redis.yaml evo_redis >/dev/null 2>&1
-if [[ "$criar_portainer" == "0" ]]; then
-    # A stack será criada no Portainer
-    echo -e "XXX\n46\nCRIANDO STACK NO PORTAINER 3/4  \nXXX"
-   # echo "Criando a stack no Portainer para edição."
-    # Substituir pelo comando ou rotina para criar a stack no Portainer
-    # Aqui pode chamar um novo script ou rotina específica, exemplo:
-   ## /path/to/criar_stack_no_portainer.sh "$nome_app" "$painelpma"
-
-#!/bin/bash
-
-# Configurações
-
-# Caminho para o arquivo de dados
-dados_file="$HOME/dados_portainer/dados_portainer"
-
-# Verifica se o arquivo existe
-if [[ -f "$dados_file" ]]; then
-    # Coleta as informações do arquivo
-PORTAINER_URL=$(grep "Dominio do portainer:" "$dados_file" | cut -d':' -f2 | xargs)
-ADMIN_USERNAME=$(grep "Usuario:" "$dados_file" | cut -d':' -f2 | xargs)
-ADMIN_PASSWORD=$(grep "Senha:" "$dados_file" | cut -d':' -f2 | xargs)
-STACK_NAME=$nome_evo_redis
-STACK_FILE_PATH="/root/$nome_evo_redis.yaml"
-
-else
-   # echo "Erro: Arquivo de dados não encontrado em $dados_file."
-    sleep 5
-echo -e "XXX\n47\nSEM ARQUIVO DE DADOS DO PORTAINER 3/4  \nXXX"
-docker stack deploy --prune --resolve-image always -c $nome_evo_redis.yaml $nome_evo_redis >/dev/null 2>&1
-sleep 5
-    exit 1
-fi
-
-# Função para autenticação
-get_auth_token() {
-    #echo "[INFO] Autenticando no Portainer..."
-    echo -e "XXX\n48\nAUTENTICANDO NO PORTAINER... 3/4  \nXXX"
-    RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
-        -H "Content-Type: application/json" \
-        -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
-    TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
-    if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-        # echo "[ERRO] Falha na autenticação."
-        echo -e "XXX\n49\nFALHA NA AUTENTICAÇÃO.. 3/4  \nXXX"
-sleep 5
-echo -e "XXX\n50\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
-docker stack deploy --prune --resolve-image always -c $nome_evo_redis.yaml $nome_evo_redis >/dev/null 2>&1
-sleep 5
-        exit 1
-    fi
-  #  echo "[SUCESSO] Autenticação realizada com sucesso. Token obtido."
- echo -e "XXX\n51\n[SUCESSO] AUTENTICAÇÃO OK 3/4  \nXXX"
-}
-
-# Função para obter o EndpointID
-get_endpoint_id() {
-   # echo "[INFO] Obtendo EndpointID..."
-    echo -e "XXX\n52\n[INFO] OBTENDO ENDPOINTID 3/4  \nXXX"
-    RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
-        -H "Authorization: Bearer $TOKEN")
-    ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
-    if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
-        # echo "[ERRO] EndpointID não encontrado! Resposta: $RESPONSE"
-        echo -e "XXX\n53\n[ERRO] ENDPOINTID NÃO ENCONTRADO 3/4  \nXXX"
-        docker stack deploy --prune --resolve-image always -c $nome_evo_redis.yaml $nome_evo_redis >/dev/null 2>&1
-        exit 1
-    fi
-     echo -e "XXX\n54\n[SUCESSO] ENDPOINTID OBTIDO: $ENDPOINT_ID  3/4  \nXXX"
-    #echo "[SUCESSO] EndpointID obtido: $ENDPOINT_ID"
-}
-
-# Função para obter o SwarmID
-get_swarm_id() {
-   # echo "[INFO] Obtendo SwarmID..."
-    echo -e "XXX\n55\n[INFO] OBTENDO SWARMID  3/4  \nXXX"
-    RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
-        -H "Authorization: Bearer $TOKEN")
-    SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
-    if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
-        #echo "[ERRO] SwarmID não encontrado! Resposta: $RESPONSE"
-        echo -e "XXX\n56\n[ERRO] SWARMID NÃO ENCONTRADO 3/4  \nXXX"
-        docker stack deploy --prune --resolve-image always -c $nome_evo_redis.yaml $nome_evo_redis >/dev/null 2>&1
-        exit 1
-    fi
-    #echo "[SUCESSO] SwarmID obtido: $SWARM_ID"
-    echo -e "XXX\n57\n[SUCESSO] SWARMID OBTIDO: $SWARM_ID  3/4  \nXXX"
-}
-
-# Função para criar a stack
-create_stack() {
-    #echo "[INFO] Verificando existência do arquivo YAML..."
-    echo -e "XXX\n58\n[INFO] VERIFICANDO SE YAML EXISTE 3/4  \nXXX"
-    if [ ! -f "$STACK_FILE_PATH" ]; then
-        #echo "[ERRO] Arquivo $STACK_FILE_PATH não encontrado!"
-        echo -e "XXX\n59\n[ERRO] ARQUIVO $STACK_FILE_PATH NÃO ENCONTRADO 3/4  \nXXX"
-        docker stack deploy --prune --resolve-image always -c $nome_evo_redis.yaml $nome_evo_redis >/dev/null 2>&1
-        exit 1
-    fi
-
-    #echo "[INFO] Criando stack '$STACK_NAME' no Portainer..."
-     echo -e "XXX\n60\n[INFO] CRIANDO STACK $STACK_NAME NO PORTAINER 3/4  \nXXX"
-    response_output=$(mktemp)
-    erro_output=$(mktemp)
-
-    http_code=$(curl -s -o "$response_output" -w "%{http_code}"  -X POST \
-        -H "Authorization: Bearer $TOKEN" \
-        -F "Name=$STACK_NAME" \
-        -F "file=@$STACK_FILE_PATH" \
-        -F "SwarmID=$SWARM_ID" \
-        -F "endpointId=$ENDPOINT_ID" \
-        "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
-
-    response=$(cat "$response_output")
-    rm -f "$response_output" "$erro_output"
-
-   # echo "[DEBUG] Resposta da criação da stack: $response"
-   # echo "[DEBUG] Código HTTP: $http_code"
-
-    if [ "$http_code" -ne 200 ]; then
-       # echo "[ERRO] Erro ao criar a stack. Código HTTP: $http_code. Resposta: $response"
-        echo -e "XXX\n61\n[ERRO] ERRO AO CRIAR STACK 3/4  \nXXX"
-        docker stack deploy --prune --resolve-image always -c $nome_evo_redis.yaml $nome_evo_redis >/dev/null 2>&1
-        exit 1
-    fi
-
-   # echo "[SUCESSO] Stack '$STACK_NAME' criada com sucesso!"
-    echo -e "XXX\n62\n[SUCESSO] STACK $STACK_NAME  CRIADA COM SUCESSO 3/4  \nXXX"
-}
-
-# Fluxo de execução principal
-# echo "[INFO] Iniciando processo de criação da stack..."
-get_auth_token || exit 1
-get_endpoint_id || exit 1
-get_swarm_id || exit 1
-create_stack || exit 1
-# echo "[SUCESSO] Processo concluído."
-
-
-
-
-elif [[ "$criar_portainer" == "1" ]]; then
-    # A stack será criada diretamente no Docker
-    echo "Criando a stack diretamente no Docker (não editável no Portainer)."
-    docker stack deploy --prune --resolve-image always -c $nome_evo_redis.yaml $nome_evo_redis >/dev/null 2>&1
-else
-    # Caso inesperado (não deve ocorrer devido à validação anterior no while loop)
-   # echo "Erro: valor inesperado para criar_portainer. Encerrando..."
-    echo -e "XXX\n63\n[ERRO] ERRO INESPERADO PARA CRIAR STACK NO PORTAINER 3/4  \nXXX"
-    sleep 5
-    echo -e "XXX\n64\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
-docker stack deploy --prune --resolve-image always -c $nome_evo_redis.yaml $nome_evo_redis >/dev/null 2>&1
-sleep 5
-
-    exit 1
-fi
-
-# FIM DE INSTALANDO O REDISEVO
-#
-#######################################################
-
-
-#######################################################
-#
-#  INSTALANDO O RABBITMQ
-#
-
-cd
-
-cd
-#clear
-
-
+cd ~
 cat > $nome_app_rabbitmq.yaml << EOL
 
 version: "3.7"
@@ -2281,192 +1000,9 @@ networks:
 
 
 EOL
+deploy_stack_app "$nome_app_rabbitmq"
 
-#docker stack deploy --prune --resolve-image always -c $nome_app_rabbitmq.yaml $nome_app_rabbitmq >/dev/null 2>&1
-
-
-if [[ "$criar_portainer" == "0" ]]; then
-    # A stack será criada no Portainer
-    echo -e "XXX\n65\nCRIANDO STACK NO PORTAINER 3/4  \nXXX"
-   # echo "Criando a stack no Portainer para edição."
-    # Substituir pelo comando ou rotina para criar a stack no Portainer
-    # Aqui pode chamar um novo script ou rotina específica, exemplo:
-   ## /path/to/criar_stack_no_portainer.sh "$nome_app" "$painelpma"
-
-#!/bin/bash
-
-# Configurações
-
-# Caminho para o arquivo de dados
-dados_file="$HOME/dados_portainer/dados_portainer"
-
-# Verifica se o arquivo existe
-if [[ -f "$dados_file" ]]; then
-    # Coleta as informações do arquivo
-PORTAINER_URL=$(grep "Dominio do portainer:" "$dados_file" | cut -d':' -f2 | xargs)
-ADMIN_USERNAME=$(grep "Usuario:" "$dados_file" | cut -d':' -f2 | xargs)
-ADMIN_PASSWORD=$(grep "Senha:" "$dados_file" | cut -d':' -f2 | xargs)
-STACK_NAME=$nome_app_rabbitmq
-STACK_FILE_PATH="/root/$nome_app_rabbitmq.yaml"
-
-else
-   # echo "Erro: Arquivo de dados não encontrado em $dados_file."
-    sleep 5
-echo -e "XXX\n66\nSEM ARQUIVO DE DADOS DO PORTAINER 3/4  \nXXX"
-docker stack deploy --prune --resolve-image always -c $nome_app_rabbitmq.yaml $nome_app_rabbitmq >/dev/null 2>&1
-sleep 5
-    exit 1
-fi
-
-# Função para autenticação
-get_auth_token() {
-    #echo "[INFO] Autenticando no Portainer..."
-    echo -e "XXX\n67\nAUTENTICANDO NO PORTAINER... 3/4  \nXXX"
-    RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
-        -H "Content-Type: application/json" \
-        -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
-    TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
-    if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-        # echo "[ERRO] Falha na autenticação."
-        echo -e "XXX\n68\nFALHA NA AUTENTICAÇÃO.. 3/4  \nXXX"
-sleep 5
-echo -e "XXX\n30\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
-docker stack deploy --prune --resolve-image always -c $nome_app_rabbitmq.yaml $nome_app_rabbitmq >/dev/null 2>&1
-sleep 5
-        exit 1
-    fi
-  #  echo "[SUCESSO] Autenticação realizada com sucesso. Token obtido."
- echo -e "XXX\n69\n[SUCESSO] AUTENTICAÇÃO OK 3/4  \nXXX"
-}
-
-# Função para obter o EndpointID
-get_endpoint_id() {
-   # echo "[INFO] Obtendo EndpointID..."
-    echo -e "XXX\n70\n[INFO] OBTENDO ENDPOINTID 3/4  \nXXX"
-    RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
-        -H "Authorization: Bearer $TOKEN")
-    ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
-    if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
-        # echo "[ERRO] EndpointID não encontrado! Resposta: $RESPONSE"
-        echo -e "XXX\n71\n[ERRO] ENDPOINTID NÃO ENCONTRADO 3/4  \nXXX"
-        docker stack deploy --prune --resolve-image always -c $nome_app_rabbitmq.yaml $nome_app_rabbitmq >/dev/null 2>&1
-        exit 1
-    fi
-     echo -e "XXX\n72\n[SUCESSO] ENDPOINTID OBTIDO: $ENDPOINT_ID  3/4  \nXXX"
-    #echo "[SUCESSO] EndpointID obtido: $ENDPOINT_ID"
-}
-
-# Função para obter o SwarmID
-get_swarm_id() {
-   # echo "[INFO] Obtendo SwarmID..."
-    echo -e "XXX\n73\n[INFO] OBTENDO SWARMID  3/4  \nXXX"
-    RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
-        -H "Authorization: Bearer $TOKEN")
-    SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
-    if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
-        #echo "[ERRO] SwarmID não encontrado! Resposta: $RESPONSE"
-        echo -e "XXX\n74\n[ERRO] SWARMID NÃO ENCONTRADO 3/4  \nXXX"
-        docker stack deploy --prune --resolve-image always -c $nome_app_rabbitmq.yaml $nome_app_rabbitmq >/dev/null 2>&1
-        exit 1
-    fi
-    #echo "[SUCESSO] SwarmID obtido: $SWARM_ID"
-    echo -e "XXX\n75\n[SUCESSO] SWARMID OBTIDO: $SWARM_ID  3/4  \nXXX"
-}
-
-# Função para criar a stack
-create_stack() {
-    #echo "[INFO] Verificando existência do arquivo YAML..."
-    echo -e "XXX\n76\n[INFO] VERIFICANDO SE YAML EXISTE 3/4  \nXXX"
-    if [ ! -f "$STACK_FILE_PATH" ]; then
-        #echo "[ERRO] Arquivo $STACK_FILE_PATH não encontrado!"
-        echo -e "XXX\n77\n[ERRO] ARQUIVO $STACK_FILE_PATH NÃO ENCONTRADO 3/4  \nXXX"
-        docker stack deploy --prune --resolve-image always -c $nome_app_rabbitmq.yaml $nome_app_rabbitmq >/dev/null 2>&1
-        exit 1
-    fi
-
-    #echo "[INFO] Criando stack '$STACK_NAME' no Portainer..."
-     echo -e "XXX\n78\n[INFO] CRIANDO STACK $STACK_NAME NO PORTAINER 3/4  \nXXX"
-    response_output=$(mktemp)
-    erro_output=$(mktemp)
-
-    http_code=$(curl -s -o "$response_output" -w "%{http_code}"  -X POST \
-        -H "Authorization: Bearer $TOKEN" \
-        -F "Name=$STACK_NAME" \
-        -F "file=@$STACK_FILE_PATH" \
-        -F "SwarmID=$SWARM_ID" \
-        -F "endpointId=$ENDPOINT_ID" \
-        "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
-
-    response=$(cat "$response_output")
-    rm -f "$response_output" "$erro_output"
-
-   # echo "[DEBUG] Resposta da criação da stack: $response"
-   # echo "[DEBUG] Código HTTP: $http_code"
-
-    if [ "$http_code" -ne 200 ]; then
-       # echo "[ERRO] Erro ao criar a stack. Código HTTP: $http_code. Resposta: $response"
-        echo -e "XXX\n79\n[ERRO] ERRO AO CRIAR STACK 3/4  \nXXX"
-        docker stack deploy --prune --resolve-image always -c $nome_app_rabbitmq.yaml $nome_app_rabbitmq >/dev/null 2>&1
-        exit 1
-    fi
-
-   # echo "[SUCESSO] Stack '$STACK_NAME' criada com sucesso!"
-    echo -e "XXX\n80\n[SUCESSO] STACK $STACK_NAME  CRIADA COM SUCESSO 3/4  \nXXX"
-}
-
-# Fluxo de execução principal
-# echo "[INFO] Iniciando processo de criação da stack..."
-get_auth_token || exit 1
-get_endpoint_id || exit 1
-get_swarm_id || exit 1
-create_stack || exit 1
-# echo "[SUCESSO] Processo concluído."
-
-
-
-
-elif [[ "$criar_portainer" == "1" ]]; then
-    # A stack será criada diretamente no Docker
-    echo "Criando a stack diretamente no Docker (não editável no Portainer)."
-    docker stack deploy --prune --resolve-image always -c $nome_app_rabbitmq.yaml $nome_app_rabbitmq >/dev/null 2>&1
-else
-    # Caso inesperado (não deve ocorrer devido à validação anterior no while loop)
-   # echo "Erro: valor inesperado para criar_portainer. Encerrando..."
-    echo -e "XXX\n81\n[ERRO] ERRO INESPERADO PARA CRIAR STACK NO PORTAINER 3/4  \nXXX"
-    sleep 5
-    echo -e "XXX\n82\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
-docker stack deploy --prune --resolve-image always -c $nome_app_rabbitmq.yaml $nome_app_rabbitmq >/dev/null 2>&1
-sleep 5
-
-    exit 1
-fi
-
-
-# FIM DE INSTALANDO O RABBITMQ
-#
-#######################################################
-
-
-
-
-
-# FIM DE MENSAGEM DE INSTALANDO
-#
-#######################################################
-#
-#  INSTALANDO O CHATWOOT
-#
-sleep 3 
-echo -e "XXX\n83\nFAZENDO O BUILD DOS STACKS 2/4 \nXXX"
-sleep 3
-echo -e "XXX\n84\nFAZENDO O BUILD DOS STACKS 2/4 - CONCLUIDO \nXXX"
-
-cd
-
-cd
-
-encryption_key=$(openssl rand -hex 16)
-
+cd ~
 cat > $nome_app_chatwoot.yaml << EOL
 
 version: "3.7"
@@ -2686,185 +1222,9 @@ networks:
 
 
 EOL
+deploy_stack_app "$nome_app_chatwoot"
 
-#docker stack deploy --prune --resolve-image always -c $nome_app_chatwoot.yaml $nome_app_chatwoot >/dev/null 2>&1
-
-
-if [[ "$criar_portainer" == "0" ]]; then
-    # A stack será criada no Portainer
-    echo -e "XXX\n85\nCRIANDO STACK NO PORTAINER 3/4  \nXXX"
-   # echo "Criando a stack no Portainer para edição."
-    # Substituir pelo comando ou rotina para criar a stack no Portainer
-    # Aqui pode chamar um novo script ou rotina específica, exemplo:
-   ## /path/to/criar_stack_no_portainer.sh "$nome_app" "$painelpma"
-
-#!/bin/bash
-
-# Configurações
-
-# Caminho para o arquivo de dados
-dados_file="$HOME/dados_portainer/dados_portainer"
-
-# Verifica se o arquivo existe
-if [[ -f "$dados_file" ]]; then
-    # Coleta as informações do arquivo
-PORTAINER_URL=$(grep "Dominio do portainer:" "$dados_file" | cut -d':' -f2 | xargs)
-ADMIN_USERNAME=$(grep "Usuario:" "$dados_file" | cut -d':' -f2 | xargs)
-ADMIN_PASSWORD=$(grep "Senha:" "$dados_file" | cut -d':' -f2 | xargs)
-STACK_NAME=$nome_app_chatwoot
-STACK_FILE_PATH="/root/$nome_app_chatwoot.yaml"
-
-else
-   # echo "Erro: Arquivo de dados não encontrado em $dados_file."
-    sleep 5
-echo -e "XXX\n86\nSEM ARQUIVO DE DADOS DO PORTAINER 3/4  \nXXX"
-docker stack deploy --prune --resolve-image always -c $nome_app_chatwoot.yaml $nome_app_chatwoot >/dev/null 2>&1
-sleep 5
-    exit 1
-fi
-
-# Função para autenticação
-get_auth_token() {
-    #echo "[INFO] Autenticando no Portainer..."
-    echo -e "XXX\n87\nAUTENTICANDO NO PORTAINER... 3/4  \nXXX"
-    RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
-        -H "Content-Type: application/json" \
-        -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
-    TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
-    if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-        # echo "[ERRO] Falha na autenticação."
-        echo -e "XXX\n88\nFALHA NA AUTENTICAÇÃO.. 3/4  \nXXX"
-sleep 5
-echo -e "XXX\n89\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
-docker stack deploy --prune --resolve-image always -c $nome_app_chatwoot.yaml $nome_app_chatwoot >/dev/null 2>&1
-sleep 5
-        exit 1
-    fi
-  #  echo "[SUCESSO] Autenticação realizada com sucesso. Token obtido."
- echo -e "XXX\n80\n[SUCESSO] AUTENTICAÇÃO OK 3/4  \nXXX"
-}
-
-# Função para obter o EndpointID
-get_endpoint_id() {
-   # echo "[INFO] Obtendo EndpointID..."
-    echo -e "XXX\n80\n[INFO] OBTENDO ENDPOINTID 3/4  \nXXX"
-    RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
-        -H "Authorization: Bearer $TOKEN")
-    ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
-    if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
-        # echo "[ERRO] EndpointID não encontrado! Resposta: $RESPONSE"
-        echo -e "XXX\n80\n[ERRO] ENDPOINTID NÃO ENCONTRADO 3/4  \nXXX"
-        docker stack deploy --prune --resolve-image always -c $nome_app_chatwoot.yaml $nome_app_chatwoot >/dev/null 2>&1
-        exit 1
-    fi
-     echo -e "XXX\n80\n[SUCESSO] ENDPOINTID OBTIDO: $ENDPOINT_ID  3/4  \nXXX"
-    #echo "[SUCESSO] EndpointID obtido: $ENDPOINT_ID"
-}
-
-# Função para obter o SwarmID
-get_swarm_id() {
-   # echo "[INFO] Obtendo SwarmID..."
-    echo -e "XXX\n80\n[INFO] OBTENDO SWARMID  3/4  \nXXX"
-    RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
-        -H "Authorization: Bearer $TOKEN")
-    SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
-    if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
-        #echo "[ERRO] SwarmID não encontrado! Resposta: $RESPONSE"
-        echo -e "XXX\n80\n[ERRO] SWARMID NÃO ENCONTRADO 3/4  \nXXX"
-        docker stack deploy --prune --resolve-image always -c $nome_app_chatwoot.yaml $nome_app_chatwoot >/dev/null 2>&1
-        exit 1
-    fi
-    #echo "[SUCESSO] SwarmID obtido: $SWARM_ID"
-    echo -e "XXX\n80\n[SUCESSO] SWARMID OBTIDO: $SWARM_ID  3/4  \nXXX"
-}
-
-# Função para criar a stack
-create_stack() {
-    #echo "[INFO] Verificando existência do arquivo YAML..."
-    echo -e "XXX\n62\n[INFO] VERIFICANDO SE YAML EXISTE 3/4  \nXXX"
-    if [ ! -f "$STACK_FILE_PATH" ]; then
-        #echo "[ERRO] Arquivo $STACK_FILE_PATH não encontrado!"
-        echo -e "XXX\n80\n[ERRO] ARQUIVO $STACK_FILE_PATH NÃO ENCONTRADO 3/4  \nXXX"
-        docker stack deploy --prune --resolve-image always -c $nome_app_chatwoot.yaml $nome_app_chatwoot >/dev/null 2>&1
-        exit 1
-    fi
-
-    #echo "[INFO] Criando stack '$STACK_NAME' no Portainer..."
-     echo -e "XXX\n80\n[INFO] CRIANDO STACK $STACK_NAME NO PORTAINER 3/4  \nXXX"
-    response_output=$(mktemp)
-    erro_output=$(mktemp)
-
-    http_code=$(curl -s -o "$response_output" -w "%{http_code}"  -X POST \
-        -H "Authorization: Bearer $TOKEN" \
-        -F "Name=$STACK_NAME" \
-        -F "file=@$STACK_FILE_PATH" \
-        -F "SwarmID=$SWARM_ID" \
-        -F "endpointId=$ENDPOINT_ID" \
-        "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
-
-    response=$(cat "$response_output")
-    rm -f "$response_output" "$erro_output"
-
-   # echo "[DEBUG] Resposta da criação da stack: $response"
-   # echo "[DEBUG] Código HTTP: $http_code"
-
-    if [ "$http_code" -ne 200 ]; then
-       # echo "[ERRO] Erro ao criar a stack. Código HTTP: $http_code. Resposta: $response"
-        echo -e "XXX\n80\n[ERRO] ERRO AO CRIAR STACK 3/4  \nXXX"
-        docker stack deploy --prune --resolve-image always -c $nome_app_chatwoot.yaml $nome_app_chatwoot >/dev/null 2>&1
-        exit 1
-    fi
-
-   # echo "[SUCESSO] Stack '$STACK_NAME' criada com sucesso!"
-    echo -e "XXX\n80\n[SUCESSO] STACK $STACK_NAME  CRIADA COM SUCESSO 3/4  \nXXX"
-}
-
-# Fluxo de execução principal
-# echo "[INFO] Iniciando processo de criação da stack..."
-get_auth_token || exit 1
-get_endpoint_id || exit 1
-get_swarm_id || exit 1
-create_stack || exit 1
-# echo "[SUCESSO] Processo concluído."
-
-
-
-
-elif [[ "$criar_portainer" == "1" ]]; then
-    # A stack será criada diretamente no Docker
-    echo "Criando a stack diretamente no Docker (não editável no Portainer)."
-    docker stack deploy --prune --resolve-image always -c $nome_app_chatwoot.yaml $nome_app_chatwoot >/dev/null 2>&1
-else
-    # Caso inesperado (não deve ocorrer devido à validação anterior no while loop)
-   # echo "Erro: valor inesperado para criar_portainer. Encerrando..."
-    echo -e "XXX\n80\n[ERRO] ERRO INESPERADO PARA CRIAR STACK NO PORTAINER 3/4  \nXXX"
-    sleep 5
-    echo -e "XXX\n80\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
-docker stack deploy --prune --resolve-image always -c $nome_app_chatwoot.yaml $nome_app_chatwoot >/dev/null 2>&1
-sleep 5
-
-    exit 1
-fi
-
-# FIM DE INSTALANDO O CHATWOOT
-#
-#######################################################
-
-
-#######################################################
-#
-#  INSTALANDO A EVOLUTION API - INICIO
-#
-
-sleep 3
-echo -e "XXX\n80\nCRIANDO BANCO DE DADOS DO CHATWOOT 3/4 \nXXX"
-sleep 3
-echo -e "XXX\n80\nCRIANDO BANCO DE DADOS DO CHATWOOT 3/4 - CONCLUIDO \nXXX"
-
-cd
-
-cd
-
+cd ~
 cat > $nome_app_evolution.yaml << EOL
 
 version: "3.7"
@@ -3078,162 +1438,7 @@ networks:
     external: true
     
 EOL
-
-#docker stack deploy --prune --resolve-image always -c $nome_app_evolution.yaml $nome_app_evolution >/dev/null 2>&1
-
-
-if [[ "$criar_portainer" == "0" ]]; then
-    # A stack será criada no Portainer
-    echo -e "XXX\n80\nCRIANDO STACK NO PORTAINER 3/4  \nXXX"
-
-# Configurações
-
-# Caminho para o arquivo de dados
-dados_file="$HOME/dados_portainer/dados_portainer"
-
-# Verifica se o arquivo existe
-if [[ -f "$dados_file" ]]; then
-    # Coleta as informações do arquivo
-PORTAINER_URL=$(grep "Dominio do portainer:" "$dados_file" | cut -d':' -f2 | xargs)
-ADMIN_USERNAME=$(grep "Usuario:" "$dados_file" | cut -d':' -f2 | xargs)
-ADMIN_PASSWORD=$(grep "Senha:" "$dados_file" | cut -d':' -f2 | xargs)
-STACK_NAME=$nome_app_evolution
-STACK_FILE_PATH="/root/$nome_app_evolution.yaml"
-
-else
-   # echo "Erro: Arquivo de dados não encontrado em $dados_file."
-    sleep 5
-echo -e "XXX\n81\nSEM ARQUIVO DE DADOS DO PORTAINER 3/4  \nXXX"
-docker stack deploy --prune --resolve-image always -c $nome_app_evolution.yaml $nome_app_evolution >/dev/null 2>&1
-sleep 5
-    exit 1
-fi
-
-# Função para autenticação
-get_auth_token() {
-    #echo "[INFO] Autenticando no Portainer..."
-    echo -e "XXX\n82\nAUTENTICANDO NO PORTAINER... 3/4  \nXXX"
-    RESPONSE=$(curl -sS -X POST "https://$PORTAINER_URL/api/auth" \
-        -H "Content-Type: application/json" \
-        -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}")
-    TOKEN=$(echo "$RESPONSE" | jq -r '.jwt')
-    if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-        # echo "[ERRO] Falha na autenticação."
-        echo -e "XXX\n83\nFALHA NA AUTENTICAÇÃO.. 3/4  \nXXX"
-sleep 5
-echo -e "XXX\n84\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
-docker stack deploy --prune --resolve-image always -c $nome_app_evolution.yaml $nome_app_evolution >/dev/null 2>&1
-sleep 5
-        exit 1
-    fi
-  #  echo "[SUCESSO] Autenticação realizada com sucesso. Token obtido."
- echo -e "XXX\n85\n[SUCESSO] AUTENTICAÇÃO OK 3/4  \nXXX"
-}
-
-# Função para obter o EndpointID
-get_endpoint_id() {
-   # echo "[INFO] Obtendo EndpointID..."
-    echo -e "XXX\n86\n[INFO] OBTENDO ENDPOINTID 3/4  \nXXX"
-    RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints" \
-        -H "Authorization: Bearer $TOKEN")
-    ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.[0].Id')
-    if [ -z "$ENDPOINT_ID" ] || [ "$ENDPOINT_ID" = "null" ]; then
-        # echo "[ERRO] EndpointID não encontrado! Resposta: $RESPONSE"
-        echo -e "XXX\n87\n[ERRO] ENDPOINTID NÃO ENCONTRADO 3/4  \nXXX"
-       docker stack deploy --prune --resolve-image always -c $nome_app_evolution.yaml $nome_app_evolution >/dev/null 2>&1
-        exit 1
-    fi
-     echo -e "XXX\n88\n[SUCESSO] ENDPOINTID OBTIDO: $ENDPOINT_ID  3/4  \nXXX"
-    #echo "[SUCESSO] EndpointID obtido: $ENDPOINT_ID"
-}
-
-# Função para obter o SwarmID
-get_swarm_id() {
-   # echo "[INFO] Obtendo SwarmID..."
-    echo -e "XXX\n89\n[INFO] OBTENDO SWARMID  3/4  \nXXX"
-    RESPONSE=$(curl -sS -X GET "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
-        -H "Authorization: Bearer $TOKEN")
-    SWARM_ID=$(echo "$RESPONSE" | jq -r '.ID')
-    if [ -z "$SWARM_ID" ] || [ "$SWARM_ID" = "null" ]; then
-        #echo "[ERRO] SwarmID não encontrado! Resposta: $RESPONSE"
-        echo -e "XXX\n90\n[ERRO] SWARMID NÃO ENCONTRADO 3/4  \nXXX"
-       docker stack deploy --prune --resolve-image always -c $nome_app_evolution.yaml $nome_app_evolution >/dev/null 2>&1
-        exit 1
-    fi
-    #echo "[SUCESSO] SwarmID obtido: $SWARM_ID"
-    echo -e "XXX\n91\n[SUCESSO] SWARMID OBTIDO: $SWARM_ID  3/4  \nXXX"
-}
-
-# Função para criar a stack
-create_stack() {
-    #echo "[INFO] Verificando existência do arquivo YAML..."
-    echo -e "XXX\n92\n[INFO] VERIFICANDO SE YAML EXISTE 3/4  \nXXX"
-    if [ ! -f "$STACK_FILE_PATH" ]; then
-        #echo "[ERRO] Arquivo $STACK_FILE_PATH não encontrado!"
-        echo -e "XXX\n93\n[ERRO] ARQUIVO $STACK_FILE_PATH NÃO ENCONTRADO 3/4  \nXXX"
-       docker stack deploy --prune --resolve-image always -c $nome_app_evolution.yaml $nome_app_evolution >/dev/null 2>&1
-        exit 1
-    fi
-
-    #echo "[INFO] Criando stack '$STACK_NAME' no Portainer..."
-     echo -e "XXX\n94\n[INFO] CRIANDO STACK $STACK_NAME NO PORTAINER 3/4  \nXXX"
-    response_output=$(mktemp)
-    erro_output=$(mktemp)
-
-    http_code=$(curl -s -o "$response_output" -w "%{http_code}"  -X POST \
-        -H "Authorization: Bearer $TOKEN" \
-        -F "Name=$STACK_NAME" \
-        -F "file=@$STACK_FILE_PATH" \
-        -F "SwarmID=$SWARM_ID" \
-        -F "endpointId=$ENDPOINT_ID" \
-        "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2> "$erro_output")
-
-    response=$(cat "$response_output")
-    rm -f "$response_output" "$erro_output"
-
-   # echo "[DEBUG] Resposta da criação da stack: $response"
-   # echo "[DEBUG] Código HTTP: $http_code"
-
-    if [ "$http_code" -ne 200 ]; then
-       # echo "[ERRO] Erro ao criar a stack. Código HTTP: $http_code. Resposta: $response"
-        echo -e "XXX\n95\n[ERRO] ERRO AO CRIAR STACK 3/4  \nXXX"
-      docker stack deploy --prune --resolve-image always -c $nome_app_evolution.yaml $nome_app_evolution >/dev/null 2>&1
-        exit 1
-    fi
-
-   # echo "[SUCESSO] Stack '$STACK_NAME' criada com sucesso!"
-    echo -e "XXX\n96\n[SUCESSO] STACK $STACK_NAME  CRIADA COM SUCESSO 3/4  \nXXX"
-}
-
-# Fluxo de execução principal
-# echo "[INFO] Iniciando processo de criação da stack..."
-get_auth_token || exit 1
-get_endpoint_id || exit 1
-get_swarm_id || exit 1
-create_stack || exit 1
-# echo "[SUCESSO] Processo concluído."
-
-
-
-
-elif [[ "$criar_portainer" == "1" ]]; then
-    # A stack será criada diretamente no Docker
-    echo "Criando a stack diretamente no Docker (não editável no Portainer)."
-docker stack deploy --prune --resolve-image always -c $nome_app_evolution.yaml $nome_app_evolution >/dev/null 2>&1
-else
-    # Caso inesperado (não deve ocorrer devido à validação anterior no while loop)
-   # echo "Erro: valor inesperado para criar_portainer. Encerrando..."
-    echo -e "XXX\n97\n[ERRO] ERRO INESPERADO PARA CRIAR STACK NO PORTAINER 3/4  \nXXX"
-    sleep 5
-    echo -e "XXX\n98\nREVERTENDO E CRIANDO STACK PELO SERVIDOR 3/4  \nXXX"
-docker stack deploy --prune --resolve-image always -c $nome_app_evolution.yaml $nome_app_evolution >/dev/null 2>&1
-sleep 5
-
-    exit 1
-fi
-
-#######################################################
-#
+deploy_stack_app "$nome_app_evolution"
 
 # FINALIZANDO INSTALACAO E LIBERANDO BRAND NO INSTALLATION CONFIGS
 #
@@ -3364,3 +1569,4 @@ else
 fi
 
 exit 0
+
