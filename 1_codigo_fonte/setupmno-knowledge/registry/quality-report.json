@@ -3342,7 +3342,7 @@
   "generatedAt": "2026-09-06T00:00:00Z",
   "knowledgeVersion": "3.34.2",
   "schemaVersion": 2,
-  "setupVersion": "7.48.14",
+  "setupVersion": "7.48.15",
   "summary": {
     "editorialStatuses": {
       "deprecated": 0,

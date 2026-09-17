@@ -42,6 +42,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     if [ -f "${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials}" ]; then
         source "${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials}"
     fi
+    [ -f /root/SetupLowCodeMno/cloudflare_app_guard.sh ] && . /root/SetupLowCodeMno/cloudflare_app_guard.sh
 else
     if [ -f "${SETUPMNO_TRADITIONAL_CREDENTIALS_FILE:-/root/.tradicional_config/tradicional_credentials}" ]; then
         source "${SETUPMNO_TRADITIONAL_CREDENTIALS_FILE:-/root/.tradicional_config/tradicional_credentials}"
@@ -78,7 +79,18 @@ done
   while true ; do
 		dominioadmin=$(whiptail --title "1/2 - URL do Admin" --inputbox "Digite o dominio para acessar o admin N8N (ex: apiadmin.dominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
 		if [[ $saida -eq '0' ]] ; then
-			if [[ -z $dominioadmin ]] ; then msg "Digite o link do admin do N8N para poder continuar" ; continue ; else break; fi
+			if [[ -z $dominioadmin ]] ; then msg "Digite o link do admin do N8N para poder continuar" ; continue ; fi
+			# Proteção de rotas Cloudflare Route Guard
+			if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] && declare -F setupmno_guard_route >/dev/null 2>&1; then
+			    setupmno_guard_route "$dominioadmin"
+			    guard_res=$?
+			    if [ "$guard_res" -eq 20 ]; then
+			        continue
+			    elif [ "$guard_res" -ne 0 ]; then
+			        exit 0
+			    fi
+			fi
+			break
 		else
 			echo $dominioadmin ; echo "saindo..."  &  exit 0 ;
 		fi
@@ -87,7 +99,18 @@ done
       while true ; do
 		dominiowebhook=$(whiptail --title "2/2 - URL do Webhook" --inputbox "Digite o dominio do Webhook do N8N (ex: webhook.dominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
 		if [[ $saida -eq '0' ]] ; then
-			if [[ -z $dominiowebhook ]] ; then msg "Digite o link do webhook do N8N para poder continuar" ; continue ; else break; fi
+			if [[ -z $dominiowebhook ]] ; then msg "Digite o link do webhook do N8N para poder continuar" ; continue ; fi
+			# Proteção de rotas Cloudflare Route Guard
+			if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] && declare -F setupmno_guard_route >/dev/null 2>&1; then
+			    setupmno_guard_route "$dominiowebhook"
+			    guard_res=$?
+			    if [ "$guard_res" -eq 20 ]; then
+			        continue
+			    elif [ "$guard_res" -ne 0 ]; then
+			        exit 0
+			    fi
+			fi
+			break
 		else
 			echo $dominiowebhook ; echo "saindo..."  &  exit 0 ;
 		fi

@@ -42,6 +42,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     if [ -f "${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials}" ]; then
         source "${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials}"
     fi
+    [ -f /root/SetupLowCodeMno/cloudflare_app_guard.sh ] && . /root/SetupLowCodeMno/cloudflare_app_guard.sh
 else
     if [ -f "${SETUPMNO_TRADITIONAL_CREDENTIALS_FILE:-/root/.tradicional_config/tradicional_credentials}" ]; then
         source "${SETUPMNO_TRADITIONAL_CREDENTIALS_FILE:-/root/.tradicional_config/tradicional_credentials}"
@@ -55,7 +56,7 @@ function msg() {
 
 while true; do
 CHOICE=$(
-whiptail --title "INSTALAÇÃO DO DIFY" --menu "INSTRUÇÕES\n1 - Dify é uma plataforma AI workflow (149k★ GitHub).\n2 - Serão instalados: API, Worker, Web, Sandbox e Weaviate.\n3 - Redis dedicado será criado automaticamente.\n4 - Utilize domínios apontados para o servidor.\n5 - Aperte ENTER para iniciar ou selecione SAIR." 20 70 2 \
+whiptail --title "INSTALAÇÃO DO DIFY" --menu "Aperte ENTER para iniciar a instalação do Dify ou selecione SAIR (Utilize setas e Enter)\n\nTIPO DE INSTALAÇÃO DETECTADA: $INSTALL_TYPE\n\nINSTRUÇÕES:\nAntes de prosseguir, verifique os registros DNS conforme seu tipo de instalação:" 20 70 2 \
     "1)" "CONTINUAR"   \
     "2)" "SAIR"  3>&2 2>&1 1>&3
 )
@@ -76,7 +77,18 @@ done
 while true ; do
     url_dify=$(whiptail --title "1/5 - URL Web do Dify" --inputbox "Digite o link da Web do Dify (ex: dify.seudominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
     if [[ $saida -eq '0' ]] ; then
-        if [[ -z $url_dify ]] ; then msg "Digite o link da Web do Dify para continuar" ; continue ; else break; fi
+        if [[ -z $url_dify ]] ; then msg "Digite o link da Web do Dify para continuar" ; continue ; fi
+        # Proteção de rotas Cloudflare Route Guard
+        if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] && declare -F setupmno_guard_route >/dev/null 2>&1; then
+            setupmno_guard_route "$url_dify"
+            guard_res=$?
+            if [ "$guard_res" -eq 20 ]; then
+                continue
+            elif [ "$guard_res" -ne 0 ]; then
+                exit 0
+            fi
+        fi
+        break
     else
         echo "saindo..." & exit 0
     fi
@@ -85,7 +97,18 @@ done
 while true ; do
     url_api_dify=$(whiptail --title "2/5 - URL da API do Dify" --inputbox "Digite o link da API do Dify (ex: apidify.seudominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
     if [[ $saida -eq '0' ]] ; then
-        if [[ -z $url_api_dify ]] ; then msg "Digite o link da API do Dify para continuar" ; continue ; else break; fi
+        if [[ -z $url_api_dify ]] ; then msg "Digite o link da API do Dify para continuar" ; continue ; fi
+        # Proteção de rotas Cloudflare Route Guard
+        if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] && declare -F setupmno_guard_route >/dev/null 2>&1; then
+            setupmno_guard_route "$url_api_dify"
+            guard_res=$?
+            if [ "$guard_res" -eq 20 ]; then
+                continue
+            elif [ "$guard_res" -ne 0 ]; then
+                exit 0
+            fi
+        fi
+        break
     else
         echo "saindo..." & exit 0
     fi

@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Baserow no Setup MNO",
   "setupId": "baserow",
-  "setupVersion": "7.48.14",
+  "setupVersion": "7.48.15",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

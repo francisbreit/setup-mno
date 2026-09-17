@@ -60,6 +60,7 @@ class CertificationTests(unittest.TestCase):
         closing = lines.index("---", 1)
         metadata = json.loads("\n".join(lines[1:closing]))
         metadata["status"] = "homologated"
+        metadata["setupVersion"] = SETUP_VERSION
         metadata["updatedAt"] = "2026-08-19"
         metadata["homologation"] = {
             "verifiedAt": "2026-08-19",

@@ -156,6 +156,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     if [ -f "${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials}" ]; then
         source "${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials}"
     fi
+    [ -f /root/SetupLowCodeMno/cloudflare_app_guard.sh ] && . /root/SetupLowCodeMno/cloudflare_app_guard.sh
 else
     if [ -f "${SETUPMNO_TRADITIONAL_CREDENTIALS_FILE:-/root/.tradicional_config/tradicional_credentials}" ]; then
         source "${SETUPMNO_TRADITIONAL_CREDENTIALS_FILE:-/root/.tradicional_config/tradicional_credentials}"
@@ -193,7 +194,18 @@ done
   while true ; do
 		urlmautic=$(whiptail --title "1/4 - URL do Mautic" --inputbox "Digite o Link do Mautic (ex: mkt.seudominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
 		if [[ $saida -eq '0' ]] ; then
-			if [[ -z $urlmautic ]] ; then msg "Digite o link do Mautic, para poder continuar" ; continue ; else break; fi
+			if [[ -z $urlmautic ]] ; then msg "Digite o link do Mautic, para poder continuar" ; continue ; fi
+			# Proteção de rotas Cloudflare Route Guard
+			if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] && declare -F setupmno_guard_route >/dev/null 2>&1; then
+			    setupmno_guard_route "$urlmautic"
+			    guard_res=$?
+			    if [ "$guard_res" -eq 20 ]; then
+			        continue
+			    elif [ "$guard_res" -ne 0 ]; then
+			        exit 0
+			    fi
+			fi
+			break
 		else
 			echo $urlmautic ; echo "saindo..."  &  exit 0 ;
 		fi
@@ -1112,8 +1124,8 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
         whiptail --title "Mensagem" --msgbox "Parabéns, Mautic 4 com WhatsApp e SMS Marketing foi instalado com sucesso!\n\nAcesse: https://$urlmautic\n\nPressione ENTER para voltar ao Menu Principal" 20 78
     fi
 else
-    # Para Cloudflare Tunnel, verificação mais simples
-    if nslookup "$urlmautic" >/dev/null 2>&1; then
+    # Para Cloudflare Tunnel, validação resiliente de resolução DNS
+    if setupmno_check_dns "$urlmautic" 8 || nslookup "$urlmautic" >/dev/null 2>&1; then
         whiptail --title "Mensagem" --msgbox "Parabéns, Mautic 4 com WhatsApp e SMS Marketing foi instalado com sucesso!\n\nAcesse: https://$urlmautic\n\nConfiguração Cloudflare Tunnel concluída com rotas e DNS.\n\nPressione ENTER para voltar ao Menu Principal" 20 78
     else
         whiptail --title "Mensagem" --msgbox "AVISO: O domínio do Mautic 4 com WhatsApp e SMS Marketing ($urlmautic) não está resolvendo.\nVerifique a configuração do Cloudflare Tunnel.\n\nA instalação foi concluída, mas o acesso pode não funcionar até que o DNS esteja configurado corretamente.\n\nPressione ENTER para voltar ao Menu Principal" 20 78

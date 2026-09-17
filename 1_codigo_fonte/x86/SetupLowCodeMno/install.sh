@@ -217,11 +217,18 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.48.14"
+VERSIONSETUP="7.48.15"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
 CONTATO_GITHUB="github.com/francisbreit"
+
+# Guardião de Rotas Cloudflare e Validação Resiliente de DNS
+CLOUDFLARE_GUARD_LIB="/root/SetupLowCodeMno/cloudflare_app_guard.sh"
+if [ -f "$CLOUDFLARE_GUARD_LIB" ]; then
+    # shellcheck disable=SC1090
+    source "$CLOUDFLARE_GUARD_LIB"
+fi
 
 # Perfis multidomínio são uma camada aditiva. Se o arquivo não existir em uma
 # instalação antiga, todo o comportamento legado permanece inalterado.

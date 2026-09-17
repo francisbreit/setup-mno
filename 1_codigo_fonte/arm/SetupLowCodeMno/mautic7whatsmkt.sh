@@ -260,6 +260,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     if [ -f "${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials}" ]; then
         source "${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials}"
     fi
+    [ -f /root/SetupLowCodeMno/cloudflare_app_guard.sh ] && . /root/SetupLowCodeMno/cloudflare_app_guard.sh
 else
     if [ -f "${SETUPMNO_TRADITIONAL_CREDENTIALS_FILE:-/root/.tradicional_config/tradicional_credentials}" ]; then
         source "${SETUPMNO_TRADITIONAL_CREDENTIALS_FILE:-/root/.tradicional_config/tradicional_credentials}"
@@ -297,7 +298,18 @@ done
   while true ; do
                 url_mautic=$(whiptail --title "URL do Mautic" --inputbox "Digite o Link do Mautic (ex: mkt.seudominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
                 if [[ $saida -eq '0' ]] ; then
-                        if [[ -z $url_mautic ]] ; then msg "Digite o link do Mautic, para poder continuar" ; continue ; else break; fi
+                        if [[ -z $url_mautic ]] ; then msg "Digite o link do Mautic, para poder continuar" ; continue ; fi
+                        # Proteção de rotas Cloudflare Route Guard
+                        if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] && declare -F setupmno_guard_route >/dev/null 2>&1; then
+                            setupmno_guard_route "$url_mautic"
+                            guard_res=$?
+                            if [ "$guard_res" -eq 20 ]; then
+                                continue
+                            elif [ "$guard_res" -ne 0 ]; then
+                                exit 0
+                            fi
+                        fi
+                        break
                 else
                         echo $url_mautic ; echo "saindo..."  &  exit 0 ;
                 fi
@@ -1987,8 +1999,8 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
         whiptail --title "Mensagem" --msgbox "MAUTIC 7 com WhatsApp e SMS Marketing instalado com sucesso!\n\nAcesse: https://$url_mautic\nConfiguração Cloudflare Tunnel concluída com rotas e DNS.\nPressione ENTER para voltar ao Menu Principal\nATENÇÃO: Foram criados um usuário e senha provisórios para você realizar o primeiro acesso.\nOs dados estão abaixo. Assim que acessar pela primeira vez crie um usuário e senha seguros.\nDADOS DE ACESSO:\nUsuario: admin123@example.com\nSenha: admin@1234567" 20 78
     fi
 else
-    # Para Cloudflare Tunnel, verificação mais simples
-    if nslookup "$url_mautic" >/dev/null 2>&1; then
+    # Para Cloudflare Tunnel, validação resiliente de resolução DNS
+    if setupmno_check_dns "$url_mautic" 8 || nslookup "$url_mautic" >/dev/null 2>&1; then
          sleep 2
          CONTAINER_ID=$(docker ps -qf name=mautic_web$sufixo_app)
         docker exec -it $CONTAINER_ID rm -r /var/www/html/var/cache/ >/dev/null 2>&1

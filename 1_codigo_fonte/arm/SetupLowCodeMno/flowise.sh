@@ -56,6 +56,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     if [ -f "${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials}" ]; then
         source "${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials}"
     fi
+    [ -f /root/SetupLowCodeMno/cloudflare_app_guard.sh ] && . /root/SetupLowCodeMno/cloudflare_app_guard.sh
 else
     if [ -f "${SETUPMNO_TRADITIONAL_CREDENTIALS_FILE:-/root/.tradicional_config/tradicional_credentials}" ]; then
         source "${SETUPMNO_TRADITIONAL_CREDENTIALS_FILE:-/root/.tradicional_config/tradicional_credentials}"
@@ -69,7 +70,7 @@ function msg() {
 
   while true; do
 CHOICE=$(
-whiptail --title "INSTALAÇO DO FLOWISE: CRIADOR LLM" --menu "Aperte ENTER para iniciar a instalação do FLOWISE ou selecione SAIR (Utilize setas e Enter)\n\nTIPO DE INSTALAÇÃO DETECTADA: $INSTALL_TYPE\n\nINSTRUÇÕES:\nAntes de prosseguir, verifique os registros DNS conforme seu tipo de instalação:" 20 70 2 \
+whiptail --title "INSTALAÇÃO DO FLOWISE: CRIADOR LLM" --menu "Aperte ENTER para iniciar a instalação do FLOWISE ou selecione SAIR (Utilize setas e Enter)\n\nTIPO DE INSTALAÇÃO DETECTADA: $INSTALL_TYPE\n\nINSTRUÇÕES:\nAntes de prosseguir, verifique os registros DNS conforme seu tipo de instalação:" 20 70 2 \
 	"1)" "CONTINUAR"   \
 	"2)" "SAIR"  3>&2 2>&1 1>&3	
 )
@@ -93,7 +94,18 @@ done
   while true ; do
 		dominioflowise=$(whiptail --title "1/3 - URL do Flowise" --inputbox "Digite o dominio para acessar o Flowise (ex: flowise.dominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
 		if [[ $saida -eq '0' ]] ; then
-			if [[ -z $dominioflowise ]] ; then msg "Digite o link do FLOWISE para poder continuar" ; continue ; else break; fi
+			if [[ -z $dominioflowise ]] ; then msg "Digite o link do FLOWISE para poder continuar" ; continue ; fi
+			# Proteção de rotas Cloudflare Route Guard
+			if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] && declare -F setupmno_guard_route >/dev/null 2>&1; then
+			    setupmno_guard_route "$dominioflowise"
+			    guard_res=$?
+			    if [ "$guard_res" -eq 20 ]; then
+			        continue
+			    elif [ "$guard_res" -ne 0 ]; then
+			        exit 0
+			    fi
+			fi
+			break
 		else
 			echo $dominioflowise ; echo "saindo..."  &  exit 0 ;
 		fi
@@ -686,8 +698,8 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
         whiptail --title "Mensagem" --msgbox "Parabéns, FLOWISE foi instalado com sucesso!\n\nAcesse: https://$dominioflowise\n\nPressione ENTER para voltar ao Menu Principal" 20 78
     fi
 else
-    # Para Cloudflare Tunnel, verificação mais simples
-    if nslookup "$dominioflowise" >/dev/null 2>&1; then
+    # Para Cloudflare Tunnel, validação resiliente de resolução DNS
+    if setupmno_check_dns "$dominioflowise" 8 || nslookup "$dominioflowise" >/dev/null 2>&1; then
         whiptail --title "Mensagem" --msgbox "Parabéns, FLOWISE foi instalado com sucesso!\n\nAcesse: https://$dominioflowise\n\nConfiguração Cloudflare Tunnel concluída com rotas e DNS.\n\nPressione ENTER para voltar ao Menu Principal" 20 78
     else
         whiptail --title "Mensagem" --msgbox "AVISO: O domínio do FLOWISE ($dominioflowise) não está resolvendo.\nVerifique a configuração do Cloudflare Tunnel.\n\nA instalação foi concluída, mas o acesso pode não funcionar até que o DNS esteja configurado corretamente.\n\nPressione ENTER para voltar ao Menu Principal" 20 78

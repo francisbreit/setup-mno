@@ -57,6 +57,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
     if [ -f "${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials}" ]; then
         source "${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials}"
     fi
+    [ -f /root/SetupLowCodeMno/cloudflare_app_guard.sh ] && . /root/SetupLowCodeMno/cloudflare_app_guard.sh
 else
     if [ -f "${SETUPMNO_TRADITIONAL_CREDENTIALS_FILE:-/root/.tradicional_config/tradicional_credentials}" ]; then
         source "${SETUPMNO_TRADITIONAL_CREDENTIALS_FILE:-/root/.tradicional_config/tradicional_credentials}"
@@ -94,7 +95,18 @@ done
   while true ; do
 		builder=$(whiptail --title "1/8 - URL do Builder" --inputbox "Digite o Link do Builder (ex: typebot.seudominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
 		if [[ $saida -eq '0' ]] ; then
-			if [[ -z $builder ]] ; then msg "Digite o link do builder do Typebot, para poder continuar" ; continue ; else break; fi
+			if [[ -z $builder ]] ; then msg "Digite o link do builder do Typebot, para poder continuar" ; continue ; fi
+			# Proteção de rotas Cloudflare Route Guard
+			if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] && declare -F setupmno_guard_route >/dev/null 2>&1; then
+			    setupmno_guard_route "$builder"
+			    guard_res=$?
+			    if [ "$guard_res" -eq 20 ]; then
+			        continue
+			    elif [ "$guard_res" -ne 0 ]; then
+			        exit 0
+			    fi
+			fi
+			break
 		else
 			echo $builder ; echo "saindo..."  &  exit 0 ;
 		fi
@@ -103,7 +115,18 @@ done
    while true ; do
 		viewer=$(whiptail --title "2/8 - URL do Viewer" --inputbox "Digite o Link do Viewer - viewer (ex: chatbot.seudominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
 		if [[ $saida -eq '0' ]] ; then
-			if [[ -z $viewer ]] ; then msg "Digite o link do Viewer do Typebot, para poder continuar" ; continue ; else break; fi
+			if [[ -z $viewer ]] ; then msg "Digite o link do Viewer do Typebot, para poder continuar" ; continue ; fi
+			# Proteção de rotas Cloudflare Route Guard
+			if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] && declare -F setupmno_guard_route >/dev/null 2>&1; then
+			    setupmno_guard_route "$viewer"
+			    guard_res=$?
+			    if [ "$guard_res" -eq 20 ]; then
+			        continue
+			    elif [ "$guard_res" -ne 0 ]; then
+			        exit 0
+			    fi
+			fi
+			break
 		else
 			echo $viewer ; echo "saindo..."  &  exit 0 ;
 		fi
@@ -112,7 +135,18 @@ done
     while true ; do
 		storage=$(whiptail --title "3/8 - URL do Storage" --inputbox "Digite o Link do Storage (ex: storage.seudominio.com):" --fb 12 60 3>&1 1>&2 2>&3) ; saida=$?
 		if [[ $saida -eq '0' ]] ; then
-			if [[ -z $storage ]] ; then msg "Digite o link do Storage do Typebot, para poder continuar" ; continue ; else break; fi
+			if [[ -z $storage ]] ; then msg "Digite o link do Storage do Typebot, para poder continuar" ; continue ; fi
+			# Proteção de rotas Cloudflare Route Guard
+			if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] && declare -F setupmno_guard_route >/dev/null 2>&1; then
+			    setupmno_guard_route "$storage"
+			    guard_res=$?
+			    if [ "$guard_res" -eq 20 ]; then
+			        continue
+			    elif [ "$guard_res" -ne 0 ]; then
+			        exit 0
+			    fi
+			fi
+			break
 		else
 			echo $storage ; echo "saindo..."  &  exit 0 ;
 		fi

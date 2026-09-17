@@ -944,6 +944,7 @@ primary_tunnel_write_credentials() {
         printf 'TUNNEL_NAME=%q\n' "$TUNNEL_NAME"
         printf 'TUNNEL_ID=%q\n' "$TUNNEL_ID"
         printf 'TUNNEL_OWNERSHIP=%q\n' "$TUNNEL_OWNERSHIP"
+        printf '[ -f /root/SetupLowCodeMno/cloudflare_app_guard.sh ] && . /root/SetupLowCodeMno/cloudflare_app_guard.sh\n'
     } >"$temporary" || { rm -f "$temporary"; return 1; }
     mv -f "$temporary" "$destination"
 }
