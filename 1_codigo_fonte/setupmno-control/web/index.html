@@ -559,6 +559,7 @@
                 <option value="worker">Worker</option>
               </select>
               <button id="fleet-sync-button" class="light-button" type="button" title="Sincronizar e auditar conectividade de todos os servidores agora">↻ Sincronizar Frota</button>
+              <button id="fleet-import-master-btn" class="light-button" type="button" title="Importar inventário de servidores de outra Torre Master (Master-to-Master Sync)"><span>⇄</span> Importar de outra Torre <span class="mode-pill mode-beta mini-tag">BETA</span></button>
               <button id="fleet-clone-btn" class="primary-button" type="button" title="Abrir Terminal Seguro do Fleet Hub para clonar ou migrar aplicações entre servidores da frota"><span>🚀</span> Clonar / Migrar na Frota <span class="mode-pill mode-beta mini-tag">BETA</span></button>
               <button id="fleet-add-node-button" class="primary-button" type="button"><span>＋</span> Adicionar Nó à Frota</button>
             </div>
@@ -1242,6 +1243,46 @@
         <footer class="dialog-actions">
           <button type="button" class="ghost-button" id="fleet-add-cancel">Cancelar</button>
           <button type="submit" class="primary-button" id="fleet-add-submit">Parear e Adicionar Nó <b>＋</b></button>
+        </footer>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- DIALOG: IMPORTAR INVENTÁRIO DE OUTRA TORRE MASTER (MASTER-TO-MASTER SYNC) -->
+  <dialog id="fleet-import-dialog" class="mno-dialog fleet-dialog" aria-labelledby="fleet-import-title">
+    <div class="dialog-content">
+      <header class="dialog-header">
+        <div>
+          <p class="eyebrow">Sincronização Master-to-Master <span class="mode-pill mode-beta mini-tag">BETA</span></p>
+          <h3 id="fleet-import-title">Importar Inventário de outra Torre Master</h3>
+        </div>
+        <button id="fleet-import-dialog-close" class="icon-button" type="button" aria-label="Fechar modal">×</button>
+      </header>
+      <form id="fleet-import-form">
+        <div class="dialog-body">
+          <p class="dialog-description">Clona a lista de servidores de outra <strong>Torre Master</strong> (ex: sua VPS em produção) para esta Torre (ex: seu notebook WSL2 ou Torre reserva) com 1 clique seguro.</p>
+          <div class="form-group">
+            <label for="fleet-import-endpoint">Endpoint da Torre Master de Origem (URL) *</label>
+            <input id="fleet-import-endpoint" type="text" placeholder="Ex: https://torre-vps.manualnegocioonline.com.br" required>
+            <small class="muted">URL pública HTTPS do Control Center da Torre Master onde seus servidores já estão cadastrados.</small>
+          </div>
+          <div class="form-group">
+            <label for="fleet-import-token">Token Secreto da Torre Master de Origem *</label>
+            <input id="fleet-import-token" type="password" placeholder="Cole o token da frota da Torre Master remota" required minlength="16">
+            <small class="muted">Encontrado no menu <strong>⎇ MNO FLEET HUB</strong> da Torre de origem ou nas variáveis daquele servidor.</small>
+          </div>
+          <div class="form-group">
+            <label for="fleet-import-strategy">Estratégia de Sincronização</label>
+            <select id="fleet-import-strategy">
+              <option value="merge" selected>Mesclar (Merge) — Adiciona novos nós e atualiza os existentes sem deletar nada</option>
+              <option value="replace">Substituir (Replace) — Espelho exato da outra Torre (remove nós obsoletos locais, preservando nó local)</option>
+            </select>
+          </div>
+          <div id="fleet-import-error" class="form-error"></div>
+        </div>
+        <footer class="dialog-actions">
+          <button type="button" class="ghost-button" id="fleet-import-cancel">Cancelar</button>
+          <button type="submit" class="primary-button" id="fleet-import-submit">Sincronizar Inventário <b>⇄</b></button>
         </footer>
       </form>
     </div>

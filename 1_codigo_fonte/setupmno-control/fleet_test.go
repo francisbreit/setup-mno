@@ -568,5 +568,164 @@ func TestFleetWorkerLockLease(t *testing.T) {
 	app.fleetLockMu.Unlock()
 }
 
+func TestFleetMasterToMasterSync(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "fleet-m2m-*")
+	if err != nil {
+		t.Fatalf("erro ao criar tempDir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// 1. Configurar Store de Origem (Torre Master A)
+	storeAPath := filepath.Join(tempDir, "master-a.json")
+	storeA, err := loadFleetInventory(storeAPath)
+	if err != nil {
+		t.Fatalf("loadFleetInventory A falhou: %v", err)
+	}
+
+	storeA.EnsureLocalNode("master-a-local", "Torre Master A (VPS)", FleetTelemetry{ActiveSwarm: true}, "amd64", "7.48.13")
+	_ = storeA.AddNode(FleetNode{
+		ID:            "worker-sp-01",
+		Name:          "VPS São Paulo 01",
+		Endpoint:      "https://sp01.empresa.com",
+		Mode:          FleetModeWorker,
+		Status:        "online",
+		Role:          "worker",
+		Token:         "token-worker-sp-secret",
+		Architecture:  "amd64",
+		SetupVersion:  "7.48.13",
+		LastHeartbeat: time.Now().UTC(),
+	})
+	_ = storeA.AddNode(FleetNode{
+		ID:            "worker-oracle-02",
+		Name:          "Oracle ARM 02",
+		Endpoint:      "https://arm02.empresa.com",
+		Mode:          FleetModeWorker,
+		Status:        "online",
+		Role:          "worker",
+		Token:         "token-worker-oracle-secret",
+		Architecture:  "arm64",
+		SetupVersion:  "7.48.13",
+		LastHeartbeat: time.Now().UTC(),
+	})
+
+	// Validar ExportWorkerNodes: só deve exportar nós workers e com seus tokens reais
+	exported := storeA.ExportWorkerNodes()
+	if len(exported) != 2 {
+		t.Fatalf("esperava 2 nós exportados, obteve %d", len(exported))
+	}
+	for _, n := range exported {
+		if n.Mode != FleetModeWorker || n.Token == "••••••••" || n.Token == "" {
+			t.Errorf("nó exportado inválido ou token mascarado: %+v", n)
+		}
+	}
+
+	// 2. Configurar Store de Destino (Torre Master B)
+	storeBPath := filepath.Join(tempDir, "master-b.json")
+	storeB, err := loadFleetInventory(storeBPath)
+	if err != nil {
+		t.Fatalf("loadFleetInventory B falhou: %v", err)
+	}
+	storeB.EnsureLocalNode("master-b-local", "Torre Master B (WSL2)", FleetTelemetry{ActiveSwarm: true}, "arm64", "7.48.13")
+
+	// 3. Testar Importação com Merge
+	count, err := storeB.ImportNodes(exported, "merge")
+	if err != nil || count != 2 {
+		t.Fatalf("ImportNodes merge falhou: count=%d, err=%v", count, err)
+	}
+	nodesB := storeB.ListNodes()
+	if len(nodesB) != 3 { // 1 local + 2 importados
+		t.Fatalf("esperava 3 nós na Torre B após merge, obteve %d", len(nodesB))
+	}
+
+	// 4. Testar Importação com Replace
+	// Adiciona um nó temporário que deve sumir após replace
+	_ = storeB.AddNode(FleetNode{
+		ID:       "worker-temp-antigo",
+		Name:     "Worker Obsoleto",
+		Endpoint: "https://antigo.empresa.com",
+		Mode:     FleetModeWorker,
+	})
+	if len(storeB.ListNodes()) != 4 {
+		t.Fatalf("esperava 4 nós antes do replace")
+	}
+
+	countReplace, err := storeB.ImportNodes(exported, "replace")
+	if err != nil || countReplace != 2 {
+		t.Fatalf("ImportNodes replace falhou: count=%d, err=%v", countReplace, err)
+	}
+	nodesBAfterReplace := storeB.ListNodes()
+	if len(nodesBAfterReplace) != 3 { // local preservado + 2 importados, nó obsoleto removido
+		t.Fatalf("esperava 3 nós após replace, obteve %d", len(nodesBAfterReplace))
+	}
+
+	// 5. Testar Servidor Remoto e Handler de Exportação/Importação
+	masterToken := "chave-mestra-torre-a-999"
+	serverA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/fleet/inventory/export" {
+			token := r.Header.Get("X-SetupMNO-Fleet-Token")
+			if token != masterToken {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+			resp := FleetExportInventoryResponse{
+				SchemaVersion: fleetInventorySchemaVersion,
+				MasterNodeID:  "master-a-local",
+				ExportedAt:    time.Now().UTC(),
+				Nodes:         exported,
+			}
+			_ = json.NewEncoder(w).Encode(resp)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer serverA.Close()
+
+	// Simular Torre Master B recebendo requisição para importar da Torre Master A
+	appB := &webApp{
+		fleetStore: storeB,
+		httpClient: serverA.Client(),
+	}
+
+	importReqBody, _ := json.Marshal(FleetImportInventoryRequest{
+		MasterEndpoint: serverA.URL,
+		MasterToken:    masterToken,
+		Strategy:       "merge",
+	})
+
+	// Criar mock server para o agent da Torre B retornando modo Master
+	agentServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/fleet/config" {
+			_ = json.NewEncoder(w).Encode(fleetConfigResponse{
+				FleetMode:   FleetModeMaster,
+				FleetNodeID: "master-b-local",
+				FleetToken:  "token-master-b",
+			})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer agentServer.Close()
+
+	appB.agentURL = agentServer.URL
+
+	httpImportReq := httptest.NewRequest(http.MethodPost, "/api/fleet/inventory/import", strings.NewReader(string(importReqBody)))
+	wImport := httptest.NewRecorder()
+
+	appB.handleFleetImportInventory(wImport, httpImportReq)
+	if wImport.Code != http.StatusOK {
+		t.Fatalf("handleFleetImportInventory falhou com HTTP %d: %s", wImport.Code, wImport.Body.String())
+	}
+
+	var importResult FleetImportInventoryResponse
+	if err := json.Unmarshal(wImport.Body.Bytes(), &importResult); err != nil {
+		t.Fatalf("falha ao decodificar JSON de resposta da importação: %v", err)
+	}
+
+	if !importResult.Success || importResult.ImportedCount != 2 {
+		t.Errorf("resultado inesperado na importação: %+v", importResult)
+	}
+}
+
+
 
 

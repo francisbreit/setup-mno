@@ -214,6 +214,11 @@ function bindEvents() {
   $("fleet-add-cancel")?.addEventListener("click", closeFleetAddDialog);
   $("fleet-add-form")?.addEventListener("submit", submitFleetAddNode);
   $("fleet-add-dialog")?.addEventListener("cancel", closeFleetAddDialog);
+  $("fleet-import-master-btn")?.addEventListener("click", openFleetImportDialog);
+  $("fleet-import-dialog-close")?.addEventListener("click", closeFleetImportDialog);
+  $("fleet-import-cancel")?.addEventListener("click", closeFleetImportDialog);
+  $("fleet-import-form")?.addEventListener("submit", submitFleetImport);
+  $("fleet-import-dialog")?.addEventListener("cancel", closeFleetImportDialog);
   $("fleet-clone-btn")?.addEventListener("click", () => openTerminal("fleet"));
   $("fleet-clone-dialog-close")?.addEventListener("click", closeFleetCloneDialog);
   $("fleet-clone-cancel")?.addEventListener("click", closeFleetCloneDialog);
@@ -3441,6 +3446,60 @@ async function submitFleetAddNode(event) {
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = "Parear e Adicionar Nó ＋";
+  }
+}
+
+function openFleetImportDialog() {
+  if (!state.fleetAllowed) {
+    showToast("Configuração bloqueada: exclusivo para planos PRO e PRO MASTER com Cloudflare Tunnel.");
+    return;
+  }
+  const dialog = $("fleet-import-dialog");
+  if (!dialog) return;
+  $("fleet-import-error").textContent = "";
+  $("fleet-import-endpoint").value = "";
+  $("fleet-import-token").value = "";
+  $("fleet-import-strategy").value = "merge";
+  if (!dialog.open) dialog.showModal();
+}
+
+function closeFleetImportDialog() {
+  const dialog = $("fleet-import-dialog");
+  if (dialog?.open) dialog.close();
+}
+
+async function submitFleetImport(event) {
+  event.preventDefault();
+  const errorEl = $("fleet-import-error");
+  const submitBtn = $("fleet-import-submit");
+  errorEl.textContent = "";
+
+  const masterEndpoint = $("fleet-import-endpoint").value.trim();
+  const masterToken = $("fleet-import-token").value.trim();
+  const strategy = $("fleet-import-strategy").value;
+
+  if (!masterEndpoint || !masterToken) {
+    errorEl.textContent = "Preencha todos os campos obrigatórios (*).";
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Sincronizando inventário...";
+
+  try {
+    const res = await api("/api/fleet/inventory/import", {
+      method: "POST",
+      body: JSON.stringify({ masterEndpoint, masterToken, strategy })
+    });
+
+    closeFleetImportDialog();
+    showToast(`✓ ${res.message || "Inventário sincronizado com sucesso!"}`);
+    await loadFleet();
+  } catch (error) {
+    errorEl.textContent = error.message;
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Sincronizar Inventário ⇄";
   }
 }
 

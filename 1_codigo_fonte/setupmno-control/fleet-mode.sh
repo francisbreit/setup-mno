@@ -133,12 +133,14 @@ show_menu() {
 
     local fleet_choice
     fleet_choice=$(whiptail --title "MNO FLEET HUB — GESTÃO DE SERVIDORES" --menu \
-        "Estado Atual: $status_desc\n\nSelecione uma opção:" 19 78 5 \
+        "Estado Atual: $status_desc\n\nSelecione uma opção:" 21 78 7 \
         "1" "Manter Modo Simples Standalone (Desativado - 0 MB overhead)" \
         "2" "Ativar como Torre Master (Cockpit Local no WSL2 ou VPS)" \
         "3" "Conectar à Frota como Nó Worker (Subordinado - Exige VPS 24/7)" \
         "4" "Ver Informações de Pareamento (ID e Token do Nó)" \
-        "5" "Voltar ao Menu Principal" \
+        "5" "Clone, Transferência e Backup de Aplicações da Frota" \
+        "6" "Sincronizar Inventário de outra Torre Master (Master-to-Master)" \
+        "7" "Voltar ao Menu Principal" \
         3>&1 1>&2 2>&3) || return 0
 
     case "$fleet_choice" in
@@ -176,10 +178,145 @@ show_menu() {
             whiptail --title "INFORMAÇÕES DE PAREAMENTO — FLEET HUB" --msgbox \
                 "$cur_info\n\nUse o Token de Pareamento acima na sua Torre Master para conectar este nó à sua frota centralizada." 15 76
             ;;
+        5)
+            local clone_script="/root/SetupLowCodeMno/fleet-clone.sh"
+            if [ ! -f "$clone_script" ]; then
+                clone_script="$(dirname "${BASH_SOURCE[0]}")/fleet-clone.sh"
+            fi
+            if [ -f "$clone_script" ]; then
+                bash "$clone_script" menu
+            else
+                whiptail --title "MNO FLEET HUB" --msgbox "Script fleet-clone.sh não localizado." 10 60
+            fi
+            ;;
+        6)
+            sync_master_inventory
+            ;;
+        7)
+            return 0
+            ;;
         *)
             return 0
             ;;
     esac
+}
+
+sync_master_inventory() {
+    local cur_mode
+    cur_mode=$(get_status)
+    if [ "$cur_mode" != "master" ]; then
+        whiptail --title "SINCRONIZAÇÃO MASTER-TO-MASTER" --msgbox \
+            "Esta operação exige que este servidor esteja ativado como Torre Master (Opção 2).\n\nConfigure este servidor como Torre Master antes de importar o inventário de nós." 13 74
+        return 0
+    fi
+
+    local remote_endpoint
+    remote_endpoint=$(whiptail --title "SINCRONIZAÇÃO MASTER-TO-MASTER" --inputbox \
+        "Informe o Endpoint HTTPS da Torre Master de Origem (ex: sua VPS em produção):\nExemplo: https://setupXXXXX.manualnegocioonline.com.br" 12 78 \
+        3>&1 1>&2 2>&3) || return 0
+
+    remote_endpoint=$(echo "$remote_endpoint" | tr -d '[:space:]' | sed 's:/*$::')
+    if [ -z "$remote_endpoint" ]; then
+        whiptail --title "ERRO" --msgbox "Endpoint não informado." 8 40
+        return 0
+    fi
+
+    local remote_token
+    remote_token=$(whiptail --title "TOKEN DA TORRE REMOTA" --passwordbox \
+        "Cole o Token de Frota da Torre Master remota:\n(Encontrado no menu Opção 4 daquela Torre)" 12 78 \
+        3>&1 1>&2 2>&3) || return 0
+
+    remote_token=$(echo "$remote_token" | tr -d '[:space:]')
+    if [ -z "$remote_token" ]; then
+        whiptail --title "ERRO" --msgbox "Token não informado." 8 40
+        return 0
+    fi
+
+    local strat_choice
+    strat_choice=$(whiptail --title "ESTRATÉGIA DE IMPORTAÇÃO" --menu \
+        "Escolha como mesclar os servidores importados com os nós existentes:" 14 76 2 \
+        "1" "Mesclar (Merge) — Preserva nós atuais e adiciona/atualiza novos" \
+        "2" "Substituir (Replace) — Espelho exato (remove nós locais ausentes na origem)" \
+        3>&1 1>&2 2>&3) || return 0
+
+    local strategy="merge"
+    if [ "$strat_choice" = "2" ]; then
+        strategy="replace"
+    fi
+
+    local temp_resp
+    temp_resp=$(mktemp) || return 1
+
+    whiptail --title "CONECTANDO..." --infobox "Consultando Torre Master de origem em:\n$remote_endpoint..." 8 60
+
+    local http_code
+    http_code=$(curl -sS -k -w "%{http_code}" -o "$temp_resp" \
+        --max-time 15 \
+        -H "X-SetupMNO-Fleet-Token: $remote_token" \
+        -H "Accept: application/json" \
+        "$remote_endpoint/api/fleet/inventory/export" 2>/dev/null || echo "000")
+
+    if [ "$http_code" = "401" ] || [ "$http_code" = "403" ]; then
+        rm -f "$temp_resp"
+        whiptail --title "AUTENTICAÇÃO RECUSADA" --msgbox \
+            "A Torre Master remota recusou o token informado (HTTP $http_code).\n\nVerifique se o token de frota da Torre remota está correto." 12 65
+        return 0
+    fi
+
+    if [ "$http_code" != "200" ]; then
+        rm -f "$temp_resp"
+        whiptail --title "FALHA DE CONEXÃO" --msgbox \
+            "Falha ao conectar à Torre Master remota (HTTP $http_code).\n\nVerifique se a URL está correta e com o Cloudflare Tunnel ativo." 12 65
+        return 0
+    fi
+
+    local imported_count
+    imported_count=$(jq '.nodes | length' "$temp_resp" 2>/dev/null || echo "0")
+
+    if [ "$imported_count" -le 0 ]; then
+        rm -f "$temp_resp"
+        whiptail --title "AVISO" --msgbox "A Torre remota não possui nós operários subordinados para exportar." 10 65
+        return 0
+    fi
+
+    local inv_file="$CONTROL_DIR/fleet-inventory.json"
+    local temp_inv
+    temp_inv=$(mktemp "$CONTROL_DIR/fleet-inventory.tmp.XXXXXX") || { rm -f "$temp_resp"; return 1; }
+    chmod 0600 "$temp_inv"
+
+    local current_json="{}"
+    if [ -f "$inv_file" ]; then
+        current_json=$(cat "$inv_file")
+    else
+        current_json='{"schemaVersion":1,"policyVersion":"1.0.0","updatedAt":"","nodes":[]}'
+    fi
+
+    if [ "$strategy" = "replace" ]; then
+        jq --slurpfile exp "$temp_resp" '
+            .schemaVersion = 1 |
+            .policyVersion = "1.0.0" |
+            .updatedAt = (now | todate) |
+            .nodes = [
+                (.nodes[] | select(.mode == "master" or (.id | startswith("node-master")))),
+                $exp[0].nodes[]
+            ]
+        ' <<< "$current_json" > "$temp_inv" || { rm -f "$temp_resp" "$temp_inv"; fail "Erro ao compor JSON."; }
+    else
+        jq --slurpfile exp "$temp_resp" '
+            .schemaVersion = 1 |
+            .policyVersion = "1.0.0" |
+            .updatedAt = (now | todate) |
+            .nodes as $existing |
+            $exp[0].nodes as $new |
+            .nodes = ($existing + [$new[] | select( [.] as $item | $existing | map(.id == $item[0].id or (.endpoint != "" and .endpoint == $item[0].endpoint)) | any | not )])
+        ' <<< "$current_json" > "$temp_inv" || { rm -f "$temp_resp" "$temp_inv"; fail "Erro ao compor JSON."; }
+    fi
+
+    mv -f "$temp_inv" "$inv_file"
+    rm -f "$temp_resp"
+
+    whiptail --title "SINCRONIZAÇÃO CONCLUÍDA" --msgbox \
+        "Inventário sincronizado com sucesso!\n\nForam processados $imported_count nós da Torre Master:\n$remote_endpoint\n\nEstratégia aplicada: $strategy\n\nAbra o Control Center Web para visualizar a frota conectada." 15 74
 }
 
 action="${1:-status}"
@@ -194,10 +331,14 @@ case "$action" in
         shift
         set_mode "${1:-}"
         ;;
+    sync-inventory)
+        shift
+        sync_master_inventory
+        ;;
     menu)
         show_menu
         ;;
     *)
-        fail "Ação desconhecida: $action. Use: $0 [status | info | set <disabled|master|worker> | menu]"
+        fail "Ação desconhecida: $action. Use: $0 [status | info | set <disabled|master|worker> | sync-inventory | menu]"
         ;;
 esac

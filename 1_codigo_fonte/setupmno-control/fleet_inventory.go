@@ -449,3 +449,83 @@ func (s *fleetInventoryStore) EnsureLocalNode(localID, localName string, localTe
 	// Prepend local node as first entry
 	s.nodes = append([]FleetNode{localNode}, s.nodes...)
 }
+
+// ExportWorkerNodes retorna a lista de nós operários com tokens válidos para replicação entre Torres Master autorizadas.
+func (s *fleetInventoryStore) ExportWorkerNodes() []FleetNode {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var workers []FleetNode
+	for _, n := range s.nodes {
+		if n.Mode == FleetModeWorker || n.Role == "worker" {
+			workers = append(workers, n)
+		}
+	}
+	return workers
+}
+
+// ImportNodes mescla ou substitui a lista de nós da frota a partir de outra Torre Master autorizada.
+func (s *fleetInventoryStore) ImportNodes(incoming []FleetNode, strategy string) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	strategy = strings.ToLower(strings.TrimSpace(strategy))
+	if strategy == "" {
+		strategy = "merge"
+	}
+
+	importedCount := 0
+
+	if strategy == "replace" {
+		// Preserva apenas o nó local da Torre Master
+		var preserved []FleetNode
+		for _, n := range s.nodes {
+			if n.Mode == FleetModeMaster || strings.HasPrefix(n.ID, "node-master") {
+				preserved = append(preserved, n)
+			}
+		}
+		s.nodes = preserved
+	}
+
+	for _, inc := range incoming {
+		if inc.Mode != FleetModeWorker && inc.Role != "worker" {
+			continue
+		}
+		if err := validateFleetNode(inc); err != nil {
+			continue
+		}
+
+		existingIdx := -1
+		for i, existing := range s.nodes {
+			if existing.ID == inc.ID || (inc.Endpoint != "" && existing.Endpoint == inc.Endpoint) {
+				existingIdx = i
+				break
+			}
+		}
+
+		if existingIdx >= 0 {
+			// Atualiza nó existente
+			s.nodes[existingIdx].Name = inc.Name
+			s.nodes[existingIdx].Endpoint = inc.Endpoint
+			if inc.Token != "" && inc.Token != "••••••••" {
+				s.nodes[existingIdx].Token = inc.Token
+			}
+			s.nodes[existingIdx].Tags = inc.Tags
+			if inc.Architecture != "" {
+				s.nodes[existingIdx].Architecture = inc.Architecture
+			}
+			if inc.SetupVersion != "" {
+				s.nodes[existingIdx].SetupVersion = inc.SetupVersion
+			}
+			importedCount++
+		} else {
+			// Adiciona novo nó se não exceder capacidade
+			if len(s.nodes) < fleetInventoryMaxNodes {
+				s.nodes = append(s.nodes, inc)
+				importedCount++
+			}
+		}
+	}
+
+	return importedCount, nil
+}

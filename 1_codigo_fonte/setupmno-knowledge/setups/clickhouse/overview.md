@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "ClickHouse no Setup MNO",
   "setupId": "clickhouse",
-  "setupVersion": "7.48.12",
+  "setupVersion": "7.48.13",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

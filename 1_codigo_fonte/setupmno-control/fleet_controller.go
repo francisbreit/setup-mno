@@ -980,3 +980,122 @@ func (a *webApp) handleFleetBackupExecute(w http.ResponseWriter, r *http.Request
 
 	writeJSON(w, http.StatusOK, res)
 }
+
+// handleFleetExportInventory exporta a lista de nós operários da frota para outra Torre Master autorizada.
+func (a *webApp) handleFleetExportInventory(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	cfg, err := a.fetchFleetConfig(ctx)
+	if err != nil || cfg.FleetMode != FleetModeMaster {
+		writeError(w, http.StatusForbidden, "apenas nós configurados como Torre Master podem exportar o inventário da frota")
+		return
+	}
+
+	tokenAuthorized := a.authenticateFleetWorkerRequest(r, cfg.FleetToken, cfg.FleetMode)
+	sessionAuthorized := a.isSessionAuthenticated(r)
+
+	if !tokenAuthorized && !sessionAuthorized {
+		writeError(w, http.StatusUnauthorized, "acesso não autorizado ao inventário da frota. Forneça o token no header X-SetupMNO-Fleet-Token")
+		return
+	}
+
+	nodes := a.fleetStore.ExportWorkerNodes()
+	resp := FleetExportInventoryResponse{
+		SchemaVersion: fleetInventorySchemaVersion,
+		MasterNodeID:  cfg.FleetNodeID,
+		ExportedAt:    time.Now().UTC(),
+		Nodes:         nodes,
+	}
+
+	a.addAudit("fleet_inventory_exported", fmt.Sprintf("Inventário da frota exportado (%d nós) para %s", len(nodes), clientAddress(r)), clientAddress(r))
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// handleFleetImportInventory conecta a uma Torre Master remota, obtém seu inventário e mescla ou substitui os nós locais.
+func (a *webApp) handleFleetImportInventory(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	cfg, err := a.fetchFleetConfig(ctx)
+	if err != nil || cfg.FleetMode != FleetModeMaster {
+		writeError(w, http.StatusForbidden, "apenas nós configurados como Torre Master podem importar inventário da frota")
+		return
+	}
+
+	var req FleetImportInventoryRequest
+	data, err := io.ReadAll(io.LimitReader(r.Body, 16<<10))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "falha ao ler requisição")
+		return
+	}
+
+	if err := decodeStrictJSON(data, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "JSON inválido na requisição de importação")
+		return
+	}
+
+	if strings.TrimSpace(req.MasterEndpoint) == "" || strings.TrimSpace(req.MasterToken) == "" {
+		writeError(w, http.StatusBadRequest, "campos 'masterEndpoint' e 'masterToken' são obrigatórios")
+		return
+	}
+
+	cleanEndpoint, err := validateFleetEndpoint(req.MasterEndpoint)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("endpoint da Torre Master de origem inválido: %v", err))
+		return
+	}
+
+	exportURL := cleanEndpoint + "/api/fleet/inventory/export"
+	importCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
+	defer cancel()
+
+	httpReq, err := http.NewRequestWithContext(importCtx, http.MethodGet, exportURL, nil)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "falha ao preparar requisição de importação")
+		return
+	}
+	httpReq.Header.Set("X-SetupMNO-Fleet-Token", req.MasterToken)
+	httpReq.Header.Set("Authorization", "Bearer "+req.MasterToken)
+	httpReq.Header.Set("Accept", "application/json")
+
+	resp, err := a.httpClient.Do(httpReq)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, fmt.Sprintf("falha ao conectar na Torre Master remota: %v", err))
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		writeError(w, http.StatusUnauthorized, "token recusado pela Torre Master remota. Verifique a credencial informada.")
+		return
+	}
+	if resp.StatusCode != http.StatusOK {
+		writeError(w, http.StatusBadGateway, fmt.Sprintf("Torre Master remota respondeu com status HTTP %d", resp.StatusCode))
+		return
+	}
+
+	var exportData FleetExportInventoryResponse
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 512<<10)).Decode(&exportData); err != nil {
+		writeError(w, http.StatusBadGateway, "resposta de inventário recebida da Torre Master remota é inválida")
+		return
+	}
+
+	importedCount, err := a.fleetStore.ImportNodes(exportData.Nodes, req.Strategy)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, fmt.Sprintf("falha ao importar nós: %v", err))
+		return
+	}
+
+	if err := a.fleetStore.Save(); err != nil {
+		writeError(w, http.StatusInternalServerError, fmt.Sprintf("falha ao persistir inventário: %v", err))
+		return
+	}
+
+	a.addAudit("fleet_inventory_imported", fmt.Sprintf("Importados %d nós da Torre Master %s (estratégia: %s)", importedCount, cleanEndpoint, req.Strategy), clientAddress(r))
+
+	go a.probeAllWorkers(context.Background())
+
+	writeJSON(w, http.StatusOK, FleetImportInventoryResponse{
+		Success:       true,
+		Message:       fmt.Sprintf("Sincronização concluída com sucesso: %d nós da frota importados/atualizados.", importedCount),
+		ImportedCount: importedCount,
+		Nodes:         a.fleetStore.ListNodes(),
+	})
+}

@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Navidrome no Setup MNO",
   "setupId": "navidrome",
-  "setupVersion": "7.48.12",
+  "setupVersion": "7.48.13",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

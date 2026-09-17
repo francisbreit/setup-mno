@@ -286,3 +286,26 @@ type FleetLockResponse struct {
 	Message string        `json:"message"`
 	Lock    FleetNodeLock `json:"lock"`
 }
+
+// FleetImportInventoryRequest representa os parâmetros para importar nós de outra Torre Master.
+type FleetImportInventoryRequest struct {
+	MasterEndpoint string `json:"masterEndpoint"`
+	MasterToken    string `json:"masterToken"`
+	Strategy       string `json:"strategy,omitempty"` // "merge" (padrão) ou "replace"
+}
+
+// FleetImportInventoryResponse representa o resultado da importação entre Torres.
+type FleetImportInventoryResponse struct {
+	Success       bool        `json:"success"`
+	Message       string      `json:"message"`
+	ImportedCount int         `json:"importedCount"`
+	Nodes         []FleetNode `json:"nodes,omitempty"`
+}
+
+// FleetExportInventoryResponse representa o pacote exportado pela Torre Master de origem.
+type FleetExportInventoryResponse struct {
+	SchemaVersion int         `json:"schemaVersion"`
+	MasterNodeID  string      `json:"masterNodeId"`
+	ExportedAt    time.Time   `json:"exportedAt"`
+	Nodes         []FleetNode `json:"nodes"`
+}

@@ -723,6 +723,8 @@ func runWeb() error {
 	mux.HandleFunc("GET /api/fleet/tools/schema.json", app.handleFleetToolsSchema)
 	mux.HandleFunc("GET /api/fleet/tools", app.handleFleetToolsSchema)
 	mux.HandleFunc("POST /api/fleet/tools/execute", app.handleFleetToolsExecute)
+	mux.HandleFunc("GET /api/fleet/inventory/export", app.handleFleetExportInventory)
+	mux.Handle("POST /api/fleet/inventory/import", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetImportInventory))))
 	mux.Handle("GET /api/sentinel/config", app.requireAuth(http.HandlerFunc(app.handleSentinelGetConfig)))
 	mux.Handle("POST /api/sentinel/config", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleSentinelSaveConfig))))
 	mux.Handle("POST /api/sentinel/test", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleSentinelTestAlert))))
@@ -3730,6 +3732,32 @@ func (a *webApp) requireAuth(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), sessionContextKey{}, &snapshot)))
 	})
+}
+
+// isSessionAuthenticated verifica se a requisição possui uma sessão de administrador válida e ativa.
+func (a *webApp) isSessionAuthenticated(r *http.Request) bool {
+	cookie, err := r.Cookie(sessionCookie)
+	if err != nil || len(cookie.Value) < 32 {
+		return false
+	}
+	now := time.Now()
+	a.sessionMu.Lock()
+	defer a.sessionMu.Unlock()
+	s, ok := a.sessions[cookie.Value]
+	if !ok {
+		return false
+	}
+	identity := accessIdentityFromContext(r.Context())
+	if s.AccessSubject != "" && (identity == nil ||
+		identity.Subject != s.AccessSubject || !strings.EqualFold(identity.Email, s.AccessEmail)) {
+		delete(a.sessions, cookie.Value)
+		return false
+	}
+	if now.After(s.Expires) || now.After(s.IdleUntil) {
+		delete(a.sessions, cookie.Value)
+		return false
+	}
+	return true
 }
 
 func (a *webApp) requireCSRF(next http.Handler) http.Handler {
