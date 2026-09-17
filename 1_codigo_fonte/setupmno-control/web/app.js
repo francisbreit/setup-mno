@@ -219,6 +219,7 @@ function bindEvents() {
   $("fleet-import-cancel")?.addEventListener("click", closeFleetImportDialog);
   $("fleet-import-form")?.addEventListener("submit", submitFleetImport);
   $("fleet-import-dialog")?.addEventListener("cancel", closeFleetImportDialog);
+  $("fleet-toggle-role-btn")?.addEventListener("click", toggleFleetRole);
   $("fleet-clone-btn")?.addEventListener("click", () => openTerminal("fleet"));
   $("fleet-clone-dialog-close")?.addEventListener("click", closeFleetCloneDialog);
   $("fleet-clone-cancel")?.addEventListener("click", closeFleetCloneDialog);
@@ -3001,12 +3002,44 @@ function renderFleet() {
     }
   }
 
+  const roleBadge = $("fleet-role-badge");
+  const toggleRoleBtn = $("fleet-toggle-role-btn");
+  const role = statusData.fleetRole || "active";
+  const isStandby = statusData.isStandby === true || role === "standby";
+
+  if (roleBadge && toggleRoleBtn) {
+    if (mode === "master") {
+      roleBadge.classList.remove("hidden");
+      toggleRoleBtn.classList.remove("hidden");
+      if (isStandby) {
+        roleBadge.className = "mode-pill mode-beta";
+        roleBadge.textContent = "🌙 Cockpit Standby (Passiva)";
+        roleBadge.title = "Modo econômico e silencioso: alertas autônomos pausados para não duplicar com sua VPS principal.";
+        toggleRoleBtn.innerHTML = '<span>⚡</span> Ativar Modo 24/7';
+        toggleRoleBtn.title = "Comutar esta Torre para Ativa (24/7)";
+      } else {
+        roleBadge.className = "mode-pill mode-online";
+        roleBadge.textContent = "⚡ Torre Ativa (24/7)";
+        roleBadge.title = "Torre Master Primária: monitoramento contínuo e sentinela 24/7 ativo.";
+        toggleRoleBtn.innerHTML = '<span>🌙</span> Alternar para Standby';
+        toggleRoleBtn.title = "Comutar esta Torre para Standby (Cockpit Local)";
+      }
+    } else {
+      roleBadge.classList.add("hidden");
+      toggleRoleBtn.classList.add("hidden");
+    }
+  }
+
   if (statusEl) {
     if (mode === "master") {
       const total = statusData.totalNodes || state.fleetNodes.length || 0;
       const online = statusData.onlineNodes || 0;
       statusEl.className = "sync-status current";
-      statusEl.textContent = `Torre Master conectada · ${online} de ${total} nós online · Malha Zero-Trust ativa · Co-piloto de prontidão`;
+      if (isStandby) {
+        statusEl.textContent = `Torre Master (Cockpit Standby) · ${online} de ${total} nós conectados · Alertas autônomos pausados · Comandos manuais ativos`;
+      } else {
+        statusEl.textContent = `Torre Master Ativa (24/7) · ${online} de ${total} nós online · Malha Zero-Trust ativa · Co-piloto de prontidão`;
+      }
     } else if (mode === "worker") {
       statusEl.className = "sync-status current";
       statusEl.textContent = "Nó Operário ativo · Respondendo exclusivamente à Torre Master autorizada pelo token";
@@ -3500,6 +3533,32 @@ async function submitFleetImport(event) {
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = "Sincronizar Inventário ⇄";
+  }
+}
+
+async function toggleFleetRole() {
+  const statusData = state.fleetStatus || {};
+  const currentRole = statusData.fleetRole || "active";
+  const targetRole = currentRole === "active" ? "standby" : "active";
+  const roleName = targetRole === "active" ? "Torre Ativa (24/7)" : "Cockpit Standby (Passiva)";
+
+  const toggleBtn = $("fleet-toggle-role-btn");
+  if (toggleBtn) {
+    toggleBtn.disabled = true;
+    toggleBtn.textContent = "Comutando papel...";
+  }
+
+  try {
+    const res = await api("/api/fleet/role", {
+      method: "POST",
+      body: JSON.stringify({ role: targetRole })
+    });
+    showToast(`✓ ${res.message || `Papel alterado para ${roleName} com sucesso!`}`);
+    await loadFleet();
+  } catch (error) {
+    showToast(`Erro ao comutar papel: ${error.message}`);
+  } finally {
+    if (toggleBtn) toggleBtn.disabled = false;
   }
 }
 

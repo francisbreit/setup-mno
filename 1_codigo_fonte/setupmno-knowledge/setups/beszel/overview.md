@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Beszel no Setup MNO",
   "setupId": "beszel",
-  "setupVersion": "7.48.13",
+  "setupVersion": "7.48.14",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

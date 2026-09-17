@@ -87,11 +87,17 @@ func (a *webApp) handleFleetStatus(w http.ResponseWriter, r *http.Request) {
 	var setupState setupStateResponse
 	_ = a.agentRequest(ctx, "/setup-state", &setupState)
 
+	role := cfg.FleetRole
+	if role == "" {
+		role = "active"
+	}
 	response := FleetStatusResponse{
 		Mode:           cfg.FleetMode,
 		NodeID:         cfg.FleetNodeID,
 		FleetAllowed:   setupState.FleetAllowed,
 		FleetToken:     cfg.FleetToken,
+		FleetRole:      role,
+		IsStandby:      (role == "standby"),
 		LocalTelemetry: localTelem,
 	}
 
@@ -796,6 +802,9 @@ func (a *webApp) fleetMonitorDaemon(ctx context.Context) {
 			if err != nil || cfg.FleetMode != FleetModeMaster || a.fleetStore == nil {
 				continue
 			}
+			if cfg.FleetRole == "standby" {
+				continue // Em modo Standby (Cockpit Pessoal), não realiza polling contínuo para poupar bateria e conexões
+			}
 
 			a.probeAllWorkers(ctx)
 		}
@@ -1097,5 +1106,55 @@ func (a *webApp) handleFleetImportInventory(w http.ResponseWriter, r *http.Reque
 		Message:       fmt.Sprintf("Sincronização concluída com sucesso: %d nós da frota importados/atualizados.", importedCount),
 		ImportedCount: importedCount,
 		Nodes:         a.fleetStore.ListNodes(),
+	})
+}
+
+// handleFleetSetRole comuta o papel operacional da Torre Master entre Ativa (24/7) e Standby (Cockpit Local).
+func (a *webApp) handleFleetSetRole(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	cfg, err := a.fetchFleetConfig(ctx)
+	if err != nil || cfg.FleetMode != FleetModeMaster {
+		writeError(w, http.StatusForbidden, "apenas nós configurados como Torre Master possuem papel operacional comutável")
+		return
+	}
+
+	var req FleetRoleRequest
+	data, err := io.ReadAll(io.LimitReader(r.Body, 4<<10))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "falha ao ler requisição")
+		return
+	}
+
+	if err := decodeStrictJSON(data, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "JSON inválido na requisição de alteração de papel")
+		return
+	}
+
+	cleanRole := strings.ToLower(strings.TrimSpace(req.Role))
+	if cleanRole != "active" && cleanRole != "standby" {
+		writeError(w, http.StatusBadRequest, "papel inválido: use 'active' para Torre Ativa (24/7) ou 'standby' para Cockpit Local")
+		return
+	}
+
+	var agentResp struct {
+		Success bool   `json:"success"`
+		Role    string `json:"role"`
+	}
+	if err := a.agentPost(ctx, "/fleet/role", map[string]string{"role": cleanRole}, &agentResp); err != nil {
+		writeError(w, http.StatusInternalServerError, fmt.Sprintf("falha ao atualizar papel no agente: %v", err))
+		return
+	}
+
+	a.addAudit("fleet_role_changed", fmt.Sprintf("Papel da Torre Master comutado para '%s'", cleanRole), clientAddress(r))
+
+	message := "Torre Master configurada como Ativa (24/7) com monitoramento contínuo."
+	if cleanRole == "standby" {
+		message = "Torre Master configurada como Standby (Cockpit Local): alertas autônomos pausados para evitar duplicidade."
+	}
+
+	writeJSON(w, http.StatusOK, FleetRoleResponse{
+		Success: true,
+		Role:    cleanRole,
+		Message: message,
 	})
 }

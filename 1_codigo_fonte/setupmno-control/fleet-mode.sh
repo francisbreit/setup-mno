@@ -20,17 +20,58 @@ get_status() {
     jq -r '.fleetMode // "disabled"' "$ENV_FILE" 2>/dev/null || printf 'disabled\n'
 }
 
+get_role() {
+    if [ ! -f "$ENV_FILE" ] || [ -L "$ENV_FILE" ]; then
+        printf 'active\n'
+        return 0
+    fi
+    jq -r '.fleetRole // "active"' "$ENV_FILE" 2>/dev/null || printf 'active\n'
+}
+
 get_info() {
     if [ ! -f "$ENV_FILE" ] || [ -L "$ENV_FILE" ]; then
         printf 'Modo: disabled\n'
         return 0
     fi
-    local mode node_id token master_url
+    local mode node_id token master_url role
     mode=$(jq -r '.fleetMode // "disabled"' "$ENV_FILE" 2>/dev/null || printf 'disabled')
     node_id=$(jq -r '.fleetNodeId // "não definido"' "$ENV_FILE" 2>/dev/null || printf 'não definido')
     token=$(jq -r '.fleetToken // "não definido"' "$ENV_FILE" 2>/dev/null || printf 'não definido')
     master_url=$(jq -r '.fleetMasterUrl // "não configurado"' "$ENV_FILE" 2>/dev/null || printf 'não configurado')
-    printf 'Modo: %s\nNode ID: %s\nToken de Pareamento: %s\nMaster URL: %s\n' "$mode" "$node_id" "$token" "$master_url"
+    role=$(jq -r '.fleetRole // "active"' "$ENV_FILE" 2>/dev/null || printf 'active')
+    if [ "$mode" = "master" ]; then
+        printf 'Modo: %s\nPapel da Torre: %s\nNode ID: %s\nToken de Pareamento: %s\nMaster URL: %s\n' "$mode" "$role" "$node_id" "$token" "$master_url"
+    else
+        printf 'Modo: %s\nNode ID: %s\nToken de Pareamento: %s\nMaster URL: %s\n' "$mode" "$node_id" "$token" "$master_url"
+    fi
+}
+
+set_role() {
+    local requested_role="${1:-}"
+    case "$requested_role" in
+        active|standby) ;;
+        *) fail "Papel fleet inválido: '$requested_role'. Use 'active' ou 'standby'." ;;
+    esac
+
+    if [ ! -f "$ENV_FILE" ] || [ -L "$ENV_FILE" ]; then
+        fail "Arquivo de ambiente do Control Center ($ENV_FILE) indisponível."
+    fi
+
+    local current_mode
+    current_mode=$(get_status)
+    if [ "$current_mode" != "master" ]; then
+        fail "O papel de Torre (active/standby) só pode ser configurado quando o modo for 'master'."
+    fi
+
+    local temp_file
+    temp_file=$(mktemp "$CONTROL_DIR/environment.json.tmp.XXXXXX") || fail "Erro ao criar arquivo temporário."
+    chmod 0644 "$temp_file" || { rm -f "$temp_file"; fail "Erro ao definir permissões."; }
+
+    jq --arg role "$requested_role" \
+       '.fleetRole = $role' "$ENV_FILE" >"$temp_file" || { rm -f "$temp_file"; fail "Erro ao atualizar JSON."; }
+
+    mv -f "$temp_file" "$ENV_FILE"
+    printf 'Papel da Torre Master atualizado para: %s\n' "$requested_role"
 }
 
 set_mode() {
@@ -91,8 +132,12 @@ set_mode() {
         jq --arg mode "$requested_mode" \
            '.fleetMode = $mode' "$ENV_FILE" >"$temp_file" || { rm -f "$temp_file"; fail "Erro ao atualizar JSON."; }
     else
-        jq --arg mode "$requested_mode" --arg nodeId "$node_id" --arg token "$token" \
-           '.fleetMode = $mode | .fleetNodeId = $nodeId | .fleetToken = (.fleetToken // $token)' "$ENV_FILE" >"$temp_file" || { rm -f "$temp_file"; fail "Erro ao atualizar JSON."; }
+        local default_role="active"
+        if grep -qEi "(Microsoft|WSL)" /proc/version 2>/dev/null; then
+            default_role="standby"
+        fi
+        jq --arg mode "$requested_mode" --arg nodeId "$node_id" --arg token "$token" --arg defRole "$default_role" \
+           '.fleetMode = $mode | .fleetNodeId = $nodeId | .fleetToken = (.fleetToken // $token) | .fleetRole = (.fleetRole // $defRole)' "$ENV_FILE" >"$temp_file" || { rm -f "$temp_file"; fail "Erro ao atualizar JSON."; }
     fi
 
     mv -f "$temp_file" "$ENV_FILE"
@@ -122,25 +167,33 @@ show_menu() {
         is_wsl=true
     fi
 
-    local current_mode
+    local current_mode current_role
     current_mode=$(get_status)
+    current_role=$(get_role)
 
     local status_desc="DESATIVADO (Modo Simples Standalone)"
     case "$current_mode" in
-        master) status_desc="ATIVADO (Torre de Controle / Master Hub)" ;;
+        master)
+            if [ "$current_role" = "standby" ]; then
+                status_desc="ATIVADO (Torre Master · Cockpit Standby / Passiva)"
+            else
+                status_desc="ATIVADO (Torre Master · Primária Ativa 24/7)"
+            fi
+            ;;
         worker) status_desc="ATIVADO (Nó de Frota / Worker)" ;;
     esac
 
     local fleet_choice
     fleet_choice=$(whiptail --title "MNO FLEET HUB — GESTÃO DE SERVIDORES" --menu \
-        "Estado Atual: $status_desc\n\nSelecione uma opção:" 21 78 7 \
+        "Estado Atual: $status_desc\n\nSelecione uma opção:" 22 78 8 \
         "1" "Manter Modo Simples Standalone (Desativado - 0 MB overhead)" \
         "2" "Ativar como Torre Master (Cockpit Local no WSL2 ou VPS)" \
         "3" "Conectar à Frota como Nó Worker (Subordinado - Exige VPS 24/7)" \
         "4" "Ver Informações de Pareamento (ID e Token do Nó)" \
         "5" "Clone, Transferência e Backup de Aplicações da Frota" \
         "6" "Sincronizar Inventário de outra Torre Master (Master-to-Master)" \
-        "7" "Voltar ao Menu Principal" \
+        "7" "Alternar Papel da Torre Master (Ativa 24/7 ⇄ Cockpit Standby)" \
+        "8" "Voltar ao Menu Principal" \
         3>&1 1>&2 2>&3) || return 0
 
     case "$fleet_choice" in
@@ -150,14 +203,15 @@ show_menu() {
             ;;
         2)
             set_mode master >/dev/null
-            local cur_id cur_token
+            local cur_id cur_token cur_role
             cur_id=$(jq -r '.fleetNodeId // "indisponível"' "$ENV_FILE" 2>/dev/null)
             cur_token=$(jq -r '.fleetToken // "indisponível"' "$ENV_FILE" 2>/dev/null)
+            cur_role=$(get_role)
             if [ "$is_wsl" = "true" ]; then
                 whiptail --title "MNO FLEET HUB — COCKPIT LOCAL (WSL2)" --msgbox \
-                    "Torre Master (Cockpit Local) ativada com sucesso no WSL2!\n\nSeu computador pessoal agora é a Torre de Controle da sua frota.\n\nVocê pode cadastrar e gerenciar seus servidores VPS remotos (Nós Workers) diretamente desta tela, com zero portas abertas no seu roteador residencial.\n\nID da Torre: $cur_id\nToken da Frota: $cur_token" 16 78
+                    "Torre Master ativada com sucesso no WSL2!\n\nSeu computador pessoal agora é a Torre de Controle da sua frota.\nPapel atribuído automaticamente: Cockpit Standby (Passiva).\n\nVocê pode cadastrar e gerenciar seus servidores VPS remotos (Nós Workers) diretamente desta tela, com zero portas abertas no seu roteador residencial.\n\nID da Torre: $cur_id\nToken da Frota: $cur_token\nPapel: $cur_role" 17 78
             else
-                whiptail --title "MNO FLEET HUB" --msgbox "Torre de Controle (Master Hub) ativada com sucesso!\n\nEste servidor agora gerencia suas aplicações locais e está pronto para gerenciar múltiplos servidores e o Co-piloto de IA.\n\nID da Torre: $cur_id\nToken da Frota: $cur_token" 15 76
+                whiptail --title "MNO FLEET HUB" --msgbox "Torre de Controle (Master Hub) ativada com sucesso!\n\nEste servidor agora gerencia suas aplicações locais e está pronto para gerenciar múltiplos servidores e o Co-piloto de IA.\nPapel atribuído: Primária Ativa (24/7).\n\nID da Torre: $cur_id\nToken da Frota: $cur_token\nPapel: $cur_role" 16 76
             fi
             ;;
         3)
@@ -193,6 +247,31 @@ show_menu() {
             sync_master_inventory
             ;;
         7)
+            if [ "$current_mode" != "master" ]; then
+                whiptail --title "PAPEL DA TORRE MASTER" --msgbox \
+                    "A configuração de Papel da Torre (Ativa vs Standby) é aplicável somente quando o servidor está no modo Torre Master (Opção 2).\n\nAtive a Torre Master antes de ajustar esta opção." 13 74
+                return 0
+            fi
+            local cur_role
+            cur_role=$(get_role)
+            local role_choice
+            role_choice=$(whiptail --title "PAPEL DA TORRE MASTER" --menu \
+                "Papel atual: $cur_role\n\nEscolha o papel operacional desta Torre Master:" 16 78 2 \
+                "1" "Torre Primária Ativa 24/7 (VPS na Nuvem - Varreduras e Sentinel)" \
+                "2" "Torre Cockpit Standby (Notebook WSL2 - Sob demanda / Silenciosa)" \
+                3>&1 1>&2 2>&3) || return 0
+
+            if [ "$role_choice" = "1" ]; then
+                set_role active >/dev/null
+                whiptail --title "TORRE ATIVA CONFIGURADA" --msgbox \
+                    "Esta Torre Master agora é a TORRE PRIMÁRIA ATIVA (24/7).\n\n• Varreduras periódicas de frota ativadas em background.\n• Sentinel autônomo ativo para monitorar e alertar sobre incidentes." 13 74
+            elif [ "$role_choice" = "2" ]; then
+                set_role standby >/dev/null
+                whiptail --title "TORRE STANDBY CONFIGURADA" --msgbox \
+                    "Esta Torre Master agora é a TORRE COCKPIT STANDBY (Passiva).\n\n• Ideal para notebook / WSL2 ou torre reserva.\n• Varreduras automáticas em loop pausadas para economizar recursos.\n• Sentinel autônomo silenciado para evitar alertas duplicados com a VPS.\n• Todos os comandos manuais continuam 100% disponíveis!" 15 76
+            fi
+            ;;
+        8)
             return 0
             ;;
         *)
@@ -324,6 +403,13 @@ case "$action" in
     status)
         get_status
         ;;
+    get-role)
+        get_role
+        ;;
+    role)
+        shift
+        set_role "${1:-}"
+        ;;
     info)
         get_info
         ;;
@@ -339,6 +425,6 @@ case "$action" in
         show_menu
         ;;
     *)
-        fail "Ação desconhecida: $action. Use: $0 [status | info | set <disabled|master|worker> | sync-inventory | menu]"
+        fail "Ação desconhecida: $action. Use: $0 [status | get-role | role <active|standby> | info | set <disabled|master|worker> | sync-inventory | menu]"
         ;;
 esac

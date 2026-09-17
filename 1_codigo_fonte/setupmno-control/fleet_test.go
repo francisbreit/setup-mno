@@ -726,6 +726,116 @@ func TestFleetMasterToMasterSync(t *testing.T) {
 	}
 }
 
+func TestFleetMasterActiveStandbyRole(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "fleet-role-*")
+	if err != nil {
+		t.Fatalf("erro ao criar tempDir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	envPath := filepath.Join(tempDir, "environment.json")
+	initialEnv := `{
+		"schemaVersion": 1,
+		"plan": "pro",
+		"installationType": "CLOUDFLARE_TUNNEL",
+		"fleetMode": "master",
+		"fleetNodeId": "master-test-node",
+		"fleetToken": "token-test-1234567890",
+		"fleetRole": "active"
+	}`
+	if err := os.WriteFile(envPath, []byte(initialEnv), 0o600); err != nil {
+		t.Fatalf("erro ao gravar initialEnv: %v", err)
+	}
+
+	// 1. Ler ambiente inicial: deve ser "active"
+	env, err := readRuntimeEnvironment(tempDir)
+	if err != nil {
+		t.Fatalf("readRuntimeEnvironment falhou: %v", err)
+	}
+	if env.FleetRole != "active" {
+		t.Errorf("esperava fleetRole='active', obteve %s", env.FleetRole)
+	}
+
+	// 2. Comutar para "standby"
+	if err := updateRuntimeEnvironmentFleetRole(tempDir, "standby"); err != nil {
+		t.Fatalf("updateRuntimeEnvironmentFleetRole para 'standby' falhou: %v", err)
+	}
+	envAfterStandby, err := readRuntimeEnvironment(tempDir)
+	if err != nil {
+		t.Fatalf("readRuntimeEnvironment pós standby falhou: %v", err)
+	}
+	if envAfterStandby.FleetRole != "standby" {
+		t.Errorf("esperava fleetRole='standby', obteve %s", envAfterStandby.FleetRole)
+	}
+
+	// 3. Comutar de volta para "active"
+	if err := updateRuntimeEnvironmentFleetRole(tempDir, "active"); err != nil {
+		t.Fatalf("updateRuntimeEnvironmentFleetRole para 'active' falhou: %v", err)
+	}
+	envAfterActive, err := readRuntimeEnvironment(tempDir)
+	if err != nil {
+		t.Fatalf("readRuntimeEnvironment pós active falhou: %v", err)
+	}
+	if envAfterActive.FleetRole != "active" {
+		t.Errorf("esperava fleetRole='active', obteve %s", envAfterActive.FleetRole)
+	}
+
+	// 4. Testar handler HTTP POST /api/fleet/role
+	agentServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/fleet/config" {
+			_ = json.NewEncoder(w).Encode(fleetConfigResponse{
+				FleetMode:   FleetModeMaster,
+				FleetNodeID: "master-test-node",
+				FleetRole:   "active",
+			})
+			return
+		}
+		if r.URL.Path == "/fleet/role" {
+			var body struct {
+				Role string `json:"role"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			_ = json.NewEncoder(w).Encode(map[string]any{"success": true, "role": body.Role})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer agentServer.Close()
+
+	app := &webApp{
+		agentURL:   agentServer.URL,
+		httpClient: agentServer.Client(),
+	}
+
+	// Requisição para alternar para standby
+	roleReqBody, _ := json.Marshal(FleetRoleRequest{Role: "standby"})
+	req := httptest.NewRequest(http.MethodPost, "/api/fleet/role", strings.NewReader(string(roleReqBody)))
+	w := httptest.NewRecorder()
+
+	app.handleFleetSetRole(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("handleFleetSetRole falhou com HTTP %d: %s", w.Code, w.Body.String())
+	}
+
+	var roleResp FleetRoleResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &roleResp); err != nil {
+		t.Fatalf("erro ao decodificar JSON de role: %v", err)
+	}
+	if !roleResp.Success || roleResp.Role != "standby" {
+		t.Errorf("resposta inesperada da comutação de role: %+v", roleResp)
+	}
+
+	// Requisição com role inválido deve ser rejeitada
+	invalidReqBody, _ := json.Marshal(FleetRoleRequest{Role: "invalido"})
+	reqInvalid := httptest.NewRequest(http.MethodPost, "/api/fleet/role", strings.NewReader(string(invalidReqBody)))
+	wInvalid := httptest.NewRecorder()
+	app.handleFleetSetRole(wInvalid, reqInvalid)
+	if wInvalid.Code != http.StatusBadRequest {
+		t.Errorf("esperava HTTP 400 para role inválido, obteve %d", wInvalid.Code)
+	}
+}
+
+
 
 
 

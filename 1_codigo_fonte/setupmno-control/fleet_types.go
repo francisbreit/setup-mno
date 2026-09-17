@@ -93,6 +93,8 @@ type FleetStatusResponse struct {
 	IsMaster       bool           `json:"isMaster"`
 	IsWorker       bool           `json:"isWorker"`
 	FleetToken     string         `json:"fleetToken,omitempty"`
+	FleetRole      string         `json:"fleetRole,omitempty"` // "active" (VPS 24/7) ou "standby" (Cockpit Local)
+	IsStandby      bool           `json:"isStandby"`
 	TotalNodes     int            `json:"totalNodes"`
 	OnlineNodes    int            `json:"onlineNodes"`
 	DegradedNodes  int            `json:"degradedNodes"`
@@ -128,6 +130,7 @@ type fleetConfigResponse struct {
 	FleetNodeID    string    `json:"fleetNodeId,omitempty"`
 	FleetMasterURL string    `json:"fleetMasterUrl,omitempty"`
 	FleetToken     string    `json:"fleetToken,omitempty"`
+	FleetRole      string    `json:"fleetRole,omitempty"` // "active" ou "standby"
 }
 
 // FleetVolumeInfo representa informações de tamanho e ponto de montagem de um volume Docker.
@@ -308,4 +311,16 @@ type FleetExportInventoryResponse struct {
 	MasterNodeID  string      `json:"masterNodeId"`
 	ExportedAt    time.Time   `json:"exportedAt"`
 	Nodes         []FleetNode `json:"nodes"`
+}
+
+// FleetRoleRequest representa os parâmetros para alterar o papel operacional da Torre Master.
+type FleetRoleRequest struct {
+	Role string `json:"role"` // "active" (VPS 24/7) ou "standby" (Cockpit Local)
+}
+
+// FleetRoleResponse representa o resultado da alteração do papel da Torre Master.
+type FleetRoleResponse struct {
+	Success bool   `json:"success"`
+	Role    string `json:"role"`
+	Message string `json:"message"`
 }

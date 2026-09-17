@@ -421,6 +421,11 @@ func (a *webApp) runSentinelCheckCycle(ctx context.Context) {
 		return
 	}
 
+	fleetCfg, _ := a.fetchFleetConfig(ctx)
+	if fleetCfg.FleetRole == "standby" {
+		return // Torre Master em modo Standby (Cockpit Local): alertas autônomos silenciados para evitar duplicidade
+	}
+
 	state.mu.Lock()
 	state.running = true
 	state.lastCheck = time.Now().UTC()

@@ -344,6 +344,7 @@ type runtimeEnvironment struct {
 	FleetNodeID      string    `json:"fleetNodeId,omitempty"`
 	FleetMasterURL   string    `json:"fleetMasterUrl,omitempty"`
 	FleetToken       string    `json:"fleetToken,omitempty"`
+	FleetRole        string    `json:"fleetRole,omitempty"` // "active" (VPS 24/7) ou "standby" (Cockpit Local)
 }
 
 type catalogResponse struct {
@@ -725,6 +726,7 @@ func runWeb() error {
 	mux.HandleFunc("POST /api/fleet/tools/execute", app.handleFleetToolsExecute)
 	mux.HandleFunc("GET /api/fleet/inventory/export", app.handleFleetExportInventory)
 	mux.Handle("POST /api/fleet/inventory/import", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetImportInventory))))
+	mux.Handle("POST /api/fleet/role", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetSetRole))))
 	mux.Handle("GET /api/sentinel/config", app.requireAuth(http.HandlerFunc(app.handleSentinelGetConfig)))
 	mux.Handle("POST /api/sentinel/config", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleSentinelSaveConfig))))
 	mux.Handle("POST /api/sentinel/test", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleSentinelTestAlert))))
@@ -915,11 +917,39 @@ func runAgent() error {
 			})
 			return
 		}
+		role := environment.FleetRole
+		if role == "" {
+			role = "active"
+		}
 		writeJSON(w, http.StatusOK, fleetConfigResponse{
 			FleetMode:      environment.FleetMode,
 			FleetNodeID:    environment.FleetNodeID,
 			FleetMasterURL: environment.FleetMasterURL,
 			FleetToken:     environment.FleetToken,
+			FleetRole:      role,
+		})
+	}))
+	mux.HandleFunc("POST /fleet/role", authorize(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Role string `json:"role"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4<<10)).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "JSON inválido")
+			return
+		}
+		cleanRole := strings.ToLower(strings.TrimSpace(req.Role))
+		if cleanRole != "active" && cleanRole != "standby" {
+			writeError(w, http.StatusBadRequest, "papel da frota inválido (use 'active' ou 'standby')")
+			return
+		}
+
+		if err := updateRuntimeEnvironmentFleetRole(setupStateDir, cleanRole); err != nil {
+			writeError(w, http.StatusInternalServerError, fmt.Sprintf("falha ao atualizar papel: %v", err))
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"role":    cleanRole,
 		})
 	}))
 	mux.HandleFunc("GET /fleet/structure", authorize(func(w http.ResponseWriter, _ *http.Request) {
@@ -3832,6 +3862,34 @@ func (a *webApp) agentRequest(ctx context.Context, endpoint string, target any) 
 	return json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(target)
 }
 
+func (a *webApp) agentPost(ctx context.Context, endpoint string, payload any, target any) error {
+	if a.httpClient == nil {
+		return errors.New("cliente HTTP do agente não configurado")
+	}
+	bodyData, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.agentURL+endpoint, bytes.NewReader(bodyData))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-SetupMNO-Agent-Token", a.agentToken)
+	resp, err := a.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("agente retornou HTTP %d", resp.StatusCode)
+	}
+	if target != nil {
+		return json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(target)
+	}
+	return nil
+}
+
 func (a *webApp) runtimeBlueprintCatalog(ctx context.Context) (blueprintCatalogResponse, error) {
 	var catalog blueprintCatalogResponse
 	if err := a.agentRequest(ctx, "/blueprints", &catalog); err != nil {
@@ -3982,7 +4040,47 @@ func readRuntimeEnvironment(directory string) (runtimeEnvironment, error) {
 	if environment.FleetMode != FleetModeDisabled && environment.InstallationType != "CLOUDFLARE_TUNNEL" {
 		return runtimeEnvironment{}, errors.New("modo fleet exige instalação via CLOUDFLARE_TUNNEL")
 	}
+	switch environment.FleetRole {
+	case "", "active", "standby":
+		if environment.FleetRole == "" {
+			environment.FleetRole = "active"
+		}
+	default:
+		return runtimeEnvironment{}, errors.New("papel da torre fleet runtime inválido (esperado: 'active' ou 'standby')")
+	}
 	return environment, nil
+}
+
+func updateRuntimeEnvironmentFleetRole(directory, role string) error {
+	envPath := filepath.Join(directory, "environment.json")
+	data, err := os.ReadFile(envPath)
+	if err != nil {
+		return fmt.Errorf("falha ao ler environment.json: %w", err)
+	}
+
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("JSON inválido em environment.json: %w", err)
+	}
+
+	raw["fleetRole"] = role
+
+	updatedBytes, err := json.MarshalIndent(raw, "", "  ")
+	if err != nil {
+		return fmt.Errorf("falha ao serializar environment.json: %w", err)
+	}
+
+	tempPath := envPath + ".tmp"
+	if err := os.WriteFile(tempPath, updatedBytes, 0o644); err != nil {
+		return fmt.Errorf("falha ao gravar temporário: %w", err)
+	}
+
+	if err := os.Rename(tempPath, envPath); err != nil {
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("falha ao atualizar atomicamente environment.json: %w", err)
+	}
+
+	return nil
 }
 
 func validateReleaseKnowledge(release setupRelease) error {
