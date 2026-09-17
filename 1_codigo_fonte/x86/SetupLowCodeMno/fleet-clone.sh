@@ -979,8 +979,8 @@ resolve_host_service_port() {
         fi
     fi
 
-    # 2.5. n8n editor vs webhook
-    if [[ "$cur_app_name" == *editor* ]] || [[ "$cur_app_name" == *webhook* ]]; then
+    # 2.5. n8n editor vs webhook vs mcp
+    if [[ "$cur_app_name" == *editor* ]] || [[ "$cur_app_name" == *webhook* ]] || [[ "$cur_app_name" == *mcp* ]]; then
         local n8n_svc
         n8n_svc=$(awk '/^services:/{flag=1; next} flag && /^[[:space:]]{2}[a-zA-Z0-9_-]+:/{print $1; exit}' "$yaml" 2>/dev/null | tr -d ':' || true)
         [ -n "$n8n_svc" ] || n8n_svc="$cur_app_name"
@@ -1065,7 +1065,7 @@ switch_cloudflare_dns_and_ingress() {
     # Se a stack for puramente de suporte/background e NÃO possuir router Traefik explícito (Host(`...`)),
     # ela jamais deve comutar DNS nem rotas de Ingress.
     if ! grep -qP 'Host\(`' "$yaml_file" 2>/dev/null; then
-        if [[ "$app_lower" =~ (worker|runner|redis|database|postgres|mysql|cron|queue|-mq|mcp) ]]; then
+        if [[ "$app_lower" =~ (worker|runner|redis|database|postgres|mysql|cron|queue|-mq) ]] && [[ ! "$app_lower" =~ mcp ]]; then
             echo "[ROTEAMENTO CLOUDFLARE] Stack de suporte/background ($app_name) ignorada para rotas web."
             return 0
         fi
@@ -1106,8 +1106,16 @@ switch_cloudflare_dns_and_ingress() {
         while IFS= read -r h; do
             [ -n "$h" ] && hostnames+=("$h")
         done < <(grep -oP '(?<=WEBHOOK_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null | sort -u)
+    elif [[ "$app_lower" =~ mcp ]]; then
+        # 6. n8n MCP API exclusivo (atende requisições no domínio do webhook em /mcp/*)
+        while IFS= read -r h; do
+            [ -n "$h" ] && hostnames+=("$h")
+        done < <({
+            grep -oP '(?<=WEBHOOK_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=N8N_HOST=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+        } | head -n1)
     elif [[ "$app_lower" =~ ^n8n && ! "$app_lower" =~ (editor|webhook|worker|runner|mcp) ]]; then
-        # 6. n8n standalone (sem fila)
+        # 7. n8n standalone (sem fila)
         while IFS= read -r h; do
             [ -n "$h" ] && hostnames+=("$h")
         done < <({
@@ -1116,7 +1124,7 @@ switch_cloudflare_dns_and_ingress() {
             grep -oP '(?<=WEBHOOK_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
         } | sort -u)
     else
-        # 7. Fallback geral para apps web padrão
+        # 8. Fallback geral para apps web padrão
         while IFS= read -r h; do
             [ -n "$h" ] && hostnames+=("$h")
         done < <({
@@ -1134,7 +1142,21 @@ switch_cloudflare_dns_and_ingress() {
         sp=$(resolve_host_service_port "$yaml_file" "$h" "$app_name")
         local s_svc="${sp%:*}"
         local s_port="${sp#*:}"
-        mappings+=("${h}|${s_svc}|${s_port}")
+        local s_path=""
+        if [[ "$app_lower" =~ mcp ]]; then
+            s_path="/mcp/*"
+        elif grep -q "PathPrefix" "$yaml_file" 2>/dev/null; then
+            local raw_prefix
+            raw_prefix=$(grep -F "Host(\`$h\`)" "$yaml_file" 2>/dev/null | grep -oP 'PathPrefix\(`\K[^`]+' | head -n1 || true)
+            if [ -n "$raw_prefix" ]; then
+                if [[ "$raw_prefix" == */* ]] && [[ "$raw_prefix" != *\* ]]; then
+                    s_path="${raw_prefix%/}/*"
+                else
+                    s_path="$raw_prefix"
+                fi
+            fi
+        fi
+        mappings+=("${h}|${s_svc}|${s_port}|${s_path}")
     done
 
     local mappings_b64
@@ -1153,12 +1175,12 @@ if [ -f "$creds" ]; then
     if [ -n "${CLOUDFLARE_API_TOKEN:-}" ] && [ -n "${CLOUDFLARE_ZONE_ID:-}" ] && [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] && [ -n "${TUNNEL_ID:-}" ]; then
         for m in "${mappings[@]}"; do
             [ -n "$m" ] || continue
-            IFS='|' read -r h target_service_name default_port <<< "$m"
+            IFS='|' read -r h target_service_name default_port target_path <<< "$m"
             [ -n "$h" ] || continue
             [ -n "$target_service_name" ] || continue
             [ -n "$default_port" ] || default_port="80"
 
-            echo "[ROTEAMENTO CLOUDFLARE] Comutando domínio $h -> ${target_service_name}:${default_port} (Túnel: $TUNNEL_ID)..."
+            echo "[ROTEAMENTO CLOUDFLARE] Comutando domínio $h -> ${target_service_name}:${default_port}${target_path:+ ($target_path)} (Túnel: $TUNNEL_ID)..."
 
             # 1. Update/create CNAME DNS record (atômico via PUT quando existente)
             records=$(curl -sS -X GET "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${h}&type=CNAME" \
@@ -1193,13 +1215,19 @@ if [ -f "$creds" ]; then
             if echo "$cfg_raw" | grep -q '"success":true'; then
                 to_put=$(mktemp)
                 target_service="http://${target_service_name}:${default_port}"
-                printf '%s' "$cfg_raw" | jq --arg host "$h" --arg service "$target_service" '
+                printf '%s' "$cfg_raw" | jq --arg host "$h" --arg service "$target_service" --arg path "$target_path" '
                     (.result.config // {}) as $cfg
                     | ($cfg.ingress // []) as $ing
                     | ($ing | map(select(.service != "http_status:404"))) as $clean
-                    | ($clean | map(select(.hostname != $host))) as $filtered
-                    | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
-                    | ($merged + [{ service: "http_status:404" }]) as $final_ing
+                    | (if ($path // "") != "" then
+                        ($clean | map(select(.hostname != $host or (.path // "") != $path)))
+                        + [ { hostname: $host, path: $path, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]
+                      else
+                        ($clean | map(select(.hostname != $host or ((.path // "") != ""))))
+                        + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]
+                      end) as $merged
+                    | ($merged | sort_by([.hostname, (if (.path // "") != "" then 0 else 1 end)])) as $final_routes
+                    | ($final_routes + [{ service: "http_status:404" }]) as $final_ing
                     | { config: ($cfg + { ingress: $final_ing }) }
                 ' > "$to_put" 2>/dev/null || true
 
@@ -1208,7 +1236,7 @@ if [ -f "$creds" ]; then
                         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
                         -H "Content-Type: application/json" \
                         --data-binary @"$to_put" 2>/dev/null || true)
-                    echo "$ing_res" | grep -q '"success":true' && echo "  [OK] Ingress configurado para $target_service" || echo "  [ALERTA] Falha no Ingress: $ing_res"
+                    echo "$ing_res" | grep -q '"success":true' && echo "  [OK] Ingress configurado para $target_service (${target_path:-raiz})" || echo "  [ALERTA] Falha no Ingress: $ing_res"
                 fi
                 rm -f "$to_put"
             fi
@@ -1233,12 +1261,12 @@ if [ -f "$creds" ]; then
     if [ -n "${CLOUDFLARE_API_TOKEN:-}" ] && [ -n "${CLOUDFLARE_ZONE_ID:-}" ] && [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] && [ -n "${TUNNEL_ID:-}" ]; then
         for m in "${mappings[@]}"; do
             [ -n "$m" ] || continue
-            IFS='|' read -r h target_service_name default_port <<< "$m"
+            IFS='|' read -r h target_service_name default_port target_path <<< "$m"
             [ -n "$h" ] || continue
             [ -n "$target_service_name" ] || continue
             [ -n "$default_port" ] || default_port="80"
 
-            echo "[ROTEAMENTO CLOUDFLARE] Comutando domínio $h -> ${target_service_name}:${default_port} (Túnel: $TUNNEL_ID)..."
+            echo "[ROTEAMENTO CLOUDFLARE] Comutando domínio $h -> ${target_service_name}:${default_port}${target_path:+ ($target_path)} (Túnel: $TUNNEL_ID)..."
 
             # 1. Update/create CNAME DNS record (atômico via PUT quando existente)
             records=$(curl -sS -X GET "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${h}&type=CNAME" \
@@ -1273,13 +1301,19 @@ if [ -f "$creds" ]; then
             if echo "$cfg_raw" | grep -q '"success":true'; then
                 to_put=$(mktemp)
                 target_service="http://${target_service_name}:${default_port}"
-                printf '%s' "$cfg_raw" | jq --arg host "$h" --arg service "$target_service" '
+                printf '%s' "$cfg_raw" | jq --arg host "$h" --arg service "$target_service" --arg path "$target_path" '
                     (.result.config // {}) as $cfg
                     | ($cfg.ingress // []) as $ing
                     | ($ing | map(select(.service != "http_status:404"))) as $clean
-                    | ($clean | map(select(.hostname != $host))) as $filtered
-                    | ($filtered + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]) as $merged
-                    | ($merged + [{ service: "http_status:404" }]) as $final_ing
+                    | (if ($path // "") != "" then
+                        ($clean | map(select(.hostname != $host or (.path // "") != $path)))
+                        + [ { hostname: $host, path: $path, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]
+                      else
+                        ($clean | map(select(.hostname != $host or ((.path // "") != ""))))
+                        + [ { hostname: $host, service: $service, originRequest: { noTlsVerify: true, httpHostHeader: $host } } ]
+                      end) as $merged
+                    | ($merged | sort_by([.hostname, (if (.path // "") != "" then 0 else 1 end)])) as $final_routes
+                    | ($final_routes + [{ service: "http_status:404" }]) as $final_ing
                     | { config: ($cfg + { ingress: $final_ing }) }
                 ' > "$to_put" 2>/dev/null || true
 
@@ -1288,7 +1322,7 @@ if [ -f "$creds" ]; then
                         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
                         -H "Content-Type: application/json" \
                         --data-binary @"$to_put" 2>/dev/null || true)
-                    echo "$ing_res" | grep -q '"success":true' && echo "  [OK] Ingress configurado para $target_service" || echo "  [ALERTA] Falha no Ingress: $ing_res"
+                    echo "$ing_res" | grep -q '"success":true' && echo "  [OK] Ingress configurado para $target_service (${target_path:-raiz})" || echo "  [ALERTA] Falha no Ingress: $ing_res"
                 fi
                 rm -f "$to_put"
             fi

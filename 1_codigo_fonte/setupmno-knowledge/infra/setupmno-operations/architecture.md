@@ -7,7 +7,7 @@
   "documentType": "infrastructure",
   "title": "Operação segura do Setup MNO por Portainer e SSH",
   "topicId": "setupmno-operations",
-  "setupVersion": "7.48.8",
+  "setupVersion": "7.48.9",
   "architectures": ["amd64", "arm64"],
   "category": "operations",
   "status": "reviewed",
