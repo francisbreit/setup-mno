@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "PLANKA no Setup MNO",
   "setupId": "planka",
-  "setupVersion": "7.48.7",
+  "setupVersion": "7.48.8",
   "architectures": [
     "amd64",
     "arm64"

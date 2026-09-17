@@ -1065,7 +1065,7 @@ switch_cloudflare_dns_and_ingress() {
     # Se a stack for puramente de suporte/background e NÃO possuir router Traefik explícito (Host(`...`)),
     # ela jamais deve comutar DNS nem rotas de Ingress.
     if ! grep -qP 'Host\(`' "$yaml_file" 2>/dev/null; then
-        if [[ "$app_lower" =~ (worker|runner|redis|database|postgres|mysql|cron|queue|-mq) ]]; then
+        if [[ "$app_lower" =~ (worker|runner|redis|database|postgres|mysql|cron|queue|-mq|mcp) ]]; then
             echo "[ROTEAMENTO CLOUDFLARE] Stack de suporte/background ($app_name) ignorada para rotas web."
             return 0
         fi
@@ -1106,7 +1106,7 @@ switch_cloudflare_dns_and_ingress() {
         while IFS= read -r h; do
             [ -n "$h" ] && hostnames+=("$h")
         done < <(grep -oP '(?<=WEBHOOK_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null | sort -u)
-    elif [[ "$app_lower" =~ ^n8n ]]; then
+    elif [[ "$app_lower" =~ ^n8n && ! "$app_lower" =~ (editor|webhook|worker|runner|mcp) ]]; then
         # 6. n8n standalone (sem fila)
         while IFS= read -r h; do
             [ -n "$h" ] && hostnames+=("$h")
