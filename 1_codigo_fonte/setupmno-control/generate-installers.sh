@@ -430,7 +430,7 @@ for source_path in "$project_dir"/*.go; do
         exit 1
     fi
 done
-grep -Eq 'evalExpectedCases[[:space:]]*=[[:space:]]*897' "$project_dir/evals.go" &&
+grep -Eq 'evalExpectedCases[[:space:]]*=[[:space:]]*877' "$project_dir/evals.go" &&
 grep -Fq 'runEvalSuite' "$project_dir/evals.go" &&
 grep -Fq 'CredentialLeakCount' "$project_dir/evals.go" || {
     printf 'ERRO: suíte determinística de evals ausente ou incompleta.\n' >&2
@@ -973,7 +973,7 @@ knowledge_actual_bytes=$(stat -c '%s' "$knowledge_package/knowledge-package.tar.
 [ "$eval_dataset_version" = "1.17.0" ] &&
 [ "$eval_grader_version" = "1.9.0" ] &&
 [ "${#eval_dataset_sha}" -eq 64 ] &&
-[ "$eval_case_entries" = "897" ] &&
+[ "$eval_case_entries" = "877" ] &&
 grep -Fq "[ \"\$eval_case_entries\" = \"$eval_case_entries\" ]" "$template" &&
 grep -Fq '[ "$eval_case_entries" = "$release_eval_case_entries" ]' "$template" &&
 [ "$blueprint_schema" = "2" ] &&

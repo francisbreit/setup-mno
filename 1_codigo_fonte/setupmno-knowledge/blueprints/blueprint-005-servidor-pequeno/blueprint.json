@@ -8,13 +8,29 @@
   "status": "reviewed",
   "fictitious": false,
   "deployable": false,
-  "setupVersion": "7.48.9",
+  "setupVersion": "7.48.10",
   "updatedAt": "2026-08-02",
-  "architectures": ["amd64", "arm64"],
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
   "risk": "medium",
-  "audiences": ["iniciante", "laboratorio", "infraestrutura"],
-  "tags": ["servidor-pequeno", "monitoramento", "dns", "capacidade"],
-  "aliases": ["stack leve", "vps pequena", "servidor com pouca memória"],
+  "audiences": [
+    "iniciante",
+    "laboratorio",
+    "infraestrutura"
+  ],
+  "tags": [
+    "servidor-pequeno",
+    "monitoramento",
+    "dns",
+    "capacidade"
+  ],
+  "aliases": [
+    "stack leve",
+    "vps pequena",
+    "servidor com pouca memória"
+  ],
   "objective": "Demonstrar como documentar uma composição conservadora para servidor pequeno, deixando margem operacional e impedindo que estimativas substituam medições reais.",
   "components": [
     {
@@ -131,7 +147,10 @@
   ],
   "documentation": {
     "entrypoint": "README.md",
-    "artifacts": ["README.md", "blueprint.json"]
+    "artifacts": [
+      "README.md",
+      "blueprint.json"
+    ]
   },
   "editorial": {
     "currentStage": "reviewed",

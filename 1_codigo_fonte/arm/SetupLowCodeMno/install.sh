@@ -217,7 +217,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.48.9"
+VERSIONSETUP="7.48.10"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -841,8 +841,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "BOOKSTACK" "" \
     "BUDIBASE" "" \
     "BYTEBASE" "" \
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" ""   \
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" ""   \
     "COMBO WHATSAPP MARKETING COMPLETO*" ""   \
     "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*" ""   \
     "COMBO VIBE OPS (HERMES AGENT + N8N)*" ""   \
@@ -914,8 +912,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MINIO" "" \
     "MONGODB" "" \
     "MYSQL" "" \
-    "N8N V1 - SEM FILA (MAIN)" "" \
-    "N8N V1 - FILA (QUEUE)" "" \
     "N8N V2 - FILA (QUEUE)" "" \
     "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "" \
     "NAVIDROME" "" \
@@ -1018,8 +1014,6 @@ case "$CHOICE" in
             "BUDIBASE")                                              run_app budibase ;;
             "BYTEBASE")                                              run_app bytebase ;;
             "CAL.COM")                                               run_app calcom ;;
-            "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
-            "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
             "COMBO WHATSAPP MARKETING COMPLETO*")                   warn_heavy "Combo WhatsApp Marketing Completo" "8GB" && run_app combo_whatsapp_marketing ;;
             "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*")           warn_heavy "Combo Agente IA WhatsApp + CRM (SDR 24/7)" "8GB" && run_app combo_ia_whatsapp_sdr_crm ;;
             "COMBO VIBE OPS (HERMES AGENT + N8N)*")                 warn_heavy "Combo Vibe Ops (Hermes Agent + n8n)" "3GB" && run_app combo_vibe_ops ;;
@@ -1100,8 +1094,6 @@ case "$CHOICE" in
             "MINIO")                                                 run_app minio ;;
             "MONGODB")                                               run_app mongodb ;;
             "MYSQL")                                                 run_app mysql ;;
-            "N8N V1 - SEM FILA (MAIN)")                              run_app n8nmain ;;
-            "N8N V1 - FILA (QUEUE)")                                 warn_heavy "N8N (Fila)" "8GB" && run_app n8n ;;
             "N8N V2 - FILA (QUEUE)")                                 warn_heavy "N8N V2 (Fila)" "7GB" && run_app n8n2 ;;
             "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
             "NAVIDROME")                                                 run_app navidrome ;;
@@ -1173,7 +1165,6 @@ fi
 if [ "$PLANO" == "free" ]; then
 CHOICE=$(
 whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e pressione ENTER" 20 70 10 \
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" ""   \
     "CLICKHOUSE" ""   \
     "DATABASUS" ""   \
     "DIRECTUS" "" \
@@ -1191,8 +1182,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "MINIO" "" \
     "MONGODB" "" \
     "MYSQL" "" \
-    "N8N V1 - SEM FILA (MAIN)" "" \
-    "N8N V1 - FILA (QUEUE)" "" \
     "N8N V2 - FILA (QUEUE)" "" \
     "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS" "" \
     "NOCODB" "" \
@@ -1238,7 +1227,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "BOOKSTACK" "PRO" \
     "BUDIBASE" "PRO" \
     "BYTEBASE" "PRO" \
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "COMBO WHATSAPP MARKETING COMPLETO*" "PRO"   \
     "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*" "PRO"   \
     "COMBO VIBE OPS (HERMES AGENT + N8N)*" "PRO"   \
@@ -1365,8 +1353,6 @@ case "$CHOICE" in
             "BUDIBASE")                                              run_app budibase ;;
             "BYTEBASE")                                              run_app bytebase ;;
             "CAL.COM")                                               run_app calcom ;;
-            "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
-            "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
             "COMBO WHATSAPP MARKETING COMPLETO*")                   warn_heavy "Combo WhatsApp Marketing Completo" "8GB" && run_app combo_whatsapp_marketing ;;
             "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*")           warn_heavy "Combo Agente IA WhatsApp + CRM (SDR 24/7)" "8GB" && run_app combo_ia_whatsapp_sdr_crm ;;
             "COMBO VIBE OPS (HERMES AGENT + N8N)*")                 warn_heavy "Combo Vibe Ops (Hermes Agent + n8n)" "3GB" && run_app combo_vibe_ops ;;
@@ -1447,8 +1433,6 @@ case "$CHOICE" in
             "MINIO")                                                 run_app minio ;;
             "MONGODB")                                               run_app mongodb ;;
             "MYSQL")                                                 run_app mysql ;;
-            "N8N V1 - SEM FILA (MAIN)")                              run_app n8nmain ;;
-            "N8N V1 - FILA (QUEUE)")                                 warn_heavy "N8N (Fila)" "8GB" && run_app n8n ;;
             "N8N V2 - FILA (QUEUE)")                                 warn_heavy "N8N V2 (Fila)" "7GB" && run_app n8n2 ;;
             "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
             "NAVIDROME")                                                 run_app navidrome ;;
@@ -1526,8 +1510,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "EVOLUTION GO" ""  \
     "EVO NEXUS" ""  \
     "MINIO" "" \
-    "N8N V1 - SEM FILA (MAIN)" "" \
-    "N8N V1 - FILA (QUEUE)" "" \
     "N8N V2 - FILA (QUEUE)" "" \
     "PGADMIN4" "" \
     "REDIS" "" \
@@ -1545,8 +1527,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "BOOKSTACK" "PRO" \
     "BUDIBASE" "PRO" \
     "BYTEBASE" "PRO" \
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" "PRO"   \
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "COMBO WHATSAPP MARKETING COMPLETO*" "PRO"   \
     "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*" "PRO"   \
     "COMBO VIBE OPS (HERMES AGENT + N8N)*" "PRO"   \
@@ -1704,9 +1684,7 @@ case "$CHOICE" in
             "BUDIBASE")                                              run_app budibase ;;
             "BYTEBASE")                                              run_app bytebase ;;
             "CAL.COM")                                               run_app calcom ;;
-            "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
             "CHANGEDETECTION.IO")                                     run_app changedetection ;;
-            "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
             "COMBO WHATSAPP MARKETING COMPLETO*")                   warn_heavy "Combo WhatsApp Marketing Completo" "8GB" && run_app combo_whatsapp_marketing ;;
             "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*")           warn_heavy "Combo Agente IA WhatsApp + CRM (SDR 24/7)" "8GB" && run_app combo_ia_whatsapp_sdr_crm ;;
             "COMBO VIBE OPS (HERMES AGENT + N8N)*")                 warn_heavy "Combo Vibe Ops (Hermes Agent + n8n)" "3GB" && run_app combo_vibe_ops ;;
@@ -1786,8 +1764,6 @@ case "$CHOICE" in
             "MINIO")                                                 run_app minio ;;
             "MONGODB")                                               run_app mongodb ;;
             "MYSQL")                                                 run_app mysql ;;
-            "N8N V1 - SEM FILA (MAIN)")                              run_app n8nmain ;;
-            "N8N V1 - FILA (QUEUE)")                                 warn_heavy "N8N (Fila)" "8GB" && run_app n8n ;;
             "N8N V2 - FILA (QUEUE)")                                 warn_heavy "N8N V2 (Fila)" "7GB" && run_app n8n2 ;;
             "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
             "NAVIDROME")                                                 run_app navidrome ;;
@@ -1864,8 +1840,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "EVOLUTION GO" ""  \
     "EVO NEXUS" ""  \
     "MINIO" "" \
-    "N8N V1 - SEM FILA (MAIN)" "" \
-    "N8N V1 - FILA (QUEUE)" "" \
     "N8N V2 - FILA (QUEUE)" "" \
     "OPENCLAW" "" \
     "PGADMIN4" "" \
@@ -1884,8 +1858,6 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "BOOKSTACK" "PRO" \
     "BUDIBASE" "PRO" \
     "BYTEBASE" "PRO" \
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*" "PRO"   \
-    "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*" "PRO"   \
     "COMBO WHATSAPP MARKETING COMPLETO*" "PRO"   \
     "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*" "PRO"   \
     "COMBO VIBE OPS (HERMES AGENT + N8N)*" "PRO"   \
@@ -2044,8 +2016,6 @@ case "$CHOICE" in
             "BYTEBASE")                                              run_app bytebase ;;
             "CHANGEDETECTION.IO")                                     run_app changedetection ;;
             "CAL.COM")                                               run_app calcom ;;
-            "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*")               warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ" "4GB" && run_app chatwootn_evo2_rabbitmq_redisevo ;;
-            "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*")       warn_heavy "Chatwoot + Evolution 2.0 + RabbitMQ + MinIO" "4GB" && run_app chatwootn_evo2_rabbitmq_minio ;;
             "COMBO WHATSAPP MARKETING COMPLETO*")                   warn_heavy "Combo WhatsApp Marketing Completo" "8GB" && run_app combo_whatsapp_marketing ;;
             "COMBO AGENTE IA WHATSAPP + CRM (SDR 24/7)*")           warn_heavy "Combo Agente IA WhatsApp + CRM (SDR 24/7)" "8GB" && run_app combo_ia_whatsapp_sdr_crm ;;
             "COMBO VIBE OPS (HERMES AGENT + N8N)*")                 warn_heavy "Combo Vibe Ops (Hermes Agent + n8n)" "3GB" && run_app combo_vibe_ops ;;
@@ -2125,8 +2095,6 @@ case "$CHOICE" in
             "MINIO")                                                 run_app minio ;;
             "MONGODB")                                               run_app mongodb ;;
             "MYSQL")                                                 run_app mysql ;;
-            "N8N V1 - SEM FILA (MAIN)")                              run_app n8nmain ;;
-            "N8N V1 - FILA (QUEUE)")                                 warn_heavy "N8N (Fila)" "8GB" && run_app n8n ;;
             "N8N V2 - FILA (QUEUE)")                                 warn_heavy "N8N V2 (Fila)" "7GB" && run_app n8n2 ;;
             "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS")              run_app n8n-workflows ;;
             "NAVIDROME")                                                 run_app navidrome ;;

@@ -23,8 +23,6 @@
   ],
   "legacyApplicationInstallers": [
     "anythingllm.sh",
-    "chatwoot.sh",
-    "chatwootn_evon_rabbitmq.sh",
     "easyappointments.sh",
     "lowcoder.sh",
     "mautic5padrao.sh",
@@ -50,5 +48,5 @@
     "sre-*.sh",
     "trivy*.sh"
   ],
-  "expectedCurrentShcInputs": 180
+  "expectedCurrentShcInputs": 174
 }

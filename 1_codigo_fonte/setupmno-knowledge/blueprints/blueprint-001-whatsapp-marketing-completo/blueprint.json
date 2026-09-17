@@ -8,13 +8,33 @@
   "status": "homologated",
   "fictitious": false,
   "deployable": true,
-  "setupVersion": "7.48.9",
+  "setupVersion": "7.48.10",
   "updatedAt": "2026-09-02",
-  "architectures": ["amd64", "arm64"],
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
   "risk": "medium",
-  "audiences": ["marketing", "atendimento", "infraestrutura", "vendas"],
-  "tags": ["whatsapp", "marketing", "automacao", "atendimento", "typebot", "chatwoot"],
-  "aliases": ["marketing por whatsapp", "campanhas whatsapp", "automação whatsapp completa", "combo whatsapp marketing"],
+  "audiences": [
+    "marketing",
+    "atendimento",
+    "infraestrutura",
+    "vendas"
+  ],
+  "tags": [
+    "whatsapp",
+    "marketing",
+    "automacao",
+    "atendimento",
+    "typebot",
+    "chatwoot"
+  ],
+  "aliases": [
+    "marketing por whatsapp",
+    "campanhas whatsapp",
+    "automação whatsapp completa",
+    "combo whatsapp marketing"
+  ],
   "objective": "Fornecer uma arquitetura de alta performance e resiliência para marketing, disparo de campanhas com pausas inteligentes anti-bloqueio, chatbots no Typebot e atendimento humano centralizado no Chatwoot.",
   "components": [
     {
@@ -210,7 +230,11 @@
   ],
   "documentation": {
     "entrypoint": "README.md",
-    "artifacts": ["README.md", "blueprint.json", "knowledge.md"]
+    "artifacts": [
+      "README.md",
+      "blueprint.json",
+      "knowledge.md"
+    ]
   },
   "editorial": {
     "currentStage": "homologated",
@@ -243,7 +267,10 @@
     "homologation": {
       "environment": "isolated-temporary",
       "testedAt": "2026-08-31",
-      "architectures": ["amd64", "arm64"],
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
       "evidence": [
         {
           "evidenceId": "test-report-wsl-vps",

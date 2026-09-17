@@ -1,15 +1,15 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.48.9"
-EXPECTED_CATALOG_ENTRIES="161"
+VERSIONSETUP="7.48.10"
+EXPECTED_CATALOG_ENTRIES="157"
 EXPECTED_EVAL_DATASET_VERSION="1.17.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
-EXPECTED_EVAL_CASE_ENTRIES="897"
+EXPECTED_EVAL_CASE_ENTRIES="877"
 EXPECTED_BLUEPRINT_FACTORY_VERSION="2.1.0"
 EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="0"
 EXPECTED_QUALITY_SCHEMA_VERSION="2"
 EXPECTED_HOMOLOGATION_RUNNER_VERSION="1.3.0"
-EXPECTED_CONTROL_RELEASE_SHA256="c5d6e2ac513630a50a21e092bd23de15fa240c62ec04c1cf4312114ac4f479d7"
+EXPECTED_CONTROL_RELEASE_SHA256="1deed03f2254cf4cac647da98c9f230718a4a45e98d3130f7c81b129b3cae91c"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -1560,13 +1560,7 @@ rm grafana.sh.x.c
 if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm grafana
 fi
-echo -e "XXX\n86\nINSTALANDO SETUPMNO 4/8 \nXXX"
-shc -r -e $data_expiracao -m "$msg_expiracao" -o chatwoot -f chatwoot.sh
-rm chatwoot.sh
-rm chatwoot.sh.x.c
-if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
-rm chatwoot
-fi
+
 echo -e "XXX\n87\nINSTALANDO SETUPMNO 4/8 \nXXX"
 shc -r -e $data_expiracao -m "$msg_expiracao" -o evolutionapi -f evolutionapi.sh
 rm evolutionapi.sh
@@ -1586,9 +1580,6 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm typebot
 fi
 echo -e "XXX\n90\nINSTALANDO SETUPMNO 5/8 \nXXX"
-shc -r -e $data_expiracao -m "$msg_expiracao" -o n8n -f n8n.sh
-rm n8n.sh
-rm n8n.sh.x.c
 
 shc -r -e $data_expiracao -m "$msg_expiracao" -o n8n2 -f n8n2.sh
 rm n8n2.sh
@@ -1793,19 +1784,7 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm calcom
 fi
 
-shc -r -e $data_expiracao -m "$msg_expiracao" -o chatwootn_evon_rabbitmq -f chatwootn_evon_rabbitmq.sh
-rm chatwootn_evon_rabbitmq.sh
-rm chatwootn_evon_rabbitmq.sh.x.c
-if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
-rm chatwootn_evon_rabbitmq
-fi
 
-shc -r -e $data_expiracao -m "$msg_expiracao" -o   chatwootn_evo2_rabbitmq_redisevo -f     chatwootn_evo2_rabbitmq_redisevo.sh
-rm      chatwootn_evo2_rabbitmq_redisevo.sh
-rm      chatwootn_evo2_rabbitmq_redisevo.sh.x.c
-if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
-rm chatwootn_evo2_rabbitmq_redisevo
-fi
 
 shc -r -e $data_expiracao -m "$msg_expiracao" -o langfuse -f langfuse.sh
 rm langfuse.sh
@@ -1915,9 +1894,6 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm mautic5whatsmkt
 fi
 
-shc -r -e $data_expiracao -m "$msg_expiracao" -o n8nmain -f n8nmain.sh
-rm n8nmain.sh
-rm n8nmain.sh.x.c
 
 shc -r -e $data_expiracao -m "$msg_expiracao" -o qdrant -f qdrant.sh
 rm qdrant.sh
@@ -1943,15 +1919,7 @@ if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
 rm evoai
 fi
 
-shc -r -e $data_expiracao -m "$msg_expiracao" -o chatwootn_evo2_rabbitmq_minio -f chatwootn_evo2_rabbitmq_minio.sh
-rm chatwootn_evo2_rabbitmq_minio.sh
-rm chatwootn_evo2_rabbitmq_minio.sh.x.c
-if [ "$PLANO" == "free" ]; then
-rm chatwootn_evo2_rabbitmq_minio
-fi
-if [[ ("$PLANO" == "free1") || ("$PLANO" == "free2") ]]; then
-rm chatwootn_evo2_rabbitmq_minio
-fi
+
 
 shc -r -e $data_expiracao -m "$msg_expiracao" -o combo_whatsapp_marketing -f combo_whatsapp_marketing.sh
 rm combo_whatsapp_marketing.sh

@@ -143,28 +143,6 @@
     "search": "cal.com agendamento, calendário plataforma de agendamento open-source, alternativa ao calendly. permite que clientes agendem horários automaticamente."
   },
   {
-    "name": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*",
-    "cats": "Atendimento, WhatsApp, Omnichannel",
-    "desc": "Combo completo de atendimento: Chatwoot como central de atendimento omnichannel + Evolution API para WhatsApp + RabbitMQ para filas.",
-    "ram": 4,
-    "ramLabel": "~4GB Chatwoot |",
-    "arch": "x86-arm",
-    "stars": 0,
-    "type": "Combo",
-    "search": "chatwootn + evolutionn 2.0 + rabbitmq* atendimento, whatsapp, omnichannel combo completo de atendimento: chatwoot como central de atendimento omnichannel + evolution api para whatsapp + rabbitmq para filas."
-  },
-  {
-    "name": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
-    "cats": "Atendimento, WhatsApp, Omnichannel, Storage",
-    "desc": "Versão completa do combo anterior com MinIO para armazenamento de mídias e arquivos.",
-    "ram": 4,
-    "ramLabel": "~4GB",
-    "arch": "x86-arm",
-    "stars": 0,
-    "type": "Combo",
-    "search": "chatwootn + evolutionn 2.0 + rabbitmq + minio* atendimento, whatsapp, omnichannel, storage versão completa do combo anterior com minio para armazenamento de mídias e arquivos."
-  },
-  {
     "name": "COMBO WHATSAPP MARKETING COMPLETO*",
     "cats": "Atendimento, WhatsApp, Marketing, Automação",
     "desc": "Stack completa do Blueprint #001: Chatwoot + Evolution 2.0 + RabbitMQ + MinIO + Mautic 7 + n8n Fila + Typebot para campanhas e atendimento automatizado.",
@@ -1010,28 +988,6 @@
     "stars": 0,
     "type": "Banco de Dados",
     "search": "mysql banco de dados, sql, relacional banco de dados relacional mais popular do mundo. robusto, testado, amplamente suportado."
-  },
-  {
-    "name": "N8N V1 - SEM FILA (MAIN)",
-    "cats": "Automação, Workflows, Integração",
-    "desc": "Ferramenta de automação de workflows visual. Conecte APIs, serviços e crie automações complexas.",
-    "ram": 8,
-    "ramLabel": "~8GB",
-    "arch": "x86-arm",
-    "stars": 55000,
-    "type": "Individual",
-    "search": "n8n v1 - sem fila (main) automação, workflows, integração ferramenta de automação de workflows visual. conecte apis, serviços e crie automações complexas."
-  },
-  {
-    "name": "N8N V1 - FILA (QUEUE)",
-    "cats": "Automação, Workflows, Integração",
-    "desc": "Ferramenta de automação de workflows visual. Conecte APIs, serviços e crie automações complexas.",
-    "ram": 8,
-    "ramLabel": "~8GB",
-    "arch": "x86-arm",
-    "stars": 55000,
-    "type": "Individual",
-    "search": "n8n v1 - fila (queue) automação, workflows, integração ferramenta de automação de workflows visual. conecte apis, serviços e crie automações complexas."
   },
   {
     "name": "N8N V2 - FILA (QUEUE)",

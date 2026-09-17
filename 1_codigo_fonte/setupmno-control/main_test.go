@@ -738,7 +738,7 @@ func TestFullCatalogRequestDetection(t *testing.T) {
 	accepted := []string{
 		"Liste todos os setups possíveis na atual versão do Setup MNO",
 		"Mostre o catálogo completo",
-		"Quais são os 161 setups?",
+		"Quais são os 157 setups?",
 	}
 	for _, question := range accepted {
 		if !isFullCatalogRequest(question) {
@@ -777,8 +777,8 @@ func TestFullCatalogMarkdownListsEveryCanonicalSetup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("catálogo canônico foi recusado: %v", err)
 	}
-	if len(items) != 161 || !strings.Contains(answer, "**161 de 161 setups validados:**") {
-		t.Fatalf("resposta não confirmou os 161 setups: %s", answer)
+	if len(items) != 157 || !strings.Contains(answer, "**157 de 157 setups validados:**") {
+		t.Fatalf("resposta não confirmou os 157 setups: %s", answer)
 	}
 	numbered := 0
 	for _, line := range strings.Split(answer, "\n") {
@@ -1359,8 +1359,8 @@ func TestKnowledgePackageFromImageDirectory(t *testing.T) {
 	}
 	if state.Source != "image-read-only" ||
 		state.Stale ||
-		state.Manifest.DocumentEntries != 181 ||
-		state.Manifest.SetupEntries != 161 ||
+		state.Manifest.DocumentEntries != 177 ||
+		state.Manifest.SetupEntries != 157 ||
 		state.Manifest.InfrastructureEntries != 14 ||
 		state.Manifest.BlueprintFactoryVersion != "2.1.0" ||
 		state.Manifest.BlueprintSchemaVersion != 2 ||
@@ -1583,13 +1583,13 @@ func TestKnowledgePackageUsesEmbeddedFallback(t *testing.T) {
 
 func TestReleaseAcceptsRunnerWithoutAutomaticPromotion(t *testing.T) {
 	release := setupRelease{
-		CatalogEntries:              161,
+		CatalogEntries:              157,
 		KnowledgeVersion:            "3.24.1",
 		KnowledgeArchiveSHA256:      strings.Repeat("a", 64),
-		KnowledgeEntries:            181,
+		KnowledgeEntries:            177,
 		HomologationRunnerVersion:   "1.1.0",
 		HomologationCandidateSchema: 1,
-		HomologationRegistryEntries: 161,
+		HomologationRegistryEntries: 157,
 		HomologationManifestSHA256:  strings.Repeat("b", 64),
 		HomologationAutoPromotion:   false,
 	}
@@ -1607,7 +1607,7 @@ func TestSetupStateExposesEssentialAutomaticRunner(t *testing.T) {
 		SchemaVersion:               runtimeSchema,
 		SetupVersion:                "7.23.0",
 		CatalogVersion:              "7.23.0",
-		CatalogEntries:              161,
+		CatalogEntries:              157,
 		Architecture:                "amd64",
 		HomologationRunnerVersion:   "1.1.0",
 		HomologationCandidateSchema: 1,

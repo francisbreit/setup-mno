@@ -8,13 +8,29 @@
   "status": "reviewed",
   "fictitious": false,
   "deployable": false,
-  "setupVersion": "7.48.9",
+  "setupVersion": "7.48.10",
   "updatedAt": "2026-08-02",
-  "architectures": ["amd64", "arm64"],
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
   "risk": "high",
-  "audiences": ["ia", "conhecimento", "infraestrutura"],
-  "tags": ["rag", "dify", "qdrant", "ollama"],
-  "aliases": ["base de conhecimento com ia", "rag local", "assistente documental"],
+  "audiences": [
+    "ia",
+    "conhecimento",
+    "infraestrutura"
+  ],
+  "tags": [
+    "rag",
+    "dify",
+    "qdrant",
+    "ollama"
+  ],
+  "aliases": [
+    "base de conhecimento com ia",
+    "rag local",
+    "assistente documental"
+  ],
   "objective": "Demonstrar como documentar ingestão, recuperação e geração de respostas com fontes rastreáveis, isolamento de dados e modelo local opcional.",
   "components": [
     {
@@ -130,9 +146,9 @@
     {
       "mediaId": "video-rag-seguro",
       "type": "video",
-        "title": "Vídeo: RAG seguro e rastreável",
-        "url": null,
-        "status": "pending",
+      "title": "Vídeo: RAG seguro e rastreável",
+      "url": null,
+      "status": "pending",
       "transcript": null
     },
     {
@@ -146,7 +162,10 @@
   ],
   "documentation": {
     "entrypoint": "README.md",
-    "artifacts": ["README.md", "blueprint.json"]
+    "artifacts": [
+      "README.md",
+      "blueprint.json"
+    ]
   },
   "editorial": {
     "currentStage": "reviewed",

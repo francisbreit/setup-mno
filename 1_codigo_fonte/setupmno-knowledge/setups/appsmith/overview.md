@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Appsmith no Setup MNO",
   "setupId": "appsmith",
-  "setupVersion": "7.48.9",
+  "setupVersion": "7.48.10",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

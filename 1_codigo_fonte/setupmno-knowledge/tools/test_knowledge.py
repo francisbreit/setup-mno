@@ -260,19 +260,19 @@ class KnowledgeFactoryTests(unittest.TestCase):
     def test_quality_governance_is_truthful_and_monotonic(self) -> None:
         report = build_quality_report(ROOT, CATALOG)
         summary = report["summary"]
-        self.assertEqual(summary["setupEntries"], 159)
+        self.assertEqual(summary["setupEntries"], 157)
         self.assertEqual(
-            summary["installationStatuses"]["maintainer-homologated"], 159
+            summary["installationStatuses"]["maintainer-homologated"], 157
         )
-        self.assertEqual(summary["integrationMaturityLevels"]["not-mapped"], 159)
-        self.assertEqual(summary["maturityLevels"]["structural"], 158)
+        self.assertEqual(summary["integrationMaturityLevels"]["not-mapped"], 157)
+        self.assertEqual(summary["maturityLevels"]["structural"], 156)
         self.assertEqual(summary["maturityLevels"]["operational-reviewed"], 1)
         self.assertEqual(summary["operationalEvidenceEntries"], 1)
         self.assertEqual(summary["homologatedEntries"], 0)
-        self.assertEqual(summary["officialSourceEntries"], 139)
+        self.assertEqual(summary["officialSourceEntries"], 138)
         self.assertEqual(summary["officialSourceExceptions"], 1)
-        self.assertEqual(summary["internalOnlySourceEntries"], 19)
-        self.assertEqual(summary["unresolvedIssueCount"], 29)
+        self.assertEqual(summary["internalOnlySourceEntries"], 18)
+        self.assertEqual(summary["unresolvedIssueCount"], 28)
         self.assertTrue(
             all(
                 entry["installationStatus"] == "maintainer-homologated"
@@ -322,8 +322,8 @@ class KnowledgeFactoryTests(unittest.TestCase):
             ROOT / "registry" / "setups.json",
             ROOT,
         )
-        self.assertEqual(report["catalogEntries"], 159)
-        self.assertEqual(report["coveredEntries"], 159)
+        self.assertEqual(report["catalogEntries"], 157)
+        self.assertEqual(report["coveredEntries"], 157)
         self.assertEqual(report["missingEntries"], 0)
         self.assertEqual(report["coveragePercent"], 100.0)
         self.assertEqual(report["status"], "complete")
@@ -332,7 +332,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
         self.assertEqual(evaluate_baseline(report, baseline), [])
 
         regressed = copy.deepcopy(report)
-        regressed["catalogEntries"] = 158
+        regressed["catalogEntries"] = 156
         regressed["missingEntries"] = 122
         regressed["coveragePercent"] = 13.16
         errors = evaluate_baseline(regressed, baseline)
@@ -349,7 +349,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
         self.assertEqual(dataset["caseCount"], EXPECTED_CASES)
         self.assertEqual(
             sum(case["evaluationType"] == "retrieval" for case in dataset["cases"]),
-            879,
+            873,
         )
         self.assertTrue(
             all("password" not in json.dumps(case).lower() for case in dataset["cases"])
@@ -359,9 +359,9 @@ class KnowledgeFactoryTests(unittest.TestCase):
         result = run_linter()
         self.assertEqual(result.returncode, 0, result.stderr)
         report = json.loads(result.stdout)
-        self.assertEqual(report["documents"], 178)
-        self.assertEqual(report["setups"], 159)
-        self.assertEqual(report["types"]["blueprint"], 5)
+        self.assertEqual(report["documents"], 177)
+        self.assertEqual(report["setups"], 157)
+        self.assertEqual(report["types"]["blueprint"], 6)
 
     def test_all_pilot_setups_resolve_on_both_architectures(self) -> None:
         registry = load_json(ROOT / "registry" / "setups.json")
@@ -388,7 +388,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
         result = run_linter(
             "resolve",
             "--setup-id",
-            "n8n-main",
+            "n8n-queue-v2",
             "--setup-version",
             "4.93.3",
             "--architecture",
@@ -406,7 +406,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
             for entry in registry["setups"]
         }
         catalog_names = {entry["name"] for entry in catalog}
-        original = parse_document(ROOT / "setups" / "n8n-main" / "overview.md")
+        original = parse_document(ROOT / "setups" / "n8n-queue-v2" / "overview.md")
         tampered = KnowledgeDocument(
             path=original.path,
             metadata=original.metadata,
@@ -504,7 +504,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
                     self.assertEqual(index["chunkCount"], len(index["chunks"]))
                     self.assertGreater(index["chunkCount"], 29)
                     self.assertEqual(legacy_index["schemaVersion"], 1)
-                    self.assertEqual(len(legacy_index["entries"]), 178)
+                    self.assertEqual(len(legacy_index["entries"]), 177)
                     blueprint_index = json.load(
                         package.extractfile("blueprints/index.json")
                     )
@@ -519,8 +519,8 @@ class KnowledgeFactoryTests(unittest.TestCase):
                     self.assertEqual(eval_dataset["caseCount"], EXPECTED_CASES)
                     self.assertEqual(eval_dataset["setupVersion"], registry["setupVersion"])
                     self.assertEqual(blueprint_index["schemaVersion"], 2)
-                    self.assertEqual(blueprint_index["blueprintCount"], 5)
-                    self.assertEqual(blueprint_index["statuses"], {"homologated": 1, "reviewed": 4})
+                    self.assertEqual(blueprint_index["blueprintCount"], 6)
+                    self.assertEqual(blueprint_index["statuses"], {"homologated": 3, "reviewed": 3})
                     self.assertTrue(
                         all(
                             not entry["fictitious"]
@@ -533,7 +533,7 @@ class KnowledgeFactoryTests(unittest.TestCase):
                         for entry in legacy_index["entries"]
                         if entry["documentType"] == "blueprint"
                     ]
-                    self.assertEqual(len(blueprint_documents), 5)
+                    self.assertEqual(len(blueprint_documents), 6)
                     self.assertTrue(
                         all(
                             not entry["fictitious"]
@@ -567,14 +567,14 @@ class KnowledgeFactoryTests(unittest.TestCase):
                         )
             self.assertEqual(archives[0], archives[1])
             self.assertEqual(manifests[0], manifests[1])
-            self.assertEqual(manifests[0]["documentEntries"], 178)
-            self.assertEqual(manifests[0]["setupEntries"], 159)
+            self.assertEqual(manifests[0]["documentEntries"], 177)
+            self.assertEqual(manifests[0]["setupEntries"], 157)
             self.assertEqual(manifests[0]["infrastructureEntries"], 14)
             self.assertEqual(manifests[0]["blueprintFactoryVersion"], "2.1.0")
             self.assertEqual(manifests[0]["blueprintSchemaVersion"], 2)
-            self.assertEqual(manifests[0]["blueprintEntries"], 5)
-            self.assertEqual(manifests[0]["blueprintBundleEntries"], 5)
-            self.assertEqual(manifests[0]["blueprintKnowledgeEntries"], 5)
+            self.assertEqual(manifests[0]["blueprintEntries"], 6)
+            self.assertEqual(manifests[0]["blueprintBundleEntries"], 6)
+            self.assertEqual(manifests[0]["blueprintKnowledgeEntries"], 6)
             self.assertEqual(manifests[0]["blueprintFixtureEntries"], 0)
             self.assertEqual(manifests[0]["indexSchemaVersion"], 2)
             self.assertEqual(

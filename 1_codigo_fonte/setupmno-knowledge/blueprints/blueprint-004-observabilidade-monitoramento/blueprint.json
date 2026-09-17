@@ -8,13 +8,29 @@
   "status": "reviewed",
   "fictitious": false,
   "deployable": false,
-  "setupVersion": "7.48.9",
+  "setupVersion": "7.48.10",
   "updatedAt": "2026-08-02",
-  "architectures": ["amd64", "arm64"],
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
   "risk": "medium",
-  "audiences": ["operacoes", "sre", "infraestrutura"],
-  "tags": ["observabilidade", "monitoramento", "metricas", "alertas"],
-  "aliases": ["monitoramento de servidor", "observabilidade completa", "saúde dos serviços"],
+  "audiences": [
+    "operacoes",
+    "sre",
+    "infraestrutura"
+  ],
+  "tags": [
+    "observabilidade",
+    "monitoramento",
+    "metricas",
+    "alertas"
+  ],
+  "aliases": [
+    "monitoramento de servidor",
+    "observabilidade completa",
+    "saúde dos serviços"
+  ],
   "objective": "Montar uma arquitetura em camadas para métricas, saúde do host e disponibilidade externa com responsabilidades separadas.",
   "components": [
     {
@@ -130,15 +146,18 @@
     {
       "mediaId": "video-camadas-monitoramento",
       "type": "video",
-        "title": "Vídeo: camadas de monitoramento",
-        "url": null,
-        "status": "pending",
+      "title": "Vídeo: camadas de monitoramento",
+      "url": null,
+      "status": "pending",
       "transcript": null
     }
   ],
   "documentation": {
     "entrypoint": "README.md",
-    "artifacts": ["README.md", "blueprint.json"]
+    "artifacts": [
+      "README.md",
+      "blueprint.json"
+    ]
   },
   "editorial": {
     "currentStage": "reviewed",

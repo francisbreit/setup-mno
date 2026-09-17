@@ -13,8 +13,6 @@ bytebase
 calcom
 changedetection
 chatwoot_ai_customer_service
-chatwootn_evo2_rabbitmq_minio
-chatwootn_evo2_rabbitmq_redisevo
 chatwooto_evo2_rabbitmq_minio
 chatwootorig_desbloq__evo2_rabbitmq_minio
 chromadb
@@ -91,10 +89,8 @@ metabase
 milvus
 minio
 moodle
-n8n
 n8n-workflows
 n8n2
-n8nmain
 navidrome
 neo4j
 netdada

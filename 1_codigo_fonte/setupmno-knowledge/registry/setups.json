@@ -1,449 +1,818 @@
 {
   "schemaVersion": 2,
   "selectionVersion": "1.16.0",
-  "setupVersion": "7.48.9",
+  "setupVersion": "7.48.10",
   "selectionPolicy": "Lotes 1 a 6 orientados a deploy, IA, integrações, dados, identidade, colaboração, produtividade, atendimento e segurança operacional",
   "setups": [
     {
       "setupId": "activepieces",
       "catalogName": "ACTIVEPIECES",
       "script": "activepieces.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["active pieces", "automacao activepieces"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "active pieces",
+        "automacao activepieces"
+      ]
     },
     {
       "setupId": "adguardhome",
       "catalogName": "ADGUARDHOME",
       "script": "adguardhome.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["adguard home", "dns adguard"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "adguard home",
+        "dns adguard"
+      ]
     },
     {
       "setupId": "appsmith",
       "catalogName": "APPSMITH",
       "script": "appsmith.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["app smith", "low code appsmith"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "app smith",
+        "low code appsmith"
+      ]
     },
     {
       "setupId": "baserow",
       "catalogName": "BASEROW",
       "script": "baserow.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["base row", "banco no code baserow"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "base row",
+        "banco no code baserow"
+      ]
     },
     {
       "setupId": "beszel",
       "catalogName": "BESZEL",
       "script": "beszel.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["monitor beszel", "monitoramento beszel"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "monitor beszel",
+        "monitoramento beszel"
+      ]
     },
     {
       "setupId": "bookstack",
       "catalogName": "BOOKSTACK",
       "script": "bookstack.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["book stack", "wiki bookstack"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "book stack",
+        "wiki bookstack"
+      ]
     },
     {
       "setupId": "budibase",
       "catalogName": "BUDIBASE",
       "script": "budibase.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["budi base", "low code budibase"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "budi base",
+        "low code budibase"
+      ]
     },
     {
       "setupId": "bytebase",
       "catalogName": "BYTEBASE",
       "script": "bytebase.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["byte base", "database devops", "governança de banco de dados"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "byte base",
+        "database devops",
+        "governança de banco de dados"
+      ]
     },
     {
       "setupId": "chromadb",
       "catalogName": "CHROMADB",
       "script": "chromadb.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["chroma db", "banco vetorial chroma"]
-    },
-    {
-      "setupId": "chatwoot-evolution-rabbitmq-minio",
-      "catalogName": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
-      "script": "chatwootn_evo2_rabbitmq_minio.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["chatwoot evolution rabbitmq minio", "combo atendimento whatsapp completo"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "chroma db",
+        "banco vetorial chroma"
+      ]
     },
     {
       "setupId": "code-server",
       "catalogName": "CODE SERVER",
       "script": "codeserver.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["code server", "vscode web"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "code server",
+        "vscode web"
+      ]
     },
     {
       "setupId": "directus",
       "catalogName": "DIRECTUS",
       "script": "directus.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["cms directus", "backend directus"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "cms directus",
+        "backend directus"
+      ]
     },
     {
       "setupId": "duplicati",
       "catalogName": "DUPLICATI",
       "script": "duplicati.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["backup duplicati", "duplicati backup"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "backup duplicati",
+        "duplicati backup"
+      ]
     },
     {
       "setupId": "evolution-api-v2",
       "catalogName": "EVOLUTION 2.0 API PADRÃO",
       "script": "evolution2api.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["evolution api 2", "evolution v2", "api whatsapp evolution"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "evolution api 2",
+        "evolution v2",
+        "api whatsapp evolution"
+      ]
     },
     {
       "setupId": "grafana-prometheus",
       "catalogName": "GRAFANA/PROMETHEUS MONITOR",
       "script": "grafana.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["grafana prometheus", "monitoramento grafana"]
-    },
-    {
-      "setupId": "n8n-main",
-      "catalogName": "N8N V1 - SEM FILA (MAIN)",
-      "script": "n8nmain.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["n8n", "n8n main", "n8n sem fila"]
-    },
-    {
-      "setupId": "n8n-queue-v1",
-      "catalogName": "N8N V1 - FILA (QUEUE)",
-      "script": "n8n.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["n8n v1 queue", "n8n fila v1", "n8n com workers v1"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "grafana prometheus",
+        "monitoramento grafana"
+      ]
     },
     {
       "setupId": "n8n-queue-v2",
       "catalogName": "N8N V2 - FILA (QUEUE)",
       "script": "n8n2.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["n8n v2 queue", "n8n fila v2", "n8n com runners v2"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "n8n v2 queue",
+        "n8n fila v2",
+        "n8n com runners v2"
+      ]
     },
     {
       "setupId": "nginx-proxy-manager",
       "catalogName": "NGINXPROXYMANAGER",
       "script": "nginxproxymanager.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["nginx proxy manager", "npm proxy reverso"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "nginx proxy manager",
+        "npm proxy reverso"
+      ]
     },
     {
       "setupId": "nextcloud",
       "catalogName": "NEXTCLOUD",
       "script": "nextcloud.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["next cloud", "nuvem nextcloud"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "next cloud",
+        "nuvem nextcloud"
+      ]
     },
     {
       "setupId": "nocodb",
       "catalogName": "NOCODB",
       "script": "nocodb.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["noco db", "banco no code nocodb"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "noco db",
+        "banco no code nocodb"
+      ]
     },
     {
       "setupId": "ollama-openwebui",
       "catalogName": "OLLAMA + OPENWEBUI*",
       "script": "ollama.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["ollama openwebui", "ollama open webui"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "ollama openwebui",
+        "ollama open webui"
+      ]
     },
     {
       "setupId": "open-webui",
       "catalogName": "OPEN WEBUI",
       "script": "openwebui.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["open webui", "interface web para llm"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "open webui",
+        "interface web para llm"
+      ]
     },
     {
       "setupId": "qdrant",
       "catalogName": "QDRANT",
       "script": "qdrant.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["banco vetorial qdrant", "vector qdrant"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "banco vetorial qdrant",
+        "vector qdrant"
+      ]
     },
     {
       "setupId": "redis",
       "catalogName": "REDIS",
       "script": "redis.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["cache redis", "banco redis"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "cache redis",
+        "banco redis"
+      ]
     },
     {
       "setupId": "minio",
       "catalogName": "MINIO",
       "script": "minio.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["storage minio", "armazenamento s3 minio"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "storage minio",
+        "armazenamento s3 minio"
+      ]
     },
     {
       "setupId": "setupmno-control",
       "catalogName": "SETUP MNO CONTROL CENTER",
       "script": "setupmno_control.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["control center", "painel setup mno"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "control center",
+        "painel setup mno"
+      ]
     },
     {
       "setupId": "typebot-minio",
       "catalogName": "TYPEBOT + MINIO*",
       "script": "typebot_minio.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["typebot minio", "typebot com minio"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "typebot minio",
+        "typebot com minio"
+      ]
     },
     {
       "setupId": "typebot",
       "catalogName": "TYPEBOT",
       "script": "typebot.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["typebot standalone", "criador de chatbot typebot"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "typebot standalone",
+        "criador de chatbot typebot"
+      ]
     },
     {
       "setupId": "uptime-kuma",
       "catalogName": "UPTIMEKUMA",
       "script": "uptimekuma.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["uptime kuma", "monitor de disponibilidade kuma"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "uptime kuma",
+        "monitor de disponibilidade kuma"
+      ]
     },
     {
       "setupId": "wordpress",
       "catalogName": "WORDPRESS",
       "script": "wordpress.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["word press", "cms wordpress", "site wordpress"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "word press",
+        "cms wordpress",
+        "site wordpress"
+      ]
     },
     {
       "setupId": "dify",
       "catalogName": "DIFY",
       "script": "dify.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["dify ai", "plataforma rag dify", "workflows dify"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "dify ai",
+        "plataforma rag dify",
+        "workflows dify"
+      ]
     },
     {
       "setupId": "firecrawl",
       "catalogName": "FIRECRAWL",
       "script": "firecrawl.sh",
-      "architectures": ["amd64"],
-      "aliases": ["fire crawl", "crawler firecrawl", "scraping para rag"]
+      "architectures": [
+        "amd64"
+      ],
+      "aliases": [
+        "fire crawl",
+        "crawler firecrawl",
+        "scraping para rag"
+      ]
     },
     {
       "setupId": "flowise",
       "catalogName": "FLOWISE",
       "script": "flowise.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["flowise ai", "chatflow flowise", "agentes flowise"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "flowise ai",
+        "chatflow flowise",
+        "agentes flowise"
+      ]
     },
     {
       "setupId": "langflow",
       "catalogName": "LANGFLOW",
       "script": "langflow.sh",
-      "architectures": ["amd64"],
-      "aliases": ["lang flow", "ide langflow", "fluxos de ia langflow"]
+      "architectures": [
+        "amd64"
+      ],
+      "aliases": [
+        "lang flow",
+        "ide langflow",
+        "fluxos de ia langflow"
+      ]
     },
     {
       "setupId": "litellm",
       "catalogName": "LITELLM",
       "script": "litellm.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["lite llm", "gateway litellm", "proxy de llm"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "lite llm",
+        "gateway litellm",
+        "proxy de llm"
+      ]
     },
     {
       "setupId": "mongodb",
       "catalogName": "MONGODB",
       "script": "mongodb.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["mongo db", "banco mongodb", "nosql mongodb"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "mongo db",
+        "banco mongodb",
+        "nosql mongodb"
+      ]
     },
     {
       "setupId": "mysql",
       "catalogName": "MYSQL",
       "script": "mysql.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["percona server", "banco mysql"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "percona server",
+        "banco mysql"
+      ]
     },
     {
       "setupId": "pgadmin4",
       "catalogName": "PGADMIN4",
       "script": "pgadmin.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["pgadmin", "pg admin 4", "administrar postgresql"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "pgadmin",
+        "pg admin 4",
+        "administrar postgresql"
+      ]
     },
     {
       "setupId": "rabbitmq",
       "catalogName": "RABBITMQ",
       "script": "rabbitmq.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["rabbit mq", "broker amqp", "fila rabbitmq"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "rabbit mq",
+        "broker amqp",
+        "fila rabbitmq"
+      ]
     },
     {
       "setupId": "searxng",
       "catalogName": "SEARXNG",
       "script": "searxng.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["searx ng", "metabusca searxng", "busca privada"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "searx ng",
+        "metabusca searxng",
+        "busca privada"
+      ]
     },
     {
       "setupId": "clickhouse",
       "catalogName": "CLICKHOUSE",
       "script": "clickhouse.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["click house", "banco olap", "analytics clickhouse"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "click house",
+        "banco olap",
+        "analytics clickhouse"
+      ]
     },
     {
       "setupId": "infisical",
       "catalogName": "INFISICAL",
       "script": "infisical.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["cofre infisical", "gerenciador de secrets", "secrets infisical"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "cofre infisical",
+        "gerenciador de secrets",
+        "secrets infisical"
+      ]
     },
     {
       "setupId": "langfuse-minio-clickhouse",
       "catalogName": "LANGFUSE + MINIO + CLICKHOUSE*",
       "script": "langfuse.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["langfuse", "observabilidade de llm", "tracing de ia"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "langfuse",
+        "observabilidade de llm",
+        "tracing de ia"
+      ]
     },
     {
       "setupId": "librechat",
       "catalogName": "LIBRECHAT",
       "script": "librechat.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["libre chat", "chat multi modelo", "interface librechat"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "libre chat",
+        "chat multi modelo",
+        "interface librechat"
+      ]
     },
     {
       "setupId": "localai",
       "catalogName": "LOCALAI",
       "script": "localai.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["local ai", "api openai local", "inferencia local"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "local ai",
+        "api openai local",
+        "inferencia local"
+      ]
     },
     {
       "setupId": "meilisearch",
       "catalogName": "MEILISEARCH",
       "script": "meilisearch.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["meili search", "busca full text", "motor meilisearch"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "meili search",
+        "busca full text",
+        "motor meilisearch"
+      ]
     },
     {
       "setupId": "milvus-attu",
       "catalogName": "MILVUS + ATTU*",
       "script": "milvus.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["milvus", "attu", "banco vetorial milvus"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "milvus",
+        "attu",
+        "banco vetorial milvus"
+      ]
     },
     {
       "setupId": "neo4j",
       "catalogName": "NEO4J",
       "script": "neo4j.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["neo 4 j", "banco de grafos", "knowledge graph neo4j"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "neo 4 j",
+        "banco de grafos",
+        "knowledge graph neo4j"
+      ]
     },
     {
       "setupId": "netdada",
       "catalogName": "NETDADA",
       "script": "netdada.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["netdata", "monitoramento netdata", "observabilidade netdada"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "netdata",
+        "monitoramento netdata",
+        "observabilidade netdada"
+      ]
     },
     {
       "setupId": "vllm",
       "catalogName": "VLLM",
       "script": "vllm.sh",
-      "architectures": ["amd64"],
-      "aliases": ["v llm", "servidor vllm", "inferencia vllm"]
+      "architectures": [
+        "amd64"
+      ],
+      "aliases": [
+        "v llm",
+        "servidor vllm",
+        "inferencia vllm"
+      ]
     },
     {
       "setupId": "weaviate",
       "catalogName": "WEAVIATE",
       "script": "weaviate.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["banco vetorial weaviate", "rag weaviate", "busca semantica weaviate"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "banco vetorial weaviate",
+        "rag weaviate",
+        "busca semantica weaviate"
+      ]
     },
     {
       "setupId": "gitea",
       "catalogName": "GITEA",
       "script": "gitea.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["git gitea", "repositorio gitea", "servidor git leve"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "git gitea",
+        "repositorio gitea",
+        "servidor git leve"
+      ]
     },
     {
       "setupId": "gitlab",
       "catalogName": "GITLAB",
       "script": "gitlab.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["git lab", "devops gitlab", "ci cd gitlab"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "git lab",
+        "devops gitlab",
+        "ci cd gitlab"
+      ]
     },
     {
       "setupId": "immich",
       "catalogName": "IMMICH",
       "script": "immich.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["fotos immich", "galeria de fotos", "backup de fotos immich"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "fotos immich",
+        "galeria de fotos",
+        "backup de fotos immich"
+      ]
     },
     {
       "setupId": "keycloak",
       "catalogName": "KEYCLOAK",
       "script": "keycloak.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["key cloak", "sso keycloak", "provedor de identidade"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "key cloak",
+        "sso keycloak",
+        "provedor de identidade"
+      ]
     },
     {
       "setupId": "mattermost",
       "catalogName": "MATTERMOST",
       "script": "mattermost.sh",
-      "architectures": ["amd64"],
-      "aliases": ["matter most", "chat mattermost", "colaboracao mattermost"]
+      "architectures": [
+        "amd64"
+      ],
+      "aliases": [
+        "matter most",
+        "chat mattermost",
+        "colaboracao mattermost"
+      ]
     },
     {
       "setupId": "odoo",
       "catalogName": "ODOO",
       "script": "odoo.sh",
-      "architectures": ["amd64"],
-      "aliases": ["erp odoo", "crm odoo", "odoo community"]
+      "architectures": [
+        "amd64"
+      ],
+      "aliases": [
+        "erp odoo",
+        "crm odoo",
+        "odoo community"
+      ]
     },
     {
       "setupId": "paperless",
       "catalogName": "PAPERLESS",
       "script": "paperless.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["paperless ngx", "gestao de documentos", "ocr paperless"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "paperless ngx",
+        "gestao de documentos",
+        "ocr paperless"
+      ]
     },
     {
       "setupId": "plane",
       "catalogName": "PLANE",
       "script": "plane.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["plane projetos", "gestao de projetos plane", "issues plane"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "plane projetos",
+        "gestao de projetos plane",
+        "issues plane"
+      ]
     },
     {
       "setupId": "rocketchat",
       "catalogName": "ROCKET.CHAT",
       "script": "rocketchat.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["rocket chat", "chat rocket", "colaboracao rocketchat"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "rocket chat",
+        "chat rocket",
+        "colaboracao rocketchat"
+      ]
     },
     {
       "setupId": "navidrome",
       "catalogName": "NAVIDROME",
       "script": "navidrome.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["servidor de música", "streaming de música", "subsonic"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "servidor de música",
+        "streaming de música",
+        "subsonic"
+      ]
     },
     {
       "setupId": "vaultwarden",
       "catalogName": "VAULTWARDEN",
       "script": "vaultwarden.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["vault warden", "servidor bitwarden", "cofre de senhas"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "vault warden",
+        "servidor bitwarden",
+        "cofre de senhas"
+      ]
     },
     {
       "setupId": "actual-budget",
@@ -899,19 +1268,6 @@
       ]
     },
     {
-      "setupId": "chatwoot-evolution-rabbitmq",
-      "catalogName": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*",
-      "script": "chatwootn_evo2_rabbitmq_redisevo.sh",
-      "architectures": [
-        "amd64",
-        "arm64"
-      ],
-      "aliases": [
-        "chatwoot evolution rabbitmq",
-        "atendimento whatsapp com fila"
-      ]
-    },
-    {
       "setupId": "chatwoot-original-unlocked-evolution-rabbitmq-minio",
       "catalogName": "CHATWOOTORIG (DESBLOQUEADO) + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
       "script": "chatwootorig_desbloq__evo2_rabbitmq_minio.sh",
@@ -1295,232 +1651,428 @@
       "setupId": "maybe",
       "catalogName": "MAYBE",
       "script": "maybe.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["maybe finance", "financas pessoais maybe"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "maybe finance",
+        "financas pessoais maybe"
+      ]
     },
     {
       "setupId": "memgraph",
       "catalogName": "MEMGRAPH",
       "script": "memgraph.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["banco de grafos memgraph", "graph rag memgraph"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "banco de grafos memgraph",
+        "graph rag memgraph"
+      ]
     },
     {
       "setupId": "memos",
       "catalogName": "MEMOS",
       "script": "memos.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["usememos", "notas rapidas memos"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "usememos",
+        "notas rapidas memos"
+      ]
     },
     {
       "setupId": "n8n-templates",
       "catalogName": "N8N TEMPLATES FREE - + DE 2000 WORKFLOWS",
       "script": "n8n-workflows.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["n8n templates", "biblioteca de workflows n8n"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "n8n templates",
+        "biblioteca de workflows n8n"
+      ]
     },
     {
       "setupId": "nocobase",
       "catalogName": "NOCOBASE",
       "script": "nocobase.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["noco base", "plataforma no code nocobase"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "noco base",
+        "plataforma no code nocobase"
+      ]
     },
     {
       "setupId": "openclaw",
       "catalogName": "OPENCLAW",
       "script": "openclaw.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["open claw", "agente pessoal openclaw"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "open claw",
+        "agente pessoal openclaw"
+      ]
     },
     {
       "setupId": "openclaw-knowledge-stack",
       "catalogName": "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*",
       "script": "openclawpro.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["combo openclaw pro", "openclaw com graph rag e busca"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "combo openclaw pro",
+        "openclaw com graph rag e busca"
+      ]
     },
     {
       "setupId": "openfang",
       "catalogName": "OPENFANG",
       "script": "openfang.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["open fang", "agent os openfang"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "open fang",
+        "agent os openfang"
+      ]
     },
     {
       "setupId": "openobserve",
       "catalogName": "OPENOBSERVE",
       "script": "openobserve.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["open observe", "o2 observability", "observabilidade openobserve"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "open observe",
+        "o2 observability",
+        "observabilidade openobserve"
+      ]
     },
     {
       "setupId": "paperclip",
       "catalogName": "PAPERCLIP",
       "script": "paperclip.sh",
-      "architectures": ["amd64"],
-      "aliases": ["paperclip ai", "gestao de agentes paperclip"]
+      "architectures": [
+        "amd64"
+      ],
+      "aliases": [
+        "paperclip ai",
+        "gestao de agentes paperclip"
+      ]
     },
     {
       "setupId": "phpmyadmin",
       "catalogName": "PHPMYADMIN",
       "script": "pma.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["php my admin", "administracao mysql web"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "php my admin",
+        "administracao mysql web"
+      ]
     },
     {
       "setupId": "pocket-id",
       "catalogName": "POCKET ID",
       "script": "pocketid.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["pocket id", "oidc passkeys", "sso pocket id"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "pocket id",
+        "oidc passkeys",
+        "sso pocket id"
+      ]
     },
     {
       "setupId": "pocketbase",
       "catalogName": "POCKETBASE",
       "script": "pocketbase.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["pocket base", "backend sqlite pocketbase"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "pocket base",
+        "backend sqlite pocketbase"
+      ]
     },
     {
       "setupId": "reactive-resume",
       "catalogName": "REACTIVE RESUME",
       "script": "reactiveresume.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["rx resume", "construtor de curriculo"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "rx resume",
+        "construtor de curriculo"
+      ]
     },
     {
       "setupId": "redis-commander",
       "catalogName": "REDIS COMMANDER",
       "script": "redicommander.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["redis commander", "interface redis commander"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "redis commander",
+        "interface redis commander"
+      ]
     },
     {
       "setupId": "redisinsight",
       "catalogName": "REDISINSIGHT",
       "script": "redisinsight.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["redis insight", "interface oficial redis"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "redis insight",
+        "interface oficial redis"
+      ]
     },
     {
       "setupId": "shlink",
       "catalogName": "SHLINK",
       "script": "shlink.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["sh link", "encurtador de url shlink"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "sh link",
+        "encurtador de url shlink"
+      ]
     },
     {
       "setupId": "siyuan",
       "catalogName": "SIYUAN",
       "script": "siyuan.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["si yuan", "pkm siyuan"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "si yuan",
+        "pkm siyuan"
+      ]
     },
     {
       "setupId": "stirling-pdf",
       "catalogName": "STIRLING PDF",
       "script": "stirlingpdf.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["stirling pdf", "ferramentas para pdf"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "stirling pdf",
+        "ferramentas para pdf"
+      ]
     },
     {
       "setupId": "strapi",
       "catalogName": "STRAPI",
       "script": "strap.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["strapi cms", "cms headless strapi"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "strapi cms",
+        "cms headless strapi"
+      ]
     },
     {
       "setupId": "superset",
       "catalogName": "SUPERSET",
       "script": "superset.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["apache superset", "bi superset"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "apache superset",
+        "bi superset"
+      ]
     },
     {
       "setupId": "syncthing",
       "catalogName": "SYNCTHING",
       "script": "syncthing.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["sync thing", "sincronizacao p2p syncthing"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "sync thing",
+        "sincronizacao p2p syncthing"
+      ]
     },
     {
       "setupId": "tooljet",
       "catalogName": "TOOLJET",
       "script": "tooljet.sh",
-      "architectures": ["amd64"],
-      "aliases": ["tool jet", "construtor de apps internas"]
+      "architectures": [
+        "amd64"
+      ],
+      "aliases": [
+        "tool jet",
+        "construtor de apps internas"
+      ]
     },
     {
       "setupId": "triliumnext",
       "catalogName": "TRILIUMNEXT",
       "script": "triliumnext.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["trilium next", "notas triliumnext"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "trilium next",
+        "notas triliumnext"
+      ]
     },
     {
       "setupId": "twenty-crm",
       "catalogName": "TWENTY CRM",
       "script": "twentycrm.sh",
-      "architectures": ["amd64"],
-      "aliases": ["twenty", "crm twenty"]
+      "architectures": [
+        "amd64"
+      ],
+      "aliases": [
+        "twenty",
+        "crm twenty"
+      ]
     },
     {
       "setupId": "umami",
       "catalogName": "UMAMI",
       "script": "umami.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["umami analytics", "analytics com privacidade"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "umami analytics",
+        "analytics com privacidade"
+      ]
     },
     {
       "setupId": "vikunja",
       "catalogName": "VIKUNJA",
       "script": "vikunja.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["vikunja tarefas", "kanban vikunja"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "vikunja tarefas",
+        "kanban vikunja"
+      ]
     },
     {
       "setupId": "waha-api",
       "catalogName": "WAHA API",
       "script": "waha.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["waha", "whatsapp http api"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "waha",
+        "whatsapp http api"
+      ]
     },
     {
       "setupId": "wekan",
       "catalogName": "WEKAN",
       "script": "wekan.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["we kan", "kanban wekan"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "we kan",
+        "kanban wekan"
+      ]
     },
     {
       "setupId": "wiki-js",
       "catalogName": "WIKI.JS",
       "script": "wikijs.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["wiki js", "requarks wiki"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "wiki js",
+        "requarks wiki"
+      ]
     },
     {
       "setupId": "windmill",
       "catalogName": "WINDMILL",
       "script": "windmill.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["windmill workflows", "scripts e jobs windmill"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "windmill workflows",
+        "scripts e jobs windmill"
+      ]
     },
     {
       "setupId": "woofed-crm",
       "catalogName": "WOOFED CRM",
       "script": "woofedcrm.sh",
-      "architectures": ["amd64"],
-      "aliases": ["woofed", "crm whatsapp woofed"]
+      "architectures": [
+        "amd64"
+      ],
+      "aliases": [
+        "woofed",
+        "crm whatsapp woofed"
+      ]
     },
     {
       "setupId": "wuzap",
       "catalogName": "WUZAP",
       "script": "wuzap.sh",
-      "architectures": ["amd64", "arm64"],
-      "aliases": ["wuzapi", "api whatsapp wuzap"]
+      "architectures": [
+        "amd64",
+        "arm64"
+      ],
+      "aliases": [
+        "wuzapi",
+        "api whatsapp wuzap"
+      ]
     }
   ]
 }

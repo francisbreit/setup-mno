@@ -329,48 +329,6 @@
       ]
     },
     {
-      "catalogName": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ*",
-      "editorialStatus": "reviewed",
-      "homologationEvidence": false,
-      "installationStatus": "maintainer-homologated",
-      "integrationMaturity": "not-mapped",
-      "issues": [],
-      "lastOperationalVerification": "",
-      "maturity": "structural",
-      "operationalArchitectures": [],
-      "operationalCoverage": "none",
-      "operationalEvidence": false,
-      "operationalEvidenceIds": [],
-      "scriptSourceDeclared": true,
-      "setupId": "chatwoot-evolution-rabbitmq",
-      "sourceClassification": "official-and-internal",
-      "testedArchitectures": [
-        "amd64",
-        "arm64"
-      ]
-    },
-    {
-      "catalogName": "CHATWOOTN + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
-      "editorialStatus": "reviewed",
-      "homologationEvidence": false,
-      "installationStatus": "maintainer-homologated",
-      "integrationMaturity": "not-mapped",
-      "issues": [],
-      "lastOperationalVerification": "",
-      "maturity": "structural",
-      "operationalArchitectures": [],
-      "operationalCoverage": "none",
-      "operationalEvidence": false,
-      "operationalEvidenceIds": [],
-      "scriptSourceDeclared": true,
-      "setupId": "chatwoot-evolution-rabbitmq-minio",
-      "sourceClassification": "official-and-internal",
-      "testedArchitectures": [
-        "amd64",
-        "arm64"
-      ]
-    },
-    {
       "catalogName": "CHATWOOTORIG + EVOLUTIONN 2.0 + RABBITMQ + MINIO*",
       "editorialStatus": "reviewed",
       "homologationEvidence": false,
@@ -2036,50 +1994,6 @@
       ]
     },
     {
-      "catalogName": "N8N V1 - SEM FILA (MAIN)",
-      "editorialStatus": "reviewed",
-      "homologationEvidence": false,
-      "installationStatus": "maintainer-homologated",
-      "integrationMaturity": "not-mapped",
-      "issues": [
-        "official-source-missing"
-      ],
-      "lastOperationalVerification": "",
-      "maturity": "structural",
-      "operationalArchitectures": [],
-      "operationalCoverage": "none",
-      "operationalEvidence": false,
-      "operationalEvidenceIds": [],
-      "scriptSourceDeclared": true,
-      "setupId": "n8n-main",
-      "sourceClassification": "internal-only",
-      "testedArchitectures": [
-        "amd64",
-        "arm64"
-      ]
-    },
-    {
-      "catalogName": "N8N V1 - FILA (QUEUE)",
-      "editorialStatus": "reviewed",
-      "homologationEvidence": false,
-      "installationStatus": "maintainer-homologated",
-      "integrationMaturity": "not-mapped",
-      "issues": [],
-      "lastOperationalVerification": "",
-      "maturity": "structural",
-      "operationalArchitectures": [],
-      "operationalCoverage": "none",
-      "operationalEvidence": false,
-      "operationalEvidenceIds": [],
-      "scriptSourceDeclared": true,
-      "setupId": "n8n-queue-v1",
-      "sourceClassification": "official-and-internal",
-      "testedArchitectures": [
-        "amd64",
-        "arm64"
-      ]
-    },
-    {
       "catalogName": "N8N V2 - FILA (QUEUE)",
       "editorialStatus": "reviewed",
       "homologationEvidence": false,
@@ -3428,38 +3342,38 @@
   "generatedAt": "2026-09-06T00:00:00Z",
   "knowledgeVersion": "3.34.2",
   "schemaVersion": 2,
-  "setupVersion": "7.48.9",
+  "setupVersion": "7.48.10",
   "summary": {
     "editorialStatuses": {
       "deprecated": 0,
       "draft": 0,
       "homologated": 0,
       "outdated": 0,
-      "reviewed": 161
+      "reviewed": 157
     },
     "homologatedEntries": 0,
     "installationStatuses": {
-      "maintainer-homologated": 161
+      "maintainer-homologated": 157
     },
     "integrationMaturityLevels": {
       "documented": 0,
-      "not-mapped": 161,
+      "not-mapped": 157,
       "suggested": 0,
       "validated": 0
     },
-    "internalOnlySourceEntries": 19,
-    "issueEntries": 27,
+    "internalOnlySourceEntries": 18,
+    "issueEntries": 26,
     "maturityLevels": {
       "homologated": 0,
       "operational-reviewed": 1,
       "script-reviewed": 0,
       "source-reviewed": 0,
-      "structural": 160
+      "structural": 156
     },
-    "officialSourceEntries": 141,
+    "officialSourceEntries": 138,
     "officialSourceExceptions": 1,
     "operationalEvidenceEntries": 1,
-    "setupEntries": 161,
-    "unresolvedIssueCount": 29
+    "setupEntries": 157,
+    "unresolvedIssueCount": 28
   }
 }
