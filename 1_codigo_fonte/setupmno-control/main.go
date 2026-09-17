@@ -382,6 +382,7 @@ type overview struct {
 	OSType            string      `json:"osType"`
 	KernelVersion     string      `json:"kernelVersion"`
 	Hostname          string      `json:"hostname"`
+	NodeAddr          string      `json:"nodeAddr,omitempty"`
 	GeneratedAt       time.Time   `json:"generatedAt"`
 }
 
@@ -393,7 +394,8 @@ type dockerInfo struct {
 	ContainersRunning int    `json:"ContainersRunning"`
 	ContainersStopped int    `json:"ContainersStopped"`
 	Swarm             struct {
-		Nodes int `json:"Nodes"`
+		Nodes    int    `json:"Nodes"`
+		NodeAddr string `json:"NodeAddr"`
 	} `json:"Swarm"`
 	ServerVersion   string `json:"ServerVersion"`
 	OperatingSystem string `json:"OperatingSystem"`
@@ -714,6 +716,7 @@ func runWeb() error {
 	mux.Handle("POST /api/fleet/ping", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetPing))))
 	mux.HandleFunc("GET /api/fleet/worker/telemetry", app.handleFleetWorkerTelemetry)
 	mux.HandleFunc("GET /api/fleet/worker/structure", app.handleFleetWorkerStructure)
+	mux.HandleFunc("GET /api/fleet/worker/ip", app.handleFleetWorkerIP)
 	mux.HandleFunc("POST /api/fleet/worker/action", app.handleFleetWorkerAction)
 	mux.HandleFunc("GET /api/fleet/worker/lock", app.handleFleetWorkerLock)
 	mux.HandleFunc("POST /api/fleet/worker/lock", app.handleFleetWorkerLock)
@@ -891,9 +894,25 @@ func runAgent() error {
 		if setupVersion == "" {
 			setupVersion = "7.44.0"
 		}
+		publicIP := overviewData.NodeAddr
+		if publicIP == "" || publicIP == "127.0.0.1" || publicIP == "0.0.0.0" {
+			publicIP = os.Getenv("PUBLIC_IP")
+		}
+		if publicIP == "" {
+			for _, p := range []string{"/root/.cloudflared_config/public_ip", "/root/SetupLowCodeMno/.control/public_ip"} {
+				if data, err := os.ReadFile(p); err == nil {
+					ip := strings.TrimSpace(string(data))
+					if ip != "" && !strings.Contains(ip, "127.0.0.1") {
+						publicIP = ip
+						break
+					}
+				}
+			}
+		}
 		telemetry := FleetTelemetry{
 			NodeID:        nodeID,
 			Mode:          environment.FleetMode,
+			PublicIP:      publicIP,
 			Architecture:  arch,
 			SetupVersion:  setupVersion,
 			UptimeSeconds: int64(overviewData.Metrics.UptimeSeconds),
@@ -4595,6 +4614,7 @@ func collectOverview(client *http.Client) (overview, error) {
 		OSType:            info.OSType,
 		KernelVersion:     info.KernelVersion,
 		Hostname:          info.Name,
+		NodeAddr:          info.Swarm.NodeAddr,
 		GeneratedAt:       time.Now().UTC(),
 	}, nil
 }

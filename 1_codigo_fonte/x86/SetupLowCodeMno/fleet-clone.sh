@@ -252,34 +252,74 @@ list_local_swarm_stacks() {
 resolve_worker_ssh_host() {
     local _r_node_id="$1"
     local _r_node_name="${2:-}"
-    local _r_ret_var="$3"
+    local _r_ret_var="${3:-}"
     local _r_host=""
 
     mkdir -p "$CONTROL_DIR" 2>/dev/null || true
 
+    # 1. Tentar ler do arquivo persistente fleet-ssh.json
     if [ -f "$SSH_HOSTS_FILE" ]; then
         _r_host=$(jq -r --arg id "$_r_node_id" --arg name "$_r_node_name" '.[$id] // .[$name] // empty' "$SSH_HOSTS_FILE" 2>/dev/null || true)
     fi
 
-    if [ -z "$_r_host" ] && [ -f "$INVENTORY_FILE" ]; then
-        local ep
-        ep=$(jq -r --arg id "$_r_node_id" '.nodes[]? | select(.id == $id) | .endpoint' "$INVENTORY_FILE" 2>/dev/null || true)
-        if [[ "$ep" =~ ^https?://([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+) ]]; then
+    local ep="" tok=""
+    if [ -f "$INVENTORY_FILE" ]; then
+        # 2. Tentar ler campo publicIp diretamente gravado no inventário
+        if [ -z "$_r_host" ]; then
+            _r_host=$(jq -r --arg id "$_r_node_id" --arg name "$_r_node_name" \
+                '.nodes[]? | select(.id == $id or .name == $name) | .publicIp // .telemetry.publicIp // .nodeIp // .ip // empty' \
+                "$INVENTORY_FILE" 2>/dev/null | head -n 1 || true)
+        fi
+
+        ep=$(jq -r --arg id "$_r_node_id" --arg name "$_r_node_name" \
+            '.nodes[]? | select(.id == $id or .name == $name) | .endpoint // empty' \
+            "$INVENTORY_FILE" 2>/dev/null | head -n 1 || true)
+        tok=$(jq -r --arg id "$_r_node_id" --arg name "$_r_node_name" \
+            '.nodes[]? | select(.id == $id or .name == $name) | .token // empty' \
+            "$INVENTORY_FILE" 2>/dev/null | head -n 1 || true)
+
+        # 3. Se o endpoint for IP numérico direto (ex: http://46.224.155.11:8080)
+        if [ -z "$_r_host" ] && [[ "$ep" =~ ^https?://([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+) ]]; then
             _r_host="${BASH_REMATCH[1]}"
+        fi
+
+        # 4. Se for domínio Cloudflare Tunnel, consultar a telemetria do worker em tempo real via API
+        if [ -z "$_r_host" ] && [ -n "$ep" ]; then
+            local telem_raw
+            telem_raw=$(curl -s -k --connect-timeout 4 -m 6 -H "X-SetupMNO-Fleet-Token: $tok" "${ep}/api/fleet/worker/telemetry" 2>/dev/null || true)
+            if [ -n "$telem_raw" ]; then
+                _r_host=$(jq -r '.publicIp // .nodeIp // .ip // .nodeAddr // empty' <<< "$telem_raw" 2>/dev/null || true)
+            fi
+        fi
+
+        # 5. Consulta alternativa ao endpoint de IP do worker
+        if [ -z "$_r_host" ] && [ -n "$ep" ]; then
+            local ip_resp
+            ip_resp=$(curl -s -k --connect-timeout 4 -m 6 -H "X-SetupMNO-Fleet-Token: $tok" "${ep}/api/fleet/worker/ip" 2>/dev/null || true)
+            if [ -n "$ip_resp" ]; then
+                _r_host=$(jq -r '.publicIp // empty' <<< "$ip_resp" 2>/dev/null || true)
+                [ -z "$_r_host" ] && [[ "$ip_resp" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && _r_host="$ip_resp"
+            fi
         fi
     fi
 
-    if [ -z "$_r_host" ] && { [ "$_r_node_id" = "node-worker-a8454ed4" ] || [ "$_r_node_name" = "Server2" ]; }; then
-        _r_host="91.99.117.159"
+    # Se encontramos o IP automaticamente, persistir imediatamente em fleet-ssh.json
+    if [ -n "$_r_host" ]; then
+        local current_json="{}"
+        [ -f "$SSH_HOSTS_FILE" ] && current_json=$(cat "$SSH_HOSTS_FILE" 2>/dev/null || printf '{}')
+        local updated_json
+        updated_json=$(printf '%s' "$current_json" | jq --arg id "$_r_node_id" --arg name "$_r_node_name" --arg h "$_r_host" '.[$id] = $h | .[$name] = $h' 2>/dev/null || printf '{"%s": "%s"}' "$_r_node_id" "$_r_host")
+        printf '%s\n' "$updated_json" > "$SSH_HOSTS_FILE" 2>/dev/null || true
     fi
 
+    # Se ainda vazio (contingência extrema caso o nó esteja completamente inacessível na nuvem)
     if [ -z "$_r_host" ]; then
         if [ "${is_cli:-false}" = "true" ] || [ ! -t 0 ]; then
-            echo "ERRO SSH: Endereço IP do servidor '$_r_node_name' não encontrado em fleet-ssh.json." >&2
+            echo "ERRO SSH: Endereço IP do servidor '$_r_node_name' não encontrado automaticamente." >&2
             return 1
         fi
         _r_host=$(whiptail --title "CONEXÃO SSH COM O SERVIDOR ($_r_node_name)" --inputbox \
-            "Informe o endereço IP da VPS para transferência de dados:" 12 74 "91.99.117.159" 3>&1 1>&2 2>&3) || return 1
+            "Informe o endereço IP da VPS para transferência de dados:" 12 74 "" 3>&1 1>&2 2>&3) || return 1
         [ -n "$_r_host" ] || return 1
 
         local current_json="{}"
@@ -296,20 +336,41 @@ resolve_worker_ssh_host() {
 
     # Testar conectividade SSH com timeout estrito de 4s (evita qualquer travamento)
     if ! timeout 4 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes -o ConnectTimeout=3 -o ServerAliveInterval=2 -o ServerAliveCountMax=1 "root@$_r_host" "echo ok" >/dev/null 2>&1; then
-        if [ "${is_cli:-false}" = "true" ] || [ ! -t 0 ]; then
-            echo "ERRO SSH: Chave SSH pública não autorizada no servidor '$_r_node_name' ($_r_host)." >&2
-            return 1
+        # Tenta autorizar automaticamente a chave SSH pública via Fleet API Zero-Trust antes de solicitar senha
+        if [ -n "$ep" ] && [ -n "$tok" ]; then
+            local pub_key=""
+            [ -f /root/.ssh/id_rsa.pub ] && pub_key=$(cat /root/.ssh/id_rsa.pub 2>/dev/null || true)
+            [ -z "$pub_key" ] && [ -f /root/.ssh/id_ed25519.pub ] && pub_key=$(cat /root/.ssh/id_ed25519.pub 2>/dev/null || true)
+            if [ -n "$pub_key" ]; then
+                curl -s -k --connect-timeout 4 -m 8 -X POST \
+                    -H "X-SetupMNO-Fleet-Token: $tok" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"action\":\"authorize_ssh_key\",\"payload\":{\"key\":\"$pub_key\"}}" \
+                    "${ep}/api/fleet/worker/action" >/dev/null 2>&1 || true
+            fi
         fi
-        local vps_pwd
-        vps_pwd=$(whiptail --title "AUTENTICAÇÃO SSH NECESSÁRIA" --passwordbox \
-            "A chave SSH ainda não está autorizada no nó '$_r_node_name' ($_r_host).\n\nInforme a senha de root da VPS para estabelecer a conexão segura:" 12 74 3>&1 1>&2 2>&3) || return 1
-        
-        if command -v sshpass >/dev/null 2>&1 && [ -n "$vps_pwd" ]; then
-            timeout 8 sshpass -p "$vps_pwd" ssh-copy-id -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR "root@$_r_host" >/dev/null 2>&1 || true
+
+        # Se após a autorização automática ainda não conectar, solicita a senha do root no Whiptail
+        if ! timeout 4 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes -o ConnectTimeout=3 -o ServerAliveInterval=2 -o ServerAliveCountMax=1 "root@$_r_host" "echo ok" >/dev/null 2>&1; then
+            if [ "${is_cli:-false}" = "true" ] || [ ! -t 0 ]; then
+                echo "ERRO SSH: Chave SSH pública não autorizada no servidor '$_r_node_name' ($_r_host)." >&2
+                return 1
+            fi
+            local vps_pwd
+            vps_pwd=$(whiptail --title "AUTENTICAÇÃO SSH NECESSÁRIA" --passwordbox \
+                "A chave SSH ainda não está autorizada no nó '$_r_node_name' ($_r_host).\n\nInforme a senha de root da VPS para estabelecer a conexão segura:" 12 74 3>&1 1>&2 2>&3) || return 1
+            
+            if command -v sshpass >/dev/null 2>&1 && [ -n "$vps_pwd" ]; then
+                timeout 8 sshpass -p "$vps_pwd" ssh-copy-id -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR "root@$_r_host" >/dev/null 2>&1 || true
+            fi
         fi
     fi
 
-    printf -v "$_r_ret_var" '%s' "$_r_host"
+    if [ -n "$_r_ret_var" ]; then
+        printf -v "$_r_ret_var" '%s' "$_r_host"
+    else
+        printf '%s\n' "$_r_host"
+    fi
     return 0
 }
 

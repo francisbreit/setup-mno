@@ -35,6 +35,7 @@ type FleetNode struct {
 	Role          string          `json:"role,omitempty"`
 	Tags          []string        `json:"tags,omitempty"`
 	Token         string          `json:"token,omitempty"`
+	PublicIP      string          `json:"publicIp,omitempty"`
 	Architecture  string          `json:"architecture,omitempty"`
 	SetupVersion  string          `json:"setupVersion,omitempty"`
 	MemoryTotalMB uint64          `json:"memoryTotalMB"`
@@ -70,6 +71,7 @@ type FleetActionResponse struct {
 type FleetTelemetry struct {
 	NodeID        string         `json:"nodeId"`
 	Mode          FleetMode      `json:"mode"`
+	PublicIP      string         `json:"publicIp,omitempty"`
 	Architecture  string         `json:"architecture,omitempty"`
 	SetupVersion  string         `json:"setupVersion,omitempty"`
 	UptimeSeconds int64          `json:"uptimeSeconds"`
@@ -158,6 +160,7 @@ type FleetNodeStructure struct {
 	Name          string              `json:"name"`
 	Mode          FleetMode           `json:"mode"`
 	Role          string              `json:"role,omitempty"`
+	PublicIP      string              `json:"publicIp,omitempty"`
 	Architecture  string              `json:"architecture"` // "amd64" ou "arm64"
 	SetupVersion  string              `json:"setupVersion"`
 	MemoryTotalMB uint64              `json:"memoryTotalMB"`
@@ -177,6 +180,7 @@ type FleetNodeSummary struct {
 	Name          string `json:"name"`
 	Architecture  string `json:"architecture"`
 	Endpoint      string `json:"endpoint,omitempty"`
+	PublicIP      string `json:"publicIp,omitempty"`
 	MemoryFreeMB  uint64 `json:"memoryFreeMB"`
 	DiskFreeGB    uint64 `json:"diskFreeGB"`
 }

@@ -269,6 +269,9 @@ func (a *webApp) handleFleetAddNode(w http.ResponseWriter, r *http.Request) {
 	if probeErr == nil {
 		newNode.Status = "online"
 		newNode.Telemetry = &telem
+		if telem.PublicIP != "" {
+			newNode.PublicIP = telem.PublicIP
+		}
 		newNode.MemoryTotalMB = telem.MemoryTotalMB
 		newNode.MemoryUsedMB = telem.MemoryUsedMB
 		newNode.ServiceCount = telem.HealthyApps + telem.UnhealthyApps
@@ -296,6 +299,38 @@ func (a *webApp) handleFleetAddNode(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "falha ao persistir nó no inventário da frota")
 		return
 	}
+
+	if newNode.PublicIP != "" {
+		_ = saveFleetSSHHost(newNode.ID, newNode.Name, newNode.PublicIP)
+	}
+
+	// Autoriza automaticamente a chave SSH pública do Master no Worker em background
+	go func(targetEndpoint, targetToken string) {
+		pubKeyBytes, err := os.ReadFile("/root/.ssh/id_rsa.pub")
+		if err != nil {
+			pubKeyBytes, _ = os.ReadFile("/root/.ssh/id_ed25519.pub")
+		}
+		if len(pubKeyBytes) > 0 {
+			keyStr := strings.TrimSpace(string(pubKeyBytes))
+			payloadMap := map[string]any{
+				"action": "authorize_ssh_key",
+				"payload": map[string]any{
+					"key": keyStr,
+				},
+			}
+			bodyBytes, _ := json.Marshal(payloadMap)
+			req, _ := http.NewRequest(http.MethodPost, targetEndpoint+"/api/fleet/worker/action", bytes.NewReader(bodyBytes))
+			if req != nil {
+				req.Header.Set("X-SetupMNO-Fleet-Token", targetToken)
+				req.Header.Set("Content-Type", "application/json")
+				client := &http.Client{Timeout: 5 * time.Second}
+				resp, err := client.Do(req)
+				if err == nil && resp != nil {
+					_ = resp.Body.Close()
+				}
+			}
+		}
+	}(cleanEndpoint, req.Token)
 
 	a.addAudit("fleet_node_added", fmt.Sprintf("Nó %s (%s) pareado e adicionado à frota", newNode.Name, cleanEndpoint), clientAddress(r))
 	// Mascarar o token na resposta
@@ -683,9 +718,104 @@ func (a *webApp) handleFleetWorkerAction(w http.ResponseWriter, r *http.Request)
 				"unhealthyApps": telem.UnhealthyApps,
 			},
 		})
+	case "get_ip":
+		telem, _ := a.fetchLocalTelemetry(ctx)
+		writeJSON(w, http.StatusOK, FleetActionResponse{
+			ActionID: req.ActionID,
+			Success:  true,
+			Output:   telem.PublicIP,
+			Data:     map[string]any{"publicIp": telem.PublicIP},
+		})
+	case "authorize_ssh_key":
+		key, ok := req.Payload["key"].(string)
+		key = strings.TrimSpace(key)
+		validKey := ok && (strings.HasPrefix(key, "ssh-rsa ") ||
+			strings.HasPrefix(key, "ssh-ed25519 ") ||
+			strings.HasPrefix(key, "ecdsa-sha2-")) &&
+			!strings.ContainsAny(key, "\r\n") &&
+			len(key) < 4096
+		if validKey {
+			_ = appendAuthorizedSSHKey(key)
+			writeJSON(w, http.StatusOK, FleetActionResponse{
+				ActionID: req.ActionID,
+				Success:  true,
+				Output:   "ssh_key_authorized",
+			})
+			return
+		}
+		writeError(w, http.StatusBadRequest, "chave SSH pública inválida")
+		return
 	default:
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("ação '%s' não suportada ou não permitida", req.Action))
 	}
+}
+
+// handleFleetWorkerIP retorna o IP do worker diretamente para a Torre Master.
+func (a *webApp) handleFleetWorkerIP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	cfg, err := a.fetchFleetConfig(ctx)
+	if err != nil || !a.authenticateFleetWorkerRequest(r, cfg.FleetToken, cfg.FleetMode) {
+		writeError(w, http.StatusUnauthorized, "acesso não autorizado ao endpoint de IP do nó")
+		return
+	}
+	telem, err := a.fetchLocalTelemetry(ctx)
+	if err != nil || telem.PublicIP == "" {
+		writeError(w, http.StatusBadGateway, "IP do nó indisponível")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{
+		"publicIp": telem.PublicIP,
+	})
+}
+
+func appendAuthorizedSSHKey(key string) error {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return errors.New("chave vazia")
+	}
+	sshDir := "/root/.ssh"
+	if err := os.MkdirAll(sshDir, 0700); err != nil {
+		return err
+	}
+	authFile := filepath.Join(sshDir, "authorized_keys")
+	existing, _ := os.ReadFile(authFile)
+	if strings.Contains(string(existing), key) {
+		return nil
+	}
+	f, err := os.OpenFile(authFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = f.WriteString(key + "\n")
+	return err
+}
+
+func saveFleetSSHHost(nodeID, nodeName, host string) error {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return nil
+	}
+	sshHostsFile := "/root/SetupLowCodeMno/.control/fleet-ssh.json"
+	_ = os.MkdirAll(filepath.Dir(sshHostsFile), 0755)
+	var current map[string]string
+	if data, err := os.ReadFile(sshHostsFile); err == nil {
+		_ = json.Unmarshal(data, &current)
+	}
+	if current == nil {
+		current = make(map[string]string)
+	}
+	if nodeID != "" {
+		current[nodeID] = host
+	}
+	if nodeName != "" {
+		current[nodeName] = host
+	}
+	out, err := json.MarshalIndent(current, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(sshHostsFile, out, 0600)
 }
 
 // probeAllWorkers realiza varreduras em paralelo em todos os nós Workers registrados na frota.
@@ -769,6 +899,10 @@ func (a *webApp) probeAllWorkers(ctx context.Context) {
 			}
 			if out.telem.SetupVersion != "" {
 				node.SetupVersion = out.telem.SetupVersion
+			}
+			if out.telem.PublicIP != "" && node.PublicIP != out.telem.PublicIP {
+				node.PublicIP = out.telem.PublicIP
+				_ = saveFleetSSHHost(node.ID, node.Name, node.PublicIP)
 			}
 			_ = a.fleetStore.UpdateNode(node)
 			changed = true
