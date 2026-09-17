@@ -3189,6 +3189,10 @@ function renderFleetNodes() {
       ? ""
       : `<button type="button" class="ghost-button small${lockClass}" data-fleet-action="remove" data-node-id="${escapeHTML(node.id)}" data-node-name="${escapeHTML(node.name)}" title="Remover nó da frota"${disabledAttr}>Excluir 🗑️</button>`;
 
+    const lockBadgeHTML = (node.lock && node.lock.locked)
+      ? `<span class="secure-pill status-warning" title="Ocupado: ${escapeHTML(node.lock.task || 'Operação')} por ${escapeHTML(node.lock.holderName || 'Torre Master')}">🔒 Ocupado</span>`
+      : "";
+
     return `
       <article class="fleet-card ${isMaster ? "is-master" : ""}" data-node-id="${escapeHTML(node.id)}">
         <div class="fleet-card-top">
@@ -3199,6 +3203,7 @@ function renderFleetNodes() {
           <div class="fleet-card-badges">
             <span class="fleet-role-badge ${roleClass}">${escapeHTML(roleLabel)}</span>
             <span class="secure-pill status-${statusClass}"><i></i> ${escapeHTML(statusLabel)}</span>
+            ${lockBadgeHTML}
           </div>
         </div>
 

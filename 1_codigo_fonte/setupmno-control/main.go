@@ -101,8 +101,10 @@ type webApp struct {
 	feedback       feedbackState
 	feedbackTokens map[string]feedbackTokenRecord
 
-	fleetStore *fleetInventoryStore
-	fleetMu    sync.Mutex
+	fleetStore  *fleetInventoryStore
+	fleetMu     sync.Mutex
+	fleetLockMu sync.Mutex
+	fleetLock   *FleetNodeLock
 
 	sentinelMu     sync.Mutex
 	sentinelConfig *SentinelConfig
@@ -712,6 +714,8 @@ func runWeb() error {
 	mux.HandleFunc("GET /api/fleet/worker/telemetry", app.handleFleetWorkerTelemetry)
 	mux.HandleFunc("GET /api/fleet/worker/structure", app.handleFleetWorkerStructure)
 	mux.HandleFunc("POST /api/fleet/worker/action", app.handleFleetWorkerAction)
+	mux.HandleFunc("GET /api/fleet/worker/lock", app.handleFleetWorkerLock)
+	mux.HandleFunc("POST /api/fleet/worker/lock", app.handleFleetWorkerLock)
 	mux.Handle("GET /api/fleet/nodes/{id}/structure", app.requireAuth(http.HandlerFunc(app.handleFleetNodeStructure)))
 	mux.Handle("POST /api/fleet/transfer/preflight", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetTransferPreflight))))
 	mux.Handle("POST /api/fleet/transfer/execute", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleFleetTransferExecute))))

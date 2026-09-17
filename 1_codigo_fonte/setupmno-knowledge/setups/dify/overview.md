@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Dify no Setup MNO",
   "setupId": "dify",
-  "setupVersion": "7.48.11",
+  "setupVersion": "7.48.12",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

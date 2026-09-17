@@ -471,7 +471,169 @@ func (a *webApp) handleFleetWorkerTelemetry(w http.ResponseWriter, r *http.Reque
 		writeError(w, http.StatusBadGateway, "falha ao consultar telemetria local")
 		return
 	}
+
+	a.fleetLockMu.Lock()
+	if a.fleetLock != nil && a.fleetLock.Locked {
+		if time.Now().UTC().After(a.fleetLock.ExpiresAt) {
+			a.fleetLock.Locked = false
+		} else {
+			lockCopy := *a.fleetLock
+			telem.Lock = &lockCopy
+		}
+	}
+	a.fleetLockMu.Unlock()
+
 	writeJSON(w, http.StatusOK, telem)
+}
+
+// handleFleetWorkerLock gerencia a trava de ocupação atômica do nó Worker (Node Lease / Lock).
+func (a *webApp) handleFleetWorkerLock(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	cfg, err := a.fetchFleetConfig(ctx)
+	if err != nil || !a.authenticateFleetWorkerRequest(r, cfg.FleetToken, cfg.FleetMode) {
+		writeError(w, http.StatusUnauthorized, "acesso não autorizado ao endpoint de trava do nó")
+		return
+	}
+
+	a.fleetLockMu.Lock()
+	defer a.fleetLockMu.Unlock()
+
+	now := time.Now().UTC()
+
+	// Se for requisição GET, retorna o status do lock
+	if r.Method == http.MethodGet {
+		var currentLock FleetNodeLock
+		if a.fleetLock != nil && a.fleetLock.Locked {
+			if now.After(a.fleetLock.ExpiresAt) {
+				a.fleetLock.Locked = false
+			} else {
+				currentLock = *a.fleetLock
+			}
+		}
+		writeJSON(w, http.StatusOK, FleetLockResponse{
+			Success: true,
+			Message: "Status da trava consultado",
+			Lock:    currentLock,
+		})
+		return
+	}
+
+	data, err := io.ReadAll(io.LimitReader(r.Body, 16<<10))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "falha ao ler requisição")
+		return
+	}
+
+	var req FleetLockRequest
+	if err := decodeStrictJSON(data, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "requisição de trava JSON inválida")
+		return
+	}
+
+	switch strings.ToLower(strings.TrimSpace(req.Action)) {
+	case "status":
+		var currentLock FleetNodeLock
+		if a.fleetLock != nil && a.fleetLock.Locked {
+			if now.After(a.fleetLock.ExpiresAt) {
+				a.fleetLock.Locked = false
+			} else {
+				currentLock = *a.fleetLock
+			}
+		}
+		writeJSON(w, http.StatusOK, FleetLockResponse{
+			Success: true,
+			Message: "Status da trava consultado",
+			Lock:    currentLock,
+		})
+
+	case "acquire":
+		// Verifica se já está travado por outra central
+		if a.fleetLock != nil && a.fleetLock.Locked && now.Before(a.fleetLock.ExpiresAt) {
+			holderID := strings.TrimSpace(req.HolderID)
+			// Se for o mesmo holder, permite renovação do lease (TTL)
+			if holderID != "" && holderID == a.fleetLock.HolderID {
+				ttl := req.TTLSeconds
+				if ttl <= 0 {
+					ttl = 300
+				}
+				if ttl > 1800 {
+					ttl = 1800
+				}
+				a.fleetLock.ExpiresAt = now.Add(time.Duration(ttl) * time.Second)
+				if req.Task != "" {
+					a.fleetLock.Task = req.Task
+				}
+				writeJSON(w, http.StatusOK, FleetLockResponse{
+					Success: true,
+					Message: "Trava renovada com sucesso",
+					Lock:    *a.fleetLock,
+				})
+				return
+			}
+
+			// Outro holder tentando adquirir enquanto ocupado: 409 Conflict
+			msg := fmt.Sprintf("Este nó está ocupado executando uma tarefa disparada por outra central (%s por %s). Aguarde a conclusão ou expiração do lock.", a.fleetLock.Task, a.fleetLock.HolderName)
+			writeJSON(w, http.StatusConflict, FleetLockResponse{
+				Success: false,
+				Message: msg,
+				Lock:    *a.fleetLock,
+			})
+			return
+		}
+
+		// Adquirir nova trava
+		ttl := req.TTLSeconds
+		if ttl <= 0 {
+			ttl = 300 // 5 minutos padrão
+		}
+		if ttl > 1800 {
+			ttl = 1800 // 30 minutos máximo
+		}
+
+		holderID := strings.TrimSpace(req.HolderID)
+		if holderID == "" {
+			holderID = clientAddress(r)
+		}
+		holderName := strings.TrimSpace(req.HolderName)
+		if holderName == "" {
+			holderName = "Torre Master"
+		}
+		task := strings.TrimSpace(req.Task)
+		if task == "" {
+			task = "Operação de Frota"
+		}
+
+		a.fleetLock = &FleetNodeLock{
+			Locked:     true,
+			HolderID:   holderID,
+			HolderName: holderName,
+			Task:       task,
+			AcquiredAt: now,
+			ExpiresAt:  now.Add(time.Duration(ttl) * time.Second),
+		}
+
+		writeJSON(w, http.StatusOK, FleetLockResponse{
+			Success: true,
+			Message: "Trava adquirida com sucesso",
+			Lock:    *a.fleetLock,
+		})
+
+	case "release":
+		if a.fleetLock != nil && a.fleetLock.Locked {
+			holderID := strings.TrimSpace(req.HolderID)
+			if holderID == "" || holderID == "force" || holderID == a.fleetLock.HolderID {
+				a.fleetLock.Locked = false
+			}
+		}
+		writeJSON(w, http.StatusOK, FleetLockResponse{
+			Success: true,
+			Message: "Trava liberada com sucesso",
+			Lock:    FleetNodeLock{},
+		})
+
+	default:
+		writeError(w, http.StatusBadRequest, "ação de trava inválida (use 'acquire', 'release' ou 'status')")
+	}
 }
 
 // handleFleetWorkerAction é o endpoint exposto pelo Worker para ações seguras da Torre Master.
@@ -592,6 +754,7 @@ func (a *webApp) probeAllWorkers(ctx context.Context) {
 			node.TunnelHealthy = true
 			node.LastHeartbeat = time.Now().UTC()
 			node.Telemetry = &out.telem
+			node.Lock = out.telem.Lock
 			node.MemoryTotalMB = out.telem.MemoryTotalMB
 			node.MemoryUsedMB = out.telem.MemoryUsedMB
 			node.ServiceCount = out.telem.HealthyApps + out.telem.UnhealthyApps

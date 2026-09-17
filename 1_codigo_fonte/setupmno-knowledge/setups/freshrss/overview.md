@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "FreshRSS no Setup MNO",
   "setupId": "freshrss",
-  "setupVersion": "7.48.11",
+  "setupVersion": "7.48.12",
   "architectures": [
     "amd64",
     "arm64"

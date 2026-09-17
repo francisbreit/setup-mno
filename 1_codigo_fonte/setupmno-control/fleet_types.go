@@ -44,6 +44,7 @@ type FleetNode struct {
 	TunnelHealthy bool            `json:"tunnelHealthy"`
 	LastHeartbeat time.Time       `json:"lastHeartbeat"`
 	Telemetry     *FleetTelemetry `json:"telemetry,omitempty"`
+	Lock          *FleetNodeLock  `json:"lock,omitempty"`
 }
 
 // FleetActionRequest representa um comando remoto seguro enviado da Torre Master para um Worker.
@@ -67,20 +68,21 @@ type FleetActionResponse struct {
 
 // FleetTelemetry representa o resumo de telemetria retornado em tempo real pelo nó.
 type FleetTelemetry struct {
-	NodeID        string    `json:"nodeId"`
-	Mode          FleetMode `json:"mode"`
-	Architecture  string    `json:"architecture,omitempty"`
-	SetupVersion  string    `json:"setupVersion,omitempty"`
-	UptimeSeconds int64     `json:"uptimeSeconds"`
-	LoadAverage1m float64   `json:"loadAverage1m"`
-	MemoryUsedMB  uint64    `json:"memoryUsedMB"`
-	MemoryTotalMB uint64    `json:"memoryTotalMB"`
-	DiskUsedGB    uint64    `json:"diskUsedGB"`
-	DiskTotalGB   uint64    `json:"diskTotalGB"`
-	ActiveSwarm   bool      `json:"activeSwarm"`
-	HealthyApps   int       `json:"healthyApps"`
-	UnhealthyApps int       `json:"unhealthyApps"`
-	Timestamp     time.Time `json:"timestamp"`
+	NodeID        string         `json:"nodeId"`
+	Mode          FleetMode      `json:"mode"`
+	Architecture  string         `json:"architecture,omitempty"`
+	SetupVersion  string         `json:"setupVersion,omitempty"`
+	UptimeSeconds int64          `json:"uptimeSeconds"`
+	LoadAverage1m float64        `json:"loadAverage1m"`
+	MemoryUsedMB  uint64         `json:"memoryUsedMB"`
+	MemoryTotalMB uint64         `json:"memoryTotalMB"`
+	DiskUsedGB    uint64         `json:"diskUsedGB"`
+	DiskTotalGB   uint64         `json:"diskTotalGB"`
+	ActiveSwarm   bool           `json:"activeSwarm"`
+	HealthyApps   int            `json:"healthyApps"`
+	UnhealthyApps int            `json:"unhealthyApps"`
+	Timestamp     time.Time      `json:"timestamp"`
+	Lock          *FleetNodeLock `json:"lock,omitempty"`
 }
 
 // FleetStatusResponse representa o resumo do status da frota para o Control Center.
@@ -257,4 +259,30 @@ type FleetBackupExecutionResponse struct {
 	SHA256       string    `json:"sha256"`
 	Timestamp    time.Time `json:"timestamp"`
 	Error        string    `json:"error,omitempty"`
+}
+
+// FleetNodeLock representa a trava de ocupação atômica de um nó da frota (Node Lease / Lock).
+type FleetNodeLock struct {
+	Locked     bool      `json:"locked"`
+	HolderID   string    `json:"holderId,omitempty"`
+	HolderName string    `json:"holderName,omitempty"`
+	Task       string    `json:"task,omitempty"`
+	AcquiredAt time.Time `json:"acquiredAt,omitempty"`
+	ExpiresAt  time.Time `json:"expiresAt,omitempty"`
+}
+
+// FleetLockRequest representa a requisição para adquirir, renovar ou liberar o lock do nó.
+type FleetLockRequest struct {
+	Action     string `json:"action"` // "acquire", "release", "status"
+	HolderID   string `json:"holderId,omitempty"`
+	HolderName string `json:"holderName,omitempty"`
+	Task       string `json:"task,omitempty"`
+	TTLSeconds int    `json:"ttlSeconds,omitempty"` // Default: 300 (5 min), Max: 1800 (30 min)
+}
+
+// FleetLockResponse representa a resposta do Worker sobre a trava.
+type FleetLockResponse struct {
+	Success bool          `json:"success"`
+	Message string        `json:"message"`
+	Lock    FleetNodeLock `json:"lock"`
 }

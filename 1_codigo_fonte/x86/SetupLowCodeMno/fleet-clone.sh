@@ -138,6 +138,93 @@ get_local_fleet_node_id() {
     jq -r '.fleetNodeId // empty' "$ENV_FILE" 2>/dev/null || true
 }
 
+# ==============================================================================
+# GESTÃO DE TRAVA DE OCUPAÇÃO NO WORKER (NODE LEASE / LOCK)
+# ==============================================================================
+acquire_node_lock() {
+    local node_id="$1"
+    local task_name="${2:-Operacao Fleet Hub}"
+    local ttl="${3:-300}"
+    local holder_id holder_name
+    holder_id=$(jq -r '.fleetNodeId // "master-local"' "$ENV_FILE" 2>/dev/null || printf 'master-local')
+    holder_name="Torre Master ($holder_id)"
+
+    local endpoint="" token=""
+    if [ "$node_id" = "local" ]; then
+        endpoint="http://127.0.0.1:8080"
+        token=$(jq -r '.fleetToken // empty' "$ENV_FILE" 2>/dev/null || true)
+    elif [ -f "$INVENTORY_FILE" ]; then
+        endpoint=$(jq -r --arg id "$node_id" '.nodes[]? | select(.id == $id) | .endpoint' "$INVENTORY_FILE" 2>/dev/null || true)
+        token=$(jq -r --arg id "$node_id" '.nodes[]? | select(.id == $id) | .token' "$INVENTORY_FILE" 2>/dev/null || true)
+    fi
+
+    [ -n "$endpoint" ] || return 0
+
+    local payload
+    payload=$(jq -n \
+        --arg action "acquire" \
+        --arg holderId "$holder_id" \
+        --arg holderName "$holder_name" \
+        --arg task "$task_name" \
+        --argjson ttl "$ttl" \
+        '{action: $action, holderId: $holderId, holderName: $holderName, task: $task, ttlSeconds: $ttl}')
+
+    local resp_body http_code
+    local temp_out
+    temp_out=$(mktemp) || return 0
+    http_code=$(curl -s -k -m 6 -o "$temp_out" -w "%{http_code}" \
+        -X POST "$endpoint/api/fleet/worker/lock" \
+        -H "Content-Type: application/json" \
+        -H "X-SetupMNO-Fleet-Token: $token" \
+        -H "Authorization: Bearer $token" \
+        -d "$payload" 2>/dev/null || printf '000')
+
+    resp_body=$(cat "$temp_out" 2>/dev/null || true)
+    rm -f "$temp_out"
+
+    if [ "$http_code" = "409" ]; then
+        local lock_task lock_holder
+        lock_task=$(jq -r '.lock.task // "Operação em andamento"' <<<"$resp_body" 2>/dev/null || printf 'Operação em andamento')
+        lock_holder=$(jq -r '.lock.holderName // "outra central"' <<<"$resp_body" 2>/dev/null || printf 'outra central')
+        echo "⚠️ BLOQUEIO DE CONCORRÊNCIA: O nó '$node_id' está ocupado ($lock_task por $lock_holder)." >&2
+        whiptail --title "⚠️ SERVIDOR OCUPADO (CONFLITO EVITADO)" --msgbox \
+            "O servidor selecionado ($node_id) está OCUPADO no momento!\n\nTarefa em execução: $lock_task\nDisparada por: $lock_holder\n\nPara evitar corrupção de dados ou colisão de backups, a operação foi suspensa com segurança.\n\nAguarde o término da tarefa em andamento ou tente novamente em alguns minutos." 16 76 3>&1 1>&2 2>&3 || true
+        return 1
+    fi
+
+    return 0
+}
+
+release_node_lock() {
+    local node_id="$1"
+    local holder_id
+    holder_id=$(jq -r '.fleetNodeId // "master-local"' "$ENV_FILE" 2>/dev/null || printf 'master-local')
+
+    local endpoint="" token=""
+    if [ "$node_id" = "local" ]; then
+        endpoint="http://127.0.0.1:8080"
+        token=$(jq -r '.fleetToken // empty' "$ENV_FILE" 2>/dev/null || true)
+    elif [ -f "$INVENTORY_FILE" ]; then
+        endpoint=$(jq -r --arg id "$node_id" '.nodes[]? | select(.id == $id) | .endpoint' "$INVENTORY_FILE" 2>/dev/null || true)
+        token=$(jq -r --arg id "$node_id" '.nodes[]? | select(.id == $id) | .token' "$INVENTORY_FILE" 2>/dev/null || true)
+    fi
+
+    [ -n "$endpoint" ] || return 0
+
+    local payload
+    payload=$(jq -n \
+        --arg action "release" \
+        --arg holderId "$holder_id" \
+        '{action: $action, holderId: $holderId}')
+
+    curl -s -k -m 4 -o /dev/null \
+        -X POST "$endpoint/api/fleet/worker/lock" \
+        -H "Content-Type: application/json" \
+        -H "X-SetupMNO-Fleet-Token: $token" \
+        -H "Authorization: Bearer $token" \
+        -d "$payload" 2>/dev/null || true
+}
+
 get_local_arch() {
     local raw_arch
     raw_arch=$(uname -m)
@@ -2069,9 +2156,10 @@ action_backup_app() {
             "${stack_menu[@]}" 3>&1 1>&2 2>&3) || return 0
     fi
 
+    acquire_node_lock "local" "Backup Portatil ($chosen_app)" 300 || return 1
     local tmpdir
     tmpdir=$(mktemp -d)
-    trap 'rm -rf "$tmpdir"' RETURN
+    trap 'release_node_lock "local"; rm -rf "$tmpdir"' RETURN
 
     # 1. Detecção Inteligente de Contexto de Combo
     local initial_yaml_tmp="$tmpdir/initial_detect.yaml"
@@ -2488,6 +2576,9 @@ EOF
             return 0
         fi
     fi
+
+    acquire_node_lock "$chosen_dest_id" "Restauracao de Backup ($app_name)" 600 || return 1
+    trap 'release_node_lock "$chosen_dest_id"; rm -rf "$tmpdir"' RETURN
 
     whiptail --infobox "📦 Descompactando arquivos de volumes, stacks e banco...\nAguarde..." 8 70
     tar -xzf "$backup_file" -C "$tmpdir"
@@ -3302,14 +3393,21 @@ action_transfer_or_clone() {
         fi
     fi
 
-    # 10. Execução Robusta da Migração
+    # 10. Execução Robusta da Migração (com Trava de Ocupação de Nós)
+    acquire_node_lock "$chosen_origin_id" "Migracao ($chosen_app)" 600 || { cleanup_pending_fleet_task; return 1; }
+    acquire_node_lock "$chosen_dest_id" "Recepcao ($chosen_app)" 600 || {
+        release_node_lock "$chosen_origin_id"
+        cleanup_pending_fleet_task
+        return 1
+    }
+
     local safety_suffix="frozen_pre_transfer_$(date -u +%Y%m%dT%H%M%SZ)"
     local workdir
     workdir=$(mktemp -d)
     local stats_file
     stats_file=$(mktemp /tmp/fleet_stats_XXXXXX 2>/dev/null || echo "/tmp/fleet_stats_$$")
     echo "0" > "$stats_file"
-    trap 'rm -rf "$workdir" "$stats_file"' RETURN
+    trap 'release_node_lock "$chosen_origin_id"; release_node_lock "$chosen_dest_id"; rm -rf "$workdir" "$stats_file"' RETURN
 
     : > "$TRANSFER_LOG"
     local total_migrated_vols=0

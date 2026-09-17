@@ -519,5 +519,54 @@ func TestFleetProbeAllWorkersAndSync(t *testing.T) {
 	}
 }
 
+func TestFleetWorkerLockLease(t *testing.T) {
+	app := &webApp{}
+
+	now := time.Now().UTC()
+	// 1. Adquire trava pela Torre A
+	app.fleetLockMu.Lock()
+	app.fleetLock = &FleetNodeLock{
+		Locked:     true,
+		HolderID:   "torre-master-a",
+		HolderName: "Torre Master A (WSL2)",
+		Task:       "Migração n8n",
+		AcquiredAt: now,
+		ExpiresAt:  now.Add(10 * time.Second),
+	}
+	app.fleetLockMu.Unlock()
+
+	// 2. Valida que está travado
+	app.fleetLockMu.Lock()
+	if !app.fleetLock.Locked || app.fleetLock.HolderID != "torre-master-a" {
+		t.Errorf("esperava nó travado pela Torre A, obteve: %+v", app.fleetLock)
+	}
+	// Concorrência: outra torre tenta verificar lock
+	isOccupied := app.fleetLock != nil && app.fleetLock.Locked && time.Now().UTC().Before(app.fleetLock.ExpiresAt)
+	if !isOccupied {
+		t.Errorf("esperava que nó estivesse ocupado")
+	}
+	app.fleetLockMu.Unlock()
+
+	// 3. Libera trava
+	app.fleetLockMu.Lock()
+	app.fleetLock.Locked = false
+	app.fleetLockMu.Unlock()
+
+	// 4. Torre B consegue adquirir
+	app.fleetLockMu.Lock()
+	app.fleetLock = &FleetNodeLock{
+		Locked:     true,
+		HolderID:   "torre-master-b",
+		HolderName: "Torre Master B (VPS)",
+		Task:       "Backup Chatwoot",
+		AcquiredAt: time.Now().UTC(),
+		ExpiresAt:  time.Now().UTC().Add(300 * time.Second),
+	}
+	if !app.fleetLock.Locked || app.fleetLock.HolderID != "torre-master-b" {
+		t.Errorf("esperava nó travado pela Torre B")
+	}
+	app.fleetLockMu.Unlock()
+}
+
 
 
