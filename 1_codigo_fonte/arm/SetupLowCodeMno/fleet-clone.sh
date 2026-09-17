@@ -490,6 +490,45 @@ detect_app_combo_context() {
         detected_combo_name="Combo Typebot + MinIO S3"
     elif [[ "$app" == evoai* ]] && echo "$all_stacks" | grep -qE "minio.*$app_suffix"; then
         detected_combo_name="Combo EvoAI + Evolution + MinIO S3"
+    elif [[ "$app" == hermes* ]] || [[ "$app" == *vibe_ops* ]]; then
+        while IFS= read -r s; do
+            [ -n "$s" ] || continue
+            [ "$s" = "$app" ] && continue
+            case "$s" in
+                hermes*|n8n*|redis*)
+                    if [[ ! " ${linked[*]} " =~ " ${s} " ]]; then
+                        linked+=("$s")
+                    fi
+                    ;;
+            esac
+        done <<< "$all_stacks"
+        detected_combo_name="Combo Vibe Ops (Hermes Agent + n8n v2 Fila + Redis)"
+    elif [[ "$app" == *sdr* ]] || [[ "$app" == *ia_whatsapp* ]] || [[ "$app" == *chatwoot* && $(echo "$all_stacks" | grep -E "sdr|ia_whatsapp") ]]; then
+        while IFS= read -r s; do
+            [ -n "$s" ] || continue
+            [ "$s" = "$app" ] && continue
+            case "$s" in
+                chatwoot*|evolution*|n8n*|redis*)
+                    if [[ ! " ${linked[*]} " =~ " ${s} " ]]; then
+                        linked+=("$s")
+                    fi
+                    ;;
+            esac
+        done <<< "$all_stacks"
+        detected_combo_name="Combo SDR 24/7 (Chatwoot + Evolution + n8n + Redis)"
+    elif [[ "$app" == *whatsapp_marketing* ]] || [[ "$app" == *whatsmmkt* ]]; then
+        while IFS= read -r s; do
+            [ -n "$s" ] || continue
+            [ "$s" = "$app" ] && continue
+            case "$s" in
+                mautic*|evolution*|rabbitmq*)
+                    if [[ ! " ${linked[*]} " =~ " ${s} " ]]; then
+                        linked+=("$s")
+                    fi
+                    ;;
+            esac
+        done <<< "$all_stacks"
+        detected_combo_name="Combo WhatsApp Marketing (Mautic + Evolution + RabbitMQ)"
     fi
 
     if [ ${#linked[@]} -gt 0 ]; then
@@ -797,6 +836,29 @@ get_application_volumes() {
         done < <(grep -oE "${app}[a-zA-Z0-9_-]*" "$yaml_file" | grep -E "(data|config|media|themes|logs|import|uploads)" | sort -u || true)
     fi
 
+    # Se ainda não encontrou volumes, extrai montagens sob services: no YAML
+    if [ ${#vols[@]} -eq 0 ]; then
+        while IFS= read -r v; do
+            [ -n "$v" ] || continue
+            case "$v" in
+                postgres_data|mysql84_mysql84_data|mysql_data|portainer_data|traefik*|cloudflared*|audit*|interna|externa)
+                    continue
+                    ;;
+                redis_data)
+                    [ "$app" != "redis" ] && continue
+                    ;;
+                postgres*|mysql*|portainer*)
+                    if [ "$app" != "postgres" ] && [ "$app" != "mysql84" ] && [ "$app" != "mysql" ]; then
+                        continue
+                    fi
+                    ;;
+                *)
+                    vols+=("$v")
+                    ;;
+            esac
+        done < <(grep -oE '\-\s+([a-zA-Z0-9_.-]+):(/[^:[:space:]'\''"]+)' "$yaml_file" 2>/dev/null | awk -F: '{print $1}' | sed 's/^- *//' | sort -u || true)
+    fi
+
     # Fallback de segurança: se o YAML não declarou explicitamente, inspeciona volumes vivos no nó origem
     if [ ${#vols[@]} -eq 0 ] && [ -n "$origin_id" ]; then
         local live_vols=""
@@ -814,7 +876,69 @@ get_application_volumes() {
         done <<< "$live_vols"
     fi
 
-    printf '%s\n' "${vols[@]}"
+    # Resolução dinâmica de prefixo de volumes no Docker Swarm:
+    # Se o volume $v não existir literalmente, mas existir ${app}_${v} ou ${app}-${v}, usa o nome real
+    local resolved_vols=()
+    for v in "${vols[@]}"; do
+        [ -n "$v" ] || continue
+        local real_v="$v"
+        if [ "$origin_id" = "local" ]; then
+            if ! docker volume inspect "$v" >/dev/null 2>&1; then
+                if docker volume inspect "${app}_${v}" >/dev/null 2>&1; then
+                    real_v="${app}_${v}"
+                elif docker volume inspect "${app}-${v}" >/dev/null 2>&1; then
+                    real_v="${app}-${v}"
+                fi
+            fi
+        elif [ -n "$origin_host" ]; then
+            local check_v
+            check_v=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes -o ConnectTimeout=5 "root@$origin_host" \
+                "docker volume inspect '$v' >/dev/null 2>&1 && echo 'exact' || (docker volume inspect '${app}_${v}' >/dev/null 2>&1 && echo 'prefix_under' || (docker volume inspect '${app}-${v}' >/dev/null 2>&1 && echo 'prefix_hyphen' || echo 'none'))" 2>/dev/null || echo "none")
+            case "$check_v" in
+                prefix_under) real_v="${app}_${v}" ;;
+                prefix_hyphen) real_v="${app}-${v}" ;;
+            esac
+        fi
+        if [[ ! " ${resolved_vols[*]} " =~ " ${real_v} " ]]; then
+            resolved_vols+=("$real_v")
+        fi
+    done
+
+    printf '%s\n' "${resolved_vols[@]}"
+}
+
+# Extração de arquivos e diretórios de configuração no host montados via bind mount
+get_application_bind_mounts() {
+    local yaml_file="$1"
+    local app="$2"
+    local origin_id="${3:-}"
+    local origin_host="${4:-}"
+
+    local binds=()
+    while IFS= read -r line; do
+        [ -n "$line" ] || continue
+        local host_path="${line%%:*}"
+        case "$host_path" in
+            /var/run/docker.sock|/etc/localtime|/etc/timezone|/proc*|/sys*|/dev*|/tmp)
+                continue
+                ;;
+            /root/*|/tmp/*|/etc/*|/var/opt/*)
+                local exists=false
+                if [ "$origin_id" = "local" ]; then
+                    [ -e "$host_path" ] && exists=true
+                elif [ -n "$origin_host" ]; then
+                    if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes -o ConnectTimeout=5 "root@$origin_host" "[ -e '$host_path' ]" 2>/dev/null; then
+                        exists=true
+                    fi
+                fi
+                if [ "$exists" = "true" ] && [[ ! " ${binds[*]} " =~ " ${host_path} " ]]; then
+                    binds+=("$host_path")
+                fi
+                ;;
+        esac
+    done < <(grep -oE '\-\s+([/][^:[:space:]'\''"]+):' "$yaml_file" 2>/dev/null | sed 's/^- *//' | sed 's/:$//' | sort -u || true)
+
+    printf '%s\n' "${binds[@]}"
 }
 
 ## Garante que imagens locais ou customizadas da stack existam no nó destino
@@ -2114,6 +2238,18 @@ action_backup_app() {
                 total_vols_backed_up=$((total_vols_backed_up + 1))
             done < <(get_application_volumes "$stack_yaml" "$cur_app" "local" "")
 
+            # Extração de Bind Mounts de Configuração Local
+            local cur_binds=()
+            while IFS= read -r b; do
+                [ -n "$b" ] || continue
+                cur_binds+=("$b")
+            done < <(get_application_bind_mounts "$stack_yaml" "$cur_app" "local" "")
+
+            if [ ${#cur_binds[@]} -gt 0 ]; then
+                echo "Compactando bind mounts de configuração de $cur_app: ${cur_binds[*]}" >> "$backup_log"
+                tar -czf "$tmpdir/volumes/binds_${cur_app}.tar.gz" -P "${cur_binds[@]}" 2>> "$backup_log" || true
+            fi
+
             # Extração de domínios e portas mapeadas
             local cur_domains=()
             while IFS= read -r d; do
@@ -2510,6 +2646,23 @@ EOF
                 total_restored_vols=$((total_restored_vols + 1))
             done
 
+            # Restaurar Bind Mounts de Configuração se existirem
+            local cur_bind_pkg=""
+            for bp in "$tmpdir/volumes/binds_${cur_app}.tar.gz" "$tmpdir/binds_${cur_app}.tar.gz"; do
+                if [ -s "$bp" ]; then
+                    cur_bind_pkg="$bp"
+                    break
+                fi
+            done
+            if [ -n "$cur_bind_pkg" ]; then
+                echo "Restaurando bind mounts de configuração de $cur_app no destino..." >> "$restore_log"
+                if [ "$chosen_dest_id" = "local" ]; then
+                    tar -xzf "$cur_bind_pkg" -P >> "$restore_log" 2>&1 || true
+                else
+                    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "tar -xzf - -P" < "$cur_bind_pkg" >> "$restore_log" 2>&1 || true
+                fi
+            fi
+
             # Restaurar Banco de Dados Lógico
             echo -e "XXX\n$((pct_base + (pct_step * 65 / 100)))\n[$r_idx/$total_rest_apps] Restaurando banco de dados ($cur_app)...\nXXX"
             local dump_candidate=""
@@ -2535,6 +2688,20 @@ EOF
                             "dc=\$(docker ps -qf name=postgres | head -n1); [ -n \"\$dc\" ] && docker exec -i \"\$dc\" psql -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname = '$pg_db'\" | grep -q 1 || docker exec -i \"\$dc\" psql -U postgres -c \"CREATE DATABASE \\\"$pg_db\\\";\"" >> "$restore_log" 2>&1 || true
                         gunzip -c "$dump_candidate" | ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" \
                             "dc=\$(docker ps -qf name=postgres | head -n1); [ -n \"\$dc\" ] && docker exec -i \"\$dc\" psql -U postgres -d '$pg_db'" >> "$restore_log" 2>&1 || true
+                    fi
+
+                    # Reconciliação Polimórfica de Credenciais PostgreSQL
+                    local dest_pg_pwd=""
+                    if [ "$chosen_dest_id" = "local" ]; then
+                        local dc_pwd
+                        dc_pwd=$(docker ps -qf name=postgres 2>/dev/null | head -n1 || true)
+                        [ -n "$dc_pwd" ] && dest_pg_pwd=$(docker inspect "$dc_pwd" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep POSTGRES_PASSWORD | cut -d= -f2- || grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml 2>/dev/null || echo "")
+                    else
+                        dest_pg_pwd=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" 'dc=$(docker ps -qf name=postgres | head -n1); docker inspect "$dc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep POSTGRES_PASSWORD | cut -d= -f2- || grep -oP "(?<=POSTGRES_PASSWORD=).+" /root/postgres.yaml 2>/dev/null || echo ""')
+                    fi
+                    if [ -n "$dest_pg_pwd" ]; then
+                        sed -i -E "s/(POSTGRES_PASSWORD|DB_POSTGRESDB_PASSWORD|DB_PASSWORD|DB_PASS|DATABASE_PASSWORD|AP_POSTGRES_PASSWORD|KC_DB_PASSWORD|MB_DB_PASS|PAPERLESS_DBPASS|PENPOT_DATABASE_PASSWORD|TOOLJET_DB_PASS|VIKUNJA_DATABASE_PASSWORD|SAFE_DB_PASS)=[^[:space:]]+/\1=$dest_pg_pwd/g" "$cur_yaml"
+                        sed -i -E "s|(postgres(?:ql)?://[^:]+:)[^@]+(@postgres(?:ql)?:5432/[^[:space:]\"']+)|\\1${dest_pg_pwd}\\2|g" "$cur_yaml"
                     fi
                 elif [[ "$cur_db_engine" == mysql84:* ]]; then
                     local my_db="${cur_db_engine#mysql84:}"
@@ -3359,6 +3526,23 @@ action_transfer_or_clone() {
                 fi
             done
 
+            # 4.5 Snapshot de Bind Mounts de Configuração Local
+            local cur_binds=()
+            while IFS= read -r b; do
+                [ -n "$b" ] || continue
+                cur_binds+=("$b")
+            done < <(get_application_bind_mounts "$app_workdir/stack.yaml" "$cur_app" "$chosen_origin_id" "$origin_ssh_host")
+
+            if [ ${#cur_binds[@]} -gt 0 ]; then
+                echo "Compactando bind mounts de configuração de $cur_app: ${cur_binds[*]}" >> "$TRANSFER_LOG"
+                if [ "$chosen_origin_id" = "local" ]; then
+                    tar -czf "$app_workdir/binds_${cur_app}.tar.gz" -P "${cur_binds[@]}" 2>> "$TRANSFER_LOG" || true
+                else
+                    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$origin_ssh_host" \
+                        "tar -czf - -P ${cur_binds[*]}" > "$app_workdir/binds_${cur_app}.tar.gz" 2>> "$TRANSFER_LOG" || true
+                fi
+            fi
+
             total_migrated_vols=$((total_migrated_vols + ${#cur_vols[@]}))
             echo "$total_migrated_vols" > "$stats_file" 2>/dev/null || true
 
@@ -3375,6 +3559,16 @@ action_transfer_or_clone() {
                     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "docker run --rm -i -v '${v}:/voldata' alpine tar -xzf - -C /voldata" < "$app_workdir/vol_${v}.tar.gz" 2>> "$TRANSFER_LOG" || true
                 fi
             done
+
+            # Restauração de Bind Mounts de Configuração no Destino
+            if [ -s "$app_workdir/binds_${cur_app}.tar.gz" ]; then
+                echo "Restaurando bind mounts de configuração de $cur_app no destino..." >> "$TRANSFER_LOG"
+                if [ "$chosen_dest_id" = "local" ]; then
+                    tar -xzf "$app_workdir/binds_${cur_app}.tar.gz" -P >> "$TRANSFER_LOG" 2>&1 || true
+                else
+                    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "tar -xzf - -P" < "$app_workdir/binds_${cur_app}.tar.gz" >> "$TRANSFER_LOG" 2>&1 || true
+                fi
+            fi
 
             # Restauração lógica do Banco no destino
             if [[ "$cur_db_engine" == postgres:* ]] && [ -f "$app_workdir/db_logical_dump.sql.gz" ]; then
@@ -3433,7 +3627,8 @@ action_transfer_or_clone() {
                 fi
 
                 if [ -n "$dest_pg_pwd" ]; then
-                    sed -i -E "s/POSTGRES_PASSWORD=[^[:space:]]+/POSTGRES_PASSWORD=$dest_pg_pwd/g" "$app_workdir/stack.yaml"
+                    sed -i -E "s/(POSTGRES_PASSWORD|DB_POSTGRESDB_PASSWORD|DB_PASSWORD|DB_PASS|DATABASE_PASSWORD|AP_POSTGRES_PASSWORD|KC_DB_PASSWORD|MB_DB_PASS|PAPERLESS_DBPASS|PENPOT_DATABASE_PASSWORD|TOOLJET_DB_PASS|VIKUNJA_DATABASE_PASSWORD|SAFE_DB_PASS)=[^[:space:]]+/\1=$dest_pg_pwd/g" "$app_workdir/stack.yaml"
+                    sed -i -E "s|(postgres(?:ql)?://[^:]+:)[^@]+(@postgres(?:ql)?:5432/[^[:space:]\"']+)|\\1${dest_pg_pwd}\\2|g" "$app_workdir/stack.yaml"
                 fi
             elif [[ "$cur_db_engine" == mysql84:* ]] && [ -f "$app_workdir/db_logical_dump.sql.gz" ]; then
                 local my_dbname="${cur_db_engine#mysql84:}"

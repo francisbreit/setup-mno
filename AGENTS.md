@@ -261,6 +261,54 @@ Ative este modo quando o usuário disser **“Modo Administrador da Comunidade E
 - NUNCA versione, armazene em disco, repita em relatórios ou grave em arquivos persistentes as senhas SSH, WordPress ou MySQL.
 - Utilize chamadas limpas via SSH/Docker subshell volátil para garantir que nenhuma credencial fique exposta no histórico.
 
+### 8. MODO CLONE, TRANSFERÊNCIA E BACKUP — ANÁLISE (FLEET READINESS & COMPATIBILIDADE UNIVERSAL)
+Ative este modo quando o usuário disser **“Modo Clone, Transferência e Backup - Análise”**, **“Clone, Transferência e Backup - Análise”**, **“Análise Fleet Hub”**, **“Fleet Readiness”**, **“Auditoria Fleet Clone”** ou antes de implementar **QUALQUER novo Setup (Individual ou Combo)** no Setup MNO.
+
+#### Objetivo e Regra de Ouro do Modo
+- **Objetivo:** Garantir que o recurso **MNO Fleet Hub — Clone, Transferência e Backup Universal [BETA]** funcione com 100% de precisão e zero surpresas para todas as ferramentas do catálogo.
+- **Regra de Ouro:** NENHUM novo script instalador (individual ou combo) pode ser integrado ou homologado sem passar pelo **Gate de Análise de Compatibilidade Fleet Hub**. Se qualquer ponto de atrito for identificado (variáveis não mapeadas, bind mounts locais soltos, colisões de volumes, senhas embutidas ou falta de inteligência de combo), o relatório deve apresentar o problema detectado e as alterações cirúrgicas necessárias no código-fonte do instalador e/ou do `fleet-clone.sh`.
+
+#### Checklist de Auditoria Obrigatória (Os 8 Pilares da Frota)
+Antes de homologar qualquer setup, valide os seguintes pilares:
+1. **Banco de Dados & Reconciliação Dinâmica de Credenciais:**
+   - Qual é o motor do banco? (PostgreSQL, MySQL 8.0, MySQL 8.4, MongoDB, SQLite ou Volume Puro).
+   - Quais variáveis de ambiente carregam as senhas e strings de conexão? (ex: `POSTGRES_PASSWORD`, `DB_PASSWORD`, `DATABASE_URL`, `WORDPRESS_DB_PASSWORD`, etc.).
+   - A rotina de dump lógico consistente (`pg_dump`, `mysqldump`, `mongodump`) captura todas as tabelas com integridade?
+   - Ao restaurar no destino, a substituição da senha no YAML e em arquivos de configuração (`local.php`, `wp-config.php`) é 100% dinâmica para não quebrar com a senha local do destino?
+2. **Escopo e Nomenclatura de Volumes Docker:**
+   - A aplicação usa volumes nomeados gerenciados pelo Docker Swarm?
+   - Os volumes usam nomes padrão da stack (`${nome_app}_data`) ou nomes genéricos (`data:`)? Se genéricos, o Swarm adiciona o prefixo `${stack}_`?
+   - O extrator `get_application_volumes` e a restauração preservam exatamente a integridade dos dados?
+3. **Detecção e Tratamento de Bind Mounts no Host:**
+   - A stack mapeia arquivos ou pastas locais do host (`/root/...`, `/etc/...`, `/tmp/...`)?
+   - Se sim: esses arquivos são gerados dinamicamente no deploy ou contêm dados persistentes que precisam ser empacotados em tarball e transferidos para a VPS de destino?
+4. **Isolamento de Redes e Roteamento Traefik / Cloudflare Tunnel:**
+   - O serviço conecta na rede overlay `interna`?
+   - As labels do Traefik estão mapeadas com `traefik.http.routers.<app>.rule=Host(...)`?
+   - Se o serviço usa múltiplos subdomínios ou rotas especiais (ex: `/mcp/*`, websocket, buffers), a função `switch_cloudflare_dns_and_ingress` comuta os CNAMEs e as rotas de ingress corretamente sem abrir portas?
+5. **Dependências Integradas e Combos:**
+   - A aplicação depende de serviços irmãos? (Redis, RabbitMQ, MinIO S3).
+   - Se for um Combo (ex: Chatwoot + Evolution + RabbitMQ + MinIO), as stacks compartilham o mesmo sufixo (`sufixo_app` de 7 caracteres hexadecimais) ou possuem mapeamento heurístico declarado em `detect_app_combo_context`?
+   - Foi injetado o gravador de manifesto `mno-manifest-writer.sh`?
+6. **Política de Armazenamento S3 (MinIO):**
+   - Se a aplicação utiliza MinIO, a política de migração (`keep_origin` vs `clone_minio`) garante que mídias e URLs gravadas no banco não fiquem quebradas?
+   - O bucket S3 e as credenciais são mantidos íntegros?
+7. **Filas e Redis Dedicado:**
+   - Se a aplicação utiliza Redis para filas ou cache persistente, ela utiliza Redis dedicado ou compartilhado?
+   - A função `detect_dedicated_redis_stack` localiza a stack correspondente para migrar as filas sem perda de estado?
+8. **Paridade Arquitetural x86-64 / ARM64 e Imagens Customizadas:**
+   - As imagens Docker são públicas (Docker Hub/GHCR) ou locais customizadas (`francisbreit/...`)?
+   - Se locais, a função `ensure_stack_images_on_dest` é acionada para transferir a imagem via SSH stream sem falha de pull?
+
+#### Formato do Relatório de Análise Fleet Hub
+Ao concluir a análise de um setup, entregue o parecer estruturado:
+- **Status Geral:** `[APROVADO]` | `[REQUER AJUSTE]` | `[INCOMPATÍVEL]`
+- **Diagnóstico Arquitetural:** Motor de dados, volumes, redes e dependências.
+- **Problemas ou Gaps Detectados:** Detalhe de qualquer ponto que impediria o clone/backup.
+- **Alterações Sugeridas no Instalador (`.sh`):** Código exato para adequar o instalador às diretrizes da frota.
+- **Alterações Sugeridas no Motor Fleet Hub (`fleet-clone.sh`):** Ajustes de heurística ou reconciliação se aplicável.
+- **Plano de Homologação em Laboratório:** Comandos para testar o ciclo completo (Backup -> Transferência -> Restauração -> Teste Funcional).
+
 ## CONTEXTO DOS AMBIENTES DO SETUP MNO
 
 ### ⚠️ POLÍTICA OBRIGATÓRIA DE VERSIONAMENTO POR ETAPA (REGRA DE OURO FRANCIS MNO) ⚠️
