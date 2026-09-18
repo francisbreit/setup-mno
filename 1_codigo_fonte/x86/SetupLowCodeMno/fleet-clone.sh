@@ -1366,29 +1366,76 @@ resolve_host_service_port() {
         [ -z "$s_name" ] && s_name="$cur_app_name"
     fi
 
-    # Fallback para a porta
+    # Fallback canônico e abrangente por tipo/nome de aplicação MNO
     if [ -z "$s_port" ]; then
-        if [[ "$s_name" == *builder* ]] || [[ "$s_name" == *viewer* ]] || [[ "$cur_app_name" == chatwoot* ]] || [[ "$cur_app_name" == flowise* ]]; then
-            s_port="3000"
-        elif [[ "$cur_app_name" == evolution* ]] || [[ "$cur_app_name" == evo* ]]; then
-            s_port="8080"
-        elif [[ "$cur_app_name" == rabbitmq* ]]; then
-            s_port="15672"
-        elif [[ "$cur_app_name" == n8n* ]]; then
-            s_port="5678"
-        elif [[ "$cur_app_name" == uptime* ]]; then
-            s_port="3001"
-        elif [[ "$cur_app_name" == minio* ]]; then
-            if [[ "$host" == *admin* ]]; then s_port="9001"; else s_port="9000"; fi
-        elif grep -q "3000" "$yaml" 2>/dev/null; then
-            s_port="3000"
-        elif grep -q "8080" "$yaml" 2>/dev/null || grep -q "8081" "$yaml" 2>/dev/null; then
-            s_port="8080"
-        elif grep -q "5678" "$yaml" 2>/dev/null; then
-            s_port="5678"
-        else
-            s_port="80"
-        fi
+        local app_norm
+        app_norm=$(echo "$cur_app_name" | tr '[:upper:]' '[:lower:]')
+
+        case "$app_norm" in
+            *nginxproxymanager*) s_port="81" ;;
+            *planka*|*strap*|*strapi*) s_port="1337" ;;
+            *pocketid*) s_port="1411" ;;
+            *immich*) s_port="2283" ;;
+            *photoprism*) s_port="2342" ;;
+            *ghost*) s_port="2368" ;;
+            *botpress*|*calcom*|*chatwoot*|*dify*|*docmost*|*documenso*|*docuseal*|*evoai*|*flowise*|*formbricks*|*gitea*|*grafana*|*karakeep*|*langfuse*|*linkwarden*|*lowcoder*|*maybe*|*memgraph*|*metabase*|*milvus*|*outline*|*reactiveresume*|*rocketchat*|*tooljet*|*twentycrm*|*typebot*|*umami*|*waha*|*wikijs*|*woofedcrm*) s_port="3000" ;;
+            *anythingllm*|*uptime*|*uptimekuma*) s_port="3001" ;;
+            *firecrawl*) s_port="3002" ;;
+            *affine*) s_port="3010" ;;
+            *librechat*) s_port="3080" ;;
+            *paperclip*) s_port="3100" ;;
+            *lobechat*) s_port="3210" ;;
+            *vikunja*) s_port="3456" ;;
+            *evolutiongo*|*litellm*) s_port="4000" ;;
+            *databasus*) s_port="4005" ;;
+            *openfang*) s_port="4200" ;;
+            *navidrome*) s_port="4533" ;;
+            *changedetection*) s_port="5000" ;;
+            *actualbudget*) s_port="5006" ;;
+            *openobserve*) s_port="5080" ;;
+            *memos*) s_port="5230" ;;
+            *redisinsight*) s_port="5540" ;;
+            *n8n*) s_port="5678" ;;
+            *qdrant*) s_port="6333" ;;
+            *siyuan*) s_port="6806" ;;
+            *neo4j*) s_port="7474" ;;
+            *meilisearch*) s_port="7700" ;;
+            *langflow*) s_port="7860" ;;
+            *focalboard*|*vllm*|*windmill*|*zep*|*paperless*|*chromadb*|*cognee*) s_port="8000" ;;
+            *directus*) s_port="8055" ;;
+            *mattermost*) s_port="8065" ;;
+            *odoo*) s_port="8069" ;;
+            *evolution*|*evo*|*dozzle*|*glance*|*netdada*|*nocodb*|*openproject*|*openwebui*|*penpot*|*searxng*|*setupmno_control*|*stirlingpdf*|*triliumnext*|*weaviate*|*wekan*|*wuzap*|*homepage*|*infisical*|*keycloak*|*moodle*) s_port="8080" ;;
+            *autogen*|*redicommander*) s_port="8081" ;;
+            *superset*) s_port="8088" ;;
+            *beszel*|*pocketbase*) s_port="8090" ;;
+            *jellyfin*) s_port="8096" ;;
+            *clickhouse*|*homeassistant*) s_port="8123" ;;
+            *duplicati*) s_port="8200" ;;
+            *syncthing*) s_port="8384" ;;
+            *codeserver*) s_port="8443" ;;
+            *minio*)
+                if [[ "$host" == *admin* || "$host" == *console* ]]; then s_port="9001"; else s_port="9000"; fi
+                ;;
+            *portainer*) s_port="9000" ;;
+            *hermes*) s_port="9119" ;;
+            *heyform*) s_port="9157" ;;
+            *ollama*)
+                if [[ "$host" == *api* ]]; then s_port="11434"; else s_port="8080"; fi
+                ;;
+            *nocobase*) s_port="13000" ;;
+            *rabbitmq*) s_port="15672" ;;
+            *openclaw*) s_port="18789" ;;
+            *joplin*) s_port="22300" ;;
+            *quepasa*) s_port="31000" ;;
+            *)
+                # Fallback inteligente por inspeção de portas comuns no arquivo YAML
+                if grep -q "3000" "$yaml" 2>/dev/null; then s_port="3000"
+                elif grep -q "8080" "$yaml" 2>/dev/null; then s_port="8080"
+                elif grep -q "5678" "$yaml" 2>/dev/null; then s_port="5678"
+                else s_port="80"; fi
+                ;;
+        esac
     fi
 
     echo "${s_name}:${s_port}"
@@ -1414,6 +1461,15 @@ switch_cloudflare_dns_and_ingress() {
     fi
 
     local hostnames=()
+
+    # 0. Tenta ler domínios declarados no Manifesto do Control Center se existir
+    local manifest_file="/root/SetupLowCodeMno/.control/manifests/${app_name}.json"
+    if [ -f "$manifest_file" ]; then
+        while IFS= read -r md; do
+            [ -n "$md" ] && hostnames+=("$md")
+        done < <(jq -r '.domains[]? // empty' "$manifest_file" 2>/dev/null || true)
+    fi
+
     if grep -qP 'Host\(`' "$yaml_file" 2>/dev/null; then
         # 1. Traefik routers explícitos: autoritativos e canônicos
         while IFS= read -r h; do
@@ -1484,18 +1540,20 @@ switch_cloudflare_dns_and_ingress() {
             grep -oP '(?<=WEBHOOK_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
         } | sort -u)
     else
-        # 10. Fallback geral para apps web padrão
+        # 10. Fallback geral para apps web padrão (busca ampla por variáveis canônicas de domínio/URL)
         while IFS= read -r h; do
             [ -n "$h" ] && hostnames+=("$h")
         done < <({
-            grep -oP '(?<=[A-Z0-9_]URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=[A-Z0-9_]*(?:URL|DOMAIN|HOST|SITE)[A-Z0-9_]*=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=[A-Z0-9_]*(?:URL|DOMAIN|HOST|SITE)[A-Z0-9_]*=http://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=[A-Z0-9_]*(?:URL|DOMAIN|HOST|SITE)[A-Z0-9_]*=)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' "$yaml_file" 2>/dev/null || true
             grep -oP '(?<=WEB_DOMAIN=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=#\s*DOMINIO=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
         } | sort -u)
     fi
 
-    # Recuperação inteligente de domínio para RabbitMQ se não foi encontrado no YAML
-    if [[ "$app_lower" =~ rabbitmq ]] && [ ${#hostnames[@]} -eq 0 ]; then
-        local recovered_h=""
+    # Recuperação inteligente e multicamadas para qualquer stack pré-existente sem metadados explícitos no YAML
+    if [ ${#hostnames[@]} -eq 0 ]; then
         local creds="/root/.cloudflared_config/cloudflare_credentials"
         if [ -f "$creds" ]; then
             source "$creds"
@@ -1504,12 +1562,23 @@ switch_cloudflare_dns_and_ingress() {
                 cf_rules=$(curl -sS -X GET "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}/configurations" \
                     -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
                     -H "Content-Type: application/json" 2>/dev/null || true)
-                recovered_h=$(echo "$cf_rules" | jq -r --arg app "$app_name" '.result.config.ingress[]? | select((.service // "") | test($app + "|15672")) | .hostname // empty' 2>/dev/null | head -n1 || true)
+                
+                if [ -n "$cf_rules" ]; then
+                    while IFS= read -r rec_h; do
+                        [ -n "$rec_h" ] && hostnames+=("$rec_h")
+                    done < <(echo "$cf_rules" | jq -r --arg app "$app_name" '.result.config.ingress[]? | select((.service // "") | test($app)) | .hostname // empty' 2>/dev/null | sort -u)
+                fi
             fi
         fi
-        if [ -n "$recovered_h" ] && [[ "$recovered_h" =~ \. ]] && [[ "$recovered_h" != "URL" ]]; then
-            echo "[ROTEAMENTO CLOUDFLARE] Domínio do RabbitMQ recuperado via Cloudflare Ingress: $recovered_h"
-            hostnames+=("$recovered_h")
+
+        # Se ainda vazio, varredura profunda no YAML por qualquer FQDN com ponto
+        if [ ${#hostnames[@]} -eq 0 ]; then
+            while IFS= read -r rec_h; do
+                [ -n "$rec_h" ] && hostnames+=("$rec_h")
+            done < <({
+                grep -oP '(?<=https://)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' "$yaml_file" 2>/dev/null || true
+                grep -oP '(?<=http://)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' "$yaml_file" 2>/dev/null || true
+            } | sort -u)
         fi
     fi
 
@@ -1519,10 +1588,10 @@ switch_cloudflare_dns_and_ingress() {
         [ -n "$raw_h" ] || continue
         local h
         h=$(echo "$raw_h" | tr -d '[:space:]/' | tr '[:upper:]' '[:lower:]')
-        [[ "$h" == "url" || "$h" == "null" || "$h" == "localhost" || "$h" == "undefined" ]] && continue
+        [[ "$h" == "url" || "$h" == "null" || "$h" == "localhost" || "$h" == "undefined" || "$h" == "true" || "$h" == "false" ]] && continue
         [[ "$h" != *.* ]] && continue
         [[ ! "$h" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$ ]] && continue
-        if [[ "$h" =~ (facebook\.com|meta\.com|googleapis\.com|google\.com|github\.com|sendgrid\.net|mailgun\.org|sentry\.io|openai\.com|whatsapp\.com)$ ]]; then
+        if [[ "$h" =~ (facebook\.com|meta\.com|googleapis\.com|google\.com|github\.com|sendgrid\.net|mailgun\.org|sentry\.io|openai\.com|whatsapp\.com|docker\.com|docker\.io|cloudflare\.com|gravatar\.com|w3\.org)$ ]]; then
             continue
         fi
         clean_hostnames+=("$h")
