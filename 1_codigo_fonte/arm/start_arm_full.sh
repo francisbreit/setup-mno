@@ -9,7 +9,7 @@ EXPECTED_BLUEPRINT_FACTORY_VERSION="2.1.0"
 EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="0"
 EXPECTED_QUALITY_SCHEMA_VERSION="2"
 EXPECTED_HOMOLOGATION_RUNNER_VERSION="1.3.0"
-EXPECTED_CONTROL_RELEASE_SHA256="7606f4dc992ddebee3971c65f79b7da6a1ac9f481863397275789ed18b903e16"
+EXPECTED_CONTROL_RELEASE_SHA256="86c72b22d9f0e87ee36e957e7a0e113ffbfa5398e1b62599d99140a0b8abf18a"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -533,7 +533,7 @@ if ! setupmno_apt update >>"$SETUPMNO_APT_LOG" 2>&1; then
     } >"$control_state_error"
     exit 42
 fi
-if ! setupmno_apt install sudo wget curl unzip zip jq python3 build-essential \
+if ! setupmno_apt install sudo wget curl unzip zip jq python3 build-essential sshpass \
     >>"$SETUPMNO_APT_LOG" 2>&1; then
     {
         echo "Falha na instalação não interativa das dependências."

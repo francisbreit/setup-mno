@@ -360,8 +360,15 @@ resolve_worker_ssh_host() {
             vps_pwd=$(whiptail --title "AUTENTICAÇÃO SSH NECESSÁRIA" --passwordbox \
                 "A chave SSH ainda não está autorizada no nó '$_r_node_name' ($_r_host).\n\nInforme a senha de root da VPS para estabelecer a conexão segura:" 12 74 3>&1 1>&2 2>&3) || return 1
             
-            if command -v sshpass >/dev/null 2>&1 && [ -n "$vps_pwd" ]; then
-                timeout 8 sshpass -p "$vps_pwd" ssh-copy-id -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR "root@$_r_host" >/dev/null 2>&1 || true
+            if [ -n "$vps_pwd" ]; then
+                if ! command -v sshpass >/dev/null 2>&1; then
+                    export DEBIAN_FRONTEND=noninteractive
+                    apt-get update -qq >/dev/null 2>&1 || true
+                    apt-get install -y -qq sshpass >/dev/null 2>&1 || true
+                fi
+                if command -v sshpass >/dev/null 2>&1; then
+                    timeout 12 sshpass -p "$vps_pwd" ssh-copy-id -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR "root@$_r_host" >/dev/null 2>&1 || true
+                fi
             fi
         fi
     fi
