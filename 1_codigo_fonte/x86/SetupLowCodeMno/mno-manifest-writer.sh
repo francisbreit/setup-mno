@@ -2,10 +2,12 @@
 # ==============================================================================
 # Setup MNO — Gravador Universal de Manifestos de Aplicações e Combos
 # Persiste metadados em /root/SetupLowCodeMno/.control/manifests/<stack_name>.json
+# Integração direta com a Lista Telefônica Universal de Aplicações e Portas
 # Permite ao MNO Fleet Hub clonar e migrar com precisão cirúrgica.
 # ==============================================================================
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MANIFEST_DIR="/root/SetupLowCodeMno/.control/manifests"
 mkdir -p "$MANIFEST_DIR"
 
@@ -19,11 +21,37 @@ S3_BUCKET="${7:-}"
 RABBITMQ_VHOST="${8:-}"
 DOMAINS_STR="${9:-}" # lista separada por vírgula
 VOLUMES_STR="${10:-}" # lista separada por vírgula
+PORT_ARG="${11:-}" # porta explícita (opcional)
 
 [ -n "$STACK_NAME" ] || exit 0
 
 is_combo=false
 [ -n "$COMBO_ID" ] && is_combo=true
+
+# Resolução de porta canônica via Lista Telefônica Universal
+REGISTRY_SCRIPT=""
+for candidate in \
+    "/root/SetupLowCodeMno/mno-port-registry.sh" \
+    "$SCRIPT_DIR/mno-port-registry.sh"; do
+    if [ -x "$candidate" ]; then
+        REGISTRY_SCRIPT="$candidate"
+        break
+    fi
+done
+
+port="$PORT_ARG"
+if [ -z "$port" ]; then
+    if [ -n "$REGISTRY_SCRIPT" ]; then
+        port=$("$REGISTRY_SCRIPT" get "$STACK_NAME" 2>/dev/null || echo "80")
+    else
+        port="80"
+    fi
+fi
+
+# Auto-registro na Lista Telefônica Universal caso seja uma nova aplicação
+if [ -n "$REGISTRY_SCRIPT" ] && [ "$port" != "80" ]; then
+    "$REGISTRY_SCRIPT" register "$STACK_NAME" "$port" "${STACK_NAME}_app" "auto-instalada" >/dev/null 2>&1 || true
+fi
 
 jq -n \
   --arg app "$APP_NAME" \
@@ -37,6 +65,7 @@ jq -n \
   --arg rabbitmq_vhost "$RABBITMQ_VHOST" \
   --arg domains_str "$DOMAINS_STR" \
   --arg volumes_str "$VOLUMES_STR" \
+  --argjson port "$port" \
   --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   '{
     version: "1.0",
@@ -47,6 +76,10 @@ jq -n \
       isCombo: $is_combo,
       comboId: (if $is_combo then $combo_id else null end),
       comboName: (if $is_combo then $combo_name else null end)
+    },
+    ports: {
+      default: $port,
+      service: ($stack + "_app")
     },
     dependencies: {
       database: (if $db_engine != "none" and $db_name != "" then { engine: $db_engine, dbName: $db_name, shared: true } else null end),

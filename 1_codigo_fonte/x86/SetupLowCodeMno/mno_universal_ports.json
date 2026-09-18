@@ -1,0 +1,1227 @@
+{
+  "version": "1.0",
+  "description": "Lista Telefônica Universal de Aplicações e Portas - Setup MNO",
+  "totalEntries": 172,
+  "updatedAt": "2026-09-18T18:13:11Z",
+  "ports": {
+    "nginxproxymanager": {
+      "appName": "nginxproxymanager",
+      "port": 81,
+      "service": "nginxproxymanager",
+      "category": "proxy",
+      "multiPorts": null
+    },
+    "planka": {
+      "appName": "planka",
+      "port": 1337,
+      "service": "planka_app",
+      "category": "kanban",
+      "multiPorts": null
+    },
+    "strapi": {
+      "appName": "strapi",
+      "port": 1337,
+      "service": "strapi",
+      "category": "cms",
+      "multiPorts": null
+    },
+    "strap": {
+      "appName": "strap",
+      "port": 1337,
+      "service": "strap_app",
+      "category": "cms",
+      "multiPorts": null
+    },
+    "pocketid": {
+      "appName": "pocketid",
+      "port": 1411,
+      "service": "pocketid_app",
+      "category": "auth",
+      "multiPorts": null
+    },
+    "immich": {
+      "appName": "immich",
+      "port": 2283,
+      "service": "immich",
+      "category": "galeria",
+      "multiPorts": null
+    },
+    "photoprism": {
+      "appName": "photoprism",
+      "port": 2342,
+      "service": "photoprism",
+      "category": "galeria",
+      "multiPorts": null
+    },
+    "ghost": {
+      "appName": "ghost",
+      "port": 2368,
+      "service": "ghost",
+      "category": "blog",
+      "multiPorts": null
+    },
+    "chatwoot": {
+      "appName": "chatwoot",
+      "port": 3000,
+      "service": "chatwoot_web",
+      "category": "atendimento",
+      "multiPorts": null
+    },
+    "typebot": {
+      "appName": "typebot",
+      "port": 3000,
+      "service": "typebot-builder",
+      "category": "chatbot",
+      "multiPorts": {
+        "builder": 3000,
+        "viewer": 3001
+      }
+    },
+    "botpress": {
+      "appName": "botpress",
+      "port": 3000,
+      "service": "botpress",
+      "category": "chatbot",
+      "multiPorts": null
+    },
+    "calcom": {
+      "appName": "calcom",
+      "port": 3000,
+      "service": "calcom",
+      "category": "agendamento",
+      "multiPorts": null
+    },
+    "dify": {
+      "appName": "dify",
+      "port": 9000,
+      "service": "${service_name}",
+      "category": "ia-agente",
+      "multiPorts": null
+    },
+    "docmost": {
+      "appName": "docmost",
+      "port": 3000,
+      "service": "docmost_app",
+      "category": "wiki",
+      "multiPorts": null
+    },
+    "documenso": {
+      "appName": "documenso",
+      "port": 3000,
+      "service": "${nome_app_documenso}",
+      "category": "documentos",
+      "multiPorts": null
+    },
+    "docuseal": {
+      "appName": "docuseal",
+      "port": 3000,
+      "service": "${nome_app_docuseal}",
+      "category": "documentos",
+      "multiPorts": null
+    },
+    "evoai": {
+      "appName": "evoai",
+      "port": 8000,
+      "service": "${nome_app_evoai}-api",
+      "category": "ia-whatsapp",
+      "multiPorts": null
+    },
+    "flowise": {
+      "appName": "flowise",
+      "port": 3000,
+      "service": "flowise",
+      "category": "ia-agente",
+      "multiPorts": null
+    },
+    "formbricks": {
+      "appName": "formbricks",
+      "port": 3000,
+      "service": "formbricks",
+      "category": "formularios",
+      "multiPorts": null
+    },
+    "gitea": {
+      "appName": "gitea",
+      "port": 3000,
+      "service": "gitea",
+      "category": "git",
+      "multiPorts": null
+    },
+    "grafana": {
+      "appName": "grafana",
+      "port": 3000,
+      "service": "grafana",
+      "category": "monitoramento",
+      "multiPorts": null
+    },
+    "karakeep": {
+      "appName": "karakeep",
+      "port": 3000,
+      "service": "karakeep",
+      "category": "financas",
+      "multiPorts": null
+    },
+    "langfuse": {
+      "appName": "langfuse",
+      "port": 9000,
+      "service": "${minio_internal_host}",
+      "category": "ia-observabilidade",
+      "multiPorts": null
+    },
+    "linkwarden": {
+      "appName": "linkwarden",
+      "port": 3000,
+      "service": "linkwarden_app",
+      "category": "bookmarks",
+      "multiPorts": null
+    },
+    "lowcoder": {
+      "appName": "lowcoder",
+      "port": 3000,
+      "service": "lowcoder_app",
+      "category": "lowcode",
+      "multiPorts": null
+    },
+    "maybe": {
+      "appName": "maybe",
+      "port": 3000,
+      "service": "maybe",
+      "category": "financas",
+      "multiPorts": null
+    },
+    "memgraph": {
+      "appName": "memgraph",
+      "port": 3000,
+      "service": "memgraph-web",
+      "category": "database",
+      "multiPorts": null
+    },
+    "metabase": {
+      "appName": "metabase",
+      "port": 3000,
+      "service": "metabase",
+      "category": "analytics",
+      "multiPorts": null
+    },
+    "milvus": {
+      "appName": "milvus",
+      "port": 9000,
+      "service": "milvus_attu",
+      "category": "vetores",
+      "multiPorts": null
+    },
+    "outline": {
+      "appName": "outline",
+      "port": 3000,
+      "service": "outline",
+      "category": "wiki",
+      "multiPorts": null
+    },
+    "reactiveresume": {
+      "appName": "reactiveresume",
+      "port": 3000,
+      "service": "reactiveresume",
+      "category": "curriculo",
+      "multiPorts": null
+    },
+    "rocketchat": {
+      "appName": "rocketchat",
+      "port": 3000,
+      "service": "rocketchat",
+      "category": "comunicacao",
+      "multiPorts": null
+    },
+    "tooljet": {
+      "appName": "tooljet",
+      "port": 3000,
+      "service": "tooljet",
+      "category": "lowcode",
+      "multiPorts": null
+    },
+    "twentycrm": {
+      "appName": "twentycrm",
+      "port": 3000,
+      "service": "twentycrm_app",
+      "category": "crm",
+      "multiPorts": null
+    },
+    "umami": {
+      "appName": "umami",
+      "port": 3000,
+      "service": "umami",
+      "category": "analytics",
+      "multiPorts": null
+    },
+    "waha": {
+      "appName": "waha",
+      "port": 3000,
+      "service": "waha",
+      "category": "whatsapp",
+      "multiPorts": null
+    },
+    "wikijs": {
+      "appName": "wikijs",
+      "port": 3000,
+      "service": "wikijs_app",
+      "category": "wiki",
+      "multiPorts": null
+    },
+    "woofedcrm": {
+      "appName": "woofedcrm",
+      "port": 3000,
+      "service": "woofedcrm-web",
+      "category": "crm",
+      "multiPorts": null
+    },
+    "anythingllm": {
+      "appName": "anythingllm",
+      "port": 3001,
+      "service": "anythingllm_app",
+      "category": "ia-chat",
+      "multiPorts": null
+    },
+    "uptimekuma": {
+      "appName": "uptimekuma",
+      "port": 3001,
+      "service": "uptimekuma",
+      "category": "monitoramento",
+      "multiPorts": null
+    },
+    "firecrawl": {
+      "appName": "firecrawl",
+      "port": 3002,
+      "service": "firecrawl-api",
+      "category": "scraping",
+      "multiPorts": null
+    },
+    "affine": {
+      "appName": "affine",
+      "port": 3010,
+      "service": "${nome_app_affine}",
+      "category": "produtividade",
+      "multiPorts": null
+    },
+    "librechat": {
+      "appName": "librechat",
+      "port": 3080,
+      "service": "librechat",
+      "category": "ia-chat",
+      "multiPorts": null
+    },
+    "paperclip": {
+      "appName": "paperclip",
+      "port": 3100,
+      "service": "paperclip-web",
+      "category": "documentos",
+      "multiPorts": null
+    },
+    "lobechat": {
+      "appName": "lobechat",
+      "port": 3210,
+      "service": "lobechat",
+      "category": "ia-chat",
+      "multiPorts": null
+    },
+    "vikunja": {
+      "appName": "vikunja",
+      "port": 3456,
+      "service": "vikunja",
+      "category": "produtividade",
+      "multiPorts": null
+    },
+    "evolutiongo": {
+      "appName": "evolutiongo",
+      "port": 4000,
+      "service": "${nome_app_evolution}",
+      "category": "whatsapp",
+      "multiPorts": null
+    },
+    "litellm": {
+      "appName": "litellm",
+      "port": 4000,
+      "service": "litellm",
+      "category": "ia-gateway",
+      "multiPorts": null
+    },
+    "databasus": {
+      "appName": "databasus",
+      "port": 4005,
+      "service": "databasus",
+      "category": "database-admin",
+      "multiPorts": null
+    },
+    "openfang": {
+      "appName": "openfang",
+      "port": 4200,
+      "service": "openfang-web",
+      "category": "ia-agente",
+      "multiPorts": null
+    },
+    "navidrome": {
+      "appName": "navidrome",
+      "port": 4533,
+      "service": "navidrome_app",
+      "category": "streaming",
+      "multiPorts": null
+    },
+    "changedetection": {
+      "appName": "changedetection",
+      "port": 5000,
+      "service": "changedetection",
+      "category": "monitoramento",
+      "multiPorts": null
+    },
+    "actualbudget": {
+      "appName": "actualbudget",
+      "port": 5006,
+      "service": "actualbudget",
+      "category": "financas",
+      "multiPorts": null
+    },
+    "openobserve": {
+      "appName": "openobserve",
+      "port": 5080,
+      "service": "openobserve_app",
+      "category": "observabilidade",
+      "multiPorts": null
+    },
+    "memos": {
+      "appName": "memos",
+      "port": 5230,
+      "service": "memos",
+      "category": "notas",
+      "multiPorts": null
+    },
+    "redisinsight": {
+      "appName": "redisinsight",
+      "port": 5540,
+      "service": "redisinsight",
+      "category": "database-admin",
+      "multiPorts": null
+    },
+    "n8n": {
+      "appName": "n8n",
+      "port": 5678,
+      "service": "n8n",
+      "category": "automacao",
+      "multiPorts": null
+    },
+    "qdrant": {
+      "appName": "qdrant",
+      "port": 6333,
+      "service": "qdrant-web",
+      "category": "vetores",
+      "multiPorts": null
+    },
+    "siyuan": {
+      "appName": "siyuan",
+      "port": 6806,
+      "service": "siyuan",
+      "category": "notas",
+      "multiPorts": null
+    },
+    "neo4j": {
+      "appName": "neo4j",
+      "port": 7474,
+      "service": "neo4j-web",
+      "category": "database",
+      "multiPorts": null
+    },
+    "meilisearch": {
+      "appName": "meilisearch",
+      "port": 7700,
+      "service": "meilisearch",
+      "category": "busca",
+      "multiPorts": null
+    },
+    "langflow": {
+      "appName": "langflow",
+      "port": 7860,
+      "service": "langflow",
+      "category": "ia-agente",
+      "multiPorts": null
+    },
+    "focalboard": {
+      "appName": "focalboard",
+      "port": 8000,
+      "service": "focalboard",
+      "category": "produtividade",
+      "multiPorts": null
+    },
+    "vllm": {
+      "appName": "vllm",
+      "port": 8000,
+      "service": "vllm",
+      "category": "ia-llm",
+      "multiPorts": null
+    },
+    "windmill": {
+      "appName": "windmill",
+      "port": 8000,
+      "service": "windmill",
+      "category": "automacao",
+      "multiPorts": null
+    },
+    "zep": {
+      "appName": "zep",
+      "port": 8000,
+      "service": "zepnlp",
+      "category": "ia-memoria",
+      "multiPorts": null
+    },
+    "paperless": {
+      "appName": "paperless",
+      "port": 8000,
+      "service": "paperless_webserver",
+      "category": "documentos",
+      "multiPorts": null
+    },
+    "chromadb": {
+      "appName": "chromadb",
+      "port": 8000,
+      "service": "chromadb",
+      "category": "vetores",
+      "multiPorts": null
+    },
+    "cognee": {
+      "appName": "cognee",
+      "port": 8000,
+      "service": "cognee-web",
+      "category": "ia-memoria",
+      "multiPorts": null
+    },
+    "directus": {
+      "appName": "directus",
+      "port": 8055,
+      "service": "${nome_app_directus}",
+      "category": "backend",
+      "multiPorts": null
+    },
+    "mattermost": {
+      "appName": "mattermost",
+      "port": 8065,
+      "service": "mattermost",
+      "category": "comunicacao",
+      "multiPorts": null
+    },
+    "odoo": {
+      "appName": "odoo",
+      "port": 8069,
+      "service": "odoo-app",
+      "category": "erp",
+      "multiPorts": null
+    },
+    "evolution": {
+      "appName": "evolution",
+      "port": 8080,
+      "service": "evolution-api",
+      "category": "whatsapp",
+      "multiPorts": null
+    },
+    "dozzle": {
+      "appName": "dozzle",
+      "port": 8080,
+      "service": "dozzle",
+      "category": "logs",
+      "multiPorts": null
+    },
+    "glance": {
+      "appName": "glance",
+      "port": 8080,
+      "service": "glance_web",
+      "category": "dashboard",
+      "multiPorts": null
+    },
+    "netdada": {
+      "appName": "netdada",
+      "port": 8080,
+      "service": "netdada_web",
+      "category": "monitoramento",
+      "multiPorts": null
+    },
+    "nocodb": {
+      "appName": "nocodb",
+      "port": 8080,
+      "service": "nocodb",
+      "category": "banco-visual",
+      "multiPorts": null
+    },
+    "openproject": {
+      "appName": "openproject",
+      "port": 8080,
+      "service": "openproject",
+      "category": "gestao",
+      "multiPorts": null
+    },
+    "openwebui": {
+      "appName": "openwebui",
+      "port": 8080,
+      "service": "openwebui",
+      "category": "ia-chat",
+      "multiPorts": null
+    },
+    "penpot": {
+      "appName": "penpot",
+      "port": 8080,
+      "service": "penpot-frontend",
+      "category": "design",
+      "multiPorts": null
+    },
+    "searxng": {
+      "appName": "searxng",
+      "port": 8080,
+      "service": "searxng-web",
+      "category": "busca",
+      "multiPorts": null
+    },
+    "setupmno_control": {
+      "appName": "setupmno_control",
+      "port": 8080,
+      "service": "setupmno_control",
+      "category": "sistema",
+      "multiPorts": null
+    },
+    "stirlingpdf": {
+      "appName": "stirlingpdf",
+      "port": 8080,
+      "service": "stirlingpdf",
+      "category": "pdf",
+      "multiPorts": null
+    },
+    "triliumnext": {
+      "appName": "triliumnext",
+      "port": 8080,
+      "service": "triliumnext",
+      "category": "notas",
+      "multiPorts": null
+    },
+    "weaviate": {
+      "appName": "weaviate",
+      "port": 8080,
+      "service": "weaviate",
+      "category": "vetores",
+      "multiPorts": null
+    },
+    "wekan": {
+      "appName": "wekan",
+      "port": 8080,
+      "service": "wekan",
+      "category": "kanban",
+      "multiPorts": null
+    },
+    "wuzap": {
+      "appName": "wuzap",
+      "port": 8080,
+      "service": "wuzap",
+      "category": "whatsapp",
+      "multiPorts": null
+    },
+    "homepage": {
+      "appName": "homepage",
+      "port": 8080,
+      "service": "homepage_web",
+      "category": "dashboard",
+      "multiPorts": null
+    },
+    "infisical": {
+      "appName": "infisical",
+      "port": 8080,
+      "service": "infisical",
+      "category": "secrets",
+      "multiPorts": null
+    },
+    "keycloak": {
+      "appName": "keycloak",
+      "port": 8080,
+      "service": "keycloak",
+      "category": "auth",
+      "multiPorts": null
+    },
+    "moodle": {
+      "appName": "moodle",
+      "port": 8080,
+      "service": "moodle-app",
+      "category": "educacao",
+      "multiPorts": null
+    },
+    "autogen": {
+      "appName": "autogen",
+      "port": 8081,
+      "service": "autogen-web",
+      "category": "ia-agente",
+      "multiPorts": null
+    },
+    "redicommander": {
+      "appName": "redicommander",
+      "port": 8081,
+      "service": "redicommander",
+      "category": "database-admin",
+      "multiPorts": null
+    },
+    "superset": {
+      "appName": "superset",
+      "port": 8088,
+      "service": "superset",
+      "category": "bi",
+      "multiPorts": null
+    },
+    "beszel": {
+      "appName": "beszel",
+      "port": 8090,
+      "service": "beszel",
+      "category": "monitoramento",
+      "multiPorts": null
+    },
+    "pocketbase": {
+      "appName": "pocketbase",
+      "port": 8090,
+      "service": "pocketbase",
+      "category": "backend",
+      "multiPorts": null
+    },
+    "jellyfin": {
+      "appName": "jellyfin",
+      "port": 8096,
+      "service": "jellyfin",
+      "category": "streaming",
+      "multiPorts": null
+    },
+    "clickhouse": {
+      "appName": "clickhouse",
+      "port": 8123,
+      "service": "clickhouse",
+      "category": "database",
+      "multiPorts": null
+    },
+    "homeassistant": {
+      "appName": "homeassistant",
+      "port": 8123,
+      "service": "homeassistant",
+      "category": "automacao-residencial",
+      "multiPorts": null
+    },
+    "duplicati": {
+      "appName": "duplicati",
+      "port": 8200,
+      "service": "duplicati",
+      "category": "backup",
+      "multiPorts": null
+    },
+    "syncthing": {
+      "appName": "syncthing",
+      "port": 8384,
+      "service": "syncthing",
+      "category": "sincronizacao",
+      "multiPorts": null
+    },
+    "codeserver": {
+      "appName": "codeserver",
+      "port": 8443,
+      "service": "codeserver",
+      "category": "desenvolvimento",
+      "multiPorts": null
+    },
+    "minio": {
+      "appName": "minio",
+      "port": 9000,
+      "service": "minio",
+      "category": "storage-s3",
+      "multiPorts": {
+        "console": 9001,
+        "api": 9000
+      }
+    },
+    "portainer": {
+      "appName": "portainer",
+      "port": 9000,
+      "service": "portainer",
+      "category": "gerenciamento-docker",
+      "multiPorts": null
+    },
+    "hermes": {
+      "appName": "hermes",
+      "port": 9119,
+      "service": "hermes",
+      "category": "ia-agente",
+      "multiPorts": null
+    },
+    "heyform": {
+      "appName": "heyform",
+      "port": 9157,
+      "service": "heyform_app",
+      "category": "formularios",
+      "multiPorts": null
+    },
+    "ollama": {
+      "appName": "ollama",
+      "port": 11434,
+      "service": "openwebui${sufixo_app}",
+      "category": "ia-llm",
+      "multiPorts": {
+        "api": 11434,
+        "webui": 8080
+      }
+    },
+    "nocobase": {
+      "appName": "nocobase",
+      "port": 13000,
+      "service": "nocobase",
+      "category": "lowcode",
+      "multiPorts": null
+    },
+    "rabbitmq": {
+      "appName": "rabbitmq",
+      "port": 15672,
+      "service": "rabbitmq",
+      "category": "mensageria",
+      "multiPorts": {
+        "management": 15672,
+        "amqp": 5672
+      }
+    },
+    "openclaw": {
+      "appName": "openclaw",
+      "port": 18789,
+      "service": "openclaw-gateway",
+      "category": "ia-agente",
+      "multiPorts": null
+    },
+    "joplin": {
+      "appName": "joplin",
+      "port": 22300,
+      "service": "joplin",
+      "category": "notas",
+      "multiPorts": null
+    },
+    "quepasa": {
+      "appName": "quepasa",
+      "port": 31000,
+      "service": "quepasa_app",
+      "category": "whatsapp",
+      "multiPorts": null
+    },
+    "activepieces": {
+      "appName": "activepieces",
+      "port": 80,
+      "service": "activepieces",
+      "category": "web",
+      "multiPorts": null
+    },
+    "adguardhome": {
+      "appName": "adguardhome",
+      "port": 80,
+      "service": "adguardhome",
+      "category": "web",
+      "multiPorts": null
+    },
+    "appsmith": {
+      "appName": "appsmith",
+      "port": 80,
+      "service": "appsmith",
+      "category": "web",
+      "multiPorts": null
+    },
+    "baserow": {
+      "appName": "baserow",
+      "port": 80,
+      "service": "baserow",
+      "category": "web",
+      "multiPorts": null
+    },
+    "bookstack": {
+      "appName": "bookstack",
+      "port": 80,
+      "service": "bookstack",
+      "category": "web",
+      "multiPorts": null
+    },
+    "budibase": {
+      "appName": "budibase",
+      "port": 80,
+      "service": "budibase",
+      "category": "web",
+      "multiPorts": null
+    },
+    "bytebase": {
+      "appName": "bytebase",
+      "port": 8080,
+      "service": "bytebase_web",
+      "category": "web",
+      "multiPorts": null
+    },
+    "chatwoot_ai_customer_service": {
+      "appName": "chatwoot_ai_customer_service",
+      "port": 9001,
+      "service": "chatwoot_ai_customer_service_app",
+      "category": "atendimento",
+      "multiPorts": null
+    },
+    "chatwooto_evo2_rabbitmq_minio": {
+      "appName": "chatwooto_evo2_rabbitmq_minio",
+      "port": 9000,
+      "service": "chatwooto_evo2_rabbitmq_minio_app",
+      "category": "atendimento",
+      "multiPorts": null
+    },
+    "chatwootorig_desbloq__evo2_rabbitmq_minio": {
+      "appName": "chatwootorig_desbloq__evo2_rabbitmq_minio",
+      "port": 9000,
+      "service": "chatwootorig_desbloq__evo2_rabbitmq_minio_app",
+      "category": "atendimento",
+      "multiPorts": null
+    },
+    "combo_ia_whatsapp_sdr_crm": {
+      "appName": "combo_ia_whatsapp_sdr_crm",
+      "port": 80,
+      "service": "combo_ia_whatsapp_sdr_crm_web",
+      "category": "web",
+      "multiPorts": null
+    },
+    "combo_vibe_ops": {
+      "appName": "combo_vibe_ops",
+      "port": 80,
+      "service": "combo_vibe_ops_web",
+      "category": "web",
+      "multiPorts": null
+    },
+    "combo_whatsapp_marketing": {
+      "appName": "combo_whatsapp_marketing",
+      "port": 80,
+      "service": "combo_whatsapp_marketing_web",
+      "category": "web",
+      "multiPorts": null
+    },
+    "discourse": {
+      "appName": "discourse",
+      "port": 80,
+      "service": "discourse",
+      "category": "web",
+      "multiPorts": null
+    },
+    "easyappointments": {
+      "appName": "easyappointments",
+      "port": 80,
+      "service": "easyappointments",
+      "category": "web",
+      "multiPorts": null
+    },
+    "evoai_evo2_minio": {
+      "appName": "evoai_evo2_minio",
+      "port": 9000,
+      "service": "${nome_app2}",
+      "category": "ia-whatsapp",
+      "multiPorts": null
+    },
+    "evocrm": {
+      "appName": "evocrm",
+      "port": 3030,
+      "service": "${nome_app_evocrm}-gateway",
+      "category": "web",
+      "multiPorts": null
+    },
+    "evolution2api": {
+      "appName": "evolution2api",
+      "port": 8080,
+      "service": "${nome_app_evolution}",
+      "category": "whatsapp",
+      "multiPorts": null
+    },
+    "evolutionapi": {
+      "appName": "evolutionapi",
+      "port": 8080,
+      "service": "evolutionapi",
+      "category": "whatsapp",
+      "multiPorts": null
+    },
+    "evonexus": {
+      "appName": "evonexus",
+      "port": 8080,
+      "service": "${nome_app_evonexus}-dashboard",
+      "category": "web",
+      "multiPorts": null
+    },
+    "excalidraw": {
+      "appName": "excalidraw",
+      "port": 80,
+      "service": "excalidraw",
+      "category": "web",
+      "multiPorts": null
+    },
+    "filebrowser": {
+      "appName": "filebrowser",
+      "port": 80,
+      "service": "filebrowser",
+      "category": "web",
+      "multiPorts": null
+    },
+    "fireflyiii": {
+      "appName": "fireflyiii",
+      "port": 8080,
+      "service": "fireflyiii_app",
+      "category": "web",
+      "multiPorts": null
+    },
+    "freshrss": {
+      "appName": "freshrss",
+      "port": 80,
+      "service": "freshrss",
+      "category": "web",
+      "multiPorts": null
+    },
+    "gitlab": {
+      "appName": "gitlab",
+      "port": 80,
+      "service": "gitlab",
+      "category": "web",
+      "multiPorts": null
+    },
+    "glpi": {
+      "appName": "glpi",
+      "port": 80,
+      "service": "glpi",
+      "category": "web",
+      "multiPorts": null
+    },
+    "hoppscotch": {
+      "appName": "hoppscotch",
+      "port": 80,
+      "service": "hoppscotch_web",
+      "category": "web",
+      "multiPorts": null
+    },
+    "humhub": {
+      "appName": "humhub",
+      "port": 80,
+      "service": "humhub",
+      "category": "web",
+      "multiPorts": null
+    },
+    "it_tools": {
+      "appName": "it_tools",
+      "port": 80,
+      "service": "it_tools_web",
+      "category": "web",
+      "multiPorts": null
+    },
+    "jitsi": {
+      "appName": "jitsi",
+      "port": 80,
+      "service": "jitsi_web",
+      "category": "web",
+      "multiPorts": null
+    },
+    "krayincrm": {
+      "appName": "krayincrm",
+      "port": 80,
+      "service": "krayincrm",
+      "category": "web",
+      "multiPorts": null
+    },
+    "listmonk": {
+      "appName": "listmonk",
+      "port": 9000,
+      "service": "listmonk",
+      "category": "web",
+      "multiPorts": null
+    },
+    "localai": {
+      "appName": "localai",
+      "port": 8080,
+      "service": "localai",
+      "category": "web",
+      "multiPorts": null
+    },
+    "matomo": {
+      "appName": "matomo",
+      "port": 80,
+      "service": "matomo",
+      "category": "web",
+      "multiPorts": null
+    },
+    "mautic4whatsmkt": {
+      "appName": "mautic4whatsmkt",
+      "port": 80,
+      "service": "mautic4whatsmkt",
+      "category": "web",
+      "multiPorts": null
+    },
+    "mautic5padrao": {
+      "appName": "mautic5padrao",
+      "port": 80,
+      "service": "mautic5padrao_web",
+      "category": "web",
+      "multiPorts": null
+    },
+    "mautic5whatsmkt": {
+      "appName": "mautic5whatsmkt",
+      "port": 80,
+      "service": "mautic5whatsmkt_web",
+      "category": "web",
+      "multiPorts": null
+    },
+    "mautic6padrao": {
+      "appName": "mautic6padrao",
+      "port": 80,
+      "service": "mautic_web${sufixo_app}",
+      "category": "web",
+      "multiPorts": null
+    },
+    "mautic6whatsmkt": {
+      "appName": "mautic6whatsmkt",
+      "port": 80,
+      "service": "mautic_web${sufixo_app}",
+      "category": "web",
+      "multiPorts": null
+    },
+    "mautic7padrao": {
+      "appName": "mautic7padrao",
+      "port": 80,
+      "service": "mautic_web${sufixo_app}",
+      "category": "web",
+      "multiPorts": null
+    },
+    "mautic7whatsmkt": {
+      "appName": "mautic7whatsmkt",
+      "port": 80,
+      "service": "mautic_web${sufixo_app}",
+      "category": "web",
+      "multiPorts": null
+    },
+    "mauticpadrao": {
+      "appName": "mauticpadrao",
+      "port": 80,
+      "service": "mauticpadrao",
+      "category": "web",
+      "multiPorts": null
+    },
+    "mongodb": {
+      "appName": "mongodb",
+      "port": 27017,
+      "service": "mongodb_app",
+      "category": "web",
+      "multiPorts": null
+    },
+    "mysql": {
+      "appName": "mysql",
+      "port": 3306,
+      "service": "mysql_app",
+      "category": "web",
+      "multiPorts": null
+    },
+    "n8n-workflows": {
+      "appName": "n8n-workflows",
+      "port": 8000,
+      "service": "n8n-workflows",
+      "category": "automacao",
+      "multiPorts": null
+    },
+    "n8n2": {
+      "appName": "n8n2",
+      "port": 5678,
+      "service": "${nome_app_editor}",
+      "category": "automacao",
+      "multiPorts": null
+    },
+    "nextcloud": {
+      "appName": "nextcloud",
+      "port": 80,
+      "service": "nextcloud",
+      "category": "web",
+      "multiPorts": null
+    },
+    "ntfy": {
+      "appName": "ntfy",
+      "port": 80,
+      "service": "ntfy",
+      "category": "web",
+      "multiPorts": null
+    },
+    "openclawpro": {
+      "appName": "openclawpro",
+      "port": 7474,
+      "service": "${nome_app_neo4j}-web",
+      "category": "ia-agente",
+      "multiPorts": null
+    },
+    "pgadmin": {
+      "appName": "pgadmin",
+      "port": 80,
+      "service": "pgadmin",
+      "category": "web",
+      "multiPorts": null
+    },
+    "pihole": {
+      "appName": "pihole",
+      "port": 80,
+      "service": "pihole",
+      "category": "web",
+      "multiPorts": null
+    },
+    "plane": {
+      "appName": "plane",
+      "port": 9000,
+      "service": "plane",
+      "category": "web",
+      "multiPorts": null
+    },
+    "pma": {
+      "appName": "pma",
+      "port": 80,
+      "service": "pma",
+      "category": "web",
+      "multiPorts": null
+    },
+    "redis": {
+      "appName": "redis",
+      "port": 6379,
+      "service": "redis_app",
+      "category": "web",
+      "multiPorts": null
+    },
+    "shlink": {
+      "appName": "shlink",
+      "port": 8080,
+      "service": "shlink_web",
+      "category": "web",
+      "multiPorts": null
+    },
+    "toojet": {
+      "appName": "toojet",
+      "port": 80,
+      "service": "toojet",
+      "category": "web",
+      "multiPorts": null
+    },
+    "typebot_minio": {
+      "appName": "typebot_minio",
+      "port": 9000,
+      "service": "${nome_app2}",
+      "category": "chatbot",
+      "multiPorts": {
+        "builder": 3000,
+        "viewer": 3001
+      }
+    },
+    "vaultwarden": {
+      "appName": "vaultwarden",
+      "port": 80,
+      "service": "vaultwarden",
+      "category": "web",
+      "multiPorts": null
+    },
+    "wordpress": {
+      "appName": "wordpress",
+      "port": 80,
+      "service": "wordpress",
+      "category": "web",
+      "multiPorts": null
+    },
+    "yourl": {
+      "appName": "yourl",
+      "port": 80,
+      "service": "yourl_web",
+      "category": "web",
+      "multiPorts": null
+    }
+  }
+}

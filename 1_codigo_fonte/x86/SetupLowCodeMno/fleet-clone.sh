@@ -941,6 +941,13 @@ save_app_manifest() {
         mq_vhost="${mq_engine#rabbitmq:}"
     fi
 
+    local port_val="80"
+    local reg_script="/root/SetupLowCodeMno/mno-port-registry.sh"
+    [ ! -x "$reg_script" ] && reg_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/mno-port-registry.sh"
+    if [ -x "$reg_script" ]; then
+        port_val=$("$reg_script" get "$app" 2>/dev/null || echo "80")
+    fi
+
     local json_manifest
     json_manifest=$(jq -n \
         --arg app "$app" \
@@ -952,6 +959,7 @@ save_app_manifest() {
         --arg s3_bucket "$s3_bucket" \
         --arg mq_vhost "$mq_vhost" \
         --arg linked "$linked_stacks" \
+        --argjson port "$port_val" \
         --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         '{
             version: "1.0",
@@ -963,6 +971,10 @@ save_app_manifest() {
                 comboId: (if $is_combo then $combo_id else null end),
                 comboName: (if $is_combo then $combo_name else null end),
                 linkedStacks: ($linked | split(" ") | map(select(length > 0)))
+            },
+            ports: {
+                default: $port,
+                service: ($app + "_app")
             },
             dependencies: {
                 database: (if $db_type != "none" then { engine: $db_type, dbName: $db_name, shared: true } else null end),
@@ -1368,6 +1380,26 @@ resolve_host_service_port() {
 
     # Fallback canônico e abrangente por tipo/nome de aplicação MNO
     if [ -z "$s_port" ]; then
+        # 4.1. Consulta ao Manifesto de Stack (se houver porta registrada)
+        local m_port
+        m_port=$(jq -r '.ports.default // empty' "/root/SetupLowCodeMno/.control/manifests/${cur_app_name}.json" 2>/dev/null || true)
+        if [ -n "$m_port" ] && [ "$m_port" != "null" ] && [ "$m_port" != "80" ]; then
+            s_port="$m_port"
+        fi
+
+        # 4.2. Consulta à Lista Telefônica Universal Dinâmica
+        if [ -z "$s_port" ]; then
+            local reg_script="/root/SetupLowCodeMno/mno-port-registry.sh"
+            [ ! -x "$reg_script" ] && reg_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/mno-port-registry.sh"
+            if [ -x "$reg_script" ]; then
+                local dyn_port
+                dyn_port=$("$reg_script" get "$cur_app_name" 2>/dev/null || true)
+                if [ -n "$dyn_port" ] && [ "$dyn_port" != "null" ] && [ "$dyn_port" != "80" ]; then
+                    s_port="$dyn_port"
+                fi
+            fi
+        fi
+
         local app_norm
         app_norm=$(echo "$cur_app_name" | tr '[:upper:]' '[:lower:]')
 

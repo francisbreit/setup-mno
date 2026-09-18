@@ -61,7 +61,7 @@ Para aplicações utilitárias ou de fila (ex: RabbitMQ):
 
 ## 4. Registro no Gravador Universal de Manifestos (`mno-manifest-writer.sh`)
 
-Ao final da instalação da stack ou do combo, o script deve obrigatoriamente chamar o gravador de manifestos informando os domínios utilizados:
+Ao final da instalação da stack ou do combo, o script deve obrigatoriamente chamar o gravador de manifestos informando os domínios utilizados e a porta da aplicação:
 
 ```bash
 /root/SetupLowCodeMno/mno-manifest-writer.sh \
@@ -74,10 +74,13 @@ Ao final da instalação da stack ou do combo, o script deve obrigatoriamente ch
     "$s3_bucket" \
     "$rabbitmq_vhost" \
     "$lista_dominios" \
-    "$lista_volumes"
+    "$lista_volumes" \
+    "$porta_app"
 ```
 
-Onde `$lista_dominios` é uma string com os domínios separados por vírgula (ex: `atendi.dominio.com,fila.dominio.com`).
+O `mno-manifest-writer.sh` automaticamente:
+1. Grava a porta no manifesto JSON da stack em `.control/manifests/<stack>.json`.
+2. Garante que a aplicação esteja registrada na **Lista Telefônica Universal** (`mno_universal_ports.json`). Se não estiver, realiza o auto-registro na hora!
 
 ---
 
@@ -89,10 +92,32 @@ Em combos onde várias stacks são orquestradas em conjunto (ex: Chatwoot + Evol
 
 ---
 
-## 6. Checklist de Homologação de Novos Setups
+## 6. Criação de Novos Setups com o Gerador Canônico (`novo_setup.sh`)
 
-Antes de enviar qualquer nova ferramenta para `1_codigo_fonte/`:
-1. **Verificação de Portas:** Executar `./2_empacotador/verificar_portas.sh <porta>` para garantir que a porta interna escolhida não colida.
-2. **Registro de Porta:** Adicionar a porta padrão da nova aplicação no `case "$app_norm"` dentro da função `resolve_host_service_port` em `fleet-clone.sh`.
-3. **Paridade x86/ARM:** Garantir que o script exista e seja idêntico em `1_codigo_fonte/x86/SetupLowCodeMno/` e `1_codigo_fonte/arm/SetupLowCodeMno/`.
-4. **Gates de Release:** Executar `generate-installers.sh`, testes de certificação e `./2_empacotador/gerar_distribuicao.sh`.
+Para criar qualquer nova aplicação no ecossistema Setup MNO, basta executar o utilitário canônico:
+
+```bash
+./2_empacotador/novo_setup.sh <nome_app> <porta> [categoria] [imagem_docker]
+```
+
+Exemplo:
+```bash
+./2_empacotador/novo_setup.sh libretranslate 5000 tradutor libretranslate/libretranslate:latest
+```
+
+Esse comando executa autonomamente:
+1. **Auditoria de Conflitos:** Valida se a porta já é usada por alguma das 172+ aplicações cadastradas.
+2. **Registro na Lista Telefônica Universal:** Insere a nova aplicação em `mno_universal_ports.json` em `x86` e `arm`.
+3. **Geração do Boilerplate Canônico:** Cria os arquivos `.sh` em `1_codigo_fonte/x86/SetupLowCodeMno/` e `1_codigo_fonte/arm/SetupLowCodeMno/` prontos para produção.
+4. **Garantia de Paridade:** Scripts gerados com 100% de paridade x86 e ARM.
+
+---
+
+## 7. Checklist de Homologação de Novos Setups
+
+Antes de enviar qualquer nova ferramenta para produção:
+1. **Verificação de Portas:** Executar `./2_empacotador/verificar_portas.sh <porta>`.
+2. **Criação do Setup:** Executar `./2_empacotador/novo_setup.sh <nome_app> <porta> [categoria]`.
+3. **Personalização:** Ajustar variáveis de ambiente específicas do container no arquivo `.sh` gerado.
+4. **Menu de Instalação:** Adicionar a opção correspondente em `install.sh` se a ferramenta for exposta no menu interativo.
+5. **Gates de Release:** Executar `generate-installers.sh`, testes de certificação e `./2_empacotador/gerar_distribuicao.sh`.
