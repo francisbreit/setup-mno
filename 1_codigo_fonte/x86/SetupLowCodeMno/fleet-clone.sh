@@ -1407,7 +1407,7 @@ switch_cloudflare_dns_and_ingress() {
     # Se a stack for puramente de suporte/background e NÃO possuir router Traefik explícito (Host(`...`)),
     # ela jamais deve comutar DNS nem rotas de Ingress.
     if ! grep -qP 'Host\(`' "$yaml_file" 2>/dev/null; then
-        if [[ "$app_lower" =~ (worker|runner|redis|database|postgres|mysql|cron|queue|-mq) ]] && [[ ! "$app_lower" =~ mcp ]]; then
+        if [[ "$app_lower" =~ (worker|runner|redis|database|postgres|mysql|cron|queue|-mq) ]] && [[ ! "$app_lower" =~ (mcp|rabbitmq) ]]; then
             echo "[ROTEAMENTO CLOUDFLARE] Stack de suporte/background ($app_name) ignorada para rotas web."
             return 0
         fi
@@ -1419,7 +1419,7 @@ switch_cloudflare_dns_and_ingress() {
         while IFS= read -r h; do
             [ -n "$h" ] && hostnames+=("$h")
         done < <(grep -oP 'Host\(`\K[^`]+' "$yaml_file" 2>/dev/null | sort -u)
-    elif grep -q "MINIO_BROWSER_REDIRECT_URL" "$yaml_file" 2>/dev/null || grep -q "minio" "$yaml_file" 2>/dev/null; then
+    elif grep -q "MINIO_BROWSER_REDIRECT_URL" "$yaml_file" 2>/dev/null || grep -q "MINIO_SERVER_URL" "$yaml_file" 2>/dev/null; then
         # 2. MinIO S3 Console vs Server
         while IFS= read -r h; do
             [ -n "$h" ] && hostnames+=("$h")
@@ -1427,16 +1427,34 @@ switch_cloudflare_dns_and_ingress() {
             grep -oP '(?<=MINIO_BROWSER_REDIRECT_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
             grep -oP '(?<=MINIO_SERVER_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
         } | sort -u)
+    elif [[ "$app_lower" =~ chatwoot ]] || grep -q "FRONTEND_URL" "$yaml_file" 2>/dev/null; then
+        # 3. Chatwoot Frontend URL
+        while IFS= read -r h; do
+            [ -n "$h" ] && hostnames+=("$h")
+        done < <({
+            grep -oP '(?<=FRONTEND_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=FRONTEND_URL=http://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+        } | sort -u)
     elif grep -q "NEXTAUTH_URL" "$yaml_file" 2>/dev/null || grep -q "NEXT_PUBLIC_VIEWER_URL" "$yaml_file" 2>/dev/null; then
-        # 3. Typebot Builder vs Viewer
+        # 4. Typebot Builder vs Viewer
         while IFS= read -r h; do
             [ -n "$h" ] && hostnames+=("$h")
         done < <({
             grep -oP '(?<=NEXTAUTH_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
             grep -oP '(?<=NEXT_PUBLIC_VIEWER_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
         } | sort -u)
+    elif [[ "$app_lower" =~ rabbitmq ]] || grep -qE "RABBITMQ_MANAGEMENT|DOMINIO_RABBITMQ" "$yaml_file" 2>/dev/null; then
+        # 5. RabbitMQ Management Panel
+        while IFS= read -r h; do
+            [ -n "$h" ] && hostnames+=("$h")
+        done < <({
+            grep -oP '(?<=RABBITMQ_MANAGEMENT_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=RABBITMQ_MANAGEMENT_URL=http://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=RABBITMQ_MANAGEMENT_HOST=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=DOMINIO_RABBITMQ=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+        } | sort -u)
     elif [[ "$app_lower" =~ editor ]]; then
-        # 4. n8n Editor exclusivo
+        # 6. n8n Editor exclusivo
         while IFS= read -r h; do
             [ -n "$h" ] && hostnames+=("$h")
         done < <({
@@ -1444,12 +1462,12 @@ switch_cloudflare_dns_and_ingress() {
             grep -oP '(?<=N8N_EDITOR_BASE_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
         } | sort -u)
     elif [[ "$app_lower" =~ webhook ]]; then
-        # 5. n8n Webhook exclusivo
+        # 7. n8n Webhook exclusivo
         while IFS= read -r h; do
             [ -n "$h" ] && hostnames+=("$h")
         done < <(grep -oP '(?<=WEBHOOK_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null | sort -u)
     elif [[ "$app_lower" =~ mcp ]]; then
-        # 6. n8n MCP API exclusivo (atende requisições no domínio do webhook em /mcp/*)
+        # 8. n8n MCP API exclusivo (atende requisições no domínio do webhook em /mcp/*)
         while IFS= read -r h; do
             [ -n "$h" ] && hostnames+=("$h")
         done < <({
@@ -1457,7 +1475,7 @@ switch_cloudflare_dns_and_ingress() {
             grep -oP '(?<=N8N_HOST=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
         } | head -n1)
     elif [[ "$app_lower" =~ ^n8n && ! "$app_lower" =~ (editor|webhook|worker|runner|mcp) ]]; then
-        # 7. n8n standalone (sem fila)
+        # 9. n8n standalone (sem fila)
         while IFS= read -r h; do
             [ -n "$h" ] && hostnames+=("$h")
         done < <({
@@ -1466,7 +1484,7 @@ switch_cloudflare_dns_and_ingress() {
             grep -oP '(?<=WEBHOOK_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
         } | sort -u)
     else
-        # 8. Fallback geral para apps web padrão
+        # 10. Fallback geral para apps web padrão
         while IFS= read -r h; do
             [ -n "$h" ] && hostnames+=("$h")
         done < <({
@@ -1474,6 +1492,42 @@ switch_cloudflare_dns_and_ingress() {
             grep -oP '(?<=WEB_DOMAIN=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
         } | sort -u)
     fi
+
+    # Recuperação inteligente de domínio para RabbitMQ se não foi encontrado no YAML
+    if [[ "$app_lower" =~ rabbitmq ]] && [ ${#hostnames[@]} -eq 0 ]; then
+        local recovered_h=""
+        local creds="/root/.cloudflared_config/cloudflare_credentials"
+        if [ -f "$creds" ]; then
+            source "$creds"
+            if [ -n "${CLOUDFLARE_API_TOKEN:-}" ] && [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] && [ -n "${TUNNEL_ID:-}" ]; then
+                local cf_rules
+                cf_rules=$(curl -sS -X GET "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${TUNNEL_ID}/configurations" \
+                    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                    -H "Content-Type: application/json" 2>/dev/null || true)
+                recovered_h=$(echo "$cf_rules" | jq -r --arg app "$app_name" '.result.config.ingress[]? | select((.service // "") | test($app + "|15672")) | .hostname // empty' 2>/dev/null | head -n1 || true)
+            fi
+        fi
+        if [ -n "$recovered_h" ] && [[ "$recovered_h" =~ \. ]] && [[ "$recovered_h" != "URL" ]]; then
+            echo "[ROTEAMENTO CLOUDFLARE] Domínio do RabbitMQ recuperado via Cloudflare Ingress: $recovered_h"
+            hostnames+=("$recovered_h")
+        fi
+    fi
+
+    # Sanitização e filtragem rigorosa de hostnames (descarta espúrios como URL, graph.facebook.com, etc)
+    local clean_hostnames=()
+    for raw_h in "${hostnames[@]}"; do
+        [ -n "$raw_h" ] || continue
+        local h
+        h=$(echo "$raw_h" | tr -d '[:space:]/' | tr '[:upper:]' '[:lower:]')
+        [[ "$h" == "url" || "$h" == "null" || "$h" == "localhost" || "$h" == "undefined" ]] && continue
+        [[ "$h" != *.* ]] && continue
+        [[ ! "$h" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$ ]] && continue
+        if [[ "$h" =~ (facebook\.com|meta\.com|googleapis\.com|google\.com|github\.com|sendgrid\.net|mailgun\.org|sentry\.io|openai\.com|whatsapp\.com)$ ]]; then
+            continue
+        fi
+        clean_hostnames+=("$h")
+    done
+    hostnames=("${clean_hostnames[@]}")
 
     [ ${#hostnames[@]} -gt 0 ] || return 0
 
@@ -1583,6 +1637,8 @@ if [ -f "$creds" ]; then
                 rm -f "$to_put"
             fi
         done
+        # Força convergência imediata do container cloudflared para aplicar rotas sem esperar polling
+        docker service update --force cloudflared_cloudflared >/dev/null 2>&1 || true
     else
         echo "[ALERTA] Credenciais Cloudflare incompletas no nó destino."
     fi
@@ -1669,6 +1725,8 @@ if [ -f "$creds" ]; then
                 rm -f "$to_put"
             fi
         done
+        # Força convergência imediata do container cloudflared para aplicar rotas sem esperar polling
+        docker service update --force cloudflared_cloudflared >/dev/null 2>&1 || true
     else
         echo "[ALERTA] Credenciais Cloudflare incompletas no nó destino."
     fi

@@ -442,6 +442,8 @@ services:
     #- RABBITMQ_DEFAULT_VHOST=default
     - RABBITMQ_DEFAULT_USER=$usuariomq
     - RABBITMQ_DEFAULT_PASS=$senhamq
+    - RABBITMQ_MANAGEMENT_URL=https://$painel
+    - RABBITMQ_MANAGEMENT_HOST=$painel
     deploy:
       mode: replicated
       replicas: 1
@@ -449,7 +451,7 @@ services:
         constraints:
         - node.role == manager
 EOL
-# Adicionar as labels apenas se for instalação tradicional
+# Adicionar as labels do router Traefik (declarativas para catalogação e identificação canônica)
 if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
 cat >> $nome_app.yaml << EOL
       labels:
@@ -461,6 +463,13 @@ cat >> $nome_app.yaml << EOL
       - traefik.http.routers.$nome_app.service=$nome_app
       - traefik.http.services.$nome_app.loadbalancer.server.port=15672
       - traefik.http.services.$nome_app.loadbalancer.passHostHeader=1
+EOL
+else
+cat >> $nome_app.yaml << EOL
+      labels:
+      - traefik.enable=0
+      - traefik.http.routers.$nome_app.rule=Host(\`$painel\`)
+      - traefik.http.services.$nome_app.loadbalancer.server.port=15672
 EOL
 fi
 cat >> $nome_app.yaml << EOL
