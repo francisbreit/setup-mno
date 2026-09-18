@@ -1473,6 +1473,140 @@ resolve_host_service_port() {
     echo "${s_name}:${s_port}"
 }
 
+# Descoberta abrangente e multicamadas de domínios em uma stack (Compose YAML + Manifesto + Variáveis)
+discover_stack_domains() {
+    local yaml_file="$1"
+    local app_name="$2"
+    local hostnames=()
+
+    local app_lower
+    app_lower=$(echo "$app_name" | tr '[:upper:]' '[:lower:]')
+
+    # 0. Tenta ler domínios declarados no Manifesto do Control Center se existir
+    local manifest_file="/root/SetupLowCodeMno/.control/manifests/${app_name}.json"
+    if [ -f "$manifest_file" ]; then
+        while IFS= read -r md; do
+            [ -n "$md" ] && hostnames+=("$md")
+        done < <(jq -r '.domains[]? // empty' "$manifest_file" 2>/dev/null || true)
+    fi
+
+    # 1. Traefik routers explícitos: autoritativos e canônicos
+    if grep -qP 'Host\(`' "$yaml_file" 2>/dev/null; then
+        while IFS= read -r h; do
+            [ -n "$h" ] && hostnames+=("$h")
+        done < <(grep -oP 'Host\(`\K[^`]+' "$yaml_file" 2>/dev/null | sort -u)
+    fi
+
+    # 2. MinIO S3 Console vs Server
+    if grep -q "MINIO_BROWSER_REDIRECT_URL" "$yaml_file" 2>/dev/null || grep -q "MINIO_SERVER_URL" "$yaml_file" 2>/dev/null; then
+        while IFS= read -r h; do
+            [ -n "$h" ] && hostnames+=("$h")
+        done < <({
+            grep -oP '(?<=MINIO_BROWSER_REDIRECT_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=MINIO_SERVER_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+        } | sort -u)
+    fi
+
+    # 3. Chatwoot Frontend URL
+    if [[ "$app_lower" =~ chatwoot ]] || grep -q "FRONTEND_URL" "$yaml_file" 2>/dev/null; then
+        while IFS= read -r h; do
+            [ -n "$h" ] && hostnames+=("$h")
+        done < <({
+            grep -oP '(?<=FRONTEND_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=FRONTEND_URL=http://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+        } | sort -u)
+    fi
+
+    # 4. Typebot Builder vs Viewer
+    if grep -q "NEXTAUTH_URL" "$yaml_file" 2>/dev/null || grep -q "NEXT_PUBLIC_VIEWER_URL" "$yaml_file" 2>/dev/null; then
+        while IFS= read -r h; do
+            [ -n "$h" ] && hostnames+=("$h")
+        done < <({
+            grep -oP '(?<=NEXTAUTH_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=NEXT_PUBLIC_VIEWER_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+        } | sort -u)
+    fi
+
+    # 5. RabbitMQ Management Panel
+    if [[ "$app_lower" =~ rabbitmq ]] || grep -qE "RABBITMQ_MANAGEMENT|DOMINIO_RABBITMQ" "$yaml_file" 2>/dev/null; then
+        while IFS= read -r h; do
+            [ -n "$h" ] && hostnames+=("$h")
+        done < <({
+            grep -oP '(?<=RABBITMQ_MANAGEMENT_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=RABBITMQ_MANAGEMENT_URL=http://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=RABBITMQ_MANAGEMENT_HOST=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=DOMINIO_RABBITMQ=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+        } | sort -u)
+    fi
+
+    # 6. n8n Editor / Webhook / MCP
+    if [[ "$app_lower" =~ editor ]]; then
+        while IFS= read -r h; do
+            [ -n "$h" ] && hostnames+=("$h")
+        done < <({
+            grep -oP '(?<=N8N_HOST=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=N8N_EDITOR_BASE_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+        } | sort -u)
+    elif [[ "$app_lower" =~ webhook ]]; then
+        while IFS= read -r h; do
+            [ -n "$h" ] && hostnames+=("$h")
+        done < <(grep -oP '(?<=WEBHOOK_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null | sort -u)
+    elif [[ "$app_lower" =~ mcp ]]; then
+        while IFS= read -r h; do
+            [ -n "$h" ] && hostnames+=("$h")
+        done < <({
+            grep -oP '(?<=WEBHOOK_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=N8N_HOST=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+        } | head -n1)
+    elif [[ "$app_lower" =~ ^n8n && ! "$app_lower" =~ (editor|webhook|worker|runner|mcp) ]]; then
+        while IFS= read -r h; do
+            [ -n "$h" ] && hostnames+=("$h")
+        done < <({
+            grep -oP '(?<=N8N_HOST=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=N8N_EDITOR_BASE_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=WEBHOOK_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+        } | sort -u)
+    fi
+
+    # 7. Fallback geral para variáveis canônicas
+    while IFS= read -r h; do
+        [ -n "$h" ] && hostnames+=("$h")
+    done < <({
+        grep -oP '(?<=[A-Z0-9_]*(?:URL|DOMAIN|HOST|SITE)[A-Z0-9_]*=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+        grep -oP '(?<=[A-Z0-9_]*(?:URL|DOMAIN|HOST|SITE)[A-Z0-9_]*=http://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+        grep -oP '(?<=[A-Z0-9_]*(?:URL|DOMAIN|HOST|SITE)[A-Z0-9_]*=)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' "$yaml_file" 2>/dev/null || true
+        grep -oP '(?<=WEB_DOMAIN=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+        grep -oP '(?<=#\s*DOMINIO=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
+    } | sort -u)
+
+    # 8. Varredura profunda por qualquer FQDN se ainda vazio
+    if [ ${#hostnames[@]} -eq 0 ]; then
+        while IFS= read -r rec_h; do
+            [ -n "$rec_h" ] && hostnames+=("$rec_h")
+        done < <({
+            grep -oP '(?<=https://)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' "$yaml_file" 2>/dev/null || true
+            grep -oP '(?<=http://)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' "$yaml_file" 2>/dev/null || true
+        } | sort -u)
+    fi
+
+    # Sanitização e filtragem rigorosa de hostnames
+    local clean_hostnames=()
+    for raw_h in "${hostnames[@]}"; do
+        [ -n "$raw_h" ] || continue
+        local h
+        h=$(echo "$raw_h" | tr -d '[:space:]/' | tr '[:upper:]' '[:lower:]')
+        [[ "$h" == "url" || "$h" == "null" || "$h" == "localhost" || "$h" == "undefined" || "$h" == "true" || "$h" == "false" ]] && continue
+        [[ "$h" != *.* ]] && continue
+        [[ ! "$h" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$ ]] && continue
+        if [[ "$h" =~ (facebook\.com|meta\.com|googleapis\.com|google\.com|github\.com|sendgrid\.net|mailgun\.org|sentry\.io|openai\.com|whatsapp\.com|docker\.com|docker\.io|cloudflare\.com|gravatar\.com|w3\.org)$ ]]; then
+            continue
+        fi
+        clean_hostnames+=("$h")
+    done
+
+    printf '%s\n' "${clean_hostnames[@]}" | sort -u
+}
+
 # Comutação atômica de DNS Cloudflare e rotas de Ingress no Tunnel (Multi-Domínio)
 switch_cloudflare_dns_and_ingress() {
     local node_id="$1"
@@ -1493,98 +1627,11 @@ switch_cloudflare_dns_and_ingress() {
     fi
 
     local hostnames=()
+    while IFS= read -r h; do
+        [ -n "$h" ] && hostnames+=("$h")
+    done < <(discover_stack_domains "$yaml_file" "$app_name")
 
-    # 0. Tenta ler domínios declarados no Manifesto do Control Center se existir
-    local manifest_file="/root/SetupLowCodeMno/.control/manifests/${app_name}.json"
-    if [ -f "$manifest_file" ]; then
-        while IFS= read -r md; do
-            [ -n "$md" ] && hostnames+=("$md")
-        done < <(jq -r '.domains[]? // empty' "$manifest_file" 2>/dev/null || true)
-    fi
-
-    if grep -qP 'Host\(`' "$yaml_file" 2>/dev/null; then
-        # 1. Traefik routers explícitos: autoritativos e canônicos
-        while IFS= read -r h; do
-            [ -n "$h" ] && hostnames+=("$h")
-        done < <(grep -oP 'Host\(`\K[^`]+' "$yaml_file" 2>/dev/null | sort -u)
-    elif grep -q "MINIO_BROWSER_REDIRECT_URL" "$yaml_file" 2>/dev/null || grep -q "MINIO_SERVER_URL" "$yaml_file" 2>/dev/null; then
-        # 2. MinIO S3 Console vs Server
-        while IFS= read -r h; do
-            [ -n "$h" ] && hostnames+=("$h")
-        done < <({
-            grep -oP '(?<=MINIO_BROWSER_REDIRECT_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-            grep -oP '(?<=MINIO_SERVER_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-        } | sort -u)
-    elif [[ "$app_lower" =~ chatwoot ]] || grep -q "FRONTEND_URL" "$yaml_file" 2>/dev/null; then
-        # 3. Chatwoot Frontend URL
-        while IFS= read -r h; do
-            [ -n "$h" ] && hostnames+=("$h")
-        done < <({
-            grep -oP '(?<=FRONTEND_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-            grep -oP '(?<=FRONTEND_URL=http://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-        } | sort -u)
-    elif grep -q "NEXTAUTH_URL" "$yaml_file" 2>/dev/null || grep -q "NEXT_PUBLIC_VIEWER_URL" "$yaml_file" 2>/dev/null; then
-        # 4. Typebot Builder vs Viewer
-        while IFS= read -r h; do
-            [ -n "$h" ] && hostnames+=("$h")
-        done < <({
-            grep -oP '(?<=NEXTAUTH_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-            grep -oP '(?<=NEXT_PUBLIC_VIEWER_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-        } | sort -u)
-    elif [[ "$app_lower" =~ rabbitmq ]] || grep -qE "RABBITMQ_MANAGEMENT|DOMINIO_RABBITMQ" "$yaml_file" 2>/dev/null; then
-        # 5. RabbitMQ Management Panel
-        while IFS= read -r h; do
-            [ -n "$h" ] && hostnames+=("$h")
-        done < <({
-            grep -oP '(?<=RABBITMQ_MANAGEMENT_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-            grep -oP '(?<=RABBITMQ_MANAGEMENT_URL=http://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-            grep -oP '(?<=RABBITMQ_MANAGEMENT_HOST=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-            grep -oP '(?<=DOMINIO_RABBITMQ=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-        } | sort -u)
-    elif [[ "$app_lower" =~ editor ]]; then
-        # 6. n8n Editor exclusivo
-        while IFS= read -r h; do
-            [ -n "$h" ] && hostnames+=("$h")
-        done < <({
-            grep -oP '(?<=N8N_HOST=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-            grep -oP '(?<=N8N_EDITOR_BASE_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-        } | sort -u)
-    elif [[ "$app_lower" =~ webhook ]]; then
-        # 7. n8n Webhook exclusivo
-        while IFS= read -r h; do
-            [ -n "$h" ] && hostnames+=("$h")
-        done < <(grep -oP '(?<=WEBHOOK_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null | sort -u)
-    elif [[ "$app_lower" =~ mcp ]]; then
-        # 8. n8n MCP API exclusivo (atende requisições no domínio do webhook em /mcp/*)
-        while IFS= read -r h; do
-            [ -n "$h" ] && hostnames+=("$h")
-        done < <({
-            grep -oP '(?<=WEBHOOK_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-            grep -oP '(?<=N8N_HOST=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-        } | head -n1)
-    elif [[ "$app_lower" =~ ^n8n && ! "$app_lower" =~ (editor|webhook|worker|runner|mcp) ]]; then
-        # 9. n8n standalone (sem fila)
-        while IFS= read -r h; do
-            [ -n "$h" ] && hostnames+=("$h")
-        done < <({
-            grep -oP '(?<=N8N_HOST=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-            grep -oP '(?<=N8N_EDITOR_BASE_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-            grep -oP '(?<=WEBHOOK_URL=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-        } | sort -u)
-    else
-        # 10. Fallback geral para apps web padrão (busca ampla por variáveis canônicas de domínio/URL)
-        while IFS= read -r h; do
-            [ -n "$h" ] && hostnames+=("$h")
-        done < <({
-            grep -oP '(?<=[A-Z0-9_]*(?:URL|DOMAIN|HOST|SITE)[A-Z0-9_]*=https://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-            grep -oP '(?<=[A-Z0-9_]*(?:URL|DOMAIN|HOST|SITE)[A-Z0-9_]*=http://)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-            grep -oP '(?<=[A-Z0-9_]*(?:URL|DOMAIN|HOST|SITE)[A-Z0-9_]*=)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' "$yaml_file" 2>/dev/null || true
-            grep -oP '(?<=WEB_DOMAIN=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-            grep -oP '(?<=#\s*DOMINIO=)[^[:space:]/"]+' "$yaml_file" 2>/dev/null || true
-        } | sort -u)
-    fi
-
-    # Recuperação inteligente e multicamadas para qualquer stack pré-existente sem metadados explícitos no YAML
+    # Recuperação inteligente via API do Túnel se ainda vazio
     if [ ${#hostnames[@]} -eq 0 ]; then
         local creds="/root/.cloudflared_config/cloudflare_credentials"
         if [ -f "$creds" ]; then
@@ -1602,33 +1649,7 @@ switch_cloudflare_dns_and_ingress() {
                 fi
             fi
         fi
-
-        # Se ainda vazio, varredura profunda no YAML por qualquer FQDN com ponto
-        if [ ${#hostnames[@]} -eq 0 ]; then
-            while IFS= read -r rec_h; do
-                [ -n "$rec_h" ] && hostnames+=("$rec_h")
-            done < <({
-                grep -oP '(?<=https://)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' "$yaml_file" 2>/dev/null || true
-                grep -oP '(?<=http://)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' "$yaml_file" 2>/dev/null || true
-            } | sort -u)
-        fi
     fi
-
-    # Sanitização e filtragem rigorosa de hostnames (descarta espúrios como URL, graph.facebook.com, etc)
-    local clean_hostnames=()
-    for raw_h in "${hostnames[@]}"; do
-        [ -n "$raw_h" ] || continue
-        local h
-        h=$(echo "$raw_h" | tr -d '[:space:]/' | tr '[:upper:]' '[:lower:]')
-        [[ "$h" == "url" || "$h" == "null" || "$h" == "localhost" || "$h" == "undefined" || "$h" == "true" || "$h" == "false" ]] && continue
-        [[ "$h" != *.* ]] && continue
-        [[ ! "$h" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$ ]] && continue
-        if [[ "$h" =~ (facebook\.com|meta\.com|googleapis\.com|google\.com|github\.com|sendgrid\.net|mailgun\.org|sentry\.io|openai\.com|whatsapp\.com|docker\.com|docker\.io|cloudflare\.com|gravatar\.com|w3\.org)$ ]]; then
-            continue
-        fi
-        clean_hostnames+=("$h")
-    done
-    hostnames=("${clean_hostnames[@]}")
 
     [ ${#hostnames[@]} -gt 0 ] || return 0
 
@@ -2637,7 +2658,7 @@ action_backup_app() {
                 local svc_n="${target_sp%%:*}"
                 local svc_p="${target_sp##*:}"
                 cur_domains+=("${d}|${svc_n}|${svc_p}")
-            done < <(grep -oP 'Host\(`\K[^`]+' "$stack_yaml" 2>/dev/null | sort -u || true)
+            done < <(discover_stack_domains "$stack_yaml" "$cur_app")
 
             local s3_info
             s3_info=$(detect_s3_storage_engine "$stack_yaml" "$cur_app")
@@ -2691,7 +2712,18 @@ action_backup_app() {
 EOF
 
         echo -e "XXX\n90\nEmpacotando arquivo tar.gz universal...\nXXX"
-        tar -czf "$backup_file" -C "$tmpdir" .
+        (
+            cd "$tmpdir"
+            local tar_items=()
+            for itm in manifest.json stack.yaml stacks volumes dumps backup_progress.log; do
+                [ -e "$itm" ] && tar_items+=("$itm")
+            done
+            if [ ${#tar_items[@]} -gt 0 ]; then
+                tar -czf "$backup_file" "${tar_items[@]}" 2>/dev/null
+            else
+                tar -czf "$backup_file" .
+            fi
+        ) || tar -czf "$backup_file" -C "$tmpdir" .
         echo -e "XXX\n100\nBackup concluído com sucesso!\nXXX"
         sleep 1
     }
@@ -2741,6 +2773,7 @@ EOF
 action_restore_backup() {
     local backup_file="${1:-}"
     local dest_target="${2:-}"
+    local cli_dns="${3:-}"
 
     local is_cli=false
     if [ -n "$backup_file" ] || [ -z "${TERM:-}" ]; then
@@ -2793,24 +2826,32 @@ action_restore_backup() {
     tmpdir=$(mktemp -d)
     trap 'rm -rf "$tmpdir"' RETURN
 
-    whiptail --infobox "🔍 Inspecionando manifesto e integridade do backup...\nAguarde..." 8 70
+    if [ "$is_cli" = "false" ]; then
+        whiptail --infobox "🔍 Inspecionando manifesto e integridade do backup...\nAguarde..." 8 70
+    fi
 
-    tar -xzf "$backup_file" -C "$tmpdir" manifest.json 2>/dev/null || true
+    # Descompactação resiliente do pacote de backup (compatível com qualquer formato tar)
+    tar -xzf "$backup_file" -C "$tmpdir" 2>/dev/null || true
+
+    # Localização flexível de manifest.json e stack.yaml
     if [ ! -f "$tmpdir/manifest.json" ]; then
-        tar -xzf "$backup_file" -C "$tmpdir" stack.yaml 2>/dev/null || true
-        if [ ! -f "$tmpdir/stack.yaml" ]; then
+        local found_mf
+        found_mf=$(find "$tmpdir" -maxdepth 2 -name "manifest.json" 2>/dev/null | head -n1 || true)
+        [ -n "$found_mf" ] && cp -f "$found_mf" "$tmpdir/manifest.json"
+    fi
+    if [ ! -f "$tmpdir/stack.yaml" ]; then
+        local found_sy
+        found_sy=$(find "$tmpdir" -maxdepth 2 -name "stack.yaml" 2>/dev/null | head -n1 || true)
+        [ -n "$found_sy" ] && cp -f "$found_sy" "$tmpdir/stack.yaml"
+    fi
+
+    if [ ! -f "$tmpdir/manifest.json" ] && [ ! -f "$tmpdir/stack.yaml" ]; then
+        if [ "$is_cli" = "true" ]; then
+            echo "Erro: O arquivo '$backup_file' não é um Backup Portátil válido do Setup MNO (manifest.json e stack.yaml ausentes)."
+        else
             whiptail --title "ARQUIVO INVÁLIDO" --msgbox "O arquivo '$backup_file' não é um Backup Portátil válido do Setup MNO (manifest.json e stack.yaml ausentes)." 11 74
-            return 1
         fi
-        cat > "$tmpdir/manifest.json" << EOF
-{
-  "schemaVersion": 1,
-  "backupType": "single_app",
-  "appName": "app_restaurada",
-  "architecture": "amd64",
-  "createdAt": "$(date -u -Iseconds)"
-}
-EOF
+        return 1
     fi
 
     local schema_ver backup_type app_name combo_name backup_arch stacks_count
@@ -2861,16 +2902,22 @@ EOF
 
     # Hardware Parity Advisory Gate
     if [ "$backup_arch" != "$dest_arch" ]; then
-        if ! whiptail --title "⚠️ AVISO DE ARQUITETURA DE HARDWARE" --yesno \
-            "O backup foi gerado na arquitetura: $backup_arch\nO servidor de destino opera em: $dest_arch\n\nAplicações com imagens multi-arquitetura iniciarão normalmente, mas binários nativos específicos podem requerer ajustes.\n\nDeseja prosseguir com a restauração mesmo assim?" 15 76; then
-            return 0
+        if [ "$is_cli" = "false" ]; then
+            if ! whiptail --title "⚠️ AVISO DE ARQUITETURA DE HARDWARE" --yesno \
+                "O backup foi gerado na arquitetura: $backup_arch\nO servidor de destino opera em: $dest_arch\n\nAplicações com imagens multi-arquitetura iniciarão normalmente, mas binários nativos específicos podem requerer ajustes.\n\nDeseja prosseguir com a restauração mesmo assim?" 15 76; then
+                return 0
+            fi
+        else
+            echo "[AVISO DE ARQUITETURA] Backup gerado em $backup_arch, servidor de destino opera em $dest_arch."
         fi
     fi
 
     acquire_node_lock "$chosen_dest_id" "Restauracao de Backup ($app_name)" 600 || return 1
     trap 'release_node_lock "$chosen_dest_id"; rm -rf "$tmpdir"' RETURN
 
-    whiptail --infobox "📦 Descompactando arquivos de volumes, stacks e banco...\nAguarde..." 8 70
+    if [ "$is_cli" = "false" ]; then
+        whiptail --infobox "📦 Descompactando arquivos de volumes, stacks e banco...\nAguarde..." 8 70
+    fi
     tar -xzf "$backup_file" -C "$tmpdir"
 
     local stacks_to_restore=()
@@ -2891,12 +2938,14 @@ EOF
 
     # Decisão de Combo na Restauração
     if [ "$backup_type" = "combo_bundle" ] && [ ${#stacks_to_restore[@]} -gt 1 ]; then
-        local combo_restore_choice
-        combo_restore_choice=$(whiptail --title "🤖 RESTAURAÇÃO DE COMBO INTEGRADO" --menu \
-            "Este backup contém o Combo Completo:\n$combo_name\n\nFerramentas prontas para restaurar:\n• $(echo "${stacks_to_restore[*]}" | sed 's/ / \n• /g')\n\nComo deseja proceder na restauração para '$dest_name'?" 20 78 2 \
-            "1" "RESTAURAR COMBO COMPLETO (Recomendado — restaura todas as ferramentas)" \
-            "2" "SELECIONAR UMA FERRAMENTA INDIVIDUAL DO COMBO" \
-            3>&1 1>&2 2>&3) || return 0
+        local combo_restore_choice="1"
+        if [ "$is_cli" = "false" ]; then
+            combo_restore_choice=$(whiptail --title "🤖 RESTAURAÇÃO DE COMBO INTEGRADO" --menu \
+                "Este backup contém o Combo Completo:\n$combo_name\n\nFerramentas prontas para restaurar:\n• $(echo "${stacks_to_restore[*]}" | sed 's/ / \n• /g')\n\nComo deseja proceder na restauração para '$dest_name'?" 20 78 2 \
+                "1" "RESTAURAR COMBO COMPLETO (Recomendado — restaura todas as ferramentas)" \
+                "2" "SELECIONAR UMA FERRAMENTA INDIVIDUAL DO COMBO" \
+                3>&1 1>&2 2>&3) || return 0
+        fi
 
         if [ "$combo_restore_choice" = "2" ]; then
             local sel_menu=()
@@ -2941,23 +2990,48 @@ EOF
     local all_domains=()
     for st in "${stacks_to_restore[@]}"; do
         local st_yaml="$tmpdir/stacks/${st}.yaml"
+        [ -f "$st_yaml" ] || st_yaml="$tmpdir/stack.yaml"
         [ -f "$st_yaml" ] || continue
         while IFS= read -r d; do
             [ -n "$d" ] || continue
             all_domains+=("$d")
-        done < <(grep -oP 'Host\(`\K[^`]+' "$st_yaml" 2>/dev/null | sort -u || true)
+        done < <(discover_stack_domains "$st_yaml" "$st")
     done
 
-    if [ ${#all_domains[@]} -gt 0 ]; then
-        local dns_choice
-        dns_choice=$(whiptail --title "🌐 COMUTAÇÃO DE DNS E TÚNEL CLOUDFLARE" --menu \
-            "Domínios registrados neste backup:\n• $(echo "${all_domains[*]}" | sed 's/ / \n• /g')\n\nComo deseja tratar os acessos deste servidor que está recebendo a restauração?" 20 78 2 \
-            "1" "RECUPERAÇÃO DE DESASTRE (Produção Definitiva — comutar domínios agora)" \
-            "2" "CÓPIA DE TESTES (NÃO alterar DNS agora — mantém original intacto)" \
-            3>&1 1>&2 2>&3) || return 0
+    # Fallback adicional: varredura no manifest.json por domínios registrados
+    if [ -f "$tmpdir/manifest.json" ]; then
+        while IFS= read -r md; do
+            [ -n "$md" ] && all_domains+=("$md")
+        done < <(jq -r '(.stacks[]?.domains[]? // empty), (.domains[]? // empty)' "$tmpdir/manifest.json" 2>/dev/null | sed 's/|.*//' | tr -d '[:space:]' | grep -v '^$' || true)
+    fi
 
-        if [ "$dns_choice" = "1" ]; then
-            configure_dns=true
+    # Deduplicação e limpeza de all_domains
+    if [ ${#all_domains[@]} -gt 0 ]; then
+        local raw_doms=("${all_domains[@]}")
+        all_domains=()
+        while IFS= read -r ud; do
+            [ -n "$ud" ] && all_domains+=("$ud")
+        done < <(printf '%s\n' "${raw_doms[@]}" | sort -u)
+    fi
+
+    if [ ${#all_domains[@]} -gt 0 ]; then
+        if [ "$is_cli" = "false" ]; then
+            local dns_choice
+            dns_choice=$(whiptail --title "🌐 COMUTAÇÃO DE DNS E TÚNEL CLOUDFLARE" --menu \
+                "Domínios registrados neste backup:\n• $(echo "${all_domains[*]}" | sed 's/ / \n• /g')\n\nComo deseja tratar os acessos deste servidor que está recebendo a restauração?" 20 78 2 \
+                "1" "RECUPERAÇÃO DE DESASTRE (Produção Definitiva — comutar domínios agora)" \
+                "2" "CÓPIA DE TESTES (NÃO alterar DNS agora — mantém original intacto)" \
+                3>&1 1>&2 2>&3) || return 0
+
+            if [ "$dns_choice" = "1" ]; then
+                configure_dns=true
+            fi
+        else
+            if [ "$cli_dns" = "false" ] || [ "$cli_dns" = "--no-dns" ] || [ "$cli_dns" = "0" ]; then
+                configure_dns=false
+            else
+                configure_dns=true
+            fi
         fi
     fi
 
@@ -3003,13 +3077,52 @@ EOF
                 ensure_rabbitmq_ready "$chosen_dest_id" "$dest_ssh_host" >> "$restore_log" 2>&1 || true
             fi
 
-            # Restaurar Volumes Persistentes
+            # Restaurar Volumes Persistentes específicos de $cur_app
             echo -e "XXX\n$((pct_base + (pct_step * 45 / 100)))\n[$r_idx/$total_rest_apps] Restaurando volumes Docker ($cur_app)...\nXXX"
             local vol_files=()
-            while IFS= read -r vf; do
-                [ -f "$vf" ] || continue
-                vol_files+=("$vf")
-            done < <(find "$tmpdir/volumes" "$tmpdir" -maxdepth 1 -name "vol_*.tar.gz" 2>/dev/null | grep -E "${cur_app}|vol_" || true)
+            local app_vols=()
+
+            # 1. Volumes declarados no manifesto para esta stack
+            if [ -f "$tmpdir/manifest.json" ]; then
+                while IFS= read -r mv; do
+                    [ -n "$mv" ] && app_vols+=("$mv")
+                done < <(jq -r --arg a "$cur_app" '.stacks[]? | select(.name == $a) | .volumes[]? // empty' "$tmpdir/manifest.json" 2>/dev/null || true)
+            fi
+
+            # 2. Volumes declarados no YAML da stack
+            if [ -f "$cur_yaml" ]; then
+                while IFS= read -r yv; do
+                    [ -n "$yv" ] && app_vols+=("$yv")
+                done < <(awk '/^volumes:/{flag=1; next} flag && /^[[:space:]]{2}[a-zA-Z0-9_-]+:/{print $1}' "$cur_yaml" 2>/dev/null | tr -d ':' | sort -u || true)
+            fi
+
+            # 3. Localizar os arquivos .tar.gz correspondentes aos volumes identificados
+            if [ ${#app_vols[@]} -gt 0 ]; then
+                for vn in $(printf '%s\n' "${app_vols[@]}" | sort -u); do
+                    for vdir in "$tmpdir/volumes" "$tmpdir"; do
+                        if [ -f "$vdir/vol_${vn}.tar.gz" ]; then
+                            vol_files+=("$vdir/vol_${vn}.tar.gz")
+                            break
+                        fi
+                    done
+                done
+            fi
+
+            # 4. Fallback se nenhum volume foi mapeado explicitamente: busca arquivos contendo o nome da aplicação
+            if [ ${#vol_files[@]} -eq 0 ]; then
+                while IFS= read -r vf; do
+                    [ -f "$vf" ] || continue
+                    vol_files+=("$vf")
+                done < <(find "$tmpdir/volumes" "$tmpdir" -maxdepth 1 -name "vol_*${cur_app}*.tar.gz" 2>/dev/null | sort -u || true)
+            fi
+
+            # 5. Fallback para backup de stack única (se houver apenas 1 stack no backup)
+            if [ ${#vol_files[@]} -eq 0 ] && [ "$total_rest_apps" -eq 1 ]; then
+                while IFS= read -r vf; do
+                    [ -f "$vf" ] || continue
+                    vol_files+=("$vf")
+                done < <(find "$tmpdir/volumes" "$tmpdir" -maxdepth 1 -name "vol_*.tar.gz" 2>/dev/null | sort -u || true)
+            fi
 
             for vf in "${vol_files[@]}"; do
                 local vname
@@ -3047,12 +3160,22 @@ EOF
             # Restaurar Banco de Dados Lógico
             echo -e "XXX\n$((pct_base + (pct_step * 65 / 100)))\n[$r_idx/$total_rest_apps] Restaurando banco de dados ($cur_app)...\nXXX"
             local dump_candidate=""
-            for dmp in "$tmpdir/dumps/${cur_app}"* "$tmpdir/db_logical_dump.sql.gz" "$tmpdir/dumps/"*.sql.gz "$tmpdir/dumps/"*.archive.gz; do
-                if [ -s "$dmp" ]; then
-                    dump_candidate="$dmp"
-                    break
+            if [ -f "$tmpdir/manifest.json" ]; then
+                local mf_dump
+                mf_dump=$(jq -r --arg a "$cur_app" '.stacks[]? | select(.name == $a) | .dbDumpFile // empty' "$tmpdir/manifest.json" 2>/dev/null || true)
+                if [ -n "$mf_dump" ] && [ -s "$tmpdir/$mf_dump" ]; then
+                    dump_candidate="$tmpdir/$mf_dump"
                 fi
-            done
+            fi
+
+            if [ -z "$dump_candidate" ]; then
+                for dmp in "$tmpdir/dumps/${cur_app}"* "$tmpdir/${cur_app}"*.sql.gz "$tmpdir/db_logical_dump.sql.gz" "$tmpdir/dumps/"*.sql.gz; do
+                    if [ -s "$dmp" ]; then
+                        dump_candidate="$dmp"
+                        break
+                    fi
+                done
+            fi
 
             if [ -n "$dump_candidate" ]; then
                 if [[ "$cur_db_engine" == postgres:* ]]; then
@@ -4402,10 +4525,10 @@ show_menu() {
 case "${1:-menu}" in
     inspect) action_inspect_nodes "${2:-}" ;;
     backup) action_backup_app "${2:-}" "${3:-}" ;;
-    restore) action_restore_backup "${2:-}" "${3:-}" ;;
+    restore) action_restore_backup "${2:-}" "${3:-}" "${4:-}" ;;
     transfer) shift; action_transfer_or_clone "transfer" "$@" ;;
     clone) shift; action_transfer_or_clone "clone" "$@" ;;
     --source-only|source-only) return 0 2>/dev/null || exit 0 ;;
     menu) show_menu ;;
-    *) fail "Uso: $0 [inspect [--cli] | backup [app] [--cli] | restore [archive] [target] | transfer [app] [origin] [dest] [--cli] | clone [app] [origin] [dest] [--cli] | menu]" ;;
+    *) fail "Uso: $0 [inspect [--cli] | backup [app] [--cli] | restore [archive] [target] [--update-dns|--no-dns] | transfer [app] [origin] [dest] [--cli] | clone [app] [origin] [dest] [--cli] | menu]" ;;
 esac
