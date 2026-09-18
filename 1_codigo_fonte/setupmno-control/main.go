@@ -971,6 +971,53 @@ func runAgent() error {
 			"role":    cleanRole,
 		})
 	}))
+	mux.HandleFunc("POST /fleet/authorize-ssh-key", authorize(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Key string `json:"key"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 8<<10)).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "JSON inválido")
+			return
+		}
+		key := strings.TrimSpace(req.Key)
+		validKey := (strings.HasPrefix(key, "ssh-rsa ") ||
+			strings.HasPrefix(key, "ssh-ed25519 ") ||
+			strings.HasPrefix(key, "ecdsa-sha2-")) &&
+			!strings.ContainsAny(key, "\r\n") &&
+			len(key) < 4096
+		if !validKey {
+			writeError(w, http.StatusBadRequest, "chave SSH pública inválida")
+			return
+		}
+		if err := appendAuthorizedSSHKey(key); err != nil {
+			writeError(w, http.StatusInternalServerError, "falha ao gravar chave: "+err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"success": true, "output": "ssh_key_authorized"})
+	}))
+	mux.HandleFunc("GET /fleet/public-ssh-key", authorize(func(w http.ResponseWriter, _ *http.Request) {
+		candidates := []string{
+			"/root/.ssh/id_ed25519.pub",
+			"/root/.ssh/id_rsa.pub",
+			"/runtime-control/master_ssh.pub",
+			"/root/SetupLowCodeMno/.control/master_ssh.pub",
+		}
+		var pubKey string
+		for _, p := range candidates {
+			if data, err := os.ReadFile(p); err == nil {
+				s := strings.TrimSpace(string(data))
+				if s != "" {
+					pubKey = s
+					break
+				}
+			}
+		}
+		if pubKey == "" {
+			writeError(w, http.StatusNotFound, "chave SSH pública não encontrada no host")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"success": true, "key": pubKey})
+	}))
 	mux.HandleFunc("GET /fleet/structure", authorize(func(w http.ResponseWriter, _ *http.Request) {
 		environment, _ := readRuntimeEnvironment(setupStateDir)
 		overviewData, _ := collectOverview(dockerClient)

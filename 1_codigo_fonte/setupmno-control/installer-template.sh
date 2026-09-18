@@ -142,8 +142,8 @@ write_control_mfa_state() {
 show_cloudflare_access_guide() {
     local team_hint="${access_team_name:-SEU-TIME}"
     whiptail --title "GUIA RÁPIDO — CLOUDFLARE ACCESS" --msgbox \
-        "O MFA é opcional; o modo original permanece compatível com versões antigas.\n\nATIVAÇÃO AUTOMÁTICA\n1. O Setup valida as 7 permissões do token.\n2. Habilita TOTP, login por código, App Launcher, política do e-mail e identidade visual.\n3. Cria a proteção Access com cookie Lax.\n4. Você abre https://${team_hint}.cloudflareaccess.com/AddMfaDevice e lê o QR Code em Authenticator application.\n\nPERMISSÕES DO TOKEN\n• Configurações da conta > Editar\n• Cloudflare Tunnel > Editar\n• DNS > Editar\n• Access: Apps and Policies > Editar\n• Access: Organizations, Identity Providers, and Groups > Editar\n• Access: Organizations, Identity Providers, and Groups > Revogar\n• Access: Audit Logs > Ler\n\nO assistente permite validar o token atual ou substituir o token armazenado sem alterar Account ID, Zone ID ou Tunnel." \
-        24 94 1>&2
+        "O MFA é opcional; o modo original permanece compatível.\n\nATIVAÇÃO AUTOMÁTICA\n1. O Setup valida as 7 permissões do token.\n2. Habilita TOTP, login por código e política do e-mail.\n3. Cria a proteção Access com cookie Lax.\n4. Abra https://${team_hint}.cloudflareaccess.com/AddMfaDevice e leia o QR Code.\n\nPermissões: Configurações, Tunnel, DNS, Access (Apps, Orgs, Logs).\n\nO assistente permite validar o token sem alterar Tunnel ou IDs." \
+        20 90 1>&2
 }
 
 choose_cloudflare_access_security() {
@@ -1955,6 +1955,12 @@ secrets:
     external: true
 EOL
 
+    mkdir -p -m 700 /root/.ssh 2>/dev/null || true
+    touch /root/.ssh/authorized_keys 2>/dev/null && chmod 600 /root/.ssh/authorized_keys 2>/dev/null || true
+    for _k in /root/.ssh/id_ed25519.pub /root/.ssh/id_rsa.pub; do
+        [ -s "$_k" ] && install -m 0644 "$_k" /root/SetupLowCodeMno/.control/master_ssh.pub 2>/dev/null && break
+    done
+
     cat >"${agent_stack}.yaml" <<EOL
 
 version: "3.7"
@@ -1979,6 +1985,7 @@ services:
       - /proc:/host/proc:ro
       - /root/SetupLowCodeMno/.control:/runtime-control:ro
       - /root/setupmno-homologation-candidates:/homologation-candidates:ro
+      - /root/.ssh:/root/.ssh:rw
     secrets:
       - $agent_secret
     healthcheck:

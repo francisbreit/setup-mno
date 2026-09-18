@@ -60,6 +60,13 @@ ensure_ssh_keys_available() {
                 break
             fi
         done
+        # Se ainda não existir chave, gerar nova chave Ed25519 automaticamente
+        if [ ! -f /root/.ssh/id_rsa ] && [ ! -f /root/.ssh/id_ed25519 ]; then
+            ssh-keygen -t ed25519 -N "" -f /root/.ssh/id_ed25519 -C "setupmno-fleet" >/dev/null 2>&1 || \
+            ssh-keygen -t rsa -b 4096 -N "" -f /root/.ssh/id_rsa -C "setupmno-fleet" >/dev/null 2>&1 || true
+            chmod 600 /root/.ssh/id_ed25519 2>/dev/null || true
+            chmod 600 /root/.ssh/id_rsa 2>/dev/null || true
+        fi
     fi
 }
 
@@ -331,44 +338,54 @@ resolve_worker_ssh_host() {
 
     ensure_ssh_keys_available
 
-    # Limpar qualquer chave antiga ou alterada do host para evitar aviso de host key change
+    # 1. Enviar proativamente a chave SSH pública da Central para o Worker via Fleet API
+    if [ -n "$ep" ] && [ -n "$tok" ]; then
+        local pub_key=""
+        [ -f /root/.ssh/id_ed25519.pub ] && pub_key=$(cat /root/.ssh/id_ed25519.pub 2>/dev/null || true)
+        [ -z "$pub_key" ] && [ -f /root/.ssh/id_rsa.pub ] && pub_key=$(cat /root/.ssh/id_rsa.pub 2>/dev/null || true)
+        [ -z "$pub_key" ] && [ -f "$CONTROL_DIR/master_ssh.pub" ] && pub_key=$(cat "$CONTROL_DIR/master_ssh.pub" 2>/dev/null || true)
+        if [ -n "$pub_key" ]; then
+            curl -s -k --connect-timeout 4 -m 8 -X POST \
+                -H "X-SetupMNO-Fleet-Token: $tok" \
+                -H "Content-Type: application/json" \
+                -d "{\"action\":\"authorize_ssh_key\",\"payload\":{\"key\":\"$pub_key\"}}" \
+                "${ep}/api/fleet/worker/action" >/dev/null 2>&1 || true
+            sleep 0.5
+        fi
+    fi
+
+    # 2. Limpar qualquer chave antiga ou alterada do host para evitar aviso de host key change
     ssh-keygen -f /root/.ssh/known_hosts -R "$_r_host" >/dev/null 2>&1 || true
 
-    # Testar conectividade SSH com timeout estrito de 4s (evita qualquer travamento)
-    if ! timeout 4 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes -o ConnectTimeout=3 -o ServerAliveInterval=2 -o ServerAliveCountMax=1 "root@$_r_host" "echo ok" >/dev/null 2>&1; then
-        # Tenta autorizar automaticamente a chave SSH pública via Fleet API Zero-Trust antes de solicitar senha
-        if [ -n "$ep" ] && [ -n "$tok" ]; then
-            local pub_key=""
-            [ -f /root/.ssh/id_rsa.pub ] && pub_key=$(cat /root/.ssh/id_rsa.pub 2>/dev/null || true)
-            [ -z "$pub_key" ] && [ -f /root/.ssh/id_ed25519.pub ] && pub_key=$(cat /root/.ssh/id_ed25519.pub 2>/dev/null || true)
-            if [ -n "$pub_key" ]; then
-                curl -s -k --connect-timeout 4 -m 8 -X POST \
-                    -H "X-SetupMNO-Fleet-Token: $tok" \
-                    -H "Content-Type: application/json" \
-                    -d "{\"action\":\"authorize_ssh_key\",\"payload\":{\"key\":\"$pub_key\"}}" \
-                    "${ep}/api/fleet/worker/action" >/dev/null 2>&1 || true
-            fi
+    # 3. Testar conectividade SSH com retry automático antes de qualquer prompt manual
+    local ssh_ok=false
+    if timeout 4 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes -o ConnectTimeout=3 -o ServerAliveInterval=2 -o ServerAliveCountMax=1 "root@$_r_host" "echo ok" >/dev/null 2>&1; then
+        ssh_ok=true
+    else
+        sleep 1
+        if timeout 4 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes -o ConnectTimeout=3 -o ServerAliveInterval=2 -o ServerAliveCountMax=1 "root@$_r_host" "echo ok" >/dev/null 2>&1; then
+            ssh_ok=true
         fi
+    fi
 
-        # Se após a autorização automática ainda não conectar, solicita a senha do root no Whiptail
-        if ! timeout 4 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes -o ConnectTimeout=3 -o ServerAliveInterval=2 -o ServerAliveCountMax=1 "root@$_r_host" "echo ok" >/dev/null 2>&1; then
-            if [ "${is_cli:-false}" = "true" ] || [ ! -t 0 ]; then
-                echo "ERRO SSH: Chave SSH pública não autorizada no servidor '$_r_node_name' ($_r_host)." >&2
-                return 1
+    # 4. Caso extremo de contingência se o nó não tiver Fleet API acessível
+    if [ "$ssh_ok" != "true" ]; then
+        if [ "${is_cli:-false}" = "true" ] || [ ! -t 0 ]; then
+            echo "ERRO SSH: Chave SSH pública não autorizada no servidor '$_r_node_name' ($_r_host)." >&2
+            return 1
+        fi
+        local vps_pwd
+        vps_pwd=$(whiptail --title "AUTENTICAÇÃO SSH NECESSÁRIA" --passwordbox \
+            "A chave SSH ainda não está autorizada no nó '$_r_node_name' ($_r_host).\n\nInforme a senha de root da VPS para estabelecer a conexão segura:" 12 74 3>&1 1>&2 2>&3) || return 1
+        
+        if [ -n "$vps_pwd" ]; then
+            if ! command -v sshpass >/dev/null 2>&1; then
+                export DEBIAN_FRONTEND=noninteractive
+                apt-get update -qq >/dev/null 2>&1 || true
+                apt-get install -y -qq sshpass >/dev/null 2>&1 || true
             fi
-            local vps_pwd
-            vps_pwd=$(whiptail --title "AUTENTICAÇÃO SSH NECESSÁRIA" --passwordbox \
-                "A chave SSH ainda não está autorizada no nó '$_r_node_name' ($_r_host).\n\nInforme a senha de root da VPS para estabelecer a conexão segura:" 12 74 3>&1 1>&2 2>&3) || return 1
-            
-            if [ -n "$vps_pwd" ]; then
-                if ! command -v sshpass >/dev/null 2>&1; then
-                    export DEBIAN_FRONTEND=noninteractive
-                    apt-get update -qq >/dev/null 2>&1 || true
-                    apt-get install -y -qq sshpass >/dev/null 2>&1 || true
-                fi
-                if command -v sshpass >/dev/null 2>&1; then
-                    timeout 12 sshpass -p "$vps_pwd" ssh-copy-id -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR "root@$_r_host" >/dev/null 2>&1 || true
-                fi
+            if command -v sshpass >/dev/null 2>&1; then
+                timeout 12 sshpass -p "$vps_pwd" ssh-copy-id -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR "root@$_r_host" >/dev/null 2>&1 || true
             fi
         fi
     fi

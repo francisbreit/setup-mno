@@ -310,12 +310,16 @@ func (a *webApp) handleFleetAddNode(w http.ResponseWriter, r *http.Request) {
 
 	// Autoriza automaticamente a chave SSH pública do Master no Worker em background
 	go func(targetEndpoint, targetToken string) {
-		pubKeyBytes, err := os.ReadFile("/root/.ssh/id_rsa.pub")
-		if err != nil {
-			pubKeyBytes, _ = os.ReadFile("/root/.ssh/id_ed25519.pub")
+		var keyResp struct {
+			Success bool   `json:"success"`
+			Key     string `json:"key"`
 		}
-		if len(pubKeyBytes) > 0 {
-			keyStr := strings.TrimSpace(string(pubKeyBytes))
+		_ = a.agentRequest(context.Background(), "/fleet/public-ssh-key", &keyResp)
+		keyStr := strings.TrimSpace(keyResp.Key)
+		if keyStr == "" {
+			keyStr = getHostSSHPublicKey()
+		}
+		if keyStr != "" {
 			payloadMap := map[string]any{
 				"action": "authorize_ssh_key",
 				"payload": map[string]any{
@@ -327,7 +331,7 @@ func (a *webApp) handleFleetAddNode(w http.ResponseWriter, r *http.Request) {
 			if req != nil {
 				req.Header.Set("X-SetupMNO-Fleet-Token", targetToken)
 				req.Header.Set("Content-Type", "application/json")
-				client := &http.Client{Timeout: 5 * time.Second}
+				client := &http.Client{Timeout: 8 * time.Second}
 				resp, err := client.Do(req)
 				if err == nil && resp != nil {
 					_ = resp.Body.Close()
@@ -739,6 +743,15 @@ func (a *webApp) handleFleetWorkerAction(w http.ResponseWriter, r *http.Request)
 			!strings.ContainsAny(key, "\r\n") &&
 			len(key) < 4096
 		if validKey {
+			var agentResp map[string]any
+			if err := a.agentPost(ctx, "/fleet/authorize-ssh-key", map[string]string{"key": key}, &agentResp); err == nil {
+				writeJSON(w, http.StatusOK, FleetActionResponse{
+					ActionID: req.ActionID,
+					Success:  true,
+					Output:   "ssh_key_authorized",
+				})
+				return
+			}
 			_ = appendAuthorizedSSHKey(key)
 			writeJSON(w, http.StatusOK, FleetActionResponse{
 				ActionID: req.ActionID,
@@ -772,6 +785,24 @@ func (a *webApp) handleFleetWorkerIP(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func getHostSSHPublicKey() string {
+	candidates := []string{
+		"/root/.ssh/id_ed25519.pub",
+		"/root/.ssh/id_rsa.pub",
+		"/runtime-control/master_ssh.pub",
+		"/root/SetupLowCodeMno/.control/master_ssh.pub",
+	}
+	for _, p := range candidates {
+		if data, err := os.ReadFile(p); err == nil {
+			s := strings.TrimSpace(string(data))
+			if s != "" {
+				return s
+			}
+		}
+	}
+	return ""
+}
+
 func appendAuthorizedSSHKey(key string) error {
 	key = strings.TrimSpace(key)
 	if key == "" {
@@ -781,9 +812,11 @@ func appendAuthorizedSSHKey(key string) error {
 	if err := os.MkdirAll(sshDir, 0700); err != nil {
 		return err
 	}
+	_ = os.Chmod(sshDir, 0700)
 	authFile := filepath.Join(sshDir, "authorized_keys")
 	existing, _ := os.ReadFile(authFile)
 	if strings.Contains(string(existing), key) {
+		_ = os.Chmod(authFile, 0600)
 		return nil
 	}
 	f, err := os.OpenFile(authFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
@@ -792,6 +825,7 @@ func appendAuthorizedSSHKey(key string) error {
 	}
 	defer f.Close()
 	_, err = f.WriteString(key + "\n")
+	_ = os.Chmod(authFile, 0600)
 	return err
 }
 
