@@ -475,33 +475,65 @@ detect_database_engine() {
         return 0
     fi
 
-    if grep -qE "POSTGRES_DB|DB_POSTGRESDB_DATABASE|POSTGRES_HOST=postgres|postgres:5432" "$yaml_file"; then
-        local pg_db
-        pg_db=$(grep -E "POSTGRES_DB=|DB_POSTGRESDB_DATABASE=" "$yaml_file" 2>/dev/null | head -n1 | cut -d= -f2 | tr -d ' "\r' || true)
-        [ -n "$pg_db" ] || pg_db="$app"
-        printf "postgres:%s\n" "$pg_db"
-        return 0
+    local active_yaml
+    if [ -f "$yaml_file" ]; then
+        active_yaml=$(grep -v '^[[:space:]]*#' "$yaml_file" 2>/dev/null || true)
+    else
+        active_yaml=$(printf '%s\n' "$yaml_file" | grep -v '^[[:space:]]*#' || true)
     fi
 
-    if grep -qE "MAUTIC_DB_HOST=mysql84|MYSQL_HOST=mysql84|mysql84:3306" "$yaml_file"; then
+    # 1. PostgreSQL (Detecção via Connection URI, variáveis explícitas ou host padrão)
+    if grep -qE "postgres|POSTGRES|5432|6432" <<< "$active_yaml"; then
+        local pg_db=""
+        # Prioridade 1: Connection URI explícita da aplicação (ex: Evolution API, Directus, Rails, etc.)
+        local uri_line
+        uri_line=$(grep -E "^[[:space:]]*-?[[:space:]]*(DATABASE_CONNECTION_URI|DATABASE_URL|PG_DATABASE_URL|LANGFLOW_DATABASE_URL)=" <<< "$active_yaml" | head -n1 || true)
+        if [ -n "$uri_line" ]; then
+            local raw_db
+            raw_db=$(echo "$uri_line" | sed -E 's/.*:[0-9]+\/([^?[:space:]"'\''`]+).*/\1/' | cut -d? -f1 | tr -d ' "\r'\''`')
+            if [ -n "$raw_db" ] && [ "$raw_db" != "$uri_line" ] && [[ "$raw_db" =~ ^[a-zA-Z0-9_.-]+$ ]]; then
+                pg_db="$raw_db"
+            fi
+        fi
+
+        # Prioridade 2: Variáveis dedicadas de nome de database
+        if [ -z "$pg_db" ]; then
+            pg_db=$(grep -E "^[[:space:]]*-?[[:space:]]*(POSTGRES_DATABASE|POSTGRES_DB|DB_POSTGRESDB_DATABASE|AP_POSTGRES_DATABASE|POSTGRESQL_DATABASE)=" <<< "$active_yaml" 2>/dev/null | head -n1 | cut -d= -f2- | tr -d ' "\r'\''`' || true)
+        fi
+
+        # Prioridade 3: Fallback heurístico para nome da stack se conecta ao postgres
+        if [ -z "$pg_db" ] && grep -qE "POSTGRES_HOST|postgres:5432|postgres:6432" <<< "$active_yaml"; then
+            pg_db="$app"
+        fi
+
+        if [ -n "$pg_db" ]; then
+            printf "postgres:%s\n" "$pg_db"
+            return 0
+        fi
+    fi
+
+    # 2. MySQL 8.4
+    if grep -qE "MAUTIC_DB_HOST=mysql84|MYSQL_HOST=mysql84|mysql84:3306" <<< "$active_yaml"; then
         local my_db
-        my_db=$(grep -E "MAUTIC_DB_NAME=|MYSQL_DATABASE=" "$yaml_file" 2>/dev/null | head -n1 | cut -d= -f2 | tr -d ' "\r' || true)
+        my_db=$(grep -E "^[[:space:]]*-?[[:space:]]*(MAUTIC_DB_NAME|MYSQL_DATABASE)=" <<< "$active_yaml" 2>/dev/null | head -n1 | cut -d= -f2- | tr -d ' "\r'\''`' || true)
         [ -n "$my_db" ] || my_db="$app"
         printf "mysql84:%s\n" "$my_db"
         return 0
     fi
 
-    if grep -qE "WORDPRESS_DB_HOST=mysql|MAUTIC_DB_HOST=mysql|HUMHUB_DB_HOST=mysql|BOOKSTACK_DB_HOST=mysql|DB_HOST=mysql|MYSQL_HOST=mysql|mysql:3306|WORDPRESS_DB_NAME" "$yaml_file"; then
+    # 3. MySQL 8.0 (Legacy / Shared)
+    if grep -qE "WORDPRESS_DB_HOST=mysql|MAUTIC_DB_HOST=mysql|HUMHUB_DB_HOST=mysql|BOOKSTACK_DB_HOST=mysql|DB_HOST=mysql|MYSQL_HOST=mysql|mysql:3306|WORDPRESS_DB_NAME" <<< "$active_yaml"; then
         local my_db
-        my_db=$(grep -E "WORDPRESS_DB_NAME=|MAUTIC_DB_NAME=|HUMHUB_DB_NAME=|BOOKSTACK_DB_DATABASE=|DB_NAME=|DB_DATABASE=|MYSQL_DATABASE=" "$yaml_file" 2>/dev/null | head -n1 | cut -d= -f2 | tr -d ' "\r' || true)
+        my_db=$(grep -E "^[[:space:]]*-?[[:space:]]*(WORDPRESS_DB_NAME|MAUTIC_DB_NAME|HUMHUB_DB_NAME|BOOKSTACK_DB_DATABASE|DB_NAME|DB_DATABASE|MYSQL_DATABASE)=" <<< "$active_yaml" 2>/dev/null | head -n1 | cut -d= -f2- | tr -d ' "\r'\''`' || true)
         [ -n "$my_db" ] || my_db="$app"
         printf "mysql:%s\n" "$my_db"
         return 0
     fi
 
-    if grep -qE "MONGO_URL|MONGODB_URL|mongodb://|mongo:27017" "$yaml_file"; then
+    # 4. MongoDB
+    if grep -qE "MONGO_URL|MONGODB_URL|mongodb://|mongo:27017" <<< "$active_yaml"; then
         local mg_db
-        mg_db=$(grep -E "MONGO_URL=|MONGODB_URL=" "$yaml_file" 2>/dev/null | head -n1 | sed -E 's/.*\/(.*)\?.*/\1/' | sed -E 's/.*\/([a-zA-Z0-9_-]+)$/\1/' | tr -d ' "\r' || true)
+        mg_db=$(grep -E "MONGO_URL=|MONGODB_URL=" <<< "$active_yaml" 2>/dev/null | head -n1 | sed -E 's/.*\/(.*)\?.*/\1/' | sed -E 's/.*\/([a-zA-Z0-9_-]+)$/\1/' | tr -d ' "\r' || true)
         [ -n "$mg_db" ] || mg_db="$app"
         printf "mongodb:%s\n" "$mg_db"
         return 0
@@ -521,9 +553,16 @@ detect_s3_storage_engine() {
         return 0
     fi
 
-    if grep -qE "S3_BUCKET|S3_BUCKET_NAME|AWS_BUCKET|AWS_S3_BUCKET|MINIO_PUBLIC_URL|MINIO_SERVER_URL" "$yaml_file"; then
+    local active_yaml
+    if [ -f "$yaml_file" ]; then
+        active_yaml=$(grep -v '^[[:space:]]*#' "$yaml_file" 2>/dev/null || true)
+    else
+        active_yaml=$(printf '%s\n' "$yaml_file" | grep -v '^[[:space:]]*#' || true)
+    fi
+
+    if grep -qE "S3_BUCKET|S3_BUCKET_NAME|AWS_BUCKET|AWS_S3_BUCKET|STORAGE_BUCKET_NAME|MINIO_PUBLIC_URL|MINIO_SERVER_URL" <<< "$active_yaml"; then
         local b_name
-        b_name=$(grep -E "S3_BUCKET=|S3_BUCKET_NAME=|AWS_BUCKET=" "$yaml_file" 2>/dev/null | head -n1 | cut -d= -f2 | tr -d ' "\r' || true)
+        b_name=$(grep -E "^[[:space:]]*-?[[:space:]]*(S3_BUCKET|S3_BUCKET_NAME|AWS_BUCKET|AWS_S3_BUCKET|STORAGE_BUCKET_NAME)=" <<< "$active_yaml" 2>/dev/null | head -n1 | cut -d= -f2- | tr -d ' "\r'\''`' || true)
         [ -n "$b_name" ] || b_name="$app"
         printf "minio:%s\n" "$b_name"
         return 0
@@ -542,9 +581,16 @@ detect_rabbitmq_engine() {
         return 0
     fi
 
-    if grep -qE "RABBITMQ_URI|RABBITMQ_URL|RABBITMQ_DEFAULT_USER|amqp://" "$yaml_file"; then
+    local active_yaml
+    if [ -f "$yaml_file" ]; then
+        active_yaml=$(grep -v '^[[:space:]]*#' "$yaml_file" 2>/dev/null || true)
+    else
+        active_yaml=$(printf '%s\n' "$yaml_file" | grep -v '^[[:space:]]*#' || true)
+    fi
+
+    if grep -qE "RABBITMQ_URI|RABBITMQ_URL|RABBITMQ_DEFAULT_USER|amqp://" <<< "$active_yaml"; then
         local mq_vhost
-        mq_vhost=$(grep -oP '(?<=amqp://)[^:]+' "$yaml_file" 2>/dev/null | head -n1 || true)
+        mq_vhost=$(grep -oP '(?<=amqp://)[^:]+' <<< "$active_yaml" 2>/dev/null | head -n1 || true)
         [ -n "$mq_vhost" ] || mq_vhost="$app"
         printf "rabbitmq:%s\n" "$mq_vhost"
         return 0
@@ -2852,8 +2898,10 @@ EOF
                         dest_pg_pwd=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" 'dc=$(docker ps -qf name=postgres | head -n1); docker inspect "$dc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep POSTGRES_PASSWORD | cut -d= -f2- || grep -oP "(?<=POSTGRES_PASSWORD=).+" /root/postgres.yaml 2>/dev/null || echo ""')
                     fi
                     if [ -n "$dest_pg_pwd" ]; then
-                        sed -i -E "s/(POSTGRES_PASSWORD|DB_POSTGRESDB_PASSWORD|DB_PASSWORD|DB_PASS|DATABASE_PASSWORD|AP_POSTGRES_PASSWORD|KC_DB_PASSWORD|MB_DB_PASS|PAPERLESS_DBPASS|PENPOT_DATABASE_PASSWORD|TOOLJET_DB_PASS|VIKUNJA_DATABASE_PASSWORD|SAFE_DB_PASS)=[^[:space:]]+/\1=$dest_pg_pwd/g" "$cur_yaml"
-                        sed -i -E "s|(postgres(?:ql)?://[^:]+:)[^@]+(@postgres(?:ql)?:5432/[^[:space:]\"']+)|\\1${dest_pg_pwd}\\2|g" "$cur_yaml"
+                        local safe_dest_pg_pwd
+                        safe_dest_pg_pwd=$(printf '%s\n' "$dest_pg_pwd" | sed -e 's/[\/&|]/\\&/g')
+                        sed -i -E "s/(POSTGRES_PASSWORD|DB_POSTGRESDB_PASSWORD|DB_PASSWORD|DB_PASS|DATABASE_PASSWORD|AP_POSTGRES_PASSWORD|KC_DB_PASSWORD|MB_DB_PASS|PAPERLESS_DBPASS|PENPOT_DATABASE_PASSWORD|TOOLJET_DB_PASS|VIKUNJA_DATABASE_PASSWORD|SAFE_DB_PASS)=[^[:space:]]+/\1=$safe_dest_pg_pwd/g" "$cur_yaml"
+                        sed -i -E "s|(postgres(ql)?://[^:]+:)[^@]+(@postgres(ql)?:[0-9]+/[^[:space:]\"']+)|\\1${safe_dest_pg_pwd}\\3|g" "$cur_yaml"
                     fi
                 elif [[ "$cur_db_engine" == mysql84:* ]]; then
                     local my_db="${cur_db_engine#mysql84:}"
@@ -3786,8 +3834,10 @@ action_transfer_or_clone() {
                 fi
 
                 if [ -n "$dest_pg_pwd" ]; then
-                    sed -i -E "s/(POSTGRES_PASSWORD|DB_POSTGRESDB_PASSWORD|DB_PASSWORD|DB_PASS|DATABASE_PASSWORD|AP_POSTGRES_PASSWORD|KC_DB_PASSWORD|MB_DB_PASS|PAPERLESS_DBPASS|PENPOT_DATABASE_PASSWORD|TOOLJET_DB_PASS|VIKUNJA_DATABASE_PASSWORD|SAFE_DB_PASS)=[^[:space:]]+/\1=$dest_pg_pwd/g" "$app_workdir/stack.yaml"
-                    sed -i -E "s|(postgres(?:ql)?://[^:]+:)[^@]+(@postgres(?:ql)?:5432/[^[:space:]\"']+)|\\1${dest_pg_pwd}\\2|g" "$app_workdir/stack.yaml"
+                    local safe_dest_pg_pwd
+                    safe_dest_pg_pwd=$(printf '%s\n' "$dest_pg_pwd" | sed -e 's/[\/&|]/\\&/g')
+                    sed -i -E "s/(POSTGRES_PASSWORD|DB_POSTGRESDB_PASSWORD|DB_PASSWORD|DB_PASS|DATABASE_PASSWORD|AP_POSTGRES_PASSWORD|KC_DB_PASSWORD|MB_DB_PASS|PAPERLESS_DBPASS|PENPOT_DATABASE_PASSWORD|TOOLJET_DB_PASS|VIKUNJA_DATABASE_PASSWORD|SAFE_DB_PASS)=[^[:space:]]+/\1=$safe_dest_pg_pwd/g" "$app_workdir/stack.yaml"
+                    sed -i -E "s|(postgres(ql)?://[^:]+:)[^@]+(@postgres(ql)?:[0-9]+/[^[:space:]\"']+)|\\1${safe_dest_pg_pwd}\\3|g" "$app_workdir/stack.yaml"
                 fi
             elif [[ "$cur_db_engine" == mysql84:* ]] && [ -f "$app_workdir/db_logical_dump.sql.gz" ]; then
                 local my_dbname="${cur_db_engine#mysql84:}"

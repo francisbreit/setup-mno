@@ -272,9 +272,10 @@ Ative este modo quando o usuário disser **“Modo Clone, Transferência e Backu
 Antes de homologar qualquer setup, valide os seguintes pilares:
 1. **Banco de Dados & Reconciliação Dinâmica de Credenciais:**
    - Qual é o motor do banco? (PostgreSQL, MySQL 8.0, MySQL 8.4, MongoDB, SQLite ou Volume Puro).
-   - Quais variáveis de ambiente carregam as senhas e strings de conexão? (ex: `POSTGRES_PASSWORD`, `DB_PASSWORD`, `DATABASE_URL`, `WORDPRESS_DB_PASSWORD`, etc.).
-   - A rotina de dump lógico consistente (`pg_dump`, `mysqldump`, `mongodump`) captura todas as tabelas com integridade?
-   - Ao restaurar no destino, a substituição da senha no YAML e em arquivos de configuração (`local.php`, `wp-config.php`) é 100% dinâmica para não quebrar com a senha local do destino?
+   - **Extração Segura do Nome do Banco Real:** Aplicações modernas conectam frequentemente via Connection URIs (ex: `DATABASE_CONNECTION_URI`, `DATABASE_URL`, `PG_DATABASE_URL`, `LANGFLOW_DATABASE_URL`), onde o nome do banco de dados na URL pode divergir do nome da stack (ex: banco `evolution` em stack `evolution266f9768`). O extrator do Fleet Hub (`detect_database_engine`) DEVE extrair cirurgicamente o nome do banco diretamente da URI ativa (`:[0-9]+/<dbname>`), ignorando comentários (`#`) e parâmetros de query (`?`), sem recorrer a fallbacks cegos pelo nome da stack.
+   - **Sintaxe Estrita POSIX ERE nos Comandos Sed:** Comandos `sed -i -E` executados para reconciliação de senhas NUNCA devem conter grupos não-capturantes de estilo PCRE (`(?:...)`). Devem usar grupos ERE POSIX válidos (ex: `(postgres(ql)?://[^:]+:)...\\3`). O uso de `(?:...)` estoura erro fatal (`Invalid preceding regular expression`) no Linux e aborta a migração.
+   - **Escaping de Senhas:** Ao interpolar senhas dinâmicas no sed, sempre escapar delimitadores e caracteres especiais (`[\/&|]`) para evitar substituição corrompida.
+   - A rotina de dump lógico consistente (`pg_dump`, `mysqldump`, `mongodump`) captura todas as tabelas com integridade e restaura de forma idempotente (`--clean --if-exists`).
 2. **Escopo e Nomenclatura de Volumes Docker:**
    - A aplicação usa volumes nomeados gerenciados pelo Docker Swarm?
    - Os volumes usam nomes padrão da stack (`${nome_app}_data`) ou nomes genéricos (`data:`)? Se genéricos, o Swarm adiciona o prefixo `${stack}_`?
@@ -292,10 +293,12 @@ Antes de homologar qualquer setup, valide os seguintes pilares:
    - Foi injetado o gravador de manifesto `mno-manifest-writer.sh`?
 6. **Política de Armazenamento S3 (MinIO):**
    - Se a aplicação utiliza MinIO, a política de migração (`keep_origin` vs `clone_minio`) garante que mídias e URLs gravadas no banco não fiquem quebradas?
+   - **Filtro Anti-Comentários e Chaves Universais:** O detector de storage (`detect_s3_storage_engine`) deve descartar linhas comentadas com `#` para não capturar exemplos inativos (ex: `# - S3_BUCKET=bucket_name`) e cobrir todas as variantes do catálogo (incluindo `STORAGE_BUCKET_NAME` do Chatwoot, `S3_BUCKET`, `S3_BUCKET_NAME`, `AWS_BUCKET`).
    - O bucket S3 e as credenciais são mantidos íntegros?
 7. **Filas e Redis Dedicado:**
    - Se a aplicação utiliza Redis para filas ou cache persistente, ela utiliza Redis dedicado ou compartilhado?
    - A função `detect_dedicated_redis_stack` localiza a stack correspondente para migrar as filas sem perda de estado?
+   - A mensageria RabbitMQ deve ter seu vhost/usuário extraído de linhas ativas sem captura de comentários.
 8. **Paridade Arquitetural x86-64 / ARM64 e Imagens Customizadas:**
    - As imagens Docker são públicas (Docker Hub/GHCR) ou locais customizadas (`francisbreit/...`)?
    - Se locais, a função `ensure_stack_images_on_dest` é acionada para transferir a imagem via SSH stream sem falha de pull?
