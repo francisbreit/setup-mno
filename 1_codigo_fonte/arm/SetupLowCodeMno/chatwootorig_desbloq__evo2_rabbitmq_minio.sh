@@ -286,13 +286,11 @@ sufixo_traefik="_sslheader"
 nome_app_chatwoot_sslheader=$nome_app_chatwoot$sufixo_traefik
 nome_redis1="-redis"
 nome_cwt_redis=$nome_app_chatwoot$nome_redis1
+encryption_key=$(openssl rand -hex 64)
 postgres_password=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml)
 
-
-
-
 container_id=$(docker ps -qf name=postgres)
-docker exec -it $container_id psql -U postgres -d postgres -c "CREATE  DATABASE $nome_app_chatwoot;" 
+[ -n "$container_id" ] && docker exec -i $container_id psql -U postgres -d postgres -c "CREATE  DATABASE $nome_app_chatwoot;" >/dev/null 2>&1 || true 
 
 #  CHATWOOTORIG variaveis - fim
 
@@ -701,9 +699,11 @@ EOL
     sleep 2
 fi
 
-configurar_dns_e_tunnel "$painelrabbitmq" "http://${nome_app_rabbitmq}:15672" "RABBITMQ"
-configurar_dns_e_tunnel "$dominio_chatwoot" "http://${nome_app_chatwoot}:3000" "CHATWOOT"
-configurar_dns_e_tunnel "$dominio_evolution" "http://${nome_app_evolution}:8080" "EVOLUTION"
+if [[ "$rabbitmq_container" == "" ]]; then
+    configurar_dns_e_tunnel "$painelrabbitmq" "http://${nome_app_rabbitmq}:15672" "RABBITMQ"
+fi
+configurar_dns_e_tunnel "$dominiochat" "http://${nome_app_chatwoot}-app:3000" "CHATWOOT"
+configurar_dns_e_tunnel "$dominio" "http://${nome_app_evolution}:8080" "EVOLUTION"
 
 echo -e "XXX\n44\nCRIANDO STACKS 1/4 \nXXX"
 sleep 2
@@ -1448,7 +1448,7 @@ echo -e "XXX\n99\nFINALIZANDO: ISSO PODE DEMORAR ALGUNS MINUTOS  \nXXX"
 
 max_wait_time=800  #ajuste do tempo mximo de espera
 
-wait_interval=60
+wait_interval=10
 
 elapsed_time=0
 
@@ -1458,7 +1458,7 @@ while [ $elapsed_time -lt $max_wait_time ]; do
 		break
 	fi
 	sleep $wait_interval
-	elapsed_time=$((elaapsed_time + wait_interval))
+	elapsed_time=$((elapsed_time + wait_interval))
 done
 
 if [ -z "$CONTAINER_ID" ]; then
@@ -1554,7 +1554,7 @@ else
         [[ "$dns_ip2" != "$ip_servidor" ]] && status=1
     fi
 
-    dns_ip3=$(timeout 10 nslookuptimeout 10 nslookup "$painelrabbitmq" 2>/dev/null | grep "Address" | tail -n1 | awk '{print $2}')
+    dns_ip3=$(timeout 10 nslookup "$painelrabbitmq" 2>/dev/null | grep "Address" | tail -n1 | awk '{print $2}')
     dns_ip4=$(timeout 10 nslookup "$dominiochat" 2>/dev/null | grep "Address" | tail -n1 | awk '{print $2}')
     dns_ip5=$(timeout 10 nslookup "$dominio" 2>/dev/null | grep "Address" | tail -n1 | awk '{print $2}')
     [[ "$dns_ip3" != "$ip_servidor" ]] && status=1
