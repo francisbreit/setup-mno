@@ -2289,6 +2289,7 @@ networks:
 
 # Raio-X da Frota
 action_inspect_nodes() {
+    [ -t 1 ] && clear 2>/dev/null || true
     sync_fleet_inventory
 
     local local_arch local_ram local_disk local_stacks
@@ -2827,6 +2828,7 @@ EOF
 
 # Restaurar backup portátil universal em um servidor (Local ou Remoto)
 action_restore_backup() {
+    [ -t 1 ] && clear 2>/dev/null || true
     local backup_file="${1:-}"
     local dest_target="${2:-}"
     local cli_dns="${3:-}"
@@ -2885,6 +2887,7 @@ action_restore_backup() {
     trap 'trap - RETURN; rm -rf "${tmpdir:-}" 2>/dev/null || true' RETURN
 
     if [ "$is_cli" = "false" ]; then
+        [ -t 1 ] && clear 2>/dev/null || true
         whiptail --infobox "🔍 Inspecionando manifesto e integridade do backup...\nAguarde..." 8 70
     fi
 
@@ -2937,6 +2940,7 @@ action_restore_backup() {
     if [ -n "$dest_target" ]; then
         chosen_dest_id="$dest_target"
     elif [ "$is_cli" = "false" ] && [ -n "$workers_tsv" ]; then
+        [ -t 1 ] && clear 2>/dev/null || true
         local dest_menu=()
         dest_menu+=("local" "Torre Master (Nó Local) [$local_arch]")
         while IFS=$'\t' read -r wid wname warch wendpoint wtoken; do
@@ -4763,10 +4767,12 @@ flag && /^[a-zA-Z0-9_.-]+:/{flag=0}
 
 # Menu Principal Interativo
 show_menu() {
+    [ -t 1 ] && clear 2>/dev/null || true
     trap - RETURN
     cleanup_pending_fleet_task
 
     while true; do
+        [ -t 1 ] && clear 2>/dev/null || true
         trap - RETURN
         local choice
         choice=$(whiptail --title "MNO FLEET HUB — CLONE, TRANSFERÊNCIA E BACKUP" --menu \
