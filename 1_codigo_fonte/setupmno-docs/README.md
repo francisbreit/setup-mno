@@ -101,7 +101,8 @@ Documentos atuais de arquitetura e operação:
 - `releases/v7.42.2-onboarding-estavel.md`;
 - `sre/architecture/read-only-specialist.md`;
 - `sre/manual/usar-diagnostico-seguro.md`;
-- `releases/v7.33.0-especialista-sre-read-only.md`.
+- `releases/v7.33.0-especialista-sre-read-only.md`;
+- `releases/v7.48.16-fleet-hub-backup-portatil-estavel.md`.
 
 Validação específica do SRE Knowledge Pack:
 
