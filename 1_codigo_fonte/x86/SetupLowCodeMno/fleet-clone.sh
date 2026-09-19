@@ -149,7 +149,7 @@ get_local_fleet_node_id() {
 # GESTÃO DE TRAVA DE OCUPAÇÃO NO WORKER (NODE LEASE / LOCK)
 # ==============================================================================
 acquire_node_lock() {
-    local node_id="$1"
+    local node_id="${1:-local}"
     local task_name="${2:-Operacao Fleet Hub}"
     local ttl="${3:-300}"
     local holder_id holder_name
@@ -203,7 +203,7 @@ acquire_node_lock() {
 }
 
 release_node_lock() {
-    local node_id="$1"
+    local node_id="${1:-local}"
     local holder_id
     holder_id=$(jq -r '.fleetNodeId // "master-local"' "$ENV_FILE" 2>/dev/null || printf 'master-local')
 
@@ -2437,6 +2437,7 @@ dispatch_sentinel_notification_bash() {
 action_backup_app() {
     local chosen_app="${1:-}"
     local is_cli=false
+    local tmpdir=""
     if [ -n "$chosen_app" ] || [ -z "${TERM:-}" ] || [ "${2:-}" = "--cli" ]; then
         is_cli=true
     fi
@@ -2469,9 +2470,8 @@ action_backup_app() {
 
     acquire_node_lock "local" "Backup Portatil ($chosen_app)" 300 || return 1
     mkdir -p "$BACKUP_BASE_DIR" 2>/dev/null || true
-    local tmpdir
     tmpdir=$(mktemp -d -p "$BACKUP_BASE_DIR" .tmp_bkp_XXXXXX 2>/dev/null || mktemp -d)
-    trap 'release_node_lock "local"; rm -rf "$tmpdir"' RETURN
+    trap 'trap - RETURN; release_node_lock "local" 2>/dev/null || true; rm -rf "${tmpdir:-}" 2>/dev/null || true' RETURN
 
     # 1. Detecção Inteligente de Contexto de Combo
     local initial_yaml_tmp="$tmpdir/initial_detect.yaml"
@@ -2820,6 +2820,9 @@ EOF
     else
         whiptail --title "BACKUP GERADO COM SUCESSO" --msgbox "$summary" 20 76
     fi
+    release_node_lock "local" 2>/dev/null || true
+    rm -rf "${tmpdir:-}" 2>/dev/null || true
+    trap - RETURN
 }
 
 # Restaurar backup portátil universal em um servidor (Local ou Remoto)
@@ -2827,6 +2830,8 @@ action_restore_backup() {
     local backup_file="${1:-}"
     local dest_target="${2:-}"
     local cli_dns="${3:-}"
+    local chosen_dest_id="local"
+    local tmpdir=""
 
     local is_cli=false
     if [ -n "$backup_file" ] || [ -z "${TERM:-}" ]; then
@@ -2876,9 +2881,8 @@ action_restore_backup() {
     fi
 
     mkdir -p "$BACKUP_BASE_DIR" 2>/dev/null || true
-    local tmpdir
     tmpdir=$(mktemp -d -p "$BACKUP_BASE_DIR" .tmp_rst_XXXXXX 2>/dev/null || mktemp -d)
-    trap 'rm -rf "$tmpdir"' RETURN
+    trap 'trap - RETURN; rm -rf "${tmpdir:-}" 2>/dev/null || true' RETURN
 
     if [ "$is_cli" = "false" ]; then
         whiptail --infobox "🔍 Inspecionando manifesto e integridade do backup...\nAguarde..." 8 70
@@ -2925,7 +2929,7 @@ action_restore_backup() {
         workers_tsv=$(jq -r '.nodes[]? | select(.role == "worker" or .mode == "worker") | select(.status != "deleted") | "\(.id)\t\(.name)\t\(.architecture // "amd64")\t\(.endpoint)\t\(.token)"' "$INVENTORY_FILE" 2>/dev/null || true)
     fi
 
-    local chosen_dest_id="local"
+    chosen_dest_id="local"
     local dest_name="Torre Master (Nó Local)"
     local dest_arch="$local_arch"
     local dest_ssh_host=""
@@ -2967,7 +2971,7 @@ action_restore_backup() {
     fi
 
     acquire_node_lock "$chosen_dest_id" "Restauracao de Backup ($app_name)" 600 || return 1
-    trap 'release_node_lock "$chosen_dest_id"; rm -rf "$tmpdir"' RETURN
+    trap 'trap - RETURN; release_node_lock "${chosen_dest_id:-local}" 2>/dev/null || true; rm -rf "${tmpdir:-}" 2>/dev/null || true' RETURN
 
     if [ "$is_cli" = "false" ]; then
         whiptail --infobox "📦 Descompactando arquivos de volumes, stacks e banco...\nAguarde..." 8 70
@@ -3587,6 +3591,9 @@ action_restore_backup() {
             whiptail --title "RESTAURAÇÃO CONCLUÍDA" --msgbox "$res_summary" 19 76
         fi
     fi
+    release_node_lock "${chosen_dest_id:-local}" 2>/dev/null || true
+    rm -rf "${tmpdir:-}" 2>/dev/null || true
+    trap - RETURN
 }
 
 # Transferência e Clonagem Atômica
@@ -3602,6 +3609,10 @@ action_transfer_or_clone() {
     local cli_update_dns=""
     local cli_minio=""
     local cli_combo_choice=""
+    local chosen_origin_id="local"
+    local chosen_dest_id="local"
+    local workdir=""
+    local stats_file=""
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -3682,8 +3693,8 @@ action_transfer_or_clone() {
         return 0
     fi
 
-    local chosen_origin_id=""
-    local chosen_dest_id=""
+    chosen_origin_id=""
+    chosen_dest_id=""
 
     if [ "$is_cli" = "true" ]; then
         case "$cli_origin" in
@@ -4070,12 +4081,10 @@ action_transfer_or_clone() {
 
     mkdir -p "$BACKUP_BASE_DIR" 2>/dev/null || true
     local safety_suffix="frozen_pre_transfer_$(date -u +%Y%m%dT%H%M%SZ)"
-    local workdir
     workdir=$(mktemp -d -p "$BACKUP_BASE_DIR" .tmp_mig_XXXXXX 2>/dev/null || mktemp -d)
-    local stats_file
     stats_file=$(mktemp -p "$BACKUP_BASE_DIR" .tmp_stats_XXXXXX 2>/dev/null || mktemp /tmp/fleet_stats_XXXXXX 2>/dev/null || echo "/tmp/fleet_stats_$$")
     echo "0" > "$stats_file"
-    trap 'release_node_lock "$chosen_origin_id"; release_node_lock "$chosen_dest_id"; rm -rf "$workdir" "$stats_file"' RETURN
+    trap 'trap - RETURN; release_node_lock "${chosen_origin_id:-local}" 2>/dev/null || true; release_node_lock "${chosen_dest_id:-local}" 2>/dev/null || true; rm -rf "${workdir:-}" "${stats_file:-}" 2>/dev/null || true' RETURN
 
     : > "$TRANSFER_LOG"
     local total_migrated_vols=0
@@ -4115,7 +4124,7 @@ action_transfer_or_clone() {
 
     # Função interna de execução de etapas
     run_migration_pipeline() {
-        trap 'stop_fleet_heartbeat' RETURN
+        trap 'trap - RETURN; stop_fleet_heartbeat' RETURN
         local total_apps=${#apps_to_migrate[@]}
         local app_idx=0
 
@@ -4742,17 +4751,23 @@ flag && /^[a-zA-Z0-9_.-]+:/{flag=0}
         echo -e "\n=================================================="
         printf "%b\n" "$summary"
         echo -e "==================================================\n"
-        return 0
     else
         whiptail --title "SUCESSO DA MIGRAÇÃO" --msgbox "$summary" 19 76
     fi
+    release_node_lock "${chosen_origin_id:-local}" 2>/dev/null || true
+    release_node_lock "${chosen_dest_id:-local}" 2>/dev/null || true
+    rm -rf "${workdir:-}" "${stats_file:-}" 2>/dev/null || true
+    trap - RETURN
+    return 0
 }
 
 # Menu Principal Interativo
 show_menu() {
+    trap - RETURN
     cleanup_pending_fleet_task
 
     while true; do
+        trap - RETURN
         local choice
         choice=$(whiptail --title "MNO FLEET HUB — CLONE, TRANSFERÊNCIA E BACKUP" --menu \
             "Selecione a ação desejada na frota de servidores:" 18 78 6 \
@@ -4762,7 +4777,7 @@ show_menu() {
             "4" "Criar Backup Portátil (.tar.gz compatível com qualquer arquitetura)" \
             "5" "Restaurar Backup Portátil em um Servidor (Local ou Remoto)" \
             "6" "Voltar ao Menu Anterior" \
-            3>&1 1>&2 2>&3) || return 0
+            3>&1 1>&2 2>&3) || { trap - RETURN; return 0; }
 
         case "$choice" in
             1) action_inspect_nodes ;;
@@ -4770,8 +4785,9 @@ show_menu() {
             3) action_transfer_or_clone "clone" ;;
             4) action_backup_app ;;
             5) action_restore_backup ;;
-            6) return 0 ;;
+            6) trap - RETURN; return 0 ;;
         esac
+        trap - RETURN
     done
 }
 
