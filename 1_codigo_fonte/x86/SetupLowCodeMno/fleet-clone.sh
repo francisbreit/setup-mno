@@ -2538,10 +2538,12 @@ action_backup_app() {
     fi
     local backup_file="$BACKUP_BASE_DIR/${backup_prefix}_backup_${local_arch}_${timestamp}.tar.gz"
 
-    mkdir -p "$tmpdir/stacks" "$tmpdir/volumes" "$tmpdir/dumps"
+    mkdir -p "$tmpdir/stacks" "$tmpdir/volumes" "$tmpdir/dumps" "$tmpdir/images"
 
     local total_apps=${#apps_to_backup[@]}
     local total_vols_backed_up=0
+    local total_custom_images_backed_up=0
+    local custom_images_backed_up=()
     local manifest_stacks=()
 
     local backup_log="$tmpdir/backup_progress.log"
@@ -2627,7 +2629,7 @@ action_backup_app() {
             fi
 
             # Extração de Volumes Docker Persistentes
-            echo -e "XXX\n$((pct_base + (pct_step * 60 / 100)))\n[$a_idx/$total_apps] Compactando volumes persistentes ($cur_app)...\nXXX"
+            echo -e "XXX\n$((pct_base + (pct_step * 50 / 100)))\n[$a_idx/$total_apps] Compactando volumes persistentes ($cur_app)...\nXXX"
             local cur_vols=()
             while IFS= read -r v; do
                 [ -n "$v" ] || continue
@@ -2635,6 +2637,7 @@ action_backup_app() {
                 echo "Compactando volume $v de $cur_app..." >> "$backup_log"
                 docker run --rm -v "${v}:/voldata:ro" alpine tar -czf - -C /voldata . > "$tmpdir/volumes/vol_${v}.tar.gz" 2>> "$backup_log" || true
                 total_vols_backed_up=$((total_vols_backed_up + 1))
+                echo "$total_vols_backed_up" > "$tmpdir/total_vols_backed_up.txt"
             done < <(get_application_volumes "$stack_yaml" "$cur_app" "local" "")
 
             # Extração de Bind Mounts de Configuração Local
@@ -2648,6 +2651,34 @@ action_backup_app() {
                 echo "Compactando bind mounts de configuração de $cur_app: ${cur_binds[*]}" >> "$backup_log"
                 tar -czf "$tmpdir/volumes/binds_${cur_app}.tar.gz" -P "${cur_binds[@]}" 2>> "$backup_log" || true
             fi
+
+            # Empacotamento de Imagens Docker Customizadas/Locais (Zero-Dependência e Auto-Contido)
+            local cur_images=()
+            while IFS= read -r c_img; do
+                [ -n "$c_img" ] || continue
+                c_img=$(echo "$c_img" | tr -d '"' | tr -d "'" | tr -d ' ' | tr -d '\r')
+                cur_images+=("$c_img")
+            done < <(grep -oP '^[[:space:]]*image:[[:space:]]*\K[^[:space:]]+' "$stack_yaml" 2>/dev/null | sort -u || true)
+
+            for ci in "${cur_images[@]}"; do
+                [ -n "$ci" ] || continue
+                local safe_ci_file="img_$(echo "$ci" | tr '/:' '_').tar.gz"
+                [ -f "$tmpdir/images/$safe_ci_file" ] && continue
+
+                # Se a imagem existe no daemon local, verifica se está em registro público
+                if docker image inspect "$ci" >/dev/null 2>&1; then
+                    if ! timeout 5 docker manifest inspect "$ci" >/dev/null 2>&1; then
+                        echo -e "XXX\n$((pct_base + (pct_step * 75 / 100)))\n[$a_idx/$total_apps] Empacotando imagem customizada local ($ci)...\nXXX"
+                        echo "Empacotando imagem customizada local $ci para $safe_ci_file..." >> "$backup_log"
+                        docker save "$ci" | gzip -1 > "$tmpdir/images/$safe_ci_file" 2>> "$backup_log" || true
+                        if [ -s "$tmpdir/images/$safe_ci_file" ]; then
+                            total_custom_images_backed_up=$((total_custom_images_backed_up + 1))
+                            echo "$ci" >> "$tmpdir/custom_images_list.txt"
+                            echo "$total_custom_images_backed_up" > "$tmpdir/total_custom_images.txt"
+                        fi
+                    fi
+                fi
+            done
 
             # Extração de domínios e portas mapeadas
             local cur_domains=()
@@ -2697,6 +2728,11 @@ action_backup_app() {
         local btype="single_app"
         [ "$is_combo" = "true" ] && [ ${#apps_to_backup[@]} -gt 1 ] && btype="combo_bundle"
 
+        local images_arr_json="[]"
+        if [ -f "$tmpdir/custom_images_list.txt" ]; then
+            images_arr_json=$(jq -R . "$tmpdir/custom_images_list.txt" | jq -s . 2>/dev/null || echo "[]")
+        fi
+
         cat > "$tmpdir/manifest.json" << EOF
 {
   "schemaVersion": 2,
@@ -2706,6 +2742,8 @@ action_backup_app() {
   "architecture": "$local_arch",
   "stacksCount": ${#apps_to_backup[@]},
   "volumesCount": $total_vols_backed_up,
+  "customImagesCount": $total_custom_images_backed_up,
+  "customImages": $images_arr_json,
   "createdAt": "$(date -u -Iseconds)",
   "stacks": $stacks_arr_json
 }
@@ -2715,7 +2753,7 @@ EOF
         (
             cd "$tmpdir"
             local tar_items=()
-            for itm in manifest.json stack.yaml stacks volumes dumps backup_progress.log; do
+            for itm in manifest.json stack.yaml stacks volumes dumps images backup_progress.log; do
                 [ -e "$itm" ] && tar_items+=("$itm")
             done
             if [ ${#tar_items[@]} -gt 0 ]; then
@@ -2732,6 +2770,17 @@ EOF
         run_backup_subpipeline
     else
         run_backup_subpipeline | whiptail --title "CRIANDO BACKUP PORTÁTIL UNIVERSAL" --gauge "Iniciando snapshot consistente de volumes e bancos..." 10 78 0
+    fi
+
+    # Recuperar contadores persistidos para contornar subshell do whiptail
+    if [ -f "$tmpdir/total_vols_backed_up.txt" ]; then
+        total_vols_backed_up=$(cat "$tmpdir/total_vols_backed_up.txt")
+    fi
+    if [ -f "$tmpdir/total_custom_images.txt" ]; then
+        total_custom_images_backed_up=$(cat "$tmpdir/total_custom_images.txt")
+    fi
+    if [ -f "$tmpdir/custom_images_list.txt" ]; then
+        mapfile -t custom_images_backed_up < "$tmpdir/custom_images_list.txt"
     fi
 
     local sha size
@@ -2757,6 +2806,9 @@ EOF
     summary+="• Arquitetura: $local_arch\n"
     summary+="• Stacks Inclusas (${#apps_to_backup[@]}): ${apps_to_backup[*]}\n"
     summary+="• Volumes Docker Compactados: $total_vols_backed_up\n"
+    if [ "$total_custom_images_backed_up" -gt 0 ]; then
+        summary+="• Imagens Customizadas Empacotadas ($total_custom_images_backed_up): ${custom_images_backed_up[*]}\n"
+    fi
     if [ "$is_combo" = "true" ] && [ ${#apps_to_backup[@]} -gt 1 ]; then
         summary+="• Tipo: Combo Integrado ($combo_name)\n"
     fi
@@ -2765,7 +2817,7 @@ EOF
     if [ "$is_cli" = "true" ]; then
         echo -e "$summary"
     else
-        whiptail --title "BACKUP GERADO COM SUCESSO" --msgbox "$summary" 19 76
+        whiptail --title "BACKUP GERADO COM SUCESSO" --msgbox "$summary" 20 76
     fi
 }
 
@@ -3041,6 +3093,25 @@ action_restore_backup() {
     local total_rest_apps=${#stacks_to_restore[@]}
 
     run_restore_subpipeline() {
+        # 1. Carregamento prévio de Imagens Docker Customizadas empacotadas no arquivo de backup
+        local bundled_imgs=()
+        while IFS= read -r bf; do
+            [ -f "$bf" ] || continue
+            bundled_imgs+=("$bf")
+        done < <(find "$tmpdir/images" "$tmpdir" -maxdepth 1 -name "img_*.tar.gz" 2>/dev/null || true)
+
+        if [ ${#bundled_imgs[@]} -gt 0 ]; then
+            echo -e "XXX\n5\nCarregando imagens customizadas empacotadas no backup (${#bundled_imgs[@]})...\nXXX"
+            for b_img in "${bundled_imgs[@]}"; do
+                echo "Carregando imagem customizada $(basename "$b_img") no destino ($dest_name)..." >> "$restore_log"
+                if [ "$chosen_dest_id" = "local" ]; then
+                    gunzip -c "$b_img" | docker load >> "$restore_log" 2>&1 || true
+                else
+                    gunzip -c "$b_img" | ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "docker load" >> "$restore_log" 2>&1 || true
+                fi
+            done
+        fi
+
         local r_idx=0
         for cur_app in "${stacks_to_restore[@]}"; do
             r_idx=$((r_idx + 1))
@@ -3058,6 +3129,54 @@ action_restore_backup() {
 
             local cur_mq_engine="none:"
             cur_mq_engine=$(detect_rabbitmq_engine "$cur_yaml" "$cur_app")
+
+            # 2. Verificação de imagens da stack e Auto-Healing pela frota (para backups legados ou imagens customizadas)
+            while IFS= read -r req_img; do
+                [ -n "$req_img" ] || continue
+                req_img=$(echo "$req_img" | tr -d '"' | tr -d "'" | tr -d ' ' | tr -d '\r')
+                
+                local img_exists_on_dest="false"
+                if [ "$chosen_dest_id" = "local" ]; then
+                    docker image inspect "$req_img" >/dev/null 2>&1 && img_exists_on_dest="true"
+                else
+                    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "docker image inspect '$req_img' >/dev/null 2>&1" && img_exists_on_dest="true"
+                fi
+                [ "$img_exists_on_dest" = "true" ] && continue
+
+                # Se não existe no destino, verifica se está disponível em registro público remoto
+                if timeout 5 docker manifest inspect "$req_img" >/dev/null 2>&1; then
+                    continue # Imagem pública, o docker stack deploy fará o pull normalmente
+                fi
+
+                # Imagem customizada ausente no destino e não encontrada em registros públicos!
+                echo "Auto-healing: buscando imagem customizada '$req_img' nos nós da frota..." >> "$restore_log"
+                if [ -f "$INVENTORY_FILE" ]; then
+                    while IFS=$'\t' read -r fn_id fn_name fn_arch fn_ep fn_token; do
+                        [ -n "$fn_id" ] || continue
+                        [ "$fn_id" = "$chosen_dest_id" ] && continue
+                        local fn_ssh_host=""
+                        if [ "$fn_id" = "local" ]; then
+                            if docker image inspect "$req_img" >/dev/null 2>&1; then
+                                echo "Auto-healing: transmitindo '$req_img' do nó local para $dest_name..." >> "$restore_log"
+                                docker save "$req_img" | gzip -1 | ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "gunzip | docker load" >> "$restore_log" 2>&1 || true
+                                break
+                            fi
+                        else
+                            if resolve_worker_ssh_host "$fn_id" "$fn_name" fn_ssh_host; then
+                                if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$fn_ssh_host" "docker image inspect '$req_img' >/dev/null 2>&1"; then
+                                    echo "Auto-healing: transmitindo '$req_img' do nó $fn_name para $dest_name..." >> "$restore_log"
+                                    if [ "$chosen_dest_id" = "local" ]; then
+                                        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$fn_ssh_host" "docker save '$req_img' | gzip -1" | gunzip | docker load >> "$restore_log" 2>&1 || true
+                                    else
+                                        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$fn_ssh_host" "docker save '$req_img' | gzip -1" | ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "gunzip | docker load" >> "$restore_log" 2>&1 || true
+                                    fi
+                                    break
+                                fi
+                            fi
+                        fi
+                    done < <(jq -r '.nodes[]? | select(.status != "deleted") | "\(.id)\t\(.name)\t\(.architecture // "amd64")\t\(.endpoint)\t\(.token)"' "$INVENTORY_FILE" 2>/dev/null || true)
+                fi
+            done < <(grep -oP '^[[:space:]]*image:[[:space:]]*\K[^[:space:]]+' "$cur_yaml" 2>/dev/null | sort -u || true)
 
             if [[ "$cur_db_engine" == mysql84:* ]]; then
                 echo -e "XXX\n$((pct_base + (pct_step * 20 / 100)))\n[$r_idx/$total_rest_apps] Garantindo MySQL 8.4 no destino ($cur_app)...\nXXX"
@@ -3138,6 +3257,7 @@ action_restore_backup() {
                     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "docker run --rm -i -v '${vname}:/voldata' alpine tar -xzf - -C /voldata" < "$vf" >> "$restore_log" 2>&1 || true
                 fi
                 total_restored_vols=$((total_restored_vols + 1))
+                echo "$total_restored_vols" > "$tmpdir/total_restored_vols.txt"
             done
 
             # Restaurar Bind Mounts de Configuração se existirem
@@ -3234,6 +3354,15 @@ action_restore_backup() {
                                 docker exec -i -e MYSQL_PWD="$pwd" "$mc" mysql -u root "'"$my_db"'"
                             fi
                         ' >> "$restore_log" 2>&1 || true
+                        dest_pwd=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" 'mc=$(docker ps -qf name=mysql84 | head -n1); docker inspect "$mc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP "(?<=MYSQL_ROOT_PASSWORD=).+" /root/mysql84.yaml 2>/dev/null || echo ""')
+                    fi
+
+                    # Reconciliação Polimórfica de Credenciais MySQL 8.4 no YAML da stack
+                    if [ -n "$dest_pwd" ]; then
+                        local safe_dest_my84_pwd
+                        safe_dest_my84_pwd=$(printf '%s\n' "$dest_pwd" | sed -e 's/[\/&|]/\\&/g')
+                        sed -i -E "s/(MYSQL_ROOT_PASSWORD|MYSQL_PASSWORD|MAUTIC_DB_PASSWORD|WORDPRESS_DB_PASSWORD|DB_PASSWORD|DATABASE_PASSWORD|DB_PASS)=[^[:space:]]+/\1=$safe_dest_my84_pwd/g" "$cur_yaml"
+                        sed -i -E "s|(mysql://[^:]+:)[^@]+(@mysql84:[0-9]+/[^[:space:]\"']+)|\\1${safe_dest_my84_pwd}\\2|g" "$cur_yaml"
                     fi
                 elif [[ "$cur_db_engine" == mysql:* ]]; then
                     local my_db="${cur_db_engine#mysql:}"
@@ -3260,6 +3389,15 @@ action_restore_backup() {
                                 docker exec -i -e MYSQL_PWD="$pwd" "$mc" mysql -u root "'"$my_db"'"
                             fi
                         ' >> "$restore_log" 2>&1 || true
+                        dest_pwd=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" 'mc=$(docker ps --filter "label=com.docker.swarm.service.name=mysql_mysql" -q 2>/dev/null | head -n1 || docker ps -qf name=mysql_mysql 2>/dev/null | head -n1); docker inspect "$mc" --format "{{range .Config.Env}}{{println .}}{{end}}" 2>/dev/null | grep MYSQL_ROOT_PASSWORD | cut -d= -f2- || grep -oP "(?<=MYSQL_ROOT_PASSWORD=).+" /root/mysql.yaml 2>/dev/null || echo ""')
+                    fi
+
+                    # Reconciliação Polimórfica de Credenciais MySQL 8.0 no YAML da stack
+                    if [ -n "$dest_pwd" ]; then
+                        local safe_dest_my80_pwd
+                        safe_dest_my80_pwd=$(printf '%s\n' "$dest_pwd" | sed -e 's/[\/&|]/\\&/g')
+                        sed -i -E "s/(MYSQL_ROOT_PASSWORD|MYSQL_PASSWORD|MAUTIC_DB_PASSWORD|WORDPRESS_DB_PASSWORD|DB_PASSWORD|DATABASE_PASSWORD|DB_PASS)=[^[:space:]]+/\1=$safe_dest_my80_pwd/g" "$cur_yaml"
+                        sed -i -E "s|(mysql://[^:]+:)[^@]+(@mysql:[0-9]+/[^[:space:]\"']+)|\\1${safe_dest_my80_pwd}\\2|g" "$cur_yaml"
                     fi
                 elif [[ "$cur_db_engine" == mongodb:* ]]; then
                     if [ "$chosen_dest_id" = "local" ]; then
@@ -3277,7 +3415,7 @@ action_restore_backup() {
             fi
 
             # 4. Deploy no Swarm de Destino
-            echo -e "XXX\n$((pct_base + (pct_step * 85 / 100)))\n[$r_idx/$total_rest_apps] Fazendo deploy da stack '$cur_app' no Swarm...\nXXX"
+            echo -e "XXX\n$((pct_base + (pct_step * 80 / 100)))\n[$r_idx/$total_rest_apps] Fazendo deploy da stack '$cur_app' no Swarm...\nXXX"
             if [ "$chosen_dest_id" = "local" ]; then
                 cp -f "$cur_yaml" "/root/${cur_app}.yaml"
                 deploy_stack_with_portainer_priority "local" "" "$cur_app" "/root/${cur_app}.yaml" >> "$restore_log" 2>&1
@@ -3286,14 +3424,78 @@ action_restore_backup() {
                 deploy_stack_with_portainer_priority "$chosen_dest_id" "$dest_ssh_host" "$cur_app" "/root/${cur_app}.yaml" >> "$restore_log" 2>&1
             fi
 
-            # 5. Comutação de DNS se solicitado
+            # 5. Gate de Convergência Real dos Serviços Swarm
+            echo -e "XXX\n$((pct_base + (pct_step * 90 / 100)))\n[$r_idx/$total_rest_apps] Validando convergência dos serviços Swarm ($cur_app)...\nXXX"
+            local conv_ok="false"
+            local attempts=0
+            local max_attempts=8 # 8 x 3s = 24s
+            local svcs_status=()
+            while [ $attempts -lt $max_attempts ]; do
+                attempts=$((attempts + 1))
+                local non_converged=0
+                svcs_status=()
+                if [ "$chosen_dest_id" = "local" ]; then
+                    while IFS= read -r s_line; do
+                        [ -n "$s_line" ] || continue
+                        svcs_status+=("$s_line")
+                    done < <(docker service ls --filter "name=${cur_app}" --format "{{.Name}} {{.Replicas}}" 2>/dev/null || true)
+                else
+                    while IFS= read -r s_line; do
+                        [ -n "$s_line" ] || continue
+                        svcs_status+=("$s_line")
+                    done < <(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "docker service ls --filter 'name=${cur_app}' --format '{{.Name}} {{.Replicas}}'" 2>/dev/null || true)
+                fi
+
+                if [ ${#svcs_status[@]} -eq 0 ]; then
+                    sleep 3
+                    continue
+                fi
+
+                for sl in "${svcs_status[@]}"; do
+                    local sn="${sl%% *}"
+                    local sr="${sl##* }"
+                    local current_rep="${sr%%/*}"
+                    local desired_rep="${sr##*/}"
+                    if [ "$current_rep" = "0" ] && [ "$desired_rep" != "0" ]; then
+                        non_converged=$((non_converged + 1))
+                    fi
+                done
+
+                if [ $non_converged -eq 0 ]; then
+                    conv_ok="true"
+                    break
+                fi
+                sleep 3
+            done
+
+            if [ "$conv_ok" != "true" ]; then
+                echo "Aviso: Nem todos os serviços de '$cur_app' convergiram no Swarm." >> "$restore_log"
+                for sl in "${svcs_status[@]}"; do
+                    local sn="${sl%% *}"
+                    local sr="${sl##* }"
+                    local current_rep="${sr%%/*}"
+                    local desired_rep="${sr##*/}"
+                    if [ "$current_rep" = "0" ] && [ "$desired_rep" != "0" ]; then
+                        local svc_err=""
+                        if [ "$chosen_dest_id" = "local" ]; then
+                            svc_err=$(docker service ps "$sn" --no-trunc --format "{{.CurrentState}}: {{.Error}}" 2>/dev/null | grep -v '^$' | head -n1 || true)
+                        else
+                            svc_err=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "root@$dest_ssh_host" "docker service ps '$sn' --no-trunc --format '{{.CurrentState}}: {{.Error}}'" 2>/dev/null | grep -v '^$' | head -n1 || true)
+                        fi
+                        [ -n "$svc_err" ] || svc_err="Aguardando réplicas ou inicialização de containers"
+                        echo "• $sn ($sr): $svc_err" >> "$tmpdir/convergence_errors.txt"
+                    fi
+                done
+            fi
+
+            # 6. Comutação de DNS se solicitado
             if [ "$configure_dns" = "true" ]; then
-                echo -e "XXX\n$((pct_base + (pct_step * 95 / 100)))\n[$r_idx/$total_rest_apps] Comutando rotas Cloudflare ($cur_app)...\nXXX"
+                echo -e "XXX\n$((pct_base + (pct_step * 98 / 100)))\n[$r_idx/$total_rest_apps] Comutando rotas Cloudflare ($cur_app)...\nXXX"
                 switch_cloudflare_dns_and_ingress "$chosen_dest_id" "$dest_ssh_host" "$cur_yaml" "$cur_app" >> "$restore_log" 2>&1 || true
             fi
         done
 
-        echo -e "XXX\n100\nRestauração concluída com sucesso!\nXXX"
+        echo -e "XXX\n100\nRestauração concluída!\nXXX"
         sleep 1
     }
 
@@ -3303,37 +3505,85 @@ action_restore_backup() {
         run_restore_subpipeline | whiptail --title "RESTAURANDO BACKUP PORTÁTIL" --gauge "Iniciando descompactação e restauração..." 10 78 0
     fi
 
-    local notify_opt=false
-    if [ "$is_cli" = "false" ]; then
-        if whiptail --title "NOTIFICAÇÃO DO SENTINEL" --yesno \
-            "Restauração concluída com sucesso!\n\nDeseja enviar uma notificação via Telegram e Webhook (n8n) informando a restauração deste backup?" 11 70; then
-            notify_opt=true
-        fi
+    # Recuperar contadores e diagnósticos persistidos do subshell
+    if [ -f "$tmpdir/total_restored_vols.txt" ]; then
+        total_restored_vols=$(cat "$tmpdir/total_restored_vols.txt")
+    fi
+
+    local has_convergence_errors=false
+    local convergence_error_details=""
+    if [ -f "$tmpdir/convergence_errors.txt" ] && [ -s "$tmpdir/convergence_errors.txt" ]; then
+        has_convergence_errors=true
+        convergence_error_details=$(cat "$tmpdir/convergence_errors.txt")
     fi
 
     local dns_desc="Preservado (modo cópia de testes)"
     [ "$configure_dns" = "true" ] && dns_desc="Comutado para o novo servidor ($dest_name)"
 
-    if [ "$notify_opt" = "true" ]; then
-        dispatch_sentinel_notification_bash "Restauração de Backup" "$app_name" "$backup_file" "$dest_name ($dest_arch)" "$total_restored_vols" "$dns_desc" "35"
-    fi
+    if [ "$has_convergence_errors" = "true" ]; then
+        local warn_summary="⚠️ RESTAURAÇÃO PARCIAL COM ALERTAS DE EXECUÇÃO\n\n"
+        warn_summary+="• Aplicação / Combo: $app_name\n"
+        if [ "$backup_type" = "combo_bundle" ]; then
+            warn_summary+="• Ecossistema: $combo_name\n"
+        fi
+        warn_summary+="• Arquivo de Origem: $(basename "$backup_file")\n"
+        warn_summary+="• Servidor Destino: $dest_name ($dest_arch)\n"
+        warn_summary+="• Stacks Restauradas (${#stacks_to_restore[@]}): ${stacks_to_restore[*]}\n"
+        warn_summary+="• Volumes Docker Restaurados: $total_restored_vols\n"
+        warn_summary+="• Bancos de Dados: Restaurados e credenciais reconciliadas\n"
+        warn_summary+="• Roteamento DNS / Túnel: $dns_desc\n\n"
+        warn_summary+="⚠️ Os seguintes serviços não convergiram no Swarm de destino:\n"
+        warn_summary+="$convergence_error_details\n\n"
+        warn_summary+="💡 Diagnóstico recomendado:\n"
+        warn_summary+="Execute no terminal do servidor de destino:\n"
+        warn_summary+="  docker service ps <nome_do_servico> --no-trunc"
 
-    local res_summary="🎉 RESTAURAÇÃO CONCLUÍDA COM SUCESSO!\n\n"
-    res_summary+="• Aplicação / Combo: $app_name\n"
-    if [ "$backup_type" = "combo_bundle" ]; then
-        res_summary+="• Ecossistema: $combo_name\n"
-    fi
-    res_summary+="• Arquivo de Origem: $(basename "$backup_file")\n"
-    res_summary+="• Servidor Destino: $dest_name ($dest_arch)\n"
-    res_summary+="• Stacks Restauradas (${#stacks_to_restore[@]}): ${stacks_to_restore[*]}\n"
-    res_summary+="• Volumes Docker Restaurados: $total_restored_vols\n"
-    res_summary+="• Roteamento DNS / Túnel: $dns_desc\n\n"
-    res_summary+="✅ Todos os containers e dados persistentes estão ativos e funcionais no Swarm de destino."
+        local notify_warn=false
+        if [ "$is_cli" = "false" ]; then
+            if whiptail --title "NOTIFICAÇÃO DO SENTINEL" --yesno \
+                "A restauração foi concluída com alertas de execução em alguns containers.\n\nDeseja enviar notificação do Sentinel sobre estes alertas?" 11 70; then
+                notify_warn=true
+            fi
+        fi
+        if [ "$notify_warn" = "true" ]; then
+            dispatch_sentinel_notification_bash "Alerta: Restauração Parcial" "$app_name" "$backup_file" "$dest_name ($dest_arch)" "$total_restored_vols" "Atenção: Alguns serviços aguardam convergência" "35"
+        fi
 
-    if [ "$is_cli" = "true" ]; then
-        echo -e "$res_summary"
+        if [ "$is_cli" = "true" ]; then
+            echo -e "$warn_summary"
+        else
+            whiptail --title "⚠️ ALERTA DE CONVERGÊNCIA NA RESTAURAÇÃO" --msgbox "$warn_summary" 22 78
+        fi
     else
-        whiptail --title "RESTAURAÇÃO CONCLUÍDA" --msgbox "$res_summary" 19 76
+        local notify_opt=false
+        if [ "$is_cli" = "false" ]; then
+            if whiptail --title "NOTIFICAÇÃO DO SENTINEL" --yesno \
+                "Restauração concluída com sucesso!\n\nDeseja enviar uma notificação via Telegram e Webhook (n8n) informando a restauração deste backup?" 11 70; then
+                notify_opt=true
+            fi
+        fi
+
+        if [ "$notify_opt" = "true" ]; then
+            dispatch_sentinel_notification_bash "Restauração de Backup" "$app_name" "$backup_file" "$dest_name ($dest_arch)" "$total_restored_vols" "$dns_desc" "35"
+        fi
+
+        local res_summary="🎉 RESTAURAÇÃO CONCLUÍDA COM SUCESSO!\n\n"
+        res_summary+="• Aplicação / Combo: $app_name\n"
+        if [ "$backup_type" = "combo_bundle" ]; then
+            res_summary+="• Ecossistema: $combo_name\n"
+        fi
+        res_summary+="• Arquivo de Origem: $(basename "$backup_file")\n"
+        res_summary+="• Servidor Destino: $dest_name ($dest_arch)\n"
+        res_summary+="• Stacks Restauradas (${#stacks_to_restore[@]}): ${stacks_to_restore[*]}\n"
+        res_summary+="• Volumes Docker Restaurados: $total_restored_vols\n"
+        res_summary+="• Roteamento DNS / Túnel: $dns_desc\n\n"
+        res_summary+="✅ Todos os containers e dados persistentes estão ativos e funcionais no Swarm de destino."
+
+        if [ "$is_cli" = "true" ]; then
+            echo -e "$res_summary"
+        else
+            whiptail --title "RESTAURAÇÃO CONCLUÍDA" --msgbox "$res_summary" 19 76
+        fi
     fi
 }
 
