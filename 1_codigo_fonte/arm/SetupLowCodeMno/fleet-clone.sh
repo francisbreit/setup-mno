@@ -2468,8 +2468,9 @@ action_backup_app() {
     fi
 
     acquire_node_lock "local" "Backup Portatil ($chosen_app)" 300 || return 1
+    mkdir -p "$BACKUP_BASE_DIR" 2>/dev/null || true
     local tmpdir
-    tmpdir=$(mktemp -d)
+    tmpdir=$(mktemp -d -p "$BACKUP_BASE_DIR" .tmp_bkp_XXXXXX 2>/dev/null || mktemp -d)
     trap 'release_node_lock "local"; rm -rf "$tmpdir"' RETURN
 
     # 1. Detecção Inteligente de Contexto de Combo
@@ -2874,8 +2875,9 @@ action_restore_backup() {
         return 1
     fi
 
+    mkdir -p "$BACKUP_BASE_DIR" 2>/dev/null || true
     local tmpdir
-    tmpdir=$(mktemp -d)
+    tmpdir=$(mktemp -d -p "$BACKUP_BASE_DIR" .tmp_rst_XXXXXX 2>/dev/null || mktemp -d)
     trap 'rm -rf "$tmpdir"' RETURN
 
     if [ "$is_cli" = "false" ]; then
@@ -4066,11 +4068,12 @@ action_transfer_or_clone() {
         return 1
     }
 
+    mkdir -p "$BACKUP_BASE_DIR" 2>/dev/null || true
     local safety_suffix="frozen_pre_transfer_$(date -u +%Y%m%dT%H%M%SZ)"
     local workdir
-    workdir=$(mktemp -d)
+    workdir=$(mktemp -d -p "$BACKUP_BASE_DIR" .tmp_mig_XXXXXX 2>/dev/null || mktemp -d)
     local stats_file
-    stats_file=$(mktemp /tmp/fleet_stats_XXXXXX 2>/dev/null || echo "/tmp/fleet_stats_$$")
+    stats_file=$(mktemp -p "$BACKUP_BASE_DIR" .tmp_stats_XXXXXX 2>/dev/null || mktemp /tmp/fleet_stats_XXXXXX 2>/dev/null || echo "/tmp/fleet_stats_$$")
     echo "0" > "$stats_file"
     trap 'release_node_lock "$chosen_origin_id"; release_node_lock "$chosen_dest_id"; rm -rf "$workdir" "$stats_file"' RETURN
 

@@ -1943,8 +1943,8 @@ services:
         - node.role == manager
       resources:
         limits:
-          cpus: "0.50"
-          memory: 256M
+          cpus: "1.00"
+          memory: 1024M
 
 networks:
   interna:
