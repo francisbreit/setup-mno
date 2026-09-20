@@ -25,7 +25,17 @@ setupmno_prepare_debian13_apt() {
     [ -r "$os_release" ] || return 0
     os_id=$(sed -n 's/^ID=//p' "$os_release" | head -n1 | tr -d "\"'")
     os_version=$(sed -n 's/^VERSION_ID=//p' "$os_release" | head -n1 | tr -d "\"'")
-    [ "$os_id" = "debian" ] && [[ "$os_version" == 13* ]] || return 0
+    case "$os_id" in
+        debian|ubuntu|linuxmint|pop|raspbian|armbian|kali) ;;
+        *)
+            local id_like
+            id_like=$(sed -n 's/^ID_LIKE=//p' "$os_release" | head -n1 | tr -d "\"'" | tr '[:upper:]' '[:lower:]')
+            case "$id_like" in
+                *debian*|*ubuntu*) ;;
+                *) return 0 ;;
+            esac
+            ;;
+    esac
     [ ! -e "$source_list" ] || { [ -f "$source_list" ] && [ ! -L "$source_list" ]; } || return 1
     [ ! -e "$keyring" ] || { [ -f "$keyring" ] && [ ! -L "$keyring" ]; } || return 1
     if [ -f "$source_list" ]; then
@@ -47,7 +57,7 @@ setupmno_apt() {
 }
 
 setupmno_prepare_debian13_apt || {
-    printf 'ERRO: não foi possível remover com segurança o repositório legado Azlux no Debian 13.\n' >&2
+    printf 'ERRO: não foi possível remover com segurança o repositório legado Azlux.\n' >&2
     exit 42
 }
 

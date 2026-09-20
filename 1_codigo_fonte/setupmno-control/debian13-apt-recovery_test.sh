@@ -33,8 +33,8 @@ prepare_root() {
 
 assert_legacy_present() {
     local root="$1"
-    [ -f "$root/etc/apt/sources.list.d/azlux.list" ] || fail "fonte Azlux removida fora do Debian 13"
-    [ -f "$root/usr/share/keyrings/azlux-archive-keyring.gpg" ] || fail "chave Azlux removida fora do Debian 13"
+    [ -f "$root/etc/apt/sources.list.d/azlux.list" ] || fail "fonte Azlux removida indevidamente em $root"
+    [ -f "$root/usr/share/keyrings/azlux-archive-keyring.gpg" ] || fail "chave Azlux removida indevidamente em $root"
 }
 
 scripts=(
@@ -52,17 +52,23 @@ for script in "${scripts[@]}"; do
     case_dir="$temporary_dir/$(basename "$script")-${RANDOM}"
     prepare_root "$case_dir/debian13" debian 13
     SETUPMNO_APT_ROOT="$case_dir/debian13" setupmno_prepare_debian13_apt
-    [ ! -e "$case_dir/debian13/etc/apt/sources.list.d/azlux.list" ] || fail "fonte Azlux não removida por $script"
-    [ ! -e "$case_dir/debian13/usr/share/keyrings/azlux-archive-keyring.gpg" ] || fail "chave Azlux não removida por $script"
+    [ ! -e "$case_dir/debian13/etc/apt/sources.list.d/azlux.list" ] || fail "fonte Azlux não removida por $script no Debian 13"
+    [ ! -e "$case_dir/debian13/usr/share/keyrings/azlux-archive-keyring.gpg" ] || fail "chave Azlux não removida por $script no Debian 13"
     SETUPMNO_APT_ROOT="$case_dir/debian13" setupmno_prepare_debian13_apt
 
     prepare_root "$case_dir/debian12" debian 12
     SETUPMNO_APT_ROOT="$case_dir/debian12" setupmno_prepare_debian13_apt
-    assert_legacy_present "$case_dir/debian12"
+    [ ! -e "$case_dir/debian12/etc/apt/sources.list.d/azlux.list" ] || fail "fonte Azlux não removida por $script no Debian 12"
+    [ ! -e "$case_dir/debian12/usr/share/keyrings/azlux-archive-keyring.gpg" ] || fail "chave Azlux não removida por $script no Debian 12"
 
     prepare_root "$case_dir/ubuntu" ubuntu 24.04
     SETUPMNO_APT_ROOT="$case_dir/ubuntu" setupmno_prepare_debian13_apt
-    assert_legacy_present "$case_dir/ubuntu"
+    [ ! -e "$case_dir/ubuntu/etc/apt/sources.list.d/azlux.list" ] || fail "fonte Azlux não removida por $script no Ubuntu 24.04"
+    [ ! -e "$case_dir/ubuntu/usr/share/keyrings/azlux-archive-keyring.gpg" ] || fail "chave Azlux não removida por $script no Ubuntu 24.04"
+
+    prepare_root "$case_dir/unsupported" fedora 39
+    SETUPMNO_APT_ROOT="$case_dir/unsupported" setupmno_prepare_debian13_apt
+    assert_legacy_present "$case_dir/unsupported"
 
     mkdir -p "$case_dir/missing/etc" "$case_dir/missing/usr/lib"
     printf 'ID=debian\nVERSION_ID=13\n' >"$case_dir/missing/usr/lib/os-release"
@@ -115,4 +121,4 @@ for script in \
     fi
 done
 
-printf 'OK: Debian 13 remove o repositório Azlux legado antes do APT sem afetar outras distros.\n'
+printf 'OK: Debian e Ubuntu removem o repositório Azlux legado antes do APT mantendo integridade e segurança.\n'
