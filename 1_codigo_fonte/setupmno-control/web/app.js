@@ -4392,6 +4392,7 @@ async function openSentinelConfigDialog() {
     if ($("sentinel-webhook-url")) $("sentinel-webhook-url").value = cfg.webhookURL || "";
     if ($("sentinel-telegram-token")) $("sentinel-telegram-token").value = cfg.telegramBotToken || "";
     if ($("sentinel-telegram-chat")) $("sentinel-telegram-chat").value = cfg.telegramChatID || "";
+    if ($("sentinel-confirmation-delay")) $("sentinel-confirmation-delay").value = cfg.confirmationDelaySec !== undefined ? cfg.confirmationDelaySec : 45;
     if ($("sentinel-cooldown")) $("sentinel-cooldown").value = cfg.cooldownMinutes || 15;
   } catch (err) {
     showToast("Erro ao carregar configurações do Sentinel: " + err.message);
@@ -4417,6 +4418,7 @@ async function submitSentinelConfig(event) {
     diskThresholdPct: parseInt($("sentinel-disk-threshold")?.value, 10) || 90,
     notifyDegradedApp: $("sentinel-notify-degraded")?.checked || false,
     notifyNodeDown: $("sentinel-notify-node-down")?.checked || false,
+    confirmationDelaySec: parseInt($("sentinel-confirmation-delay")?.value, 10) >= 0 ? parseInt($("sentinel-confirmation-delay")?.value, 10) : 45,
     webhookURL: $("sentinel-webhook-url")?.value?.trim() || "",
     telegramBotToken: $("sentinel-telegram-token")?.value?.trim() || "",
     telegramChatID: $("sentinel-telegram-chat")?.value?.trim() || "",

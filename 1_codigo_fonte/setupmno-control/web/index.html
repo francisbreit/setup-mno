@@ -1393,10 +1393,17 @@
             </div>
           </div>
 
-          <div class="form-group">
-            <label for="sentinel-cooldown"><strong>Cooldown Anti-Flood (Minutos)</strong></label>
-            <input type="number" id="sentinel-cooldown" min="1" max="1440" value="15" placeholder="15">
-            <small class="muted">Intervalo mínimo entre re-notificações do mesmo incidente.</small>
+          <div class="form-row">
+            <div class="form-group half">
+              <label for="sentinel-confirmation-delay"><strong>Delay de Confirmação (Segundos)</strong></label>
+              <input type="number" id="sentinel-confirmation-delay" min="0" max="600" value="45" placeholder="45">
+              <small class="muted">Tempo de espera para descartar oscilações rápidas de rota/rede.</small>
+            </div>
+            <div class="form-group half">
+              <label for="sentinel-cooldown"><strong>Cooldown Anti-Flood (Minutos)</strong></label>
+              <input type="number" id="sentinel-cooldown" min="1" max="1440" value="15" placeholder="15">
+              <small class="muted">Intervalo mínimo entre re-notificações do mesmo incidente.</small>
+            </div>
           </div>
 
           <div id="sentinel-test-feedback" class="form-feedback hidden"></div>

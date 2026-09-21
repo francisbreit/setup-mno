@@ -16,7 +16,7 @@ const (
 	FleetModeWorker FleetMode = "worker"
 
 	// fleetProbeTimeout é o limite de tempo para requisições de probe a nós remotos.
-	fleetProbeTimeout = 5 * time.Second
+	fleetProbeTimeout = 10 * time.Second
 
 	// fleetHeartbeatTimeout define o tempo máximo sem comunicação antes de um nó Worker ser considerado offline.
 	fleetHeartbeatTimeout = 60 * time.Second

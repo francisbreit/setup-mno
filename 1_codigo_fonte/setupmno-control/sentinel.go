@@ -18,28 +18,30 @@ import (
 
 // SentinelConfig armazena os parâmetros de monitoramento e alertas autônomos da frota.
 type SentinelConfig struct {
-	Enabled           bool   `json:"enabled"`
-	CheckIntervalSec  int    `json:"checkIntervalSec"`  // Intervalo de verificação em segundos (mín: 15s, default: 60s)
-	RAMThresholdPct   int    `json:"ramThresholdPct"`   // Limite percentual de uso de RAM (default: 85%)
-	DiskThresholdPct  int    `json:"diskThresholdPct"`  // Limite percentual de uso de Disco (default: 90%)
-	NotifyDegradedApp bool   `json:"notifyDegradedApp"` // Alerta se qualquer réplica de container Swarm cair
-	NotifyNodeDown    bool   `json:"notifyNodeDown"`    // Alerta se qualquer Nó Worker da frota ficar offline
-	WebhookURL        string `json:"webhookURL"`        // Endpoint HTTP/HTTPS para n8n, Discord, Slack ou webhook próprio
-	TelegramBotToken  string `json:"telegramBotToken"`  // Token do Bot no Telegram
-	TelegramChatID    string `json:"telegramChatID"`    // Chat ID ou Canal do Telegram
-	CooldownMinutes   int    `json:"cooldownMinutes"`   // Tempo mínimo entre repetições do mesmo alerta (default: 15 min)
+	Enabled              bool   `json:"enabled"`
+	CheckIntervalSec     int    `json:"checkIntervalSec"`     // Intervalo de verificação em segundos (mín: 15s, default: 60s)
+	RAMThresholdPct      int    `json:"ramThresholdPct"`      // Limite percentual de uso de RAM (default: 85%)
+	DiskThresholdPct     int    `json:"diskThresholdPct"`     // Limite percentual de uso de Disco (default: 90%)
+	NotifyDegradedApp    bool   `json:"notifyDegradedApp"`    // Alerta se qualquer réplica de container Swarm cair
+	NotifyNodeDown       bool   `json:"notifyNodeDown"`       // Alerta se qualquer Nó Worker da frota ficar offline
+	ConfirmationDelaySec int    `json:"confirmationDelaySec"` // Delay de segurança antes de disparar alerta (default: 45s, mín: 0s, máx: 600s)
+	WebhookURL           string `json:"webhookURL"`           // Endpoint HTTP/HTTPS para n8n, Discord, Slack ou webhook próprio
+	TelegramBotToken     string `json:"telegramBotToken"`     // Token do Bot no Telegram
+	TelegramChatID       string `json:"telegramChatID"`       // Chat ID ou Canal do Telegram
+	CooldownMinutes      int    `json:"cooldownMinutes"`      // Tempo mínimo entre repetições do mesmo alerta (default: 15 min)
 }
 
 // defaultSentinelConfig retorna as configurações padrão e seguras do Sentinel.
 func defaultSentinelConfig() *SentinelConfig {
 	return &SentinelConfig{
-		Enabled:           false,
-		CheckIntervalSec:  60,
-		RAMThresholdPct:   85,
-		DiskThresholdPct:  90,
-		NotifyDegradedApp: true,
-		NotifyNodeDown:    true,
-		CooldownMinutes:   15,
+		Enabled:              false,
+		CheckIntervalSec:     60,
+		RAMThresholdPct:      85,
+		DiskThresholdPct:     90,
+		NotifyDegradedApp:     true,
+		NotifyNodeDown:        true,
+		ConfirmationDelaySec: 45,
+		CooldownMinutes:      15,
 	}
 }
 
@@ -52,17 +54,18 @@ func (c *SentinelConfig) Sanitized() map[string]any {
 		maskedToken = "***"
 	}
 	return map[string]any{
-		"enabled":            c.Enabled,
-		"checkIntervalSec":   c.CheckIntervalSec,
-		"ramThresholdPct":    c.RAMThresholdPct,
-		"diskThresholdPct":   c.DiskThresholdPct,
-		"notifyDegradedApp":  c.NotifyDegradedApp,
-		"notifyNodeDown":     c.NotifyNodeDown,
-		"webhookURL":         c.WebhookURL,
-		"telegramConfigured": c.TelegramBotToken != "" && c.TelegramChatID != "",
-		"telegramBotToken":   maskedToken,
-		"telegramChatID":     c.TelegramChatID,
-		"cooldownMinutes":    c.CooldownMinutes,
+		"enabled":              c.Enabled,
+		"checkIntervalSec":     c.CheckIntervalSec,
+		"ramThresholdPct":      c.RAMThresholdPct,
+		"diskThresholdPct":     c.DiskThresholdPct,
+		"notifyDegradedApp":    c.NotifyDegradedApp,
+		"notifyNodeDown":       c.NotifyNodeDown,
+		"confirmationDelaySec": c.ConfirmationDelaySec,
+		"webhookURL":           c.WebhookURL,
+		"telegramConfigured":   c.TelegramBotToken != "" && c.TelegramChatID != "",
+		"telegramBotToken":     maskedToken,
+		"telegramChatID":       c.TelegramChatID,
+		"cooldownMinutes":      c.CooldownMinutes,
 	}
 }
 
@@ -79,6 +82,12 @@ func (c *SentinelConfig) Validate() error {
 	}
 	if c.DiskThresholdPct < 50 || c.DiskThresholdPct > 98 {
 		c.DiskThresholdPct = 90
+	}
+	if c.ConfirmationDelaySec < 0 {
+		c.ConfirmationDelaySec = 45
+	}
+	if c.ConfirmationDelaySec > 600 {
+		c.ConfirmationDelaySec = 600
 	}
 	if c.CooldownMinutes < 1 {
 		c.CooldownMinutes = 5
@@ -120,6 +129,7 @@ type sentinelIncidentState struct {
 	Incident    SentinelIncident
 	FirstSeen   time.Time
 	LastAlertAt time.Time
+	AlertSent   bool
 }
 
 type sentinelRuntimeState struct {
@@ -477,23 +487,44 @@ func (a *webApp) runSentinelCheckCycle(ctx context.Context) {
 	state.mu.Lock()
 	now := time.Now().UTC()
 	cooldownDuration := time.Duration(cfg.CooldownMinutes) * time.Minute
+	confirmationDelay := time.Duration(cfg.ConfirmationDelaySec) * time.Second
 
 	// Detectar novos incidentes ou re-notificar após cooldown
 	for id, inc := range currentDetected {
 		existing, found := state.incidents[id]
 		shouldAlert := false
 		if !found {
-			// Novo incidente!
-			state.incidents[id] = &sentinelIncidentState{
+			// Novo incidente detectado: inicia em observação (janela de confirmação / histerese)
+			existing = &sentinelIncidentState{
 				Incident:    inc,
 				FirstSeen:   now,
-				LastAlertAt: now,
+				LastAlertAt: time.Time{},
+				AlertSent:   false,
 			}
-			shouldAlert = true
-		} else if now.Sub(existing.LastAlertAt) >= cooldownDuration {
-			// Incidente persistente expirou o cooldown anti-flood
-			existing.LastAlertAt = now
-			shouldAlert = true
+			state.incidents[id] = existing
+
+			// Se o delay de confirmação for 0, alerta imediatamente
+			if confirmationDelay <= 0 {
+				existing.AlertSent = true
+				existing.LastAlertAt = now
+				shouldAlert = true
+			}
+		} else {
+			// Incidente existente: atualiza objeto de incidente
+			existing.Incident = inc
+
+			if !existing.AlertSent {
+				// Aguarda confirmação contínua pelo tempo de segurança para descartar oscilação temporária
+				if now.Sub(existing.FirstSeen) >= confirmationDelay {
+					existing.AlertSent = true
+					existing.LastAlertAt = now
+					shouldAlert = true
+				}
+			} else if now.Sub(existing.LastAlertAt) >= cooldownDuration {
+				// Incidente persistente expirou o cooldown anti-flood
+				existing.LastAlertAt = now
+				shouldAlert = true
+			}
 		}
 
 		if shouldAlert {
@@ -515,16 +546,19 @@ func (a *webApp) runSentinelCheckCycle(ctx context.Context) {
 		if _, stillActive := currentDetected[id]; !stillActive {
 			// Incidente foi resolvido!
 			delete(state.incidents, id)
-			go func(incident SentinelIncident) {
-				recs := a.dispatchSentinelNotification(context.Background(), incident, true, localTelem)
-				state.mu.Lock()
-				state.recentAlerts = append(state.recentAlerts, recs...)
-				if len(state.recentAlerts) > 50 {
-					state.recentAlerts = state.recentAlerts[len(state.recentAlerts)-50:]
-				}
-				state.mu.Unlock()
-				a.addAudit("sentinel_incident_resolved", fmt.Sprintf("Incidente Sentinel %s normalizado", incident.ID), "sentinel-daemon")
-			}(existing.Incident)
+			// Somente envia notificação de resolução se o alerta inicial tiver sido de fato emitido ao usuário
+			if existing.AlertSent {
+				go func(incident SentinelIncident) {
+					recs := a.dispatchSentinelNotification(context.Background(), incident, true, localTelem)
+					state.mu.Lock()
+					state.recentAlerts = append(state.recentAlerts, recs...)
+					if len(state.recentAlerts) > 50 {
+						state.recentAlerts = state.recentAlerts[len(state.recentAlerts)-50:]
+					}
+					state.mu.Unlock()
+					a.addAudit("sentinel_incident_resolved", fmt.Sprintf("Incidente Sentinel %s normalizado", incident.ID), "sentinel-daemon")
+				}(existing.Incident)
+			}
 		}
 	}
 

@@ -40,7 +40,7 @@ func (a *webApp) fetchLocalTelemetry(ctx context.Context) (FleetTelemetry, error
 	return telem, nil
 }
 
-// probeWorkerNode realiza uma consulta remota segura com timeout para auditar um nó subordinado.
+// probeWorkerNode realiza uma consulta remota segura com timeout e dupla checagem para auditar um nó subordinado.
 func (a *webApp) probeWorkerNode(ctx context.Context, endpoint, token string) (FleetTelemetry, int64, error) {
 	cleanURL, err := validateFleetEndpoint(endpoint)
 	if err != nil {
@@ -48,38 +48,57 @@ func (a *webApp) probeWorkerNode(ctx context.Context, endpoint, token string) (F
 	}
 
 	probeURL := cleanURL + "/api/fleet/worker/telemetry"
-	probeCtx, cancel := context.WithTimeout(ctx, fleetProbeTimeout)
-	defer cancel()
 
-	req, err := http.NewRequestWithContext(probeCtx, http.MethodGet, probeURL, nil)
-	if err != nil {
-		return FleetTelemetry{}, 0, err
+	singleProbe := func() (FleetTelemetry, int64, error) {
+		probeCtx, cancel := context.WithTimeout(ctx, fleetProbeTimeout)
+		defer cancel()
+
+		req, err := http.NewRequestWithContext(probeCtx, http.MethodGet, probeURL, nil)
+		if err != nil {
+			return FleetTelemetry{}, 0, err
+		}
+
+		if token != "" {
+			req.Header.Set("X-SetupMNO-Fleet-Token", token)
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		req.Header.Set("Accept", "application/json")
+
+		start := time.Now()
+		resp, err := a.httpClient.Do(req)
+		latency := time.Since(start).Milliseconds()
+
+		if err != nil {
+			return FleetTelemetry{}, latency, fmt.Errorf("falha de conexão com nó: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return FleetTelemetry{}, latency, fmt.Errorf("nó retornou HTTP %d", resp.StatusCode)
+		}
+
+		var telemetry FleetTelemetry
+		if err := json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&telemetry); err != nil {
+			return FleetTelemetry{}, latency, fmt.Errorf("resposta de telemetria inválida: %w", err)
+		}
+		return telemetry, latency, nil
 	}
 
-	if token != "" {
-		req.Header.Set("X-SetupMNO-Fleet-Token", token)
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
-	req.Header.Set("Accept", "application/json")
-
-	start := time.Now()
-	resp, err := a.httpClient.Do(req)
-	latency := time.Since(start).Milliseconds()
-
-	if err != nil {
-		return FleetTelemetry{}, latency, fmt.Errorf("falha de conexão com nó: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return FleetTelemetry{}, latency, fmt.Errorf("nó retornou HTTP %d", resp.StatusCode)
+	// 1ª tentativa
+	telem, latency, err := singleProbe()
+	if err == nil {
+		return telem, latency, nil
 	}
 
-	var telemetry FleetTelemetry
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&telemetry); err != nil {
-		return FleetTelemetry{}, latency, fmt.Errorf("resposta de telemetria inválida: %w", err)
+	// Se falhou na 1ª tentativa, realiza dupla checagem com delay de segurança de 1.5s
+	// para absorver instabilidades de borda na Cloudflare e jitter de rota efêmero
+	select {
+	case <-ctx.Done():
+		return FleetTelemetry{}, latency, ctx.Err()
+	case <-time.After(1500 * time.Millisecond):
 	}
-	return telemetry, latency, nil
+
+	return singleProbe()
 }
 
 // handleFleetStatus retorna o status consolidado do Fleet Hub para a interface e auditorias.

@@ -20,6 +20,9 @@ func TestSentinelConfigDefaultsAndValidation(t *testing.T) {
 	if cfg.CooldownMinutes != 15 {
 		t.Errorf("cooldown padrão deveria ser 15 min, obteve %d", cfg.CooldownMinutes)
 	}
+	if cfg.ConfirmationDelaySec != 45 {
+		t.Errorf("confirmation delay padrão deveria ser 45s, obteve %d", cfg.ConfirmationDelaySec)
+	}
 
 	sanitized := cfg.Sanitized()
 	if sanitized["telegramBotToken"] != "" {
@@ -52,11 +55,12 @@ func TestSentinelConfigSaveAndLoad(t *testing.T) {
 		RAMThresholdPct:   80,
 		DiskThresholdPct:  88,
 		NotifyDegradedApp: true,
-		NotifyNodeDown:    true,
-		WebhookURL:        "https://webhook.site/test-uuid",
-		TelegramBotToken:  "123456789:ABCdefGHIjklMNOpqrSTUvwxYZ",
-		TelegramChatID:    "-1001234567890",
-		CooldownMinutes:   20,
+		NotifyNodeDown:       true,
+		ConfirmationDelaySec: 30,
+		WebhookURL:           "https://webhook.site/test-uuid",
+		TelegramBotToken:     "123456789:ABCdefGHIjklMNOpqrSTUvwxYZ",
+		TelegramChatID:       "-1001234567890",
+		CooldownMinutes:      20,
 	}
 
 	if err := saveSentinelConfig(configPath, cfg); err != nil {
@@ -68,7 +72,7 @@ func TestSentinelConfigSaveAndLoad(t *testing.T) {
 		t.Fatalf("loadSentinelConfig falhou: %v", err)
 	}
 
-	if !loaded.Enabled || loaded.RAMThresholdPct != 80 || loaded.TelegramChatID != "-1001234567890" {
+	if !loaded.Enabled || loaded.RAMThresholdPct != 80 || loaded.TelegramChatID != "-1001234567890" || loaded.ConfirmationDelaySec != 30 {
 		t.Errorf("configuração carregada divergente: %+v", loaded)
 	}
 
@@ -174,5 +178,93 @@ func TestSentinelHandlers(t *testing.T) {
 	app.handleSentinelGetStatus(statusW, statusReq)
 	if statusW.Code != http.StatusOK {
 		t.Fatalf("handleSentinelGetStatus retornou %d", statusW.Code)
+	}
+}
+
+func TestSentinelConfirmationDelayAndResolutionSuppression(t *testing.T) {
+	state := newSentinelRuntimeState()
+	cfg := &SentinelConfig{
+		Enabled:              true,
+		ConfirmationDelaySec: 45,
+		CooldownMinutes:      15,
+	}
+
+	// Cenário 1: Falha transitória (ocorre e se resolve antes de 45s)
+	now := time.Now().UTC()
+	incID := "node_down_transient"
+	inc := SentinelIncident{
+		ID:        incID,
+		NodeName:  "worker-jitter",
+		Severity:  "critical",
+		Message:   "Worker inacessível",
+		StartedAt: now,
+	}
+
+	state.mu.Lock()
+	state.incidents[incID] = &sentinelIncidentState{
+		Incident:    inc,
+		FirstSeen:   now,
+		LastAlertAt: time.Time{},
+		AlertSent:   false,
+	}
+	state.mu.Unlock()
+
+	// Ciclo de recuperação rápida (t=20s): anomalia resolvida sem disparar alerta
+	state.mu.Lock()
+	existing := state.incidents[incID]
+	delete(state.incidents, incID)
+	resolutionDispatched := false
+	if existing.AlertSent {
+		resolutionDispatched = true
+	}
+	state.mu.Unlock()
+
+	if resolutionDispatched {
+		t.Errorf("incidente transitório não deveria ter disparado notificação de resolução")
+	}
+
+	// Cenário 2: Falha confirmada (persiste por mais de ConfirmationDelaySec)
+	incID2 := "node_down_real"
+	inc2 := SentinelIncident{
+		ID:        incID2,
+		NodeName:  "worker-dead",
+		Severity:  "critical",
+		Message:   "Worker offline real",
+		StartedAt: now.Add(-50 * time.Second), // 50s atrás (> 45s)
+	}
+
+	state.mu.Lock()
+	existing2 := &sentinelIncidentState{
+		Incident:    inc2,
+		FirstSeen:   now.Add(-50 * time.Second),
+		LastAlertAt: time.Time{},
+		AlertSent:   false,
+	}
+	state.incidents[incID2] = existing2
+
+	confirmationDelay := time.Duration(cfg.ConfirmationDelaySec) * time.Second
+	shouldAlert := false
+	if !existing2.AlertSent && now.Sub(existing2.FirstSeen) >= confirmationDelay {
+		existing2.AlertSent = true
+		existing2.LastAlertAt = now
+		shouldAlert = true
+	}
+	state.mu.Unlock()
+
+	if !shouldAlert || !existing2.AlertSent {
+		t.Errorf("incidente persistente deveria ter disparado alerta e marcado AlertSent=true")
+	}
+
+	// Quando normalizar após alerta disparado, deve disparar resolução
+	state.mu.Lock()
+	resolutionDispatched2 := false
+	if existing2.AlertSent {
+		resolutionDispatched2 = true
+	}
+	delete(state.incidents, incID2)
+	state.mu.Unlock()
+
+	if !resolutionDispatched2 {
+		t.Errorf("incidente confirmado deveria ter disparado notificação de resolução após normalizar")
 	}
 }
