@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Combo Vibe Ops (Hermes Agent + n8n) no Setup MNO",
   "setupId": "combo-vibe-ops",
-  "setupVersion": "7.48.16",
+  "setupVersion": "7.48.17",
   "architectures": [
     "amd64",
     "arm64"
