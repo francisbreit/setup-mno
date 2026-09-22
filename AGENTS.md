@@ -312,6 +312,44 @@ Ao concluir a análise de um setup, entregue o parecer estruturado:
 - **Alterações Sugeridas no Motor Fleet Hub (`fleet-clone.sh`):** Ajustes de heurística ou reconciliação se aplicável.
 - **Plano de Homologação em Laboratório:** Comandos para testar o ciclo completo (Backup -> Transferência -> Restauração -> Teste Funcional).
 
+### 9. MODO SETUP MNO COMPATIBILIDADE SERVIDOR ANTIGO (MIGRAÇÃO TRAEFIK -> CLOUDFLARE TUNNEL & ADEQUAÇÃO COMPLETA DE REDES)
+Ative este modo quando o usuário disser **“Modo Setup MNO Compatibilidade Servidor Antigo”**, **“Modo Compatibilidade Servidor Antigo”**, **“Compatibilidade Servidor Antigo”**, **“Setup MNO Compatibilidade Servidor Antigo”** ou **“Migrar Servidor Antigo”** e apresentar as credenciais de um **Servidor Novo** (modelo com Cloudflare Tunnel) e de um **Servidor Antigo** (alvo com versão legada do Setup MNO e Traefik).
+
+#### Objetivo e Escopo do Modo
+Transformar de forma não-destrutiva o Servidor Antigo em um nó moderno rodando **Cloudflare Tunnel**, portas de firewall invisíveis (Stealth) e total padronização de redes (`externa`, `interna`, `agent_network`), mantendo 100% dos volumes, bancos de dados e ferramentas dos clientes operando perfeitamente.
+
+#### Regras de Ouro e Autoridade Operacional
+- O usuário já garantiu a política de segurança: *"sempre deixarei snapshot e backup dos servidores antigos. Não se preocupe com backup. Quando eu informar 'MODO SETUP MNO COMPATIBILIDADE SERVIDOR ANTIGO' e informar as credenciais do servidor novo e do servidor antigo, você deverá fazer as devidas atualizações no servidor antigo."*
+- **NÃO ALTERAR O CÓDIGO FONTE DO SETUP MNO:** Todas as alterações devem ocorrer exclusivamente no servidor antigo alvo. O repositório local do Setup MNO deve permanecer intacto em sua versão estável oficial.
+- **ISOLAMENTO ESTRITO DE DOMÍNIOS:** Nunca alterar nem criar rotas para domínios mestres que não pertençam ao servidor antigo (ex: se o servidor antigo hospeda apenas subdomínios como `ativa2.manualnegocioonline.com.br`, o domínio raiz `manualnegocioonline.com.br` NUNCA deve ser redirecionado para o servidor antigo).
+- **Segurança de Credenciais:** As credenciais SSH fornecidas na sessão são voláteis. NUNCA grave senhas em arquivos de log, commits do git ou respostas de texto.
+
+#### Protocolo em 7 Fases Obrigatórias:
+1. **Fase 1 (Coleta no Servidor Modelo):** Extrair `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` e metadados de zona a partir de `/root/.cloudflared_config/cloudflare_credentials` do servidor modelo e validar o token na API Cloudflare.
+2. **Fase 2 (Inventário Estrito no Servidor Antigo):** Inspecionar os serviços do Swarm e mapear todas as rotas do Traefik através das labels `traefik.http.routers.*.rule=Host(...)` e portas `traefik.http.services.*.loadbalancer.server.port`, filtrando estritamente os domínios que pertencem a esta máquina.
+3. **Fase 3 (Novo Túnel Exclusivo e Criação de Redes Modernas):**
+   - Criar no Servidor Antigo as redes overlay oficiais do Setup MNO moderno: `externa` (`--driver=overlay --attachable`), `interna` (`--driver=overlay --attachable`) e `agent_network` (`--driver=overlay --attachable`).
+   - Criar via API Cloudflare um túnel dedicado exclusivo para o servidor antigo (`setupmno-migrated-<host>-<timestamp>`), criar o Docker Secret `setupmno_primary_tunnel_<suffix>` e fazer deploy da stack `cloudflared` conectada à rede `externa`. Aguardar réplica 1/1.
+4. **Fase 4 (Ingress e DNS Automáticos):** Configurar o Ingress do novo túnel com todos os pares `{hostname, service_name:port, originRequest}` (regras com PathPrefix antes de rotas gerais) e o catch-all final `{service: "http_status:404"}`. Para cada hostname legítimo da máquina, criar/atualizar o registro CNAME apontando para `<novo_tunnel_id>.cfargotunnel.com` com `proxied: true`.
+5. **Fase 5 (Adequação Completa de Redes das Stacks):**
+   - **Bancos e Infraestrutura Interna (`postgres`, `mysql`, `redis`, `pgbouncer`):** Conectar à rede `interna` com seus respectivos aliases de serviço (`--network-add name=interna,alias=postgres`, etc.).
+   - **Aplicações Web com Banco (`wordpress`, `n8n`, `evolution`, `typebot`, `minio`, `pgadmin`, `phpmyadmin`):** Conectar tanto à rede `interna` (para acesso aos bancos) quanto à rede `externa` (para receber tráfego do túnel Cloudflare).
+   - **RabbitMQ:** Conectar à rede `interna` (alias `rabbitmq`) e à rede `externa` (para acesso à UI de gestão).
+   - **Blindagem do Portainer (Regra Anti-Desconexão de Stacks):** O serviço `portainer_agent` DEVE ser conectado à rede `agent_network` com o alias `agent` (`--network-add name=agent_network,alias=agent`) para que o Portainer CE consiga resolver `tcp://tasks.agent:9001`. `portainer_portainer` conecta-se a `agent_network` e `externa`.
+   - **Desconexão da Rede Legada:** Desconectar todos os serviços da rede `network_public` (`--network-rm network_public`) e remover a rede legada vazia.
+6. **Fase 6 (Remoção Limpa de Labels Traefik, Validação HTTPS & Firewall Stealth):**
+   - Remover as labels `traefik.*` de cada serviço via `docker service update --label-rm ...`.
+   - Validar requisições HTTPS através da borda Cloudflare para todos os domínios.
+   - Remover a stack `traefik` (`docker stack rm traefik`).
+   - Fechar as portas 80 e 443 no firewall do host (UFW/iptables).
+7. **Fase 7 (Alinhamento de Filesystem sem Mutação do Código Local):**
+   - Criar diretório `/root/.cloudflared_config/`.
+   - Gravar `/root/.cloudflared_config/installation_type` com `CLOUDFLARE_TUNNEL`.
+   - Gravar `/root/.cloudflared_config/cloudflare_credentials` com os dados do novo túnel e permissão `0600`.
+   - Sincronizar o diretório `/root/SetupLowCodeMno/` da versão mais recente nativa estável a partir do repositório local.
+   - Sincronizar o script `setup-mno.sh` na raiz `/root/setup-mno.sh` com permissão executável.
+   - Atualizar link global `/usr/local/bin/setup-mno`.
+
 ## CONTEXTO DOS AMBIENTES DO SETUP MNO
 
 ### ⚠️ POLÍTICA OBRIGATÓRIA DE VERSIONAMENTO POR ETAPA (REGRA DE OURO FRANCIS MNO) ⚠️
