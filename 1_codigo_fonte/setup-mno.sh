@@ -1,6 +1,6 @@
 #!/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 22:39:34
-VERSIONSETUP="7.48.17"
+VERSIONSETUP="7.48.18"
 
 
 
@@ -1032,14 +1032,16 @@ show_progress_whiptail
 
 
 
-# Baixar o arquivo
-
+# Baixar o arquivo com blindagem anti-cache de CDN
 download_tmp="${filename}.download"
 rm -f -- "$filename" "$download_tmp"
+cache_token=$(date +%s%N 2>/dev/null || date +%s)
 if ! curl --fail --location --silent --show-error \
     --connect-timeout 15 --max-time 300 \
+    -H "Cache-Control: no-cache" \
+    -H "Pragma: no-cache" \
     --output "$download_tmp" \
-    "https://ativa2.manualnegocioonline.com.br/$filename" || \
+    "https://ativa2.manualnegocioonline.com.br/$filename?v=${VERSIONSETUP}&t=${cache_token}" || \
    [ ! -s "$download_tmp" ] || \
    ! chmod 700 "$download_tmp" || \
    ! mv -f -- "$download_tmp" "$filename"; then

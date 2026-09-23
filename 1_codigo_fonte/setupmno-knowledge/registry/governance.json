@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "setupVersion": "7.48.17",
+  "setupVersion": "7.48.18",
   "knowledgeVersion": "3.34.2",
   "installationAssurance": {
     "status": "maintainer-homologated",
@@ -49,5 +49,5 @@
       "reason": "O catálogo declara 2 GB, enquanto o documento registra requisito oficial mínimo de 4 GB."
     }
   ],
-  "version": "7.48.17"
+  "version": "7.48.18"
 }

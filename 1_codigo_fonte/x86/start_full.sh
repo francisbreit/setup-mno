@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Gerado via Workflow MiMo - 2026-07-14 23:56:23
-VERSIONSETUP="7.48.17"
+VERSIONSETUP="7.48.18"
 EXPECTED_CATALOG_ENTRIES="157"
 EXPECTED_EVAL_DATASET_VERSION="1.17.0"
 EXPECTED_EVAL_GRADER_VERSION="1.9.0"
@@ -9,7 +9,7 @@ EXPECTED_BLUEPRINT_FACTORY_VERSION="2.1.0"
 EXPECTED_BLUEPRINT_FIXTURE_ENTRIES="0"
 EXPECTED_QUALITY_SCHEMA_VERSION="2"
 EXPECTED_HOMOLOGATION_RUNNER_VERSION="1.3.0"
-EXPECTED_CONTROL_RELEASE_SHA256="93540a7a0683f775d98156551f4273f0f7cec07d86a6423e28f5530346a498c0"
+EXPECTED_CONTROL_RELEASE_SHA256="9c13e7588c6977c476dfc52743a59c0c392210257cca170c8b39bbb935bb4f36"
 umask 077
 # Garantir execução como root
 if [ "$EUID" -ne 0 ]; then
@@ -558,11 +558,40 @@ fi
 
 echo -e "XXX\n45\nSETUPMNO: BAIXANDO ARQUIVOS... 2/8 \nXXX"
 
-# 4. Download do ZIP com verificação
+# 4. Download do ZIP com verificação e blindagem anti-cache de CDN
 cd /root
-wget -q -O SetupLowCodeMno.zip "https://manualnegocioonline.com.br/downloads/mno/x86/SetupLowCodeMno.zip"
-if [ $? -ne 0 ] || [ ! -s SetupLowCodeMno.zip ]; then
-    echo -e "XXX\n100\nERRO: FALHA NO DOWNLOAD. PRESSIONE ENTER PARA SAIR.\nXXX"
+download_zip_ok=0
+zip_base_url="https://manualnegocioonline.com.br/downloads/mno/x86/SetupLowCodeMno.zip"
+
+for attempt in 1 2 3; do
+    rm -f SetupLowCodeMno.zip
+    cache_token=$(date +%s%N 2>/dev/null || date +%s)
+    target_url="${zip_base_url}?v=${VERSIONSETUP}&t=${cache_token}"
+    if wget --tries=3 --timeout=30 --no-cache \
+        --header="Cache-Control: no-cache" \
+        --header="Pragma: no-cache" \
+        -q -O SetupLowCodeMno.zip "$target_url" 2>/dev/null && [ -s SetupLowCodeMno.zip ]; then
+        :
+    elif curl --fail --location --silent --show-error \
+        --connect-timeout 15 --max-time 300 \
+        -H "Cache-Control: no-cache" \
+        -H "Pragma: no-cache" \
+        -o SetupLowCodeMno.zip "$target_url" 2>/dev/null && [ -s SetupLowCodeMno.zip ]; then
+        :
+    fi
+
+    # Validação do pacote baixado: integridade zip e presença do Control Center
+    if [ -s SetupLowCodeMno.zip ] && \
+       unzip -t -P F@aioDv6740bR2021 SetupLowCodeMno.zip >/dev/null 2>&1 && \
+       unzip -l -P F@aioDv6740bR2021 SetupLowCodeMno.zip 2>/dev/null | grep -q 'SetupLowCodeMno/\.control-package/release\.json'; then
+        download_zip_ok=1
+        break
+    fi
+    sleep 2
+done
+
+if [ "$download_zip_ok" -ne 1 ]; then
+    echo -e "XXX\n100\nERRO: FALHA NO DOWNLOAD DO PACOTE ATUALIZADO. PRESSIONE ENTER PARA SAIR.\nXXX"
     sleep 3
     exit 1
 fi
