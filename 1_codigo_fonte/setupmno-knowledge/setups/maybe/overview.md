@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Maybe no Setup MNO",
   "setupId": "maybe",
-  "setupVersion": "7.48.19",
+  "setupVersion": "7.48.20",
   "architectures": [
     "amd64",
     "arm64"

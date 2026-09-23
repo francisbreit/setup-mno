@@ -105,7 +105,8 @@ Documentos atuais de arquitetura e operação:
 - `releases/v7.48.16-fleet-hub-backup-portatil-estavel.md`;
 - `releases/v7.48.17-sentinel-antiflapping-modo-compatibilidade-estavel.md`;
 - `releases/v7.48.18-blindagem-anti-cache-cdn-download.md`;
-- `releases/v7.48.19-wsl2-operario-paridade-ativa-estavel.md`.
+- `releases/v7.48.19-wsl2-operario-paridade-ativa-estavel.md`;
+- `releases/v7.48.20-deteccao-mfa-resiliencia-lock.md`.
 
 Validação específica do SRE Knowledge Pack:
 

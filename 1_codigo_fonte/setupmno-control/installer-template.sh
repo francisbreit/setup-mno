@@ -635,6 +635,26 @@ restore_existing_access_original_mode() {
     return 0
 }
 
+disable_existing_access_mfa_noninteractive() {
+    [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] || { printf '%s\n' "Instalação tradicional: MFA não se aplica."; return 0; }
+    [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] && [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || { printf '%s\n' "Credenciais indisponíveis." >&2; return 1; }
+    local ws wd log
+    ws=$(docker service ls --format '{{.Name}}' 2>/dev/null | grep -E '^mnoctrl[[:alnum:]]+-web_mnoctrl[[:alnum:]]+-web$') || true
+    [ "$(printf '%s\n' "$ws" | grep -c .)" -eq 1 ] || { printf '%s\n' "Serviço web do Control Center não encontrado de forma unívoca." >&2; return 1; }
+    wd=$(mktemp -d) || return 1
+    log="/tmp/setupmno-control-mfa-${CONTROL_VERSION}.log"
+    : >"$log"
+    load_cloudflare_mfa_helper || { rm -rf -- "$wd"; printf '%s\n' "Assistente MFA indisponível." >&2; return 1; }
+    if restore_existing_access_original_mode "$ws" "$wd" "$log" false; then
+        rm -rf -- "$wd"
+        printf '%s\n' "MFA do Cloudflare Access desativado com sucesso! Modo original restaurado."
+        return 0
+    fi
+    rm -rf -- "$wd"
+    printf '%s\n' "Falha ao desativar MFA. Consulte $log" >&2
+    return 1
+}
+
 reconcile_existing_control_center() {
     local upgrade_dir upgrade_log upgrade_error upgrade_state status detail noop
     local existing_web migration_state
@@ -729,6 +749,9 @@ configure_existing_access_mfa() {
     local auth_domain app_count app_id policy_count policy_id current_mfa_disabled current_mfa_enabled
     local action rollback_response activation_state status onboarding_state
 
+    show_mfa_success_notice() {
+        msg "MFA ATIVADO!\n\nE-MAIL OBRIGATÓRIO NA CLOUDFLARE:\n$email\n\nNÃO use o e-mail original se o endereço acima contém +setupmno. Digite o alias completo; caso contrário, a Cloudflare dirá que enviou o código, mas nenhum e-mail chegará.\n\n1. Abra ${team_domain}/cdn-cgi/access/logout\n2. Abra ${team_domain}/AddMfaDevice\n3. Digite exatamente o endereço acima\n4. Receba o código na caixa original e leia o novo QR"
+    }
     if [ "$INSTALL_TYPE" != "CLOUDFLARE_TUNNEL" ]; then
         msg "O MFA independente desta opção pertence ao Cloudflare Access.\n\nEste Control Center usa acesso tradicional, portanto nenhuma alteração foi realizada."
         return 0
@@ -766,7 +789,18 @@ configure_existing_access_mfa() {
                 "CANCELAR" "Manter o modo original e voltar ao menu" \
                 3>&1 1>&2 2>&3) || return 0
             case "$action" in
-                ATIVAR) break ;;
+                ATIVAR)
+                    local fleet_mode
+                    fleet_mode=$(jq -r '.fleetMode // empty' "$CONTROL_ENVIRONMENT_FILE" 2>/dev/null || true)
+                    if [ "$fleet_mode" = "worker" ]; then
+                        if ! whiptail --title "AVISO: NÓ OPERÁRIO EM FROTA" --yesno \
+                            "ATENÇÃO: Este servidor opera como NÓ OPERÁRIO de uma Torre Master.\n\nA ativação do MFA interceptará a telemetria da Torre Master (exibindo 'MFA Bloqueando' até criar Bypass na Cloudflare).\n\nDeseja ativar mesmo assim?" \
+                            14 78 3>&1 1>&2 2>&3; then
+                            continue
+                        fi
+                    fi
+                    break
+                    ;;
                 INSTRUCOES) show_cloudflare_access_guide ;;
                 CANCELAR) return 0 ;;
             esac
@@ -793,7 +827,7 @@ configure_existing_access_mfa() {
             return 1
         }
         rm -rf -- "$work_dir"
-        msg "MFA ATIVADO!\n\nE-MAIL OBRIGATÓRIO NA CLOUDFLARE:\n$email\n\nNÃO use o e-mail original se o endereço acima contém +setupmno. Digite o alias completo; caso contrário, a Cloudflare dirá que enviou o código, mas nenhum e-mail chegará.\n\n1. Abra ${team_domain}/cdn-cgi/access/logout\n2. Abra ${team_domain}/AddMfaDevice\n3. Digite exatamente o endereço acima\n4. Receba o código na caixa original e leia o novo QR"
+        show_mfa_success_notice
         return 0
     fi
     if [ "$access_required" != "true" ] ||
@@ -1016,9 +1050,17 @@ configure_existing_access_mfa() {
         return 1
     }
     rm -rf -- "$work_dir"
-    msg "MFA ATIVADO!\n\nE-MAIL OBRIGATÓRIO NA CLOUDFLARE:\n$email\n\nNÃO use o e-mail original se o endereço acima contém +setupmno. Digite o alias completo; caso contrário, a Cloudflare dirá que enviou o código, mas nenhum e-mail chegará.\n\n1. Abra ${team_domain}/cdn-cgi/access/logout\n2. Abra ${team_domain}/AddMfaDevice\n3. Digite exatamente o endereço acima\n4. Receba o código na caixa original e leia o novo QR"
+    show_mfa_success_notice
     return 0
 }
+
+if [ "${1:-}" = "--force-unlock" ] || [ "${1:-}" = "--unlock" ]; then
+    locking_pids=$(fuser "/root/SetupLowCodeMno/.setupmno-control-install.lock" 2>/dev/null || true)
+    [ -z "$locking_pids" ] || { kill -15 $locking_pids 2>/dev/null || true; sleep 1; kill -9 $locking_pids 2>/dev/null || true; }
+    rm -f "/root/SetupLowCodeMno/.setupmno-control-install.lock"
+    printf '%s\n' "Trava de instalação do Setup MNO Control Center liberada com sucesso."
+    exit 0
+fi
 
 command -v flock >/dev/null 2>&1 || {
     msg "A trava de instalação segura (flock) não está disponível. Nenhuma alteração foi realizada."
@@ -1028,10 +1070,24 @@ exec 9>"/root/SetupLowCodeMno/.setupmno-control-install.lock" || {
     msg "Não foi possível criar a trava de instalação do Control Center. Nenhuma alteração foi realizada."
     exit 1
 }
-flock -n 9 || {
-    msg "Já existe uma instalação do Setup MNO Control Center em andamento neste servidor.\n\nAguarde a conclusão antes de tentar novamente."
-    exit 0
-}
+if ! flock -n 9; then
+    locking_pids=$(fuser "/root/SetupLowCodeMno/.setupmno-control-install.lock" 2>/dev/null || true)
+    if [ -n "$locking_pids" ] && command -v whiptail >/dev/null 2>&1 && { [ -t 0 ] || [ -t 1 ] || [ -n "${SSH_TTY:-}" ] || [ -n "${TERM:-}" ]; }; then
+        if whiptail --title "TRAVA DE INSTALAÇÃO DO CONTROL CENTER" --yesno \
+            "Já existe um processo segurando a trava de instalação.\nPID(s): $locking_pids\n\nIsso ocorre se a conexão SSH caiu ou a janela fechou.\nDeseja encerrar o processo anterior e liberar a trava agora?" 14 74 3>&1 1>&2 2>&3; then
+            kill -15 $locking_pids 2>/dev/null || true
+            sleep 1
+            kill -9 $locking_pids 2>/dev/null || true
+            sleep 0.5
+            flock -n 9 || { msg "Não foi possível adquirir a trava após a liberação. Aguarde e tente novamente."; exit 1; }
+        else
+            exit 0
+        fi
+    else
+        msg "Já existe uma instalação do Setup MNO Control Center em andamento neste servidor.\n\nAguarde a conclusão antes de tentar novamente."
+        exit 0
+    fi
+fi
 
 if control_center_installed; then
     case "${1:-}" in
@@ -1041,6 +1097,10 @@ if control_center_installed; then
             ;;
         --configure-access-mfa)
             configure_existing_access_mfa
+            exit $?
+            ;;
+        --disable-access-mfa)
+            disable_existing_access_mfa_noninteractive
             exit $?
             ;;
     esac
@@ -1087,38 +1147,17 @@ ask_password() {
             14 78 3>&1 1>&2 2>&3)
         status=$?
         [ "$status" -ne 0 ] && return 130
-        if [ "${#value}" -lt 12 ]; then
-            msg "Senha inválida: use pelo menos 12 caracteres."
-            continue
-        fi
-        if [[ ! "$value" =~ [[:upper:]] ]]; then
-            msg "Senha inválida: inclua pelo menos uma letra maiúscula."
-            continue
-        fi
-        if [[ ! "$value" =~ [[:lower:]] ]]; then
-            msg "Senha inválida: inclua pelo menos uma letra minúscula."
-            continue
-        fi
-        if [[ ! "$value" =~ [[:digit:]] ]]; then
-            msg "Senha inválida: inclua pelo menos um número."
-            continue
-        fi
-        if [[ "$value" =~ [[:space:]] ]]; then
-            msg "Senha inválida: não use espaços."
-            continue
-        fi
-        if [[ ! "$value" =~ [^[:alnum:][:space:]] ]]; then
-            msg "Senha inválida: inclua pelo menos um símbolo, como !, @, # ou %."
-            continue
-        fi
+        [ "${#value}" -lt 12 ] && { msg "Senha inválida: use pelo menos 12 caracteres."; continue; }
+        [[ ! "$value" =~ [[:upper:]] ]] && { msg "Senha inválida: inclua pelo menos uma letra maiúscula."; continue; }
+        [[ ! "$value" =~ [[:lower:]] ]] && { msg "Senha inválida: inclua pelo menos uma letra minúscula."; continue; }
+        [[ ! "$value" =~ [[:digit:]] ]] && { msg "Senha inválida: inclua pelo menos um número."; continue; }
+        [[ "$value" =~ [[:space:]] ]] && { msg "Senha inválida: não use espaços."; continue; }
+        [[ ! "$value" =~ [^[:alnum:][:space:]] ]] && { msg "Senha inválida: inclua pelo menos um símbolo, como !, @, # ou %."; continue; }
         confirmation=$(whiptail --title "SETUP MNO CONTROL CENTER" --passwordbox \
             "Confirme a senha administrativa:" 11 78 3>&1 1>&2 2>&3)
         status=$?
         [ "$status" -ne 0 ] && return 130
-        [ "$value" = "$confirmation" ] && {
-            printf '%s' "$value"
-            return
-        }
+        [ "$value" = "$confirmation" ] && { printf '%s' "$value"; return; }
         msg "As senhas não coincidem."
     done
 }
@@ -1372,62 +1411,35 @@ else
                 break
                 ;;
             OPENAI)
-                if ! llm_api_key=$(ask_llm_key "OpenAI"); then
-                    exit 0
-                fi
-                if ! assistant_model=$(ask_with_default \
-                    "Modelo OpenAI (recomendados no Help):\n\nO padrão equilibra qualidade e custo." \
-                    "gpt-5.6-terra"); then
-                    exit 0
-                fi
+                if ! llm_api_key=$(ask_llm_key "OpenAI"); then exit 0; fi
+                if ! assistant_model=$(ask_with_default "Modelo OpenAI (recomendados no Help):\n\nO padrão equilibra qualidade e custo." "gpt-5.6-terra"); then exit 0; fi
                 assistant_mode="openai"
                 assistant_base_url="https://api.openai.com/v1"
                 break
                 ;;
             OPENROUTER)
-                if ! llm_api_key=$(ask_llm_key "OpenRouter"); then
-                    exit 0
-                fi
-                if ! assistant_model=$(ask_with_default \
-                    "Modelo OpenRouter (recomendados no Help):\n\nEvite :free no modo especialista." \
-                    "openai/gpt-5.6-terra"); then
-                    exit 0
-                fi
+                if ! llm_api_key=$(ask_llm_key "OpenRouter"); then exit 0; fi
+                if ! assistant_model=$(ask_with_default "Modelo OpenRouter (recomendados no Help):\n\nEvite :free no modo especialista." "openai/gpt-5.6-terra"); then exit 0; fi
                 assistant_mode="openrouter"
                 assistant_base_url="https://openrouter.ai/api/v1"
                 break
                 ;;
             DEEPSEEK)
-                if ! llm_api_key=$(ask_llm_key "DeepSeek"); then
-                    exit 0
-                fi
-                if ! assistant_model=$(ask_with_default \
-                    "Modelo DeepSeek (recomendados no Help):\n\nUse Pro para qualidade ou Flash para equilíbrio." \
-                    "deepseek-v4-flash"); then
-                    exit 0
-                fi
+                if ! llm_api_key=$(ask_llm_key "DeepSeek"); then exit 0; fi
+                if ! assistant_model=$(ask_with_default "Modelo DeepSeek (recomendados no Help):\n\nUse Pro para qualidade ou Flash para equilíbrio." "deepseek-v4-flash"); then exit 0; fi
                 assistant_mode="deepseek"
                 assistant_base_url="https://api.deepseek.com"
                 break
                 ;;
             OLLAMA)
-                if [ "${mem_total_mb:-0}" -lt 8192 ] || [ "${mem_available_mb:-0}" -lt 4096 ]; then
+                [ "${mem_total_mb:-0}" -ge 8192 ] && [ "${mem_available_mb:-0}" -ge 4096 ] || {
                     msg "O modo Ollama local exige pelo menos 8 GB de RAM total e 4 GB disponíveis.\n\nUse OpenAI, mantenha o diagnóstico básico ou amplie o servidor. Esta proteção evita degradação dos setups já instalados."
                     continue
-                fi
-                if ! assistant_base_url=$(ask_required \
-                    "Endpoint do Ollama já instalado (ex.: https://apiollama.seudominio.com):"); then
-                    exit 0
-                fi
+                }
+                if ! assistant_base_url=$(ask_required "Endpoint do Ollama já instalado (ex.: https://apiollama.seudominio.com):"); then exit 0; fi
                 assistant_base_url="${assistant_base_url%/}"
-                if [[ ! "$assistant_base_url" =~ ^https?://[^[:space:]]+$ ]]; then
-                    msg "Informe uma URL HTTP ou HTTPS válida para o endpoint Ollama."
-                    continue
-                fi
-                if ! assistant_model=$(ask_required \
-                    "Nome exato do modelo já baixado no Ollama (ex.: qwen3:8b):"); then
-                    exit 0
-                fi
+                [[ "$assistant_base_url" =~ ^https?://[^[:space:]]+$ ]] || { msg "Informe uma URL HTTP ou HTTPS válida para o endpoint Ollama."; continue; }
+                if ! assistant_model=$(ask_required "Nome exato do modelo já baixado no Ollama (ex.: qwen3:8b):"); then exit 0; fi
                 assistant_mode="ollama"
                 break
                 ;;
@@ -1601,50 +1613,37 @@ error_file="/tmp/${nome_app}-error.log"
     echo -e "XXX\n4\nVALIDANDO AMBIENTE... \nXXX"
     for required_command in docker curl jq tar openssl python3; do
         command -v "$required_command" >/dev/null 2>&1 ||
-            fail_install 10 "DEPENDÊNCIA NÃO ENCONTRADA" "O comando obrigatório '$required_command' não está instalado."
+            fail_install 10 "DEPENDÊNCIA NÃO ENCONTRADA" "Comando '$required_command' ausente."
     done
-    docker info >>"$install_log" 2>&1 ||
-        fail_install 11 "DOCKER INDISPONÍVEL" "O Docker Engine ou o Swarm não está disponível."
+    docker info >>"$install_log" 2>&1 || fail_install 11 "DOCKER INDISPONÍVEL" "Docker indisponível."
     docker_socket_gid=$(stat -c '%g' /var/run/docker.sock 2>>"$install_log") ||
-        fail_install 11 "SOCKET DOCKER INDISPONÍVEL" "O socket Docker não está disponível para o Terminal Seguro."
+        fail_install 11 "SOCKET DOCKER INDISPONÍVEL" "Socket Docker indisponível."
     [[ "$docker_socket_gid" =~ ^[0-9]+$ ]] && [ "$docker_socket_gid" -le 2147483647 ] ||
-        fail_install 11 "SOCKET DOCKER INDISPONÍVEL" "O grupo de acesso ao Docker não pôde ser identificado para o Terminal Seguro."
+        fail_install 11 "SOCKET DOCKER INDISPONÍVEL" "Grupo do Docker indisponível."
     swarm_state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>>"$install_log")
-    [ "$swarm_state" = "active" ] ||
-        fail_install 11 "SWARM INATIVO" "O Docker Swarm precisa estar ativo antes de instalar o Control Center."
-    docker network inspect interna >>"$install_log" 2>&1 ||
-        fail_install 12 "REDE INTERNA INDISPONÍVEL" "A rede overlay 'interna' não foi encontrada."
-    docker network inspect externa >>"$install_log" 2>&1 ||
-        fail_install 13 "REDE EXTERNA INDISPONÍVEL" "A rede overlay 'externa' não foi encontrada."
-    [ -x /root/SetupLowCodeMno/install ] ||
-        fail_install 14 "INSTALADOR NÃO ENCONTRADO" "O executável /root/SetupLowCodeMno/install não foi encontrado."
-    [ -s /root/SetupLowCodeMno/.control/release.json ] &&
-    [ -s /root/SetupLowCodeMno/.control/catalog.json ] ||
-        fail_install 14 "ESTADO DO SETUP NÃO ENCONTRADO" "Atualize o Setup MNO antes de instalar o Control Center. O manifesto ou catálogo runtime não foi encontrado."
+    [ "$swarm_state" = "active" ] || fail_install 11 "SWARM INATIVO" "Swarm inativo."
+    docker network inspect interna >>"$install_log" 2>&1 || fail_install 12 "REDE INTERNA INDISPONÍVEL" "Rede interna ausente."
+    docker network inspect externa >>"$install_log" 2>&1 || fail_install 13 "REDE EXTERNA INDISPONÍVEL" "Rede externa ausente."
+    [ -x /root/SetupLowCodeMno/install ] || fail_install 14 "INSTALADOR NÃO ENCONTRADO" "Instalador ausente."
+    [ -s /root/SetupLowCodeMno/.control/release.json ] && [ -s /root/SetupLowCodeMno/.control/catalog.json ] ||
+        fail_install 14 "ESTADO DO SETUP NÃO ENCONTRADO" "Catálogo runtime ausente."
     runtime_catalog_sha=$(sha256sum /root/SetupLowCodeMno/.control/catalog.json | awk '{print $1}')
     expected_catalog_sha=$(jq -r '.catalogSHA256 // empty' /root/SetupLowCodeMno/.control/release.json 2>>"$install_log")
     [ -n "$expected_catalog_sha" ] && [ "$runtime_catalog_sha" = "$expected_catalog_sha" ] ||
-        fail_install 14 "CATÁLOGO DO SETUP INVÁLIDO" "O catálogo runtime não corresponde ao manifesto da versão instalada."
-    [ -f "$CREDENTIALS_FILE" ] ||
-        fail_install 15 "CREDENCIAIS NÃO ENCONTRADAS" "Arquivo de credenciais não encontrado: $CREDENTIALS_FILE"
+        fail_install 14 "CATÁLOGO DO SETUP INVÁLIDO" "Catálogo inválido."
+    [ -f "$CREDENTIALS_FILE" ] || fail_install 15 "CREDENCIAIS NÃO ENCONTRADAS" "Credenciais ausentes."
 
-    if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] ||
-       { [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; }; then
-        if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ZONE_ID" ]; then
-            fail_install 16 "CREDENCIAIS CLOUDFLARE INVÁLIDAS" "Token ou Zone ID do Cloudflare não encontrado."
-        fi
+    if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] || { [ "$INSTALL_TYPE" = "TRADICIONAL" ] && [ "$criar_dns" = "0" ]; }; then
+        [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ZONE_ID" ] || fail_install 16 "CREDENCIAIS CLOUDFLARE INVÁLIDAS" "Credenciais Cloudflare ausentes."
     fi
-    if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] &&
-       { [ -z "$CLOUDFLARE_ACCOUNT_ID" ] || [ -z "$TUNNEL_ID" ]; }; then
-        fail_install 17 "DADOS DO TUNNEL INVÁLIDOS" "Account ID ou Tunnel ID não encontrado."
+    if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
+        [ -n "$CLOUDFLARE_ACCOUNT_ID" ] && [ -n "$TUNNEL_ID" ] || fail_install 17 "DADOS DO TUNNEL INVÁLIDOS" "Dados do Tunnel ausentes."
     fi
 
     echo -e "XXX\n10\nEXTRAINDO O CONTROL CENTER... \nXXX"
     mkdir -p "$work_dir/source"
-    if ! extract_control_bundle 2>>"$install_log" |
-        tar -xzf - -C "$work_dir/source" >>"$install_log" 2>&1; then
-        fail_install 20 "BUNDLE DO PAINEL INVÁLIDO" "Não foi possível validar e extrair os fontes internos do Control Center."
-    fi
+    extract_control_bundle 2>>"$install_log" | tar -xzf - -C "$work_dir/source" >>"$install_log" 2>&1 ||
+        fail_install 20 "BUNDLE DO PAINEL INVÁLIDO" "Falha ao extrair bundle."
     . "$work_dir/source/install-heartbeat.sh" ||
         fail_install 20 "HEARTBEAT INVÁLIDO" "Indicador de atividade ausente."
     runtime_catalog="/root/SetupLowCodeMno/.control/catalog.json"
@@ -1739,28 +1738,17 @@ error_file="/tmp/${nome_app}-error.log"
         exit 30
     fi
     stop_install_heartbeat
-    if ! docker image inspect --format \
-        'Painel: {{.Id}} | Arquitetura: {{.Architecture}} | Tamanho: {{.Size}} bytes' \
-        "$control_image" >>"$install_log" 2>&1; then
-        fail_install 31 "IMAGEM DO PAINEL NÃO ENCONTRADA" "O build terminou, mas a imagem do painel não foi confirmada."
-    fi
-    if ! docker run --rm --entrypoint /setupmno-control \
-        "$control_image" knowledgecheck >>"$install_log" 2>&1; then
-        fail_install 31 "CONHECIMENTO DA IMAGEM INVÁLIDO" "A imagem não validou o pacote de conhecimento somente leitura."
-    fi
-    if ! docker run --rm --entrypoint /setupmno-control \
-        "$control_image" evalcheck >>"$install_log" 2>&1; then
+    docker image inspect --format 'Painel: {{.Id}} | Arquitetura: {{.Architecture}} | Tamanho: {{.Size}} bytes' "$control_image" >>"$install_log" 2>&1 ||
+        fail_install 31 "IMAGEM DO PAINEL NÃO ENCONTRADA" "Imagem do painel não confirmada."
+    docker run --rm --entrypoint /setupmno-control "$control_image" knowledgecheck >>"$install_log" 2>&1 ||
+        fail_install 31 "CONHECIMENTO DA IMAGEM INVÁLIDO" "Falha no knowledgecheck da imagem."
+    docker run --rm --entrypoint /setupmno-control "$control_image" evalcheck >>"$install_log" 2>&1 ||
         fail_install 31 "REGRESSÃO DE QUALIDADE DETECTADA" "A suíte canônica de 878 casos não atingiu os gates mínimos desta release."
-    fi
     fallback_check="$work_dir/knowledge-fallback.json"
-    if ! docker run --rm \
-        -e KNOWLEDGE_PACKAGE_DIR=/pacote-ausente \
-        --entrypoint /setupmno-control \
-        "$control_image" knowledgecheck >"$fallback_check" 2>>"$install_log" ||
-       [ "$(jq -r '.source // empty' "$fallback_check" 2>>"$install_log")" != "embedded-fallback" ] ||
-       [ "$(jq -r '.stale // false' "$fallback_check" 2>>"$install_log")" != "true" ]; then
-        fail_install 31 "FALLBACK DE CONHECIMENTO INVÁLIDO" "A imagem não confirmou a base embutida de contingência."
-    fi
+    docker run --rm -e KNOWLEDGE_PACKAGE_DIR=/pacote-ausente --entrypoint /setupmno-control "$control_image" knowledgecheck >"$fallback_check" 2>>"$install_log" &&
+        [ "$(jq -r '.source // empty' "$fallback_check" 2>>"$install_log")" = "embedded-fallback" ] &&
+        [ "$(jq -r '.stale // false' "$fallback_check" 2>>"$install_log")" = "true" ] ||
+        fail_install 31 "FALLBACK DE CONHECIMENTO INVÁLIDO" "Fallback de contingência inválido."
 
     start_install_heartbeat 38 "CONSTRUINDO O TERMINAL PROTEGIDO..."
     if ! docker build --pull -f "$work_dir/source/terminal.Dockerfile" \
@@ -1774,11 +1762,8 @@ error_file="/tmp/${nome_app}-error.log"
         exit 32
     fi
     stop_install_heartbeat
-    if ! docker image inspect --format \
-        'Terminal: {{.Id}} | Arquitetura: {{.Architecture}} | Tamanho: {{.Size}} bytes' \
-        "$terminal_image" >>"$install_log" 2>&1; then
-        fail_install 33 "IMAGEM DO TERMINAL NÃO ENCONTRADA" "O build terminou, mas a imagem do terminal não foi confirmada."
-    fi
+    docker image inspect --format 'Terminal: {{.Id}} | Arquitetura: {{.Architecture}} | Tamanho: {{.Size}} bytes' "$terminal_image" >>"$install_log" 2>&1 ||
+        fail_install 33 "IMAGEM DO TERMINAL NÃO ENCONTRADA" "Imagem do terminal não confirmada."
 
     start_install_heartbeat 44 "CONSTRUINDO O EXECUTOR ISOLADO SRE-6 BETA..."
     if ! bash "$work_dir/source/strix-lab/build-executor.sh" \
@@ -1815,18 +1800,15 @@ error_file="/tmp/${nome_app}-error.log"
        [ "$access_mfa_enabled" = "true" ]; then
         access_mfa_required="true"
         echo -e "XXX\n48\nPREPARANDO LOGIN E MFA NA CLOUDFLARE... \nXXX"
-        if ! ensure_cloudflare_mfa_onboarding "$work_dir" "$access_email" "$install_log" \
-            "$access_onboarding_state"; then
-            fail_install 35 "AUTOMAÇÃO DO MFA RECUSADA" "Não foi possível preparar TOTP, login por e-mail e App Launcher. Revise as quatro permissões Access do token."
-        fi
+        ensure_cloudflare_mfa_onboarding "$work_dir" "$access_email" "$install_log" "$access_onboarding_state" ||
+            fail_install 35 "AUTOMAÇÃO DO MFA RECUSADA" "Revise as permissões Access do token."
         echo -e "XXX\n49\nCRIANDO CLOUDFLARE ACCESS COM MFA... \nXXX"
         access_payload="$work_dir/access-app-payload.json"
         access_response="$work_dir/access-app-response.json"
-        if ! build_cloudflare_access_payload "$access_payload" \
+        build_cloudflare_access_payload "$access_payload" \
             "Setup MNO Control Center - $url_control" "$url_control" \
-            "$access_email" "$access_mfa_enabled" 2>>"$install_log"; then
-            fail_install 35 "POLÍTICA ACCESS INVÁLIDA" "Não foi possível preparar a política de identidade e segurança escolhida."
-        fi
+            "$access_email" "$access_mfa_enabled" 2>>"$install_log" ||
+            fail_install 35 "POLÍTICA ACCESS INVÁLIDA" "Falha ao preparar política de segurança."
         if ! curl -sS \
             --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
             --max-time "$CLOUDFLARE_MAX_TIME" \
@@ -1841,38 +1823,27 @@ error_file="/tmp/${nome_app}-error.log"
         fi
         access_app_id=$(jq -r '.result.id // empty' "$access_response")
         access_app_aud=$(jq -r '.result.aud // empty' "$access_response")
-        [[ "$access_app_id" =~ ^[A-Fa-f0-9-]{32,36}$ ]] &&
-        [ "${#access_app_aud}" -ge 16 ] && [ "${#access_app_aud}" -le 128 ] ||
-            fail_install 35 "CLOUDFLARE ACCESS INCOMPLETO" "A Cloudflare criou o aplicativo sem ID ou audiência validáveis."
+        [[ "$access_app_id" =~ ^[A-Fa-f0-9-]{32,36}$ ]] && [ "${#access_app_aud}" -ge 16 ] && [ "${#access_app_aud}" -le 128 ] ||
+            fail_install 35 "CLOUDFLARE ACCESS INCOMPLETO" "ID ou audiência do Access inválidos."
         access_app_created="true"
         access_jwt_required="true"
         echo "Access confirmado para o domínio do Control Center com MFA em todo login." >>"$install_log"
     fi
 
     echo -e "XXX\n51\nCRIANDO SEGREDOS DO PAINEL... \nXXX"
-    if ! printf '%s' "$senha_control" |
-        docker secret create "$admin_secret" - >>"$install_log" 2>&1; then
-        fail_install 40 "ERRO AO CRIAR SENHA" "Não foi possível criar o segredo da senha administrativa."
-    fi
+    printf '%s' "$senha_control" | docker secret create "$admin_secret" - >>"$install_log" 2>&1 ||
+        fail_install 40 "ERRO AO CRIAR SENHA" "Falha ao criar secret da senha administrativa."
     unset senha_control
-    if ! openssl rand -hex 32 |
-        docker secret create "$agent_secret" - >>"$install_log" 2>&1; then
-        fail_install 41 "ERRO AO CRIAR TOKEN" "Não foi possível criar o token privado do agente."
-    fi
-    if [ "$assistant_mode" = "openai" ] ||
-       [ "$assistant_mode" = "openrouter" ] ||
-       [ "$assistant_mode" = "deepseek" ]; then
-        if ! printf '%s' "$llm_api_key" |
-            docker secret create "$llm_secret" - >>"$install_log" 2>&1; then
-            fail_install 42 "ERRO AO PROTEGER CHAVE LLM" "Não foi possível armazenar a chave do provedor como Docker Secret."
-        fi
+    openssl rand -hex 32 | docker secret create "$agent_secret" - >>"$install_log" 2>&1 ||
+        fail_install 41 "ERRO AO CRIAR TOKEN" "Falha ao criar secret do token do agente."
+    if [ "$assistant_mode" = "openai" ] || [ "$assistant_mode" = "openrouter" ] || [ "$assistant_mode" = "deepseek" ]; then
+        printf '%s' "$llm_api_key" | docker secret create "$llm_secret" - >>"$install_log" 2>&1 ||
+            fail_install 42 "ERRO AO PROTEGER CHAVE LLM" "Falha ao criar secret da chave LLM."
     fi
     unset llm_api_key
 
     echo -e "XXX\n58\nGERANDO STACKS ISOLADAS... \nXXX"
-    install -d -m 700 /root/setupmno-homologation-candidates ||
-        fail_install 43 "CENTRAL INDISPONÍVEL" "Diretório privado indisponível."
-    cd
+    install -d -m 700 /root/setupmno-homologation-candidates || fail_install 43 "CENTRAL INDISPONÍVEL" "Diretório privado indisponível."
     cd
     cat >"${terminal_stack}.yaml" <<EOL
 
@@ -2239,13 +2210,9 @@ EOL
         if [ -n "$dns_record_id" ] && [ "$dns_record_type" != "CNAME" ]; then
             fail_install 61 "CONFLITO DE REGISTRO DNS" "Já existe um registro $dns_record_type para $url_control."
         fi
-        if [ -n "$dns_record_id" ]; then
-            dns_method="PUT"
-            dns_url="https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${dns_record_id}"
-        else
-            dns_method="POST"
-            dns_url="https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records"
-        fi
+        dns_method="POST"
+        dns_url="https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records"
+        [ -z "$dns_record_id" ] || { dns_method="PUT"; dns_url="${dns_url}/${dns_record_id}"; }
         if ! curl -sS \
             --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
             --max-time "$CLOUDFLARE_MAX_TIME" \
@@ -2262,9 +2229,8 @@ EOL
 
     if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
         fresh_route_inventory="$work_dir/route-inventory-fresh.json"
-        if ! cf_route_guard_inventory "$url_control" "$TUNNEL_ID" "$fresh_route_inventory"; then
+        cf_route_guard_inventory "$url_control" "$TUNNEL_ID" "$fresh_route_inventory" ||
             fail_install 69 "ERRO AO REVALIDAR ROTAS" "$CF_ROUTE_GUARD_ERROR"
-        fi
         fresh_route_class=$(cf_route_guard_classify "$fresh_route_inventory") ||
             fail_install 69 "ERRO AO CLASSIFICAR ROTAS" "O novo inventário Cloudflare é inválido."
         if [ "$fresh_route_class" = "BLOCKED" ] ||
@@ -2287,15 +2253,12 @@ EOL
             fail_install 70 "ERRO AO CONSULTAR TUNNEL" "Não foi possível obter a configuração atual do Cloudflare Tunnel."
         fi
         tunnel_original_payload="$work_dir/tunnel-original-payload.json"
-        if ! jq '{config:.result.config}' "$tunnel_raw" >"$tunnel_original_payload" 2>>"$install_log"; then
+        jq '{config:.result.config}' "$tunnel_raw" >"$tunnel_original_payload" 2>>"$install_log" ||
             fail_install 71 "ERRO AO PREPARAR ROLLBACK" "Falha ao preservar a configuração anterior do Cloudflare Tunnel."
-        fi
-        if ! build_control_tunnel_route_payload "$tunnel_raw" "$tunnel_payload" \
+        build_control_tunnel_route_payload "$tunnel_raw" "$tunnel_payload" \
             "$url_control" "http://${web_stack}_${web_service}:8080" \
-            "$access_jwt_required" "$access_team_name" "$access_app_aud" \
-            2>>"$install_log"; then
+            "$access_jwt_required" "$access_team_name" "$access_app_aud" 2>>"$install_log" ||
             fail_install 71 "ERRO AO PREPARAR ROTA" "Falha ao preparar a nova rota do Cloudflare Tunnel."
-        fi
         if ! curl -sS \
             --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT" \
             --max-time "$CLOUDFLARE_MAX_TIME" \
@@ -2313,14 +2276,12 @@ EOL
 
         echo -e "XXX\n75\nTRANSFERINDO DNS E REMOVENDO ROTAS ANTIGAS... \nXXX"
         route_dns_mutated="true"
-        if ! cf_route_guard_apply_dns "$route_guard_inventory" "$url_control" \
-            "${TUNNEL_ID}.cfargotunnel.com" true "$route_dns_transaction" "$install_log"; then
+        cf_route_guard_apply_dns "$route_guard_inventory" "$url_control" \
+            "${TUNNEL_ID}.cfargotunnel.com" true "$route_dns_transaction" "$install_log" ||
             fail_install 73 "ERRO AO TRANSFERIR DNS" "$CF_ROUTE_GUARD_ERROR"
-        fi
-        if ! cf_route_guard_remove_old_routes "$route_guard_inventory" "$url_control" \
-            "$TUNNEL_ID" "$route_old_tunnel_changes" "$install_log"; then
+        cf_route_guard_remove_old_routes "$route_guard_inventory" "$url_control" \
+            "$TUNNEL_ID" "$route_old_tunnel_changes" "$install_log" ||
             fail_install 74 "ERRO AO REMOVER ROTA ANTIGA" "$CF_ROUTE_GUARD_ERROR"
-        fi
         route_old_tunnels_mutated="true"
     fi
 
@@ -2331,120 +2292,82 @@ EOL
     fi
     if [ "$criar_portainer" = "0" ]; then
         dados_file="$HOME/dados_portainer/dados_portainer"
-        [ -f "$dados_file" ] ||
-            fail_install 80 "CREDENCIAIS DO PORTAINER NÃO ENCONTRADAS" "Arquivo não encontrado: $dados_file"
+        [ -f "$dados_file" ] || fail_install 80 "CREDENCIAIS DO PORTAINER NÃO ENCONTRADAS" "Arquivo não encontrado: $dados_file"
         PORTAINER_URL=$(grep "Dominio do portainer:" "$dados_file" | cut -d':' -f2- | xargs)
         ADMIN_USERNAME=$(grep "Usuario:" "$dados_file" | cut -d':' -f2- | xargs)
         ADMIN_PASSWORD=$(grep "Senha:" "$dados_file" | cut -d':' -f2- | xargs)
         [ -n "$PORTAINER_URL" ] && [ -n "$ADMIN_USERNAME" ] && [ -n "$ADMIN_PASSWORD" ] ||
-            fail_install 81 "CREDENCIAIS DO PORTAINER INVÁLIDAS" "Domínio, usuário ou senha do Portainer não encontrado."
+            fail_install 81 "CREDENCIAIS DO PORTAINER INVÁLIDAS" "Credenciais do Portainer inválidas."
 
         auth_payload="$work_dir/portainer-auth-payload.json"
         auth_response="$work_dir/portainer-auth.json"
-        if ! jq -nc --arg username "$ADMIN_USERNAME" --arg password "$ADMIN_PASSWORD" \
-            '{username:$username,password:$password}' >"$auth_payload"; then
-            fail_install 82 "ERRO AO PREPARAR AUTENTICAÇÃO" "Não foi possível preparar a autenticação segura do Portainer."
-        fi
-        if ! curl -sk -X POST "https://$PORTAINER_URL/api/auth" \
-            -H "Content-Type: application/json" \
-            --data-binary @"$auth_payload" \
-            >"$auth_response" 2>>"$install_log"; then
-            fail_install 82 "ERRO DE COMUNICAÇÃO COM PORTAINER" "Não foi possível acessar a API do Portainer."
-        fi
+        jq -nc --arg username "$ADMIN_USERNAME" --arg password "$ADMIN_PASSWORD" '{username:$username,password:$password}' >"$auth_payload" ||
+            fail_install 82 "ERRO AO PREPARAR AUTENTICAÇÃO" "Falha ao preparar autenticação do Portainer."
+        curl -sk -X POST "https://$PORTAINER_URL/api/auth" -H "Content-Type: application/json" --data-binary @"$auth_payload" >"$auth_response" 2>>"$install_log" ||
+            fail_install 82 "ERRO DE COMUNICAÇÃO COM PORTAINER" "Falha ao acessar API do Portainer."
         unset ADMIN_PASSWORD
         TOKEN=$(jq -r '.jwt // empty' "$auth_response")
-        [ -n "$TOKEN" ] ||
-            fail_install 83 "ERRO DE AUTENTICAÇÃO NO PORTAINER" "O Portainer não retornou token válido."
+        [ -n "$TOKEN" ] || fail_install 83 "ERRO DE AUTENTICAÇÃO NO PORTAINER" "Portainer não retornou token."
         endpoint_response="$work_dir/portainer-endpoints.json"
-        if ! curl -sk "https://$PORTAINER_URL/api/endpoints" \
-            -H "Authorization: Bearer $TOKEN" >"$endpoint_response" 2>>"$install_log"; then
+        curl -sk "https://$PORTAINER_URL/api/endpoints" -H "Authorization: Bearer $TOKEN" >"$endpoint_response" 2>>"$install_log" ||
             fail_install 84 "ERRO AO CONSULTAR ENDPOINT" "Falha ao consultar endpoints do Portainer."
-        fi
         ENDPOINT_ID=$(jq -r '.[0].Id // empty' "$endpoint_response")
-        [ -n "$ENDPOINT_ID" ] ||
-            fail_install 85 "ENDPOINT NÃO ENCONTRADO" "Nenhum endpoint foi encontrado no Portainer."
+        [ -n "$ENDPOINT_ID" ] || fail_install 85 "ENDPOINT NÃO ENCONTRADO" "Nenhum endpoint no Portainer."
         swarm_response="$work_dir/portainer-swarm.json"
-        if ! curl -sk "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" \
-            -H "Authorization: Bearer $TOKEN" >"$swarm_response" 2>>"$install_log"; then
-            fail_install 86 "ERRO AO CONSULTAR SWARM" "Falha ao consultar o Swarm pelo Portainer."
-        fi
+        curl -sk "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/swarm" -H "Authorization: Bearer $TOKEN" >"$swarm_response" 2>>"$install_log" ||
+            fail_install 86 "ERRO AO CONSULTAR SWARM" "Falha ao consultar Swarm no Portainer."
         SWARM_ID=$(jq -r '.ID // empty' "$swarm_response")
-        [ -n "$SWARM_ID" ] ||
-            fail_install 87 "SWARM NÃO ENCONTRADO" "O Portainer não retornou um Swarm ID válido."
+        [ -n "$SWARM_ID" ] || fail_install 87 "SWARM NÃO ENCONTRADO" "Swarm ID não retornado pelo Portainer."
 
         for image_ref in "$control_image" "$terminal_image" "$strix_executor_image"; do
             image_encoded=$(printf '%s' "$image_ref" | jq -sRr @uri)
             image_http=$(curl -sk -o "$work_dir/image-check.json" -w "%{http_code}" \
                 "https://$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/images/$image_encoded/json" \
                 -H "Authorization: Bearer $TOKEN" 2>>"$install_log")
-            if [ "$image_http" != "200" ]; then
-                fail_install 88 "IMAGEM LOCAL NÃO VISÍVEL NO PORTAINER" \
-                    "A imagem '$image_ref' existe no Docker, mas não está visível no endpoint selecionado do Portainer (HTTP $image_http). Nenhum upload foi tentado."
-            fi
+            [ "$image_http" = "200" ] ||
+                fail_install 88 "IMAGEM LOCAL NÃO VISÍVEL NO PORTAINER" "Imagem '$image_ref' não visível no Portainer (HTTP $image_http)."
         done
 
         create_portainer_stack() {
             local stack_name="$1" stack_file="$2" response_file="$work_dir/portainer-${1}.json" http_code
             http_code=$(curl -sk -o "$response_file" -w "%{http_code}" -X POST \
-                -H "Authorization: Bearer $TOKEN" \
-                -F "Name=$stack_name" \
-                -F "file=@/root/$stack_file" \
-                -F "SwarmID=$SWARM_ID" \
-                -F "endpointId=$ENDPOINT_ID" \
+                -H "Authorization: Bearer $TOKEN" -F "Name=$stack_name" -F "file=@/root/$stack_file" \
+                -F "SwarmID=$SWARM_ID" -F "endpointId=$ENDPOINT_ID" \
                 "https://$PORTAINER_URL/api/stacks/create/swarm/file" 2>>"$install_log")
-            if ! [[ "$http_code" =~ ^[0-9]{3}$ ]] ||
-               [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            if ! [[ "$http_code" =~ ^[0-9]{3}$ ]] || [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
                 portainer_error=$(jq -r '.message // empty' "$response_file" 2>/dev/null)
                 [ -n "$portainer_error" ] || portainer_error=$(head -c 1500 "$response_file")
-                printf 'Portainer recusou a stack %s (HTTP %s): %s\n' \
-                    "$stack_name" "${http_code:-indisponível}" "${portainer_error:-sem detalhes}" >"$error_file"
+                printf 'Portainer recusou a stack %s (HTTP %s): %s\n' "$stack_name" "${http_code:-indisponível}" "${portainer_error:-sem detalhes}" >"$error_file"
                 return 1
             fi
             echo "Stack criada no Portainer: $stack_name (HTTP $http_code)" >>"$install_log"
         }
 
         echo -e "XXX\n87\nCRIANDO TERMINAL NO PORTAINER... \nXXX"
-        create_portainer_stack "$terminal_stack" "${terminal_stack}.yaml" ||
-            fail_install 89 "ERRO NA STACK DO TERMINAL" "$(cat "$error_file")"
+        create_portainer_stack "$terminal_stack" "${terminal_stack}.yaml" || fail_install 89 "ERRO NA STACK DO TERMINAL" "$(cat "$error_file")"
         echo -e "XXX\n90\nCRIANDO AGENTE NO PORTAINER... \nXXX"
-        create_portainer_stack "$agent_stack" "${agent_stack}.yaml" ||
-            fail_install 90 "ERRO NA STACK DO AGENTE" "$(cat "$error_file")"
+        create_portainer_stack "$agent_stack" "${agent_stack}.yaml" || fail_install 90 "ERRO NA STACK DO AGENTE" "$(cat "$error_file")"
         if [ "$assistant_has_llm" = "true" ]; then
             echo -e "XXX\n92\nCRIANDO ASSISTENTE NO PORTAINER... \nXXX"
-            create_portainer_stack "$assistant_stack" "${assistant_stack}.yaml" ||
-                fail_install 91 "ERRO NA STACK DO ASSISTENTE" "$(cat "$error_file")"
+            create_portainer_stack "$assistant_stack" "${assistant_stack}.yaml" || fail_install 91 "ERRO NA STACK DO ASSISTENTE" "$(cat "$error_file")"
         fi
         echo -e "XXX\n93\nCRIANDO PAINEL NO PORTAINER... \nXXX"
-        create_portainer_stack "$web_stack" "${web_stack}.yaml" ||
-            fail_install 92 "ERRO NA STACK DO PAINEL" "$(cat "$error_file")"
+        create_portainer_stack "$web_stack" "${web_stack}.yaml" || fail_install 92 "ERRO NA STACK DO PAINEL" "$(cat "$error_file")"
     else
         echo -e "XXX\n87\nCRIANDO TERMINAL NO DOCKER... \nXXX"
-        docker stack deploy --prune --resolve-image never \
-            -c "/root/${terminal_stack}.yaml" "$terminal_stack" >>"$install_log" 2>&1 ||
-            fail_install 92 "ERRO NA STACK DO TERMINAL" "Falha ao publicar a stack do terminal no Docker."
+        docker stack deploy --prune --resolve-image never -c "/root/${terminal_stack}.yaml" "$terminal_stack" >>"$install_log" 2>&1 || fail_install 92 "ERRO NA STACK DO TERMINAL" "Falha ao publicar terminal no Docker."
         echo -e "XXX\n90\nCRIANDO AGENTE NO DOCKER... \nXXX"
-        docker stack deploy --prune --resolve-image never \
-            -c "/root/${agent_stack}.yaml" "$agent_stack" >>"$install_log" 2>&1 ||
-            fail_install 93 "ERRO NA STACK DO AGENTE" "Falha ao publicar a stack do agente no Docker."
+        docker stack deploy --prune --resolve-image never -c "/root/${agent_stack}.yaml" "$agent_stack" >>"$install_log" 2>&1 || fail_install 93 "ERRO NA STACK DO AGENTE" "Falha ao publicar agente no Docker."
         if [ "$assistant_has_llm" = "true" ]; then
             echo -e "XXX\n92\nCRIANDO ASSISTENTE NO DOCKER... \nXXX"
-            docker stack deploy --prune --resolve-image never \
-                -c "/root/${assistant_stack}.yaml" "$assistant_stack" >>"$install_log" 2>&1 ||
-                fail_install 94 "ERRO NA STACK DO ASSISTENTE" "Falha ao publicar a stack do assistente no Docker."
+            docker stack deploy --prune --resolve-image never -c "/root/${assistant_stack}.yaml" "$assistant_stack" >>"$install_log" 2>&1 || fail_install 94 "ERRO NA STACK DO ASSISTENTE" "Falha ao publicar assistente no Docker."
         fi
         echo -e "XXX\n93\nCRIANDO PAINEL NO DOCKER... \nXXX"
-        docker stack deploy --prune --resolve-image never \
-            -c "/root/${web_stack}.yaml" "$web_stack" >>"$install_log" 2>&1 ||
-            fail_install 95 "ERRO NA STACK DO PAINEL" "Falha ao publicar a stack do painel no Docker."
+        docker stack deploy --prune --resolve-image never -c "/root/${web_stack}.yaml" "$web_stack" >>"$install_log" 2>&1 || fail_install 95 "ERRO NA STACK DO PAINEL" "Falha ao publicar painel no Docker."
     fi
 
-    expected_services=(
-        "${terminal_stack}_${terminal_service}"
-        "${agent_stack}_${agent_service}"
-    )
-    if [ "$assistant_has_llm" = "true" ]; then
-        expected_services+=("${assistant_stack}_${assistant_service}")
-    fi
+    expected_services=("${terminal_stack}_${terminal_service}" "${agent_stack}_${agent_service}")
+    [ "$assistant_has_llm" = "true" ] && expected_services+=("${assistant_stack}_${assistant_service}")
     expected_services+=("${web_stack}_${web_service}")
     start_install_heartbeat 96 "AGUARDANDO OS SERVIÇOS DO CONTROL CENTER..."
     for service_name in "${expected_services[@]}"; do

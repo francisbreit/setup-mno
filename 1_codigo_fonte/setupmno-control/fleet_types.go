@@ -31,7 +31,7 @@ type FleetNode struct {
 	Name          string          `json:"name"`
 	Endpoint      string          `json:"endpoint"`
 	Mode          FleetMode       `json:"mode"`
-	Status        string          `json:"status"` // "online", "degraded", "offline", "unknown"
+	Status        string          `json:"status"` // "online", "degraded", "offline", "mfa-blocked", "unknown"
 	Role          string          `json:"role,omitempty"`
 	Tags          []string        `json:"tags,omitempty"`
 	Token         string          `json:"token,omitempty"`
@@ -46,6 +46,7 @@ type FleetNode struct {
 	LastHeartbeat time.Time       `json:"lastHeartbeat"`
 	Telemetry     *FleetTelemetry `json:"telemetry,omitempty"`
 	Lock          *FleetNodeLock  `json:"lock,omitempty"`
+	Warning       string          `json:"warning,omitempty"`
 }
 
 // FleetActionRequest representa um comando remoto seguro enviado da Torre Master para um Worker.

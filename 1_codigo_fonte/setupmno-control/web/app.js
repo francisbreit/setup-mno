@@ -3198,8 +3198,9 @@ function renderFleetNodes() {
 
   container.innerHTML = filtered.map(node => {
     const isMaster = node.mode === "master" || (node.id && node.id.startsWith("node-master"));
-    const statusClass = node.status === "online" ? "online" : node.status === "degraded" ? "warning" : "offline";
-    const statusLabel = node.status === "online" ? "Online" : node.status === "degraded" ? "Degradado" : "Offline";
+    const isMfaBlocked = node.status === "mfa-blocked";
+    const statusClass = node.status === "online" ? "online" : isMfaBlocked ? "warning" : node.status === "degraded" ? "warning" : "offline";
+    const statusLabel = node.status === "online" ? "Online" : isMfaBlocked ? "MFA Bloqueando" : node.status === "degraded" ? "Degradado" : "Offline";
     const roleLabel = isMaster ? "Torre Master" : (node.role === "worker" || !node.role ? "Nó Operário" : node.role);
     const roleClass = isMaster ? "master" : "worker";
 
@@ -3277,13 +3278,19 @@ function renderFleetNodes() {
           </div>
           <div>
             <small>Aplicações Ativas</small>
-            <span>${node.status === "offline" ? "Inacessível (Offline)" : `${serviceCount} serviços`}</span>
+            <span>${node.status === "offline" ? "Inacessível (Offline)" : isMfaBlocked ? "Bloqueado por MFA" : `${serviceCount} serviços`}</span>
           </div>
           <div>
             <small>Rede Mesh</small>
-            <span>${node.status === "online" && node.tunnelHealthy !== false ? "✓ Zero-Trust" : "⚠ Offline / Inacessível"}</span>
+            <span>${node.status === "online" && node.tunnelHealthy !== false ? "✓ Zero-Trust" : isMfaBlocked ? "⚠ Cloudflare Access (MFA)" : "⚠ Offline / Inacessível"}</span>
           </div>
         </div>
+
+        ${isMfaBlocked || node.warning ? `
+          <div class="fleet-card-alert" style="margin:8px 0;padding:6px 10px;border-radius:6px;font-size:11px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);color:#fbbf24;">
+            🔒 <strong>Atenção:</strong> ${escapeHTML(node.warning || "O Cloudflare Access (MFA) está ativo neste nó e interceptando as consultas da Torre Master. Desative o MFA no nó ou configure regra de Bypass.")}
+          </div>
+        ` : ""}
 
         <div class="fleet-card-actions">
           <button type="button" class="light-button small${lockClass}" data-fleet-action="ping" data-node-id="${escapeHTML(node.id)}"${disabledAttr}>Testar ⚡</button>

@@ -40,6 +40,9 @@ func (a *webApp) fetchLocalTelemetry(ctx context.Context) (FleetTelemetry, error
 	return telem, nil
 }
 
+// ErrCloudflareAccessBlocked indica que o nó operário está respondendo, mas interceptado por Cloudflare Access (MFA).
+var ErrCloudflareAccessBlocked = errors.New("nó operário online, mas telemetria bloqueada por Cloudflare Access (MFA)")
+
 // probeWorkerNode realiza uma consulta remota segura com timeout e dupla checagem para auditar um nó subordinado.
 func (a *webApp) probeWorkerNode(ctx context.Context, endpoint, token string) (FleetTelemetry, int64, error) {
 	cleanURL, err := validateFleetEndpoint(endpoint)
@@ -73,12 +76,30 @@ func (a *webApp) probeWorkerNode(ctx context.Context, endpoint, token string) (F
 		}
 		defer resp.Body.Close()
 
+		// Detecção precoce de redirecionamento ou desafio Cloudflare Access
+		if resp.Request != nil && strings.Contains(strings.ToLower(resp.Request.URL.Host), "cloudflareaccess.com") {
+			return FleetTelemetry{}, latency, ErrCloudflareAccessBlocked
+		}
+		if strings.Contains(strings.ToLower(resp.Header.Get("Www-Authenticate")), "cloudflare-access") ||
+			strings.Contains(strings.ToLower(resp.Header.Get("Location")), "cloudflareaccess.com") {
+			return FleetTelemetry{}, latency, ErrCloudflareAccessBlocked
+		}
+
+		bodyBytes, readErr := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+		if readErr != nil {
+			return FleetTelemetry{}, latency, fmt.Errorf("falha ao ler resposta do nó: %w", readErr)
+		}
+
+		if bytes.Contains(bodyBytes, []byte("cloudflareaccess.com")) || bytes.Contains(bodyBytes, []byte("Cloudflare Access")) {
+			return FleetTelemetry{}, latency, ErrCloudflareAccessBlocked
+		}
+
 		if resp.StatusCode != http.StatusOK {
 			return FleetTelemetry{}, latency, fmt.Errorf("nó retornou HTTP %d", resp.StatusCode)
 		}
 
 		var telemetry FleetTelemetry
-		if err := json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&telemetry); err != nil {
+		if err := json.Unmarshal(bodyBytes, &telemetry); err != nil {
 			return FleetTelemetry{}, latency, fmt.Errorf("resposta de telemetria inválida: %w", err)
 		}
 		return telemetry, latency, nil
@@ -88,6 +109,9 @@ func (a *webApp) probeWorkerNode(ctx context.Context, endpoint, token string) (F
 	telem, latency, err := singleProbe()
 	if err == nil {
 		return telem, latency, nil
+	}
+	if errors.Is(err, ErrCloudflareAccessBlocked) {
+		return FleetTelemetry{}, latency, ErrCloudflareAccessBlocked
 	}
 
 	// Se falhou na 1ª tentativa, realiza dupla checagem com delay de segurança de 1.5s
@@ -466,7 +490,25 @@ func (a *webApp) handleFleetPing(w http.ResponseWriter, r *http.Request) {
 
 	telem, latency, err := a.probeWorkerNode(ctx, node.Endpoint, node.Token)
 	if err != nil {
+		if errors.Is(err, ErrCloudflareAccessBlocked) {
+			node.Status = "mfa-blocked"
+			node.TunnelHealthy = true
+			node.Warning = "Nó online, mas telemetria bloqueada por Cloudflare Access (MFA). Desative o MFA no nó ou configure regra de Bypass."
+			_ = a.fleetStore.UpdateNode(node)
+			_ = a.fleetStore.Save()
+			writeJSON(w, http.StatusOK, FleetPingResponse{
+				NodeID:    nodeID,
+				Mode:      node.Mode,
+				Pong:      false,
+				LatencyMs: latency,
+				Status:    "mfa-blocked",
+				Error:     err.Error(),
+			})
+			return
+		}
 		node.Status = "offline"
+		node.TunnelHealthy = false
+		node.Warning = ""
 		_ = a.fleetStore.UpdateNode(node)
 		_ = a.fleetStore.Save()
 		writeJSON(w, http.StatusOK, FleetPingResponse{
@@ -481,6 +523,8 @@ func (a *webApp) handleFleetPing(w http.ResponseWriter, r *http.Request) {
 	}
 
 	node.Status = "online"
+	node.TunnelHealthy = true
+	node.Warning = ""
 	node.LastHeartbeat = time.Now().UTC()
 	node.Telemetry = &telem
 	node.MemoryTotalMB = telem.MemoryTotalMB
@@ -934,17 +978,29 @@ func (a *webApp) probeAllWorkers(ctx context.Context) {
 	for out := range results {
 		node := out.node
 		if out.err != nil {
-			// Falha ao conectar: nó desligado, formatado, rede indisponível ou Cloudflare 1033
-			if node.Status != "offline" || node.TunnelHealthy {
-				node.Status = "offline"
-				node.TunnelHealthy = false
-				_ = a.fleetStore.UpdateNode(node)
-				changed = true
+			if errors.Is(out.err, ErrCloudflareAccessBlocked) {
+				if node.Status != "mfa-blocked" || !node.TunnelHealthy || node.Warning == "" {
+					node.Status = "mfa-blocked"
+					node.TunnelHealthy = true
+					node.Warning = "Nó online, mas telemetria bloqueada por Cloudflare Access (MFA). Desative o MFA no nó ou configure regra de Bypass."
+					_ = a.fleetStore.UpdateNode(node)
+					changed = true
+				}
+			} else {
+				// Falha ao conectar: nó desligado, formatado, rede indisponível ou Cloudflare 1033
+				if node.Status != "offline" || node.TunnelHealthy || node.Warning != "" {
+					node.Status = "offline"
+					node.TunnelHealthy = false
+					node.Warning = ""
+					_ = a.fleetStore.UpdateNode(node)
+					changed = true
+				}
 			}
 		} else {
 			// Sucesso: nó respondendo com telemetria válida
 			node.Status = "online"
 			node.TunnelHealthy = true
+			node.Warning = ""
 			node.LastHeartbeat = time.Now().UTC()
 			node.Telemetry = &out.telem
 			node.Lock = out.telem.Lock

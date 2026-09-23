@@ -462,14 +462,24 @@ func (a *webApp) runSentinelCheckCycle(ctx context.Context) {
 			if n.Mode == FleetModeMaster {
 				continue
 			}
-			// Checar se o worker está offline
+			// Checar se o nó está offline
 			if cfg.NotifyNodeDown && (n.Status == "offline" || n.Status == "degraded") {
 				incID := fmt.Sprintf("node_down_%s", n.ID)
 				currentDetected[incID] = SentinelIncident{
 					ID:        incID,
 					NodeName:  n.Name,
 					Severity:  "critical",
-					Message:   fmt.Sprintf("Nó Worker remoto '%s' (%s) está inacessível ou desconectado da frota", n.Name, n.Endpoint),
+					Message:   fmt.Sprintf("Nó Operário remoto '%s' (%s) está inacessível ou desconectado da frota", n.Name, n.Endpoint),
+					StartedAt: time.Now().UTC(),
+				}
+			}
+			if n.Status == "mfa-blocked" {
+				incID := fmt.Sprintf("node_mfa_%s", n.ID)
+				currentDetected[incID] = SentinelIncident{
+					ID:        incID,
+					NodeName:  n.Name,
+					Severity:  "warning",
+					Message:   fmt.Sprintf("Nó Operário remoto '%s' está ativo, mas o Cloudflare Access (MFA) está bloqueando as consultas da Torre Master. Desative o MFA no nó ou configure regra de Bypass.", n.Name),
 					StartedAt: time.Now().UTC(),
 				}
 			}
