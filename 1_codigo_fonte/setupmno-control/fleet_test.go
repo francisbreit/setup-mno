@@ -835,6 +835,57 @@ func TestFleetMasterActiveStandbyRole(t *testing.T) {
 	}
 }
 
+func TestFleetMasterRoleReadOnlyEnvironmentFallback(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "fleet-ro-*")
+	if err != nil {
+		t.Fatalf("erro ao criar tempDir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	envPath := filepath.Join(tempDir, "environment.json")
+	initialEnv := `{
+		"schemaVersion": 1,
+		"plan": "pro",
+		"installationType": "CLOUDFLARE_TUNNEL",
+		"fleetMode": "master",
+		"fleetNodeId": "master-test-node",
+		"fleetToken": "token-test-1234567890",
+		"fleetRole": "active"
+	}`
+	if err := os.WriteFile(envPath, []byte(initialEnv), 0o444); err != nil {
+		t.Fatalf("erro ao gravar initialEnv: %v", err)
+	}
+	// Bloquear permissão de escrita no diretório para simular /runtime-control:ro
+	_ = os.Chmod(tempDir, 0o555)
+	defer os.Chmod(tempDir, 0o755)
+
+	// Comutar para "standby" mesmo com filesystem read-only: deve ter sucesso via fallback
+	if err := updateRuntimeEnvironmentFleetRole(tempDir, "standby"); err != nil {
+		t.Fatalf("updateRuntimeEnvironmentFleetRole em filesystem read-only falhou: %v", err)
+	}
+
+	envAfterStandby, err := readRuntimeEnvironment(tempDir)
+	if err != nil {
+		t.Fatalf("readRuntimeEnvironment pós standby falhou: %v", err)
+	}
+	if envAfterStandby.FleetRole != "standby" {
+		t.Errorf("esperava fleetRole='standby' após fallback, obteve %s", envAfterStandby.FleetRole)
+	}
+
+	// Comutar de volta para "active"
+	if err := updateRuntimeEnvironmentFleetRole(tempDir, "active"); err != nil {
+		t.Fatalf("updateRuntimeEnvironmentFleetRole de volta para 'active' falhou: %v", err)
+	}
+	envAfterActive, err := readRuntimeEnvironment(tempDir)
+	if err != nil {
+		t.Fatalf("readRuntimeEnvironment pós active falhou: %v", err)
+	}
+	if envAfterActive.FleetRole != "active" {
+		t.Errorf("esperava fleetRole='active' após fallback, obteve %s", envAfterActive.FleetRole)
+	}
+}
+
+
 
 
 

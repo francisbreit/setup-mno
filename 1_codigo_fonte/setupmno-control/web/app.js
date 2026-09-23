@@ -2941,7 +2941,7 @@ async function loadFleet() {
     } else if (state.fleetMode === "worker") {
       state.fleetNodes = [{
         id: statusData.nodeId || "worker-local",
-        name: "Nó de Frota (Worker Local)",
+        name: "Nó Operário Local",
         mode: "worker",
         status: "online",
         role: "worker",
@@ -2978,7 +2978,7 @@ function updateFleetNavigationBadge() {
       const count = state.fleetStatus?.totalNodes || state.fleetNodes.length || 1;
       overviewBadge.textContent = `Torre Master (${count} ${count === 1 ? "nó" : "nós"})`;
     } else if (state.fleetMode === "worker") {
-      overviewBadge.textContent = "Nó Worker";
+      overviewBadge.textContent = "Nó Operário";
     } else {
       overviewBadge.textContent = "Standalone (0 MB)";
     }
@@ -2996,7 +2996,7 @@ function renderFleet() {
     if (mode === "master") {
       badge.textContent = "Torre Master (Controlador)";
     } else if (mode === "worker") {
-      badge.textContent = "Nó Operário (Worker)";
+      badge.textContent = "Nó Operário";
     } else {
       badge.textContent = "Modo Simples (Desativado)";
     }
@@ -3200,7 +3200,7 @@ function renderFleetNodes() {
     const isMaster = node.mode === "master" || (node.id && node.id.startsWith("node-master"));
     const statusClass = node.status === "online" ? "online" : node.status === "degraded" ? "warning" : "offline";
     const statusLabel = node.status === "online" ? "Online" : node.status === "degraded" ? "Degradado" : "Offline";
-    const roleLabel = isMaster ? "Master" : (node.role || "Worker");
+    const roleLabel = isMaster ? "Torre Master" : (node.role === "worker" || !node.role ? "Nó Operário" : node.role);
     const roleClass = isMaster ? "master" : "worker";
 
     const memTotalMB = node.memoryTotalMB || node.telemetry?.memoryTotalMB || 0;
@@ -3707,7 +3707,7 @@ async function onFleetCloneOriginChanged(presetAppName, presetDestNodeId) {
         const isMaster = n.mode === "master" || (n.id && n.id.startsWith("node-master"));
         const arch = n.architecture ? (n.architecture === "amd64" ? "x86-64" : n.architecture) : "x86-64";
         const memFree = n.memoryTotalMB && n.memoryUsedMB ? `${Math.round((n.memoryTotalMB - n.memoryUsedMB))} MB livres` : "RAM";
-        const label = `${n.name || n.id} (${arch} · ${memFree} · ${isMaster ? "Master" : "Worker"})`;
+        const label = `${n.name || n.id} (${arch} · ${memFree} · ${isMaster ? "Torre Master" : "Nó Operário"})`;
         return `<option value="${escapeHTML(n.id)}">${escapeHTML(label)}</option>`;
       }).join("");
 

@@ -570,17 +570,17 @@
             <div id="fleet-nodes-grid" class="fleet-grid"></div>
           </div>
 
-          <!-- PAINEL 3: NÓ WORKER (OPERÁRIO SUBORDINADO) -->
+          <!-- PAINEL 3: NÓ OPERÁRIO (SUBORDINADO) -->
           <div id="fleet-worker-panel" class="fleet-panel hidden">
             <article class="panel fleet-worker-info-card">
               <div class="panel-head">
                 <div>
                   <p class="eyebrow">Nó Operário da Frota</p>
-                  <h3>Identidade e Conectividade do Worker</h3>
+                  <h3>Identidade e Conectividade do Nó Operário</h3>
                 </div>
                 <span class="secure-pill status-online"><i></i> Agente Ativo (:9090)</span>
               </div>
-              <p>Esta VPS está configurada como <strong>Nó Worker</strong> subordinado. Ela responde exclusivamente a requisições autenticadas da sua Torre Master.</p>
+              <p>Este servidor está configurado como <strong>Nó Operário</strong> subordinado. Ele responde exclusivamente a requisições autenticadas da sua Torre Master.</p>
               <div class="fleet-worker-details-grid">
                 <div><small>ID do Nó</small><code id="fleet-worker-id">—</code></div>
                 <div><small>Endpoint de Escuta</small><code id="fleet-worker-endpoint">Detectando...</code></div>
@@ -598,7 +598,7 @@
               <div class="fleet-token-box">
                 <label><strong>Token de Pareamento da Frota:</strong></label>
                 <div class="token-input-group">
-                  <input type="password" id="fleet-worker-token" readonly value="" placeholder="Token configurado no nó">
+                  <input type="password" id="fleet-worker-token" readonly value="" placeholder="Token configurado no nó operário">
                   <button type="button" class="light-button" id="fleet-worker-token-toggle">Mostrar</button>
                   <button type="button" class="light-button" id="fleet-worker-token-copy">Copiar Token</button>
                 </div>
@@ -790,8 +790,8 @@
                   <p><strong>Cérebro da Frota:</strong> Centraliza a visão dos servidores, agrega memória RAM total combinada, latência em tempo real e orquestra os nós operários subordinados.</p>
                 </div>
                 <div class="help-mode-item">
-                  <span class="mode-pill mode-worker">Modo Nó Worker (Operário de Cargas)</span>
-                  <p><strong>Operário Subordinado:</strong> VPS secundária que executa containers e bancos pesados sem precisar de painel web local, pareada via token criptográfico SHA-256 de 64 caracteres.</p>
+                  <span class="mode-pill mode-worker">Modo Nó Operário (Subordinado de Cargas)</span>
+                  <p><strong>Operário Subordinado:</strong> Servidor secundário (VPS ou laboratório) que executa containers e cargas sem precisar de painel web local, pareado via token criptográfico seguro.</p>
                 </div>
               </div>
               <div class="help-vibeops-actions">
@@ -891,8 +891,8 @@
                 <ol>
                   <li><strong>Configurar a Torre Master (Controlador Central):</strong> Na VPS principal, abra o terminal e digite <code>setup-mno</code> (ou abra o Terminal Seguro no painel). Escolha a opção <strong>⎇ MNO FLEET HUB</strong> e selecione <strong>2. TORRE MASTER (Controlador Central)</strong>.</li>
                   <li><strong>Acessar o MNO Fleet Hub no Control Center:</strong> No menu lateral do painel web, clique em <strong>Fleet Hub (Vibe Ops) [BETA]</strong>. O painel exibirá as métricas da frota com o nó local registrado como Master.</li>
-                  <li><strong>Configurar o Nó Worker na VPS Secundária:</strong> Conecte-se via SSH na sua segunda VPS, execute <code>setup-mno</code> e escolha <strong>⎇ MNO FLEET HUB</strong>. Selecione <strong>3. NÓ WORKER (Operário Subordinado)</strong>. O assistente gerará automaticamente um token de segurança de 64 caracteres SHA-256.</li>
-                  <li><strong>Parear o Nó Worker na Torre Master:</strong> No Control Center da Torre Master, clique no botão <strong>＋ Adicionar Nó à Frota</strong>. Digite o nome amigável da VPS, o endereço HTTPS do worker (ex: <code>https://vps2.seudominio.com.br</code>), cole o Token de 64 caracteres gerado e informe a região. Clique em <strong>Parear e Salvar Servidor</strong>.</li>
+                  <li><strong>Configurar o Nó Operário no Servidor Secundário:</strong> Conecte-se via SSH na sua máquina secundária (ou abra o terminal), execute <code>setup-mno</code> e escolha <strong>⎇ MNO FLEET HUB</strong>. Selecione <strong>3. Conectar à Frota como Nó Operário (Subordinado à Torre Master)</strong>. O assistente gerará automaticamente um token de segurança de pareamento.</li>
+                  <li><strong>Parear o Nó Operário na Torre Master:</strong> No Control Center da Torre Master, clique no botão <strong>＋ Adicionar Nó à Frota</strong>. Digite o nome amigável do servidor, o endereço HTTPS do nó operário (ex: <code>https://vps2.seudominio.com.br</code>), cole o Token de segurança gerado e informe o papel. Clique em <strong>Parear e Adicionar Nó</strong>.</li>
                   <li><strong>Monitorar e Administrar em Tempo Real:</strong> A Torre Master efetuará o ping de saúde, exibirá a latência da conexão, a contagem de serviços rodando no nó e somará a memória RAM de todos os servidores no topo da tela.</li>
                   <li><strong>Como Voltar com Segurança ao Modo Simples Standalone:</strong> A qualquer momento, se desejar desativar o Fleet Hub e voltar a 0 MB de consumo de memória, execute no terminal <code>/root/SetupLowCodeMno/fleet-mode.sh disable</code> ou selecione <strong>1. MODO SIMPLES (Desativado / Padrão)</strong> no menu. Todas as suas aplicações, bancos de dados e volumes são rigorosamente preservados!</li>
                 </ol>
@@ -1049,10 +1049,10 @@
             <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="atualizar apaga dados volumes backup"><summary>Atualizar o Setup MNO apaga minhas aplicações?<b>＋</b></summary><p>O fluxo de atualização foi desenhado para reconciliar o Setup e preservar recursos existentes. Ainda assim, mantenha backups e leia todas as confirmações antes de qualquer operação administrativa.</p></details>
             <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="setup aplicação contagem catálogo números diferentes"><summary>Por que “setups” não significa “aplicações únicas”?<b>＋</b></summary><p>Porque o catálogo conta opções instaláveis. Variantes, versões e combos podem usar a mesma aplicação em configurações diferentes.</p></details>
             <details class="help-topic" data-help-topic data-help-category="solve concept" data-help-search="beta teste experimental estável produção em breve"><summary>O que significa a etiqueta BETA?<b>＋</b></summary><p>Significa que o recurso já pode ser testado, mas ainda está sendo amadurecido e pode mudar. Leia os limites exibidos e não confunda Beta com homologação completa. “Em breve” indica algo que ainda não está disponível.</p></details>
-            <details class="help-topic" data-help-topic data-help-category="vibeops solve concept" data-help-search="fleet hub frota master worker nós consumo ram portas vibe ops vibeops"><summary>O que é o MNO Fleet Hub e quanto ele consome?<b>＋</b></summary><p>O MNO Fleet Hub é o motor do Vibe Ops no Setup MNO, permitindo conectar várias VPSs a uma Torre de Controle central com Zero Portas Abertas. No modo Simples Padrão (desativado), ele consome exatamente <strong>0 MB de RAM</strong>. Quando ativado como Master ou Worker, seu daemon Go ultraenxuto consome menos de 15 MB de RAM.</p></details>
-            <details class="help-topic" data-help-topic data-help-category="vibeops solve concept" data-help-search="vibe ops requisitos vps cloudflare tunnel pro pro master obrigatorio"><summary>Quais os requisitos mandatórios para usar o MNO Fleet Hub (Vibe Ops)?<b>＋</b></summary><p>Para ativar a federação multi-servidor, são obrigatórios três critérios: 1) Instalação no modo <strong>Cloudflare Tunnel</strong> (Zero Portas Abertas no firewall); 2) Licença <strong>PRO</strong> ou <strong>PRO MASTER</strong> ativa; 3) Para <strong>Nós Workers</strong> (cargas 24/7), exige <strong>VPS</strong> na nuvem pública. A <strong>Torre Master</strong> pode operar tanto em VPS quanto localmente no Windows com WSL2 como Cockpit Central. No plano Free ou modo Tradicional, a funcionalidade permanece indisponível.</p></details>
+            <details class="help-topic" data-help-topic data-help-category="vibeops solve concept" data-help-search="fleet hub frota master worker nós consumo ram portas vibe ops vibeops operario"><summary>O que é o MNO Fleet Hub e quanto ele consome?<b>＋</b></summary><p>O MNO Fleet Hub é o motor do Vibe Ops no Setup MNO, permitindo conectar vários servidores a uma Torre de Controle central com Zero Portas Abertas. No modo Simples Padrão (desativado), ele consome exatamente <strong>0 MB de RAM</strong>. Quando ativado como Torre Master ou Nó Operário, seu daemon Go ultraenxuto consome menos de 15 MB de RAM.</p></details>
+            <details class="help-topic" data-help-topic data-help-category="vibeops solve concept" data-help-search="vibe ops requisitos vps cloudflare tunnel pro pro master obrigatorio operario"><summary>Quais os requisitos mandatórios para usar o MNO Fleet Hub (Vibe Ops)?<b>＋</b></summary><p>Para ativar a federação multi-servidor, são obrigatórios três critérios: 1) Instalação no modo <strong>Cloudflare Tunnel</strong> (Zero Portas Abertas no firewall); 2) Licença <strong>PRO</strong> ou <strong>PRO MASTER</strong> ativa; 3) Para <strong>Nós Operários</strong> de produção 24/7, recomenda-se <strong>VPS</strong> na nuvem pública. A <strong>Torre Master</strong> opera perfeitamente tanto em VPS quanto localmente no Windows com WSL2. No plano Free ou modo Tradicional, a funcionalidade permanece indisponível.</p></details>
             <details class="help-topic" data-help-topic data-help-category="vibeops solve concept" data-help-search="vibe ops simples standalone desativado 0 mb normal erro problema"><summary>Meu servidor mostra "Modo Simples (Desativado)". Isso é um erro?<b>＋</b></summary><p>Não! De maneira alguma. O Modo Simples Standalone é a configuração padrão mais rápida, estável e segura do Setup MNO. Ele garante que seu servidor dedique 100% da CPU e da memória RAM para as suas aplicações e automações, sem gastar absolutamente nada (0 MB de sobrecarga) com comunicação multi-servidor se você tiver apenas uma VPS.</p></details>
-            <details class="help-topic" data-help-topic data-help-category="vibeops solve concept" data-help-search="vibe ops wsl2 windows laboratorio suporte remoto worker master cockpit"><summary>Posso usar a Federação Multi-VPS no WSL2 (Windows)?<b>＋</b></summary><p><strong>Sim, como Torre Master (Cockpit Local)!</strong> No WSL2, seu computador pessoal funciona como o Centro de Comando para gerenciar suas VPSs remotas (Nós Workers) com conexões seguras de saída e zero portas abertas no roteador doméstico. Quando você desliga o Windows, suas VPSs na nuvem continuam rodando normalmente. O que não é suportado no WSL2 é o modo Nó Worker, pois aplicações de produção exigem servidores na nuvem com conexão contínua 24/7.</p></details>
+            <details class="help-topic" data-help-topic data-help-category="vibeops solve concept" data-help-search="vibe ops wsl2 windows laboratorio suporte remoto worker master cockpit operario"><summary>Posso usar a Federação Multi-VPS no WSL2 (Windows)?<b>＋</b></summary><p><strong>Sim, tanto como Torre Master quanto como Nó Operário!</strong> Como Torre Master no WSL2, seu computador pessoal funciona como o Centro de Comando para gerenciar seus servidores remotos (Nós Operários) com conexões seguras de saída e zero portas abertas no roteador doméstico. Como Nó Operário no WSL2, você pode executar testes e aplicações subordinados à sua Torre, ciente de que se a conexão oscilar, a tampa do notebook for fechada ou o PC desligado, as aplicações deste nó ficarão indisponíveis.</p></details>
             <details class="help-topic" data-help-topic data-help-category="vibeops solve concept" data-help-search="fleet clone universal diferenca backup portatil migrate diferenca"><summary>O que é o Fleet Clone Universal e como ele difere de um backup comum?<b>＋</b></summary><p>O Fleet Clone não é uma simples cópia de arquivos. Ele é um motor orquestrado de migração que realiza <strong>dumps lógicos consistentes</strong> de bancos de dados (PostgreSQL, MySQL 8.0/8.4, MongoDB) para evitar corrupção de tabelas InnoDB, empacota todos os volumes Docker persistentes (fotos, áudios, anexos) e realiza a <strong>comutação automática de DNS Cloudflare</strong>. Tudo isso com Zero Portas Abertas no firewall e 0 MB de consumo ocioso.</p></details>
             <details class="help-topic" data-help-topic data-help-category="vibeops operate concept" data-help-search="combo chatwoot evolution rabbitmq minio sufixo_app agrupamento automatico"><summary>Como funciona a detecção inteligente de Combos (Chatwoot, Evolution, MinIO)?<b>＋</b></summary><p>Quando você instala um combo no Setup MNO, o sistema gera um sufixo exclusivo (ex: <code>f0e026b</code>). Ao solicitar uma transferência ou backup, o Fleet Clone rastreia todas as stacks que compartilham o mesmo sufixo e pergunta se você deseja <strong>Migrar o Combo Completo</strong> (mantendo Chatwoot, Evolution, RabbitMQ e MinIO juntos) ou <strong>Apenas a Aplicação Isolada</strong>, garantindo integridade absoluta.</p></details>
             <details class="help-topic" data-help-topic data-help-category="vibeops solve concept" data-help-search="minio s3 links historicos midias fotos audios quebrados dns"><summary>Por que o Setup MNO isola o MinIO S3 em vez de misturar com outro bucket?<b>＋</b></summary><p>Aplicações como Chatwoot e Evolution gravam no banco de dados o link completo público das fotos e áudios do WhatsApp (ex: <code>https://s3.cliente.com.br/...</code>). Se o Setup MNO tentasse misturar arquivos em um MinIO existente com outro domínio, <strong>todas as conversas antigas perderiam as fotos e áudios</strong>. Por isso, criamos uma nova instância isolada no Docker Swarm com o mesmo domínio e credenciais. Como usamos Traefik e Cloudflare Tunnel, não há colisão de portas e 100% das mídias históricas continuam abrindo perfeitamente!</p></details>
@@ -1215,7 +1215,7 @@
       </header>
       <form id="fleet-add-form">
         <div class="dialog-body">
-          <p class="dialog-description">Pareie um novo servidor configurado como <strong>Nó Worker</strong> (Opção 3 do menu MNO FLEET HUB no servidor remoto).</p>
+          <p class="dialog-description">Pareie um novo servidor configurado como <strong>Nó Operário</strong> (Opção 3 do menu MNO FLEET HUB no servidor remoto).</p>
           <div class="form-group">
             <label for="fleet-new-name">Nome Amigável do Servidor *</label>
             <input id="fleet-new-name" type="text" placeholder="Ex: VPS-Producao-Chatwoot" required maxlength="64">
@@ -1224,19 +1224,19 @@
           <div class="form-group">
             <label for="fleet-new-endpoint">Endpoint do Nó (URL) *</label>
             <input id="fleet-new-endpoint" type="text" placeholder="Ex: https://setupXXXXX.manualnegocioonline.com.br" required>
-            <small class="muted">URL pública HTTPS do Control Center do Nó Worker (copie pelo botão "Copiar URL" no painel daquele servidor).</small>
+            <small class="muted">URL pública HTTPS do Control Center do Nó Operário (copie pelo botão "Copiar URL" no painel daquele servidor).</small>
           </div>
           <div class="form-group">
             <label for="fleet-new-token">Token de Pareamento Secreto *</label>
-            <input id="fleet-new-token" type="password" placeholder="Cole o token gerado no Worker" required minlength="16">
-            <small class="muted">Gerado automaticamente pelo comando fleet-mode.sh no nó worker.</small>
+            <input id="fleet-new-token" type="password" placeholder="Cole o token gerado no Nó Operário" required minlength="16">
+            <small class="muted">Gerado automaticamente pelo comando fleet-mode.sh no nó operário.</small>
           </div>
           <div class="form-group">
             <label for="fleet-new-role">Papel do Servidor</label>
             <select id="fleet-new-role">
-              <option value="worker">Worker Geral (Aplicações)</option>
+              <option value="worker">Nó Operário Geral (Aplicações)</option>
               <option value="database">Database &amp; Storage (Postgres/Redis/MinIO)</option>
-              <option value="ai-engine">AI &amp; LLM Worker (Ollama/vLLM/Qdrant)</option>
+              <option value="ai-engine">AI &amp; LLM (Ollama/vLLM/Qdrant)</option>
               <option value="gateway">Borda &amp; Mensageria (Evolution/RabbitMQ)</option>
             </select>
           </div>
@@ -1313,7 +1313,7 @@
             <code>sudo /root/SetupLowCodeMno/setupmno-control/fleet-mode.sh --mode=master</code>
           </div>
           <div class="fleet-mode-option-card">
-            <h4>[3] Nó Operário (Worker)</h4>
+            <h4>[3] Nó Operário (Subordinado à Torre Master)</h4>
             <p>Gera o token de pareamento e conecta este servidor à Torre Master.</p>
             <code>sudo /root/SetupLowCodeMno/setupmno-control/fleet-mode.sh --mode=worker</code>
           </div>
@@ -1369,7 +1369,7 @@
             <div class="form-group half">
               <label class="toggle-label">
                 <input type="checkbox" id="sentinel-notify-node-down" checked>
-                <span>Alertar se nó worker ficar offline</span>
+                <span>Alertar se nó operário ficar offline</span>
               </label>
             </div>
           </div>

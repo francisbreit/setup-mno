@@ -4114,36 +4114,136 @@ func readRuntimeEnvironment(directory string) (runtimeEnvironment, error) {
 	default:
 		return runtimeEnvironment{}, errors.New("papel da torre fleet runtime inválido (esperado: 'active' ou 'standby')")
 	}
+
+	// Sobrepor com override persistido ou em memória (para ambientes onde /runtime-control é montado :ro)
+	if memRole := getInMemoryFleetRole(); memRole == "active" || memRole == "standby" {
+		environment.FleetRole = memRole
+	} else if diskRole := readPersistedFleetRoleOverride(); diskRole == "active" || diskRole == "standby" {
+		environment.FleetRole = diskRole
+		setInMemoryFleetRole(diskRole)
+	}
+
 	return environment, nil
 }
 
+var (
+	inMemoryFleetRoleLock sync.RWMutex
+	inMemoryFleetRole     string
+)
+
+func setInMemoryFleetRole(role string) {
+	inMemoryFleetRoleLock.Lock()
+	defer inMemoryFleetRoleLock.Unlock()
+	inMemoryFleetRole = role
+}
+
+func getInMemoryFleetRole() string {
+	inMemoryFleetRoleLock.RLock()
+	defer inMemoryFleetRoleLock.RUnlock()
+	return inMemoryFleetRole
+}
+
+func readPersistedFleetRoleOverride() string {
+	candidates := []string{
+		"/root/.ssh/fleet_role.json",
+		"/root/SetupLowCodeMno/.control/fleet_role.json",
+	}
+	for _, p := range candidates {
+		data, err := os.ReadFile(p)
+		if err != nil {
+			continue
+		}
+		var parsed struct {
+			FleetRole string `json:"fleetRole"`
+		}
+		if err := json.Unmarshal(data, &parsed); err == nil {
+			clean := strings.ToLower(strings.TrimSpace(parsed.FleetRole))
+			if clean == "active" || clean == "standby" {
+				return clean
+			}
+		}
+	}
+	return ""
+}
+
+func persistFleetRoleOverride(role string) error {
+	candidates := []string{
+		"/root/.ssh/fleet_role.json",
+		"/root/SetupLowCodeMno/.control/fleet_role.json",
+	}
+	var lastErr error
+	for _, p := range candidates {
+		dir := filepath.Dir(p)
+		if fi, err := os.Stat(dir); err == nil && fi.IsDir() {
+			data, err := json.MarshalIndent(map[string]any{
+				"fleetRole": role,
+				"updatedAt": time.Now().UTC().Format(time.RFC3339),
+			}, "", "  ")
+			if err != nil {
+				return err
+			}
+			tempFile := p + ".tmp"
+			if err := os.WriteFile(tempFile, data, 0o644); err != nil {
+				lastErr = err
+				continue
+			}
+			if err := os.Rename(tempFile, p); err != nil {
+				_ = os.Remove(tempFile)
+				lastErr = err
+				continue
+			}
+			return nil
+		}
+	}
+	if lastErr != nil {
+		return lastErr
+	}
+	return errors.New("nenhum diretório persistente gravável encontrado para o papel da frota")
+}
+
 func updateRuntimeEnvironmentFleetRole(directory, role string) error {
+	cleanRole := strings.ToLower(strings.TrimSpace(role))
+	if cleanRole != "active" && cleanRole != "standby" {
+		return errors.New("papel da frota inválido (use 'active' ou 'standby')")
+	}
+
+	setInMemoryFleetRole(cleanRole)
+
+	// Tentar atualizar atomicamente no environment.json (caso o diretório seja gravável)
 	envPath := filepath.Join(directory, "environment.json")
-	data, err := os.ReadFile(envPath)
-	if err != nil {
-		return fmt.Errorf("falha ao ler environment.json: %w", err)
+	var fileWriteErr error
+	if data, err := os.ReadFile(envPath); err == nil {
+		var raw map[string]any
+		if err := json.Unmarshal(data, &raw); err == nil {
+			raw["fleetRole"] = cleanRole
+			if updatedBytes, err := json.MarshalIndent(raw, "", "  "); err == nil {
+				tempPath := envPath + ".tmp"
+				if err := os.WriteFile(tempPath, updatedBytes, 0o644); err == nil {
+					if err := os.Rename(tempPath, envPath); err == nil {
+						// Sucesso ao gravar no arquivo principal; persistir também no override se possível
+						_ = persistFleetRoleOverride(cleanRole)
+						return nil
+					}
+					_ = os.Remove(tempPath)
+					fileWriteErr = err
+				} else {
+					fileWriteErr = err
+				}
+			}
+		}
+	} else {
+		fileWriteErr = err
 	}
 
-	var raw map[string]any
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("JSON inválido em environment.json: %w", err)
-	}
-
-	raw["fleetRole"] = role
-
-	updatedBytes, err := json.MarshalIndent(raw, "", "  ")
-	if err != nil {
-		return fmt.Errorf("falha ao serializar environment.json: %w", err)
-	}
-
-	tempPath := envPath + ".tmp"
-	if err := os.WriteFile(tempPath, updatedBytes, 0o644); err != nil {
-		return fmt.Errorf("falha ao gravar temporário: %w", err)
-	}
-
-	if err := os.Rename(tempPath, envPath); err != nil {
-		_ = os.Remove(tempPath)
-		return fmt.Errorf("falha ao atualizar atomicamente environment.json: %w", err)
+	// Se a gravação no environment.json falhar (comum em contêineres onde /runtime-control é :ro),
+	// persiste o papel no volume gravável (/root/.ssh/fleet_role.json)
+	if err := persistFleetRoleOverride(cleanRole); err != nil {
+		// Se nem a persistência em /root/.ssh foi possível, mas conseguimos manter em memória,
+		// só retornamos erro se ambos falharam gravemente
+		if fileWriteErr != nil {
+			return fmt.Errorf("falha ao persistir papel da frota: %w (erro primário: %v)", err, fileWriteErr)
+		}
+		return fmt.Errorf("falha ao persistir papel da frota: %w", err)
 	}
 
 	return nil

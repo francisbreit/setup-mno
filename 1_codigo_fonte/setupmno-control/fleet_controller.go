@@ -180,7 +180,7 @@ func (a *webApp) handleFleetNodes(w http.ResponseWriter, r *http.Request) {
 		localTelem, _ := a.fetchLocalTelemetry(ctx)
 		workerNode := FleetNode{
 			ID:            cfg.FleetNodeID,
-			Name:          "Nó de Frota (Worker Local)",
+			Name:          "Nó Operário Local",
 			Mode:          FleetModeWorker,
 			Status:        "online",
 			Role:          "worker",

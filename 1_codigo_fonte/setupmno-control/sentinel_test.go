@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestSentinelConfigDefaultsAndValidation(t *testing.T) {

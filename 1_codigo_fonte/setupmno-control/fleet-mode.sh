@@ -21,6 +21,14 @@ get_status() {
 }
 
 get_role() {
+    if [ -f "/root/.ssh/fleet_role.json" ]; then
+        local r
+        r=$(jq -r '.fleetRole // empty' "/root/.ssh/fleet_role.json" 2>/dev/null || true)
+        if [ "$r" = "active" ] || [ "$r" = "standby" ]; then
+            printf '%s\n' "$r"
+            return 0
+        fi
+    fi
     if [ ! -f "$ENV_FILE" ] || [ -L "$ENV_FILE" ]; then
         printf 'active\n'
         return 0
@@ -38,7 +46,7 @@ get_info() {
     node_id=$(jq -r '.fleetNodeId // "não definido"' "$ENV_FILE" 2>/dev/null || printf 'não definido')
     token=$(jq -r '.fleetToken // "não definido"' "$ENV_FILE" 2>/dev/null || printf 'não definido')
     master_url=$(jq -r '.fleetMasterUrl // "não configurado"' "$ENV_FILE" 2>/dev/null || printf 'não configurado')
-    role=$(jq -r '.fleetRole // "active"' "$ENV_FILE" 2>/dev/null || printf 'active')
+    role=$(get_role)
     if [ "$mode" = "master" ]; then
         printf 'Modo: %s\nPapel da Torre: %s\nNode ID: %s\nToken de Pareamento: %s\nMaster URL: %s\n' "$mode" "$role" "$node_id" "$token" "$master_url"
     else
@@ -71,15 +79,32 @@ set_role() {
        '.fleetRole = $role' "$ENV_FILE" >"$temp_file" || { rm -f "$temp_file"; fail "Erro ao atualizar JSON."; }
 
     mv -f "$temp_file" "$ENV_FILE"
+
+    # Persistência de redundância segura em /root/.ssh/fleet_role.json para paridade com containers read-only
+    if [ -d "/root/.ssh" ] && [ -w "/root/.ssh" ]; then
+        local now
+        now=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || printf "2026-09-23T00:00:00Z")
+        local ssh_tmp
+        ssh_tmp=$(mktemp "/root/.ssh/fleet_role.json.tmp.XXXXXX" 2>/dev/null || true)
+        if [ -n "$ssh_tmp" ]; then
+            printf '{\n  "fleetRole": "%s",\n  "updatedAt": "%s"\n}\n' "$requested_role" "$now" >"$ssh_tmp" 2>/dev/null || true
+            chmod 0644 "$ssh_tmp" 2>/dev/null || true
+            mv -f "$ssh_tmp" "/root/.ssh/fleet_role.json" 2>/dev/null || rm -f "$ssh_tmp"
+        fi
+    fi
+
     printf 'Papel da Torre Master atualizado para: %s\n' "$requested_role"
 }
 
 set_mode() {
     local requested_mode="${1:-}"
     case "$requested_mode" in
-        disabled|master|worker) ;;
+        disabled|master|worker|operario) ;;
         *) fail "Modo fleet inválido: '$requested_mode'. Use 'disabled', 'master' ou 'worker'." ;;
     esac
+    if [ "$requested_mode" = "operario" ]; then
+        requested_mode="worker"
+    fi
 
     if [ ! -f "$ENV_FILE" ] || [ -L "$ENV_FILE" ]; then
         fail "Arquivo de ambiente do Control Center ($ENV_FILE) indisponível."
@@ -133,9 +158,6 @@ set_mode() {
            '.fleetMode = $mode' "$ENV_FILE" >"$temp_file" || { rm -f "$temp_file"; fail "Erro ao atualizar JSON."; }
     else
         local default_role="active"
-        if grep -qEi "(Microsoft|WSL)" /proc/version 2>/dev/null; then
-            default_role="standby"
-        fi
         jq --arg mode "$requested_mode" --arg nodeId "$node_id" --arg token "$token" --arg defRole "$default_role" \
            '.fleetMode = $mode | .fleetNodeId = $nodeId | .fleetToken = (.fleetToken // $token) | .fleetRole = (.fleetRole // $defRole)' "$ENV_FILE" >"$temp_file" || { rm -f "$temp_file"; fail "Erro ao atualizar JSON."; }
     fi
@@ -180,15 +202,15 @@ show_menu() {
                 status_desc="ATIVADO (Torre Master · Primária Ativa 24/7)"
             fi
             ;;
-        worker) status_desc="ATIVADO (Nó de Frota / Worker)" ;;
+        worker) status_desc="ATIVADO (Nó Operário Subordinado)" ;;
     esac
 
     local fleet_choice
     fleet_choice=$(whiptail --title "MNO FLEET HUB — GESTÃO DE SERVIDORES" --menu \
         "Estado Atual: $status_desc\n\nSelecione uma opção:" 22 78 8 \
         "1" "Manter Modo Simples Standalone (Desativado - 0 MB overhead)" \
-        "2" "Ativar como Torre Master (Cockpit Local no WSL2 ou VPS)" \
-        "3" "Conectar à Frota como Nó Worker (Subordinado - Exige VPS 24/7)" \
+        "2" "Ativar como Torre Master (Torre de Controle no WSL2 ou VPS)" \
+        "3" "Conectar à Frota como Nó Operário (Subordinado à Torre Master)" \
         "4" "Ver Informações de Pareamento (ID e Token do Nó)" \
         "5" "Clone, Transferência e Backup de Aplicações da Frota" \
         "6" "Sincronizar Inventário de outra Torre Master (Master-to-Master)" \
@@ -208,23 +230,24 @@ show_menu() {
             cur_token=$(jq -r '.fleetToken // "indisponível"' "$ENV_FILE" 2>/dev/null)
             cur_role=$(get_role)
             if [ "$is_wsl" = "true" ]; then
-                whiptail --title "MNO FLEET HUB — COCKPIT LOCAL (WSL2)" --msgbox \
-                    "Torre Master ativada com sucesso no WSL2!\n\nSeu computador pessoal agora é a Torre de Controle da sua frota.\nPapel atribuído automaticamente: Cockpit Standby (Passiva).\n\nVocê pode cadastrar e gerenciar seus servidores VPS remotos (Nós Workers) diretamente desta tela, com zero portas abertas no seu roteador residencial.\n\nID da Torre: $cur_id\nToken da Frota: $cur_token\nPapel: $cur_role" 17 78
+                whiptail --title "MNO FLEET HUB — TORRE MASTER (WSL2)" --msgbox \
+                    "Torre Master ativada com sucesso no WSL2!\n\nSeu computador pessoal agora é a Torre de Controle da sua frota.\nPapel atribuído: Primária Ativa (24/7).\n\nVocê pode cadastrar e gerenciar seus servidores remotos (Nós Operários) diretamente desta tela, com zero portas abertas no seu roteador residencial.\n\nID da Torre: $cur_id\nToken da Frota: $cur_token\nPapel: $cur_role" 17 78
             else
                 whiptail --title "MNO FLEET HUB" --msgbox "Torre de Controle (Master Hub) ativada com sucesso!\n\nEste servidor agora gerencia suas aplicações locais e está pronto para gerenciar múltiplos servidores e o Co-piloto de IA.\nPapel atribuído: Primária Ativa (24/7).\n\nID da Torre: $cur_id\nToken da Frota: $cur_token\nPapel: $cur_role" 16 76
             fi
             ;;
         3)
             if [ "$is_wsl" = "true" ]; then
-                whiptail --title "WSL2 DETECTADO — MODO COCKPIT" --msgbox \
-                    "O WSL2 opera no seu computador pessoal e é suspenso quando você fecha o notebook ou desliga o Windows.\n\nPor segurança e confiabilidade, o modo Nó Worker (onde rodam as aplicações 24/7) deve ser instalado em uma VPS na nuvem.\n\nNo WSL2, utilize a Opção 2 (Torre Master) para comandar seus servidores remotos com total segurança!" 16 78
-                return 0
+                if ! whiptail --title "WSL2 DETECTADO — ALERTA IMPORTANTE" --yesno \
+                    "ATENÇÃO: Você está configurando este ambiente WSL2 como Nó Operário (Subordinado à Torre Master)!\n\nNo computador pessoal / WSL2, se a conexão de internet oscilar ou cair, se o PC for desligado ou a tampa do notebook/laptop for fechada, todas as aplicações hospedadas neste nó ficarão indisponíveis imediatamente para os usuários externos.\n\nDeseja realmente continuar e ativar este WSL2 como Nó Operário?" 16 78; then
+                    return 0
+                fi
             fi
             set_mode worker >/dev/null
             local cur_id cur_token
             cur_id=$(jq -r '.fleetNodeId // "indisponível"' "$ENV_FILE" 2>/dev/null)
             cur_token=$(jq -r '.fleetToken // "indisponível"' "$ENV_FILE" 2>/dev/null)
-            whiptail --title "MNO FLEET HUB" --msgbox "Nó de Frota (Worker) ativado com sucesso!\n\nEsta VPS agora está configurada com endpoint seguro e token de pareamento para ser comandada pela sua Torre Master.\n\nID do Nó: $cur_id\nToken de Pareamento: $cur_token" 15 76
+            whiptail --title "MNO FLEET HUB" --msgbox "Nó Operário ativado com sucesso!\n\nEste servidor agora está configurado com endpoint seguro e token de pareamento para ser comandado pela sua Torre Master.\n\nID do Nó: $cur_id\nToken de Pareamento: $cur_token" 15 76
             ;;
         4)
             local cur_info
