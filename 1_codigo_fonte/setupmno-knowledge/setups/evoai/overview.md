@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "EvoAI no Setup MNO",
   "setupId": "evoai",
-  "setupVersion": "7.48.20",
+  "setupVersion": "7.48.21",
   "architectures": [
     "amd64",
     "arm64"

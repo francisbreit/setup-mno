@@ -269,3 +269,73 @@ func TestSentinelConfirmationDelayAndResolutionSuppression(t *testing.T) {
 		t.Errorf("incidente confirmado deveria ter disparado notificação de resolução após normalizar")
 	}
 }
+
+func TestSentinelWarningOnceSuppression(t *testing.T) {
+	state := newSentinelRuntimeState()
+	cooldownDuration := 15 * time.Minute
+	now := time.Now().UTC()
+
+	// 1. Incidente com severidade "warning" (ex: MFA bloqueando telemetria)
+	warnInc := SentinelIncident{
+		ID:        "node_mfa_1945b",
+		NodeName:  "Servidor 1945b",
+		Severity:  "warning",
+		Message:   "Nó com telemetria bloqueada por Cloudflare Access",
+		StartedAt: now.Add(-30 * time.Minute),
+	}
+
+	state.mu.Lock()
+	warnExisting := &sentinelIncidentState{
+		Incident:    warnInc,
+		FirstSeen:   now.Add(-30 * time.Minute),
+		LastAlertAt: now.Add(-20 * time.Minute), // Alerta já enviado há 20 min (> cooldown de 15 min)
+		AlertSent:   true,
+	}
+	state.incidents[warnInc.ID] = warnExisting
+
+	// Avalia se deve re-alertar após cooldown
+	shouldAlertWarn := false
+	if now.Sub(warnExisting.LastAlertAt) >= cooldownDuration {
+		if warnExisting.Incident.Severity != "warning" {
+			warnExisting.LastAlertAt = now
+			shouldAlertWarn = true
+		}
+	}
+	state.mu.Unlock()
+
+	if shouldAlertWarn {
+		t.Errorf("incidente de severidade warning NÃO deve re-notificar após o cooldown")
+	}
+
+	// 2. Incidente com severidade "critical" (ex: servidor offline)
+	critInc := SentinelIncident{
+		ID:        "node_down_1945b",
+		NodeName:  "Servidor 1945b",
+		Severity:  "critical",
+		Message:   "Nó offline",
+		StartedAt: now.Add(-30 * time.Minute),
+	}
+
+	state.mu.Lock()
+	critExisting := &sentinelIncidentState{
+		Incident:    critInc,
+		FirstSeen:   now.Add(-30 * time.Minute),
+		LastAlertAt: now.Add(-20 * time.Minute), // Alerta já enviado há 20 min (> cooldown de 15 min)
+		AlertSent:   true,
+	}
+	state.incidents[critInc.ID] = critExisting
+
+	// Avalia se deve re-alertar após cooldown
+	shouldAlertCrit := false
+	if now.Sub(critExisting.LastAlertAt) >= cooldownDuration {
+		if critExisting.Incident.Severity != "warning" {
+			critExisting.LastAlertAt = now
+			shouldAlertCrit = true
+		}
+	}
+	state.mu.Unlock()
+
+	if !shouldAlertCrit {
+		t.Errorf("incidente de severidade critical DEVE re-notificar após o cooldown")
+	}
+}

@@ -8,7 +8,7 @@
   "status": "reviewed",
   "fictitious": false,
   "deployable": false,
-  "setupVersion": "7.48.20",
+  "setupVersion": "7.48.21",
   "updatedAt": "2026-08-02",
   "architectures": [
     "amd64",

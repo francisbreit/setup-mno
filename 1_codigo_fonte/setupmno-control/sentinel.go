@@ -531,9 +531,14 @@ func (a *webApp) runSentinelCheckCycle(ctx context.Context) {
 					shouldAlert = true
 				}
 			} else if now.Sub(existing.LastAlertAt) >= cooldownDuration {
-				// Incidente persistente expirou o cooldown anti-flood
-				existing.LastAlertAt = now
-				shouldAlert = true
+				// Incidente persistente expirou o cooldown anti-flood.
+				// Incidentes críticos (como nó offline ou RAM crítica) re-notificam após o cooldown.
+				// Incidentes de severidade "warning" (como MFA bloqueando telemetria ou disco em atenção)
+				// notificam apenas UMA VEZ por ocorrência para evitar fadiga de alertas e repetições contínuas.
+				if existing.Incident.Severity != "warning" {
+					existing.LastAlertAt = now
+					shouldAlert = true
+				}
 			}
 		}
 
