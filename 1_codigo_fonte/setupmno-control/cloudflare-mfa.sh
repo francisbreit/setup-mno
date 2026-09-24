@@ -90,14 +90,57 @@ EOF
     return 0
 }
 
+resolve_cloudflare_mfa_server_name() {
+    local hint="${1:-}" candidate=""
+    if [ -n "$hint" ]; then
+        candidate="$hint"
+    elif [ -n "${SETUPMNO_SERVER_NAME:-}" ]; then
+        candidate="$SETUPMNO_SERVER_NAME"
+    elif [ -n "${nome_servidor:-}" ] && ! [[ "$nome_servidor" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        candidate="$nome_servidor"
+    elif [ -f /root/.tradicional_config/tradicional_credentials ]; then
+        local trad_nome
+        trad_nome=$(grep -E "^nome_servidor=" /root/.tradicional_config/tradicional_credentials 2>/dev/null | cut -d"=" -f2- | tr -d "\"'\''")
+        if [ -n "$trad_nome" ] && ! [[ "$trad_nome" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            candidate="$trad_nome"
+        fi
+    fi
+    if [ -z "$candidate" ]; then
+        local raw_host="${url_control:-${hostname:-}}"
+        [ -n "$raw_host" ] && candidate="$raw_host"
+    fi
+    [ -n "$candidate" ] || return 0
+    if [[ "$candidate" == *.* ]]; then
+        candidate="${candidate%%.*}"
+    fi
+    local clean
+    clean=$(printf "%s" "$candidate" | sed "y/áàãâéêíóôõúüçÁÀÃÂÉÊÍÓÔÕÚÜÇ/aaaaeeiooouucAAAAEEIOOOUUC/" | LC_ALL=C tr "[:upper:]" "[:lower:]" | LC_ALL=C tr -cd "a-z0-9")
+    if [[ "$clean" =~ ^setup[a-z0-9]+$ ]] && [ "${#clean}" -gt 5 ]; then
+        clean="${clean#setup}"
+    elif [ "$clean" = "setup" ]; then
+        clean=""
+    fi
+    printf "%s" "$clean"
+}
+
 generate_cloudflare_mfa_alias() {
-    local email="$1" local_part domain base tag effective
+    local email="$1" hint="${2:-${url_control:-${hostname:-}}}"
+    local local_part domain base tag effective server_clean
     [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] || return 1
     local_part=${email%@*}
     domain=${email##*@}
     domain=${domain,,}
     base=${local_part%%+*}
-    tag="setupmno$(date -u +%y%m%d%H%M%S)$(od -An -N2 -tx1 /dev/urandom | tr -d ' \n')"
+    server_clean=$(resolve_cloudflare_mfa_server_name "$hint")
+    if [ -n "$server_clean" ]; then
+        if [[ "$server_clean" =~ ^setupmno[a-z0-9]+$ ]]; then
+            tag="$server_clean"
+        else
+            tag="setupmno${server_clean}"
+        fi
+    else
+        tag="setupmno$(date -u +%y%m%d%H%M%S)$(od -An -N2 -tx1 /dev/urandom | tr -d ' \n')"
+    fi
     effective="${base}+${tag}@${domain}"
     [ -n "$base" ] && [ "${#base}" -le 40 ] && [ "${#effective}" -le 254 ] || return 1
     printf '%s\n' "$effective"
@@ -111,12 +154,12 @@ show_cloudflare_mfa_alias_instructions() {
 }
 
 prepare_cloudflare_mfa_enrollment_email() {
-    local email="$1" mode="${2:-reactivation}"
+    local email="$1" mode="${2:-reactivation}" hint="${3:-${url_control:-${hostname:-}}}"
     local state_file="${CONTROL_MFA_STATE_FILE:-}" source="" choice
     local domain effective replacement status
     [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] || return 1
     if [ "$mode" = "initial" ]; then
-        effective=$(generate_cloudflare_mfa_alias "$email") || {
+        effective=$(generate_cloudflare_mfa_alias "$email" "$hint") || {
             whiptail --title "NÃO FOI POSSÍVEL CRIAR O ALIAS" --msgbox \
                 "Use uma caixa postal real que aceite endereços com +alias. Gmail é recomendado para garantir o recebimento do código e a criação de um novo QR Code." \
                 12 86 1>&2
@@ -158,7 +201,7 @@ prepare_cloudflare_mfa_enrollment_email() {
     case "$choice" in
         NOVO_QR)
             { [ "$domain" = "gmail.com" ] || [ "$domain" = "googlemail.com" ]; } || return 1
-            effective=$(generate_cloudflare_mfa_alias "$email") || {
+            effective=$(generate_cloudflare_mfa_alias "$email" "${hint:+${hint}$(date -u +%y%m%d%H%M)}") || {
                 whiptail --title "ALIAS GMAIL MUITO LONGO" --msgbox \
                     "O endereço informado não comporta um alias seguro. Escolha OUTRO E-MAIL na próxima tentativa." \
                     10 82 1>&2

@@ -148,6 +148,19 @@ grep -Fq 'NÃO digite o e-mail original' "$alias_message"
 grep -Fq 'incluindo +setupmno' "$alias_message"
 grep -Fq 'será exibido o novo QR Code' "$alias_message"
 
+# Testes de alias amigável com nome do servidor
+hetzner_alias=$(nome_servidor="Hetzner 1" prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' initial)
+[ "$hetzner_alias" = "admin+setupmnohetzner1@gmail.com" ]
+
+hetzner_url_alias=$(url_control="setuphetzner1.manualnegocioonline.com.br" prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' initial)
+[ "$hetzner_url_alias" = "admin+setupmnohetzner1@gmail.com" ]
+
+hermes_alias=$(nome_servidor="Hermes 1" prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' initial)
+[ "$hermes_alias" = "admin+setupmnohermes1@gmail.com" ]
+
+setup1945b_alias=$(url_control="setup1945b.manualnegocioonline.com.br" prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' initial)
+[ "$setup1945b_alias" = "admin+setupmno1945b@gmail.com" ]
+
 org_fixture="$test_dir/org.json"
 org_payload="$test_dir/org-payload.json"
 printf '%s\n' '{"result":{"auth_domain":"setupmno.cloudflareaccess.com","name":"Setup MNO","mfa_config":{"allowed_authenticators":["security_key"],"session_duration":"12h"}}}' >"$org_fixture"

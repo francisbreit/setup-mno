@@ -107,7 +107,10 @@ Documentos atuais de arquitetura e operação:
 - `releases/v7.48.18-blindagem-anti-cache-cdn-download.md`;
 - `releases/v7.48.19-wsl2-operario-paridade-ativa-estavel.md`;
 - `releases/v7.48.20-deteccao-mfa-resiliencia-lock.md`;
-- `releases/v7.48.21-sentinel-warning-unico-anti-fadiga.md`.
+- `releases/v7.48.21-sentinel-warning-unico-anti-fadiga.md`;
+- `releases/v7.48.22-automacao-bypass-cloudflare-access.md`;
+- `releases/v7.48.23-correcao-falso-positivo-sentinel-exclusao-no.md`;
+- `releases/v7.48.24-alias-mfa-inteligente-nome-servidor.md`.
 
 Validação específica do SRE Knowledge Pack:
 
