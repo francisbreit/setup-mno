@@ -141,9 +141,8 @@ write_control_mfa_state() {
 
 show_cloudflare_access_guide() {
     local team_hint="${access_team_name:-SEU-TIME}"
-    whiptail --title "GUIA RÁPIDO — CLOUDFLARE ACCESS" --msgbox \
-        "O MFA é opcional; o modo original permanece compatível.\n\nATIVAÇÃO AUTOMÁTICA\n1. O Setup valida as 7 permissões do token.\n2. Habilita TOTP, login por código e política do e-mail.\n3. Cria a proteção Access com cookie Lax.\n4. Abra https://${team_hint}.cloudflareaccess.com/AddMfaDevice e leia o QR Code.\n\nPermissões: Configurações, Tunnel, DNS, Access (Apps, Orgs, Logs).\n\nO assistente permite validar o token sem alterar Tunnel ou IDs." \
-        20 90 1>&2
+    whiptail --title "CLOUDFLARE ACCESS" --msgbox \
+        "MFA opcional; o modo original permanece compatível.\n\nATIVAÇÃO:\n1. Valida 7 permissões do token.\n2. Habilita TOTP e e-mail.\n3. Cria Access com cookie Lax.\n4. Cadastre o QR em https://${team_hint}.cloudflareaccess.com/AddMfaDevice." 14 78 1>&2
 }
 
 choose_cloudflare_access_security() {
@@ -325,7 +324,7 @@ prepare_existing_access_migration() {
     access_mfa=$(control_service_env_value "$web_service" ACCESS_MFA_REQUIRED)
     if [ "$access_required" = "true" ]; then
         if [ -z "$access_team" ] || [ -z "$access_aud" ] || [ -z "$access_email" ]; then
-            msg "A instalação possui metadados Cloudflare Access parciais ou inconsistentes. Por segurança, nada foi alterado. Revise as variáveis ACCESS_* do serviço web antes de atualizar."
+            msg "A instalação possui metadados Cloudflare Access parciais ou inconsistentes. Nada foi alterado."
             return 1
         fi
         if [ "$activation_mode" = "preserve" ] && [ "$access_mfa" = "false" ]; then
@@ -336,7 +335,7 @@ prepare_existing_access_migration() {
     fi
     if [ -n "$access_team" ] || [ -n "$access_aud" ] || [ -n "$access_email" ] ||
        { [ -n "$access_required" ] && [ "$access_required" != "false" ]; }; then
-        msg "A instalação possui metadados Cloudflare Access parciais ou inconsistentes. Por segurança, nada foi alterado. Revise as variáveis ACCESS_* do serviço web antes de atualizar."
+        msg "A instalação possui metadados Cloudflare Access parciais ou inconsistentes. Nada foi alterado."
         return 1
     fi
     [ "$activation_mode" = "activate-mfa" ] || return 0
@@ -371,31 +370,31 @@ prepare_existing_access_migration() {
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps?per_page=100" \
             >"$applications_file" 2>>"$log_file"; then
-        msg "A migração não conseguiu consultar Tunnel, organização e aplicativos Access. A instalação atual foi preservada."
+        msg "Falha ao consultar Tunnel e Access na Cloudflare. Instalação preservada."
         return 1
     fi
     if [ "$(jq -r '.success // false' "$tunnel_raw")" != "true" ] ||
            [ "$(jq -r '.success // false' "$organization_file")" != "true" ] ||
            [ "$(jq -r '.success // false' "$applications_file")" != "true" ]; then
-        msg "A Cloudflare recusou a migração. Verifique as sete permissões apresentadas pelo assistente. A instalação atual foi preservada."
+        msg "Cloudflare recusou a operação. Verifique as permissões do token. Instalação preservada."
         return 1
     fi
     auth_domain=$(jq -r '.result.auth_domain // empty' "$organization_file")
     if [[ ! "$auth_domain" =~ ^[A-Za-z0-9-]+\.cloudflareaccess\.com$ ]]; then
-        msg "O Zero Trust ainda não possui um domínio de autenticação válido. Crie o nome da equipe uma única vez no painel Cloudflare e tente novamente. A instalação atual foi preservada."
+        msg "Zero Trust sem domínio de auth válido. Crie o nome da equipe no painel Cloudflare. Instalação preservada."
         return 1
     fi
     service_target="http://${web_service}:8080"
     hostname=$(jq -r --arg service "$service_target" \
         '[.result.config.ingress[]? | select(.service == $service) | .hostname][0] // empty' "$tunnel_raw")
     if [[ ! "$hostname" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] || [[ "$hostname" != *.* ]]; then
-        msg "A rota Cloudflare Tunnel do painel existente não foi identificada com segurança. A instalação atual foi preservada."
+        msg "Rota Cloudflare Tunnel do painel não identificada. Instalação preservada."
         return 1
     fi
     if jq -e --arg host "$hostname" '
         any(.result[]?; .domain == $host or any(.destinations[]?; .type == "public" and .uri == $host))
     ' "$applications_file" >/dev/null 2>&1; then
-        msg "Já existe um aplicativo Access para $hostname. Por segurança, a migração não substituirá políticas externas. Revise-o no Zero Trust ou solicite uma migração assistida."
+        msg "Já existe aplicativo Access para $hostname. Revise-o no Zero Trust. A instalação foi preservada."
         return 1
     fi
     if ! whiptail --title "CONFIRMAR ATIVAÇÃO DO MFA" --yesno \
@@ -841,15 +840,21 @@ configure_existing_access_mfa() {
     if [ "$access_mfa" = "true" ]; then
         while true; do
             action=$(whiptail --title "CONFIGURAR MFA CONTROL CENTER" --default-item "CANCELAR" --menu \
-                "O MFA está ATIVO para $email. Você pode mantê-lo, consultar as instruções ou voltar ao modo original das versões sem MFA:" \
-                19 94 3 \
+                "MFA ATIVO para $email. Escolha uma operação:" \
+                19 94 4 \
+                "BYPASS" "Autorizar IP da Torre Master (Bypass sem MFA para telemetria)" \
                 "DESATIVAR" "Remover Access e restaurar Tunnel direto + login local" \
                 "INSTRUCOES" "Ver o guia de MFA do Cloudflare" \
-                "CANCELAR" "Manter o MFA ativo e voltar ao menu" \
+                "CANCELAR" "Voltar ao menu anterior" \
                 3>&1 1>&2 2>&3) || return 0
             case "$action" in
                 INSTRUCOES) show_cloudflare_access_guide ;;
                 CANCELAR) return 0 ;;
+                BYPASS)
+                    load_cloudflare_mfa_helper || { msg "Falha ao carregar assistente MFA."; return 1; }
+                    manage_access_bypass_interactive
+                    return 0
+                    ;;
                 DESATIVAR)
                     work_dir=$(mktemp -d) || return 1
                     log_file="/tmp/setupmno-control-mfa-${CONTROL_VERSION}.log"
@@ -1101,6 +1106,21 @@ if control_center_installed; then
             ;;
         --disable-access-mfa)
             disable_existing_access_mfa_noninteractive
+            exit $?
+            ;;
+        --add-access-bypass)
+            load_cloudflare_mfa_helper || { msg "Falha ao carregar assistente."; exit 1; }
+            manage_access_bypass_cli add "${2:-}"
+            exit $?
+            ;;
+        --remove-access-bypass)
+            load_cloudflare_mfa_helper || { msg "Falha ao carregar assistente."; exit 1; }
+            manage_access_bypass_cli remove "${2:-}"
+            exit $?
+            ;;
+        --add-telemetry-bypass)
+            load_cloudflare_mfa_helper || { msg "Falha ao carregar assistente."; exit 1; }
+            manage_access_bypass_cli add-telemetry
             exit $?
             ;;
     esac
@@ -2422,12 +2442,12 @@ fi
 
 if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ] && [ "$access_mfa_enabled" = "true" ]; then
     write_control_mfa_state true true false control-installed || {
-        msg "O Control Center foi instalado e o MFA está ativo, mas o estado persistente não pôde ser atualizado. Execute CONFIGURAR MFA CONTROL CENTER antes da próxima atualização."
+        msg "Control Center instalado com MFA, mas estado não persistiu. Execute CONFIGURAR MFA antes do próximo update."
         exit 1
     }
 else
     write_control_mfa_state false false false control-installed || {
-        msg "O Control Center foi instalado, mas a preferência sem MFA não pôde ser registrada. Execute novamente o Setup MNO antes da próxima atualização."
+        msg "Control Center instalado, mas estado sem MFA não persistiu. Execute o Setup antes do próximo update."
         exit 1
     }
 fi
@@ -2442,9 +2462,9 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
         show_cloudflare_mfa_alias_instructions "$access_original_email" "$access_email"
         access_next_step="\n\nPRIMEIRO ACESSO: abra https://${access_team_name}.cloudflareaccess.com/AddMfaDevice, use o alias informado, cadastre o QR Code e acesse https://$url_control."
     elif [ "$sem_mfa_access_decision" = "KEEP" ]; then
-        access_next_step="\n\nPROTEÇÃO ACCESS PRESERVADA:\nA aplicação exata ou wildcard encontrada não foi removida. A Cloudflare continuará solicitando a autenticação definida nessa proteção antes do login local do Control Center."
+        access_next_step="\n\nPROTEÇÃO ACCESS PRESERVADA:\nA aplicação existente foi mantida. A autenticação anterior continua ativa."
     else
-        access_next_step="\n\nMODO ORIGINAL SEM MFA:\nAbra https://$url_control e use o usuário e a senha locais do painel. O Terminal Remoto continua disponível pelo mesmo fluxo do Control Center. Para ativar MFA depois, use CONFIGURAR MFA CONTROL CENTER no menu do Setup MNO."
+        access_next_step="\n\nMODO ORIGINAL:\nAcesse https://$url_control com login local. Ative MFA a qualquer momento pelo menu."
     fi
 fi
 

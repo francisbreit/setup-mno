@@ -254,9 +254,69 @@ ensure_cloudflare_access_cookie_lax "$app_fixture" '44444444-5555-6666-7777-8888
 jq -e '.same_site_cookie_attribute == "lax" and
        .policies[0].id == "55555555-6666-7777-8888-999999999999"' "$test_dir/access-cookie-lax.json" >/dev/null
 
-if rg -n "$new_token|$valid_candidate" "$test_dir" --glob '*.log' >/dev/null; then
+# Testes de Gerenciamento de Bypass (Fase 2)
+bypass_captured_payload="$test_dir/bypass-captured-payload.json"
+cf_mfa_api() {
+    local method="$1" path="$2" output="$3" payload="${4:-}"
+    printf '%s %s\n' "$method" "$path" >>"$api_log"
+    if [ -n "$payload" ] && [ -s "$payload" ]; then
+        cp "$payload" "$bypass_captured_payload"
+    fi
+    case "$method:$path" in
+        GET:*/access/apps\?per_page=100)
+            printf '%s\n' '{"success":true,"result":[{"id":"44444444-5555-6666-7777-888888888888","name":"Setup MNO Control Center - Node 1","domain":"control.example.com"}]}' >"$output"
+            ;;
+        GET:*/access/apps/44444444-5555-6666-7777-888888888888/policies)
+            if [ "${bypass_test_state:-}" = "has_policy" ]; then
+                printf '%s\n' '{"success":true,"result":[{"id":"pol-bypass-12345","name":"Setup MNO - Bypass Torre Master (5.161.230.124/32)","decision":"bypass","include":[{"ip":{"ip":"5.161.230.124/32"}}]}]}' >"$output"
+            else
+                printf '%s\n' '{"success":true,"result":[]}' >"$output"
+            fi
+            ;;
+        POST:*/access/apps/44444444-5555-6666-7777-888888888888/policies)
+            printf '%s\n' '{"success":true,"result":{"id":"pol-bypass-12345"}}' >"$output"
+            ;;
+        DELETE:*/access/apps/44444444-5555-6666-7777-888888888888/policies/*)
+            printf '%s\n' '{"success":true,"result":{}}' >"$output"
+            ;;
+        POST:*/access/apps)
+            printf '%s\n' '{"success":true,"result":{"id":"app-telem-99999"}}' >"$output"
+            ;;
+        *)
+            printf 'ERRO: chamada simulada inesperada no teste de bypass: %s %s\n' "$method" "$path" >&2
+            return 1
+            ;;
+    esac
+}
+
+: >"$api_log"
+bypass_out=$(manage_access_bypass_cli add "5.161.230.124" "$credentials")
+[[ "$bypass_out" == *"[OK]"* ]]
+grep -Fq 'POST /accounts/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/access/apps/44444444-5555-6666-7777-888888888888/policies' "$api_log"
+jq -e '.decision == "bypass" and .include[0].ip.ip == "5.161.230.124/32"' "$bypass_captured_payload" >/dev/null
+
+# Teste de idempotência (regra já existente)
+bypass_test_state="has_policy"
+bypass_dup_out=$(manage_access_bypass_cli add "5.161.230.124" "$credentials")
+[[ "$bypass_dup_out" == *"já existe e está ativa"* ]]
+
+# Teste de remoção
+: >"$api_log"
+remove_out=$(manage_access_bypass_cli remove "5.161.230.124" "$credentials")
+[[ "$remove_out" == *"removida da Cloudflare"* ]]
+grep -Fq 'DELETE /accounts/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/access/apps/44444444-5555-6666-7777-888888888888/policies/pol-bypass-12345' "$api_log"
+
+# Teste de bypass de telemetria
+: >"$api_log"
+bypass_test_state=""
+telem_out=$(manage_access_bypass_cli add-telemetry "" "$credentials")
+[[ "$telem_out" == *"[OK]"* ]]
+grep -Fq 'POST /accounts/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/access/apps' "$api_log"
+jq -e '.domain == "control.example.com/api/fleet/*" and .policies[0].decision == "bypass"' "$bypass_captured_payload" >/dev/null
+
+if grep -rn -E "$new_token|$valid_candidate" "$test_dir" --include='*.log' >/dev/null; then
     printf 'ERRO: token apareceu em log de teste.\n' >&2
     exit 1
 fi
 
-printf 'Assistente Cloudflare MFA: token, automação, rollback e cookie Lax aprovados.\n'
+printf 'Assistente Cloudflare MFA: token, automação, rollback, cookie Lax e Bypass aprovados.\n'

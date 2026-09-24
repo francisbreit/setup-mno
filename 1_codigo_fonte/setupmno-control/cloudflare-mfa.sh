@@ -11,8 +11,8 @@ CF_MFA_LOGIN_TEXT="#f4f6f8"
 
 cf_mfa_api() {
     local method="$1" path="$2" output="$3" payload="${4:-}"
-    local -a args=(curl -sS --connect-timeout "$CLOUDFLARE_CONNECT_TIMEOUT"
-        --max-time "$CLOUDFLARE_MAX_TIME" -X "$method"
+    local -a args=(curl -sS --connect-timeout "${CLOUDFLARE_CONNECT_TIMEOUT:-10}"
+        --max-time "${CLOUDFLARE_MAX_TIME:-30}" -X "$method"
         -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
     [ -z "$payload" ] || args+=(-H "Content-Type: application/json" --data-binary "@$payload")
     "${args[@]}" "$CF_MFA_API$path" >"$output"
@@ -521,4 +521,280 @@ ensure_cloudflare_access_cookie_lax() {
         msg "A Cloudflare recusou o ajuste automático do cookie para Lax. Esse ajuste evita ciclos de redirecionamento após o TOTP."
         return 1
     fi
+}
+
+manage_access_bypass_cli() {
+    local action="${1:-}" target_arg="${2:-}"
+    local work_dir log_file credentials_file app_id aud url_control
+    
+    work_dir=$(mktemp -d "/tmp/setupmno-bypass-work.XXXXXX") || return 1
+    log_file="$work_dir/bypass.log"
+    
+    credentials_file="${SETUPMNO_CLOUDFLARE_CREDENTIALS_FILE:-/root/.cloudflared_config/cloudflare_credentials}"
+    if [ ! -f "$credentials_file" ] && [ -f "/root/.cloudflared/cloudflare_credentials" ]; then
+        credentials_file="/root/.cloudflared/cloudflare_credentials"
+    fi
+    if [ ! -f "$credentials_file" ] && [ -f "/root/SetupLowCodeMno/cloudflare_credentials" ]; then
+        credentials_file="/root/SetupLowCodeMno/cloudflare_credentials"
+    fi
+    if [ ! -f "$credentials_file" ] && [ -n "${3:-}" ] && [ -f "$3" ]; then
+        credentials_file="$3"
+    fi
+    if [ -f "$credentials_file" ]; then
+        # shellcheck disable=SC1090
+        . "$credentials_file"
+    fi
+    
+    if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+        echo "ERRO: CLOUDFLARE_API_TOKEN ou CLOUDFLARE_ACCOUNT_ID não configurados." >&2
+        rm -rf -- "$work_dir"
+        return 1
+    fi
+    
+    local env_file="${SETUPMNO_CONTROL_ENV_FILE:-/root/SetupLowCodeMno/.control/environment.json}"
+    if [ -f "$env_file" ]; then
+        aud=$(jq -r '.accessAud // empty' "$env_file" 2>/dev/null || true)
+        url_control=$(jq -r '.controlDomain // empty' "$env_file" 2>/dev/null || true)
+    fi
+    if [ -z "${url_control:-}" ] && [ -f "/root/setupmno-control.env" ]; then
+        url_control=$(grep -E '^(url_control|CONTROL_DOMAIN)=' "/root/setupmno-control.env" | head -n1 | cut -d= -f2- | tr -d '"'\'' ')
+    fi
+    
+    local apps_file="$work_dir/apps.json"
+    if ! cf_mfa_api GET "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps?per_page=100" "$apps_file" 2>>"$log_file" ||
+       [ "$(jq -r '.success // false' "$apps_file" 2>/dev/null)" != "true" ]; then
+        echo "ERRO: Falha ao consultar aplicações Access na Cloudflare. Verifique a conexão e o token." >&2
+        rm -rf -- "$work_dir"
+        return 1
+    fi
+    
+    if [ -n "${aud:-}" ]; then
+        app_id=$(jq -r --arg aud "$aud" '[.result[]? | select(.aud == $aud)][0].id // empty' "$apps_file" 2>/dev/null || true)
+    fi
+    if [ -z "${app_id:-}" ] && [ -n "${url_control:-}" ]; then
+        app_id=$(jq -r --arg dom "$url_control" '[.result[]? | select(.domain == $dom)][0].id // empty' "$apps_file" 2>/dev/null || true)
+    fi
+    if [ -z "${app_id:-}" ]; then
+        app_id=$(jq -r '[.result[]? | select((.name // "") | startswith("Setup MNO Control Center"))][0].id // empty' "$apps_file" 2>/dev/null || true)
+    fi
+    
+    if [[ ! "${app_id:-}" =~ ^[A-Fa-f0-9-]{32,36}$ ]]; then
+        echo "ERRO: Não foi possível localizar a aplicação Access do Control Center na Cloudflare." >&2
+        rm -rf -- "$work_dir"
+        return 1
+    fi
+    
+    if [ -z "${url_control:-}" ]; then
+        url_control=$(jq -r --arg id "$app_id" '[.result[]? | select(.id == $id)][0].domain // empty' "$apps_file" 2>/dev/null || true)
+    fi
+    
+    case "$action" in
+        add|add-ip)
+            local ip="$target_arg"
+            if [ -z "$ip" ]; then
+                echo "ERRO: Informe o IP da Torre Master (ex: --add-access-bypass 5.161.x.x)" >&2
+                rm -rf -- "$work_dir"
+                return 1
+            fi
+            if [[ "$ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+                ip="${ip}/32"
+            fi
+            
+            local pol_file="$work_dir/policies.json"
+            cf_mfa_api GET "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$app_id/policies" "$pol_file" 2>>"$log_file"
+            
+            local existing_pol_id
+            existing_pol_id=$(jq -r --arg ip "$ip" '[.result[]? | select(.decision == "bypass" and any(.include[]?; .ip.ip? == $ip))][0].id // empty' "$pol_file" 2>/dev/null || true)
+            if [ -n "$existing_pol_id" ]; then
+                echo "[OK] A regra de Bypass para o IP $ip já existe e está ativa na Cloudflare (Policy ID: $existing_pol_id)."
+                rm -rf -- "$work_dir"
+                return 0
+            fi
+            
+            local p1_id
+            p1_id=$(jq -r '[.result[]? | select(.precedence == 1 and .decision != "bypass")][0].id // empty' "$pol_file" 2>/dev/null || true)
+            if [ -n "$p1_id" ]; then
+                local p1_json="$work_dir/p1.json"
+                local p1_resp="$work_dir/p1-resp.json"
+                jq -c --arg id "$p1_id" '([.result[]? | select(.id == $id)][0]) | .precedence = 10' "$pol_file" >"$p1_json"
+                cf_mfa_api PUT "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$app_id/policies/$p1_id" "$p1_resp" "$p1_json" 2>>"$log_file" || true
+            fi
+            
+            local payload="$work_dir/bypass-payload.json"
+            local response="$work_dir/bypass-response.json"
+            jq -n --arg ip "$ip" '{
+                name: ("Setup MNO - Bypass Torre Master (" + $ip + ")"),
+                decision: "bypass",
+                precedence: 1,
+                include: [{ip: {ip: $ip}}],
+                exclude: [],
+                require: []
+            }' >"$payload"
+            
+            if ! cf_mfa_api POST "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$app_id/policies" "$response" "$payload" 2>>"$log_file" ||
+               [ "$(jq -r '.success // false' "$response" 2>/dev/null)" != "true" ]; then
+                local err_msg
+                err_msg=$(cf_mfa_error "$response")
+                echo "ERRO ao criar política de Bypass na Cloudflare: $err_msg" >&2
+                rm -rf -- "$work_dir"
+                return 1
+            fi
+            
+            if [ -n "${TUNNEL_ID:-}" ]; then
+                local tunnel_raw="$work_dir/tunnel-config.json"
+                local tunnel_payload="$work_dir/tunnel-payload.json"
+                local tunnel_resp="$work_dir/tunnel-resp.json"
+                if cf_mfa_api GET "/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" "$tunnel_raw" 2>>"$log_file" &&
+                   jq -e --arg h "$url_control" 'any(.result.config.ingress[]?; .hostname == $h and .originRequest.access != null)' "$tunnel_raw" >/dev/null 2>&1; then
+                    jq --arg h "$url_control" '
+                        (.result.config // {}) as $cfg
+                        | {config: ($cfg + {ingress: [($cfg.ingress // [])[] |
+                            if .hostname == $h then .originRequest = ((.originRequest // {}) | del(.access))
+                            else . end]})}' "$tunnel_raw" >"$tunnel_payload" 2>>"$log_file"
+                    cf_mfa_api PUT "/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" "$tunnel_resp" "$tunnel_payload" 2>>"$log_file" || true
+                fi
+            fi
+            
+            local created_id
+            created_id=$(jq -r '.result.id // empty' "$response")
+            echo "[OK] Regra de Bypass para a Torre Master (IP: $ip) criada com sucesso na Cloudflare! (Policy ID: $created_id)"
+            rm -rf -- "$work_dir"
+            return 0
+            ;;
+            
+        remove|remove-ip)
+            local pol_file="$work_dir/policies.json"
+            cf_mfa_api GET "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$app_id/policies" "$pol_file" 2>>"$log_file"
+            
+            local pol_ids
+            if [ -n "$target_arg" ]; then
+                local ip="$target_arg"
+                [[ "$ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] && ip="${ip}/32"
+                pol_ids=$(jq -r --arg ip "$ip" '.result[]? | select(.decision == "bypass" and any(.include[]?; .ip.ip? == $ip)) | .id' "$pol_file" 2>/dev/null || true)
+            else
+                pol_ids=$(jq -r '.result[]? | select(.decision == "bypass" and ((.name // "") | startswith("Setup MNO - Bypass"))) | .id' "$pol_file" 2>/dev/null || true)
+            fi
+            
+            if [ -z "$pol_ids" ]; then
+                echo "[INFO] Nenhuma regra de Bypass do Setup MNO encontrada para remover."
+                rm -rf -- "$work_dir"
+                return 0
+            fi
+            
+            for pid in $pol_ids; do
+                cf_mfa_api DELETE "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$app_id/policies/$pid" "$work_dir/del-$pid.json" 2>>"$log_file" || true
+                echo "[OK] Regra de Bypass $pid removida da Cloudflare."
+            done
+            rm -rf -- "$work_dir"
+            return 0
+            ;;
+            
+        add-telemetry)
+            if [ -z "${url_control:-}" ]; then
+                url_control=$(jq -r --arg id "$app_id" '[.result[]? | select(.id == $id)][0].domain // empty' "$apps_file" 2>/dev/null || true)
+            fi
+            if [ -z "${url_control:-}" ]; then
+                echo "ERRO: Domínio do Control Center não identificado." >&2
+                rm -rf -- "$work_dir"
+                return 1
+            fi
+            
+            local telem_domain="$url_control/api/fleet/*"
+            local existing_telem_app_id
+            existing_telem_app_id=$(jq -r --arg dom "$telem_domain" '[.result[]? | select(.domain == $dom)][0].id // empty' "$apps_file" 2>/dev/null || true)
+            if [ -n "$existing_telem_app_id" ]; then
+                echo "[OK] Aplicação de Bypass de Telemetria já existe na Cloudflare (App ID: $existing_telem_app_id)."
+                rm -rf -- "$work_dir"
+                return 0
+            fi
+            
+            local payload="$work_dir/telem-payload.json"
+            local response="$work_dir/telem-response.json"
+            jq -n --arg name "Setup MNO Telemetria - $url_control" --arg domain "$telem_domain" '{
+                name: $name,
+                type: "self_hosted",
+                domain: $domain,
+                destinations: [{type: "public", uri: $domain}],
+                session_duration: "24h",
+                app_launcher_visible: false,
+                allow_iframe: false,
+                allow_authenticate_via_warp: false,
+                skip_interstitial: true,
+                same_site_cookie_attribute: "lax",
+                policies: [{
+                    name: "Setup MNO - Bypass Telemetria da Frota",
+                    decision: "bypass",
+                    precedence: 1,
+                    include: [{everyone: true}],
+                    exclude: [],
+                    require: []
+                }]
+            }' >"$payload"
+            
+            if ! cf_mfa_api POST "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps" "$response" "$payload" 2>>"$log_file" ||
+               [ "$(jq -r '.success // false' "$response" 2>/dev/null)" != "true" ]; then
+                local err_msg
+                err_msg=$(cf_mfa_error "$response")
+                echo "ERRO ao criar aplicação de Bypass de Telemetria na Cloudflare: $err_msg" >&2
+                rm -rf -- "$work_dir"
+                return 1
+            fi
+            
+            if [ -n "${TUNNEL_ID:-}" ]; then
+                local tunnel_raw="$work_dir/tunnel-config.json"
+                local tunnel_payload="$work_dir/tunnel-payload.json"
+                local tunnel_resp="$work_dir/tunnel-resp.json"
+                if cf_mfa_api GET "/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" "$tunnel_raw" 2>>"$log_file" &&
+                   jq -e --arg h "$url_control" 'any(.result.config.ingress[]?; .hostname == $h and .originRequest.access != null)' "$tunnel_raw" >/dev/null 2>&1; then
+                    jq --arg h "$url_control" '
+                        (.result.config // {}) as $cfg
+                        | {config: ($cfg + {ingress: [($cfg.ingress // [])[] |
+                            if .hostname == $h then .originRequest = ((.originRequest // {}) | del(.access))
+                            else . end]})}' "$tunnel_raw" >"$tunnel_payload" 2>>"$log_file"
+                    cf_mfa_api PUT "/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/configurations" "$tunnel_resp" "$tunnel_payload" 2>>"$log_file" || true
+                fi
+            fi
+            
+            local created_app_id
+            created_app_id=$(jq -r '.result.id // empty' "$response")
+            echo "[OK] Bypass de Telemetria (/api/fleet/*) criado com sucesso na Cloudflare! (App ID: $created_app_id)"
+            rm -rf -- "$work_dir"
+            return 0
+            ;;
+            
+        *)
+            echo "Ação desconhecida: $action" >&2
+            rm -rf -- "$work_dir"
+            return 1
+            ;;
+    esac
+}
+
+manage_access_bypass_interactive() {
+    local choice master_ip out
+    choice=$(whiptail --title "GERENCIAR BYPASS CLOUDFLARE ACCESS" --default-item "ADD_IP" --menu \
+        "Escolha como liberar o acesso da Torre Master sem exigir autenticação MFA:" \
+        18 84 3 \
+        "ADD_IP" "Liberar pelo IP público fixo da Torre Master (VPS)" \
+        "ADD_TELEM" "Liberar rota /api/fleet/* para telemetria (WSL2 / IP Dinâmico)" \
+        "REMOVE" "Remover regras de Bypass anteriores" \
+        3>&1 1>&2 2>&3) || return 0
+    case "$choice" in
+        ADD_IP)
+            master_ip=$(whiptail --title "BYPASS POR IP DA TORRE MASTER" --inputbox \
+                "Informe o IP público da sua Torre Master:" 11 70 3>&1 1>&2 2>&3) || return 0
+            master_ip=$(printf '%s' "$master_ip" | tr -d '[:space:]')
+            [ -n "$master_ip" ] || return 0
+            out=$(manage_access_bypass_cli add "$master_ip" 2>&1)
+            whiptail --title "RESULTADO DO BYPASS" --msgbox "$out" 12 76 1>&2
+            ;;
+        ADD_TELEM)
+            out=$(manage_access_bypass_cli add-telemetry 2>&1)
+            whiptail --title "RESULTADO DO BYPASS" --msgbox "$out" 12 76 1>&2
+            ;;
+        REMOVE)
+            out=$(manage_access_bypass_cli remove 2>&1)
+            whiptail --title "RESULTADO DO BYPASS" --msgbox "$out" 12 76 1>&2
+            ;;
+    esac
 }
