@@ -762,42 +762,40 @@ manage_access_bypass_cli() {
             local telem_domain="$url_control/api/fleet/*"
             local existing_telem_app_id
             existing_telem_app_id=$(jq -r --arg dom "$telem_domain" '[.result[]? | select(.domain == $dom)][0].id // empty' "$apps_file" 2>/dev/null || true)
-            if [ -n "$existing_telem_app_id" ]; then
-                echo "[OK] Aplicação de Bypass de Telemetria já existe na Cloudflare (App ID: $existing_telem_app_id)."
-                rm -rf -- "$work_dir"
-                return 0
-            fi
-            
-            local payload="$work_dir/telem-payload.json"
-            local response="$work_dir/telem-response.json"
-            jq -n --arg name "Setup MNO Telemetria - $url_control" --arg domain "$telem_domain" '{
-                name: $name,
-                type: "self_hosted",
-                domain: $domain,
-                destinations: [{type: "public", uri: $domain}],
-                session_duration: "24h",
-                app_launcher_visible: false,
-                allow_iframe: false,
-                allow_authenticate_via_warp: false,
-                skip_interstitial: true,
-                same_site_cookie_attribute: "lax",
-                policies: [{
-                    name: "Setup MNO - Bypass Telemetria da Frota",
-                    decision: "bypass",
-                    precedence: 1,
-                    include: [{everyone: true}],
-                    exclude: [],
-                    require: []
-                }]
-            }' >"$payload"
-            
-            if ! cf_mfa_api POST "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps" "$response" "$payload" 2>>"$log_file" ||
-               [ "$(jq -r '.success // false' "$response" 2>/dev/null)" != "true" ]; then
-                local err_msg
-                err_msg=$(cf_mfa_error "$response")
-                echo "ERRO ao criar aplicação de Bypass de Telemetria na Cloudflare: $err_msg" >&2
-                rm -rf -- "$work_dir"
-                return 1
+            local created_app_id="$existing_telem_app_id"
+            if [ -z "$existing_telem_app_id" ]; then
+                local payload="$work_dir/telem-payload.json"
+                local response="$work_dir/telem-response.json"
+                jq -n --arg name "Setup MNO Telemetria - $url_control" --arg domain "$telem_domain" '{
+                    name: $name,
+                    type: "self_hosted",
+                    domain: $domain,
+                    destinations: [{type: "public", uri: $domain}],
+                    session_duration: "24h",
+                    app_launcher_visible: false,
+                    allow_iframe: false,
+                    allow_authenticate_via_warp: false,
+                    skip_interstitial: true,
+                    same_site_cookie_attribute: "lax",
+                    policies: [{
+                        name: "Setup MNO - Bypass Telemetria da Frota",
+                        decision: "bypass",
+                        precedence: 1,
+                        include: [{everyone: {}}],
+                        exclude: [],
+                        require: []
+                    }]
+                }' >"$payload"
+                
+                if ! cf_mfa_api POST "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps" "$response" "$payload" 2>>"$log_file" ||
+                   [ "$(jq -r '.success // false' "$response" 2>/dev/null)" != "true" ]; then
+                    local err_msg
+                    err_msg=$(cf_mfa_error "$response")
+                    echo "ERRO ao criar aplicação de Bypass de Telemetria na Cloudflare: $err_msg" >&2
+                    rm -rf -- "$work_dir"
+                    return 1
+                fi
+                created_app_id=$(jq -r '.result.id // empty' "$response")
             fi
             
             if [ -n "${TUNNEL_ID:-}" ]; then
@@ -815,9 +813,7 @@ manage_access_bypass_cli() {
                 fi
             fi
             
-            local created_app_id
-            created_app_id=$(jq -r '.result.id // empty' "$response")
-            echo "[OK] Bypass de Telemetria (/api/fleet/*) criado com sucesso na Cloudflare! (App ID: $created_app_id)"
+            echo "[OK] Bypass de Telemetria (/api/fleet/*) garantido na Cloudflare! (App ID: $created_app_id)"
             rm -rf -- "$work_dir"
             return 0
             ;;

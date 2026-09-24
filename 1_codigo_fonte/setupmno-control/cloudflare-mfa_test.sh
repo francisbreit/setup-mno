@@ -340,7 +340,7 @@ bypass_test_state=""
 telem_out=$(manage_access_bypass_cli add-telemetry "" "$credentials")
 [[ "$telem_out" == *"[OK]"* ]]
 grep -Fq 'POST /accounts/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/access/apps' "$api_log"
-jq -e '.domain == "control.example.com/api/fleet/*" and .policies[0].decision == "bypass"' "$bypass_captured_payload" >/dev/null
+jq -e '.domain == "control.example.com/api/fleet/*" and .policies[0].decision == "bypass" and .policies[0].include[0].everyone == {}' "$bypass_captured_payload" >/dev/null
 
 if grep -rn -E "$new_token|$valid_candidate" "$test_dir" --include='*.log' >/dev/null; then
     printf 'ERRO: token apareceu em log de teste.\n' >&2

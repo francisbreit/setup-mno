@@ -341,8 +341,8 @@ prepare_existing_access_migration() {
     [ "$activation_mode" = "activate-mfa" ] || return 0
 
     whiptail --title "ATIVAR MFA NO CONTROL CENTER" --msgbox \
-        "O Control Center está no modo original, sem Cloudflare Access.\n\nO Setup MNO validará o token, preparará automaticamente o login por e-mail, o aplicativo autenticador e o App Launcher, criará uma aplicação exclusiva e exigirá MFA. Se você cancelar, o acesso atual será preservado." \
-        17 88 1>&2
+        "O Control Center está sem Cloudflare Access.\n\nO Setup MNO configurará o login seguro com e-mail, autenticador e MFA. O acesso atual é preservado em caso de cancelamento." \
+        16 80 1>&2
     load_cloudflare_mfa_helper || {
         msg "O assistente autenticado de MFA não pôde ser carregado. Atualize o Setup MNO e tente novamente."
         return 1
@@ -398,8 +398,8 @@ prepare_existing_access_migration() {
     status=$?
     [ "$status" -eq 0 ] || return "$status"
     if ! whiptail --title "CONFIRMAR ATIVAÇÃO DO MFA" --yesno \
-        "Domínio protegido: $hostname\nE-mail autorizado: $email\n\nA partir daqui o Setup automatizará TOTP, login por e-mail, App Launcher e a política do Control Center. O modo original continuará ativo até tudo ser concluído; em caso de falha, as mudanças serão revertidas.\n\nDeseja ativar o MFA agora?" \
-        18 92 1>&2; then
+        "Domínio: $hostname\nE-mail: $email\n\nO Setup automatizará TOTP, login e a política MFA. O modo atual continua ativo até o fim do processo.\n\nDeseja ativar o MFA agora?" \
+        16 80 1>&2; then
         return 130
     fi
 
@@ -452,10 +452,12 @@ prepare_existing_access_migration() {
         rollback_existing_access_migration "$state_file" "$log_file"
         return 1
     }
-    if ! jq --arg host "$hostname" --arg team "$team_name" --arg aud "$aud" '
+    local node_fleet_mode
+    node_fleet_mode=$(jq -r '.fleetMode // empty' "${CONTROL_ENVIRONMENT_FILE:-/root/SetupLowCodeMno/.control/environment.json}" 2>/dev/null || true)
+    if ! jq --arg host "$hostname" --arg team "$team_name" --arg aud "$aud" --arg fleetMode "$node_fleet_mode" '
         (.result.config // {}) as $cfg
         | {config:($cfg + {ingress:[($cfg.ingress // [])[] |
-            if .hostname == $host then
+            if .hostname == $host and $fleetMode != "worker" then
               .originRequest = ((.originRequest // {}) + {access:{required:true,teamName:$team,audTag:[$aud]}})
             else . end]})}
     ' "$tunnel_raw" >"$tunnel_payload" 2>>"$log_file"; then
@@ -743,7 +745,7 @@ build_existing_access_policy_payload() {
 }
 
 configure_existing_access_mfa() {
-    local work_dir log_file web_service service_count access_required access_mfa team_domain aud email
+    local work_dir log_file web_service service_count access_required access_mfa team_domain aud email fleet_mode
     local organization_file applications_file application_file policy_payload rollback_payload response_file
     local auth_domain app_count app_id policy_count policy_id current_mfa_disabled current_mfa_enabled
     local action rollback_response activation_state status onboarding_state
@@ -789,11 +791,10 @@ configure_existing_access_mfa() {
                 3>&1 1>&2 2>&3) || return 0
             case "$action" in
                 ATIVAR)
-                    local fleet_mode
                     fleet_mode=$(jq -r '.fleetMode // empty' "$CONTROL_ENVIRONMENT_FILE" 2>/dev/null || true)
                     if [ "$fleet_mode" = "worker" ]; then
                         if ! whiptail --title "AVISO: NÓ OPERÁRIO EM FROTA" --yesno \
-                            "ATENÇÃO: Este servidor opera como NÓ OPERÁRIO de uma Torre Master.\n\nA ativação do MFA interceptará a telemetria da Torre Master (exibindo 'MFA Bloqueando' até criar Bypass na Cloudflare).\n\nDeseja ativar mesmo assim?" \
+                            "Este servidor é NÓ OPERÁRIO de uma Torre Master.\n\nO MFA será ativado e a rota de telemetria (/api/fleet/*) terá bypass automático para a Torre Master.\n\nDeseja continuar?" \
                             14 78 3>&1 1>&2 2>&3; then
                             continue
                         fi
@@ -825,6 +826,7 @@ configure_existing_access_mfa() {
             msg "O MFA foi ativado, mas o estado persistente não pôde ser registrado. Execute novamente esta opção antes de atualizar o Setup MNO."
             return 1
         }
+        [ "$fleet_mode" != "worker" ] || { load_cloudflare_mfa_helper && manage_access_bypass_cli add-telemetry >/dev/null 2>&1 || true; }
         rm -rf -- "$work_dir"
         show_mfa_success_notice
         return 0

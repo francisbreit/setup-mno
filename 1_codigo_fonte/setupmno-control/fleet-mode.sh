@@ -247,6 +247,18 @@ show_menu() {
             local cur_id cur_token
             cur_id=$(jq -r '.fleetNodeId // "indisponível"' "$ENV_FILE" 2>/dev/null)
             cur_token=$(jq -r '.fleetToken // "indisponível"' "$ENV_FILE" 2>/dev/null)
+            local is_mfa_active="false"
+            if [ -f "$CONTROL_DIR/mfa-state.json" ] && [ "$(jq -r '.effectiveMFA // false' "$CONTROL_DIR/mfa-state.json" 2>/dev/null)" = "true" ]; then
+                is_mfa_active="true"
+            elif [ -f "$ENV_FILE" ] && [ "$(jq -r '.accessJwtRequired // false' "$ENV_FILE" 2>/dev/null)" = "true" ]; then
+                is_mfa_active="true"
+            fi
+            local ctrl_script
+            ctrl_script="$(dirname "$CONTROL_DIR")/setupmno_control.sh"
+            [ -x "$ctrl_script" ] || ctrl_script="/root/SetupLowCodeMno/setupmno_control.sh"
+            if [ "$is_mfa_active" = "true" ] && [ -x "$ctrl_script" ]; then
+                "$ctrl_script" --add-telemetry-bypass >/dev/null 2>&1 || true
+            fi
             whiptail --title "MNO FLEET HUB" --msgbox "Nó Operário ativado com sucesso!\n\nEste servidor agora está configurado com endpoint seguro e token de pareamento para ser comandado pela sua Torre Master.\n\nID do Nó: $cur_id\nToken de Pareamento: $cur_token" 15 76
             ;;
         4)

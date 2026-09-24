@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Mautic 6 WhatsApp Marketing no Setup MNO",
   "setupId": "mautic-6-whatsapp",
-  "setupVersion": "7.48.25",
+  "setupVersion": "7.48.26",
   "architectures": [
     "amd64",
     "arm64"
