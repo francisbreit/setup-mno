@@ -155,11 +155,26 @@ hetzner_alias=$(nome_servidor="Hetzner 1" prepare_cloudflare_mfa_enrollment_emai
 hetzner_url_alias=$(url_control="setuphetzner1.manualnegocioonline.com.br" prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' initial)
 [ "$hetzner_url_alias" = "admin+setupmnohetzner1@gmail.com" ]
 
+hetzner_direct_alias=$(prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' initial 'setuphetzner1.manualnegocioonline.com.br')
+[ "$hetzner_direct_alias" = "admin+setupmnohetzner1@gmail.com" ]
+
+setupmno_prefix_alias=$(prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' initial 'setupmnohetzner1.manualnegocioonline.com.br')
+[ "$setupmno_prefix_alias" = "admin+setupmnohetzner1@gmail.com" ]
+
+ip_alias=$(prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' initial '46.224.155.11')
+[[ "$ip_alias" =~ ^admin\+setupmno[0-9a-f]+@gmail\.com$ ]]
+
 hermes_alias=$(nome_servidor="Hermes 1" prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' initial)
 [ "$hermes_alias" = "admin+setupmnohermes1@gmail.com" ]
 
 setup1945b_alias=$(url_control="setup1945b.manualnegocioonline.com.br" prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' initial)
 [ "$setup1945b_alias" = "admin+setupmno1945b@gmail.com" ]
+
+mock_tunnel_tmp=$(mktemp -d /tmp/tmp.XXXXXX)
+printf '%s\n' '{"result":{"config":{"ingress":[{"hostname":"setuphetzner1.manualnegocioonline.com.br","service":"http://mnoctrl4baf7b0-web_mnoctrl4baf7b0-web:8080"}]}}}' >"$mock_tunnel_tmp/token-tunnel.json"
+hetzner_discovered_alias=$(url_control="" hostname="" nome_servidor="" SETUPMNO_SERVER_NAME="" prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' initial)
+rm -rf "$mock_tunnel_tmp"
+[ "$hetzner_discovered_alias" = "admin+setupmnohetzner1@gmail.com" ]
 
 org_fixture="$test_dir/org.json"
 org_payload="$test_dir/org-payload.json"

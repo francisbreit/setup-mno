@@ -350,10 +350,6 @@ prepare_existing_access_migration() {
     prepare_cloudflare_mfa_token "$work_dir" "$log_file"
     status=$?
     [ "$status" -eq 0 ] || return "$status"
-    email=$(collect_cloudflare_access_email "IDENTIDADE DO MFA") || return 130
-    email=$(prepare_cloudflare_mfa_enrollment_email "$email" initial)
-    status=$?
-    [ "$status" -eq 0 ] || return "$status"
 
     tunnel_raw="$work_dir/access-migration-tunnel.json"
     organization_file="$work_dir/access-migration-organization.json"
@@ -397,6 +393,10 @@ prepare_existing_access_migration() {
         msg "Já existe aplicativo Access para $hostname. Revise-o no Zero Trust. A instalação foi preservada."
         return 1
     fi
+    email=$(collect_cloudflare_access_email "IDENTIDADE DO MFA") || return 130
+    email=$(prepare_cloudflare_mfa_enrollment_email "$email" initial "$hostname")
+    status=$?
+    [ "$status" -eq 0 ] || return "$status"
     if ! whiptail --title "CONFIRMAR ATIVAÇÃO DO MFA" --yesno \
         "Domínio protegido: $hostname\nE-mail autorizado: $email\n\nA partir daqui o Setup automatizará TOTP, login por e-mail, App Launcher e a política do Control Center. O modo original continuará ativo até tudo ser concluído; em caso de falha, as mudanças serão revertidas.\n\nDeseja ativar o MFA agora?" \
         18 92 1>&2; then

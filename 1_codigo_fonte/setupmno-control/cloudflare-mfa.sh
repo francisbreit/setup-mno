@@ -109,15 +109,32 @@ resolve_cloudflare_mfa_server_name() {
         local raw_host="${url_control:-${hostname:-}}"
         [ -n "$raw_host" ] && candidate="$raw_host"
     fi
+    if [ -z "$candidate" ]; then
+        local tf found_h
+        for tf in /tmp/tmp.*/token-tunnel.json /tmp/tmp.*/access-migration-tunnel.json /tmp/access-migration-tunnel.json; do
+            if [ -f "$tf" ]; then
+                found_h=$(jq -r '[.result.config.ingress[]? | select(.service | test("mnoctrl.*-web")) | .hostname][0] // empty' "$tf" 2>/dev/null)
+                if [ -n "$found_h" ] && [ "$found_h" != "null" ]; then
+                    candidate="$found_h"
+                    break
+                fi
+            fi
+        done
+    fi
     [ -n "$candidate" ] || return 0
+    if [[ "$candidate" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        return 0
+    fi
     if [[ "$candidate" == *.* ]]; then
         candidate="${candidate%%.*}"
     fi
     local clean
     clean=$(printf "%s" "$candidate" | sed "y/áàãâéêíóôõúüçÁÀÃÂÉÊÍÓÔÕÚÜÇ/aaaaeeiooouucAAAAEEIOOOUUC/" | LC_ALL=C tr "[:upper:]" "[:lower:]" | LC_ALL=C tr -cd "a-z0-9")
-    if [[ "$clean" =~ ^setup[a-z0-9]+$ ]] && [ "${#clean}" -gt 5 ]; then
+    if [[ "$clean" =~ ^setupmno[a-z0-9]+$ ]] && [ "${#clean}" -gt 8 ]; then
+        clean="${clean#setupmno}"
+    elif [[ "$clean" =~ ^setup[a-z0-9]+$ ]] && [ "${#clean}" -gt 5 ]; then
         clean="${clean#setup}"
-    elif [ "$clean" = "setup" ]; then
+    elif [ "$clean" = "setup" ] || [ "$clean" = "setupmno" ] || [[ "$clean" =~ ^[0-9]+$ ]]; then
         clean=""
     fi
     printf "%s" "$clean"
