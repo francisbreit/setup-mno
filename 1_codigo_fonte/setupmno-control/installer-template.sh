@@ -351,7 +351,7 @@ prepare_existing_access_migration() {
     status=$?
     [ "$status" -eq 0 ] || return "$status"
     email=$(collect_cloudflare_access_email "IDENTIDADE DO MFA") || return 130
-    email=$(prepare_cloudflare_mfa_enrollment_email "$email")
+    email=$(prepare_cloudflare_mfa_enrollment_email "$email" initial)
     status=$?
     [ "$status" -eq 0 ] || return "$status"
 
