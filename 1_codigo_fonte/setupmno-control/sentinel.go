@@ -110,6 +110,7 @@ func (c *SentinelConfig) Validate() error {
 // SentinelIncident representa uma falha ou anomalia operacional ativa.
 type SentinelIncident struct {
 	ID        string    `json:"id"`
+	NodeID    string    `json:"nodeId,omitempty"` // ID único do nó na frota (ex: "local" ou "node-...")
 	NodeName  string    `json:"nodeName"`
 	Severity  string    `json:"severity"` // "warning", "critical"
 	Message   string    `json:"message"`
@@ -279,18 +280,29 @@ func (a *webApp) dispatchSentinelNotification(ctx context.Context, incident Sent
 
 	var tgText string
 	var icon string
+	telemLine := ""
+	if telem.MemoryTotalMB > 0 {
+		if isResolution {
+			telemLine = fmt.Sprintf("\n*Telemetria Atual:* RAM: %dMB / %dMB · Disco: %dGB / %dGB · Apps Saudáveis: %d",
+				telem.MemoryUsedMB, telem.MemoryTotalMB, telem.DiskUsedGB, telem.DiskTotalGB, telem.HealthyApps)
+		} else {
+			telemLine = fmt.Sprintf("\n*Telemetria:* RAM: %dMB / %dMB · Disco: %dGB / %dGB · Apps Degradados: %d",
+				telem.MemoryUsedMB, telem.MemoryTotalMB, telem.DiskUsedGB, telem.DiskTotalGB, telem.UnhealthyApps)
+		}
+	}
+
 	if isResolution {
 		icon = "✅"
-		tgText = fmt.Sprintf("*%s [MNO SENTINEL RESOLVIDO]*\n\n*Servidor:* `%s`\n*Incidente:* %s\n*Status:* Normalizado\n*Telemetria Atual:* RAM: %dMB / %dMB · Disco: %dGB / %dGB · Apps Saudáveis: %d\n*Horário:* %s UTC",
-			icon, incident.NodeName, incident.Message, telem.MemoryUsedMB, telem.MemoryTotalMB, telem.DiskUsedGB, telem.DiskTotalGB, telem.HealthyApps, now.Format("2006-01-02 15:04:05"))
+		tgText = fmt.Sprintf("*%s [MNO SENTINEL RESOLVIDO]*\n\n*Servidor:* `%s`\n*Incidente:* %s\n*Status:* Normalizado%s\n*Horário:* %s UTC",
+			icon, incident.NodeName, incident.Message, telemLine, now.Format("2006-01-02 15:04:05"))
 	} else {
 		if incident.Severity == "critical" {
 			icon = "🚨"
 		} else {
 			icon = "⚠️"
 		}
-		tgText = fmt.Sprintf("*%s [MNO SENTINEL ALERTA]*\n\n*Servidor:* `%s`\n*Severidade:* %s\n*Alerta:* %s\n*Telemetria:* RAM: %dMB / %dMB · Disco: %dGB / %dGB · Apps Degradados: %d\n*Horário:* %s UTC",
-			icon, incident.NodeName, strings.ToUpper(incident.Severity), incident.Message, telem.MemoryUsedMB, telem.MemoryTotalMB, telem.DiskUsedGB, telem.DiskTotalGB, telem.UnhealthyApps, now.Format("2006-01-02 15:04:05"))
+		tgText = fmt.Sprintf("*%s [MNO SENTINEL ALERTA]*\n\n*Servidor:* `%s`\n*Severidade:* %s\n*Alerta:* %s%s\n*Horário:* %s UTC",
+			icon, incident.NodeName, strings.ToUpper(incident.Severity), incident.Message, telemLine, now.Format("2006-01-02 15:04:05"))
 	}
 
 	webhookPayload := map[string]any{
@@ -299,19 +311,22 @@ func (a *webApp) dispatchSentinelNotification(ctx context.Context, incident Sent
 		"resolved":   isResolution,
 		"severity":   incident.Severity,
 		"server":     incident.NodeName,
+		"nodeId":     incident.NodeID,
 		"incidentId": incident.ID,
 		"message":    incident.Message,
 		"timestamp":  now.Format(time.RFC3339),
-		"telemetry": map[string]any{
+		"content":    tgText, // Compatibilidade Discord
+		"text":       tgText, // Compatibilidade Slack / n8n
+	}
+	if telem.MemoryTotalMB > 0 {
+		webhookPayload["telemetry"] = map[string]any{
 			"memoryUsedMB":  telem.MemoryUsedMB,
 			"memoryTotalMB": telem.MemoryTotalMB,
 			"diskUsedGB":    telem.DiskUsedGB,
 			"diskTotalGB":   telem.DiskTotalGB,
 			"healthyApps":   telem.HealthyApps,
 			"unhealthyApps": telem.UnhealthyApps,
-		},
-		"content": tgText, // Compatibilidade Discord
-		"text":    tgText, // Compatibilidade Slack / n8n
+		}
 	}
 
 	// 1. Canal Telegram
@@ -348,16 +363,22 @@ func (a *webApp) dispatchSentinelNotification(ctx context.Context, incident Sent
 }
 
 // evaluateSentinelTelemetry avalia métricas de um nó e retorna lista de anomalias encontradas.
-func evaluateSentinelTelemetry(nodeName string, telem FleetTelemetry, cfg *SentinelConfig) []SentinelIncident {
+func evaluateSentinelTelemetry(nodeID, nodeName string, telem FleetTelemetry, cfg *SentinelConfig) []SentinelIncident {
 	incidents := make([]SentinelIncident, 0)
 	now := time.Now().UTC()
+
+	idSuffix := nodeID
+	if idSuffix == "" {
+		idSuffix = nodeName
+	}
 
 	// 1. Checagem de Memória RAM
 	if telem.MemoryTotalMB > 0 && cfg.RAMThresholdPct > 0 {
 		ramPct := int((telem.MemoryUsedMB * 100) / telem.MemoryTotalMB)
 		if ramPct >= cfg.RAMThresholdPct {
 			incidents = append(incidents, SentinelIncident{
-				ID:        fmt.Sprintf("ram_high_%s", nodeName),
+				ID:        fmt.Sprintf("ram_high_%s", idSuffix),
+				NodeID:    nodeID,
 				NodeName:  nodeName,
 				Severity:  "critical",
 				Message:   fmt.Sprintf("Uso crítico de memória RAM atingiu %d%% (%d MB / %d MB)", ramPct, telem.MemoryUsedMB, telem.MemoryTotalMB),
@@ -371,7 +392,8 @@ func evaluateSentinelTelemetry(nodeName string, telem FleetTelemetry, cfg *Senti
 		diskPct := int((telem.DiskUsedGB * 100) / telem.DiskTotalGB)
 		if diskPct >= cfg.DiskThresholdPct {
 			incidents = append(incidents, SentinelIncident{
-				ID:        fmt.Sprintf("disk_high_%s", nodeName),
+				ID:        fmt.Sprintf("disk_high_%s", idSuffix),
+				NodeID:    nodeID,
 				NodeName:  nodeName,
 				Severity:  "warning",
 				Message:   fmt.Sprintf("Armazenamento em disco crítico atingiu %d%% (%d GB / %d GB)", diskPct, telem.DiskUsedGB, telem.DiskTotalGB),
@@ -383,7 +405,8 @@ func evaluateSentinelTelemetry(nodeName string, telem FleetTelemetry, cfg *Senti
 	// 3. Checagem de Aplicações Degradadas no Swarm
 	if cfg.NotifyDegradedApp && telem.UnhealthyApps > 0 {
 		incidents = append(incidents, SentinelIncident{
-			ID:        fmt.Sprintf("degraded_apps_%s", nodeName),
+			ID:        fmt.Sprintf("degraded_apps_%s", idSuffix),
+			NodeID:    nodeID,
 			NodeName:  nodeName,
 			Severity:  "critical",
 			Message:   fmt.Sprintf("%d aplicação(ões) operando em estado degradado ou instável no Docker Swarm", telem.UnhealthyApps),
@@ -449,7 +472,7 @@ func (a *webApp) runSentinelCheckCycle(ctx context.Context) {
 		if localTelem.NodeID != "" && localTelem.NodeID != "local" {
 			nodeName = localTelem.NodeID
 		}
-		incidents := evaluateSentinelTelemetry(nodeName, localTelem, &cfg)
+		incidents := evaluateSentinelTelemetry("local", nodeName, localTelem, &cfg)
 		for _, inc := range incidents {
 			currentDetected[inc.ID] = inc
 		}
@@ -467,6 +490,7 @@ func (a *webApp) runSentinelCheckCycle(ctx context.Context) {
 				incID := fmt.Sprintf("node_down_%s", n.ID)
 				currentDetected[incID] = SentinelIncident{
 					ID:        incID,
+					NodeID:    n.ID,
 					NodeName:  n.Name,
 					Severity:  "critical",
 					Message:   fmt.Sprintf("Nó Operário remoto '%s' (%s) está inacessível ou desconectado da frota", n.Name, n.Endpoint),
@@ -477,6 +501,7 @@ func (a *webApp) runSentinelCheckCycle(ctx context.Context) {
 				incID := fmt.Sprintf("node_mfa_%s", n.ID)
 				currentDetected[incID] = SentinelIncident{
 					ID:        incID,
+					NodeID:    n.ID,
 					NodeName:  n.Name,
 					Severity:  "warning",
 					Message:   fmt.Sprintf("Nó Operário remoto '%s' está ativo, mas o Cloudflare Access (MFA) está bloqueando as consultas da Torre Master. Desative o MFA no nó ou configure regra de Bypass.", n.Name),
@@ -486,7 +511,7 @@ func (a *webApp) runSentinelCheckCycle(ctx context.Context) {
 
 			// Se tiver telemetria do worker, avaliar métricas de capacidade
 			if n.Telemetry != nil {
-				workerIncidents := evaluateSentinelTelemetry(n.Name, *n.Telemetry, &cfg)
+				workerIncidents := evaluateSentinelTelemetry(n.ID, n.Name, *n.Telemetry, &cfg)
 				for _, inc := range workerIncidents {
 					currentDetected[inc.ID] = inc
 				}
@@ -543,8 +568,18 @@ func (a *webApp) runSentinelCheckCycle(ctx context.Context) {
 		}
 
 		if shouldAlert {
-			go func(incident SentinelIncident) {
-				recs := a.dispatchSentinelNotification(context.Background(), incident, false, localTelem)
+			// Determina a telemetria do nó alvo correspondente ao incidente
+			targetTelem := localTelem
+			if inc.NodeID != "" && inc.NodeID != "local" && a.fleetStore != nil {
+				if n, found := a.fleetStore.GetNode(inc.NodeID); found && n.Telemetry != nil {
+					targetTelem = *n.Telemetry
+				} else {
+					targetTelem = FleetTelemetry{}
+				}
+			}
+
+			go func(incident SentinelIncident, telem FleetTelemetry) {
+				recs := a.dispatchSentinelNotification(context.Background(), incident, false, telem)
 				state.mu.Lock()
 				state.recentAlerts = append(state.recentAlerts, recs...)
 				if len(state.recentAlerts) > 50 {
@@ -552,19 +587,50 @@ func (a *webApp) runSentinelCheckCycle(ctx context.Context) {
 				}
 				state.mu.Unlock()
 				a.addAudit("sentinel_alert_dispatched", fmt.Sprintf("Alerta Sentinel emitido para incidente %s (%s)", incident.ID, incident.Message), "sentinel-daemon")
-			}(inc)
+			}(inc, targetTelem)
 		}
 	}
 
 	// Detectar resolução de incidentes que não estão mais presentes
 	for id, existing := range state.incidents {
 		if _, stillActive := currentDetected[id]; !stillActive {
-			// Incidente foi resolvido!
+			// Checar se o incidente pertencia a um nó da frota que foi excluído do inventário
+			nodeExists := true
+			if existing.Incident.NodeID != "" && existing.Incident.NodeID != "local" && a.fleetStore != nil {
+				if _, found := a.fleetStore.GetNode(existing.Incident.NodeID); !found {
+					nodeExists = false
+				}
+			} else if strings.HasPrefix(id, "node_down_") || strings.HasPrefix(id, "node_mfa_") {
+				candidateID := strings.TrimPrefix(strings.TrimPrefix(id, "node_down_"), "node_mfa_")
+				if a.fleetStore != nil {
+					if _, found := a.fleetStore.GetNode(candidateID); !found {
+						nodeExists = false
+					}
+				}
+			}
+
+			// Incidente não está mais ativo na detecção: remove do mapa
 			delete(state.incidents, id)
+
+			// Se o nó foi excluído/removido da frota, expurga silenciosamente sem notificar resolução falsa
+			if !nodeExists {
+				a.addAudit("sentinel_incident_purged", fmt.Sprintf("Incidente %s do nó '%s' expurgado silenciosamente pois o nó foi removido do inventário da frota", id, existing.Incident.NodeName), "sentinel-daemon")
+				continue
+			}
+
 			// Somente envia notificação de resolução se o alerta inicial tiver sido de fato emitido ao usuário
 			if existing.AlertSent {
-				go func(incident SentinelIncident) {
-					recs := a.dispatchSentinelNotification(context.Background(), incident, true, localTelem)
+				targetTelem := localTelem
+				if existing.Incident.NodeID != "" && existing.Incident.NodeID != "local" && a.fleetStore != nil {
+					if n, found := a.fleetStore.GetNode(existing.Incident.NodeID); found && n.Telemetry != nil {
+						targetTelem = *n.Telemetry
+					} else {
+						targetTelem = FleetTelemetry{}
+					}
+				}
+
+				go func(incident SentinelIncident, telem FleetTelemetry) {
+					recs := a.dispatchSentinelNotification(context.Background(), incident, true, telem)
 					state.mu.Lock()
 					state.recentAlerts = append(state.recentAlerts, recs...)
 					if len(state.recentAlerts) > 50 {
@@ -572,12 +638,44 @@ func (a *webApp) runSentinelCheckCycle(ctx context.Context) {
 					}
 					state.mu.Unlock()
 					a.addAudit("sentinel_incident_resolved", fmt.Sprintf("Incidente Sentinel %s normalizado", incident.ID), "sentinel-daemon")
-				}(existing.Incident)
+				}(existing.Incident, targetTelem)
 			}
 		}
 	}
 
 	state.mu.Unlock()
+}
+
+// purgeSentinelNodeIncidents expurga silenciosamente todos os incidentes associados a um nó que foi removido do inventário,
+// garantindo que nenhuma notificação falsa de "Status Normalizado" seja disparada para nós excluídos da frota.
+func (a *webApp) purgeSentinelNodeIncidents(nodeID, nodeName string) {
+	if a.sentinelState == nil {
+		return
+	}
+
+	a.sentinelState.mu.Lock()
+	defer a.sentinelState.mu.Unlock()
+
+	purgedCount := 0
+	for id, existing := range a.sentinelState.incidents {
+		matches := false
+		if existing.Incident.NodeID != "" && existing.Incident.NodeID == nodeID {
+			matches = true
+		} else if strings.Contains(id, nodeID) {
+			matches = true
+		} else if nodeName != "" && existing.Incident.NodeName == nodeName {
+			matches = true
+		}
+
+		if matches {
+			delete(a.sentinelState.incidents, id)
+			purgedCount++
+		}
+	}
+
+	if purgedCount > 0 {
+		a.addAudit("sentinel_incident_purged", fmt.Sprintf("%d incidente(s) ativo(s) do nó '%s' (%s) expurgado(s) silenciosamente por exclusão da frota", purgedCount, nodeName, nodeID), "sentinel-daemon")
+	}
 }
 
 // handleSentinelGetConfig retorna a configuração sanitizada do Sentinel.

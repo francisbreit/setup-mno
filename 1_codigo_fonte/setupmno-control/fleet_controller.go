@@ -421,6 +421,11 @@ func (a *webApp) handleFleetRemoveNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	nodeName := ""
+	if n, found := a.fleetStore.GetNode(nodeID); found {
+		nodeName = n.Name
+	}
+
 	removed, err := a.fleetStore.RemoveNode(nodeID)
 	if err != nil || !removed {
 		writeError(w, http.StatusNotFound, "nó não encontrado no inventário da frota")
@@ -431,6 +436,9 @@ func (a *webApp) handleFleetRemoveNode(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "falha ao salvar alterações do inventário")
 		return
 	}
+
+	// Expurgar qualquer alerta ou incidente ativo deste nó imediatamente no Sentinel
+	a.purgeSentinelNodeIncidents(nodeID, nodeName)
 
 	a.addAudit("fleet_node_removed", fmt.Sprintf("Nó %s removido da frota", nodeID), clientAddress(r))
 	writeJSON(w, http.StatusOK, map[string]any{"deleted": true, "nodeId": nodeID})

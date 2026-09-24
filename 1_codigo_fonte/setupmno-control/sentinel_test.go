@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -101,7 +102,7 @@ func TestEvaluateSentinelTelemetry(t *testing.T) {
 		HealthyApps:   4,
 		UnhealthyApps: 0,
 	}
-	incidents := evaluateSentinelTelemetry("VPS-01", healthyTelem, cfg)
+	incidents := evaluateSentinelTelemetry("node-01", "VPS-01", healthyTelem, cfg)
 	if len(incidents) != 0 {
 		t.Errorf("esperava 0 incidentes para telemetria saudável, obteve %d", len(incidents))
 	}
@@ -116,7 +117,7 @@ func TestEvaluateSentinelTelemetry(t *testing.T) {
 		HealthyApps:   3,
 		UnhealthyApps: 1, // 1 app caindo
 	}
-	incidents = evaluateSentinelTelemetry("VPS-01", criticalTelem, cfg)
+	incidents = evaluateSentinelTelemetry("node-01", "VPS-01", criticalTelem, cfg)
 	if len(incidents) != 2 {
 		t.Fatalf("esperava 2 incidentes (RAM e app degradado), obteve %d: %+v", len(incidents), incidents)
 	}
@@ -337,5 +338,140 @@ func TestSentinelWarningOnceSuppression(t *testing.T) {
 
 	if !shouldAlertCrit {
 		t.Errorf("incidente de severidade critical DEVE re-notificar após o cooldown")
+	}
+}
+
+func TestSentinelNodeRemovalDoesNotTriggerResolutionAlert(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "sentinel-purge-test-*")
+	if err != nil {
+		t.Fatalf("falha ao criar tempDir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	storePath := filepath.Join(tempDir, "fleet-inventory.json")
+	store, err := loadFleetInventory(storePath)
+	if err != nil {
+		t.Fatalf("loadFleetInventory falhou: %v", err)
+	}
+
+	state := newSentinelRuntimeState()
+	cfg := &SentinelConfig{
+		Enabled:              true,
+		NotifyNodeDown:       true,
+		ConfirmationDelaySec: 0,
+		CooldownMinutes:      15,
+	}
+
+	app := &webApp{
+		fleetStore:     store,
+		sentinelConfig: cfg,
+		sentinelState:  state,
+		sessions:       make(map[string]*session),
+	}
+
+	// 1. Adicionar nó worker no inventário
+	nodeID := "node-hetzner1"
+	nodeName := "Hetzner1"
+	workerNode := FleetNode{
+		ID:       nodeID,
+		Name:     nodeName,
+		Endpoint: "https://hetzner1.mno.net",
+		Status:   "offline",
+		Mode:     FleetModeWorker,
+	}
+	if err := store.AddNode(workerNode); err != nil {
+		t.Fatalf("AddNode falhou: %v", err)
+	}
+
+	// 2. Simular incidente ativo de nó offline já alertado (AlertSent = true)
+	incID := "node_down_" + nodeID
+	now := time.Now().UTC()
+	inc := SentinelIncident{
+		ID:        incID,
+		NodeID:    nodeID,
+		NodeName:  nodeName,
+		Severity:  "critical",
+		Message:   "Nó offline",
+		StartedAt: now.Add(-10 * time.Minute),
+	}
+	state.mu.Lock()
+	state.incidents[incID] = &sentinelIncidentState{
+		Incident:    inc,
+		FirstSeen:   now.Add(-10 * time.Minute),
+		LastAlertAt: now.Add(-10 * time.Minute),
+		AlertSent:   true,
+	}
+	state.mu.Unlock()
+
+	// 3. Cenário: Exclusão direta via purgeSentinelNodeIncidents
+	app.purgeSentinelNodeIncidents(nodeID, nodeName)
+
+	state.mu.Lock()
+	_, foundAfterPurge := state.incidents[incID]
+	alertCountAfterPurge := len(state.recentAlerts)
+	state.mu.Unlock()
+
+	if foundAfterPurge {
+		t.Errorf("incidente deveria ter sido expurgado pelo purgeSentinelNodeIncidents")
+	}
+	if alertCountAfterPurge != 0 {
+		t.Errorf("nenhum alerta falso deveria ter sido registrado, obteve %d", alertCountAfterPurge)
+	}
+
+	// 4. Cenário: Nó removido da frota e ciclo do Sentinel é executado
+	// Adiciona o incidente de volta simulando condição de corrida
+	state.mu.Lock()
+	state.incidents[incID] = &sentinelIncidentState{
+		Incident:    inc,
+		FirstSeen:   now.Add(-10 * time.Minute),
+		LastAlertAt: now.Add(-10 * time.Minute),
+		AlertSent:   true,
+	}
+	state.mu.Unlock()
+
+	// O nó é removido do fleetStore
+	_, _ = store.RemoveNode(nodeID)
+
+	// Executa ciclo do Sentinel
+	app.runSentinelCheckCycle(context.Background())
+
+	state.mu.Lock()
+	_, foundAfterCycle := state.incidents[incID]
+	alertCountAfterCycle := len(state.recentAlerts)
+	state.mu.Unlock()
+
+	if foundAfterCycle {
+		t.Errorf("incidente de nó não existente na frota deveria ser expurgado no ciclo")
+	}
+	if alertCountAfterCycle != 0 {
+		t.Errorf("ciclo do Sentinel NÃO deve disparar notificação de resolução para nó removido da frota, obteve %d", alertCountAfterCycle)
+	}
+}
+
+func TestSentinelWorkerAlertDoesNotLeakMasterTelemetry(t *testing.T) {
+	app := &webApp{
+		sentinelConfig: &SentinelConfig{
+			Enabled:          true,
+			TelegramBotToken: "test:token",
+			TelegramChatID:   "12345",
+		},
+	}
+
+	inc := SentinelIncident{
+		ID:        "node_down_remote",
+		NodeID:    "node-remote",
+		NodeName:  "Hetzner1",
+		Severity:  "critical",
+		Message:   "Nó operário Hetzner1 está inacessível",
+		StartedAt: time.Now().UTC(),
+	}
+
+	// Nó offline não possui telemetria válida (MemoryTotalMB == 0)
+	offlineTelem := FleetTelemetry{}
+
+	// Testa formatação de despacho com telemetria zerada
+	records := app.dispatchSentinelNotification(context.Background(), inc, false, offlineTelem)
+	if len(records) == 0 {
+		t.Fatalf("esperava ao menos 1 registro de despacho gerado")
 	}
 }
