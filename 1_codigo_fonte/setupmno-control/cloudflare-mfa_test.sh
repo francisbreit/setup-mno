@@ -292,7 +292,11 @@ cf_mfa_api() {
     fi
     case "$method:$path" in
         GET:*/access/apps\?per_page=100)
-            printf '%s\n' '{"success":true,"result":[{"id":"44444444-5555-6666-7777-888888888888","name":"Setup MNO Control Center - Node 1","domain":"control.example.com"}]}' >"$output"
+            if [ "${bypass_test_state:-}" = "has_legacy_telem" ]; then
+                printf '%s\n' '{"success":true,"result":[{"id":"44444444-5555-6666-7777-888888888888","name":"Setup MNO Control Center - Node 1","domain":"control.example.com"},{"id":"app-legacy-1111","name":"Setup MNO Telemetria - control.example.com","domain":"control.example.com/api/fleet/*"}]}' >"$output"
+            else
+                printf '%s\n' '{"success":true,"result":[{"id":"44444444-5555-6666-7777-888888888888","name":"Setup MNO Control Center - Node 1","domain":"control.example.com"}]}' >"$output"
+            fi
             ;;
         GET:*/access/apps/44444444-5555-6666-7777-888888888888/policies)
             if [ "${bypass_test_state:-}" = "has_policy" ]; then
@@ -309,6 +313,12 @@ cf_mfa_api() {
             ;;
         POST:*/access/apps)
             printf '%s\n' '{"success":true,"result":{"id":"app-telem-99999"}}' >"$output"
+            ;;
+        PUT:*/access/apps/*)
+            printf '%s\n' '{"success":true,"result":{"id":"app-telem-legacy"}}' >"$output"
+            ;;
+        DELETE:*/access/apps/*)
+            printf '%s\n' '{"success":true,"result":{}}' >"$output"
             ;;
         *)
             printf 'ERRO: chamada simulada inesperada no teste de bypass: %s %s\n' "$method" "$path" >&2
@@ -334,13 +344,28 @@ remove_out=$(manage_access_bypass_cli remove "5.161.230.124" "$credentials")
 [[ "$remove_out" == *"removida da Cloudflare"* ]]
 grep -Fq 'DELETE /accounts/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/access/apps/44444444-5555-6666-7777-888888888888/policies/pol-bypass-12345' "$api_log"
 
-# Teste de bypass de telemetria
+# Teste de bypass de telemetria (rota /api/fleet/worker/*)
 : >"$api_log"
 bypass_test_state=""
 telem_out=$(manage_access_bypass_cli add-telemetry "" "$credentials")
 [[ "$telem_out" == *"[OK]"* ]]
 grep -Fq 'POST /accounts/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/access/apps' "$api_log"
-jq -e '.domain == "control.example.com/api/fleet/*" and .policies[0].decision == "bypass" and .policies[0].include[0].everyone == {}' "$bypass_captured_payload" >/dev/null
+jq -e '.domain == "control.example.com/api/fleet/worker/*" and .policies[0].decision == "bypass" and .policies[0].include[0].everyone == {}' "$bypass_captured_payload" >/dev/null
+
+# Teste de migração automática de rota legada (/api/fleet/* para /api/fleet/worker/*)
+: >"$api_log"
+bypass_test_state="has_legacy_telem"
+telem_mig_out=$(manage_access_bypass_cli add-telemetry "" "$credentials")
+[[ "$telem_mig_out" == *"[OK]"* ]]
+grep -Fq 'PUT /accounts/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/access/apps/app-legacy-1111' "$api_log"
+jq -e '.domain == "control.example.com/api/fleet/worker/*"' "$bypass_captured_payload" >/dev/null
+
+# Teste de remoção total sem argumento (remove políticas e apps de telemetria)
+: >"$api_log"
+bypass_test_state="has_legacy_telem"
+remove_all_out=$(manage_access_bypass_cli remove "" "$credentials")
+[[ "$remove_all_out" == *"removida da Cloudflare"* ]]
+grep -Fq 'DELETE /accounts/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/access/apps/app-legacy-1111' "$api_log"
 
 if grep -rn -E "$new_token|$valid_candidate" "$test_dir" --include='*.log' >/dev/null; then
     printf 'ERRO: token apareceu em log de teste.\n' >&2

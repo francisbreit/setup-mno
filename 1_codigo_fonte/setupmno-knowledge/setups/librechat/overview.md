@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "LibreChat no Setup MNO",
   "setupId": "librechat",
-  "setupVersion": "7.48.26",
+  "setupVersion": "7.48.27",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

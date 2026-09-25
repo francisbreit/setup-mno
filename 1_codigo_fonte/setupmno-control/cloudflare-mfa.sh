@@ -735,7 +735,7 @@ manage_access_bypass_cli() {
                 pol_ids=$(jq -r '.result[]? | select(.decision == "bypass" and ((.name // "") | startswith("Setup MNO - Bypass"))) | .id' "$pol_file" 2>/dev/null || true)
             fi
             
-            if [ -z "$pol_ids" ]; then
+            if [ -z "$pol_ids" ] && [ -n "$target_arg" ]; then
                 echo "[INFO] Nenhuma regra de Bypass do Setup MNO encontrada para remover."
                 rm -rf -- "$work_dir"
                 return 0
@@ -745,6 +745,16 @@ manage_access_bypass_cli() {
                 cf_mfa_api DELETE "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$app_id/policies/$pid" "$work_dir/del-$pid.json" 2>>"$log_file" || true
                 echo "[OK] Regra de Bypass $pid removida da Cloudflare."
             done
+
+            if [ -z "$target_arg" ]; then
+                local telem_apps
+                telem_apps=$(jq -r --arg dom1 "$url_control/api/fleet/*" --arg dom2 "$url_control/api/fleet/worker/*" \
+                    '.result[]? | select(.domain == $dom1 or .domain == $dom2) | .id' "$apps_file" 2>/dev/null || true)
+                for tid in $telem_apps; do
+                    cf_mfa_api DELETE "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$tid" "$work_dir/del-telem-$tid.json" 2>>"$log_file" || true
+                    echo "[OK] Aplicação de Bypass de Telemetria $tid removida da Cloudflare."
+                done
+            fi
             rm -rf -- "$work_dir"
             return 0
             ;;
@@ -759,9 +769,29 @@ manage_access_bypass_cli() {
                 return 1
             fi
             
-            local telem_domain="$url_control/api/fleet/*"
+            local telem_domain="$url_control/api/fleet/worker/*"
+            local old_telem_domain="$url_control/api/fleet/*"
             local existing_telem_app_id
             existing_telem_app_id=$(jq -r --arg dom "$telem_domain" '[.result[]? | select(.domain == $dom)][0].id // empty' "$apps_file" 2>/dev/null || true)
+            local old_telem_app_id
+            old_telem_app_id=$(jq -r --arg dom "$old_telem_domain" '[.result[]? | select(.domain == $dom)][0].id // empty' "$apps_file" 2>/dev/null || true)
+
+            if [ -n "$old_telem_app_id" ] && [ -z "$existing_telem_app_id" ]; then
+                local update_payload="$work_dir/telem-update-payload.json"
+                local update_response="$work_dir/telem-update-response.json"
+                jq -n --arg name "Setup MNO Telemetria - $url_control" --arg domain "$telem_domain" '{
+                    name: $name,
+                    domain: $domain,
+                    destinations: [{type: "public", uri: $domain}]
+                }' >"$update_payload"
+                if cf_mfa_api PUT "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$old_telem_app_id" "$update_response" "$update_payload" 2>>"$log_file" &&
+                   [ "$(jq -r '.success // false' "$update_response" 2>/dev/null)" = "true" ]; then
+                    existing_telem_app_id="$old_telem_app_id"
+                fi
+            elif [ -n "$old_telem_app_id" ] && [ -n "$existing_telem_app_id" ] && [ "$old_telem_app_id" != "$existing_telem_app_id" ]; then
+                cf_mfa_api DELETE "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$old_telem_app_id" "$work_dir/del-old.json" 2>>"$log_file" || true
+            fi
+
             local created_app_id="$existing_telem_app_id"
             if [ -z "$existing_telem_app_id" ]; then
                 local payload="$work_dir/telem-payload.json"
@@ -813,7 +843,7 @@ manage_access_bypass_cli() {
                 fi
             fi
             
-            echo "[OK] Bypass de Telemetria (/api/fleet/*) garantido na Cloudflare! (App ID: $created_app_id)"
+            echo "[OK] Bypass de Telemetria (/api/fleet/worker/*) garantido na Cloudflare! (App ID: $created_app_id)"
             rm -rf -- "$work_dir"
             return 0
             ;;
@@ -832,7 +862,7 @@ manage_access_bypass_interactive() {
         "Escolha como liberar o acesso da Torre Master sem exigir autenticação MFA:" \
         18 84 3 \
         "ADD_IP" "Liberar pelo IP público fixo da Torre Master (VPS)" \
-        "ADD_TELEM" "Liberar rota /api/fleet/* para telemetria (WSL2 / IP Dinâmico)" \
+        "ADD_TELEM" "Liberar rota /api/fleet/worker/* para telemetria (WSL2 / IP Dinâmico)" \
         "REMOVE" "Remover regras de Bypass anteriores" \
         3>&1 1>&2 2>&3) || return 0
     case "$choice" in

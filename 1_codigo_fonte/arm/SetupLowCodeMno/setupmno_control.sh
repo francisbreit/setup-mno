@@ -794,7 +794,7 @@ configure_existing_access_mfa() {
                     fleet_mode=$(jq -r '.fleetMode // empty' "$CONTROL_ENVIRONMENT_FILE" 2>/dev/null || true)
                     if [ "$fleet_mode" = "worker" ]; then
                         if ! whiptail --title "AVISO: NÓ OPERÁRIO EM FROTA" --yesno \
-                            "Este servidor é NÓ OPERÁRIO de uma Torre Master.\n\nO MFA será ativado e a rota de telemetria (/api/fleet/*) terá bypass automático para a Torre Master.\n\nDeseja continuar?" \
+                            "Este servidor é NÓ OPERÁRIO de uma Torre Master.\n\nO MFA será ativado e a rota de telemetria (/api/fleet/worker/*) terá bypass automático para a Torre Master.\n\nDeseja continuar?" \
                             14 78 3>&1 1>&2 2>&3; then
                             continue
                         fi
