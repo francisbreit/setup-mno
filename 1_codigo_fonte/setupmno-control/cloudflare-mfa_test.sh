@@ -115,7 +115,7 @@ whiptail() {
     return 0
 }
 alias_email=$(prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com')
-[[ "$alias_email" =~ ^admin\+setupmno[0-9a-f]+@gmail\.com$ ]]
+[[ "$alias_email" =~ ^admin\+mno[0-9a-f]+@gmail\.com$ ]]
 if prepare_cloudflare_mfa_enrollment_email 'admin@example.com' >/dev/null; then
     printf 'ERRO: NOVO_QR foi aceito fora do Gmail.\n' >&2
     exit 1
@@ -138,43 +138,43 @@ whiptail() {
     return 0
 }
 initial_alias=$(prepare_cloudflare_mfa_enrollment_email 'primeiro+antigo@example.com' initial)
-[[ "$initial_alias" =~ ^primeiro\+setupmno[0-9a-f]+@example\.com$ ]]
+[[ "$initial_alias" =~ ^primeiro\+mno[0-9a-f]+@example\.com$ ]]
 grep -Fq 'COPIE O E-MAIL DE ACESSO CLOUDFLARE' "$alias_message"
 grep -Fq 'CAIXA POSTAL ORIGINAL:' "$alias_message"
 grep -Fq 'primeiro+antigo@example.com' "$alias_message"
 grep -Fq 'E-MAIL DE ACESSO CLOUDFLARE:' "$alias_message"
 grep -Fq "$initial_alias" "$alias_message"
 grep -Fq 'NÃO digite o e-mail original' "$alias_message"
-grep -Fq 'incluindo +setupmno' "$alias_message"
+grep -Fq 'com o sinal de +' "$alias_message"
 grep -Fq 'será exibido o novo QR Code' "$alias_message"
 
 # Testes de alias amigável com nome do servidor
 hetzner_alias=$(nome_servidor="Hetzner 1" prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' initial)
-[ "$hetzner_alias" = "admin+setupmnohetzner1@gmail.com" ]
+[ "$hetzner_alias" = "admin+hetzner1@gmail.com" ]
 
 hetzner_url_alias=$(url_control="setuphetzner1.manualnegocioonline.com.br" prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' initial)
-[ "$hetzner_url_alias" = "admin+setupmnohetzner1@gmail.com" ]
+[ "$hetzner_url_alias" = "admin+hetzner1@gmail.com" ]
 
 hetzner_direct_alias=$(prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' initial 'setuphetzner1.manualnegocioonline.com.br')
-[ "$hetzner_direct_alias" = "admin+setupmnohetzner1@gmail.com" ]
+[ "$hetzner_direct_alias" = "admin+hetzner1@gmail.com" ]
 
 setupmno_prefix_alias=$(prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' initial 'setupmnohetzner1.manualnegocioonline.com.br')
-[ "$setupmno_prefix_alias" = "admin+setupmnohetzner1@gmail.com" ]
+[ "$setupmno_prefix_alias" = "admin+hetzner1@gmail.com" ]
 
 ip_alias=$(prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' initial '46.224.155.11')
-[[ "$ip_alias" =~ ^admin\+setupmno[0-9a-f]+@gmail\.com$ ]]
+[[ "$ip_alias" =~ ^admin\+mno[0-9a-f]+@gmail\.com$ ]]
 
 hermes_alias=$(nome_servidor="Hermes 1" prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' initial)
-[ "$hermes_alias" = "admin+setupmnohermes1@gmail.com" ]
+[ "$hermes_alias" = "admin+hermes1@gmail.com" ]
 
 setup1945b_alias=$(url_control="setup1945b.manualnegocioonline.com.br" prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' initial)
-[ "$setup1945b_alias" = "admin+setupmno1945b@gmail.com" ]
+[ "$setup1945b_alias" = "admin+1945b@gmail.com" ]
 
 mock_tunnel_tmp=$(mktemp -d /tmp/tmp.XXXXXX)
 printf '%s\n' '{"result":{"config":{"ingress":[{"hostname":"setuphetzner1.manualnegocioonline.com.br","service":"http://mnoctrl4baf7b0-web_mnoctrl4baf7b0-web:8080"}]}}}' >"$mock_tunnel_tmp/token-tunnel.json"
 hetzner_discovered_alias=$(url_control="" hostname="" nome_servidor="" SETUPMNO_SERVER_NAME="" prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' initial)
 rm -rf "$mock_tunnel_tmp"
-[ "$hetzner_discovered_alias" = "admin+setupmnohetzner1@gmail.com" ]
+[ "$hetzner_discovered_alias" = "admin+hetzner1@gmail.com" ]
 
 org_fixture="$test_dir/org.json"
 org_payload="$test_dir/org-payload.json"

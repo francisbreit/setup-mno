@@ -150,13 +150,9 @@ generate_cloudflare_mfa_alias() {
     base=${local_part%%+*}
     server_clean=$(resolve_cloudflare_mfa_server_name "$hint")
     if [ -n "$server_clean" ]; then
-        if [[ "$server_clean" =~ ^setupmno[a-z0-9]+$ ]]; then
-            tag="$server_clean"
-        else
-            tag="setupmno${server_clean}"
-        fi
+        tag="$server_clean"
     else
-        tag="setupmno$(date -u +%y%m%d%H%M%S)$(od -An -N2 -tx1 /dev/urandom | tr -d ' \n')"
+        tag="mno$(date -u +%y%m%d%H%M%S)$(od -An -N2 -tx1 /dev/urandom | tr -d ' \n')"
     fi
     effective="${base}+${tag}@${domain}"
     [ -n "$base" ] && [ "${#base}" -le 40 ] && [ "${#effective}" -le 254 ] || return 1
@@ -166,7 +162,7 @@ generate_cloudflare_mfa_alias() {
 show_cloudflare_mfa_alias_instructions() {
     local original_email="$1" access_email="$2"
     whiptail --title "COPIE O E-MAIL DE ACESSO CLOUDFLARE" --msgbox \
-        "CAIXA POSTAL ORIGINAL:\n$original_email\n\nE-MAIL DE ACESSO CLOUDFLARE:\n$access_email\n\nATENÇÃO: na página da Cloudflare, NÃO digite o e-mail original. Preencha exatamente o alias completo acima, incluindo +setupmno. O código chegará na caixa postal original e, depois da confirmação, será exibido o novo QR Code." \
+        "CAIXA POSTAL ORIGINAL:\n$original_email\n\nE-MAIL DE ACESSO CLOUDFLARE:\n$access_email\n\nATENÇÃO: na página da Cloudflare, NÃO digite o e-mail original. Preencha exatamente o alias completo acima (com o sinal de + e o nome do servidor). O código chegará na caixa postal original e, depois da confirmação, será exibido o novo QR Code." \
         20 96 1>&2
 }
 
@@ -199,9 +195,9 @@ prepare_cloudflare_mfa_enrollment_email() {
     domain=${domain,,}
     if [ "$domain" = "gmail.com" ] || [ "$domain" = "googlemail.com" ]; then
         choice=$(whiptail --title "REATIVAÇÃO DO MFA" --default-item "NOVO_QR" --menu \
-            "Para gerar outro QR, o Setup criará um E-MAIL DE ACESSO com +setupmno. Ele usa a mesma caixa Gmail, mas na Cloudflare você NÃO deve digitar o e-mail original: deverá preencher o alias completo que será mostrado:" \
+            "Para gerar outro QR, o Setup criará um E-MAIL DE ACESSO com o nome do servidor. Ele usa a mesma caixa Gmail, mas na Cloudflare você NÃO deve digitar o e-mail original: deverá preencher o alias completo que será mostrado:" \
             20 96 4 \
-            "NOVO_QR" "Mesmo Gmail: gerar alias obrigatório +setupmno e novo QR" \
+            "NOVO_QR" "Mesmo Gmail: gerar alias com o servidor e novo QR" \
             "REUTILIZAR" "Reutilizar o cadastro e o código do autenticador anterior" \
             "OUTRO_EMAIL" "Informar outro e-mail para uma identidade nova" \
             "CANCELAR" "Voltar sem alterar Cloudflare ou Control Center" \

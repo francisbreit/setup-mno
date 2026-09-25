@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Combo Agente IA WhatsApp + CRM (SDR 24/7) no Setup MNO",
   "setupId": "combo-ia-whatsapp-sdr-crm",
-  "setupVersion": "7.48.27",
+  "setupVersion": "7.48.28",
   "architectures": [
     "amd64",
     "arm64"

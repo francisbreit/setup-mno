@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Vaultwarden no Setup MNO",
   "setupId": "vaultwarden",
-  "setupVersion": "7.48.27",
+  "setupVersion": "7.48.28",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

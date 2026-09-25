@@ -751,7 +751,7 @@ configure_existing_access_mfa() {
     local action rollback_response activation_state status onboarding_state
 
     show_mfa_success_notice() {
-        msg "MFA ATIVADO!\n\nE-MAIL OBRIGATÓRIO NA CLOUDFLARE:\n$email\n\nNÃO use o e-mail original se o endereço acima contém +setupmno. Digite o alias completo; caso contrário, a Cloudflare dirá que enviou o código, mas nenhum e-mail chegará.\n\n1. Abra ${team_domain}/cdn-cgi/access/logout\n2. Abra ${team_domain}/AddMfaDevice\n3. Digite exatamente o endereço acima\n4. Receba o código na caixa original e leia o novo QR"
+        msg "MFA ATIVADO!\n\nE-MAIL OBRIGATÓRIO NA CLOUDFLARE:\n$email\n\nNÃO use o e-mail original se o endereço acima contém alias (+). Digite o alias completo; caso contrário, a Cloudflare dirá que enviou o código, mas nenhum e-mail chegará.\n\n1. Abra ${team_domain}/cdn-cgi/access/logout\n2. Abra ${team_domain}/AddMfaDevice\n3. Digite exatamente o endereço acima\n4. Receba o código na caixa original e leia o novo QR"
     }
     if [ "$INSTALL_TYPE" != "CLOUDFLARE_TUNNEL" ]; then
         msg "O MFA independente desta opção pertence ao Cloudflare Access.\n\nEste Control Center usa acesso tradicional, portanto nenhuma alteração foi realizada."
