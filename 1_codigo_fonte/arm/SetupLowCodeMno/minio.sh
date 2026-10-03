@@ -669,7 +669,7 @@ version: "3.7"
 
 services:
   $nome_app:
-    image: quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z
+    image: cgr.dev/chainguard/minio:latest
     command: server /data --console-address ":9001"
     networks: 
       - interna
@@ -720,6 +720,7 @@ networks:
     external: true
 EOL
 
+    docker volume create ${nome_app}-data >/dev/null 2>&1 || true
     if [[ "$criar_portainer" == "0" ]]; then
     echo -e "XXX\n17\n[INFO] VERIFICANDO SE YAML EXISTE 3/4  \nXXX"
         # Configurações para criação via Portainer

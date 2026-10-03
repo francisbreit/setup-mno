@@ -794,7 +794,7 @@ version: "3.7"
 
 services:
   $nome_app2:
-    image: quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z
+    image: cgr.dev/chainguard/minio:latest
     command: server /data --console-address ":9001"
     networks: 
       - interna
@@ -845,6 +845,7 @@ networks:
     external: true
 EOL
 
+    docker volume create ${nome_app2}-data >/dev/null 2>&1 || true
     if [[ "$criar_portainer" == "0" ]]; then
         echo -e "XXX\n33\nCRIANDO STACK NO PORTAINER 3/4  \nXXX"
         # Configurações para criação via Portainer
@@ -1432,7 +1433,7 @@ if ! command -v mc &> /dev/null || [ ! -s "$(command -v mc 2>/dev/null || echo /
         chmod +x /usr/local/bin/mc 2>/dev/null || true
     fi
     if ! command -v mc &> /dev/null || [ ! -s "$(command -v mc 2>/dev/null || echo /usr/local/bin/mc)" ] || ! mc --version &>/dev/null; then
-        mc_cid=$(docker create quay.io/minio/mc:latest 2>/dev/null || docker create minio/mc:latest 2>/dev/null || true)
+        mc_cid=$(docker create cgr.dev/chainguard/minio-client:latest 2>/dev/null || docker create cgr.dev/chainguard/minio:latest 2>/dev/null || true)
         if [ -n "$mc_cid" ]; then
             docker cp "${mc_cid}:/usr/bin/mc" /usr/local/bin/mc >/dev/null 2>&1 || true
             docker rm -f "$mc_cid" >/dev/null 2>&1 || true

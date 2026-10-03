@@ -380,7 +380,7 @@ if [[ "$minio_container" == "" ]] && [[ -n "$DOMINIO_MINIO" ]]; then
 version: "3.7"
 services:
   ${NOME_MINIO}:
-    image: minio/minio:latest
+    image: cgr.dev/chainguard/minio:latest
     hostname: ${NOME_MINIO}
     command: server /data --console-address ":9001"
     environment:

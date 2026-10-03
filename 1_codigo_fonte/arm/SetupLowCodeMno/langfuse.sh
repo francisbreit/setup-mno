@@ -1026,7 +1026,7 @@ version: "3.7"
 
 services:
   $nome_app2:
-    image: quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z
+    image: cgr.dev/chainguard/minio:latest
     command: server /data --console-address ":9001"
     networks:
       interna:
@@ -1962,7 +1962,7 @@ if [ -z "$CONTAINER_ID" ]; then
 fi
 
 # A mesma imagem validada do servidor contém o binário mc e é multiarch.
-MINIO_MC_IMAGE="quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z"
+MINIO_MC_IMAGE="cgr.dev/chainguard/minio:latest"
 minio_mc_service="${nome_app}-mc-internal"
 minio_root_user_secret="${nome_app}-mc-root-user"
 minio_root_password_secret="${nome_app}-mc-root-password"

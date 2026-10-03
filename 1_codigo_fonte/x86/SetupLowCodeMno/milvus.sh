@@ -528,7 +528,7 @@ version: "3.7"
 
 services:
   $nome_app2:
-    image: quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z
+    image: cgr.dev/chainguard/minio:latest
     command: server /data --console-address ":9001"
     networks: 
       - interna
@@ -636,7 +636,7 @@ secret_key=$(openssl rand -hex 16)
 bucket_name="$nome_app"
 
 # Criar bucket
-MC_RUN="docker run --rm --network interna minio/mc:latest"
+MC_RUN="docker run --rm --network interna cgr.dev/chainguard/minio-client:latest"
 MC_ALIAS="http://${MINIO_HOST}:9000 ${MINIO_USER} ${MINIO_PASSWORD}"
 
 $MC_RUN alias set minio $MC_ALIAS --api S3v4 2>/dev/null || true

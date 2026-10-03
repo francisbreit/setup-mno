@@ -643,7 +643,7 @@ version: "3.7"
 
 services:
   $nome_app2:
-    image: quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z
+    image: cgr.dev/chainguard/minio:latest
     command: server /data --console-address ":9001"
     networks: 
       - interna
@@ -694,6 +694,7 @@ networks:
     external: true
 EOL
 
+    docker volume create ${nome_app2}-data >/dev/null 2>&1 || true
     deploy_stack_app "$nome_app2"
     echo -e "XXX\n32\nFINALIZANDO BUILD DO MINIO 4/4 - CONCLUÍDO  \nXXX"
     sleep 2
@@ -712,14 +713,14 @@ cd ~
 if [[ ("$minio_container" == "") ]]; then
 ###### checa se minio está rodando
 
-max_wait_time=800  #ajuste do tempo mximo de espera
+max_wait_time=300  #ajuste do tempo maximo de espera
 
-wait_interval=60
+wait_interval=3
 
 elapsed_time=0
 
 while [ $elapsed_time -lt $max_wait_time ]; do
-	CONTAINER_ID=$(docker ps -qf name=$nome_app2)
+	CONTAINER_ID=$(docker ps -qf name=$nome_app2 | head -n1)
 	if [ -n "$CONTAINER_ID" ]; then
 		break
 	fi
@@ -728,9 +729,12 @@ while [ $elapsed_time -lt $max_wait_time ]; do
 done
 
 if [ -z "$CONTAINER_ID" ]; then
-    whiptail --title "Erro" --msgbox "O container do Minio não foi encontrado após $max_wait_time segundos" 10 60
-    exit 0
+    echo -e "XXX\n100\nERRO: O container do Minio ($nome_app2) não iniciou após $max_wait_time segundos\nXXX"
+    sleep 5
+    exit 1
 fi
+else
+    CONTAINER_ID=$(echo "$minio_container" | head -n1)
 fi
 
 # Aguardar MinIO inicializar internamente se CONTAINER_ID existir
@@ -751,7 +755,7 @@ if ! command -v mc &> /dev/null || [ ! -s "$(command -v mc 2>/dev/null || echo /
         chmod +x /usr/local/bin/mc 2>/dev/null || true
     fi
     if ! command -v mc &> /dev/null || [ ! -s "$(command -v mc 2>/dev/null || echo /usr/local/bin/mc)" ] || ! mc --version &>/dev/null; then
-        mc_cid=$(docker create quay.io/minio/mc:latest 2>/dev/null || docker create minio/mc:latest 2>/dev/null || true)
+        mc_cid=$(docker create cgr.dev/chainguard/minio-client:latest 2>/dev/null || docker create cgr.dev/chainguard/minio:latest 2>/dev/null || true)
         if [ -n "$mc_cid" ]; then
             docker cp "${mc_cid}:/usr/bin/mc" /usr/local/bin/mc >/dev/null 2>&1 || true
             docker rm -f "$mc_cid" >/dev/null 2>&1 || true
@@ -764,17 +768,20 @@ if ! command -v jq &> /dev/null; then
     apt-get update -y >/dev/null 2>&1 && apt-get install -y jq >/dev/null 2>&1 || true
 fi
 
-# Configurar alias no host
-mc alias set minio "https://$MINIO_PUBLIC_URL" "$MINIO_USER" "$MINIO_PASSWORD" --api S3v4 >/dev/null 2>&1 || mc alias set minio "https://$MINIO_PUBLIC_URL" "$MINIO_USER" "$MINIO_PASSWORD" --api S3v4 --insecure >/dev/null 2>&1 || true
+# Configurar alias no host (apenas se mc estiver instalado)
+if command -v mc &> /dev/null; then
+    timeout 10 mc alias set minio "https://$MINIO_PUBLIC_URL" "$MINIO_USER" "$MINIO_PASSWORD" --api S3v4 >/dev/null 2>&1 || timeout 10 mc alias set minio "https://$MINIO_PUBLIC_URL" "$MINIO_USER" "$MINIO_PASSWORD" --api S3v4 --insecure >/dev/null 2>&1 || true
+fi
 
 ###### CRIAR BUCKET CHATWOOT
 bucket_name_chatwoot="$nome_app_chatwoot"
 if [ -n "$CONTAINER_ID" ]; then
     docker exec "$CONTAINER_ID" mc mb "localminio/$bucket_name_chatwoot" >/dev/null 2>&1 || true
     docker exec "$CONTAINER_ID" mc anonymous set public "localminio/$bucket_name_chatwoot" >/dev/null 2>&1 || true
+else
+    timeout 15 mc mb "minio/$bucket_name_chatwoot" >/dev/null 2>&1 || true
+    timeout 15 mc anonymous set public "minio/$bucket_name_chatwoot" >/dev/null 2>&1 || true
 fi
-mc mb "minio/$bucket_name_chatwoot" >/dev/null 2>&1 || true
-mc anonymous set public "minio/$bucket_name_chatwoot" >/dev/null 2>&1 || true
 
 create_service_account() {
     local bucket=$1
@@ -785,7 +792,7 @@ create_service_account() {
         credentials=$(docker exec "$CONTAINER_ID" mc admin user svcacct add localminio "$MINIO_USER" --json 2>&1 || true)
     fi
     if ! echo "$credentials" | jq -e '.accessKey' >/dev/null 2>&1; then
-        credentials=$(mc admin user svcacct add minio "$MINIO_USER" --json 2>&1 || true)
+        credentials=$(timeout 15 mc admin user svcacct add minio "$MINIO_USER" --json 2>&1 || true)
     fi
 
     access_key=$(echo "$credentials" | jq -r '.accessKey // empty' 2>/dev/null || true)
@@ -796,7 +803,7 @@ create_service_account() {
         if [ -n "$CONTAINER_ID" ]; then
             raw_creds=$(docker exec "$CONTAINER_ID" mc admin user svcacct add localminio "$MINIO_USER" 2>&1 || true)
         fi
-        [ -n "$raw_creds" ] || raw_creds=$(mc admin user svcacct add minio "$MINIO_USER" 2>&1 || true)
+        [ -n "$raw_creds" ] || raw_creds=$(timeout 15 mc admin user svcacct add minio "$MINIO_USER" 2>&1 || true)
         access_key=$(echo "$raw_creds" | grep -i "Access Key:" | awk '{print $NF}' | tr -d ' \r\n' || true)
         secret_key=$(echo "$raw_creds" | grep -i "Secret Key:" | awk '{print $NF}' | tr -d ' \r\n' || true)
     fi
@@ -814,9 +821,10 @@ bucket_name_evolution="$nome_app_evolution"
 if [ -n "$CONTAINER_ID" ]; then
     docker exec "$CONTAINER_ID" mc mb "localminio/$bucket_name_evolution" >/dev/null 2>&1 || true
     docker exec "$CONTAINER_ID" mc anonymous set public "localminio/$bucket_name_evolution" >/dev/null 2>&1 || true
+else
+    timeout 15 mc mb "minio/$bucket_name_evolution" >/dev/null 2>&1 || true
+    timeout 15 mc anonymous set public "minio/$bucket_name_evolution" >/dev/null 2>&1 || true
 fi
-mc mb "minio/$bucket_name_evolution" >/dev/null 2>&1 || true
-mc anonymous set public "minio/$bucket_name_evolution" >/dev/null 2>&1 || true
 
 create_service_account2() {
     local bucket=$1
@@ -827,7 +835,7 @@ create_service_account2() {
         credentials2=$(docker exec "$CONTAINER_ID" mc admin user svcacct add localminio "$MINIO_USER" --json 2>&1 || true)
     fi
     if ! echo "$credentials2" | jq -e '.accessKey' >/dev/null 2>&1; then
-        credentials2=$(mc admin user svcacct add minio "$MINIO_USER" --json 2>&1 || true)
+        credentials2=$(timeout 15 mc admin user svcacct add minio "$MINIO_USER" --json 2>&1 || true)
     fi
 
     access_key2=$(echo "$credentials2" | jq -r '.accessKey // empty' 2>/dev/null || true)
@@ -838,7 +846,7 @@ create_service_account2() {
         if [ -n "$CONTAINER_ID" ]; then
             raw_creds2=$(docker exec "$CONTAINER_ID" mc admin user svcacct add localminio "$MINIO_USER" 2>&1 || true)
         fi
-        [ -n "$raw_creds2" ] || raw_creds2=$(mc admin user svcacct add minio "$MINIO_USER" 2>&1 || true)
+        [ -n "$raw_creds2" ] || raw_creds2=$(timeout 15 mc admin user svcacct add minio "$MINIO_USER" 2>&1 || true)
         access_key2=$(echo "$raw_creds2" | grep -i "Access Key:" | awk '{print $NF}' | tr -d ' \r\n' || true)
         secret_key2=$(echo "$raw_creds2" | grep -i "Secret Key:" | awk '{print $NF}' | tr -d ' \r\n' || true)
     fi
@@ -900,6 +908,7 @@ networks:
 
 
 EOL
+docker volume create ${nome_cwt_redis}-data >/dev/null 2>&1 || true
 deploy_stack_app "$nome_cwt_redis"
 
 cd ~
@@ -942,6 +951,7 @@ networks:
 
 
 EOL
+docker volume create ${nome_evo_redis}-data >/dev/null 2>&1 || true
 deploy_stack_app "$nome_evo_redis"
 
 cd ~
@@ -1009,6 +1019,7 @@ networks:
 
 
 EOL
+docker volume create ${nome_app_rabbitmq}-data >/dev/null 2>&1 || true
 deploy_stack_app "$nome_app_rabbitmq"
 
 cd ~
@@ -1450,7 +1461,7 @@ wait_interval=10
 elapsed_time=0
 
 while [ $elapsed_time -lt $max_wait_time ]; do
-	CONTAINER_ID=$(docker ps -qf name=$nome_app_chatwoot-app)
+	CONTAINER_ID=$(docker ps -qf name=$nome_app_chatwoot-app | head -n1)
 	if [ -n "$CONTAINER_ID" ]; then
 		break
 	fi
@@ -1459,7 +1470,8 @@ while [ $elapsed_time -lt $max_wait_time ]; do
 done
 
 if [ -z "$CONTAINER_ID" ]; then
-	echo "O container não foi encontrado após $max_wait_time segundos."
+	echo -e "XXX\n100\nERRO: O container do Chatwoot não foi encontrado após $max_wait_time segundos.\nXXX"
+	sleep 5
 	exit 1
 fi
 
@@ -1471,10 +1483,11 @@ docker exec -i "$CONTAINER_ID" bundle exec rails db:chatwoot_prepare > /dev/null
 sleep 20
 
 # 2. Busca exata ancorando o nome (evita pegar postgres de outras stacks)
-CONTAINER_ID=$(docker ps -q -f "name=^postgres_")
+CONTAINER_ID=$(docker ps -q -f "name=^postgres_" | head -n1)
 
 if [ -z "$CONTAINER_ID" ]; then
-    echo "Nenhum container Postgres encontrado."
+    echo -e "XXX\n100\nERRO: Nenhum container Postgres encontrado.\nXXX"
+    sleep 5
     exit 1
 fi
 

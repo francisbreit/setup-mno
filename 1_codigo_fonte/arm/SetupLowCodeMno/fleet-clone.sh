@@ -2086,7 +2086,7 @@ MINIO_ADMIN_URL: admins3.internal"
     local yaml_body="version: '3.7'
 services:
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z
+    image: cgr.dev/chainguard/minio:latest
     command: server /data --console-address \":9001\"
     networks:
       - interna

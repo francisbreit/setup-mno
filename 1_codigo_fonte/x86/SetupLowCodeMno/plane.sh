@@ -364,7 +364,7 @@ version: "3.7"
 
 services:
   $nome_app2:
-    image: quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z
+    image: cgr.dev/chainguard/minio:latest
     command: server /data --console-address ":9001"
     networks:
       - interna
