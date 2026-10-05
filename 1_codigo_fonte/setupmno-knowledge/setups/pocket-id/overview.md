@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Pocket ID no Setup MNO",
   "setupId": "pocket-id",
-  "setupVersion": "7.48.28",
+  "setupVersion": "7.48.29",
   "architectures": ["amd64", "arm64"],
   "category": "overview",
   "status": "reviewed",

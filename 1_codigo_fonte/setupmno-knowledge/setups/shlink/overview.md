@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Shlink no Setup MNO",
   "setupId": "shlink",
-  "setupVersion": "7.48.28",
+  "setupVersion": "7.48.29",
   "architectures": [
     "amd64",
     "arm64"

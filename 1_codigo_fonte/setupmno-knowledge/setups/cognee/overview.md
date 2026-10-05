@@ -7,7 +7,7 @@
   "documentType": "setup",
   "title": "Cognee no Setup MNO",
   "setupId": "cognee",
-  "setupVersion": "7.48.28",
+  "setupVersion": "7.48.29",
   "architectures": [
     "amd64",
     "arm64"

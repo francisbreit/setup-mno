@@ -176,6 +176,9 @@ hetzner_discovered_alias=$(url_control="" hostname="" nome_servidor="" SETUPMNO_
 rm -rf "$mock_tunnel_tmp"
 [ "$hetzner_discovered_alias" = "admin+hetzner1@gmail.com" ]
 
+hetzner_reactivation_qr=$(whiptail() { if printf "%s " "$@" | grep -q -- "--menu"; then printf "%s" "NOVO_QR" >&2; fi; return 0; }; prepare_cloudflare_mfa_enrollment_email 'admin@gmail.com' reactivation 'setuphetzner1.manualnegocioonline.com.br')
+[[ "$hetzner_reactivation_qr" =~ ^admin\+hetzner1[0-9]{10}@gmail\.com$ ]]
+
 org_fixture="$test_dir/org.json"
 org_payload="$test_dir/org-payload.json"
 printf '%s\n' '{"result":{"auth_domain":"setupmno.cloudflareaccess.com","name":"Setup MNO","mfa_config":{"allowed_authenticators":["security_key"],"session_duration":"12h"}}}' >"$org_fixture"

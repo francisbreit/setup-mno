@@ -29,3 +29,4 @@ secrets.*
 *.bak
 *.swp
 *~
+gerador_vsl_imagens.py

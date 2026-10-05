@@ -354,6 +354,7 @@ ensure_cloudflare_mfa_onboarding() {
 }
 rollback_cloudflare_mfa_onboarding() { return 0; }
 remove_setupmno_launcher_policy() { return 0; }
+cleanup_setupmno_mfa_resources() { return 0; }
 ensure_cloudflare_access_cookie_lax() { return 0; }
 cf_mfa_error() { printf '%s' 'erro simulado'; }
 

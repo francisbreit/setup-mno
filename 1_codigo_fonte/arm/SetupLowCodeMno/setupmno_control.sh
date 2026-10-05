@@ -393,8 +393,12 @@ prepare_existing_access_migration() {
         msg "Já existe aplicativo Access para $hostname. Revise-o no Zero Trust. A instalação foi preservada."
         return 1
     fi
+    local mfa_mode="initial"
+    [ ! -f "$CONTROL_MFA_STATE_FILE" ] || {
+        grep -Eq '"source":[[:space:]]*"(menu-disabled|menu-enabled)"' "$CONTROL_MFA_STATE_FILE" 2>/dev/null && mfa_mode="reactivation"
+    }
     email=$(collect_cloudflare_access_email "IDENTIDADE DO MFA") || return 130
-    email=$(prepare_cloudflare_mfa_enrollment_email "$email" initial "$hostname")
+    email=$(prepare_cloudflare_mfa_enrollment_email "$email" "$mfa_mode" "$hostname")
     status=$?
     [ "$status" -eq 0 ] || return "$status"
     if ! whiptail --title "CONFIRMAR ATIVAÇÃO DO MFA" --yesno \
@@ -626,7 +630,7 @@ restore_existing_access_original_mode() {
         fi
     fi
     load_cloudflare_mfa_helper &&
-        remove_setupmno_launcher_policy "$work_dir" "$email" "$log_file" || true
+        cleanup_setupmno_mfa_resources "$work_dir" "$email" "$log_file" || true
     control_mfa_restore_progress "$show_progress" 95 "Registrando o modo original..."
     write_control_mfa_state false false false menu-disabled || {
         msg "O modo original foi restaurado, mas o registro persistente de MFA não pôde ser atualizado. Execute novamente o Setup MNO antes de outra atualização."

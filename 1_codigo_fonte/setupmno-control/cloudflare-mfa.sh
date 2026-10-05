@@ -141,7 +141,7 @@ resolve_cloudflare_mfa_server_name() {
 }
 
 generate_cloudflare_mfa_alias() {
-    local email="$1" hint="${2:-${url_control:-${hostname:-}}}"
+    local email="$1" hint="${2:-${url_control:-${hostname:-}}}" suffix="${3:-}"
     local local_part domain base tag effective server_clean
     [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] || return 1
     local_part=${email%@*}
@@ -153,6 +153,9 @@ generate_cloudflare_mfa_alias() {
         tag="$server_clean"
     else
         tag="mno$(date -u +%y%m%d%H%M%S)$(od -An -N2 -tx1 /dev/urandom | tr -d ' \n')"
+    fi
+    if [ -n "$suffix" ]; then
+        tag="${tag}${suffix}"
     fi
     effective="${base}+${tag}@${domain}"
     [ -n "$base" ] && [ "${#base}" -le 40 ] && [ "${#effective}" -le 254 ] || return 1
@@ -187,23 +190,23 @@ prepare_cloudflare_mfa_enrollment_email() {
        [ "$(stat -c '%s' "$state_file" 2>/dev/null || printf '99999')" -le 2048 ]; then
         source=$(jq -r '.source // empty' "$state_file" 2>/dev/null)
     fi
-    [ "$source" = "menu-disabled" ] || {
+    if [ "$source" != "menu-disabled" ] && [ "$source" != "menu-enabled" ] && [ -n "$source" ] && [ "$source" != "control-installed" ]; then
         printf '%s\n' "$email"
         return 0
-    }
+    fi
     domain=${email##*@}
     domain=${domain,,}
     if [ "$domain" = "gmail.com" ] || [ "$domain" = "googlemail.com" ]; then
-        choice=$(whiptail --title "REATIVAÇÃO DO MFA" --default-item "NOVO_QR" --menu \
-            "Para gerar outro QR, o Setup criará um E-MAIL DE ACESSO com o nome do servidor. Ele usa a mesma caixa Gmail, mas na Cloudflare você NÃO deve digitar o e-mail original: deverá preencher o alias completo que será mostrado:" \
+        choice=$(whiptail --title "REATIVAÇÃO DO MFA CONTROL CENTER" --default-item "NOVO_QR" --menu \
+            "O Control Center já teve MFA. Escolha como deseja reativar a proteção:\n\n• NOVO_QR: Recomendado se você apagou a conta no Google Authenticator ou trocou de celular (gera um novo QR Code garantido).\n• REUTILIZAR: Se você AINDA POSSUI o código de 6 dígitos salvo no Google Authenticator." \
             20 96 4 \
-            "NOVO_QR" "Mesmo Gmail: gerar alias com o servidor e novo QR" \
-            "REUTILIZAR" "Reutilizar o cadastro e o código do autenticador anterior" \
+            "NOVO_QR" "Gerar novo QR Code (Recomendado se apagou a conta no app)" \
+            "REUTILIZAR" "Reutilizar a conta já existente no Google Authenticator" \
             "OUTRO_EMAIL" "Informar outro e-mail para uma identidade nova" \
             "CANCELAR" "Voltar sem alterar Cloudflare ou Control Center" \
             3>&1 1>&2 2>&3) || return 130
     else
-        choice=$(whiptail --title "REATIVAÇÃO DO MFA" --default-item "OUTRO_EMAIL" --menu \
+        choice=$(whiptail --title "REATIVAÇÃO DO MFA CONTROL CENTER" --default-item "OUTRO_EMAIL" --menu \
             "Este Control Center já teve MFA. A API pública da Cloudflare não lista os identificadores dos autenticadores independentes. Para garantir um novo QR, use outro e-mail; ou reutilize o código anterior:" \
             19 96 3 \
             "OUTRO_EMAIL" "Informar outro e-mail para uma identidade nova" \
@@ -214,23 +217,37 @@ prepare_cloudflare_mfa_enrollment_email() {
     case "$choice" in
         NOVO_QR)
             { [ "$domain" = "gmail.com" ] || [ "$domain" = "googlemail.com" ]; } || return 1
-            effective=$(generate_cloudflare_mfa_alias "$email" "${hint:+${hint}$(date -u +%y%m%d%H%M)}") || {
+            local ts_tag
+            ts_tag=$(date -u +%y%m%d%H%M)
+            effective=$(generate_cloudflare_mfa_alias "$email" "$hint" "$ts_tag") || {
                 whiptail --title "ALIAS GMAIL MUITO LONGO" --msgbox \
                     "O endereço informado não comporta um alias seguro. Escolha OUTRO E-MAIL na próxima tentativa." \
                     10 82 1>&2
                 return 130
             }
+            remove_cloudflare_access_user "$email" "${CF_MFA_LOG:-/dev/null}" || true
             show_cloudflare_mfa_alias_instructions "$email" "$effective"
             printf '%s\n' "$effective"
             ;;
         REUTILIZAR)
-            printf '%s\n' "$email"
+            if [ "$domain" = "gmail.com" ] || [ "$domain" = "googlemail.com" ]; then
+                effective=$(generate_cloudflare_mfa_alias "$email" "$hint") || effective="$email"
+                printf '%s\n' "$effective"
+            else
+                printf '%s\n' "$email"
+            fi
             ;;
         OUTRO_EMAIL)
             replacement=$(collect_cloudflare_access_email "NOVA IDENTIDADE DO MFA")
             status=$?
             [ "$status" -eq 0 ] || return 130
-            printf '%s\n' "$replacement"
+            if [ "${replacement##*@}" = "gmail.com" ] || [ "${replacement##*@}" = "googlemail.com" ]; then
+                effective=$(generate_cloudflare_mfa_alias "$replacement" "$hint") || effective="$replacement"
+                show_cloudflare_mfa_alias_instructions "$replacement" "$effective"
+                printf '%s\n' "$effective"
+            else
+                printf '%s\n' "$replacement"
+            fi
             ;;
         *) return 130 ;;
     esac
@@ -558,6 +575,32 @@ remove_setupmno_launcher_policy() {
     cf_mfa_api GET "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$app/policies" "$policies" 2>>"$log" || return 1
     policy_id=$(jq -r --arg email "$email" '[.result[]? | select((.name // "") | startswith("Setup MNO - cadastro MFA - ")) | select(any(.include[]?; .email.email? == $email))][0].id // empty' "$policies")
     [ -z "$policy_id" ] || cf_mfa_api DELETE "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$app/policies/$policy_id" "$work/remove-launcher-response.json" 2>>"$log"
+}
+
+remove_cloudflare_access_user() {
+    local target_email="$1" log="${2:-/dev/null}" work user_list user_ids user_id
+    [[ "$target_email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] || return 0
+    work=$(mktemp -d) || return 1
+    user_list="$work/access-users.json"
+    if cf_mfa_api GET "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/users?per_page=100" "$user_list" 2>>"$log" &&
+       [ "$(jq -r '.success // false' "$user_list" 2>/dev/null)" = "true" ]; then
+        user_ids=$(jq -r --arg email "$target_email" '
+            [.result[]? | select(.email == $email) | .id] | .[]
+        ' "$user_list" 2>/dev/null || true)
+        for user_id in $user_ids; do
+            if [[ "$user_id" =~ ^[A-Fa-f0-9-]{32,36}$ ]]; then
+                cf_mfa_api DELETE "/accounts/$CLOUDFLARE_ACCOUNT_ID/access/users/$user_id" "$work/user-delete.json" 2>>"$log" || true
+            fi
+        done
+    fi
+    rm -rf -- "$work"
+    return 0
+}
+
+cleanup_setupmno_mfa_resources() {
+    local work="$1" email="$2" log="$3"
+    remove_setupmno_launcher_policy "$work" "$email" "$log" || true
+    remove_cloudflare_access_user "$email" "$log" || true
 }
 
 ensure_cloudflare_access_cookie_lax() {
