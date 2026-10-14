@@ -74,12 +74,17 @@ tunnel_add_route() {
     if check_cloudflare_credentials; then
         log_info "Credenciais Cloudflare encontradas. Atualizando regras na API Cloudflare..."
 
-        # 1. Obter Zone ID
-        local root_domain zone_id
-        root_domain="$(echo "$domain" | awk -F. '{print $(NF-1)"."$NF}')"
-        zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${root_domain}" \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            -H "Content-Type: application/json" | jq -r '.result[0].id // empty' 2>/dev/null || true)
+        # 1. Obter Zone ID de forma robusta (compatível com .com, .com.br, etc.)
+        local zone_id="${CLOUDFLARE_ZONE_ID:-}"
+        if [[ -z "$zone_id" || -z "${CLOUDFLARE_ZONE_NAME:-}" || "$domain" != *"$CLOUDFLARE_ZONE_NAME" ]]; then
+            local zones_json
+            zones_json=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?per_page=50" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                -H "Content-Type: application/json" 2>/dev/null || true)
+            zone_id=$(echo "$zones_json" | jq -r --arg dom "$domain" '
+                .result[]? | select($dom == .name or ($dom | endswith("." + .name))) | .id
+            ' 2>/dev/null | head -n1 || true)
+        fi
 
         # 2. Criar ou Atualizar Registro CNAME
         if [[ -n "$zone_id" ]]; then
@@ -100,6 +105,8 @@ tunnel_add_route() {
                     --data "{\"type\":\"CNAME\",\"name\":\"${domain}\",\"content\":\"${TUNNEL_ID}.cfargotunnel.com\",\"ttl\":1,\"proxied\":true}" >/dev/null 2>&1 || true
             fi
             log_sucesso "Registro DNS CNAME atualizado com sucesso na Cloudflare!"
+        else
+            log_aviso "Não foi possível identificar a Zone ID da Cloudflare para o domínio: $domain. Crie o apontamento CNAME manualmente se necessário."
         fi
 
         # 3. Atualizar Ingress do Cloudflare Tunnel
@@ -235,6 +242,31 @@ EOF
 
             rm -rf "$tmp_dir"
             log_sucesso "Rota removida da API Cloudflare com sucesso."
+        fi
+
+        # Remove apontamento DNS CNAME se existir
+        local zone_id="${CLOUDFLARE_ZONE_ID:-}"
+        if [[ -z "$zone_id" || -z "${CLOUDFLARE_ZONE_NAME:-}" || "$domain" != *"$CLOUDFLARE_ZONE_NAME" ]]; then
+            local zones_json
+            zones_json=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?per_page=50" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                -H "Content-Type: application/json" 2>/dev/null || true)
+            zone_id=$(echo "$zones_json" | jq -r --arg dom "$domain" '
+                .result[]? | select($dom == .name or ($dom | endswith("." + .name))) | .id
+            ' 2>/dev/null | head -n1 || true)
+        fi
+
+        if [[ -n "$zone_id" ]]; then
+            local rec_id
+            rec_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records?name=${domain}" \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                -H "Content-Type: application/json" | jq -r '.result[0].id // empty' 2>/dev/null || true)
+            if [[ -n "$rec_id" ]]; then
+                curl -s -X DELETE "https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records/${rec_id}" \
+                    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                    -H "Content-Type: application/json" >/dev/null 2>&1 || true
+                log_sucesso "Registro DNS CNAME removido da Cloudflare."
+            fi
         fi
     fi
 

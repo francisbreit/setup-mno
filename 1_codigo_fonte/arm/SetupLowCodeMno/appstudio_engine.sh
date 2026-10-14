@@ -221,14 +221,12 @@ gerar_stack_swarm() {
         env_block="${env_block}\n      - REDIS_URL=redis://redis_redis:6379"
     fi
 
-    local networks_block="    networks:\n      - interna"
-    local top_networks_block="networks:\n  interna:\n    external: true"
+    local networks_block="    networks:\n      - interna\n      - externa"
+    local top_networks_block="networks:\n  interna:\n    external: true\n  externa:\n    external: true"
     local labels_block=""
 
-    # Se a instalação for TRADICIONAL (Traefik), injeta a rede 'externa' e as labels padrão do Setup MNO
+    # Se a instalação for TRADICIONAL (Traefik), injeta as labels padrão do Setup MNO
     if [[ "$install_type" == "TRADICIONAL" && "$domain" != "none" && -n "$domain" ]]; then
-        networks_block="    networks:\n      - interna\n      - externa"
-        top_networks_block="networks:\n  interna:\n    external: true\n  externa:\n    external: true"
         
         # Formata regra para 1 ou múltiplos domínios (separados por vírgula)
         local old_ifs="$IFS"
