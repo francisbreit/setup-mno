@@ -7,7 +7,7 @@
   "documentType": "infrastructure",
   "title": "Docker Swarm como base do Setup MNO",
   "topicId": "docker-swarm",
-  "setupVersion": "7.48.29",
+  "setupVersion": "7.49.0",
   "architectures": ["amd64", "arm64"],
   "category": "architecture",
   "status": "reviewed",

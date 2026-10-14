@@ -299,7 +299,7 @@ func (a *webApp) InspectNodeStructure(ctx context.Context, nodeID string) (Fleet
 			}
 			setupVer := telem.SetupVersion
 			if setupVer == "" {
-				setupVer = "7.47.4"
+				setupVer = "7.49.0"
 			}
 			if telem.MemoryTotalMB == 0 {
 				telem.MemoryTotalMB = 8192

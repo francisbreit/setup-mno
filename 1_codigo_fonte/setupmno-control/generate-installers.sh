@@ -1242,6 +1242,7 @@ count_pro_menu() {
             if (name != "REINICIAR APPS/SERVIÇOS" &&
                 name != "${CONTROL_CENTER_MFA_MENU[@]}" &&
                 name != "${FLEET_HUB_MENU[@]}" &&
+                name != "${APP_STUDIO_MENU[@]}" &&
                 name != "DELETAR APPS/STACKS" &&
                 name != "GERENCIAR DOMÍNIOS CLOUDFLARE" &&
                 name != "GERADOR DE REGISTROS DNS" &&

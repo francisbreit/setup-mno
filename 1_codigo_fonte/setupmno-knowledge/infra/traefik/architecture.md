@@ -7,7 +7,7 @@
   "documentType": "infrastructure",
   "title": "Traefik e publicação segura dos setups",
   "topicId": "traefik",
-  "setupVersion": "7.48.29",
+  "setupVersion": "7.49.0",
   "architectures": ["amd64", "arm64"],
   "category": "networking",
   "status": "reviewed",

@@ -217,7 +217,7 @@ fi
 #########################################################
 
 clear
-VERSIONSETUP="7.48.29"
+VERSIONSETUP="7.49.0"
 umask 077
 CONTATO_WP="+55 (11) 96816-2690"
 CONTATO_EMAIL="francisbreit@gmail.com"
@@ -805,6 +805,34 @@ menu_mno_fleet_hub() {
     fi
 }
 
+menu_setupmno_app_studio() {
+    if [[ "$PLANO" = *free* ]]; then
+        whiptail --title "RECURSO EXCLUSIVO PRO" --msgbox \
+"O módulo 🚀 SETUP MNO APP STUDIO [BETA] é um recurso exclusivo dos planos PRO e PRO MASTER.
+
+Com ele você pode:
+• Fazer deploy a 1 clique de códigos gerados por IA (Cursor, Lovable, v0, Bolt)
+• Sincronizar e atualizar repositórios Git (GitHub/GitLab) com Zero-Downtime
+• Fazer deploy de imagens oficiais do Docker Hub
+• Conectar automaticamente ao PostgreSQL e Redis da VPS
+• Roteamento seguro via Cloudflare Tunnel ou Traefik com SSL automático
+
+Para desbloquear o App Studio e ter acesso à Academia MNO:
+👉 https://manualnegocioonline.com.br/pro
+
+Pressione ENTER para voltar ao Menu Principal." 18 76
+        return 0
+    fi
+
+    local appstudio_script="/root/SetupLowCodeMno/appstudio-menu.sh"
+    if [ -f "$appstudio_script" ]; then
+        bash "$appstudio_script"
+    else
+        whiptail --title "APP STUDIO" --msgbox \
+            "O componente Setup MNO App Studio não foi encontrado em $appstudio_script." 10 70
+    fi
+}
+
 # --- SAIR ---
 do_exit() {
     clear
@@ -842,8 +870,10 @@ CONTROL_CENTER_MENU=()
 CONTROL_CENTER_FREE_MENU=()
 CONTROL_CENTER_MFA_MENU=("CONFIGURAR MFA CONTROL CENTER" "")
 FLEET_HUB_MENU=("⎇ MNO FLEET HUB" "")
+APP_STUDIO_MENU=("🚀 SETUP MNO APP STUDIO [BETA]" "")
 if [[ "$PLANO" = *free* ]]; then
     FLEET_HUB_MENU=("⎇ MNO FLEET HUB" "PRO")
+    APP_STUDIO_MENU=("🚀 SETUP MNO APP STUDIO [BETA]" "PRO")
 fi
 if ! control_center_installed; then
     CONTROL_CENTER_MENU=("SETUP MNO CONTROL CENTER" "")
@@ -1019,6 +1049,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
     "DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR" "" \
     "${FLEET_HUB_MENU[@]}" \
+    "${APP_STUDIO_MENU[@]}" \
     "SAIR" ""  3>&2 2>&1 1>&3
 )
 
@@ -1034,6 +1065,7 @@ case "$CHOICE" in
     "ESSENCIAIS EDITÁVEIS NO PORTAINER") run_app essenciais ;;
     "DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR") run_app securitydiagnostic ;;
     "⎇ MNO FLEET HUB") menu_mno_fleet_hub ;;
+    "🚀 SETUP MNO APP STUDIO [BETA]") menu_setupmno_app_studio ;;
     "SAIR") do_exit ;;
     *)
         if check_already_installed "$CHOICE"; then
@@ -1374,6 +1406,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
     "DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR" "" \
     "${FLEET_HUB_MENU[@]}" \
+    "${APP_STUDIO_MENU[@]}" \
     "SAIR" ""  3>&2 2>&1 1>&3
 )
 
@@ -1389,6 +1422,7 @@ case "$CHOICE" in
     "ESSENCIAIS EDITÁVEIS NO PORTAINER") run_app essenciais ;;
     "DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR") run_app securitydiagnostic ;;
     "⎇ MNO FLEET HUB") menu_mno_fleet_hub ;;
+    "🚀 SETUP MNO APP STUDIO [BETA]") menu_setupmno_app_studio ;;
     "SAIR") do_exit ;;
     *)
         if check_already_installed "$CHOICE"; then
@@ -1722,6 +1756,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
     "DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR" "" \
     "${FLEET_HUB_MENU[@]}" \
+    "${APP_STUDIO_MENU[@]}" \
     "SAIR" ""  3>&2 2>&1 1>&3
 )
 
@@ -1737,6 +1772,7 @@ case "$CHOICE" in
     "ESSENCIAIS EDITÁVEIS NO PORTAINER") run_app essenciais ;;
     "DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR") run_app securitydiagnostic ;;
     "⎇ MNO FLEET HUB") menu_mno_fleet_hub ;;
+    "🚀 SETUP MNO APP STUDIO [BETA]") menu_setupmno_app_studio ;;
     "SAIR") do_exit ;;
     *)
         if check_already_installed "$CHOICE"; then
@@ -2070,6 +2106,7 @@ whiptail --title "$TITULO" --menu "Selecione um App: Use as setas do teclado e p
     "ESSENCIAIS EDITÁVEIS NO PORTAINER" "" \
     "DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR" "" \
     "${FLEET_HUB_MENU[@]}" \
+    "${APP_STUDIO_MENU[@]}" \
     "SAIR" ""  3>&2 2>&1 1>&3
 )
 
@@ -2085,6 +2122,7 @@ case "$CHOICE" in
     "ESSENCIAIS EDITÁVEIS NO PORTAINER") run_app essenciais ;;
     "DIAGNÓSTICO DE SEGURANÇA DO SERVIDOR") run_app securitydiagnostic ;;
     "⎇ MNO FLEET HUB") menu_mno_fleet_hub ;;
+    "🚀 SETUP MNO APP STUDIO [BETA]") menu_setupmno_app_studio ;;
     "SAIR") do_exit ;;
     *)
         if check_already_installed "$CHOICE"; then
