@@ -334,6 +334,7 @@ type planCapabilities struct {
 	HomologationFinalApproval bool `json:"homologationFinalApproval"`
 	RemoteTerminal            bool `json:"remoteTerminal"`
 	FleetHub                  bool `json:"fleetHub"`
+	AppStudio                 bool `json:"appStudio"`
 }
 
 type runtimeEnvironment struct {
@@ -686,6 +687,9 @@ func runWeb() error {
 	mux.Handle("POST /api/logout", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleLogout))))
 	mux.Handle("GET /api/overview", app.requireAuth(http.HandlerFunc(app.handleOverview)))
 	mux.Handle("GET /api/apps", app.requireAuth(http.HandlerFunc(app.handleApps)))
+	mux.Handle("GET /api/appstudio/apps", app.requireAuth(http.HandlerFunc(app.handleAppStudioApps)))
+	mux.Handle("GET /api/appstudio/apps/{name}/logs", app.requireAuth(http.HandlerFunc(app.handleAppStudioLogs)))
+	mux.Handle("POST /api/appstudio/apps/{name}/restart", app.requireAuth(app.requireCSRF(http.HandlerFunc(app.handleAppStudioRestart))))
 	mux.Handle("GET /api/sre/snapshot", app.requireAuth(http.HandlerFunc(app.handleSRESnapshot)))
 	mux.Handle("GET /api/setup-state", app.requireAuth(http.HandlerFunc(app.handleSetupState)))
 	mux.Handle("GET /api/catalog", app.requireAuth(http.HandlerFunc(app.handleCatalog)))
@@ -826,6 +830,61 @@ func runAgent() error {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"apps":        apps,
 			"generatedAt": time.Now().UTC(),
+		})
+	}))
+	mux.HandleFunc("GET /api/appstudio/apps", authorize(func(w http.ResponseWriter, r *http.Request) {
+		environment, _ := readRuntimeEnvironment(setupStateDir)
+		caps := capabilitiesForEnvironment(environment)
+		if !caps.AppStudio {
+			writeJSON(w, http.StatusOK, map[string]any{
+				"proRequired": true,
+				"total":       0,
+				"online":      0,
+				"apps":        []appStudioAppView{},
+				"plan":        environment.Plan,
+			})
+			return
+		}
+		res, err := collectAppStudioApps(dockerClient, "")
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, res)
+	}))
+	mux.HandleFunc("GET /api/appstudio/apps/{name}/logs", authorize(func(w http.ResponseWriter, r *http.Request) {
+		environment, _ := readRuntimeEnvironment(setupStateDir)
+		caps := capabilitiesForEnvironment(environment)
+		if !caps.AppStudio {
+			writeError(w, http.StatusForbidden, "recurso exclusivo dos planos PRO e PRO MASTER")
+			return
+		}
+		name := r.PathValue("name")
+		logs, err := fetchAppStudioLogs(dockerClient, name, 100)
+		if err != nil {
+			writeError(w, http.StatusBadGateway, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"app":  name,
+			"logs": logs,
+		})
+	}))
+	mux.HandleFunc("POST /api/appstudio/apps/{name}/restart", authorize(func(w http.ResponseWriter, r *http.Request) {
+		environment, _ := readRuntimeEnvironment(setupStateDir)
+		caps := capabilitiesForEnvironment(environment)
+		if !caps.AppStudio {
+			writeError(w, http.StatusForbidden, "recurso exclusivo dos planos PRO e PRO MASTER")
+			return
+		}
+		name := r.PathValue("name")
+		if err := restartAppStudioService(dockerClient, name); err != nil {
+			writeError(w, http.StatusBadGateway, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"status": "restarted",
+			"app":    name,
 		})
 	}))
 	mux.HandleFunc("GET /sre/snapshot", authorize(func(w http.ResponseWriter, _ *http.Request) {
@@ -2583,6 +2642,47 @@ func (a *webApp) handleApps(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
+func (a *webApp) handleAppStudioApps(w http.ResponseWriter, r *http.Request) {
+	var result map[string]any
+	if err := a.agentRequest(r.Context(), "/api/appstudio/apps", &result); err != nil {
+		writeError(w, http.StatusBadGateway, "agente do App Studio indisponível: "+err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (a *webApp) handleAppStudioLogs(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	var result map[string]any
+	if err := a.agentRequest(r.Context(), "/api/appstudio/apps/"+url.PathEscape(name)+"/logs", &result); err != nil {
+		writeError(w, http.StatusBadGateway, "falha ao obter logs do app: "+err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (a *webApp) handleAppStudioRestart(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if a.httpClient == nil {
+		writeError(w, http.StatusBadGateway, "cliente HTTP do agente não configurado")
+		return
+	}
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, a.agentURL+"/api/appstudio/apps/"+url.PathEscape(name)+"/restart", nil)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	req.Header.Set("X-SetupMNO-Agent-Token", a.agentToken)
+	resp, err := a.httpClient.Do(req)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "falha ao comunicar com o agente: "+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
+}
+
 func (a *webApp) handleSRESnapshot(w http.ResponseWriter, r *http.Request) {
 	var result sreDiagnosticSnapshot
 	if err := a.agentRequest(r.Context(), "/sre/snapshot", &result); err != nil ||
@@ -3783,6 +3883,7 @@ func capabilitiesForEnvironment(environment runtimeEnvironment) planCapabilities
 		HomologationFinalApproval: maintainer,
 		RemoteTerminal:            environment.InstallationType == "CLOUDFLARE_TUNNEL",
 		FleetHub:                  fleetAllowed,
+		AppStudio:                 proAccess,
 	}
 }
 

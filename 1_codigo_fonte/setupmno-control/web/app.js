@@ -38,6 +38,10 @@ const state = {
   fleetMode: "disabled",
   fleetAllowed: false,
   fleetNodeId: "",
+  appStudioApps: [],
+  appStudioTotal: 0,
+  appStudioOnline: 0,
+  appStudioAllowed: false,
   view: "dashboard",
   timer: null,
   catalogTimer: null,
@@ -59,6 +63,7 @@ const THEME_STORAGE_KEY = "setupmno-control-theme";
 const titles = {
   dashboard: ["Infraestrutura em tempo real", "Visão geral"],
   installed: ["Inventário do Docker Swarm", "Aplicações instaladas"],
+  appstudio: ["Projetos Próprios & IA", "Setup MNO App Studio [BETA]"],
   catalog: ["Deploys e instalações", "Catálogo de setups"],
   blueprints: ["Arquiteturas compostas", "Blueprints MNO"],
   assistant: ["Diagnóstico assistido", "Assistente MNO"],
@@ -208,6 +213,13 @@ function bindEvents() {
   $("fleet-search")?.addEventListener("input", renderFleetNodes);
   $("fleet-filter-status")?.addEventListener("change", renderFleetNodes);
   $("fleet-filter-role")?.addEventListener("change", renderFleetNodes);
+  $("appstudio-search")?.addEventListener("input", renderAppStudioGrid);
+  $("appstudio-filter")?.addEventListener("change", renderAppStudioGrid);
+  $("appstudio-source-filter")?.addEventListener("change", renderAppStudioGrid);
+  $("appstudio-refresh-btn")?.addEventListener("click", loadAppStudio);
+  $("appstudio-logs-close")?.addEventListener("click", () => $("appstudio-logs-dialog")?.close());
+  $("appstudio-logs-dismiss")?.addEventListener("click", () => $("appstudio-logs-dialog")?.close());
+  $("appstudio-logs-refresh")?.addEventListener("click", refreshAppStudioLogs);
   $("fleet-sync-button")?.addEventListener("click", syncFleet);
   $("fleet-add-node-button")?.addEventListener("click", openFleetAddDialog);
   $("fleet-add-dialog-close")?.addEventListener("click", closeFleetAddDialog);
@@ -597,7 +609,7 @@ function closeIdleWarning() {
 
 async function refreshAll() {
   $("refresh-button").classList.add("spinning");
-  await Promise.allSettled([refreshOverview(), refreshApps(), refreshReleaseData(), refreshEvals(), refreshHomologation(), loadFleet()]);
+  await Promise.allSettled([refreshOverview(), refreshApps(), refreshReleaseData(), refreshEvals(), refreshHomologation(), loadFleet(), loadAppStudio()]);
   $("refresh-button").classList.remove("spinning");
 }
 
@@ -982,6 +994,7 @@ function applyReleaseMetadata(data) {
     state.llmAllowed = data.llmAllowed === true;
     state.strixDiagnosticsAccess = ["pro", "pro-master"].includes(data.plan) && data.capabilities?.strixDiagnostics === true;
     state.maintainerAccess = data.plan === "pro-master" && data.capabilities?.maintainer === true;
+    state.appStudioAllowed = ["pro", "pro-master"].includes(data.plan) && data.capabilities?.appStudio === true;
     $("setup-plan").textContent = data.plan === "pro-master" ? "PRO MASTER" : data.plan;
     if (!state.llmAllowed) {
       state.assistantMode = "basic";
@@ -2650,6 +2663,7 @@ function navigate(view) {
   if (view === "resilience") loadResilience();
   if (view === "evals" && !state.evals) refreshEvals();
   if (view === "fleet") loadFleet();
+  if (view === "appstudio") loadAppStudio();
   closeSidebar();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -4587,7 +4601,7 @@ function checkDeepLinkAction() {
     const urlParams = new URLSearchParams(window.location.search);
     const action = urlParams.get("action");
     const nav = urlParams.get("nav") || (window.location.hash ? window.location.hash.replace("#", "") : "");
-    if (nav && ["dashboard", "installed", "catalog", "blueprints", "assistant", "resilience", "fleet", "homologation", "audit", "settings", "help"].includes(nav)) {
+    if (nav && ["dashboard", "installed", "appstudio", "catalog", "blueprints", "assistant", "resilience", "fleet", "homologation", "audit", "settings", "help"].includes(nav)) {
       navigate(nav);
     }
     if (action === "terminal" || window.location.hash === "#terminal" || urlParams.get("install") === "1") {
@@ -4600,4 +4614,190 @@ function checkDeepLinkAction() {
     }
   } catch {}
 }
+
+/* ==========================================================================
+   Setup MNO App Studio [BETA] Functions
+   ========================================================================== */
+let currentAppStudioLogsApp = "";
+
+async function loadAppStudio() {
+  const paywallEl = $("appstudio-paywall");
+  const contentEl = $("appstudio-content");
+  const navBadge = $("nav-appstudio-count");
+
+  if (!state.appStudioAllowed && state.setupPlan === "free") {
+    if (paywallEl) paywallEl.classList.remove("hidden");
+    if (contentEl) contentEl.classList.add("hidden");
+    if (navBadge) navBadge.textContent = "🔒";
+    return;
+  }
+
+  try {
+    const data = await api("/api/appstudio/apps");
+    state.appStudioApps = data.apps || [];
+    state.appStudioTotal = data.total || 0;
+    state.appStudioOnline = data.online || 0;
+
+    if (paywallEl) paywallEl.classList.add("hidden");
+    if (contentEl) contentEl.classList.remove("hidden");
+
+    if (navBadge) navBadge.textContent = state.appStudioTotal;
+    if ($("appstudio-total-count")) $("appstudio-total-count").textContent = state.appStudioTotal;
+    if ($("appstudio-online-count")) $("appstudio-online-count").textContent = state.appStudioOnline;
+    if ($("appstudio-routing-type")) {
+      $("appstudio-routing-type").textContent = state.setupState?.installationType === "CLOUDFLARE_TUNNEL"
+        ? "Cloudflare Tunnel"
+        : "Traefik HTTPS";
+    }
+
+    renderAppStudioGrid();
+  } catch (err) {
+    if (err.message && (err.message.includes("exclusivo") || err.message.includes("locked") || err.status === 403)) {
+      if (paywallEl) paywallEl.classList.remove("hidden");
+      if (contentEl) contentEl.classList.add("hidden");
+      if (navBadge) navBadge.textContent = "🔒";
+    } else {
+      showAlert(`Erro ao carregar apps do App Studio: ${err.message}`);
+    }
+  }
+}
+
+function renderAppStudioGrid() {
+  const query = ($("appstudio-search")?.value || "").trim().toLowerCase();
+  const statusFilter = $("appstudio-filter")?.value || "";
+  const sourceFilter = $("appstudio-source-filter")?.value || "";
+
+  const filtered = (state.appStudioApps || []).filter(app => {
+    const text = `${app.name} ${app.image || ""} ${app.gitRepo || ""} ${(app.domains || []).join(" ")}`.toLowerCase();
+    const matchQuery = !query || text.includes(query);
+    const matchStatus = !statusFilter || app.status === statusFilter;
+    const matchSource = !sourceFilter || app.sourceType === sourceFilter;
+    return matchQuery && matchStatus && matchSource;
+  });
+
+  const summary = $("appstudio-summary");
+  if (summary) {
+    summary.textContent = `${filtered.length} de ${state.appStudioApps.length} microsserviço(s) exibido(s)`;
+  }
+
+  const grid = $("appstudio-grid");
+  if (!grid) return;
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="empty-state">
+      <h3>Nenhum microsserviço encontrado</h3>
+      <p>Você ainda não possui aplicações personalizadas cadastradas ou os filtros atuais não retornaram resultados.</p>
+      <button class="primary-button" data-action="terminal" style="margin-top:14px;">Criar Meu Primeiro App 🚀</button>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(app => {
+    const isDocker = app.sourceType === "DOCKERHUB";
+    const sourceIcon = isDocker ? "🐳 Docker Hub" : "🐙 Git Repository";
+    const sourceClass = isDocker ? "dockerhub" : "git";
+
+    let statusLabel = "Online";
+    let statusClass = "online";
+    if (app.status === "starting") {
+      statusLabel = "Iniciando";
+      statusClass = "starting";
+    } else if (app.status === "stopped") {
+      statusLabel = "Parado";
+      statusClass = "stopped";
+    } else if (app.status === "degraded") {
+      statusLabel = "Com Atenção";
+      statusClass = "degraded";
+    }
+
+    const primaryUrl = app.primaryUrl || (app.domains && app.domains.length ? `https://${app.domains[0]}` : "");
+    const sourceDetail = isDocker
+      ? (app.image || "Imagem customizada")
+      : `${app.gitRepo || "repo"} (${app.gitBranch || "main"})`;
+
+    return `<article class="appstudio-card">
+      <div class="appstudio-card-head">
+        <span class="appstudio-source-badge ${sourceClass}">${sourceIcon}</span>
+        <span class="appstudio-status-pill ${statusClass}">${statusLabel}</span>
+      </div>
+      <h3>${escapeHTML(app.name)}</h3>
+      
+      <div class="appstudio-card-info">
+        <div class="appstudio-info-row">
+          <span>Origem:</span>
+          <code title="${escapeHTML(sourceDetail)}">${escapeHTML(sourceDetail)}</code>
+        </div>
+        <div class="appstudio-info-row">
+          <span>Porta Interna:</span>
+          <strong>${app.internalPort || 80}</strong>
+        </div>
+        <div class="appstudio-info-row">
+          <span>Réplicas:</span>
+          <strong>${app.runningTasks}/${app.desiredTasks}</strong>
+        </div>
+        <div class="appstudio-info-row">
+          <span>Limites:</span>
+          <small>${app.cpuLimit ? app.cpuLimit + " CPU" : "Sem limite"} · ${app.memLimit || "1G"}</small>
+        </div>
+      </div>
+
+      ${primaryUrl ? `
+        <a href="${escapeHTML(primaryUrl)}" target="_blank" rel="noopener noreferrer" class="appstudio-url-link" title="Acessar aplicação">
+          <span>🌐</span> ${escapeHTML(primaryUrl.replace(/^https?:\/\//, ""))} <b>↗</b>
+        </a>
+      ` : `<span class="muted" style="font-size:12px;">Sem URL pública associada</span>`}
+
+      <div class="appstudio-card-actions">
+        <button class="ghost-button" type="button" onclick="viewAppStudioLogs('${escapeHTML(app.name)}')">📄 Logs</button>
+        <button class="ghost-button" type="button" onclick="restartAppStudioApp('${escapeHTML(app.name)}')">↻ Reiniciar</button>
+        ${primaryUrl ? `<a href="${escapeHTML(primaryUrl)}" target="_blank" rel="noopener" class="light-button" style="text-align:center; padding: 7px 12px; font-size:12px;">Abrir ↗</a>` : ""}
+      </div>
+    </article>`;
+  }).join("");
+}
+
+async function viewAppStudioLogs(appName) {
+  currentAppStudioLogsApp = appName;
+  const dialog = $("appstudio-logs-dialog");
+  const title = $("appstudio-logs-appname");
+  const pre = $("appstudio-logs-pre");
+
+  if (title) title.textContent = appName;
+  if (pre) pre.textContent = `Carregando logs de ${appName}...`;
+
+  if (dialog && typeof dialog.showModal === "function") {
+    dialog.showModal();
+  }
+
+  await refreshAppStudioLogs();
+}
+
+async function refreshAppStudioLogs() {
+  if (!currentAppStudioLogsApp) return;
+  const pre = $("appstudio-logs-pre");
+  try {
+    const data = await api(`/api/appstudio/apps/${encodeURIComponent(currentAppStudioLogsApp)}/logs`);
+    if (pre) {
+      pre.textContent = data.logs || "(Nenhum log gerado pelo container até o momento)";
+      pre.scrollTop = pre.scrollHeight;
+    }
+  } catch (err) {
+    if (pre) pre.textContent = `Erro ao carregar logs: ${err.message}`;
+  }
+}
+
+async function restartAppStudioApp(appName) {
+  if (!window.confirm(`Deseja forçar o reinício da aplicação "${appName}"?`)) return;
+  try {
+    showToast(`Reiniciando ${appName}...`);
+    await api(`/api/appstudio/apps/${encodeURIComponent(appName)}/restart`, { method: "POST" });
+    showToast(`Comando de reinício enviado com sucesso para "${appName}"!`);
+    await loadAppStudio();
+  } catch (err) {
+    showAlert(`Erro ao reiniciar "${appName}": ${err.message}`);
+  }
+}
+
+window.viewAppStudioLogs = viewAppStudioLogs;
+window.restartAppStudioApp = restartAppStudioApp;
 

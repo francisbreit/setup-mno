@@ -145,6 +145,9 @@ EOF
 
     if [[ -f "$temp_registry" ]]; then
         mv -f "$temp_registry" "$REGISTRY_FILE"
+        chmod 0600 "$REGISTRY_FILE" 2>/dev/null || true
+        mkdir -p /root/SetupLowCodeMno/.control 2>/dev/null || true
+        cp -f "$REGISTRY_FILE" /root/SetupLowCodeMno/.control/appstudio_registry.json 2>/dev/null || true
         log_sucesso "Aplicação '$app_name' registrada no banco sagrado com sucesso! (Modo: $install_type)"
     else
         log_erro "Falha ao gravar arquivo atômico de registro."
@@ -202,6 +205,9 @@ EOF
 
     if [[ -f "$temp_registry" ]]; then
         mv -f "$temp_registry" "$REGISTRY_FILE"
+        chmod 0600 "$REGISTRY_FILE" 2>/dev/null || true
+        mkdir -p /root/SetupLowCodeMno/.control 2>/dev/null || true
+        cp -f "$REGISTRY_FILE" /root/SetupLowCodeMno/.control/appstudio_registry.json 2>/dev/null || true
         log_sucesso "Aplicação '$app_name' desregistrada do banco sagrado."
     fi
 

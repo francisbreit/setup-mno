@@ -59,6 +59,7 @@
       <nav id="navigation" aria-label="Navegação principal">
         <button class="nav-item active" data-view="dashboard"><span class="nav-icon">⌂</span><span>Visão geral</span></button>
         <button class="nav-item" data-view="installed"><span class="nav-icon">◫</span><span>Aplicações instaladas</span><b id="nav-app-count">0</b></button>
+        <button class="nav-item" data-view="appstudio"><span class="nav-icon">🚀</span><span>Meus Apps (Studio)</span><span class="nav-meta"><em>BETA</em><b id="nav-appstudio-count">0</b></span></button>
         <button class="nav-item" data-view="catalog"><span class="nav-icon">◇</span><span>Catálogo de setups</span></button>
         <button class="nav-item" data-view="blueprints"><span class="nav-icon">⌘</span><span>Blueprints</span><span class="nav-meta"><em>BETA</em><b id="nav-blueprint-count">0</b></span></button>
         <button class="nav-item" data-view="assistant"><span class="nav-icon">✦</span><span>Assistente MNO</span><em>BETA</em></button>
@@ -178,6 +179,100 @@
           </div>
           <div id="installed-summary" class="inline-summary"></div>
           <div id="installed-grid" class="installed-grid"></div>
+        </section>
+
+        <section id="view-appstudio" class="view">
+          <div class="appstudio-intro">
+            <div>
+              <p class="eyebrow">Setup MNO App Studio · BETA · Projetos Próprios &amp; IA</p>
+              <h2>Meus Apps &amp; Microsserviços</h2>
+              <p>Gerencie aplicações personalizadas criadas via Docker Hub, repositórios Git ou geradas por IA (Lovable, Bolt, v0, Cursor). Conectadas nativamente em Docker Swarm com zero portas expostas.</p>
+            </div>
+            <div class="appstudio-header-actions">
+              <button class="primary-button" data-action="terminal"><span>Novo App no Studio</span> <b>＋</b></button>
+              <button class="light-button" id="appstudio-refresh-btn" type="button">↻ Atualizar</button>
+            </div>
+          </div>
+
+          <!-- STATUS / PAYWALL PARA USUÁRIOS FREE -->
+          <div id="appstudio-paywall" class="fleet-panel hidden">
+            <article class="hero-card fleet-disabled-hero">
+              <div class="hero-content">
+                <div class="release-badges">
+                  <span>Exclusividade <b class="badge-accent">Planos PRO &amp; PRO MASTER</b></span>
+                  <span>Arquitetura <b>Docker Swarm + Overlay</b></span>
+                  <span>Portas <b>Zero Abertas (Zero-Trust)</b></span>
+                </div>
+                <h3>Crie e hospede seus próprios microsserviços sem dor de cabeça</h3>
+                <p>O <strong>Setup MNO App Studio [BETA]</strong> permite que você publique qualquer container Docker ou código Git (Node.js, Python, PHP, Go, etc.) em segundos, com certificado HTTPS automático, Cloudflare Tunnel e isolamento de banco de dados.</p>
+                <div class="fleet-features-grid">
+                  <div class="fleet-feature-card">
+                    <span class="fleet-feature-icon">🐳</span>
+                    <strong>Qualquer Imagem Docker</strong>
+                    <small>Cole a imagem do Docker Hub e o Setup MNO orquestra a stack Swarm, redes isoladas e healthchecks automaticamente.</small>
+                  </div>
+                  <div class="fleet-feature-card">
+                    <span class="fleet-feature-icon">🤖</span>
+                    <strong>Apps Gerados por IA</strong>
+                    <small>Publique projetos criados no Lovable, Bolt.new, v0 ou Cursor diretamente do GitHub com sincronização automática.</small>
+                  </div>
+                  <div class="fleet-feature-card">
+                    <span class="fleet-feature-icon">🛡️</span>
+                    <strong>Segurança Zero-Trust</strong>
+                    <small>Seus microsserviços rodam protegidos pelo Cloudflare Tunnel ou Traefik, sem nenhuma porta aberta no firewall da VPS.</small>
+                  </div>
+                </div>
+                <div class="fleet-disabled-actions" style="margin-top:20px;">
+                  <a href="https://manualnegocioonline.com.br" target="_blank" rel="noopener" class="primary-button">Fazer Upgrade para Plano PRO 🚀</a>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <!-- PAINEL PRO: CONTEÚDO ATIVO DO APP STUDIO -->
+          <div id="appstudio-content" class="appstudio-content">
+            <div class="appstudio-metrics-bar">
+              <div class="appstudio-metric-card">
+                <span>Total de Apps</span>
+                <strong id="appstudio-total-count">0</strong>
+                <small>Microsserviços criados</small>
+              </div>
+              <div class="appstudio-metric-card">
+                <span>Apps Online</span>
+                <strong id="appstudio-online-count" class="good">0</strong>
+                <small>Serviços convergidos</small>
+              </div>
+              <div class="appstudio-metric-card">
+                <span>Overhead do Engine</span>
+                <strong>0 MB</strong>
+                <small>Zero sobrecarga na VPS</small>
+              </div>
+              <div class="appstudio-metric-card">
+                <span>Roteamento</span>
+                <strong id="appstudio-routing-type">Cloudflare Tunnel</strong>
+                <small>Túnel Zero-Trust HTTPS</small>
+              </div>
+            </div>
+
+            <div class="section-tools">
+              <div class="search-box"><span>⌕</span><input id="appstudio-search" placeholder="Buscar app por nome, imagem ou domínio..."></div>
+              <select id="appstudio-filter">
+                <option value="">Todos os status</option>
+                <option value="online">Online</option>
+                <option value="starting">Iniciando / Convergindo</option>
+                <option value="degraded">Com atenção</option>
+                <option value="stopped">Parado</option>
+              </select>
+              <select id="appstudio-source-filter">
+                <option value="">Todas as origens</option>
+                <option value="DOCKERHUB">Docker Hub</option>
+                <option value="GIT">Repositório Git</option>
+              </select>
+            </div>
+
+            <div id="appstudio-summary" class="inline-summary"></div>
+            <div id="appstudio-grid" class="installed-grid"></div>
+          </div>
         </section>
 
         <section id="view-catalog" class="view">
@@ -828,6 +923,9 @@
             </article>
             <article class="help-feature-card help-topic" data-help-topic data-help-category="operate" data-help-search="aplicações instaladas stacks serviços réplicas online falha degradado docker swarm">
               <span class="help-feature-icon green">◫</span><div><h3>Aplicações instaladas</h3><p>É o inventário somente leitura das stacks e dos serviços do Docker Swarm. “Com atenção” indica que uma réplica não atingiu o estado esperado e precisa de diagnóstico.</p></div><button type="button" data-nav="installed">Ver aplicações <b>→</b></button>
+            </article>
+            <article class="help-feature-card help-topic" data-help-topic data-help-category="operate" data-help-search="meus apps app studio projetos proprios docker hub git lovable bolt v0 cursor ia microsserviços custom">
+              <span class="help-feature-icon orange">🚀</span><div><span class="help-status">BETA · Exclusivo PRO / PRO MASTER</span><h3>Meus Apps (App Studio)</h3><p>Painel de microsserviços e aplicações personalizadas criadas via Docker Hub, repositórios Git ou assistentes de IA (Lovable, Bolt, v0). Permite visualizar URLs, logs em tempo real e reiniciar serviços.</p></div><button type="button" data-nav="appstudio">Abrir Meus Apps [BETA] <b>→</b></button>
             </article>
             <article class="help-feature-card help-topic" data-help-topic data-help-category="operate" data-help-search="catálogo setups pesquisar categorias ram arquitetura selo homologação instalar deploy">
               <span class="help-feature-icon violet">◇</span><div><h3>Catálogo de setups</h3><p>Lista configurações instaláveis. Um setup pode ser uma aplicação individual, uma variante ou um combo. Confira RAM, arquitetura e maturidade antes de abrir o instalador.</p></div><button type="button" data-nav="catalog">Explorar catálogo <b>→</b></button>
@@ -1608,6 +1706,29 @@
           <button type="submit" class="primary-button" id="fleet-backup-submit">Gerar Backup (.tar.gz) 💾</button>
         </footer>
       </form>
+    </div>
+  </dialog>
+
+  <!-- DIALOG: LOGS DO APP STUDIO -->
+  <dialog id="appstudio-logs-dialog" class="mno-dialog fleet-dialog" aria-labelledby="appstudio-logs-title" style="max-width: 860px; width: 92vw;">
+    <div class="dialog-content">
+      <header class="dialog-header">
+        <div>
+          <p class="eyebrow">Diagnóstico em Tempo Real · Docker Swarm</p>
+          <h3 id="appstudio-logs-title">Logs do App: <span id="appstudio-logs-appname"></span></h3>
+        </div>
+        <button id="appstudio-logs-close" class="icon-button" type="button" aria-label="Fechar logs">×</button>
+      </header>
+      <div class="dialog-body" style="padding: 18px 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <small class="muted" id="appstudio-logs-info">Exibindo as últimas 150 linhas de log do container:</small>
+          <button id="appstudio-logs-refresh" class="light-button" type="button" style="padding: 4px 10px; font-size: 12px;">↻ Atualizar Logs</button>
+        </div>
+        <pre id="appstudio-logs-pre" class="appstudio-logs-terminal">Carregando logs do container...</pre>
+      </div>
+      <footer class="dialog-actions">
+        <button type="button" class="primary-button" id="appstudio-logs-dismiss">Fechar</button>
+      </footer>
     </div>
   </dialog>
 
