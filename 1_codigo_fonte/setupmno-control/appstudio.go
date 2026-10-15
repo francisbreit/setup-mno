@@ -41,6 +41,7 @@ type appStudioRegistryEntry struct {
 		Postgres bool `json:"postgres"`
 		Redis    bool `json:"redis"`
 	} `json:"connections,omitempty"`
+	PortainerEditable bool `json:"portainer_editable,omitempty"`
 }
 
 type appStudioRegistryFile struct {
@@ -49,23 +50,25 @@ type appStudioRegistryFile struct {
 }
 
 type appStudioAppView struct {
-	Name         string   `json:"name"`
-	SourceType   string   `json:"sourceType"`
-	Image        string   `json:"image,omitempty"`
-	GitRepo      string   `json:"gitRepo,omitempty"`
-	GitBranch    string   `json:"gitBranch,omitempty"`
-	InternalPort int      `json:"internalPort"`
-	Domains      []string `json:"domains"`
-	PrimaryURL   string   `json:"primaryUrl"`
-	InstallType  string   `json:"installType"`
-	StackName    string   `json:"stackName"`
-	ServiceName  string   `json:"serviceName"`
-	CreatedAt    string   `json:"createdAt"`
-	Status       string   `json:"status"` // "online", "starting", "stopped", "degraded"
-	RunningTasks uint64   `json:"runningTasks"`
-	DesiredTasks uint64   `json:"desiredTasks"`
-	CPULimit     string   `json:"cpuLimit"`
-	MemLimit     string   `json:"memLimit"`
+	Name              string   `json:"name"`
+	SourceType        string   `json:"sourceType"`
+	Image             string   `json:"image,omitempty"`
+	GitRepo           string   `json:"gitRepo,omitempty"`
+	GitBranch         string   `json:"gitBranch,omitempty"`
+	InternalPort      int      `json:"internalPort"`
+	Domains           []string `json:"domains"`
+	PrimaryURL        string   `json:"primaryUrl"`
+	InstallType       string   `json:"installType"`
+	StackName         string   `json:"stackName"`
+	ServiceName       string   `json:"serviceName"`
+	CreatedAt         string   `json:"createdAt"`
+	Status            string   `json:"status"` // "online", "starting", "stopped", "degraded"
+	RunningTasks      uint64   `json:"runningTasks"`
+	DesiredTasks      uint64   `json:"desiredTasks"`
+	CPULimit          string   `json:"cpuLimit"`
+	MemLimit          string   `json:"memLimit"`
+	PortainerEditable bool     `json:"portainerEditable"`
+	YamlPath          string   `json:"yamlPath"`
 }
 
 type appStudioListResponse struct {
@@ -173,9 +176,11 @@ func collectAppStudioApps(dockerClient *http.Client, sacredDir string) (appStudi
 			StackName:    entry.StackName,
 			ServiceName:  targetServiceName,
 			CreatedAt:    entry.CreatedAt,
-			CPULimit:     cpuLimit,
-			MemLimit:     memLimit,
-			Status:       "stopped",
+			CPULimit:          cpuLimit,
+			MemLimit:          memLimit,
+			PortainerEditable: entry.PortainerEditable,
+			YamlPath:          fmt.Sprintf("/root/%s.yaml", appName),
+			Status:            "stopped",
 		}
 
 		if len(domains) > 0 && domains[0] != "" && domains[0] != "none" {

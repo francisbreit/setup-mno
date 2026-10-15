@@ -172,6 +172,15 @@ gerenciar_aplicacao() {
                 local install_type_val
                 install_type_val="$(echo "$app_json" | jq -r '.install_type // "CLOUDFLARE_TUNNEL"')"
 
+                local portainer_info
+                local is_portainer_edit
+                is_portainer_edit="$(echo "$app_json" | jq -r '.portainer_editable // true')"
+                if [[ "$is_portainer_edit" == "true" ]]; then
+                    portainer_info="• Portainer:      Editável (Opção 0)\n"
+                else
+                    portainer_info="• Portainer:      Não editável (Opção 1)\n"
+                fi
+
                 whiptail --title "DETALHES: $app_name" --msgbox \
 "Informações Técnicas da Aplicação:
 --------------------------------------------------------
@@ -183,11 +192,12 @@ gerenciar_aplicacao() {
 • Porta Interna:  $port
 • Domínio(s):     ${domain:-Não vinculado}
 • Infra / Modo:   $install_type_val
+$portainer_info• Arquivo YAML:   /root/${app_name}.yaml
 $git_info
 Conexões de Banco de Dados:
 $dbs
 Pasta Persistente Sagrada:
-$SACRED_DIR/apps/$app_name" 22 76
+$SACRED_DIR/apps/$app_name" 24 76
                 ;;
             2)
                 clear
@@ -330,9 +340,25 @@ menu_novo_deploy() {
         --inputbox "Digite o(s) subdomínio(s) (separados por vírgula se mais de um):\nExemplo: saas.meusite.com.br,api.meusite.com.br" 12 74 \
         "" 3>&1 1>&2 2>&3) || DOMAIN_INPUT=""
 
+    # Pergunta clássica do Portainer (0 = Editável no Portainer, 1 = Não poder editar)
+    local CRIAR_PORTAINER="0"
+    while true; do
+        CRIAR_PORTAINER=$(whiptail --title "Criar Stack no Portainer? - 0 ou 1" \
+            --inputbox "Digite 0 para poder editar stack no portainer ou 1 para não poder editar" \
+            --fb 12 70 "0" 3>&1 1>&2 2>&3) || return 0
+        if [[ "$CRIAR_PORTAINER" == "0" || "$CRIAR_PORTAINER" == "1" ]]; then
+            break
+        else
+            whiptail --title "VALOR INVÁLIDO" --msgbox "Digite apenas o número 0 ou o número 1, para poder continuar.\n\n0 = Editar stack no Portainer\n1 = Não poder editar" 11 66
+        fi
+    done
+
+    local portainer_status_str="0 (Editável)"
+    [[ "$CRIAR_PORTAINER" == "1" ]] && portainer_status_str="1 (Não editável)"
+
     # Confirmação antes do build
     if ! whiptail --title "CONFIRMAR DEPLOY NO SWARM" \
-        --yesno "Deseja iniciar o processamento e deploy da aplicação?\n\n• Nome: $APP_NAME\n• Auto-Injetar Postgres: $INJECT_PG\n• Auto-Injetar Redis: $INJECT_REDIS\n• Domínio(s) HTTPS: ${DOMAIN_INPUT:-Nenhum no momento}\n• Rede: interna / externa" 15 70; then
+        --yesno "Deseja iniciar o processamento e deploy da aplicação?\n\n• Nome: $APP_NAME\n• Auto-Injetar Postgres: $INJECT_PG\n• Auto-Injetar Redis: $INJECT_REDIS\n• Domínio(s) HTTPS: ${DOMAIN_INPUT:-Nenhum no momento}\n• Stack no Portainer: $portainer_status_str\n• Arquivo Raiz: /root/${APP_NAME}.yaml\n• Rede: interna / externa" 17 72; then
         return 0
     fi
 
@@ -355,6 +381,7 @@ menu_novo_deploy() {
     [[ -n "$DOMAIN_INPUT" ]] && deploy_args+=(--domain "$DOMAIN_INPUT")
     [[ "$INJECT_PG" == "true" ]] && deploy_args+=(--inject-postgres)
     [[ "$INJECT_REDIS" == "true" ]] && deploy_args+=(--inject-redis)
+    deploy_args+=(--portainer "$CRIAR_PORTAINER")
 
     if "$ENGINE_SCRIPT" "${deploy_args[@]}"; then
         echo -e "\n${BOLD}${VERDE}Pressione ENTER para voltar ao menu do App Studio...${RESET}"

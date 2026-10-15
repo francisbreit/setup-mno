@@ -288,6 +288,82 @@ EOF
 }
 
 # ------------------------------------------------------------------------------
+# 4.1 Deploy da Stack: Portainer API (Editável) ou Swarm CLI (Fallback / Direto)
+# ------------------------------------------------------------------------------
+deploy_stack_swarm_or_portainer() {
+    local stack_name="$1"
+    local stack_file="$2"
+    local criar_portainer="${3:-0}"
+
+    if [[ "$criar_portainer" == "0" ]]; then
+        log_info "Tentando registrar e implantar stack editável no Portainer (${stack_name})..."
+        local dados_file="${HOME:-/root}/dados_portainer/dados_portainer"
+        [[ ! -f "$dados_file" ]] && dados_file="/root/dados_portainer/dados_portainer"
+
+        if [[ -f "$dados_file" ]]; then
+            local portainer_url admin_user admin_pass
+            portainer_url=$(grep "Dominio do portainer:" "$dados_file" | cut -d':' -f2 | xargs)
+            admin_user=$(grep "Usuario:" "$dados_file" | cut -d':' -f2 | xargs)
+            admin_pass=$(grep "Senha:" "$dados_file" | cut -d':' -f2 | xargs)
+
+            if [[ -n "$portainer_url" && -n "$admin_user" && -n "$admin_pass" ]]; then
+                log_info "Autenticando na API do Portainer (https://${portainer_url})..."
+                local auth_resp token
+                auth_resp=$(curl -k -sS -m 10 -X POST "https://${portainer_url}/api/auth" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"username\": \"$admin_user\", \"password\": \"$admin_pass\"}" 2>/dev/null || true)
+                token=$(echo "$auth_resp" | jq -r '.jwt // empty' 2>/dev/null)
+
+                if [[ -n "$token" && "$token" != "null" ]]; then
+                    local endpoints_resp endpoint_id
+                    endpoints_resp=$(curl -k -sS -m 10 -X GET "https://${portainer_url}/api/endpoints" \
+                        -H "Authorization: Bearer $token" 2>/dev/null || true)
+                    endpoint_id=$(echo "$endpoints_resp" | jq -r '.[0].Id // empty' 2>/dev/null)
+
+                    if [[ -n "$endpoint_id" && "$endpoint_id" != "null" ]]; then
+                        local swarm_resp swarm_id
+                        swarm_resp=$(curl -k -sS -m 10 -X GET "https://${portainer_url}/api/endpoints/${endpoint_id}/docker/swarm" \
+                            -H "Authorization: Bearer $token" 2>/dev/null || true)
+                        swarm_id=$(echo "$swarm_resp" | jq -r '.ID // empty' 2>/dev/null)
+
+                        if [[ -n "$swarm_id" && "$swarm_id" != "null" && -f "$stack_file" ]]; then
+                            local resp_file err_file http_code
+                            resp_file=$(mktemp)
+                            err_file=$(mktemp)
+
+                            http_code=$(curl -k -s -o "$resp_file" -w "%{http_code}" -m 30 -X POST \
+                                -H "Authorization: Bearer $token" \
+                                -F "Name=$stack_name" \
+                                -F "file=@$stack_file" \
+                                -F "SwarmID=$swarm_id" \
+                                -F "endpointId=$endpoint_id" \
+                                "https://${portainer_url}/api/stacks/create/swarm/file" 2>"$err_file" || echo "000")
+                            rm -f "$resp_file" "$err_file"
+
+                            if [[ "$http_code" -eq 200 ]]; then
+                                log_sucesso "Stack '${stack_name}' registrada com sucesso no Portainer (100% Editável)!"
+                                return 0
+                            else
+                                log_aviso "Portainer retornou código HTTP $http_code. Realizando fallback para Docker Swarm CLI..."
+                            fi
+                        fi
+                    fi
+                else
+                    log_aviso "Falha na autenticação do Portainer. Realizando fallback para Docker Swarm CLI..."
+                fi
+            fi
+        else
+            log_aviso "Arquivo de credenciais do Portainer não encontrado ($dados_file). Realizando fallback para Docker Swarm CLI..."
+        fi
+    fi
+
+    # Fallback seguro ou Opção 1 (não editável)
+    log_info "Implantando stack via Docker Swarm CLI (${stack_name})..."
+    docker stack deploy --prune --resolve-image always -c "$stack_file" "$stack_name" >/dev/null
+    return 0
+}
+
+# ------------------------------------------------------------------------------
 # 5. Fluxo Principal de Deploy
 # ------------------------------------------------------------------------------
 cmd_deploy() {
@@ -305,6 +381,7 @@ cmd_deploy() {
     local git_repo=""
     local git_branch="main"
     local git_token=""
+    local criar_portainer="0"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -318,6 +395,7 @@ cmd_deploy() {
             --domain) domain="$2"; shift 2 ;;
             --install-type) install_type="$2"; shift 2 ;;
             --plan) plan="$2"; shift 2 ;;
+            --portainer) criar_portainer="$2"; shift 2 ;;
             --inject-postgres) inject_postgres="true"; shift ;;
             --inject-redis) inject_redis="true"; shift ;;
             --cpu) cpu_limit="$2"; shift 2 ;;
@@ -443,9 +521,19 @@ cmd_deploy() {
     local stack_file="$work_dir/docker-compose.yml"
     gerar_stack_swarm "$stack_file" "$app_name" "$image_tag" "$final_port" "$cpu_limit" "$mem_limit" "$inject_postgres" "$inject_redis" "$install_type" "$domain"
 
-    # Deploy da Stack no Swarm
-    log_info "Implantando stack no Docker Swarm (${stack_name})..."
-    docker stack deploy -c "$stack_file" "$stack_name" >/dev/null
+    # Salva cópia na pasta raiz /root/${app_name}.yaml (e ${stack_name}.yaml se diferente)
+    local root_yaml="/root/${app_name}.yaml"
+    cp -f "$stack_file" "$root_yaml" 2>/dev/null || true
+    if [[ "$stack_name" != "$app_name" ]]; then
+        cp -f "$stack_file" "/root/${stack_name}.yaml" 2>/dev/null || true
+    fi
+
+    # Define manifesto prioritário para deploy
+    local deploy_yaml="$stack_file"
+    [[ -f "$root_yaml" && -r "$root_yaml" ]] && deploy_yaml="$root_yaml"
+
+    # Deploy da Stack no Swarm (via API do Portainer se criar_portainer==0 ou CLI com fallback)
+    deploy_stack_swarm_or_portainer "$stack_name" "$deploy_yaml" "$criar_portainer"
 
     # Aguardar convergência do serviço
     log_info "Aguardando o serviço convergir na rede 'interna'..."
@@ -470,6 +558,8 @@ cmd_deploy() {
         echo -e "• Imagem:         ${BOLD}${image_tag}${RESET}"
         echo -e "• Porta Interna:  ${BOLD}${final_port}${RESET}"
         echo -e "• Infra / Modo:   ${BOLD}${install_type}${RESET}"
+        echo -e "• Arquivo YAML:   ${BOLD}/root/${app_name}.yaml${RESET}"
+        echo -e "• Portainer:      ${BOLD}$([ "$criar_portainer" == "0" ] && echo "0 (Editável)" || echo "1 (Não editável)")${RESET}"
         echo -e "• Limite RAM:     ${BOLD}${mem_limit}${RESET} | CPU: ${BOLD}${cpu_limit}${RESET}"
         echo -e "• Rota DNS Swarm: ${BOLD}http://${stack_name}_app:${final_port}${RESET}\n"
 
@@ -477,7 +567,7 @@ cmd_deploy() {
         "$REGISTRY_SCRIPT" register \
             "$app_name" "$stack_name" "$image_tag" "$stack_type" "$final_port" "${domain:-none}" \
             "$inject_postgres" "$inject_redis" "$cpu_limit" "$mem_limit" "$source_dir" "$install_type" \
-            "${git_repo:-none}" "$git_branch"
+            "${git_repo:-none}" "$git_branch" "$criar_portainer"
         
         # Salva o manifesto na pasta sagrada do app
         local sacred_app_dir
@@ -566,6 +656,9 @@ cmd_destroy() {
     log_info "Removendo imagem Docker: $image_tag"
     docker rmi -f "$image_tag" >/dev/null 2>&1 || true
     
+    # Remove manifesto na raiz /root se existir
+    rm -f "/root/${app_name}.yaml" "/root/${stack_name}.yaml" 2>/dev/null || true
+
     "$REGISTRY_SCRIPT" unregister "$app_name" true || true
     log_sucesso "Aplicação $app_name removida com sucesso."
 }

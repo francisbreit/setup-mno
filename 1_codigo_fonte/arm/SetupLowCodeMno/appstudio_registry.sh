@@ -79,6 +79,7 @@ registry_register_app() {
     local install_type="${12:-CLOUDFLARE_TUNNEL}"
     local git_repo="${13:-none}"
     local git_branch="${14:-main}"
+    local portainer_editable="${15:-0}"
 
     registry_init
 
@@ -121,6 +122,7 @@ data["apps"]["$app_name"] = {
     "domain": domain_raw,
     "domains": domains_list,
     "install_type": "$install_type",
+    "portainer_editable": "$portainer_editable" == "0",
     "git": {
         "repo": "$git_repo",
         "branch": "$git_branch"
