@@ -214,11 +214,36 @@ gerar_stack_swarm() {
     local env_block="    environment:\n      - PORT=${internal_port}\n      - APP_NAME=${service_name}"
     
     if [[ "$inject_postgres" == "true" ]]; then
-        env_block="${env_block}\n      - DATABASE_URL=postgresql://postgres:postgres@postgres_postgres:5432/${service_name}db"
+        local pg_pass="Vaiodv6740bR"
+        if [[ -f "/root/postgres.yaml" ]]; then
+            local extracted_pass
+            extracted_pass=$(grep -oP '(?<=POSTGRES_PASSWORD=).+' /root/postgres.yaml 2>/dev/null | tr -d ' ' || true)
+            [[ -n "$extracted_pass" ]] && pg_pass="$extracted_pass"
+        fi
+        local db_name="${service_name//-/_}_db"
+        # Cria banco de dados no postgres se o container estiver ativo
+        local pg_container
+        pg_container=$(docker ps -qf name=postgres_postgres 2>/dev/null || docker ps -qf name=postgres 2>/dev/null || true)
+        if [[ -n "$pg_container" ]]; then
+            docker exec "$pg_container" psql -U postgres -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$db_name'" 2>/dev/null | grep -q 1 || \
+            docker exec "$pg_container" psql -U postgres -d postgres -c "CREATE DATABASE \"$db_name\";" >/dev/null 2>&1 || true
+        fi
+
+        env_block="${env_block}\n      - DATABASE_URL=postgresql://postgres:${pg_pass}@postgres_postgres:5432/${db_name}\n      - MB_DB_CONNECTION_URI=postgresql://postgres:${pg_pass}@postgres_postgres:5432/${db_name}\n      - MB_DB_TYPE=postgres\n      - MB_DB_DBNAME=${db_name}\n      - MB_DB_PORT=5432\n      - MB_DB_USER=postgres\n      - MB_DB_PASS=${pg_pass}\n      - MB_DB_HOST=postgres_postgres"
     fi
 
     if [[ "$inject_redis" == "true" ]]; then
         env_block="${env_block}\n      - REDIS_URL=redis://redis_redis:6379"
+    fi
+
+    # Otimização específica para imagens Java / Clojure (ex: Metabase)
+    if [[ "$image_tag" == *"metabase"* ]]; then
+        env_block="${env_block}\n      - JAVA_TOOL_OPTIONS=-Xmx768m -Xms256m -Dfile.encoding=UTF-8\n      - MB_JETTY_PORT=${internal_port}\n      - MB_JETTY_HOST=0.0.0.0"
+        if [[ -n "$domain" && "$domain" != "none" ]]; then
+            local first_dom
+            first_dom="$(echo "$domain" | cut -d',' -f1 | tr -d ' ')"
+            [[ -n "$first_dom" ]] && env_block="${env_block}\n      - MB_SITE_URL=https://${first_dom}\n      - MB_REDIRECT_ALL_REQUESTS_TO_HTTPS=true"
+        fi
     fi
 
     local networks_block="    networks:\n      - interna\n      - externa"
@@ -404,6 +429,11 @@ cmd_deploy() {
         esac
     done
 
+    # Ajuste automático de memória para imagens Java/Metabase
+    if [[ "$docker_image" == *"metabase"* && "$mem_limit" == "512M" ]]; then
+        mem_limit="2048M"
+    fi
+
     log_header
 
     # Sanitização do nome da aplicação
@@ -537,7 +567,7 @@ cmd_deploy() {
 
     # Aguardar convergência do serviço
     log_info "Aguardando o serviço convergir na rede 'interna'..."
-    local tentativas=15
+    local tentativas=30
     local convergiu=0
     for ((i=1; i<=tentativas; i++)); do
         local replicas

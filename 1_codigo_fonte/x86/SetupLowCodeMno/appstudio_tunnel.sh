@@ -82,7 +82,7 @@ tunnel_add_route() {
                 -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
                 -H "Content-Type: application/json" 2>/dev/null || true)
             zone_id=$(echo "$zones_json" | jq -r --arg dom "$domain" '
-                .result[]? | select($dom == .name or ($dom | endswith("." + .name))) | .id
+                .result[]? as $zone | select($dom == $zone.name or ($dom | endswith("." + $zone.name))) | $zone.id
             ' 2>/dev/null | head -n1 || true)
         fi
 
@@ -252,7 +252,7 @@ EOF
                 -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
                 -H "Content-Type: application/json" 2>/dev/null || true)
             zone_id=$(echo "$zones_json" | jq -r --arg dom "$domain" '
-                .result[]? | select($dom == .name or ($dom | endswith("." + .name))) | .id
+                .result[]? as $zone | select($dom == $zone.name or ($dom | endswith("." + $zone.name))) | $zone.id
             ' 2>/dev/null | head -n1 || true)
         fi
 
