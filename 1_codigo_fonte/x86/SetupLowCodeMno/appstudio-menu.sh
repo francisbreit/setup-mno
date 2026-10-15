@@ -134,13 +134,14 @@ gerenciar_aplicacao() {
             return 0
         fi
 
-        local runtime port stack_name domain has_pg has_redis
+        local runtime port stack_name domain has_pg has_redis has_mysql
         runtime="$(echo "$app_json" | jq -r '.runtime')"
         port="$(echo "$app_json" | jq -r '.internal_port')"
         stack_name="$(echo "$app_json" | jq -r '.stack_name')"
         domain="$(echo "$app_json" | jq -r '.domain')"
         has_pg="$(echo "$app_json" | jq -r '.connections.postgres')"
         has_redis="$(echo "$app_json" | jq -r '.connections.redis')"
+        has_mysql="$(echo "$app_json" | jq -r '.connections.mysql // false')"
 
         local service_name="${stack_name}_app"
         local replicas
@@ -162,7 +163,8 @@ gerenciar_aplicacao() {
             1)
                 local dbs=""
                 [[ "$has_pg" == "true" ]] && dbs+="• PostgreSQL: Conectado (DATABASE_URL injetada)\n"
-                [[ "$has_redis" == "true" ]] && dbs+="• Redis: Conectado (REDIS_URL injetada)\n"
+                [[ "$has_mysql" == "true" ]] && dbs+="• MySQL:      Conectado (MYSQL_URL injetada)\n"
+                [[ "$has_redis" == "true" ]] && dbs+="• Redis:      Conectado (REDIS_URL injetada)\n"
                 [[ -z "$dbs" ]] && dbs="• Nenhum banco conectado\n"
 
                 local git_info
@@ -324,15 +326,30 @@ menu_novo_deploy() {
     # Checklist de Bancos de Dados
     local DBS_SELECTED
     DBS_SELECTED=$(whiptail --title "CONECTAR BANCOS DE DADOS LOCAIS" \
-        --checklist "Marque os bancos que deseja auto-injetar na sua aplicação (use a BARRA DE ESPAÇO):" 14 72 2 \
+        --checklist "Marque os bancos que deseja auto-injetar na sua aplicação (use a BARRA DE ESPAÇO):" 15 76 3 \
         "POSTGRES" "Banco PostgreSQL Corporativo (DATABASE_URL)" ON \
         "REDIS"    "Fila e Cache Redis em Memória (REDIS_URL)" OFF \
+        "MYSQL"    "Banco MySQL 8.x / MariaDB (Opcional - Requer instalado)" OFF \
         3>&1 1>&2 2>&3) || return 0
 
     local INJECT_PG="false"
     local INJECT_REDIS="false"
+    local INJECT_MYSQL="false"
     [[ "$DBS_SELECTED" == *"POSTGRES"* ]] && INJECT_PG="true"
     [[ "$DBS_SELECTED" == *"REDIS"* ]] && INJECT_REDIS="true"
+    [[ "$DBS_SELECTED" == *"MYSQL"* ]] && INJECT_MYSQL="true"
+
+    # Alerta didático caso o usuário marque MySQL mas o serviço não esteja ativo
+    if [[ "$INJECT_MYSQL" == "true" ]]; then
+        local mysql_ativo=false
+        if docker service inspect mysql_mysql >/dev/null 2>&1 || docker service inspect mysql84_mysql84 >/dev/null 2>&1 || [ -n "$(docker ps -qf name=mysql 2>/dev/null | head -n1)" ]; then
+            mysql_ativo=true
+        fi
+        if [[ "$mysql_ativo" != "true" ]]; then
+            whiptail --title "ℹ️ MYSQL NÃO ENCONTRADO NO SERVIDOR" --msgbox \
+"Atenção: O serviço do MySQL não está ativo nesta VPS no momento!\n\nLembre-se: o MySQL NÃO é uma ferramenta essencial pré-instalada (como o PostgreSQL e o Redis).\n\nO App Studio irá gerar todas as variáveis do MySQL prontas no manifesto (/root/${APP_NAME}.yaml), mas você precisará instalar o MySQL pelo menu do Setup MNO para que a aplicação consiga se comunicar." 15 74
+        fi
+    fi
 
     # Domínio Público HTTPS (Opcional - suporta multi-domínios separados por vírgula)
     local DOMAIN_INPUT
@@ -366,7 +383,7 @@ menu_novo_deploy() {
     local envs_display="Padrão universal"
     [[ -n "$EXTRA_ENVS" ]] && envs_display="$EXTRA_ENVS"
     if ! whiptail --title "CONFIRMAR DEPLOY NO SWARM" \
-        --yesno "Deseja iniciar o processamento e deploy da aplicação?\n\n• Nome: $APP_NAME\n• Auto-Injetar Postgres: $INJECT_PG (Polyglot)\n• Auto-Injetar Redis: $INJECT_REDIS\n• Domínio(s) HTTPS: ${DOMAIN_INPUT:-Nenhum no momento}\n• Variáveis Extras: $envs_display\n• Stack no Portainer: $portainer_status_str\n• Arquivo Raiz: /root/${APP_NAME}.yaml\n• Rede: interna / externa" 18 74; then
+        --yesno "Deseja iniciar o processamento e deploy da aplicação?\n\n• Nome: $APP_NAME\n• Auto-Injetar Postgres: $INJECT_PG (Polyglot)\n• Auto-Injetar MySQL: $INJECT_MYSQL (Polyglot)\n• Auto-Injetar Redis: $INJECT_REDIS\n• Domínio(s) HTTPS: ${DOMAIN_INPUT:-Nenhum no momento}\n• Variáveis Extras: $envs_display\n• Stack no Portainer: $portainer_status_str\n• Arquivo Raiz: /root/${APP_NAME}.yaml\n• Rede: interna / externa" 19 74; then
         return 0
     fi
 
@@ -389,6 +406,7 @@ menu_novo_deploy() {
     [[ -n "$DOMAIN_INPUT" ]] && deploy_args+=(--domain "$DOMAIN_INPUT")
     [[ -n "$EXTRA_ENVS" ]] && deploy_args+=(--env "$EXTRA_ENVS")
     [[ "$INJECT_PG" == "true" ]] && deploy_args+=(--inject-postgres)
+    [[ "$INJECT_MYSQL" == "true" ]] && deploy_args+=(--inject-mysql)
     [[ "$INJECT_REDIS" == "true" ]] && deploy_args+=(--inject-redis)
     deploy_args+=(--portainer "$CRIAR_PORTAINER")
 

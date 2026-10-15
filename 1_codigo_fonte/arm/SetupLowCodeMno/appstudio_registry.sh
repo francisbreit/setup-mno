@@ -80,6 +80,7 @@ registry_register_app() {
     local git_repo="${13:-none}"
     local git_branch="${14:-main}"
     local portainer_editable="${15:-0}"
+    local mysql_injected="${16:-false}"
 
     registry_init
 
@@ -129,7 +130,8 @@ data["apps"]["$app_name"] = {
     },
     "connections": {
         "postgres": "$postgres_injected" == "true",
-        "redis": "$redis_injected" == "true"
+        "redis": "$redis_injected" == "true",
+        "mysql": "$mysql_injected" == "true"
     },
     "resources": {
         "cpu_limit": "$cpu_limit",
@@ -248,13 +250,14 @@ registry_list_apps() {
     app_keys="$(jq -r '.apps | keys[]' "$REGISTRY_FILE" 2>/dev/null || echo "")"
 
     for app in $app_keys; do
-        local runtime port stack_name domain has_pg has_redis
+        local runtime port stack_name domain has_pg has_redis has_mysql
         runtime="$(jq -r ".apps[\"$app\"].runtime" "$REGISTRY_FILE")"
         port="$(jq -r ".apps[\"$app\"].internal_port" "$REGISTRY_FILE")"
         stack_name="$(jq -r ".apps[\"$app\"].stack_name" "$REGISTRY_FILE")"
         domain="$(jq -r ".apps[\"$app\"].domain" "$REGISTRY_FILE")"
         has_pg="$(jq -r ".apps[\"$app\"].connections.postgres" "$REGISTRY_FILE")"
         has_redis="$(jq -r ".apps[\"$app\"].connections.redis" "$REGISTRY_FILE")"
+        has_mysql="$(jq -r ".apps[\"$app\"].connections.mysql // false" "$REGISTRY_FILE")"
 
         # Verifica status no Docker Swarm
         local service_name="${stack_name}_app"
@@ -272,6 +275,7 @@ registry_list_apps() {
 
         local dbs=""
         [[ "$has_pg" == "true" ]] && dbs+="[PG]"
+        [[ "$has_mysql" == "true" ]] && dbs+="[MySQL]"
         [[ "$has_redis" == "true" ]] && dbs+="[Redis]"
         [[ -z "$dbs" ]] && dbs="[Nenhum]"
 

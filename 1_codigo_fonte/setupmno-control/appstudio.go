@@ -40,6 +40,7 @@ type appStudioRegistryEntry struct {
 	Connections struct {
 		Postgres bool `json:"postgres"`
 		Redis    bool `json:"redis"`
+		MySQL    bool `json:"mysql"`
 	} `json:"connections,omitempty"`
 	PortainerEditable bool `json:"portainer_editable,omitempty"`
 }

@@ -211,6 +211,7 @@ gerar_stack_swarm() {
     local install_type="${9:-CLOUDFLARE_TUNNEL}"
     local domain="${10:-none}"
     local extra_envs="${11:-}"
+    local inject_mysql="${12:-false}"
 
     local env_block="    environment:\n      - PORT=${internal_port}\n      - APP_NAME=${service_name}"
     
@@ -247,6 +248,74 @@ gerar_stack_swarm() {
         env_block="${env_block}\n      - POSTGRES_DB=${db_name}"
         env_block="${env_block}\n      - POSTGRES_USER=postgres"
         env_block="${env_block}\n      - POSTGRES_PASSWORD=${pg_pass}"
+    fi
+
+    if [[ "$inject_mysql" == "true" ]]; then
+        local mysql_host="mysql_mysql"
+        local mysql_pass="SetupMnoMysqlPass"
+        local mysql_yaml=""
+        
+        # Detecta arquivo de configuração (mysql84.yaml ou mysql.yaml)
+        if [[ -f "/root/mysql84.yaml" ]]; then
+            mysql_yaml="/root/mysql84.yaml"
+            mysql_host="mysql84_mysql84"
+        elif [[ -f "/root/mysql.yaml" ]]; then
+            mysql_yaml="/root/mysql.yaml"
+            mysql_host="mysql_mysql"
+        fi
+
+        if [[ -n "$mysql_yaml" && -f "$mysql_yaml" ]]; then
+            local extracted_pass
+            extracted_pass=$(sed -n 's/^[[:space:]]*-[[:space:]]*MYSQL_ROOT_PASSWORD=//p' "$mysql_yaml" | head -n1 | tr -d ' \r\n')
+            [[ -z "$extracted_pass" ]] && extracted_pass=$(grep -oP '(?<=MYSQL_ROOT_PASSWORD=).+' "$mysql_yaml" 2>/dev/null | tr -d ' \r\n' || true)
+            [[ -n "$extracted_pass" ]] && mysql_pass="$extracted_pass"
+        fi
+
+        local mysql_db_name="${service_name//-/_}_db"
+
+        # Detecta container ativo do MySQL (mysql84 ou mysql)
+        local mysql_container
+        mysql_container=$(docker ps --filter "label=com.docker.swarm.service.name=${mysql_host}" --format '{{.ID}}' 2>/dev/null | head -n1)
+        [[ -z "$mysql_container" ]] && mysql_container=$(docker ps -qf name=mysql84 2>/dev/null | head -n1)
+        [[ -z "$mysql_container" ]] && mysql_container=$(docker ps -qf name=mysql 2>/dev/null | head -n1)
+
+        # Se o container estiver ativo, cria o banco físico utf8mb4
+        if [[ -n "$mysql_container" && -n "$mysql_pass" ]]; then
+            docker exec "$mysql_container" sh -c \
+                'MYSQL_PWD="$1" exec mysql -uroot -e "CREATE DATABASE IF NOT EXISTS \`'"$mysql_db_name"'\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"' \
+                setupmno-mysql "$mysql_pass" >/dev/null 2>&1 || true
+        else
+            log_aviso "MySQL foi solicitado, mas o container (${mysql_host}) não está ativo no Docker. As variáveis de conexão foram injetadas no manifesto."
+        fi
+
+        # PACOTE UNIVERSAL POLYGLOT DE VARIÁVEIS MYSQL / MARIADB:
+        # Padrão 1: Connection URI (Prisma, TypeORM, Drizzle, Django, FastAPI, Sequelize, NocoDB)
+        if [[ "$inject_postgres" != "true" ]]; then
+            env_block="${env_block}\n      - DATABASE_URL=mysql://root:${mysql_pass}@${mysql_host}:3306/${mysql_db_name}"
+        fi
+        env_block="${env_block}\n      - MYSQL_URL=mysql://root:${mysql_pass}@${mysql_host}:3306/${mysql_db_name}"
+        # Padrão 2: Variáveis desmembradas universais DB_* (Directus, Strapi, Ghost, Rocket.Chat)
+        if [[ "$inject_postgres" != "true" ]]; then
+            env_block="${env_block}\n      - DB_TYPE=mysql"
+            env_block="${env_block}\n      - DB_CLIENT=mysql"
+            env_block="${env_block}\n      - DB_ENGINE=mysql"
+            env_block="${env_block}\n      - DB_HOST=${mysql_host}"
+            env_block="${env_block}\n      - DB_PORT=3306"
+            env_block="${env_block}\n      - DB_NAME=${mysql_db_name}"
+            env_block="${env_block}\n      - DB_USER=root"
+            env_block="${env_block}\n      - DB_PASSWORD=${mysql_pass}"
+        fi
+        # Padrão 3: Variáveis desmembradas Padrão MySQL Oficial (WordPress, PHP, Docker oficial MySQL, Laravel)
+        env_block="${env_block}\n      - MYSQL_HOST=${mysql_host}"
+        env_block="${env_block}\n      - MYSQL_PORT=3306"
+        env_block="${env_block}\n      - MYSQL_DATABASE=${mysql_db_name}"
+        env_block="${env_block}\n      - MYSQL_USER=root"
+        env_block="${env_block}\n      - MYSQL_PASSWORD=${mysql_pass}"
+        env_block="${env_block}\n      - MYSQL_ROOT_PASSWORD=${mysql_pass}"
+        env_block="${env_block}\n      - WORDPRESS_DB_HOST=${mysql_host}:3306"
+        env_block="${env_block}\n      - WORDPRESS_DB_NAME=${mysql_db_name}"
+        env_block="${env_block}\n      - WORDPRESS_DB_USER=root"
+        env_block="${env_block}\n      - WORDPRESS_DB_PASSWORD=${mysql_pass}"
     fi
 
     if [[ "$inject_redis" == "true" ]]; then
@@ -435,6 +504,7 @@ cmd_deploy() {
     local plan="pro"
     local inject_postgres="false"
     local inject_redis="false"
+    local inject_mysql="false"
     local cpu_limit="0.50"
     local mem_limit="512M"
     local git_repo=""
@@ -465,6 +535,7 @@ cmd_deploy() {
                 shift 2 ;;
             --inject-postgres) inject_postgres="true"; shift ;;
             --inject-redis) inject_redis="true"; shift ;;
+            --inject-mysql) inject_mysql="true"; shift ;;
             --cpu) cpu_limit="$2"; shift 2 ;;
             --mem) mem_limit="$2"; shift 2 ;;
             *) log_erro "Parâmetro desconhecido: $1"; return 1 ;;
@@ -591,7 +662,7 @@ cmd_deploy() {
 
     # Geração do manifesto Swarm (com suporte a Traefik SSL ou Cloudflare Tunnel)
     local stack_file="$work_dir/docker-compose.yml"
-    gerar_stack_swarm "$stack_file" "$app_name" "$image_tag" "$final_port" "$cpu_limit" "$mem_limit" "$inject_postgres" "$inject_redis" "$install_type" "$domain" "$extra_envs"
+    gerar_stack_swarm "$stack_file" "$app_name" "$image_tag" "$final_port" "$cpu_limit" "$mem_limit" "$inject_postgres" "$inject_redis" "$install_type" "$domain" "$extra_envs" "$inject_mysql"
 
     # Salva cópia na pasta raiz /root/${app_name}.yaml (e ${stack_name}.yaml se diferente)
     local root_yaml="/root/${app_name}.yaml"
@@ -633,13 +704,17 @@ cmd_deploy() {
         echo -e "• Arquivo YAML:   ${BOLD}/root/${app_name}.yaml${RESET}"
         echo -e "• Portainer:      ${BOLD}$([ "$criar_portainer" == "0" ] && echo "0 (Editável)" || echo "1 (Não editável)")${RESET}"
         echo -e "• Limite RAM:     ${BOLD}${mem_limit}${RESET} | CPU: ${BOLD}${cpu_limit}${RESET}"
-        echo -e "• Rota DNS Swarm: ${BOLD}http://${stack_name}_app:${final_port}${RESET}\n"
+        echo -e "• Rota DNS Swarm: ${BOLD}http://${stack_name}_app:${final_port}${RESET}"
+        [[ "$inject_postgres" == "true" ]] && echo -e "• Banco Conectado: ${BOLD}PostgreSQL Corporativo (DATABASE_URL)${RESET}"
+        [[ "$inject_mysql" == "true" ]] && echo -e "• Banco Conectado: ${BOLD}MySQL / MariaDB (MYSQL_URL)${RESET}"
+        [[ "$inject_redis" == "true" ]] && echo -e "• Cache Conectado: ${BOLD}Redis em Memória (REDIS_URL)${RESET}"
+        echo ""
 
         # Registra na pasta sagrada persistente
         "$REGISTRY_SCRIPT" register \
             "$app_name" "$stack_name" "$image_tag" "$stack_type" "$final_port" "${domain:-none}" \
             "$inject_postgres" "$inject_redis" "$cpu_limit" "$mem_limit" "$source_dir" "$install_type" \
-            "${git_repo:-none}" "$git_branch" "$criar_portainer"
+            "${git_repo:-none}" "$git_branch" "$criar_portainer" "$inject_mysql"
         
         # Salva o manifesto na pasta sagrada do app
         local sacred_app_dir
