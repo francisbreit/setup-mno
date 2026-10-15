@@ -340,6 +340,12 @@ menu_novo_deploy() {
         --inputbox "Digite o(s) subdomínio(s) (separados por vírgula se mais de um):\nExemplo: saas.meusite.com.br,api.meusite.com.br" 12 74 \
         "" 3>&1 1>&2 2>&3) || DOMAIN_INPUT=""
 
+    # Variáveis de Ambiente Personalizadas (Opcional)
+    local EXTRA_ENVS=""
+    EXTRA_ENVS=$(whiptail --title "⚙️ VARIÁVEIS ADICIONAIS (OPCIONAL)" \
+        --inputbox "Deseja definir variáveis de ambiente personalizadas?\nExemplo: CHAVE=VALOR,OUTRA_CHAVE=VALOR\n\n(Deixe em branco se não houver ou se preferir configurar depois no Portainer):" 13 74 \
+        "" 3>&1 1>&2 2>&3) || EXTRA_ENVS=""
+
     # Pergunta clássica do Portainer (0 = Editável no Portainer, 1 = Não poder editar)
     local CRIAR_PORTAINER="0"
     while true; do
@@ -357,8 +363,10 @@ menu_novo_deploy() {
     [[ "$CRIAR_PORTAINER" == "1" ]] && portainer_status_str="1 (Não editável)"
 
     # Confirmação antes do build
+    local envs_display="Padrão universal"
+    [[ -n "$EXTRA_ENVS" ]] && envs_display="$EXTRA_ENVS"
     if ! whiptail --title "CONFIRMAR DEPLOY NO SWARM" \
-        --yesno "Deseja iniciar o processamento e deploy da aplicação?\n\n• Nome: $APP_NAME\n• Auto-Injetar Postgres: $INJECT_PG\n• Auto-Injetar Redis: $INJECT_REDIS\n• Domínio(s) HTTPS: ${DOMAIN_INPUT:-Nenhum no momento}\n• Stack no Portainer: $portainer_status_str\n• Arquivo Raiz: /root/${APP_NAME}.yaml\n• Rede: interna / externa" 17 72; then
+        --yesno "Deseja iniciar o processamento e deploy da aplicação?\n\n• Nome: $APP_NAME\n• Auto-Injetar Postgres: $INJECT_PG (Polyglot)\n• Auto-Injetar Redis: $INJECT_REDIS\n• Domínio(s) HTTPS: ${DOMAIN_INPUT:-Nenhum no momento}\n• Variáveis Extras: $envs_display\n• Stack no Portainer: $portainer_status_str\n• Arquivo Raiz: /root/${APP_NAME}.yaml\n• Rede: interna / externa" 18 74; then
         return 0
     fi
 
@@ -379,6 +387,7 @@ menu_novo_deploy() {
     [[ -n "$GIT_URL" ]] && deploy_args+=(--git "$GIT_URL" --git-branch "$GIT_BRANCH")
     [[ -n "$GIT_TOKEN" ]] && deploy_args+=(--git-token "$GIT_TOKEN")
     [[ -n "$DOMAIN_INPUT" ]] && deploy_args+=(--domain "$DOMAIN_INPUT")
+    [[ -n "$EXTRA_ENVS" ]] && deploy_args+=(--env "$EXTRA_ENVS")
     [[ "$INJECT_PG" == "true" ]] && deploy_args+=(--inject-postgres)
     [[ "$INJECT_REDIS" == "true" ]] && deploy_args+=(--inject-redis)
     deploy_args+=(--portainer "$CRIAR_PORTAINER")

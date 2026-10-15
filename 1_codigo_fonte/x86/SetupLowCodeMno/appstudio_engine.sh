@@ -210,6 +210,7 @@ gerar_stack_swarm() {
     local inject_redis="$8"
     local install_type="${9:-CLOUDFLARE_TUNNEL}"
     local domain="${10:-none}"
+    local extra_envs="${11:-}"
 
     local env_block="    environment:\n      - PORT=${internal_port}\n      - APP_NAME=${service_name}"
     
@@ -229,21 +230,54 @@ gerar_stack_swarm() {
             docker exec "$pg_container" psql -U postgres -d postgres -c "CREATE DATABASE \"$db_name\";" >/dev/null 2>&1 || true
         fi
 
-        env_block="${env_block}\n      - DATABASE_URL=postgresql://postgres:${pg_pass}@postgres_postgres:5432/${db_name}\n      - MB_DB_CONNECTION_URI=postgresql://postgres:${pg_pass}@postgres_postgres:5432/${db_name}\n      - MB_DB_TYPE=postgres\n      - MB_DB_DBNAME=${db_name}\n      - MB_DB_PORT=5432\n      - MB_DB_USER=postgres\n      - MB_DB_PASS=${pg_pass}\n      - MB_DB_HOST=postgres_postgres"
+        # PACOTE UNIVERSAL POLYGLOT DE VARIÁVEIS DE BANCO DE DADOS:
+        # Padrão 1: Connection URI (Prisma, TypeORM, Drizzle, Django, FastAPI, Supabase, Hasura, NocoDB)
+        env_block="${env_block}\n      - DATABASE_URL=postgresql://postgres:${pg_pass}@postgres_postgres:5432/${db_name}"
+        # Padrão 2: Variáveis desmembradas universais DB_* (Directus, Strapi, Typebot, Evolution API, Rocket.Chat)
+        env_block="${env_block}\n      - DB_TYPE=postgres"
+        env_block="${env_block}\n      - DB_ENGINE=postgres"
+        env_block="${env_block}\n      - DB_HOST=postgres_postgres"
+        env_block="${env_block}\n      - DB_PORT=5432"
+        env_block="${env_block}\n      - DB_NAME=${db_name}"
+        env_block="${env_block}\n      - DB_USER=postgres"
+        env_block="${env_block}\n      - DB_PASSWORD=${pg_pass}"
+        # Padrão 3: Variáveis desmembradas POSTGRES_* (Containers oficiais e microsserviços DevOps)
+        env_block="${env_block}\n      - POSTGRES_HOST=postgres_postgres"
+        env_block="${env_block}\n      - POSTGRES_PORT=5432"
+        env_block="${env_block}\n      - POSTGRES_DB=${db_name}"
+        env_block="${env_block}\n      - POSTGRES_USER=postgres"
+        env_block="${env_block}\n      - POSTGRES_PASSWORD=${pg_pass}"
     fi
 
     if [[ "$inject_redis" == "true" ]]; then
         env_block="${env_block}\n      - REDIS_URL=redis://redis_redis:6379"
+        env_block="${env_block}\n      - REDIS_HOST=redis_redis"
+        env_block="${env_block}\n      - REDIS_PORT=6379"
     fi
 
-    # Otimização específica para imagens Java / Clojure (ex: Metabase)
+    # Fingerprint inteligente: Metabase (Java / Clojure)
     if [[ "$image_tag" == *"metabase"* ]]; then
-        env_block="${env_block}\n      - JAVA_TOOL_OPTIONS=-Xmx768m -Xms256m -Dfile.encoding=UTF-8\n      - MB_JETTY_PORT=${internal_port}\n      - MB_JETTY_HOST=0.0.0.0"
+        env_block="${env_block}\n      - JAVA_TOOL_OPTIONS=-Xmx1024m -Xms256m -Dfile.encoding=UTF-8\n      - MB_JETTY_PORT=${internal_port}\n      - MB_JETTY_HOST=0.0.0.0"
+        if [[ "$inject_postgres" == "true" ]]; then
+            env_block="${env_block}\n      - MB_DB_TYPE=postgres\n      - MB_DB_DBNAME=${db_name}\n      - MB_DB_PORT=5432\n      - MB_DB_USER=postgres\n      - MB_DB_PASS=${pg_pass}\n      - MB_DB_HOST=postgres_postgres"
+        fi
         if [[ -n "$domain" && "$domain" != "none" ]]; then
             local first_dom
             first_dom="$(echo "$domain" | cut -d',' -f1 | tr -d ' ')"
             [[ -n "$first_dom" ]] && env_block="${env_block}\n      - MB_SITE_URL=https://${first_dom}\n      - MB_REDIRECT_ALL_REQUESTS_TO_HTTPS=true"
         fi
+    fi
+
+    # Injeção de variáveis personalizadas adicionais fornecidas pelo usuário
+    if [[ -n "$extra_envs" ]]; then
+        local old_ifs="$IFS"
+        IFS=',; ' read -ra ENVS_ARR <<< "$extra_envs"
+        IFS="$old_ifs"
+        for item in "${ENVS_ARR[@]}"; do
+            item="$(echo "$item" | tr -d ' ')"
+            [[ -z "$item" || "$item" != *"="* ]] && continue
+            env_block="${env_block}\n      - ${item}"
+        done
     fi
 
     local networks_block="    networks:\n      - interna\n      - externa"
@@ -407,6 +441,7 @@ cmd_deploy() {
     local git_branch="main"
     local git_token=""
     local criar_portainer="0"
+    local extra_envs=""
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -421,6 +456,13 @@ cmd_deploy() {
             --install-type) install_type="$2"; shift 2 ;;
             --plan) plan="$2"; shift 2 ;;
             --portainer) criar_portainer="$2"; shift 2 ;;
+            --env|--envs)
+                if [[ -z "$extra_envs" ]]; then
+                    extra_envs="$2"
+                else
+                    extra_envs="${extra_envs},$2"
+                fi
+                shift 2 ;;
             --inject-postgres) inject_postgres="true"; shift ;;
             --inject-redis) inject_redis="true"; shift ;;
             --cpu) cpu_limit="$2"; shift 2 ;;
@@ -549,7 +591,7 @@ cmd_deploy() {
 
     # Geração do manifesto Swarm (com suporte a Traefik SSL ou Cloudflare Tunnel)
     local stack_file="$work_dir/docker-compose.yml"
-    gerar_stack_swarm "$stack_file" "$app_name" "$image_tag" "$final_port" "$cpu_limit" "$mem_limit" "$inject_postgres" "$inject_redis" "$install_type" "$domain"
+    gerar_stack_swarm "$stack_file" "$app_name" "$image_tag" "$final_port" "$cpu_limit" "$mem_limit" "$inject_postgres" "$inject_redis" "$install_type" "$domain" "$extra_envs"
 
     # Salva cópia na pasta raiz /root/${app_name}.yaml (e ${stack_name}.yaml se diferente)
     local root_yaml="/root/${app_name}.yaml"
@@ -624,7 +666,14 @@ cmd_deploy() {
             fi
         fi
     else
-        log_aviso "O serviço foi criado, mas ainda está iniciando réplicas. Verifique com 'docker service ps ${stack_name}_app'."
+        log_aviso "O serviço foi criado, mas não atingiu status 1/1 saudável no tempo limite de inicialização."
+        echo -e "\n${BOLD}${AMARELO}ℹ️ DICA SETUP MNO DEV-OPS:${RESET}"
+        echo -e "• Algumas aplicações do Docker Hub realizam migrações longas ou exigem variáveis de ambiente específicas."
+        echo -e "• Para checar os logs do container em tempo real:"
+        echo -e "  ${CIANO}docker service logs -f ${stack_name}_app${RESET}"
+        echo -e "• Para ajustar variáveis no Portainer (se criado como editável):"
+        echo -e "  ${CIANO}Acesse Stacks > ${stack_name} > Editor${RESET}"
+        echo -e "• Ou edite o arquivo no terminal: ${CIANO}/root/${app_name}.yaml${RESET}\n"
     fi
 
     return 0
