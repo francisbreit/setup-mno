@@ -1197,7 +1197,7 @@ else
 data_expiracao=$(date -d "$(echo $DATAAQ | awk -F/ '{print $2 "/" $1 "/" $3}') +8 days" +'%d/%m/%Y')
 fi
 
-msg_expiracao="$msg_expiracao"
+msg_expiracao="Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)"
 shc -r -e $data_expiracao -m "$msg_expiracao" -o affine -f affine.sh
 rm affine.sh
 rm affine.sh.x.c

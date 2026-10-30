@@ -1185,7 +1185,7 @@ data_expiracao=$(date +'%d/%m/%Y' -d "+7 days")
 data_expiracao=$(date -d "$(echo $DATAAQ | awk -F/ '{print $2 "/" $1 "/" $3}') +8 days" +'%d/%m/%Y')
     fi
 
-msg_expiracao="$msg_expiracao"
+msg_expiracao="Seu periodo de uso desta versão do SetupMno expirou. Instale novamente ou entre em contato com +55 (11) 968162690 (FrancisMNO)"
 #data_expiracao=$(date +'%d/%m/%Y' -d "+7 days")
 #data_expiracao=$(date -d "$(echo $DATAAQ | awk -F/ '{print $2 "/" $1 "/" $3}') +8 days" +'%d/%m/%Y')
 
