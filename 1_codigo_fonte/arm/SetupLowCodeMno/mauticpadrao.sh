@@ -178,6 +178,12 @@ whiptail --title "MAUTIC 4 PADRÃO: AUTOMAÇÃO DE MARKETING" --menu "Aperte ENT
 case $CHOICE in
 	"1)")   
 		clear
+                if ! whiptail --title "⚠️ ALERTA DE SEGURANÇA: RUNTIME LEGADO (MAUTIC 4)" --yesno \
+"ATENÇÃO: Você selecionou o MAUTIC 4 PADRÃO.\n\nEsta versão utiliza a imagem v4 com runtime legado (PHP 8.0 anterior às correções críticas de segurança de out/2026).\n\nRECOMENDAÇÃO OFICIAL MNO:\nRecomendamos fortemente a instalação do MAUTIC 7 PADRÃO, que já utiliza o PHP 8.3.36 oficial com todas as correções aplicadas.\n\nDeseja prosseguir com a instalação do Mautic 4 Padrão mesmo assim?" --fb 16 76; then
+                    clear
+                    cd
+                    exit 0
+                fi
         break
 	;;
 	
