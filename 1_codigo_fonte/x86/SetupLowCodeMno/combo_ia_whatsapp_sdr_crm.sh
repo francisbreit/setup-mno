@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 #########################################################
-# Setup MNO — Combo Blueprint #002: Agentes IA WhatsApp SDR 24/7 + Krayin CRM
-# Ecossistema: Chatwoot + Evolution API v2 + RabbitMQ + MinIO + Krayin CRM + n8n v2 (Fila) + Mautic 7
+# Setup MNO — Combo Blueprint #002: Agentes IA WhatsApp SDR 24/7 + Mautic 7
+# Ecossistema: Chatwoot + Evolution API v2 + RabbitMQ + MinIO + n8n v2 (Fila) + Mautic 7 Padrão
 #########################################################
 export NEWT_COLORS='
 root=,white
@@ -91,25 +91,23 @@ run_step_with_check() {
 
 while true; do
 CHOICE=$(
-whiptail --title "BLUEPRINT #002: COMBO AGENTES IA WHATSAPP + SDR 24/7 + CRM" --menu \
-"Bem-vindo ao Combo do Blueprint #002: Agentes IA no WhatsApp com CRM!\n\nEste ecossistema integra Inteligência Artificial receptiva (24/7), triagem SDR, follow-up anti-vácuo, gestão no Krayin CRM e handoff para atendentes no Chatwoot.\n\nTIPO DE INSTALAÇÃO: $INSTALL_TYPE\nREQUISITO RECOMENDADO: 8 GB a 12 GB de RAM\n\nEscolha uma opção (Utilize as setas e Enter):" 22 76 6 \
-  "1)" "INSTALAÇÃO GUIADA COMPLETA (4 ETAPAS COM DETECÇÃO)" \
+whiptail --title "BLUEPRINT #002: COMBO AGENTES IA WHATSAPP + SDR 24/7 + MARKETING" --menu \
+"Bem-vindo ao Combo do Blueprint #002: Agentes IA no WhatsApp com Automação de Marketing!\n\nEste ecossistema integra Inteligência Artificial receptiva (24/7), triagem SDR, follow-up anti-vácuo, motor n8n e nutrição de leads no Mautic 7 Padrão e handoff para atendentes no Chatwoot.\n\nTIPO DE INSTALAÇÃO: $INSTALL_TYPE\nREQUISITO RECOMENDADO: 8 GB a 12 GB de RAM\n\nEscolha uma opção (Utilize as setas e Enter):" 22 76 5 \
+  "1)" "INSTALAÇÃO GUIADA COMPLETA (3 ETAPAS COM DETECÇÃO)" \
   "2)" "Etapa 1: Chatwoot (Desbloqueado) + Evolution 2.0 + RabbitMQ + MinIO" \
-  "3)" "Etapa 2: Krayin CRM (Pipeline e Leads de Vendas)" \
-  "4)" "Etapa 3: n8n v2 - Modo Fila (Queue)" \
-  "5)" "Etapa 4: Mautic 7 WhatsApp Mkt (Opcional: Nutrição)" \
-  "6)" "SAIR PARA O MENU PRINCIPAL" 3>&2 2>&1 1>&3
+  "3)" "Etapa 2: n8n v2 - Modo Fila (Queue)" \
+  "4)" "Etapa 3: Mautic 7 Padrão (Automação de Marketing)" \
+  "5)" "SAIR PARA O MENU PRINCIPAL" 3>&2 2>&1 1>&3
 )
 
 case $CHOICE in
   "1)")
-    run_step_with_check "PASSO 1 DE 4 — COMUNICAÇÃO E ATENDIMENTO" "chatwootorig_desbloq__evo2_rabbitmq_minio" "chatwoot" "Chatwoot (Desbloqueado) + Evolution 2.0 + RabbitMQ + MinIO" 1
-    run_step_with_check "PASSO 2 DE 4 — GESTÃO COMERCIAL E PIPELINE" "krayincrm" "krayincrm" "Krayin CRM" 1
-    run_step_with_check "PASSO 3 DE 4 — MOTOR DE AUTOMAÇÃO E AGENTES IA" "n8n2" "n8n" "n8n v2 - Modo Fila (Queue)" 1
-    run_step_with_check "PASSO 4 DE 4 — NUTRIÇÃO DE LEADS (OPCIONAL)" "mautic7whatsmkt" "mautic" "Mautic 7 WhatsApp Mkt" 1
+    run_step_with_check "PASSO 1 DE 3 — COMUNICAÇÃO E ATENDIMENTO" "chatwootorig_desbloq__evo2_rabbitmq_minio" "chatwoot" "Chatwoot (Desbloqueado) + Evolution 2.0 + RabbitMQ + MinIO" 1
+    run_step_with_check "PASSO 2 DE 3 — MOTOR DE AUTOMAÇÃO E AGENTES IA" "n8n2" "n8n" "n8n v2 - Modo Fila (Queue)" 1
+    run_step_with_check "PASSO 3 DE 3 — NUTRIÇÃO E MARKETING BLINDADO" "mautic7padrao" "mautic" "Mautic 7 Padrão" 1
 
     whiptail --title "PARABÉNS! INSTALAÇÃO DO COMBO CONCLUÍDA!" --msgbox \
-      "Todas as ferramentas do Blueprint #002 foram configuradas com sucesso!\n\nConsulte o arquivo LEIA_ME.txt ou o Control Center na aba Blueprints para obter os arquivos de workflow do n8n, personas/prompts do SDR e mapeamento do Krayin CRM." 14 72
+      "Todas as ferramentas do Blueprint #002 foram configuradas com sucesso!\n\nConsulte o arquivo LEIA_ME.txt ou o Control Center na aba Blueprints para obter os arquivos de workflow do n8n, personas/prompts do SDR e fluxos de nutrição no Mautic 7 Padrão." 14 72
     break
   ;;
 
@@ -118,18 +116,14 @@ case $CHOICE in
   ;;
 
   "3)")
-    run_step_with_check "ETAPA 2 — GESTÃO COMERCIAL E PIPELINE" "krayincrm" "krayincrm" "Krayin CRM" 0
+    run_step_with_check "ETAPA 2 — MOTOR DE AUTOMAÇÃO E AGENTES IA" "n8n2" "n8n" "n8n v2 - Modo Fila (Queue)" 0
   ;;
 
   "4)")
-    run_step_with_check "ETAPA 3 — MOTOR DE AUTOMAÇÃO E AGENTES IA" "n8n2" "n8n" "n8n v2 - Modo Fila (Queue)" 0
+    run_step_with_check "ETAPA 3 — NUTRIÇÃO E MARKETING BLINDADO" "mautic7padrao" "mautic" "Mautic 7 Padrão" 0
   ;;
 
   "5)")
-    run_step_with_check "ETAPA 4 — NUTRIÇÃO DE LEADS (OPCIONAL)" "mautic7whatsmkt" "mautic" "Mautic 7 WhatsApp Mkt" 0
-  ;;
-
-  "6)")
     cd /
     cd
     exit 0

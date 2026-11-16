@@ -282,6 +282,12 @@ whiptail --title "MAUTIC 7 + WHATSAPP MKT: AUTOMAÇÃO DE MARKETING" --menu "Ape
 case $CHOICE in
         "1)")
                 clear
+                if ! whiptail --title "⚠️ ALERTA DE SEGURANÇA: RUNTIME LEGADO (PHP 8.3.31)" --yesno \
+"ATENÇÃO: Você selecionou o MAUTIC 7 WHATSAPP MKT.\n\nEsta versão utiliza uma imagem base com runtime PHP 8.3.31 (anterior às correções críticas de segurança de out/2026).\n\nRECOMENDAÇÃO OFICIAL MNO:\nRecomendamos fortemente a instalação do MAUTIC 7 PADRÃO, que já utiliza o PHP 8.3.36 oficial com todas as correções de segurança aplicadas.\n\nDeseja prosseguir com a instalação do Mautic 7 WhatsApp Mkt mesmo assim?" --fb 16 76; then
+                    clear
+                    cd
+                    exit 0
+                fi
         break
         ;;
 
