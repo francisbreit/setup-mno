@@ -928,7 +928,7 @@ services:
 
 
   mautic_web$sufixo_app:
-    image: mautic/mautic:7.1.2-20260601-apache
+    image: mautic/mautic:7.2.2-20261026-apache
 
     volumes:
       - $nome_app-config:/var/www/html/config
@@ -994,7 +994,7 @@ fi
 cat >> $nome_app.yaml << EOL
 
   mautic_worker$sufixo_app:
-    image: mautic/mautic:7.1.2-20260601-apache
+    image: mautic/mautic:7.2.2-20261026-apache
 
     volumes:
       - $nome_app-config:/var/www/html/config
@@ -1046,7 +1046,7 @@ cat >> $nome_app.yaml << EOL
 
 
   mautic_cron$sufixo_app:
-    image: mautic/mautic:7.1.2-20260601-apache
+    image: mautic/mautic:7.2.2-20261026-apache
 
     volumes:
       - $nome_app-config:/var/www/html/config
