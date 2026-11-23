@@ -5,11 +5,6 @@
 # ==============================================================================
 set -e
 
-# Reconectar stdin ao terminal interativo caso chamado via pipe (curl | bash)
-if [ ! -t 0 ] && [ -e /dev/tty ]; then
-    exec < /dev/tty
-fi
-
 VERSIONSETUP="7.49.0"
 AMARELO="\e[33m"
 VERDE="\e[32m"
@@ -229,6 +224,10 @@ ln -sf "$TARGET_DIR/install.sh" "$TARGET_DIR/install"
 echo -e "${VERDE}✅ Setup MNO Open-Source preparado com sucesso!${RESET}"
 sleep 1
 
-# 6. Handoff direto para o instalador oficial (que gerencia o TMUX nativamente)
+# 6. Handoff direto para o instalador oficial (conectando o terminal real ao menu)
 cd "$TARGET_DIR"
-exec bash "$TARGET_DIR/install.sh"
+if [ -e /dev/tty ]; then
+    exec bash "$TARGET_DIR/install.sh" < /dev/tty
+else
+    exec bash "$TARGET_DIR/install.sh"
+fi

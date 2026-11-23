@@ -35,7 +35,7 @@ Diferente de alternativas do mercado que consomem de 1.5 GB a 2.5 GB de memória
 Em uma VPS limpa (Debian 11/12/13, Ubuntu 20.04/22.04/24.04 ou Windows 10/11 com WSL2 + Docker Desktop), execute como **root**:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/francisbreit/setup-mno/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/francisbreit/setup-mno/master/install.sh -o /tmp/install.sh && bash /tmp/install.sh
 ```
 
 > **Tempo de inicialização:** Menos de 2 segundos. Sem compilações lentas, sem travas e sem riscos de expiração.
