@@ -25,6 +25,11 @@ fi
 SETUP_MNO_TMUX_SESSION="setup-mno"
 SETUP_MNO_TMUX_LIFECYCLE="3"
 
+setupmno_is_wsl() {
+    grep -qi microsoft /proc/sys/kernel/osrelease 2>/dev/null ||
+        grep -qi microsoft /proc/version 2>/dev/null
+}
+
 #########################################################
 # DESCOBRE O CAMINHO REAL DO EXECUTÁVEL ATUAL
 #########################################################
@@ -127,11 +132,11 @@ fi
 
 if [ -z "${TMUX:-}" ] && [ -t 0 ] && [ -t 1 ]; then
 
-    #####################################################
-    # VERIFICA SE O TMUX ESTÁ DISPONÍVEL
-    #####################################################
-
-    if command -v tmux >/dev/null 2>&1; then
+    # No ambiente WSL2, o terminal é local no Windows (Windows Terminal/Console),
+    # não havendo risco de desconexão por queda de SSH. Pulamos o tmux no WSL2 para
+    # abertura imediata e sem conflitos de pseudo-terminal. Em VPS remota, o tmux
+    # continua protegendo a instalação.
+    if ! setupmno_is_wsl && [ "${SETUPMNO_DISABLE_TMUX:-0}" != "1" ] && command -v tmux >/dev/null 2>&1; then
 
         #################################################
         # JÁ EXISTE UMA SESSÃO SETUP-MNO
@@ -151,17 +156,13 @@ if [ -z "${TMUX:-}" ] && [ -t 0 ] && [ -t 1 ]; then
             else
 
                 # Reconecta à instalação ainda em andamento.
-                #
-                # O parâmetro -d desconecta uma sessão SSH antiga
-                # eventualmente presa e conecta o terminal atual.
-
-                tmux attach-session -d -t "$SETUP_MNO_TMUX_SESSION"
-
-                TMUX_STATUS=$?
-
-                # Encerra somente esta instância externa do install.
-                # O controle retorna ao processo que chamou o install.
-                exit "$TMUX_STATUS"
+                # Se falhar ao reconectar, encerra a sessão travada e continua no terminal atual.
+                if tmux attach-session -d -t "$SETUP_MNO_TMUX_SESSION"; then
+                    TMUX_STATUS=$?
+                    exit "$TMUX_STATUS"
+                else
+                    tmux kill-session -t "$SETUP_MNO_TMUX_SESSION" >/dev/null 2>&1 || true
+                fi
             fi
         fi
 
@@ -173,59 +174,23 @@ if [ -z "${TMUX:-}" ] && [ -t 0 ] && [ -t 1 ]; then
 
         clear
 
-        #################################################
-        # IMPORTANTE PARA SHC
-        #
-        # NÃO USAR:
-        #
-        # bash "$SETUP_MNO_INSTALL_SCRIPT"
-        #
-        # O arquivo gerado pelo SHC é um executável binário.
-        # Ele deve ser executado diretamente.
-        #################################################
-
-        # O wrapper aguarda o binário SHC terminar e então remove somente a
-        # sessão do Setup MNO. Uma queda de SSH apenas desanexa o cliente e
-        # não alcança esta limpeza enquanto a instalação estiver em curso.
-        tmux new-session -d \
+        # O wrapper aguarda o instalador terminar e então remove somente a
+        # sessão do Setup MNO. Uma queda de SSH apenas desanexa o cliente.
+        if tmux new-session -d \
             -s "$SETUP_MNO_TMUX_SESSION" \
-            "\"$SETUP_MNO_INSTALL_SCRIPT\"; setup_mno_status=\$?; tmux kill-session -t \"$SETUP_MNO_TMUX_SESSION\" >/dev/null 2>&1 || true; exit \$setup_mno_status"
+            "\"$SETUP_MNO_INSTALL_SCRIPT\"; setup_mno_status=\$?; tmux kill-session -t \"$SETUP_MNO_TMUX_SESSION\" >/dev/null 2>&1 || true; exit \$setup_mno_status" 2>/dev/null; then
 
-        TMUX_STATUS=$?
+            tmux set-option -t "$SETUP_MNO_TMUX_SESSION" \
+                @setup_mno_lifecycle "$SETUP_MNO_TMUX_LIFECYCLE" 2>/dev/null || true
 
-        if [ "$TMUX_STATUS" -ne 0 ]; then
-            exit "$TMUX_STATUS"
+            if tmux attach-session -t "$SETUP_MNO_TMUX_SESSION"; then
+                TMUX_STATUS=$?
+                exit "$TMUX_STATUS"
+            else
+                tmux kill-session -t "$SETUP_MNO_TMUX_SESSION" >/dev/null 2>&1 || true
+            fi
         fi
 
-        tmux set-option -t "$SETUP_MNO_TMUX_SESSION" \
-            @setup_mno_lifecycle "$SETUP_MNO_TMUX_LIFECYCLE"
-
-        if tmux attach-session -t "$SETUP_MNO_TMUX_SESSION"; then
-            TMUX_STATUS=$?
-            exit "$TMUX_STATUS"
-        else
-            echo "⚠️  Não foi possível conectar à sessão TMUX. Continuando diretamente no terminal..."
-            tmux kill-session -t "$SETUP_MNO_TMUX_SESSION" >/dev/null 2>&1 || true
-        fi
-
-    else
-
-        #################################################
-        # FALLBACK
-        #
-        # O pré-instalador deveria ter instalado o TMUX.
-        # Se por algum motivo ele não existir, não abortamos
-        # o Setup MNO. A instalação continua sem proteção.
-        #################################################
-
-        clear
-
-        echo "AVISO: TMUX não encontrado."
-        echo "O Setup MNO continuará normalmente, porém sem"
-        echo "proteção contra queda da conexão SSH."
-        echo
-
-        sleep 3
     fi
 
 fi

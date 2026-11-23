@@ -224,10 +224,10 @@ ln -sf "$TARGET_DIR/install.sh" "$TARGET_DIR/install"
 echo -e "${VERDE}✅ Setup MNO Open-Source preparado com sucesso!${RESET}"
 sleep 1
 
-# 6. Handoff direto para o instalador oficial (conectando o terminal real ao menu)
-cd "$TARGET_DIR"
-if [ -e /dev/tty ]; then
-    exec bash "$TARGET_DIR/install.sh" < /dev/tty
-else
-    exec bash "$TARGET_DIR/install.sh"
+# 6. Limpeza de sessões tmux residuais e handoff direto para o instalador oficial
+if command -v tmux >/dev/null 2>&1; then
+    tmux kill-session -t setup-mno 2>/dev/null || true
 fi
+
+cd "$TARGET_DIR"
+exec bash "$TARGET_DIR/install.sh"
