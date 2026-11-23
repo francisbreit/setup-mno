@@ -169,29 +169,38 @@ TARGET_DIR="/root/SetupLowCodeMno"
 mkdir -p "$TARGET_DIR"
 
 # 4. Obtenção do pacote SetupLowCodeMno
-# Suporte a espelho local, customizado ou remoto oficial
-MIRROR_BASE="${SETUPMNO_MIRROR_URL:-https://manualnegocioonline.com.br/downloads/mno}"
-ZIP_URL="${MIRROR_BASE}/${ARCH_DIR}/SetupLowCodeMno.zip"
+TARGET_DIR="/root/SetupLowCodeMno"
+mkdir -p "$TARGET_DIR"
 
-if [ -f "./SetupLowCodeMno.zip" ]; then
-    echo -e "${BEGE}📂 Usando pacote local SetupLowCodeMno.zip...${RESET}"
-    unzip -q -o "./SetupLowCodeMno.zip" -d /root/
-elif [ -d "./SetupLowCodeMno" ] && [ ! "$PWD" = "/root" ]; then
+if [ -d "./SetupLowCodeMno" ] && [ ! "$PWD" = "/root" ]; then
     echo -e "${BEGE}📂 Sincronizando pasta local SetupLowCodeMno...${RESET}"
     cp -r "./SetupLowCodeMno" /root/
+elif [ -f "./SetupLowCodeMno.zip" ]; then
+    echo -e "${BEGE}📂 Usando pacote local SetupLowCodeMno.zip...${RESET}"
+    unzip -q -o "./SetupLowCodeMno.zip" -d /root/
+elif [ -f "$TARGET_DIR/install.sh" ]; then
+    echo -e "${VERDE}✅ Instalação existente do Setup MNO detectada em $TARGET_DIR.${RESET}"
 else
-    echo -e "${AMARELO}⬇️  Baixando SetupLowCodeMno v${VERSIONSETUP} (${ARCH_DIR})...${RESET}"
-    TMP_ZIP="/tmp/SetupLowCodeMno_${ARCH_DIR}.zip"
-    rm -f "$TMP_ZIP"
-    if curl --fail --location --silent --show-error -o "$TMP_ZIP" "$ZIP_URL" 2>/dev/null || \
-       wget -q -O "$TMP_ZIP" "$ZIP_URL" 2>/dev/null; then
-        echo -e "${VERDE}✅ Download concluído. Extraindo arquivos (sem travas)...${RESET}"
-        unzip -q -o "$TMP_ZIP" -d /root/
-        rm -f "$TMP_ZIP"
+    echo -e "${AMARELO}⬇️  Baixando SetupLowCodeMno diretamente do GitHub oficial...${RESET}"
+    TMP_DIR="/tmp/setupmno_github_download"
+    rm -rf "$TMP_DIR"
+    mkdir -p "$TMP_DIR"
+    if curl --fail --location --silent --show-error "https://github.com/francisbreit/setup-mno/archive/refs/heads/master.tar.gz" | tar -xz -C "$TMP_DIR" 2>/dev/null; then
+        echo -e "${VERDE}✅ Código-fonte baixado do GitHub com sucesso!${RESET}"
+        cp -r "$TMP_DIR/setup-mno-master/1_codigo_fonte/${ARCH_DIR}/SetupLowCodeMno" /root/
+        rm -rf "$TMP_DIR"
     else
-        if [ ! -f "$TARGET_DIR/install.sh" ]; then
-            echo -e "${VERMELHO}❌ Erro ao baixar o pacote oficial de: $ZIP_URL${RESET}" >&2
-            echo -e "${BEGE}Dica: se estiver testando localmente, execute o empacotador gerar_distribuicao_opensource.sh primeiro.${RESET}" >&2
+        echo -e "${BEGE}Tentando download alternativo via espelho MNO...${RESET}"
+        MIRROR_BASE="${SETUPMNO_MIRROR_URL:-https://manualnegocioonline.com.br/downloads/mno}"
+        ZIP_URL="${MIRROR_BASE}/${ARCH_DIR}/SetupLowCodeMno.zip"
+        TMP_ZIP="/tmp/SetupLowCodeMno_${ARCH_DIR}.zip"
+        rm -f "$TMP_ZIP"
+        if curl --fail --location --silent --show-error -o "$TMP_ZIP" "$ZIP_URL" 2>/dev/null || \
+           wget -q -O "$TMP_ZIP" "$ZIP_URL" 2>/dev/null; then
+            unzip -q -o "$TMP_ZIP" -d /root/
+            rm -f "$TMP_ZIP"
+        else
+            echo -e "${VERMELHO}❌ Erro ao baixar o pacote oficial.${RESET}" >&2
             exit 1
         fi
     fi
