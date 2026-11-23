@@ -64,25 +64,39 @@ setup_mno_resolve_script_path() {
 #########################################################
 
 setup_mno_return_to_installer() {
-    local install_binary="${1:-/root/SetupLowCodeMno/install}"
+    local install_target="${1:-}"
     local install_dir
 
-    if [ ! -x "$install_binary" ]; then
+    if [ -z "$install_target" ]; then
+        if [ -x "/root/SetupLowCodeMno/install" ] && [ ! -d "/root/SetupLowCodeMno/install" ]; then
+            install_target="/root/SetupLowCodeMno/install"
+        elif [ -f "/root/SetupLowCodeMno/install.sh" ]; then
+            install_target="/root/SetupLowCodeMno/install.sh"
+        elif [ -f "./install.sh" ]; then
+            install_target="./install.sh"
+        else
+            install_target="/root/SetupLowCodeMno/install"
+        fi
+    fi
+
+    if [ ! -e "$install_target" ]; then
         whiptail --title "ERRO AO RETORNAR AO SETUP MNO" --msgbox \
-            "O binário $install_binary não foi encontrado ou não possui permissão de execução.\n\nA sessão foi preservada, mas o menu não pode ser reaberto." \
+            "O instalador $install_target não foi encontrado.\n\nA sessão foi preservada, mas o menu não pode ser reaberto." \
             14 78 1>&2
         return 127
     fi
 
-    install_dir=$(dirname -- "$install_binary") || return 127
+    install_dir=$(dirname -- "$install_target") || return 127
     clear
     cd "$install_dir" || return 127
 
-    # O runtime é compilado pelo SHC: execute o binário diretamente.
-    exec "$install_binary"
+    if [ -x "$install_target" ] && [ ! -d "$install_target" ]; then
+        exec "$install_target"
+    fi
+    exec bash "$install_target"
 
     whiptail --title "ERRO AO RETORNAR AO SETUP MNO" --msgbox \
-        "Não foi possível executar novamente o binário $install_binary." \
+        "Não foi possível executar novamente o instalador $install_target." \
         12 76 1>&2
     return 127
 }
@@ -498,7 +512,15 @@ setupmno_update_title() {
 
 if [[ ("$traefik_container" == "") || ("$portainer_container" == "") || ("$postgres_container" == "") || ("$redis_container" == "") || ("$pgbouncer_container" == "") || ("$network_id_agent_network" == "") || ("$network_id_externa" == "") || ("$network_id_interna" == "") ]]; then
     clear
-    cd /root/SetupLowCodeMno && ./dockerswarm
+    cd /root/SetupLowCodeMno && {
+        if [ -f "./dockerswarm.sh" ]; then
+            bash ./dockerswarm.sh
+        elif [ -x "./dockerswarm" ]; then
+            ./dockerswarm
+        else
+            bash ./dockerswarm
+        fi
+    }
     dockerswarm_status=$?
     if [ "$dockerswarm_status" -ne 0 ]; then
         exit "$dockerswarm_status"
@@ -506,7 +528,7 @@ if [[ ("$traefik_container" == "") || ("$portainer_container" == "") || ("$postg
     setupmno_load_installation_type
     setupmno_refresh_docker_state
     setupmno_update_title
-    if [ -x /root/SetupLowCodeMno/install ]; then
+    if [ -x /root/SetupLowCodeMno/install ] || [ -f /root/SetupLowCodeMno/install.sh ]; then
         setup_mno_return_to_installer
     fi
 fi
@@ -530,7 +552,15 @@ run_app() {
         fi
     fi
     clear
-    cd && cd SetupLowCodeMno && ./"$script"
+    cd && cd SetupLowCodeMno && {
+        if [ -f "./${script}.sh" ]; then
+            bash "./${script}.sh"
+        elif [ -x "./${script}" ]; then
+            ./"$script"
+        elif [ -f "./${script}" ]; then
+            bash "./${script}"
+        fi
+    }
     if declare -F setupmno_domain_clear_selection >/dev/null 2>&1; then
         setupmno_domain_clear_selection
     fi
@@ -542,8 +572,8 @@ run_app() {
         return 0
     fi
 
-    # Todos os fluxos de saída retornam a uma instância limpa do binário SHC
-    # dentro da mesma sessão tmux. Nunca invoque install.sh nem use bash aqui.
+    # Todos os fluxos de saída retornam a uma instância limpa do instalador
+    # dentro da mesma sessão tmux, funcionando tanto em Bash puro quanto via SHC.
     setup_mno_return_to_installer
 }
 

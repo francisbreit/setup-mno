@@ -1396,7 +1396,15 @@ case $CHOICE in
         ;;
    "GERADOR DE REGISTROS DNS")
           clear
-        cd && cd SetupLowCodeMno && ./geracloudflare
+        cd && cd SetupLowCodeMno && {
+            if [ -f "./geracloudflare.sh" ]; then
+                bash ./geracloudflare.sh
+            elif [ -x "./geracloudflare" ]; then
+                ./geracloudflare
+            else
+                bash ./geracloudflare
+            fi
+        }
     ;;
 
 "SAIR")
