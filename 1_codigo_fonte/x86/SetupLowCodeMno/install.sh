@@ -4,6 +4,11 @@
 # Menu explícito + dispatch dinâmico
 #########################################################
 
+# Reconectar stdin ao terminal interativo caso chamado via pipe
+if [ ! -t 0 ] && [ -e /dev/tty ]; then
+    exec < /dev/tty
+fi
+
 #########################################################
 # PROTEÇÃO DA SESSÃO DE INSTALAÇÃO CONTRA QUEDA DE SSH
 #
@@ -195,14 +200,13 @@ if [ -z "${TMUX:-}" ] && [ -t 0 ] && [ -t 1 ]; then
         tmux set-option -t "$SETUP_MNO_TMUX_SESSION" \
             @setup_mno_lifecycle "$SETUP_MNO_TMUX_LIFECYCLE"
 
-        tmux attach-session -t "$SETUP_MNO_TMUX_SESSION"
-
-        TMUX_STATUS=$?
-
-        # Quando a sessão TMUX terminar ou for desconectada,
-        # não continua executando uma segunda cópia do install
-        # fora do TMUX.
-        exit "$TMUX_STATUS"
+        if tmux attach-session -t "$SETUP_MNO_TMUX_SESSION"; then
+            TMUX_STATUS=$?
+            exit "$TMUX_STATUS"
+        else
+            echo "⚠️  Não foi possível conectar à sessão TMUX. Continuando diretamente no terminal..."
+            tmux kill-session -t "$SETUP_MNO_TMUX_SESSION" >/dev/null 2>&1 || true
+        fi
 
     else
 

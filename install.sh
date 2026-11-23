@@ -5,6 +5,11 @@
 # ==============================================================================
 set -e
 
+# Reconectar stdin ao terminal interativo caso chamado via pipe (curl | bash)
+if [ ! -t 0 ] && [ -e /dev/tty ]; then
+    exec < /dev/tty
+fi
+
 VERSIONSETUP="7.49.0"
 AMARELO="\e[33m"
 VERDE="\e[32m"
@@ -30,6 +35,13 @@ setupmno_normalize_arch() {
         aarch64|arm64) printf 'arm64\n' ;;
         *) return 1 ;;
     esac
+}
+
+configure_wsl_ipv4() {
+    if setupmno_is_wsl; then
+        mkdir -p /etc/apt/apt.conf.d 2>/dev/null || true
+        echo 'Acquire::ForceIPv4 "true";' > /etc/apt/apt.conf.d/99force-ipv4 2>/dev/null || true
+    fi
 }
 
 setupmno_prepare_debian13_apt() {
@@ -137,8 +149,14 @@ BANNER
 echo -e "${RESET}"
 echo -e "${BEGE}🚀 Inicializando Setup MNO v${VERSIONSETUP} em Modo Aberto e Transparente...${RESET}"
 
-# 1. Pré-requisitos de sistema e WSL2
-setupmno_validate_wsl_docker
+# 1. Pré-requisitos de sistema e detecção de ambiente
+if setupmno_is_wsl; then
+    echo -e "${VERDE}✅ Ambiente detectado: Windows WSL2 + Docker Desktop${RESET}"
+    setupmno_validate_wsl_docker
+    configure_wsl_ipv4
+else
+    echo -e "${VERDE}✅ Ambiente detectado: Servidor VPS Linux Dedicado${RESET}"
+fi
 setupmno_prepare_debian13_apt
 
 # 2. Instalação de utilitários básicos
@@ -169,9 +187,6 @@ TARGET_DIR="/root/SetupLowCodeMno"
 mkdir -p "$TARGET_DIR"
 
 # 4. Obtenção do pacote SetupLowCodeMno
-TARGET_DIR="/root/SetupLowCodeMno"
-mkdir -p "$TARGET_DIR"
-
 if [ -d "./SetupLowCodeMno" ] && [ ! "$PWD" = "/root" ]; then
     echo -e "${BEGE}📂 Sincronizando pasta local SetupLowCodeMno...${RESET}"
     cp -r "./SetupLowCodeMno" /root/
@@ -214,11 +229,6 @@ ln -sf "$TARGET_DIR/install.sh" "$TARGET_DIR/install"
 echo -e "${VERDE}✅ Setup MNO Open-Source preparado com sucesso!${RESET}"
 sleep 1
 
-# 6. Handoff direto para o instalador dentro de sessão Tmux
+# 6. Handoff direto para o instalador oficial (que gerencia o TMUX nativamente)
 cd "$TARGET_DIR"
-if [ -z "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1; then
-    echo -e "${BEGE}🛡️  Iniciando instalador protegido em sessão TMUX (setup-mno)...${RESET}"
-    tmux new-session -A -s setup-mno "bash $TARGET_DIR/install.sh"
-else
-    exec bash "$TARGET_DIR/install.sh"
-fi
+exec bash "$TARGET_DIR/install.sh"
