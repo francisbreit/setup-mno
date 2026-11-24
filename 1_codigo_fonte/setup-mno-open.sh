@@ -549,12 +549,12 @@ setupmno_ensure_control_runtime() {
 
     if [ -f "$inst_type_file" ] && [ ! -L "$inst_type_file" ]; then
         inst_type=$(head -n 1 "$inst_type_file" | tr -d '\r\n')
-    elif [ -f "$env_file" ] && [ ! -L "$env_file" ]; then
-        inst_type=$(jq -r '.installationType // empty' "$env_file" 2>/dev/null || true)
     elif [ -s "$cf_creds" ]; then
         inst_type="CLOUDFLARE_TUNNEL"
     elif [ -s "$trad_creds" ]; then
         inst_type="TRADICIONAL"
+    elif [ -f "$env_file" ] && [ ! -L "$env_file" ]; then
+        inst_type=$(jq -r '.installationType // empty' "$env_file" 2>/dev/null || true)
     fi
     case "$inst_type" in
         CLOUDFLARE_TUNNEL|TRADICIONAL) ;;
@@ -598,6 +598,8 @@ setupmno_ensure_control_runtime() {
     if [ ! -f "$env_file" ]; then
         needs_env=1
     elif ! jq -e '.schemaVersion == 1 and .plan and .installationType' "$env_file" >/dev/null 2>&1; then
+        needs_env=1
+    elif [ "$(jq -r '.installationType // empty' "$env_file" 2>/dev/null)" != "$inst_type" ]; then
         needs_env=1
     fi
 

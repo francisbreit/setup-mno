@@ -327,18 +327,23 @@ actcheckbox=white,green
 } || true
 
 setupmno_ensure_control_runtime() {
-    [ -f /root/SetupLowCodeMno/.control/environment.json ] && return 0
+    local env_file="/root/SetupLowCodeMno/.control/environment.json"
+    if [ -f "$env_file" ] && [ "$(jq -r '.installationType // empty' "$env_file" 2>/dev/null)" = "${INSTALL_TYPE:-}" ]; then
+        return 0
+    fi
     [ -f /root/SetupLowCodeMno/setupmno_control.sh ] && bash /root/SetupLowCodeMno/setupmno_control.sh --ensure-runtime 2>/dev/null || true
 }
 
 # --- VERIFICAR TIPO DE INSTALAÇÃO ---
 setupmno_load_installation_type() {
-    setupmno_ensure_control_runtime
     INSTALL_TYPE_FILE="/root/.cloudflared_config/installation_type"
     local env_file="/root/SetupLowCodeMno/.control/environment.json"
+    local cf_creds="/root/.cloudflared_config/cloudflare_credentials"
 
     if [ -f "$INSTALL_TYPE_FILE" ] && [ ! -L "$INSTALL_TYPE_FILE" ]; then
         INSTALL_TYPE=$(head -n 1 "$INSTALL_TYPE_FILE" | tr -d '\r\n')
+    elif [ -s "$cf_creds" ]; then
+        INSTALL_TYPE="CLOUDFLARE_TUNNEL"
     elif [ -f "$env_file" ] && [ ! -L "$env_file" ]; then
         INSTALL_TYPE=$(jq -r '.installationType // empty' "$env_file" 2>/dev/null || true)
     else
@@ -349,6 +354,7 @@ setupmno_load_installation_type() {
         CLOUDFLARE_TUNNEL|TRADICIONAL) ;;
         *) INSTALL_TYPE="TRADICIONAL" ;;
     esac
+    setupmno_ensure_control_runtime
 }
 setupmno_load_installation_type
 

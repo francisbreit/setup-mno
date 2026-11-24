@@ -61,13 +61,16 @@ if [ -n "$REQUESTED_INSTALL_TYPE" ]; then
 fi
 
 CONTROL_ENVIRONMENT_FILE="/root/SetupLowCodeMno/.control/environment.json"
-[ -f "$CONTROL_ENVIRONMENT_FILE" ] && [ ! -L "$CONTROL_ENVIRONMENT_FILE" ] || {
-    mkdir -p "/root/SetupLowCodeMno/.control" 2>/dev/null || true
-    chmod 0755 "/root/SetupLowCodeMno/.control" 2>/dev/null || true
-    printf '{"schemaVersion":1,"plan":"pro","installationType":"%s","fleetMode":"disabled"}\n' \
-        "$INSTALL_TYPE" > "$CONTROL_ENVIRONMENT_FILE" 2>/dev/null || true
+mkdir -p "/root/SetupLowCodeMno/.control" 2>/dev/null || true
+chmod 0755 "/root/SetupLowCodeMno/.control" 2>/dev/null || true
+if [ ! -f "$CONTROL_ENVIRONMENT_FILE" ] || [ -L "$CONTROL_ENVIRONMENT_FILE" ] || \
+   [ "$(jq -r '.installationType // ""' "$CONTROL_ENVIRONMENT_FILE" 2>/dev/null)" != "$INSTALL_TYPE" ]; then
+    curr_plan=$(jq -r '.plan // "pro"' "$CONTROL_ENVIRONMENT_FILE" 2>/dev/null || printf 'pro')
+    case "$curr_plan" in free|free1|free2|pro|pro-master) ;; *) curr_plan="pro" ;; esac
+    printf '{"schemaVersion":1,"plan":"%s","installationType":"%s","fleetMode":"disabled"}\n' \
+        "$curr_plan" "$INSTALL_TYPE" > "$CONTROL_ENVIRONMENT_FILE" 2>/dev/null || true
     chmod 0644 "$CONTROL_ENVIRONMENT_FILE" 2>/dev/null || true
-}
+fi
 if [ "${1:-}" = "--ensure-runtime" ]; then
     exit 0
 fi
@@ -1093,7 +1096,7 @@ if ! flock -n 9; then
     locking_pids=$(fuser "/root/SetupLowCodeMno/.setupmno-control-install.lock" 2>/dev/null || true)
     if [ -n "$locking_pids" ] && command -v whiptail >/dev/null 2>&1 && { [ -t 0 ] || [ -t 1 ] || [ -n "${SSH_TTY:-}" ] || [ -n "${TERM:-}" ]; }; then
         if whiptail --title "TRAVA DE INSTALAÇÃO DO CONTROL CENTER" --yesno \
-            "Já existe um processo segurando a trava de instalação.\nPID(s): $locking_pids\n\nIsso ocorre se a conexão SSH caiu ou a janela fechou.\nDeseja encerrar o processo anterior e liberar a trava agora?" 14 74 3>&1 1>&2 2>&3; then
+            "Processo segurando a trava.\nPID: $locking_pids\n\nDeseja liberar a trava agora?" 12 60 3>&1 1>&2 2>&3; then
             kill -15 $locking_pids 2>/dev/null || true
             sleep 1
             kill -9 $locking_pids 2>/dev/null || true
@@ -1103,7 +1106,7 @@ if ! flock -n 9; then
             exit 0
         fi
     else
-        msg "Já existe uma instalação do Setup MNO Control Center em andamento neste servidor.\n\nAguarde a conclusão antes de tentar novamente."
+        msg "Instalação do Control Center em andamento.\n\nAguarde a conclusão antes de tentar novamente."
         exit 0
     fi
 fi
@@ -1323,13 +1326,13 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
         access_mfa_enabled=$(jq -r '.desiredMFA' "$CONTROL_MFA_STATE_FILE")
         if [ "$access_mfa_enabled" = "true" ]; then
             whiptail --title "4/6 — PREFERÊNCIA DE MFA REGISTRADA" --msgbox \
-                "Decisão de MFA preservada da preparação do ambiente.\n\nO instalador validará o token atual e permitirá substituí-lo caso necessário." \
-                16 88 1>&2
+                "Decisão de MFA preservada. O instalador validará o token atual." \
+                14 74 1>&2
         fi
     else
         whiptail --title "4/6 — PROTEÇÃO CLOUDFLARE ACCESS" --msgbox \
-            "Esta instalação ainda não possui uma preferência registrada. Escolha MFA ou modo original; a decisão será preservada nas próximas atualizações." \
-            15 88 1>&2
+            "Escolha MFA ou modo original; a decisão será preservada nas próximas atualizações." \
+            14 74 1>&2
         choose_cloudflare_access_security || exit 0
         if [ "$access_mfa_enabled" = "true" ]; then
             write_control_mfa_state true false true control-fallback || exit 1
