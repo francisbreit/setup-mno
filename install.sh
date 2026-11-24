@@ -513,6 +513,24 @@ echo -e "${amarelo}⚙️  Configurando permissões do ambiente...${reset}"
 chmod +x "$TARGET_DIR"/*.sh 2>/dev/null || true
 ln -sf "$TARGET_DIR/install.sh" "$TARGET_DIR/install"
 
+# Inicializar ou reparar o estado do plano para o Setup MNO Open-Source
+TRIAL_DIR="$TARGET_DIR/.meu_app_trial"
+TRIAL_FILE="$TRIAL_DIR/trial_info"
+if [ ! -f "$TRIAL_FILE" ]; then
+    mkdir -p "$TRIAL_DIR" 2>/dev/null || true
+    chmod 700 "$TRIAL_DIR" 2>/dev/null || true
+    CURRENT_DATE=$(date +%d/%m/%Y)
+    TMP_TRIAL=$(mktemp "$TRIAL_DIR/trial_info.tmp.XXXXXX" 2>/dev/null || printf '%s/trial_info.tmp' "$TRIAL_DIR")
+    chmod 600 "$TMP_TRIAL" 2>/dev/null || true
+    cat > "$TMP_TRIAL" <<EOF
+DATA_INSTALACAO=$CURRENT_DATE
+DAYS_TRIAL=999
+PLANO="pro"
+EOF
+    mv -f "$TMP_TRIAL" "$TRIAL_FILE"
+    chmod 600 "$TRIAL_FILE" 2>/dev/null || true
+fi
+
 echo -e "${verde}✅ Setup MNO Open-Source preparado com sucesso!${reset}"
 sleep 1
 

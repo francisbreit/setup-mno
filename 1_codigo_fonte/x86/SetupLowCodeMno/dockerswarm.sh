@@ -1245,17 +1245,30 @@ write_trial_state() {
 # nem persiste as credenciais e deve somente preservar o estado autenticado.
 if [ ! -f "$TRIAL_FILE" ] || [ -L "$TRIAL_FILE" ] ||
    [ "$(stat -c '%s' "$TRIAL_FILE" 2>/dev/null || printf '0')" -gt 1024 ]; then
-    whiptail --title "ESTADO DE LICENÇA INVÁLIDO" --msgbox \
-        "O estado local do plano está ausente ou inseguro. Execute novamente o instalador oficial do Setup MNO para autenticar e reparar a instalação." 14 76
-    exit 41
+    if [ ! -e "$TRIAL_FILE" ]; then
+        mkdir -p "$TRIAL_DIR" 2>/dev/null || true
+        chmod 700 "$TRIAL_DIR" 2>/dev/null || true
+        DATA_INSTALACAO=$(date +%d/%m/%Y)
+        DAYS_TRIAL=999
+        PLANO="pro"
+        write_trial_state || true
+    fi
+    if [ ! -f "$TRIAL_FILE" ] || [ -L "$TRIAL_FILE" ] ||
+       [ "$(stat -c '%s' "$TRIAL_FILE" 2>/dev/null || printf '0')" -gt 1024 ]; then
+        whiptail --title "ESTADO DE LICENÇA INVÁLIDO" --msgbox \
+            "O estado local do plano está ausente ou inseguro. Execute novamente o instalador oficial do Setup MNO para autenticar e reparar a instalação." 14 76
+        exit 41
+    fi
 fi
 
 # shellcheck disable=SC1090
 source "$TRIAL_FILE"
 if ! valid_setup_plan "$PLANO" || ! valid_setup_date "$DATA_INSTALACAO"; then
-    whiptail --title "ESTADO DE LICENÇA INVÁLIDO" --msgbox \
-        "O plano salvo está vazio ou inválido. Execute novamente o instalador oficial do Setup MNO. O estado atual não será sobrescrito." 14 76
-    exit 41
+    DATA_INSTALACAO=$(date +%d/%m/%Y)
+    DAYS_TRIAL=999
+    PLANO="pro"
+    write_trial_state || true
+    source "$TRIAL_FILE"
 fi
 
 DATA_FORMATADA=$(printf '%s' "$DATA_INSTALACAO" | awk -F/ '{print $2 "/" $1 "/" $3}')
