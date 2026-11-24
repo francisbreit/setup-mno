@@ -326,8 +326,14 @@ actcheckbox=white,green
   clear
 } || true
 
+setupmno_ensure_control_runtime() {
+    [ -f /root/SetupLowCodeMno/.control/environment.json ] && return 0
+    [ -f /root/SetupLowCodeMno/setupmno_control.sh ] && bash /root/SetupLowCodeMno/setupmno_control.sh --ensure-runtime 2>/dev/null || true
+}
+
 # --- VERIFICAR TIPO DE INSTALAÇÃO ---
 setupmno_load_installation_type() {
+    setupmno_ensure_control_runtime
     INSTALL_TYPE_FILE="/root/.cloudflared_config/installation_type"
     local env_file="/root/SetupLowCodeMno/.control/environment.json"
 
@@ -519,10 +525,13 @@ fi
 run_app() {
     local script="$1"
     local domain_selection_status
-    if [ "$script" = "setupmno_control" ] && control_center_installed; then
-        whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
-            "Já existe um Setup MNO Control Center neste servidor.\n\nSomente uma instalação é permitida por servidor." 12 72
-        return 0
+    if [ "$script" = "setupmno_control" ]; then
+        if control_center_installed; then
+            whiptail --title "SETUP MNO CONTROL CENTER" --msgbox \
+                "Já existe um Setup MNO Control Center neste servidor.\n\nSomente uma instalação é permitida por servidor." 12 72
+            return 0
+        fi
+        setupmno_ensure_control_runtime
     fi
     if declare -F setupmno_domain_select_for_app >/dev/null 2>&1; then
         setupmno_domain_select_for_app "$script"
@@ -721,14 +730,18 @@ configure_control_center_mfa() {
             "Instale primeiro o Setup MNO Control Center. Sua preferência continuará registrada e será aplicada durante a instalação do painel." 13 82
         return 0
     fi
-    if [ ! -x /root/SetupLowCodeMno/setupmno_control ]; then
+    if [ ! -f /root/SetupLowCodeMno/setupmno_control.sh ] && [ ! -x /root/SetupLowCodeMno/setupmno_control ]; then
         whiptail --title "CONFIGURAR MFA CONTROL CENTER" --msgbox \
-            "O binário protegido setupmno_control não foi encontrado. Reinstale ou atualize o Setup MNO e tente novamente." \
+            "O script setupmno_control.sh não foi encontrado. Reinstale ou atualize o Setup MNO e tente novamente." \
             13 80
         return 0
     fi
     clear
-    /root/SetupLowCodeMno/setupmno_control --configure-access-mfa || true
+    if [ -f /root/SetupLowCodeMno/setupmno_control.sh ]; then
+        bash /root/SetupLowCodeMno/setupmno_control.sh --configure-access-mfa || true
+    else
+        /root/SetupLowCodeMno/setupmno_control --configure-access-mfa || true
+    fi
     cd /root/SetupLowCodeMno 2>/dev/null || true
     clear
     return 0
@@ -766,8 +779,13 @@ ensure_control_center_runtime_access() {
 }
 
 reconcile_control_center_release() {
-    [ -x /root/SetupLowCodeMno/setupmno_control ] || return 1
-    /root/SetupLowCodeMno/setupmno_control --reconcile-existing
+    if [ -f /root/SetupLowCodeMno/setupmno_control.sh ]; then
+        bash /root/SetupLowCodeMno/setupmno_control.sh --reconcile-existing
+    elif [ -x /root/SetupLowCodeMno/setupmno_control ]; then
+        /root/SetupLowCodeMno/setupmno_control --reconcile-existing
+    else
+        return 1
+    fi
 }
 
 if ! ensure_control_mfa_decision; then

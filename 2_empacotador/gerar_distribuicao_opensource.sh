@@ -56,8 +56,8 @@ cp "$BASE_DIR/1_codigo_fonte/setup-mno-logo.svg" "$DIST_DIR/"
 # 5. Compactar os arquivos x86 (SEM SENHA - Código Aberto Puro)
 echo -e "${amarelo}📦 Compactando arquivos x86 (sem senha)...${reset}"
 cd "$BASE_DIR/1_codigo_fonte/x86"
-# Criação do symlink 'install -> install.sh' dentro da pasta antes de zipar
-(cd SetupLowCodeMno && ln -sf install.sh install)
+# Criação dos symlinks essenciais dentro da pasta antes de zipar
+(cd SetupLowCodeMno && ln -sf install.sh install && ln -sf setupmno_control.sh setupmno_control)
 zip -q -r "$DIST_DIR/x86/SetupLowCodeMno.zip" SetupLowCodeMno
 tar -czf "$DIST_DIR/x86/SetupLowCodeMno.tar.gz" SetupLowCodeMno
 cd "$BASE_DIR/2_empacotador"
@@ -65,8 +65,8 @@ cd "$BASE_DIR/2_empacotador"
 # 6. Compactar os arquivos ARM (SEM SENHA - Código Aberto Puro)
 echo -e "${amarelo}📦 Compactando arquivos ARM (sem senha)...${reset}"
 cd "$BASE_DIR/1_codigo_fonte/arm"
-# Criação do symlink 'install -> install.sh' dentro da pasta antes de zipar
-(cd SetupLowCodeMno && ln -sf install.sh install)
+# Criação dos symlinks essenciais dentro da pasta antes de zipar
+(cd SetupLowCodeMno && ln -sf install.sh install && ln -sf setupmno_control.sh setupmno_control)
 zip -q -r "$DIST_DIR/arm/SetupLowCodeMno.zip" SetupLowCodeMno
 tar -czf "$DIST_DIR/arm/SetupLowCodeMno.tar.gz" SetupLowCodeMno
 cd "$BASE_DIR/2_empacotador"

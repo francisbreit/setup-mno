@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "engineVersion": "1.0.0",
+  "maturity": "beta",
+  "tools": {
+    "trivy": {
+      "version": "0.73.0",
+      "image": "ghcr.io/aquasecurity/trivy@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c",
+      "source": "https://github.com/aquasecurity/trivy/releases/tag/v0.73.0",
+      "coverage": "imagens locais dos servicos Docker Swarm, no maximo 8 por execucao"
+    },
+    "lynis": {
+      "version": "3.1.7",
+      "url": "https://downloads.cisofy.com/lynis/lynis-3.1.7.tar.gz",
+      "sha256": "b5314a07fd85fa3ffc7da57b508f0108ec3280d84e4af823f805d95cbbc2428c",
+      "source": "https://cisofy.com/downloads/lynis/",
+      "coverage": "configuracao de seguranca do host Linux"
+    },
+    "dockerBench": {
+      "version": "1.6.1",
+      "url": "https://github.com/docker/docker-bench-security/archive/refs/tags/v1.6.1.tar.gz",
+      "sha256": "736111db91d5c11808e015d3980c8cb199dce4d03bf35d897e23b7d87cc25844",
+      "source": "https://github.com/docker/docker-bench-security/releases/tag/v1.6.1",
+      "coverage": "CIS Docker Benchmark 1.6.0 conforme implementado pelo projeto"
+    }
+  },
+  "limits": {
+    "maximumImages": 8,
+    "maximumRawFileBytes": 16777216,
+    "resultMaximumBytes": 32768,
+    "freshnessHours": 24,
+    "trivyTimeoutSecondsPerImage": 240,
+    "lynisTimeoutSeconds": 900,
+    "dockerBenchTimeoutSeconds": 900
+  }
+}

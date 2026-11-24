@@ -531,6 +531,106 @@ EOF
     chmod 600 "$TRIAL_FILE" 2>/dev/null || true
 fi
 
+# Inicializar ou reparar o runtime do Control Center (.control)
+setupmno_ensure_control_runtime() {
+    local target_dir="${1:-$TARGET_DIR}"
+    local control_dir="$target_dir/.control"
+    local control_pkg="$target_dir/.control-package"
+    local env_file="$control_dir/environment.json"
+    local inst_type_file="/root/.cloudflared_config/installation_type"
+    local trad_creds="/root/.tradicional_config/tradicional_credentials"
+    local cf_creds="/root/.cloudflared_config/cloudflare_credentials"
+    local plan_file="$target_dir/.meu_app_trial/trial_info"
+    local inst_type="TRADICIONAL"
+    local plan="pro"
+    local tmp_file
+
+    [ -d "$target_dir" ] || return 0
+
+    if [ -f "$inst_type_file" ] && [ ! -L "$inst_type_file" ]; then
+        inst_type=$(head -n 1 "$inst_type_file" | tr -d '\r\n')
+    elif [ -f "$env_file" ] && [ ! -L "$env_file" ]; then
+        inst_type=$(jq -r '.installationType // empty' "$env_file" 2>/dev/null || true)
+    elif [ -s "$cf_creds" ]; then
+        inst_type="CLOUDFLARE_TUNNEL"
+    elif [ -s "$trad_creds" ]; then
+        inst_type="TRADICIONAL"
+    fi
+    case "$inst_type" in
+        CLOUDFLARE_TUNNEL|TRADICIONAL) ;;
+        *) inst_type="TRADICIONAL" ;;
+    esac
+
+    if [ ! -f "$inst_type_file" ]; then
+        mkdir -p "/root/.cloudflared_config" 2>/dev/null || true
+        printf '%s\n' "$inst_type" > "$inst_type_file" 2>/dev/null || true
+    fi
+
+    if [ -f "$plan_file" ] && [ ! -L "$plan_file" ]; then
+        local raw_plan
+        raw_plan=$(grep -E '^PLANO=' "$plan_file" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '"'"'")
+        [ -n "$raw_plan" ] && plan="$raw_plan"
+    fi
+    case "$plan" in
+        free|free1|free2|pro|pro-master) ;;
+        *) plan="pro" ;;
+    esac
+
+    mkdir -p "$control_dir" 2>/dev/null || true
+    chmod 0755 "$control_dir" 2>/dev/null || true
+
+    if [ -d "$control_pkg" ]; then
+        for item in catalog.json release.json protection-boundary.json control-source.tar.gz; do
+            if [ -f "$control_pkg/$item" ] && [ ! -f "$control_dir/$item" ]; then
+                cp -p "$control_pkg/$item" "$control_dir/$item" 2>/dev/null || cp "$control_pkg/$item" "$control_dir/$item" 2>/dev/null || true
+                chmod 0644 "$control_dir/$item" 2>/dev/null || true
+            fi
+        done
+        for subdir in knowledge-package homologation-package sre-engine supply-chain; do
+            if [ -d "$control_pkg/$subdir" ] && [ ! -d "$control_dir/$subdir" ]; then
+                cp -rp "$control_pkg/$subdir" "$control_dir/$subdir" 2>/dev/null || cp -r "$control_pkg/$subdir" "$control_dir/$subdir" 2>/dev/null || true
+                chmod -R 0755 "$control_dir/$subdir" 2>/dev/null || true
+            fi
+        done
+    fi
+
+    local needs_env=0
+    if [ ! -f "$env_file" ]; then
+        needs_env=1
+    elif ! jq -e '.schemaVersion == 1 and .plan and .installationType' "$env_file" >/dev/null 2>&1; then
+        needs_env=1
+    fi
+
+    if [ "$needs_env" -eq 1 ]; then
+        tmp_file=$(mktemp "$control_dir/environment.json.tmp.XXXXXX" 2>/dev/null || printf '%s/environment.json.tmp' "$control_dir")
+        if command -v jq >/dev/null 2>&1; then
+            jq -n \
+                --arg plan "$plan" \
+                --arg installationType "$inst_type" \
+                '{schemaVersion:1,plan:$plan,installationType:$installationType,fleetMode:"disabled"}' \
+                > "$tmp_file" 2>/dev/null || {
+                    cat > "$tmp_file" <<EOF
+{"schemaVersion":1,"plan":"$plan","installationType":"$inst_type","fleetMode":"disabled"}
+EOF
+                }
+        else
+            cat > "$tmp_file" <<EOF
+{"schemaVersion":1,"plan":"$plan","installationType":"$inst_type","fleetMode":"disabled"}
+EOF
+        fi
+        mv -f "$tmp_file" "$env_file" 2>/dev/null || true
+        chmod 0644 "$env_file" 2>/dev/null || true
+    fi
+
+    find "$control_dir" -type d -exec chmod 0755 {} + 2>/dev/null || true
+    find "$control_dir" -type f ! -name "mfa-state.json" ! -name "*.key" -exec chmod 0644 {} + 2>/dev/null || true
+    [ -f "$control_dir/mfa-state.json" ] && chmod 0600 "$control_dir/mfa-state.json" 2>/dev/null || true
+
+    [ -f "$target_dir/install.sh" ] && [ ! -e "$target_dir/install" ] && ln -sf "$target_dir/install.sh" "$target_dir/install" 2>/dev/null || true
+    [ -f "$target_dir/setupmno_control.sh" ] && [ ! -e "$target_dir/setupmno_control" ] && ln -sf "$target_dir/setupmno_control.sh" "$target_dir/setupmno_control" 2>/dev/null || true
+}
+setupmno_ensure_control_runtime "$TARGET_DIR"
+
 echo -e "${verde}✅ Setup MNO Open-Source preparado com sucesso!${reset}"
 sleep 1
 

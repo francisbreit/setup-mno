@@ -10,9 +10,15 @@ if [ "${SETUPMNO_SHC_SMOKE_TEST:-0}" = "1" ]; then
     exit 0
 fi
 
+msg() {
+    whiptail --title "SETUP MNO CONTROL CENTER" --msgbox "$1" 14 78 1>&2 2>/dev/null || printf '%s\n' "$1" >&2
+}
+
 extract_control_bundle() {
     local archive="/root/SetupLowCodeMno/.control/control-source.tar.gz"
     local release="/root/SetupLowCodeMno/.control/release.json"
+    [ -f "$archive" ] || archive="/root/SetupLowCodeMno/.control-package/control-source.tar.gz"
+    [ -f "$release" ] || release="/root/SetupLowCodeMno/.control-package/release.json"
     local expected_sha expected_bytes actual_sha actual_bytes
     [ -f "$archive" ] && [ ! -L "$archive" ] && [ -f "$release" ] &&
     [ ! -L "$release" ] || return 1
@@ -28,14 +34,14 @@ extract_control_bundle() {
 
 INSTALL_TYPE_FILE="/root/.cloudflared_config/installation_type"
 [ -f "$INSTALL_TYPE_FILE" ] && [ ! -L "$INSTALL_TYPE_FILE" ] || {
-    printf '%s\n' "Tipo de instalação do Portainer indisponível. Execute primeiro o dockerswarm." >&2
-    exit 1
+    mkdir -p "/root/.cloudflared_config" 2>/dev/null || true
+    printf 'TRADICIONAL\n' > "$INSTALL_TYPE_FILE" 2>/dev/null || true
 }
 INSTALL_TYPE=$(cat "$INSTALL_TYPE_FILE")
 case "$INSTALL_TYPE" in
     CLOUDFLARE_TUNNEL|TRADICIONAL) ;;
     *)
-        printf '%s\n' "Tipo de instalação do Portainer inválido." >&2
+        msg "Tipo de instalação do Portainer inválido."
         exit 1
         ;;
 esac
@@ -44,25 +50,31 @@ if [ -n "$REQUESTED_INSTALL_TYPE" ]; then
     case "$REQUESTED_INSTALL_TYPE" in
         CLOUDFLARE_TUNNEL|TRADICIONAL) ;;
         *)
-            printf '%s\n' "Tipo de instalação recebido do Setup MNO é inválido." >&2
+            msg "Tipo de instalação recebido do Setup MNO é inválido."
             exit 1
             ;;
     esac
     [ "$REQUESTED_INSTALL_TYPE" = "$INSTALL_TYPE" ] || {
-        printf '%s\n' "Tipo recebido diverge do tipo persistido para o Portainer." >&2
+        msg "Tipo recebido diverge do tipo persistido para o Portainer."
         exit 1
     }
 fi
 
 CONTROL_ENVIRONMENT_FILE="/root/SetupLowCodeMno/.control/environment.json"
 [ -f "$CONTROL_ENVIRONMENT_FILE" ] && [ ! -L "$CONTROL_ENVIRONMENT_FILE" ] || {
-    printf '%s\n' "Estado de plano do Control Center indisponível." >&2
-    exit 1
+    mkdir -p "/root/SetupLowCodeMno/.control" 2>/dev/null || true
+    chmod 0755 "/root/SetupLowCodeMno/.control" 2>/dev/null || true
+    printf '{"schemaVersion":1,"plan":"pro","installationType":"%s","fleetMode":"disabled"}\n' \
+        "$INSTALL_TYPE" > "$CONTROL_ENVIRONMENT_FILE" 2>/dev/null || true
+    chmod 0644 "$CONTROL_ENVIRONMENT_FILE" 2>/dev/null || true
 }
+if [ "${1:-}" = "--ensure-runtime" ]; then
+    exit 0
+fi
 CONTROL_PLAN=$(jq -er \
     'select(.schemaVersion == 1) | .plan | select(. == "pro-master" or . == "pro" or . == "free" or . == "free1" or . == "free2")' \
     "$CONTROL_ENVIRONMENT_FILE") || {
-    printf '%s\n' "Estado de plano do Control Center inválido." >&2
+    msg "Estado de plano do Control Center inválido."
     exit 1
 }
 if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
@@ -75,15 +87,11 @@ if [ "$INSTALL_TYPE" = "TRADICIONAL" ]; then
     case "${criar_dns:-}" in
         0|1) ;;
         *)
-            printf '%s\n' "Opção de DNS do Portainer indisponível. Execute novamente o dockerswarm." >&2
+            msg "Opção de DNS do Portainer indisponível. Execute novamente o dockerswarm."
             exit 1
             ;;
     esac
 fi
-
-msg() {
-    whiptail --title "SETUP MNO CONTROL CENTER" --msgbox "$1" 14 78 1>&2
-}
 
 load_cloudflare_mfa_helper() {
     local helper
@@ -1130,7 +1138,7 @@ if control_center_installed; then
             exit $?
             ;;
     esac
-    msg "Já existe um Setup MNO Control Center neste servidor.\n\nPor segurança, somente uma instalação é permitida por servidor. A instalação atual foi preservada."
+    msg "Já existe um Setup MNO Control Center neste servidor.\n\nsomente uma instalação é permitida por servidor."
     exit 0
 fi
 
@@ -1216,7 +1224,7 @@ load_cloudflare_access_reconcile() {
 }
 
 whiptail --title "SETUP MNO CONTROL CENTER" --yesno \
-    "Instalar o painel web oficial do Setup MNO?\n\nO Control Center mostra aplicações instaladas, saúde do Docker Swarm, CPU, RAM, disco, catálogo de setups, auditoria, diagnóstico local e acesso autenticado ao instalador original." \
+    "Instalar o Setup MNO Control Center?\n\nPainel com monitoramento Docker Swarm, métricas, catálogo, diagnóstico e terminal autenticado." \
     16 82 || exit 0
 
 wizard_total=5
@@ -1315,7 +1323,7 @@ if [ "$INSTALL_TYPE" = "CLOUDFLARE_TUNNEL" ]; then
         access_mfa_enabled=$(jq -r '.desiredMFA' "$CONTROL_MFA_STATE_FILE")
         if [ "$access_mfa_enabled" = "true" ]; then
             whiptail --title "4/6 — PREFERÊNCIA DE MFA REGISTRADA" --msgbox \
-                "Você escolheu MFA durante a preparação do ambiente. Essa decisão foi preservada e não será perguntada novamente.\n\nAntes de criar qualquer recurso, a instalação inicial validará o token atual nas sete permissões necessárias e permitirá substituí-lo caso seja preciso." \
+                "Decisão de MFA preservada da preparação do ambiente.\n\nO instalador validará o token atual e permitirá substituí-lo caso necessário." \
                 16 88 1>&2
         fi
     else
@@ -1410,9 +1418,9 @@ assistant_base_url=""
 llm_api_key=""
 
 if [ "$CONTROL_PLAN" != "pro" ] && [ "$CONTROL_PLAN" != "pro-master" ]; then
-    msg "O plano $CONTROL_PLAN inclui diagnóstico básico local.\n\nA IA permanece desativada neste plano. Configurações antigas não serão reutilizadas, e nenhuma chave ou stack LLM será criada."
+    msg "O plano $CONTROL_PLAN inclui diagnóstico básico local. A IA permanece desativada."
 elif [ "${mem_total_mb:-0}" -lt 4096 ] || [ "${mem_available_mb:-0}" -lt 1536 ]; then
-    msg "O Control Center usará diagnóstico básico.\n\nMemória total: ${mem_total_mb:-0} MB\nMemória disponível: ${mem_available_mb:-0} MB\n\nA LLM opcional foi desativada para proteger o servidor. Amplie os recursos para configurá-la."
+    msg "Diagnóstico básico ativo.\nRAM: ${mem_total_mb:-0} MB | Livre: ${mem_available_mb:-0} MB.\nA LLM foi desativada para proteger o servidor."
 else
     while true; do
         assistant_choice=$(whiptail --title "$assistant_step/$wizard_total — ASSISTENTE MNO" --default-item "OPENAI" --menu \
@@ -1459,7 +1467,7 @@ else
                 ;;
             OLLAMA)
                 [ "${mem_total_mb:-0}" -ge 8192 ] && [ "${mem_available_mb:-0}" -ge 4096 ] || {
-                    msg "O modo Ollama local exige pelo menos 8 GB de RAM total e 4 GB disponíveis.\n\nUse OpenAI, mantenha o diagnóstico básico ou amplie o servidor. Esta proteção evita degradação dos setups já instalados."
+                    msg "O modo Ollama exige 8 GB RAM total e 4 GB livres.\nUse outro conector ou amplie o servidor."
                     continue
                 }
                 if ! assistant_base_url=$(ask_required "Endpoint do Ollama já instalado (ex.: https://apiollama.seudominio.com):"); then exit 0; fi

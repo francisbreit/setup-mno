@@ -1204,10 +1204,33 @@ valid_setup_plan() {
 }
 
 sync_control_center_installation_type() {
-    local environment_file="/root/SetupLowCodeMno/.control/environment.json"
+    local control_dir="/root/SetupLowCodeMno/.control"
+    local environment_file="$control_dir/environment.json"
     local temporary_file
 
-    [ -f "$environment_file" ] && [ ! -L "$environment_file" ] || return 1
+    if [ ! -f "$environment_file" ] || [ -L "$environment_file" ]; then
+        mkdir -p "$control_dir" 2>/dev/null || true
+        chmod 0755 "$control_dir" 2>/dev/null || true
+        temporary_file=$(mktemp "${environment_file}.tmp.XXXXXX" 2>/dev/null || printf '%s/environment.json.tmp' "$control_dir")
+        local curr_plan="${PLANO:-pro}"
+        case "$curr_plan" in
+            free|free1|free2|pro|pro-master) ;;
+            *) curr_plan="pro" ;;
+        esac
+        jq -n \
+            --arg plan "$curr_plan" \
+            --arg installationType "$INSTALL_CHOICE" \
+            '{schemaVersion:1,plan:$plan,installationType:$installationType,fleetMode:"disabled"}' \
+            >"$temporary_file" 2>/dev/null || {
+                cat > "$temporary_file" <<EOF
+{"schemaVersion":1,"plan":"$curr_plan","installationType":"$INSTALL_CHOICE","fleetMode":"disabled"}
+EOF
+            }
+        mv -f "$temporary_file" "$environment_file" 2>/dev/null || true
+        chmod 0644 "$environment_file" 2>/dev/null || true
+        return 0
+    fi
+
     temporary_file=$(mktemp "${environment_file}.tmp.XXXXXX") || return 1
     chmod 0644 "$temporary_file" || { rm -f "$temporary_file"; return 1; }
     jq --arg installation_type "$INSTALL_CHOICE" \
