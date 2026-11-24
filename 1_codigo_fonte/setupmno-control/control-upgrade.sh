@@ -409,11 +409,11 @@ run_with_heartbeat 50 "CONSTRUINDO E VALIDANDO O EXECUTOR ISOLADO SRE-6 BETA..."
     bash "$source_dir/strix-lab/build-executor.sh" \
     "$source_dir" "$strix_executor_image" "$log_file" ||
     fail_upgrade 32 "Falha ao construir ou validar o executor isolado SRE-6 BETA."
-run_with_heartbeat 55 "VALIDANDO A COMPATIBILIDADE DO TERMINAL COM O SHC..." \
-    docker run --rm --entrypoint /usr/bin/ldd -v /root:/root:ro \
-    -v /usr/bin/bash:/usr/bin/bash:ro "$terminal_image" \
-    /root/SetupLowCodeMno/install ||
-    fail_upgrade 33 "O terminal não é compatível com o binário SHC instalado."
+run_with_heartbeat 55 "VALIDANDO A COMPATIBILIDADE DO TERMINAL COM O INSTALADOR..." \
+    docker run --rm --entrypoint /usr/bin/bash -v /root:/root:ro \
+    "$terminal_image" -c \
+    't=/root/SetupLowCodeMno/install; [ -e "$t" ] || t="${t}.sh"; if head -c4 "$t" 2>/dev/null | grep -q ELF; then ldd "$t"; else bash -n "$t"; fi' ||
+    fail_upgrade 33 "O terminal não é compatível com o instalador do Setup MNO."
 
 run_with_heartbeat 62 "ATUALIZANDO O AGENTE SEM RECRIAR A STACK..." \
     update_agent "$agent_service" "$control_image" || fail_upgrade 40 "Falha ao atualizar o agente."

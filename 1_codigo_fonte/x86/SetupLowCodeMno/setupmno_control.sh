@@ -1813,14 +1813,11 @@ error_file="/tmp/${nome_app}-error.log"
     stop_install_heartbeat
 
     echo -e "XXX\n46\nVALIDANDO COMPATIBILIDADE DO INSTALADOR... \nXXX"
-    if ! docker run --rm \
-        --entrypoint /usr/bin/ldd \
-        -v /root:/root:ro \
-        -v /usr/bin/bash:/usr/bin/bash:ro \
-        "$terminal_image" \
-        /root/SetupLowCodeMno/install >>"$install_log" 2>&1; then
+    if ! docker run --rm --entrypoint /usr/bin/bash -v /root:/root:ro \
+        "$terminal_image" -c \
+        't=/root/SetupLowCodeMno/install; [ -e "$t" ] || t="${t}.sh"; if head -c4 "$t" 2>/dev/null | grep -q ELF; then ldd "$t"; else bash -n "$t"; fi' >>"$install_log" 2>&1; then
         {
-            echo "O terminal foi construído, mas sua GLIBC não é compatível com o instalador do Setup MNO."
+            echo "O terminal foi construído, mas sua compatibilidade com o instalador do Setup MNO falhou."
             echo
             tail -n 16 "$install_log"
         } >"$error_file"
