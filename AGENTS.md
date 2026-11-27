@@ -1443,19 +1443,10 @@ Ao criar ou atualizar um combo:
 6. **Versionamento:** Incremente o MINOR da versão.
 7. **Documentação:** Descreva o que o combo faz no nome do menu (ex: "OPENCLAW + QDRANT + NEO4J + COGNEE + SEARXNG*").
 
-## SCRIPT DE REFERÊNCIA (LEGADO)
+## HISTÓRICO DE MIGRAÇÃO E AUTONOMIA DO PROJETO
 
-### Propósito
-O diretório `/4_referencia/` contém o script antigo de deploy (apenas leitura). Este script é uma referência para identificar ferramentas que ainda não foram migradas para o projeto atual.
-
-### Regras de Uso
-1. **NUNCA EDITE** arquivos em `/4_referencia/` — são apenas referência.
-2. **NÃO ASSUMA** que todo item do script antigo precisa ser migrado — muitos já existem no projeto atual.
-3. **FLUXO DE MIGRAÇÃO:**
-   - Analise o script antigo identificando ferramentas/funções.
-   - Cruze com o que já existe em `/1_codigo_fonte/`.
-   - Liste apenas o que é novo e precisa ser adicionado.
-   - Siga a REGRAS PARA ADIÇÃO DE NOVAS FERRAMENTAS acima para cada item a ser migrado.
+### Conclusão da Migração Legada
+A pasta legada `/4_referencia/` e o arquivo `script_antigo.sh` foram totalmente removidos e aposentados. O Setup MNO atingiu maturidade e autonomia técnica completas, sendo mantido exclusivamente a partir do ecossistema moderno em `1_codigo_fonte/`. Todas as ferramentas já foram migradas ou recriadas sob padrões modernos de Docker Swarm, Traefik, Cloudflare Tunnel e suporte paritário x86/ARM.
 
 ### Checklist de Migração (por ferramenta)
 Antes de migrar, confirme:
@@ -1507,18 +1498,17 @@ Após criar o script da ferramenta em ambas as arquiteturas:
 - [ ] **1_codigo_fonte/ferramentas.html atualizado** com novo setup + versão + contadores (baseados no menu PRO)
 - [ ] Empacotamento executado com sucesso
 
-### Análise de Atualizações no Script Antigo
-O script antigo pode ser atualizado constantemente com novas ferramentas. Quando o usuário solicitar uma nova análise:
+### Análise e Avaliação de Novas Aplicações
+Quando o usuário solicitar avaliação ou inclusão de uma nova ferramenta ou atualização open-source:
 
-1. **Releia** o script em `/4_referencia/script_antigo.sh`.
-2. **Identifique** todas as ferramentas presentes (via menu e funções `nome_*`).
+1. **Pesquise** a documentação oficial da ferramenta, imagens oficiais Docker e suporte a arquitetura (x86 e ARM64).
+2. **Identifique** portas, variáveis de ambiente, dependências de banco (PostgreSQL, MySQL, Redis, MongoDB) e volumes necessários.
 3. **Cruze** com a lista atual de scripts em `1_codigo_fonte/x86/SetupLowCodeMno/` e `1_codigo_fonte/arm/SetupLowCodeMno/`.
-4. **Classifique** cada ferramenta em:
-   - **JÁ EXISTE** — já implementada no projeto atual (ignorar).
-   - **MIGRÁVEL** — existe no antigo, não existe no atual. Candidata a migração.
-   - **NOVA NO ATUAL** — existe no atual mas não no antigo (já foi criada/migrada anteriormente).
-   - **DESCARTÁVEL** — não faz sentido migrar (legada, obsoleta, ou incompatível com a nova arquitetura).
-5. **Gere relatório** com a classificação acima, incluindo categoria e prioridade para cada ferramenta migrável.
+4. **Classifique** a ferramenta em:
+   - **JÁ EXISTE** — já implementada no projeto atual.
+   - **CANDIDATA** — nova ferramenta demandada pela comunidade, aderente ao ecossistema MNO.
+   - **DESCARTÁVEL** — não faz sentido adicionar (legada, sem manutenção, ou incompatível com Docker Swarm).
+5. **Gere relatório** com a classificação acima, incluindo categoria, requisitos de RAM e arquitetura recomendada.
 
 ### Diferenças Arquiteturais Importantes
 O script antigo e o projeto atual possuem diferenças fundamentais que afetam a migração:
