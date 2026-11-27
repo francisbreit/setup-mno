@@ -116,6 +116,40 @@ if [ "${SETUPMNO_INSTALL_RETURN_SMOKE_TEST:-0}" = "1" ]; then
     setup_mno_return_to_installer /usr/bin/true
 fi
 
+CONTATO_WP="+55 (11) 96816-2690"
+CONTATO_EMAIL="francisbreit@gmail.com"
+CONTATO_GITHUB="github.com/francisbreit"
+
+# --- SAIR ---
+do_exit() {
+    clear
+    echo -e "\033[1;36m"
+    echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
+    echo -e "\033[1;33m"
+    echo "  ███╗   ███╗███╗   ██╗ ██████╗"
+    echo "  ████╗ ████║████╗  ██║██╔═══██╗"
+    echo "  ██╔████╔██║██╔██╗ ██║██║   ██║"
+    echo "  ██║╚██╔╝██║██║╚██╗██║██║   ██║"
+    echo "  ██║ ╚═╝ ██║██║ ╚████║╚██████╔╝"
+    echo "  ╚═╝     ╚═╝╚═╝  ╚═══╝ ╚═════╝"
+    echo -e "\033[1;36m"
+    echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
+    echo -e "\033[0m"
+    echo -e "\033[1;32m"
+    echo "  SETUP MNO FINALIZADO COM ÊXITO!"
+    echo "  P/ INICIAR: SEMPRE DIGITE 'setup-mno' NO TERMINAL"
+    echo ""
+    echo -e "   \033[1;35m🚀 COMANDO DE REATIVAÇÃO:\033[1;37m setup-mno"
+    echo -e "   \033[1;35m📡 CANAIS DE SUPORTE:"
+    echo -e "      \033[1;36m● WhatsApp: $CONTATO_WP"
+    echo -e "      \033[1;36m● Email: $CONTATO_EMAIL"
+    echo -e "      \033[1;36m● GitHub: $CONTATO_GITHUB"
+    echo -e "   \033[1;33m⚠️  SISTEMA PRONTO PARA OPERAÇÃO"
+    echo -e "\033[0m"
+    sleep 1
+    exit 0
+}
+
 #########################################################
 # INICIALIZA / RECONECTA À SESSÃO TMUX
 #########################################################
@@ -159,6 +193,9 @@ if [ -z "${TMUX:-}" ] && [ -t 0 ] && [ -t 1 ]; then
                 # Se falhar ao reconectar, encerra a sessão travada e continua no terminal atual.
                 if tmux attach-session -d -t "$SETUP_MNO_TMUX_SESSION"; then
                     TMUX_STATUS=$?
+                    if [ "$TMUX_STATUS" -eq 0 ] && ! tmux has-session -t "$SETUP_MNO_TMUX_SESSION" 2>/dev/null; then
+                        do_exit
+                    fi
                     exit "$TMUX_STATUS"
                 else
                     tmux kill-session -t "$SETUP_MNO_TMUX_SESSION" >/dev/null 2>&1 || true
@@ -185,6 +222,9 @@ if [ -z "${TMUX:-}" ] && [ -t 0 ] && [ -t 1 ]; then
 
             if tmux attach-session -t "$SETUP_MNO_TMUX_SESSION"; then
                 TMUX_STATUS=$?
+                if [ "$TMUX_STATUS" -eq 0 ] && ! tmux has-session -t "$SETUP_MNO_TMUX_SESSION" 2>/dev/null; then
+                    do_exit
+                fi
                 exit "$TMUX_STATUS"
             else
                 tmux kill-session -t "$SETUP_MNO_TMUX_SESSION" >/dev/null 2>&1 || true
@@ -867,36 +907,6 @@ Pressione ENTER para voltar ao Menu Principal." 18 76
         whiptail --title "APP STUDIO" --msgbox \
             "O componente Setup MNO App Studio não foi encontrado em $appstudio_script." 10 70
     fi
-}
-
-# --- SAIR ---
-do_exit() {
-    clear
-    echo -e "\033[1;36m"
-    echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-    echo -e "\033[1;33m"
-    echo "  ███╗   ███╗███╗   ██╗ ██████╗"
-    echo "  ████╗ ████║████╗  ██║██╔═══██╗"
-    echo "  ██╔████╔██║██╔██╗ ██║██║   ██║"
-    echo "  ██║╚██╔╝██║██║╚██╗██║██║   ██║"
-    echo "  ██║ ╚═╝ ██║██║ ╚████║╚██████╔╝"
-    echo "  ╚═╝     ╚═╝╚═╝  ╚═══╝ ╚═════╝"
-    echo -e "\033[1;36m"
-    echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-    echo -e "\033[0m"
-    echo -e "\033[1;32m"
-    echo "  SETUP MNO FINALIZADO COM ÊXITO!"
-    echo "  P/ INICIAR: SEMPRE DIGITE 'setup-mno' NO TERMINAL"
-    echo ""
-    echo -e "   \033[1;35m🚀 COMANDO DE REATIVAÇÃO:\033[1;37m setup-mno"
-    echo -e "   \033[1;35m📡 CANAIS DE SUPORTE:"
-    echo -e "      \033[1;36m● WhatsApp: $CONTATO_WP"
-    echo -e "      \033[1;36m● Email: $CONTATO_EMAIL"
-    echo -e "      \033[1;36m● GitHub: $CONTATO_GITHUB"
-    echo -e "   \033[1;33m⚠️  SISTEMA PRONTO PARA OPERAÇÃO"
-    echo -e "\033[0m"
-    sleep 1
-    exit 0
 }
 
 # ===================== LOOP PRINCIPAL =====================
